@@ -18,6 +18,7 @@
 
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/paths.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader_impl.h"
 #include "starboard/elf_loader/evergreen_config.h"
@@ -63,8 +64,8 @@ bool ElfLoader::Load(const std::string& library_path,
                      bool use_compression,
                      bool use_memory_mapped_file) {
   if (is_relative_path) {
-    library_path_ = MakeRelativeToContentPath(library_path);
-    content_path_ = MakeRelativeToContentPath(content_path);
+    library_path_ = common::PrependContentPath(library_path);
+    content_path_ = common::PrependContentPath(content_path);
   } else {
     library_path_ = library_path;
     content_path_ = content_path;
@@ -88,24 +89,6 @@ bool ElfLoader::Load(const std::string& library_path,
 
 void* ElfLoader::LookupSymbol(const char* symbol) {
   return impl_->LookupSymbol(symbol);
-}
-
-std::string ElfLoader::MakeRelativeToContentPath(const std::string& path) {
-  std::vector<char> content_path(kSbFileMaxPath);
-
-  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                       kSbFileMaxPath)) {
-    SB_LOG(ERROR) << "Failed to make '" << path.data()
-                  << "' relative to the ELF Loader content directory.";
-    return "";
-  }
-
-  std::string relative_path(content_path.data());
-
-  relative_path.push_back(kSbFileSepChar);
-  relative_path.append(path);
-
-  return relative_path;
 }
 
 }  // namespace elf_loader

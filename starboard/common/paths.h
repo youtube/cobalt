@@ -20,10 +20,14 @@
 namespace starboard {
 namespace common {
 
+// Returns an empty string on error.
+std::string PrependContentPath(const std::string& path);
+
 // Returns the absolute path to a directory that contains Cobalt's trusted
 // Certificate Authority (CA) root certificates, or an empty string if it can't
 // be found.
 std::string GetCACertificatesPath();
+std::string GetCACertificatesPath(const std::string& content_subdir);
 
 }  // namespace common
 }  // namespace starboard

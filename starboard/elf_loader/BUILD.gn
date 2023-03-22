@@ -21,8 +21,6 @@ _elf_loader_sources = [
   "elf_header.h",
   "elf_loader.cc",
   "elf_loader.h",
-  "elf_loader_constants.cc",
-  "elf_loader_constants.h",
   "exported_symbols.cc",
   "file.h",
   "file_impl.cc",
@@ -53,9 +51,11 @@ static_library("elf_loader") {
   configs += [ ":elf_loader_config" ]
 
   deps = [
+    ":constants",
     ":evergreen_config",
     ":evergreen_info",
     "//starboard",
+    "//starboard/common",
     "//third_party/lz4_lib:lz4",
   ]
 }
@@ -73,9 +73,11 @@ if (sb_is_evergreen_compatible) {
     configs += [ ":elf_loader_config" ]
 
     deps = [
+      ":constants",
       ":evergreen_config",
       ":evergreen_info",
       "//starboard",
+      "//starboard/common",
     ]
 
     if (sb_is_evergreen_compatible) {
@@ -101,6 +103,7 @@ target(final_executable_type, "elf_loader_sandbox") {
   configs += [ ":elf_loader_config" ]
 
   deps = [
+    ":constants",
     ":elf_loader",
     ":evergreen_info",
     ":sabi_string",
@@ -134,6 +137,7 @@ if (sb_is_evergreen_compatible) {
     ]
 
     deps = [
+      ":constants",
       ":elf_loader_sys",
       ":evergreen_info",
       ":sabi_string",
@@ -183,6 +187,14 @@ copy("copy_elf_loader_testdata") {
   ]
   subdir = "starboard/elf_loader"
   outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/{{source_target_relative}}" ]
+}
+
+static_library("constants") {
+  sources = [
+    "elf_loader_constants.cc",
+    "elf_loader_constants.h",
+  ]
+  deps = [ "//starboard:starboard_headers_only" ]
 }
 
 static_library("evergreen_info") {

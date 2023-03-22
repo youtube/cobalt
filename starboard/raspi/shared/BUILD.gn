@@ -397,10 +397,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
-  if (sb_is_evergreen_compatible) {
-    public_deps += [ "//starboard/loader_app:pending_restart" ]
-  }
-
   deps = [
     "//third_party/libevent",
     "//third_party/opus",
@@ -411,7 +407,11 @@ static_library("starboard_platform_sources") {
   }
 
   if (sb_is_evergreen_compatible) {
-    public_deps += [ "//starboard/elf_loader:evergreen_config" ]
+    public_deps += [
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:evergreen_config",
+      "//starboard/loader_app:pending_restart",
+    ]
     deps += [ "//third_party/crashpad/wrapper" ]
   } else {
     deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]

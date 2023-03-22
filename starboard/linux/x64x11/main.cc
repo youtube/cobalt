@@ -21,6 +21,7 @@
 #include "starboard/shared/signal/suspend_signals.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/common/paths.h"
+#include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/starboard_switches.h"
 #endif
@@ -36,22 +37,25 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   starboard::shared::signal::InstallSuspendSignalHandlers();
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
-  std::string ca_certificates_path = starboard::common::GetCACertificatesPath();
+  auto command_line = starboard::shared::starboard::CommandLine(argc, argv);
+  auto evergreen_content_path =
+      command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent);
+  std::string ca_certificates_path =
+      evergreen_content_path.empty()
+          ? starboard::common::GetCACertificatesPath()
+          : starboard::common::GetCACertificatesPath(evergreen_content_path);
   if (ca_certificates_path.empty()) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
     return 1;
   }
 
-  if (starboard::shared::starboard::CommandLine(argc, argv)
-          .HasSwitch(starboard::shared::starboard::kStartHandlerAtLaunch) &&
-      !starboard::shared::starboard::CommandLine(argc, argv)
-           .HasSwitch(starboard::shared::starboard::kStartHandlerAtCrash)) {
-    third_party::crashpad::wrapper::InstallCrashpadHandler(
-        false, ca_certificates_path);
-  } else {
-    third_party::crashpad::wrapper::InstallCrashpadHandler(
-        true, ca_certificates_path);
-  }
+  bool start_handler_at_crash =
+      command_line.HasSwitch(
+          starboard::shared::starboard::kStartHandlerAtCrash) ||
+      !command_line.HasSwitch(
+          starboard::shared::starboard::kStartHandlerAtLaunch);
+  third_party::crashpad::wrapper::InstallCrashpadHandler(start_handler_at_crash,
+                                                         ca_certificates_path);
 #endif
 
 #if SB_HAS_QUIRK(BACKTRACE_DLOPEN_BUG)

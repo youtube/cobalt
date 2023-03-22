@@ -27,6 +27,7 @@ group("common_loader_app_dependencies") {
     ":memory_tracker_thread",
     ":slot_management",
     "//starboard",
+    "//starboard/elf_loader:constants",
     "//starboard/elf_loader:evergreen_info",
     "//starboard/elf_loader:sabi_string",
   ]
@@ -267,6 +268,7 @@ static_library("slot_management") {
     ":installation_manager",
     "//starboard",
     "//starboard/elf_loader",
+    "//starboard/elf_loader:constants",
     "//starboard/elf_loader:sabi_string",
   ]
 

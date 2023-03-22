@@ -34,6 +34,7 @@ group("starboard_platform") {
 
   if (sb_is_evergreen_compatible) {
     public_deps += [
+      "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_config",
       "//starboard/loader_app:pending_restart",
     ]
