@@ -33,7 +33,7 @@ H5vcc::H5vcc(const Settings& settings) {
   runtime_ = new H5vccRuntime(settings.event_dispatcher);
   settings_ =
       new H5vccSettings(settings.set_web_setting_func, settings.media_module,
-                        settings.network_module,
+                        settings.can_play_type_handler, settings.network_module,
 #if SB_IS(EVERGREEN)
                         settings.updater_module,
 #endif

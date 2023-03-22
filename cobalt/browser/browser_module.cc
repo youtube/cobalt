@@ -2098,6 +2098,7 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
                                        ->user_agent_data();
   h5vcc_settings.global_environment = settings->context()->global_environment();
   h5vcc_settings.persistent_settings = options_.persistent_settings;
+  h5vcc_settings.can_play_type_handler = can_play_type_handler_.get();
 
   auto* h5vcc_object = new h5vcc::H5vcc(h5vcc_settings);
   if (!web_module_created_callback_.is_null()) {

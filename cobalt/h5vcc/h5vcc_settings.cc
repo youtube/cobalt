@@ -19,16 +19,29 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSettings::H5vccSettings(const SetSettingFunc& set_web_setting_func,
-                             cobalt::media::MediaModule* media_module,
-                             cobalt::network::NetworkModule* network_module,
+namespace {
+// Only including needed video combinations for the moment.
+// option 0 disables all video codecs except h264
+// option 1 disables all video codecs except av1
+// option 2 disables all video codecs except vp9
+constexpr std::array<const char*, 3> kDisableCodecCombinations{
+    "av01;hev1;hvc1;vp09;vp8.vp9", "avc1;avc3;hev1;hvc1;vp09;vp8;vp9",
+    "av01;avc1;avc3;hev1;hvc1;vp8"};
+};  // namespace
+
+H5vccSettings::H5vccSettings(
+    const SetSettingFunc& set_web_setting_func,
+    cobalt::media::MediaModule* media_module,
+    cobalt::media::CanPlayTypeHandler* can_play_type_handler,
+    cobalt::network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
-                             cobalt::updater::UpdaterModule* updater_module,
+    cobalt::updater::UpdaterModule* updater_module,
 #endif
-                             web::NavigatorUAData* user_agent_data,
-                             script::GlobalEnvironment* global_environment)
+    web::NavigatorUAData* user_agent_data,
+    script::GlobalEnvironment* global_environment)
     : set_web_setting_func_(set_web_setting_func),
       media_module_(media_module),
+      can_play_type_handler_(can_play_type_handler),
       network_module_(network_module),
 #if SB_IS(EVERGREEN)
       updater_module_(updater_module),
@@ -39,12 +52,20 @@ H5vccSettings::H5vccSettings(const SetSettingFunc& set_web_setting_func,
 
 bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kMediaPrefix[] = "Media.";
+  const char kDisableMediaCodec[] = "DisableMediaCodec";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
 #endif
+
+  if (name == kDisableMediaCodec &&
+      value < static_cast<int32>(kDisableCodecCombinations.size())) {
+    can_play_type_handler_->SetDisabledMediaCodecs(
+        kDisableCodecCombinations[value]);
+    return true;
+  }
 
   if (set_web_setting_func_ && set_web_setting_func_.Run(name, value)) {
     return true;

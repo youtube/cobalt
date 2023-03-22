@@ -46,6 +46,7 @@ class H5vcc : public script::Wrappable {
   struct Settings {
     Settings()
         : media_module(NULL),
+          can_play_type_handler(NULL),
           network_module(NULL),
 #if SB_IS(EVERGREEN)
           updater_module(NULL),
@@ -57,6 +58,7 @@ class H5vcc : public script::Wrappable {
     }
     H5vccSettings::SetSettingFunc set_web_setting_func;
     media::MediaModule* media_module;
+    media::CanPlayTypeHandler* can_play_type_handler;
     network::NetworkModule* network_module;
 #if SB_IS(EVERGREEN)
     updater::UpdaterModule* updater_module;

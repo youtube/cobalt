@@ -40,6 +40,7 @@ class H5vccSettings : public script::Wrappable {
 
   H5vccSettings(const SetSettingFunc& set_web_setting_func,
                 cobalt::media::MediaModule* media_module,
+                cobalt::media::CanPlayTypeHandler* can_play_type_handler,
                 cobalt::network::NetworkModule* network_module,
 #if SB_IS(EVERGREEN)
                 cobalt::updater::UpdaterModule* updater_module,
@@ -57,6 +58,7 @@ class H5vccSettings : public script::Wrappable {
  private:
   const SetSettingFunc set_web_setting_func_;
   cobalt::media::MediaModule* media_module_ = nullptr;
+  cobalt::media::CanPlayTypeHandler* can_play_type_handler_ = nullptr;
   cobalt::network::NetworkModule* network_module_ = nullptr;
 #if SB_IS(EVERGREEN)
   cobalt::updater::UpdaterModule* updater_module_ = nullptr;
