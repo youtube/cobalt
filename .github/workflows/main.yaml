@@ -291,7 +291,7 @@ jobs:
               ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
               ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
               ${DIMENSION:+"--dimension" "$DIMENSION"} \
-              --archive_path gs://${PROJECT_NAME}-test-artifacts-tmp/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+              --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
               --label github \
               --label ${{ github.event_name }} \
               --label ${{ github.workflow }} \
