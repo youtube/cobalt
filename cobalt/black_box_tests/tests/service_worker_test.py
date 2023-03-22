@@ -26,11 +26,11 @@ _SERVER_ROOT_PATH = os.path.join(os.path.dirname(__file__), os.pardir)
 paths_to_headers = {
     'service_worker_test.html': {
         'Content-Security-Policy':
-            "script-src 'unsafe-inline' 'self'; worker-src 'self'"
+            "script-src 'nonce-blackboxtest' ; worker-src 'self'"
     },
     'service_worker_test_worker.js': {
         'Content-Security-Policy':
-            "script-src 'unsafe-inline' 'self'; connect-src 'self'"
+            "connect-src 'self' ; script-src 'none' ; worker-src 'self'"
     }
 }
 

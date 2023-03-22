@@ -120,7 +120,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     TRACE_EVENT0("cobalt::worker", "ScriptLoader::LoaderTask()");
     csp::SecurityCallback csp_callback =
         base::Bind(&web::CspDelegate::CanLoad, base::Unretained(csp_delegate),
-                   web::CspDelegate::kScript);
+                   web::CspDelegate::kWorker);
 
     bool skip_fetch_intercept =
         context_->GetWindowOrWorkerGlobalScope()->IsServiceWorker();
