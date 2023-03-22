@@ -3,11 +3,15 @@ description: Builds Cobalt targets
 runs:
   using: "composite"
   steps:
+    - name: Set up Cloud SDK
+      if: startsWith(${{matrix.target_platform}}, 'android')
+      uses: google-github-actions/setup-gcloud@v1
     - name: Set Android env vars
       if: startsWith(${{matrix.target_platform}}, 'android')
       run: |
         echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
-        echo "GCS_NIGHTLY_PATH=gs://cobalt-actions-devel-build-artifacts" >> $GITHUB_ENV
+        PROJECT_NAME=$(gcloud config get-value project)
+        echo "GCS_NIGHTLY_PATH=gs://${PROJECT_NAME}-build-artifacts" >> $GITHUB_ENV
       shell: bash
     - name: Build
       run: |
