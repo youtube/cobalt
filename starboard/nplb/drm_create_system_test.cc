@@ -35,7 +35,10 @@ TEST(SbDrmTest, AnySupportedKeySystems) {
                     << " is NOT valid.";
     }
     any_supported_key_systems |= SbDrmSystemIsValid(drm_system);
-    SbDrmDestroySystem(drm_system);
+
+    if (SbDrmSystemIsValid(drm_system)) {
+      SbDrmDestroySystem(drm_system);
+    }
   }
   EXPECT_TRUE(any_supported_key_systems) << " no DRM key systems supported";
 }
@@ -50,7 +53,6 @@ TEST(SbDrmTest, NullCallbacks) {
           DummySessionKeyStatusesChangedFunc, DummyServerCertificateUpdatedFunc,
           DummySessionClosedFunc);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
-      SbDrmDestroySystem(drm_system);
     }
     {
       SbDrmSystem drm_system = SbDrmCreateSystem(
@@ -58,7 +60,6 @@ TEST(SbDrmTest, NullCallbacks) {
           NULL /*session_updated_func */, DummySessionKeyStatusesChangedFunc,
           DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
-      SbDrmDestroySystem(drm_system);
     }
     {
       SbDrmSystem drm_system = SbDrmCreateSystem(
@@ -66,7 +67,6 @@ TEST(SbDrmTest, NullCallbacks) {
           DummySessionUpdatedFunc, NULL /* session_key_statuses_changed_func */,
           DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
-      SbDrmDestroySystem(drm_system);
     }
     {
       SbDrmSystem drm_system = SbDrmCreateSystem(
@@ -74,7 +74,6 @@ TEST(SbDrmTest, NullCallbacks) {
           DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
           NULL /* server_certificate_updated_func */, DummySessionClosedFunc);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
-      SbDrmDestroySystem(drm_system);
     }
     {
       SbDrmSystem drm_system = SbDrmCreateSystem(
@@ -82,7 +81,6 @@ TEST(SbDrmTest, NullCallbacks) {
           DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
           DummyServerCertificateUpdatedFunc, NULL /* session_closed_func */);
       EXPECT_FALSE(SbDrmSystemIsValid(drm_system));
-      SbDrmDestroySystem(drm_system);
     }
   }
 }

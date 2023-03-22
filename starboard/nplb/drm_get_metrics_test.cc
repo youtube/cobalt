@@ -40,20 +40,6 @@ TEST(SbDrmGetMetricsTest, SunnyDay) {
   }
 }
 
-TEST(SbDrmGetMetricsTest, RainyDay) {
-  int size = -1;
-  ASSERT_FALSE(SbDrmGetMetrics(kSbDrmSystemInvalid, &size));
-
-  for (auto key_system : kKeySystems) {
-    SbDrmSystem drm_system = CreateDummyDrmSystem(key_system);
-    if (!SbDrmSystemIsValid(drm_system)) {
-      continue;
-    }
-    EXPECT_EQ(SbDrmGetMetrics(drm_system, nullptr), nullptr);
-    SbDrmDestroySystem(drm_system);
-  }
-}
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

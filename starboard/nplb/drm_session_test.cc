@@ -166,7 +166,9 @@ void SbDrmSessionTest::SetUp() {
 }
 
 void SbDrmSessionTest::TearDown() {
-  SbDrmDestroySystem(drm_system_);
+  if (SbDrmSystemIsValid(drm_system_)) {
+    SbDrmDestroySystem(drm_system_);
+  }
 }
 
 void SbDrmSessionTest::CheckSessionUpdateRequestGeneratedCallback(
