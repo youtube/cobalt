@@ -98,5 +98,18 @@ RUN cd /tmp \
     && echo ${CLANG_VER} >> ${TC_HOME}/cr_build_revision \
     && rm clang-${CLANG_VER}.tgz
 
+# === Install Clang 16 toolchain for all Linux-hosted builds
+ARG CLANG_16_VER=16-init-17653-g39da55e8-2
+ARG CLANG_16_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_16_VER}
+ARG CLANG_16_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+
+RUN cd /tmp \
+    && mkdir -p ${CLANG_16_TC_HOME} \
+    && curl --silent -O -J \
+        ${CLANG_16_BASE_URL}/Linux_x64/clang-llvmorg-${CLANG_16_VER}.tgz \
+    && tar xf clang-llvmorg-${CLANG_16_VER}.tgz -C ${CLANG_16_TC_HOME} \
+    && echo ${CLANG_16_VER} >> ${CLANG_16_TC_HOME}/cr_build_revision \
+    && rm clang-llvmorg-${CLANG_16_VER}.tgz
+
 WORKDIR /code
 CMD ["/usr/bin/python","--version"]
