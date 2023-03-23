@@ -53,6 +53,12 @@ bool MediaSettingsImpl::Set(const std::string& name, int value) {
       LOG(INFO) << name << ": set to " << value;
       return true;
     }
+  } else if (name == "MediaSource.EnableCallingEndedWhenClosed") {
+    if (value == 0 || value == 1) {
+      is_calling_ended_when_closed_enabled_ = value != 0;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
   } else if (name == "MediaSource.MaxSizeForImmediateJob") {
     if (value >= 0) {
       max_size_for_immediate_job_ = value;

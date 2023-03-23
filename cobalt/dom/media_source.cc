@@ -107,6 +107,15 @@ bool IsAsynchronousReductionEnabled(web::EnvironmentSettings* settings) {
       false);
 }
 
+// If this function returns true, MediaSource::EndOfStreamAlgorithm() will call
+// SetReadyState(kMediaSourceReadyStateEnded) even if MediaSource object is
+// closed.
+// The default value is false.
+bool IsCallingEndedWhenClosedEnabled(web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings).IsCallingEndedWhenClosedEnabled().value_or(
+      false);
+}
+
 // If the size of a job that is part of an algorithm is less than or equal to
 // the return value of this function, the implementation will run the job
 // immediately instead of scheduling it to run later to reduce latency.
@@ -289,7 +298,23 @@ void MediaSource::RemoveSourceBuffer(
 }
 
 void MediaSource::EndOfStreamAlgorithm(MediaSourceEndOfStreamError error) {
-  SetReadyState(kMediaSourceReadyStateEnded);
+  if (IsClosed()) {
+    if (IsCallingEndedWhenClosedEnabled(environment_settings())) {
+      LOG(INFO) << "Setting state to ended when MediaSource object is closed";
+      // Calling the function below here leads to ANR in production, as
+      // EndOfStreamAlgorithm() can be called by SetReadyState().
+      // Calling SetReadyState() nestedly leads to re-entrance of Abort() on
+      // the SourceBuffer algorithm handle, where a mutex gets re-acquired.
+      // Keep this code path here so we have the option to revert it to the
+      // original behavior in production.
+      SetReadyState(kMediaSourceReadyStateEnded);
+    } else {
+      LOG(INFO)
+          << "Skip setting state to ended when MediaSource object is closed";
+    }
+  } else {
+    SetReadyState(kMediaSourceReadyStateEnded);
+  }
 
   PipelineStatus pipeline_status = PIPELINE_OK;
 
