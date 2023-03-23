@@ -101,6 +101,7 @@ void SourceBufferAppendAlgorithm::Abort() {
 void SourceBufferAppendAlgorithm::Finalize() {
   TRACE_EVENT1("cobalt::dom", "SourceBufferAppendAlgorithm::Finalize()",
                "succeeded", succeeded_);
+
   if (succeeded_) {
     schedule_event_cb_.Run(base::Tokens::update());
     schedule_event_cb_.Run(base::Tokens::updateend());
@@ -143,6 +144,7 @@ void SourceBufferRemoveAlgorithm::Abort() {
 
 void SourceBufferRemoveAlgorithm::Finalize() {
   TRACE_EVENT0("cobalt::dom", "SourceBufferRemoveAlgorithm::Finalize()");
+
   schedule_event_cb_.Run(base::Tokens::update());
   schedule_event_cb_.Run(base::Tokens::updateend());
   std::move(finalized_cb_).Run();
