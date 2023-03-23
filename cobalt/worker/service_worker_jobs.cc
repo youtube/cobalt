@@ -75,6 +75,9 @@ namespace {
 const base::TimeDelta kWaitForAsynchronousExtensionsTimeout =
     base::TimeDelta::FromSeconds(3);
 
+const base::TimeDelta kShutdownWaitTimeoutSecs =
+    base::TimeDelta::FromSeconds(5);
+
 bool PathContainsEscapedSlash(const GURL& url) {
   const std::string path = url.path();
   return (path.find("%2f") != std::string::npos ||
@@ -130,8 +133,6 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
 bool PermitAnyNonRedirectedURL(const GURL&, bool did_redirect) {
   return !did_redirect;
 }
-
-constexpr base::TimeDelta kShutdownWaitTimeoutSecs = base::Seconds(5);
 }  // namespace
 
 ServiceWorkerJobs::ServiceWorkerJobs(web::WebSettings* web_settings,
