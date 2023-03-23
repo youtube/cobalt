@@ -1,5 +1,4 @@
-# Cobalt [![Build Status](https://img.shields.io/badge/-Build%20Status-blueviolet)](https://github.com/youtube/cobalt_sandbox/blob/main/BUILD_STATUS.md)
-
+# Cobalt [![Build Status](https://img.shields.io/badge/-Build%20Status-blueviolet)](https://github.com/youtube/cobalt/blob/main/BUILD_STATUS.md)
 
 ## Overview
 
