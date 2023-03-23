@@ -225,13 +225,16 @@ void Cache::PerformAdd(
 script::HandlePromiseVoid Cache::Add(
     script::EnvironmentSettings* environment_settings,
     const script::ValueHandleHolder& request) {
+  auto* global_wrappable = get_global_wrappable(environment_settings);
   auto request_reference =
-      std::make_unique<script::ValueHandleHolder::Reference>(this, request);
+      std::make_unique<script::ValueHandleHolder::Reference>(global_wrappable,
+                                                             request);
   script::HandlePromiseVoid promise =
       get_script_value_factory(environment_settings)
           ->CreateBasicPromise<void>();
   auto promise_reference =
-      std::make_unique<script::ValuePromiseVoid::Reference>(this, promise);
+      std::make_unique<script::ValuePromiseVoid::Reference>(global_wrappable,
+                                                            promise);
   auto context = get_context(environment_settings);
   context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
@@ -245,15 +248,19 @@ script::HandlePromiseVoid Cache::Put(
     script::EnvironmentSettings* environment_settings,
     const script::ValueHandleHolder& request,
     const script::ValueHandleHolder& response) {
+  auto* global_wrappable = get_global_wrappable(environment_settings);
   auto request_reference =
-      std::make_unique<script::ValueHandleHolder::Reference>(this, request);
+      std::make_unique<script::ValueHandleHolder::Reference>(global_wrappable,
+                                                             request);
   auto response_reference =
-      std::make_unique<script::ValueHandleHolder::Reference>(this, response);
+      std::make_unique<script::ValueHandleHolder::Reference>(global_wrappable,
+                                                             response);
   script::HandlePromiseVoid promise =
       get_script_value_factory(environment_settings)
           ->CreateBasicPromise<void>();
   auto promise_reference =
-      std::make_unique<script::ValuePromiseVoid::Reference>(this, promise);
+      std::make_unique<script::ValuePromiseVoid::Reference>(global_wrappable,
+                                                            promise);
 
   auto* global_environment = get_global_environment(environment_settings);
   auto* isolate = global_environment->isolate();
@@ -313,13 +320,16 @@ script::HandlePromiseVoid Cache::Put(
 script::HandlePromiseBool Cache::Delete(
     script::EnvironmentSettings* environment_settings,
     const script::ValueHandleHolder& request) {
+  auto* global_wrappable = get_global_wrappable(environment_settings);
   script::HandlePromiseBool promise =
       get_script_value_factory(environment_settings)
           ->CreateBasicPromise<bool>();
   auto request_reference =
-      std::make_unique<script::ValueHandleHolder::Reference>(this, request);
+      std::make_unique<script::ValueHandleHolder::Reference>(global_wrappable,
+                                                             request);
   auto promise_reference =
-      std::make_unique<script::ValuePromiseBool::Reference>(this, promise);
+      std::make_unique<script::ValuePromiseBool::Reference>(global_wrappable,
+                                                            promise);
   auto context = get_context(environment_settings);
   context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
@@ -346,11 +356,12 @@ script::HandlePromiseBool Cache::Delete(
 
 script::HandlePromiseAny Cache::Keys(
     script::EnvironmentSettings* environment_settings) {
+  auto* global_wrappable = get_global_wrappable(environment_settings);
   script::HandlePromiseAny promise =
       get_script_value_factory(environment_settings)
           ->CreateBasicPromise<script::Any>();
-  auto promise_reference =
-      std::make_unique<script::ValuePromiseAny::Reference>(this, promise);
+  auto promise_reference = std::make_unique<script::ValuePromiseAny::Reference>(
+      global_wrappable, promise);
   auto context = get_context(environment_settings);
   context->message_loop()->task_runner()->PostTask(
       FROM_HERE,
