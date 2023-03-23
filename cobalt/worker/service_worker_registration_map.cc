@@ -242,6 +242,7 @@ bool ServiceWorkerRegistrationMap::IsUnregistered(
   // is not this service worker registration.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-service-worker-registration-unregistered
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!registration) return true;
   std::string scope_string =
       SerializeExcludingFragment(registration->scope_url());
   RegistrationMapKey registration_key(registration->storage_key(),

@@ -130,6 +130,8 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
 bool PermitAnyNonRedirectedURL(const GURL&, bool did_redirect) {
   return !did_redirect;
 }
+
+constexpr base::TimeDelta kShutdownWaitTimeoutSecs = base::Seconds(5);
 }  // namespace
 
 ServiceWorkerJobs::ServiceWorkerJobs(web::WebSettings* web_settings,
@@ -157,9 +159,21 @@ ServiceWorkerJobs::~ServiceWorkerJobs() {
   scope_to_registration_map_->HandleUserAgentShutdown(this);
   scope_to_registration_map_->AbortAllActive();
   scope_to_registration_map_.reset();
-  while (!web_context_registrations_.empty()) {
+  if (!web_context_registrations_.empty()) {
+    // Abort any Service Workers that remain.
+    for (auto& context : web_context_registrations_) {
+      DCHECK(context);
+      if (context->GetWindowOrWorkerGlobalScope()->IsServiceWorker()) {
+        ServiceWorkerGlobalScope* service_worker =
+            context->GetWindowOrWorkerGlobalScope()->AsServiceWorker();
+        if (service_worker && service_worker->service_worker_object()) {
+          service_worker->service_worker_object()->Abort();
+        }
+      }
+    }
+
     // Wait for web context registrations to be cleared.
-    web_context_registrations_cleared_.Wait();
+    web_context_registrations_cleared_.TimedWait(kShutdownWaitTimeoutSecs);
   }
 }
 
@@ -1848,7 +1862,8 @@ void ServiceWorkerJobs::HandleServiceWorkerClientUnload(web::Context* client) {
 
   // 5. If registration is unregistered, invoke Try Clear Registration with
   //    registration.
-  if (scope_to_registration_map_->IsUnregistered(registration)) {
+  if (scope_to_registration_map_ &&
+      scope_to_registration_map_->IsUnregistered(registration)) {
     TryClearRegistration(registration);
   }
 
