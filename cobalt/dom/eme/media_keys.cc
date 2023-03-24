@@ -22,6 +22,7 @@
 #include "cobalt/dom/eme/media_key_session.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/environment_settings_helper.h"
 
 namespace cobalt {
 namespace dom {
@@ -93,10 +94,12 @@ MediaKeys::BoolPromiseHandle MediaKeys::SetServerCertificate(
   // 5.1 Let sanitized certificate be a validated and/or sanitized version of
   //     certificate.
   // 5.2 Use this object's cdm instance to process sanitized certificate.
+  auto* global_wrappable = web::get_global_wrappable(dom_settings_);
   drm_system_->UpdateServerCertificate(
       server_certificate_buffer, server_certificate_buffer_size,
       base::Bind(&MediaKeys::OnServerCertificateUpdated, base::AsWeakPtr(this),
-                 base::Owned(new BoolPromiseValue::Reference(this, promise))));
+                 base::Owned(new BoolPromiseValue::Reference(global_wrappable,
+                                                             promise))));
 
   // 5.3 and 5.4 are pending processing in OnServerCertificateUpdated().
   // 6. Return promise.

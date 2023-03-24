@@ -15,14 +15,24 @@
 #ifndef COBALT_WEB_ENVIRONMENT_SETTINGS_HELPER_H_
 #define COBALT_WEB_ENVIRONMENT_SETTINGS_HELPER_H_
 
-#include "cobalt/script/environment_settings.h"
-#include "cobalt/script/global_environment.h"
-#include "cobalt/script/script_value_factory.h"
-#include "cobalt/web/context.h"
 #include "v8/include/v8.h"
 
+namespace base {
+class MessageLoop;
+}  // namespace base
+
 namespace cobalt {
+
+namespace script {
+class EnvironmentSettings;
+class GlobalEnvironment;
+class ScriptValueFactory;
+class Wrappable;
+}  // namespace script
+
 namespace web {
+
+class Context;
 
 Context* get_context(script::EnvironmentSettings* environment_settings);
 v8::Isolate* get_isolate(script::EnvironmentSettings* environment_settings);

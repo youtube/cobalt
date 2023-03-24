@@ -33,7 +33,8 @@ class ErrorEventTestWithJavaScript : public dom::testing::TestWithJavaScript {};
 }  // namespace
 
 TEST(ErrorEventTest, ConstructorWithEventTypeString) {
-  scoped_refptr<ErrorEvent> event = new ErrorEvent("mytestevent");
+  scoped_refptr<ErrorEvent> event =
+      new ErrorEvent(/*environment_settings=*/nullptr, "mytestevent");
 
   EXPECT_EQ("mytestevent", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -54,7 +55,8 @@ TEST(ErrorEventTest, ConstructorWithEventTypeString) {
 
 TEST(ErrorEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   ErrorEventInit init;
-  scoped_refptr<ErrorEvent> event = new ErrorEvent("mytestevent", init);
+  scoped_refptr<ErrorEvent> event =
+      new ErrorEvent(/*environment_settings=*/nullptr, "mytestevent", init);
 
   EXPECT_EQ("mytestevent", event->type());
   EXPECT_EQ(NULL, event->target().get());

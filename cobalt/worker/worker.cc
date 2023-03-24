@@ -227,7 +227,8 @@ void Worker::OnLoadingComplete(const base::Optional<std::string>& error) {
               error.set_filename(location.file_path);
               error.set_lineno(location.line_number);
               error.set_colno(location.column_number);
-              global_scope->DispatchEvent(new web::ErrorEvent(error));
+              global_scope->DispatchEvent(new web::ErrorEvent(
+                  global_scope->environment_settings(), error));
             },
             base::Unretained(
                 options_.outside_context->GetWindowOrWorkerGlobalScope()),
@@ -293,7 +294,7 @@ void Worker::Execute(const std::string& content,
               error.set_message(message);
               error.set_filename(filename);
               context->GetWindowOrWorkerGlobalScope()->DispatchEvent(
-                  new web::ErrorEvent(error));
+                  new web::ErrorEvent(context->environment_settings(), error));
             },
             options_.outside_context, retval,
             web_context_->environment_settings()->creation_url().spec()));

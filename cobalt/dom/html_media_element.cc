@@ -1713,8 +1713,9 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
                                  init_data_length)
             .GetScriptValue());
   }
-  event_queue_.Enqueue(
-      new eme::MediaEncryptedEvent("encrypted", media_encrypted_event_init));
+  auto* environment_settings = html_element_context()->environment_settings();
+  event_queue_.Enqueue(new eme::MediaEncryptedEvent(
+      environment_settings, "encrypted", media_encrypted_event_init));
 }
 
 void HTMLMediaElement::ClearMediaSource() {

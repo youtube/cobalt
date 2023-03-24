@@ -22,6 +22,7 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/worker/testing/test_with_javascript.h"
 
@@ -49,6 +50,10 @@ class TestWithJavaScriptBase
     if (window_) return window_->web_context();
     return worker::testing::TestWithJavaScriptBase<
         TypeIdProvider>::web_context();
+  }
+
+  script::EnvironmentSettings* environment_settings() {
+    return web_context()->environment_settings();
   }
 
  private:

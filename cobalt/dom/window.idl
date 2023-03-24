@@ -48,7 +48,7 @@
   // https://developer.mozilla.org/en-US/docs/Web/API/Window/minimize
   void minimize();
 
-  Promise<Screenshot> screenshot();
+  [CallWith=EnvironmentSettings] Promise<Screenshot> screenshot();
 };
 Window implements GlobalEventHandlers;
 Window implements WindowEventHandlers;

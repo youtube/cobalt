@@ -137,6 +137,7 @@ class OnScreenKeyboard : public web::EventTarget {
   OnScreenKeyboardBridge* bridge_;
 
   script::ScriptValueFactory* const script_value_factory_;
+  script::EnvironmentSettings* environment_settings_;
 
   std::string data_;
   bool is_composing_;

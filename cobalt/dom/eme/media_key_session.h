@@ -64,6 +64,7 @@ class MediaKeySession : public web::EventTarget {
       script::EnvironmentSettings* settings, const std::string& init_data_type,
       const web::BufferSource& init_data);
   script::Handle<script::Promise<void>> Update(
+      script::EnvironmentSettings* environment_settings,
       const web::BufferSource& response);
   script::Handle<script::Promise<void>> Close();
 

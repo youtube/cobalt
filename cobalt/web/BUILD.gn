@@ -16,6 +16,7 @@ static_library("web_events") {
   sources = [
     "custom_event.h",
     "environment_settings.h",
+    "environment_settings_helper.h",
     "error_event.h",
     "event.cc",
     "event.h",
@@ -79,7 +80,6 @@ static_library("web") {
     "csp_violation_reporter.cc",
     "csp_violation_reporter.h",
     "environment_settings_helper.cc",
-    "environment_settings_helper.h",
     "location_base.h",
     "message_event.cc",
     "message_event.h",

@@ -21,6 +21,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/eme/media_encrypted_event_init.h"
 #include "cobalt/script/array_buffer.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event.h"
 
@@ -35,8 +36,10 @@ class MediaEncryptedEvent : public web::Event {
   // Web API: MediaEncryptedEvent
   //
 
-  explicit MediaEncryptedEvent(const std::string& type);
-  MediaEncryptedEvent(const std::string& type,
+  MediaEncryptedEvent(script::EnvironmentSettings* environment_settings,
+                      const std::string& type);
+  MediaEncryptedEvent(script::EnvironmentSettings* environment_settings,
+                      const std::string& type,
                       const MediaEncryptedEventInit& event_init_dict);
 
   const std::string& init_data_type() const { return init_data_type_; }

@@ -29,6 +29,7 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/environment_settings_helper.h"
 
 namespace cobalt {
 namespace dom {
@@ -137,14 +138,17 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
 
   // 10.9. Use the CDM.
   initiated_by_generate_request_ = true;
+  auto* global_wrappable = web::get_global_wrappable(settings);
   drm_system_session_->GenerateUpdateRequest(
       init_data_type, init_data_buffer, init_data_buffer_size,
       base::Bind(&MediaKeySession::OnSessionUpdateRequestGenerated,
                  base::AsWeakPtr(this), settings,
-                 base::Owned(new VoidPromiseValue::Reference(this, promise))),
+                 base::Owned(new VoidPromiseValue::Reference(global_wrappable,
+                                                             promise))),
       base::Bind(&MediaKeySession::OnSessionUpdateRequestDidNotGenerate,
                  base::AsWeakPtr(this),
-                 base::Owned(new VoidPromiseValue::Reference(this, promise))));
+                 base::Owned(new VoidPromiseValue::Reference(global_wrappable,
+                                                             promise))));
 
   // 11. Return promise.
   return promise;
@@ -152,6 +156,7 @@ script::Handle<script::Promise<void>> MediaKeySession::GenerateRequest(
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
 script::Handle<script::Promise<void>> MediaKeySession::Update(
+    script::EnvironmentSettings* environment_settings,
     const web::BufferSource& response) {
   TRACE_EVENT0("cobalt::dom::eme", "MediaKeySession::Update()");
   script::Handle<script::Promise<void>> promise =
@@ -183,12 +188,15 @@ script::Handle<script::Promise<void>> MediaKeySession::Update(
   // Sanitation is the responsibility of Starboard implementers.
 
   // 6.7. Use the CDM.
+  auto* global_wrappable = web::get_global_wrappable(environment_settings);
   drm_system_session_->Update(
       response_buffer, response_buffer_size,
       base::Bind(&MediaKeySession::OnSessionUpdated, base::AsWeakPtr(this),
-                 base::Owned(new VoidPromiseValue::Reference(this, promise))),
+                 base::Owned(new VoidPromiseValue::Reference(global_wrappable,
+                                                             promise))),
       base::Bind(&MediaKeySession::OnSessionDidNotUpdate, base::AsWeakPtr(this),
-                 base::Owned(new VoidPromiseValue::Reference(this, promise))));
+                 base::Owned(new VoidPromiseValue::Reference(global_wrappable,
+                                                             promise))));
 
   // 7. Return promise.
   return promise;

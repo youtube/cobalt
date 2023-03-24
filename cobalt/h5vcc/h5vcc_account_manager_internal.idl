@@ -13,7 +13,8 @@
 // limitations under the License.
 [
   Conditional=COBALT_ENABLE_ACCOUNT_MANAGER,
-  Constructor
+  Constructor,
+  ConstructorCallWith=EnvironmentSettings,
 ]
 interface H5vccAccountManagerInternal {
   void getAuthToken(AccessTokenCallback callback);

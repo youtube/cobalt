@@ -19,6 +19,7 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/event_target.h"
 
 namespace cobalt {
@@ -87,6 +88,7 @@ OnScreenKeyboard::OnScreenKeyboard(
     : web::EventTarget(settings),
       bridge_(bridge),
       script_value_factory_(script_value_factory),
+      environment_settings_(settings),
       next_ticket_(0) {
   DCHECK(bridge_) << "OnScreenKeyboardBridge must not be NULL";
   suggestions_supported_ = bridge_->SuggestionsSupported();
@@ -96,10 +98,12 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::Show() {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
   int ticket = next_ticket_++;
+  auto* global_wrappable = web::get_global_wrappable(environment_settings_);
   bool is_emplaced =
       ticket_to_show_promise_map_
           .emplace(ticket, std::unique_ptr<VoidPromiseValue::Reference>(
-                               new VoidPromiseValue::Reference(this, promise)))
+                               new VoidPromiseValue::Reference(global_wrappable,
+                                                               promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Show(data_.c_str(), ticket);
@@ -125,10 +129,12 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::Hide() {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
   int ticket = next_ticket_++;
+  auto* global_wrappable = web::get_global_wrappable(environment_settings_);
   bool is_emplaced =
       ticket_to_hide_promise_map_
           .emplace(ticket, std::unique_ptr<VoidPromiseValue::Reference>(
-                               new VoidPromiseValue::Reference(this, promise)))
+                               new VoidPromiseValue::Reference(global_wrappable,
+                                                               promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Hide(ticket);
@@ -139,10 +145,12 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::Focus() {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
   int ticket = next_ticket_++;
+  auto* global_wrappable = web::get_global_wrappable(environment_settings_);
   bool is_emplaced =
       ticket_to_focus_promise_map_
           .emplace(ticket, std::unique_ptr<VoidPromiseValue::Reference>(
-                               new VoidPromiseValue::Reference(this, promise)))
+                               new VoidPromiseValue::Reference(global_wrappable,
+                                                               promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Focus(ticket);
@@ -153,10 +161,12 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::Blur() {
   script::Handle<script::Promise<void>> promise =
       script_value_factory_->CreateBasicPromise<void>();
   int ticket = next_ticket_++;
+  auto* global_wrappable = web::get_global_wrappable(environment_settings_);
   bool is_emplaced =
       ticket_to_blur_promise_map_
           .emplace(ticket, std::unique_ptr<VoidPromiseValue::Reference>(
-                               new VoidPromiseValue::Reference(this, promise)))
+                               new VoidPromiseValue::Reference(global_wrappable,
+                                                               promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Blur(ticket);
@@ -169,11 +179,12 @@ script::Handle<script::Promise<void>> OnScreenKeyboard::UpdateSuggestions(
       script_value_factory_->CreateBasicPromise<void>();
   if (suggestions_supported_) {
     int ticket = next_ticket_++;
+    auto* global_wrappable = web::get_global_wrappable(environment_settings_);
     bool is_emplaced =
         ticket_to_update_suggestions_promise_map_
-            .emplace(ticket,
-                     std::unique_ptr<VoidPromiseValue::Reference>(
-                         new VoidPromiseValue::Reference(this, promise)))
+            .emplace(ticket, std::unique_ptr<VoidPromiseValue::Reference>(
+                                 new VoidPromiseValue::Reference(
+                                     global_wrappable, promise)))
             .second;
     DCHECK(is_emplaced);
     bridge_->UpdateSuggestions(suggestions, ticket);

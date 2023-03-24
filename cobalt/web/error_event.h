@@ -20,7 +20,9 @@
 
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/value_handle.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/event.h"
 
@@ -33,22 +35,30 @@ namespace web {
 //   https://www.w3.org/TR/html50/webappapis.html#errorevent
 class ErrorEvent : public Event {
  public:
-  ErrorEvent() : Event(base::Tokens::error()) {}
-  explicit ErrorEvent(const std::string& type) : Event(type) {}
-  explicit ErrorEvent(const web::ErrorEventInit& init_dict)
+  explicit ErrorEvent(script::EnvironmentSettings* environment_settings)
+      : Event(base::Tokens::error()),
+        environment_settings_(environment_settings) {}
+  ErrorEvent(script::EnvironmentSettings* environment_settings,
+             const std::string& type)
+      : Event(type), environment_settings_(environment_settings) {}
+  ErrorEvent(script::EnvironmentSettings* environment_settings,
+             const web::ErrorEventInit& init_dict)
       : Event(base::Tokens::error(), init_dict),
         message_(init_dict.message()),
         filename_(init_dict.filename()),
         lineno_(init_dict.lineno()),
-        colno_(init_dict.colno()) {
+        colno_(init_dict.colno()),
+        environment_settings_(environment_settings) {
     InitError(init_dict);
   }
-  ErrorEvent(const std::string& type, const web::ErrorEventInit& init_dict)
+  ErrorEvent(script::EnvironmentSettings* environment_settings,
+             const std::string& type, const web::ErrorEventInit& init_dict)
       : Event(type, init_dict),
         message_(init_dict.message()),
         filename_(init_dict.filename()),
         lineno_(init_dict.lineno()),
-        colno_(init_dict.colno()) {
+        colno_(init_dict.colno()),
+        environment_settings_(environment_settings) {
     InitError(init_dict);
   }
 
@@ -75,7 +85,10 @@ class ErrorEvent : public Event {
   void InitError(const web::ErrorEventInit& init_dict) {
     const script::ValueHandleHolder* error = init_dict.error();
     if (error) {
-      error_.reset(new script::ValueHandleHolder::Reference(this, *error));
+      auto* wrappable = environment_settings_
+                            ? get_global_wrappable(environment_settings_)
+                            : this;
+      error_.reset(new script::ValueHandleHolder::Reference(wrappable, *error));
     }
   }
 
@@ -83,6 +96,7 @@ class ErrorEvent : public Event {
   std::string filename_;
   uint32 lineno_ = 0;
   uint32 colno_ = 0;
+  script::EnvironmentSettings* environment_settings_;
   std::unique_ptr<script::ValueHandleHolder::Reference> error_;
 };
 

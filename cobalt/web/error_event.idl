@@ -16,7 +16,8 @@
 
 [
   Exposed = (Window,Worker),
-  Constructor(DOMString type, optional ErrorEventInit eventInitDict)
+  Constructor(DOMString type, optional ErrorEventInit eventInitDict),
+  ConstructorCallWith=EnvironmentSettings,
 ] interface ErrorEvent : Event {
   readonly attribute DOMString message;
   readonly attribute DOMString filename;

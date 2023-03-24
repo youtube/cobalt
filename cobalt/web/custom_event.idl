@@ -15,6 +15,7 @@
 // https://www.w3.org/TR/2015/REC-dom-20151119/#customevent
 [
   Constructor(DOMString type, optional CustomEventInit eventInitDict),
+  ConstructorCallWith=EnvironmentSettings,
   Exposed = (Window,Worker)
 ] interface CustomEvent : Event {
   readonly attribute any detail;

@@ -12,22 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/h5vcc/h5vcc_account_manager_internal.h"
+
+#include <memory>
 
 #include "base/command_line.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "starboard/user.h"
 
 namespace cobalt {
 namespace h5vcc {
 
-H5vccAccountManagerInternal::H5vccAccountManagerInternal()
+H5vccAccountManagerInternal::H5vccAccountManagerInternal(
+    script::EnvironmentSettings* environment_settings)
     : user_authorizer_(account::UserAuthorizer::Create()),
       owning_message_loop_(base::MessageLoop::current()),
-      thread_("AccountManager") {
+      thread_("AccountManager"),
+      environment_settings_(environment_settings) {
   thread_.Start();
 }
 
@@ -62,8 +65,9 @@ void H5vccAccountManagerInternal::RequestUnpairing(
 void H5vccAccountManagerInternal::PostOperation(
     OperationType operation_type, const AccessTokenCallbackHolder& callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* global_wrappable = web::get_global_wrappable(environment_settings_);
   AccessTokenCallbackReference* token_callback =
-      new AccessTokenCallbackHolder::Reference(this, callback);
+      new AccessTokenCallbackHolder::Reference(global_wrappable, callback);
   pending_callbacks_.push_back(
       std::unique_ptr<AccessTokenCallbackReference>(token_callback));
   thread_.message_loop()->task_runner()->PostTask(

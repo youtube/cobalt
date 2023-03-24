@@ -27,6 +27,8 @@
 #include "cobalt/speech/microphone_fake.h"
 #include "cobalt/speech/microphone_starboard.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -144,8 +146,9 @@ script::Handle<MediaDevices::MediaStreamPromise> MediaDevices::GetUserMedia(
         base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
   }
 
+  auto* global_wrappable = web::get_global_wrappable(settings_);
   std::unique_ptr<MediaStreamPromiseValue::Reference> promise_reference(
-      new MediaStreamPromiseValue::Reference(this, promise));
+      new MediaStreamPromiseValue::Reference(global_wrappable, promise));
   pending_microphone_promises_.push_back(std::move(promise_reference));
 
   if (!pending_microphone_track_) {

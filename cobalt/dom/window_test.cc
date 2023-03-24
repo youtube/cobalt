@@ -249,7 +249,8 @@ TEST_F(WindowTest, ErrorEvent) {
       "error", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
       true);
   fake_event_listener_->ExpectHandleEventCall("error", window());
-  window()->DispatchEvent(new web::ErrorEvent());
+  window()->DispatchEvent(
+      new web::ErrorEvent(/*environment_settings=*/nullptr));
 }
 
 TEST_F(WindowTest, OnErrorEvent) {

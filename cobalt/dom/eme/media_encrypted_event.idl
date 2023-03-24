@@ -14,7 +14,10 @@
 
 // https://www.w3.org/TR/encrypted-media/#mediaencryptedevent
 
-[Constructor(DOMString type, optional MediaEncryptedEventInit eventInitDict)]
+[
+  Constructor(DOMString type, optional MediaEncryptedEventInit eventInitDict),
+  ConstructorCallWith=EnvironmentSettings,
+]
 interface MediaEncryptedEvent : Event {
   readonly attribute DOMString initDataType;
   readonly attribute ArrayBuffer? initData;

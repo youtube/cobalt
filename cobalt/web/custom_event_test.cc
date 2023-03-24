@@ -35,7 +35,8 @@ class CustomEventTestWithJavaScript : public testing::TestWebWithJavaScript {};
 }  // namespace
 
 TEST(CustomEventTest, ConstructorWithEventTypeString) {
-  scoped_refptr<CustomEvent> event = new CustomEvent("mytestevent");
+  scoped_refptr<CustomEvent> event =
+      new CustomEvent(/*environment_settings=*/nullptr, "mytestevent");
 
   EXPECT_EQ("mytestevent", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -52,7 +53,8 @@ TEST(CustomEventTest, ConstructorWithEventTypeString) {
 
 TEST(CustomEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   CustomEventInit init;
-  scoped_refptr<CustomEvent> event = new CustomEvent("mytestevent", init);
+  scoped_refptr<CustomEvent> event =
+      new CustomEvent(/*environment_settings=*/nullptr, "mytestevent", init);
 
   EXPECT_EQ("mytestevent", event->type());
   EXPECT_EQ(NULL, event->target().get());

@@ -26,6 +26,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/account/user_authorizer.h"
 #include "cobalt/script/callback_function.h"
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 
@@ -50,7 +51,8 @@ class H5vccAccountManagerInternal
   // "H5vccAccountManager".
   static bool IsSupported();
 
-  H5vccAccountManagerInternal();
+  explicit H5vccAccountManagerInternal(
+      script::EnvironmentSettings* environment_settings);
 
   // H5vccAccountManagerInternal interface.
   void GetAuthToken(const AccessTokenCallbackHolder& callback);
@@ -113,6 +115,8 @@ class H5vccAccountManagerInternal
   // constructed, and they remain valid until the thread gets destructed and its
   // message loop gets flushed.
   base::Thread thread_;
+
+  script::EnvironmentSettings* environment_settings_;
 
   friend class scoped_refptr<H5vccAccountManagerInternal>;
   DISALLOW_COPY_AND_ASSIGN(H5vccAccountManagerInternal);

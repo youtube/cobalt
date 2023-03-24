@@ -204,7 +204,8 @@ class Window : public web::WindowOrWorkerGlobalScope,
 
   const scoped_refptr<Navigator>& navigator() const;
 
-  script::Handle<ScreenshotManager::InterfacePromise> Screenshot();
+  script::Handle<ScreenshotManager::InterfacePromise> Screenshot(
+      script::EnvironmentSettings* environment_settings);
 
   // Web API: CSSOM (partial interface)
   // Returns the computed style of the given element, as described in

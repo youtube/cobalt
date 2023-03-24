@@ -14,6 +14,7 @@
 
 #include "cobalt/web/environment_settings_helper.h"
 
+#include "base/message_loop/message_loop.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"

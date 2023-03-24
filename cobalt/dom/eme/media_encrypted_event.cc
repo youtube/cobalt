@@ -15,24 +15,28 @@
 #include "cobalt/dom/eme/media_encrypted_event.h"
 
 #include "cobalt/base/tokens.h"
+#include "cobalt/web/environment_settings_helper.h"
 
 namespace cobalt {
 namespace dom {
 namespace eme {
 
 // See step 5 in https://www.w3.org/TR/encrypted-media/#initdata-encountered.
-MediaEncryptedEvent::MediaEncryptedEvent(const std::string& type)
+MediaEncryptedEvent::MediaEncryptedEvent(
+    script::EnvironmentSettings* environment_settings, const std::string& type)
     : Event(base::Token(type), kNotBubbles, kNotCancelable) {}
 
 // See step 5 in https://www.w3.org/TR/encrypted-media/#initdata-encountered.
 MediaEncryptedEvent::MediaEncryptedEvent(
-    const std::string& type, const MediaEncryptedEventInit& event_init_dict)
+    script::EnvironmentSettings* environment_settings, const std::string& type,
+    const MediaEncryptedEventInit& event_init_dict)
     : Event(base::Token(type), kNotBubbles, kNotCancelable),
       init_data_type_(event_init_dict.init_data_type()) {
   if (event_init_dict.init_data() && !event_init_dict.init_data()->IsNull()) {
+    auto* global_wrappable = web::get_global_wrappable(environment_settings);
     init_data_reference_.reset(
         new script::ScriptValue<script::ArrayBuffer>::Reference(
-            this, *event_init_dict.init_data()));
+            global_wrappable, *event_init_dict.init_data()));
   }
 }
 

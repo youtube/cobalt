@@ -25,7 +25,7 @@ interface MediaKeySession : EventTarget {
   [CallWith=EnvironmentSettings] Promise<void> generateRequest(DOMString initDataType, BufferSource initData);
   // TODO: Trivially implement persistent sessions.
   // Promise<boolean> load(DOMString sessionId);
-  Promise<void> update(BufferSource response);
+  [CallWith=EnvironmentSettings] Promise<void> update(BufferSource response);
   Promise<void> close();
   // TODO: Implement |remove|.
   // Promise<void> remove();

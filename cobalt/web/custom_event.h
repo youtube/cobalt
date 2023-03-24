@@ -18,8 +18,10 @@
 #include <memory>
 #include <string>
 
+#include "cobalt/script/environment_settings.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/web/custom_event_init.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/event.h"
 
 namespace cobalt {
@@ -29,9 +31,12 @@ namespace web {
 //   https://www.w3.org/TR/2015/REC-dom-20151119/#customevent
 class CustomEvent : public web::Event {
  public:
-  explicit CustomEvent(const std::string& type) : Event(type) {}
-  CustomEvent(const std::string& type, const CustomEventInit& init_dict)
-      : Event(type, init_dict) {
+  explicit CustomEvent(script::EnvironmentSettings* environment_settings,
+                       const std::string& type)
+      : Event(type), environment_settings_(environment_settings) {}
+  CustomEvent(script::EnvironmentSettings* environment_settings,
+              const std::string& type, const CustomEventInit& init_dict)
+      : Event(type, init_dict), environment_settings_(environment_settings) {
     set_detail(init_dict.detail());
   }
 
@@ -49,7 +54,11 @@ class CustomEvent : public web::Event {
 
   void set_detail(const script::ValueHandleHolder* detail) {
     if (detail) {
-      detail_.reset(new script::ValueHandleHolder::Reference(this, *detail));
+      auto* wrappable = environment_settings_
+                            ? get_global_wrappable(environment_settings_)
+                            : this;
+      detail_.reset(
+          new script::ValueHandleHolder::Reference(wrappable, *detail));
     } else {
       detail_.reset();
     }
@@ -69,6 +78,9 @@ class CustomEvent : public web::Event {
   ~CustomEvent() override {}
 
   std::unique_ptr<script::ValueHandleHolder::Reference> detail_;
+
+ private:
+  script::EnvironmentSettings* environment_settings_;
 };
 
 }  // namespace web

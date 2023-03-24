@@ -53,6 +53,7 @@
 #include "cobalt/speech/speech_synthesis.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/error_event.h"
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/event.h"
@@ -266,7 +267,8 @@ void Window::Minimize() {
 
 const scoped_refptr<Navigator>& Window::navigator() const { return navigator_; }
 
-script::Handle<ScreenshotManager::InterfacePromise> Window::Screenshot() {
+script::Handle<ScreenshotManager::InterfacePromise> Window::Screenshot(
+    script::EnvironmentSettings* environment_settings) {
   scoped_refptr<render_tree::Node> render_tree_root =
       document_->DoSynchronousLayoutAndGetRenderTree();
 
@@ -275,9 +277,10 @@ script::Handle<ScreenshotManager::InterfacePromise> Window::Screenshot() {
           ->script_value_factory()
           ->CreateInterfacePromise<dom::Screenshot>();
 
+  auto* global_wrappable = web::get_global_wrappable(environment_settings);
   std::unique_ptr<ScreenshotManager::InterfacePromiseValue::Reference>
       promise_reference(new ScreenshotManager::InterfacePromiseValue::Reference(
-          this, promise));
+          global_wrappable, promise));
 
   screenshot_manager_.Screenshot(
       loader::image::EncodedStaticImage::ImageFormat::kPNG, render_tree_root,
@@ -530,7 +533,8 @@ bool Window::ReportScriptError(const script::ErrorReport& error_report) {
     error.set_error(error_report.error ? error_report.error.get() : NULL);
   }
 
-  scoped_refptr<web::ErrorEvent> error_event(new web::ErrorEvent(error));
+  scoped_refptr<web::ErrorEvent> error_event(
+      new web::ErrorEvent(environment_settings(), error));
 
   // 13. Dispatch event at target.
   DispatchEvent(error_event);
