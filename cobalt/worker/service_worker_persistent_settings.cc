@@ -164,14 +164,12 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
       continue;
 
     if (CheckPersistentValue(key_string, kSettingsLastUpdateCheckTimeKey, dict,
-                             base::Value::Type::DOUBLE)) {
-      double last_update_check_time =
-          dict[kSettingsLastUpdateCheckTimeKey]->GetDouble();
+                             base::Value::Type::STRING)) {
+      int64_t last_update_check_time =
+          std::atol(dict[kSettingsLastUpdateCheckTimeKey]->GetString().c_str());
       registration->set_last_update_check_time(
           base::Time::FromDeltaSinceWindowsEpoch(
-              base::TimeDelta::FromMicroseconds(
-                  (int64_t)dict[kSettingsLastUpdateCheckTimeKey]
-                      ->GetDouble())));
+              base::TimeDelta::FromMicroseconds(last_update_check_time)));
     }
 
     key_set_.insert(key_string);
@@ -336,10 +334,10 @@ void ServiceWorkerPersistentSettings::
       std::make_unique<base::Value>(registration->update_via_cache_mode()));
 
   dict.try_emplace(kSettingsLastUpdateCheckTimeKey,
-                   std::make_unique<base::Value>(static_cast<double>(
-                       registration->last_update_check_time()
-                           .ToDeltaSinceWindowsEpoch()
-                           .InMicroseconds())));
+                   std::make_unique<base::Value>(
+                       std::to_string(registration->last_update_check_time()
+                                          .ToDeltaSinceWindowsEpoch()
+                                          .InMicroseconds())));
 
   persistent_settings_->SetPersistentSetting(
       key_string, std::make_unique<base::Value>(dict));
