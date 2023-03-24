@@ -48,18 +48,18 @@ const assertEquals = (expected, actual, msg) => {
   const errorMessage = `Expected: '${expected}', but was '${actual}'`;
   fail(msg ? `${msg}(${errorMessage})` : errorMessage);
 };
-const assertNotUndefined = (actual, msg) => {
-  if (actual !== undefined) {
+const assertNotEquals = (notExpected, actual, msg) => {
+  if (notExpected !== actual) {
     return;
   }
-  const errorMessage = `Expected '${actual}' to be undefined.`;
+  const errorMessage = `Not expected: '${notExpected}'`;
   fail(msg ? `${msg}(${errorMessage})` : errorMessage);
 };
 
 const ASSET_CACHE_NAME = 'asset-cache-name';
 const RESOURCE = self.location.pathname;
 const RESOURCE_WITH_QUERY = self.location.pathname + '?foo=bar';
-const RESOURCE_INDIRECTLY_CACHED = self.location.pathname + '?should_resolve_to_resource1';
+const RESOURCE_NOT_INDIRECTLY_CACHED = self.location.pathname + '?should_not_resolve_to_resource1';
 const RESOURCE_NOT_PRESENT = self.location.pathname + '.not_present';
 
 let assetCache = null;
@@ -85,9 +85,10 @@ self.addEventListener('message', async event => {
     await self.caches.delete(ASSET_CACHE_NAME);
     await cacheAssetUrls([RESOURCE, RESOURCE_WITH_QUERY, RESOURCE_NOT_PRESENT]);
     const cache = await self.caches.open(ASSET_CACHE_NAME);
-    assertNotUndefined(await cache.match(RESOURCE));
-    assertNotUndefined(await cache.match(RESOURCE_WITH_QUERY));
-    assertNotUndefined(await cache.match(RESOURCE_INDIRECTLY_CACHED));
+    assertEquals(2, (await cache.keys()).length);
+    assertNotEquals(undefined, await cache.match(RESOURCE));
+    assertNotEquals(undefined, await cache.match(RESOURCE_WITH_QUERY));
+    assertEquals(undefined, await cache.match(RESOURCE_NOT_INDIRECTLY_CACHED));
     assertEquals(undefined, await cache.match(RESOURCE_NOT_PRESENT));
     postMessage('SUCCESS');
     return;
