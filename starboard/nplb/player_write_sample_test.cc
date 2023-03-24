@@ -43,13 +43,12 @@ const SbTimeMonotonic kDefaultWaitForCallbackEventTimeout =
 
 class SbPlayerWriteSampleTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
- public:
+ protected:
   SbPlayerWriteSampleTest();
 
   void SetUp() override;
   void TearDown() override;
 
- protected:
   struct CallbackEvent {
     CallbackEvent() {}
 
