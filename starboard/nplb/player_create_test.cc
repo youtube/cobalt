@@ -30,7 +30,7 @@ using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::Values;
 
 class SbPlayerTest : public ::testing::TestWithParam<SbPlayerOutputMode> {
- public:
+ protected:
   SbPlayerTest() : output_mode_(GetParam()) {}
 
   void GetCurrentFrameIfSupported(SbPlayer player) {
@@ -48,7 +48,6 @@ class SbPlayerTest : public ::testing::TestWithParam<SbPlayerOutputMode> {
 #endif  // SB_HAS(GLES2)
   }
 
- protected:
   FakeGraphicsContextProvider fake_graphics_context_provider_;
 
   SbPlayerOutputMode output_mode_;
