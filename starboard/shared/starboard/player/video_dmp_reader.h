@@ -152,8 +152,8 @@ class VideoDmpReader {
 
   class Registry {
    public:
-    bool GetDmpInfo(const char* filename, DmpInfo* dmp_info) const;
-    void Register(const char* filename, const DmpInfo& dmp_info);
+    bool GetDmpInfo(const std::string& filename, DmpInfo* dmp_info) const;
+    void Register(const std::string& filename, const DmpInfo& dmp_info);
 
    private:
     Mutex mutex_;

@@ -51,7 +51,6 @@ void StubDeallocateSampleFunc(SbPlayer player,
                               void* context,
                               const void* sample_buffer);
 
-std::string ResolveTestFileName(const char* filename);
 std::vector<const char*> GetSupportedAudioTestFiles(
     HeaacOption heaac_option,
     int max_channels,

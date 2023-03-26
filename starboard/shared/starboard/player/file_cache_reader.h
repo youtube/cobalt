@@ -28,9 +28,13 @@ namespace player {
 
 class FileCacheReader {
  public:
+  // The class assumes that |filename| is stored in
+  // "<content path>/test/starboard/shared/starboard/player/testdata".
+  // Currently it's only used by media related tests to read dmp files.
   FileCacheReader(const char* filename, int file_cache_size);
 
   int Read(void* out_buffer, int bytes_to_read);
+  const std::string& GetAbsolutePathName() const;
   int64_t GetSize();
 
  private:
@@ -45,7 +49,7 @@ class FileCacheReader {
   // is emptied out.
   void RefillCacheIfEmpty();
 
-  const std::string filename_;
+  const std::string absolute_path_;
   const int default_file_cache_size_;
 
   scoped_ptr<ScopedFile> file_;

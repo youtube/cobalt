@@ -34,8 +34,6 @@ typedef std::tuple<const char* /* audio_filename */,
 
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs();
 
-std::string ResolveTestFileName(const char* filename);
-
 void DummyDeallocateSampleFunc(SbPlayer player,
                                void* context,
                                const void* sample_buffer);

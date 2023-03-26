@@ -82,9 +82,9 @@ SbPlayerSampleInfo ConvertToPlayerSampleInfo(
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-bool VideoDmpReader::Registry::GetDmpInfo(const char* filename,
+bool VideoDmpReader::Registry::GetDmpInfo(const std::string& filename,
                                           DmpInfo* dmp_info) const {
-  SB_DCHECK(filename);
+  SB_DCHECK(!filename.empty());
   SB_DCHECK(dmp_info);
 
   ScopedLock scoped_lock(mutex_);
@@ -96,9 +96,9 @@ bool VideoDmpReader::Registry::GetDmpInfo(const char* filename,
   return true;
 }
 
-void VideoDmpReader::Registry::Register(const char* filename,
+void VideoDmpReader::Registry::Register(const std::string& filename,
                                         const DmpInfo& dmp_info) {
-  SB_DCHECK(filename);
+  SB_DCHECK(!filename.empty());
 
   ScopedLock scoped_lock(mutex_);
   SB_DCHECK(dmp_infos_.find(filename) == dmp_infos_.end());
@@ -111,7 +111,8 @@ VideoDmpReader::VideoDmpReader(
     : file_reader_(filename, 1024 * 1024),
       read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)),
       allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand) {
-  bool already_cached = GetRegistry()->GetDmpInfo(filename, &dmp_info_);
+  bool already_cached =
+      GetRegistry()->GetDmpInfo(file_reader_.GetAbsolutePathName(), &dmp_info_);
 
   if (already_cached && allow_read_on_demand_) {
     // This is necessary as the current implementation assumes that the address
@@ -125,7 +126,7 @@ VideoDmpReader::VideoDmpReader(
   Parse();
 
   if (!already_cached) {
-    GetRegistry()->Register(filename, dmp_info_);
+    GetRegistry()->Register(file_reader_.GetAbsolutePathName(), dmp_info_);
   }
 }
 

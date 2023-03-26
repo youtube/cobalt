@@ -41,7 +41,7 @@ const size_t kMaxNumberOfInputs = 256;
 class AudioDecoderHelper {
  public:
   explicit AudioDecoderHelper(const char* filename)
-      : dmp_reader_(ResolveTestFileName(filename).c_str()),
+      : dmp_reader_(filename),
         number_of_inputs_(std::min(dmp_reader_.number_of_audio_buffers(),
                                    kMaxNumberOfInputs)) {
     const bool kUseStubDecoder = false;

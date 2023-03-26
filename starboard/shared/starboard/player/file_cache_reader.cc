@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/common/log.h"
+#include "starboard/directory.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -24,8 +25,32 @@ namespace shared {
 namespace starboard {
 namespace player {
 
+namespace {
+
+// Accepts test file name and returns the complete file path based on the path:
+// "<content path>/test/starboard/shared/starboard/player/testdata".
+std::string ResolveTestFileName(const char* filename) {
+  SB_CHECK(filename);
+
+  std::vector<char> content_path(kSbFileMaxPath + 1);
+  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
+                           content_path.size()));
+  std::string directory_path = std::string(content_path.data()) +
+                               kSbFileSepChar + "test" + kSbFileSepChar +
+                               "starboard" + kSbFileSepChar + "shared" +
+                               kSbFileSepChar + "starboard" + kSbFileSepChar +
+                               "player" + kSbFileSepChar + "testdata";
+
+  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
+      << "Cannot open directory " << directory_path;
+  return directory_path + kSbFileSepChar + filename;
+}
+
+}  // namespace
+
 FileCacheReader::FileCacheReader(const char* filename, int file_cache_size)
-    : filename_(filename), default_file_cache_size_(file_cache_size) {}
+    : absolute_path_(ResolveTestFileName(filename)),
+      default_file_cache_size_(file_cache_size) {}
 
 int FileCacheReader::Read(void* out_buffer, int bytes_to_read) {
   EnsureFileOpened();
@@ -44,6 +69,10 @@ int FileCacheReader::Read(void* out_buffer, int bytes_to_read) {
   return total_bytes_read;
 }
 
+const std::string& FileCacheReader::GetAbsolutePathName() const {
+  return absolute_path_;
+}
+
 int64_t FileCacheReader::GetSize() {
   EnsureFileOpened();
   return file_->GetSize();
@@ -53,7 +82,8 @@ void FileCacheReader::EnsureFileOpened() {
   if (file_) {
     return;
   }
-  file_.reset(new ScopedFile(filename_.c_str(), kSbFileOpenOnly | kSbFileRead));
+  file_.reset(
+      new ScopedFile(absolute_path_.c_str(), kSbFileOpenOnly | kSbFileRead));
   SB_CHECK(file_->IsValid());
 
   max_file_cache_size_ =
@@ -66,8 +96,7 @@ int FileCacheReader::ReadFromCache(void* out_buffer, int bytes_to_read) {
   SB_CHECK(file_cache_offset_ <= file_cache_.size());
   bytes_to_read = std::min(
       static_cast<int>(file_cache_.size()) - file_cache_offset_, bytes_to_read);
-  memcpy(out_buffer, file_cache_.data() + file_cache_offset_,
-               bytes_to_read);
+  memcpy(out_buffer, file_cache_.data() + file_cache_offset_, bytes_to_read);
   file_cache_offset_ += bytes_to_read;
   return bytes_to_read;
 }

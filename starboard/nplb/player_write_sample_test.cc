@@ -182,8 +182,7 @@ SbPlayerWriteSampleTest::SbPlayerWriteSampleTest() {
     dmp_filename_ = video_filename;
     test_media_type_ = kSbMediaTypeVideo;
   }
-  dmp_reader_.reset(
-      new VideoDmpReader(ResolveTestFileName(dmp_filename_.c_str()).c_str()));
+  dmp_reader_.reset(new VideoDmpReader(dmp_filename_.c_str()));
 
   SB_LOG(INFO) << FormatString(
       "Initialize SbPlayerWriteSampleTest with dmp file '%s' and with output "

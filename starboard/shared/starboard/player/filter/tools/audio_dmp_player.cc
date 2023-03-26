@@ -17,7 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/event.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
@@ -42,29 +41,6 @@ const int kJobThreadStackSize = SB_MEDIA_PLAYER_THREAD_STACK_SIZE;
 #else   // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
 const int kJobThreadStackSize = 0;
 #endif  // SB_MEDIA_PLAYER_THREAD_STACK_SIZE
-
-// TODO: Merge test file resolving function with the ones used in the player
-// filter tests.
-std::string GetTestInputDirectory() {
-  const size_t kPathSize = kSbFileMaxPath + 1;
-
-  std::vector<char> content_path(kPathSize);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kPathSize));
-  std::string directory_path = std::string(content_path.data()) +
-                               kSbFileSepChar + "test" + kSbFileSepChar +
-                               "starboard" + kSbFileSepChar + "shared" +
-                               kSbFileSepChar + "starboard" + kSbFileSepChar +
-                               "player" + kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  return directory_path;
-}
-
-std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + kSbFileSepChar + filename;
-}
 
 scoped_ptr<VideoDmpReader> s_video_dmp_reader;
 scoped_ptr<PlayerComponents> s_player_components;
@@ -124,8 +100,7 @@ void EndedCB() {
 
 void Start(const char* filename) {
   SB_LOG(INFO) << "Loading " << filename;
-  s_video_dmp_reader.reset(
-      new VideoDmpReader(ResolveTestFileName(filename).c_str()));
+  s_video_dmp_reader.reset(new VideoDmpReader(filename));
   scoped_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
   PlayerComponents::Factory::CreationParameters creation_parameters(

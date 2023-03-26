@@ -36,9 +36,7 @@ const char kTestFilename[] = "beneath_the_canopy_aac_stereo.dmp";
 
 class FileCacheReaderTest : public ::testing::Test {
  public:
-  FileCacheReaderTest()
-      : file_cache_reader_(ResolveTestFileName(kTestFilename).c_str(),
-                           1024 * 1024) {}
+  FileCacheReaderTest() : file_cache_reader_(kTestFilename, 1024 * 1024) {}
 
  protected:
   FileCacheReader file_cache_reader_;
@@ -51,7 +49,7 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
   {
     // Use a 5MB snippet from the true file to compare against.
     const size_t kTestSize = 5 * 1024 * 1024;
-    ScopedFile file(ResolveTestFileName(kTestFilename).c_str(),
+    ScopedFile file(file_cache_reader_.GetAbsolutePathName().c_str(),
                     kSbFileOpenOnly | kSbFileRead);
     true_contents.resize(kTestSize);
     int bytes_read = file.ReadAll(true_contents.data(), kTestSize);
@@ -76,8 +74,8 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
     ASSERT_EQ(bytes_read, size_to_read);
     // Compare the true content of these files, with the chunked contents of
     // these files to ensure that file I/O is working as expected.
-    int result = memcmp(
-        read_contents.data(), true_contents.data() + true_offset, bytes_read);
+    int result = memcmp(read_contents.data(),
+                        true_contents.data() + true_offset, bytes_read);
     ASSERT_EQ(0, result);
     true_offset += bytes_read;
   }

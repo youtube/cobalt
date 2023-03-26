@@ -68,8 +68,7 @@ VideoDecoderTestFixture::VideoDecoderTestFixture(
       test_filename_(test_filename),
       output_mode_(output_mode),
       using_stub_decoder_(using_stub_decoder),
-      dmp_reader_(ResolveTestFileName(test_filename).c_str(),
-                  VideoDmpReader::kEnableReadOnDemand) {
+      dmp_reader_(test_filename, VideoDmpReader::kEnableReadOnDemand) {
   SB_DCHECK(job_queue_);
   SB_DCHECK(fake_graphics_context_provider_);
   SB_LOG(INFO) << "Testing " << test_filename_ << ", output mode "

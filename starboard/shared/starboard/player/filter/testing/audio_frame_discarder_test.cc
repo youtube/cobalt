@@ -39,8 +39,7 @@ using video_dmp::VideoDmpReader;
 class AudioFrameDiscarderTest : public ::testing::TestWithParam<const char*> {
  public:
   AudioFrameDiscarderTest()
-      : dmp_reader_(ResolveTestFileName(GetParam()).c_str(),
-                    VideoDmpReader::kEnableReadOnDemand) {}
+      : dmp_reader_(GetParam(), VideoDmpReader::kEnableReadOnDemand) {}
 
  protected:
   VideoDmpReader dmp_reader_;

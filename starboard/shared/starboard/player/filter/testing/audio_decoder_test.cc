@@ -106,8 +106,7 @@ class AudioDecoderTest
   AudioDecoderTest()
       : test_filename_(std::get<0>(GetParam())),
         using_stub_decoder_(std::get<1>(GetParam())),
-        dmp_reader_(ResolveTestFileName(test_filename_).c_str(),
-                    VideoDmpReader::kEnableReadOnDemand) {
+        dmp_reader_(test_filename_, VideoDmpReader::kEnableReadOnDemand) {
     SB_LOG(INFO) << "Testing " << test_filename_
                  << (using_stub_decoder_ ? " with stub audio decoder." : ".");
   }

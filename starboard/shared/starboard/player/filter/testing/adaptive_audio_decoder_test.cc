@@ -24,7 +24,6 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -63,26 +62,6 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(VideoDmpReader* dmp_reader,
                          player_sample_info);
 }
 
-string GetTestInputDirectory() {
-  const size_t kPathSize = kSbFileMaxPath + 1;
-
-  std::vector<char> content_path(kPathSize);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kPathSize));
-  string directory_path =
-      string(content_path.data()) + kSbFileSepChar + "test" + kSbFileSepChar +
-      "starboard" + kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
-      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  return directory_path;
-}
-
-string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + kSbFileSepChar + filename;
-}
-
 class AdaptiveAudioDecoderTest
     : public ::testing::TestWithParam<std::tuple<vector<const char*>, bool>> {
  protected:
@@ -93,8 +72,7 @@ class AdaptiveAudioDecoderTest
         using_stub_decoder_(std::get<1>(GetParam())) {
     for (auto filename : test_filenames_) {
       dmp_readers_.emplace_back(
-          new VideoDmpReader(ResolveTestFileName(filename).c_str(),
-                             VideoDmpReader::kEnableReadOnDemand));
+          new VideoDmpReader(filename, VideoDmpReader::kEnableReadOnDemand));
     }
 
     auto accumulate_operation = [](string accumulated, const char* str) {

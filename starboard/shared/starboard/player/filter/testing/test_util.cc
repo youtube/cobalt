@@ -41,32 +41,11 @@ using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
 using video_dmp::VideoDmpReader;
 
-std::string GetTestInputDirectory() {
-  const size_t kPathSize = kSbFileMaxPath + 1;
-
-  std::vector<char> content_path(kPathSize);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kPathSize));
-  std::string directory_path = std::string(content_path.data()) +
-                               kSbFileSepChar + "test" + kSbFileSepChar +
-                               "starboard" + kSbFileSepChar + "shared" +
-                               kSbFileSepChar + "starboard" + kSbFileSepChar +
-                               "player" + kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  return directory_path;
-}
-
 }  // namespace
 
 void StubDeallocateSampleFunc(SbPlayer player,
                               void* context,
                               const void* sample_buffer) {}
-
-std::string ResolveTestFileName(const char* filename) {
-  return GetTestInputDirectory() + kSbFileSepChar + filename;
-}
 
 std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
                                          const char* mime_attributes) {
@@ -135,8 +114,7 @@ std::vector<const char*> GetSupportedAudioTestFiles(
   if (audio_file_info_cache.empty()) {
     audio_file_info_cache.reserve(SB_ARRAY_SIZE_INT(kFilenames));
     for (auto filename : kFilenames) {
-      VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str(),
-                                VideoDmpReader::kEnableReadOnDemand);
+      VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
       SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
 
       audio_file_info_cache.push_back(
@@ -192,8 +170,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   }
 
   for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(filename).c_str(),
-                              VideoDmpReader::kEnableReadOnDemand);
+    VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
 
     for (auto output_mode : kOutputModes) {

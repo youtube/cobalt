@@ -19,7 +19,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/atomic.h"
 #include "starboard/common/string.h"
-#include "starboard/directory.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -73,7 +72,7 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
   const char* kEmptyName = NULL;
 
   for (auto audio_filename : kAudioTestFiles) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(audio_filename).c_str());
+    VideoDmpReader dmp_reader(audio_filename);
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
 
     if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
@@ -89,7 +88,7 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
   }
 
   for (auto video_filename : kVideoTestFiles) {
-    VideoDmpReader dmp_reader(ResolveTestFileName(video_filename).c_str());
+    VideoDmpReader dmp_reader(video_filename);
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
     if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
                                         "")) {
@@ -105,21 +104,6 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
   }
 
   return test_configs;
-}
-
-std::string ResolveTestFileName(const char* filename) {
-  std::vector<char> content_path(kSbFileMaxPath);
-  SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
-                           kSbFileMaxPath));
-  std::string directory_path = std::string(content_path.data()) +
-                               kSbFileSepChar + "test" + kSbFileSepChar +
-                               "starboard" + kSbFileSepChar + "shared" +
-                               kSbFileSepChar + "starboard" + kSbFileSepChar +
-                               "player" + kSbFileSepChar + "testdata";
-
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
-      << "Cannot open directory " << directory_path;
-  return directory_path + kSbFileSepChar + filename;
 }
 
 void DummyDeallocateSampleFunc(SbPlayer player,
