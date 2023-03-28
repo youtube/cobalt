@@ -71,8 +71,6 @@ copy("demos_testdata") {
     "media-element-demo/tsconfig.json",
     "media-element-demo/webpack.config.js",
     "media-query/media-query-test.html",
-    "mtm-demo/mtm.html",
-    "mtm-demo/normal.html",
     "opacity-transitions-demo/opacity-transitions-demo.html",
     "page-visibility-demo/page-visibility-demo.html",
     "performance-api-demo/performance-lifecycle-timing-demo.html",
@@ -111,6 +109,10 @@ copy("demos_testdata") {
 
   if (is_internal_build) {
     sources += [
+      "//internal/cobalt/demos/content/mtm-demo/README.txt",
+      "//internal/cobalt/demos/content/mtm-demo/mtm.html",
+      "//internal/cobalt/demos/content/mtm-demo/normal.html",
+      "//internal/cobalt/demos/content/mtm-demo/progressive.mp4",
       "media-element-demo/public/assets/ac3.mp4",
       "media-element-demo/public/assets/dash-audio.mp4",
       "media-element-demo/public/assets/dash-video-1080p.mp4",
@@ -121,8 +123,6 @@ copy("demos_testdata") {
       "media-element-demo/public/assets/hvc1_720p.mp4",
       "media-element-demo/public/assets/hvc1_hdr_480p.mp4",
       "media-element-demo/public/assets/progressive.mp4",
-      "mtm-demo/README.txt",
-      "mtm-demo/progressive.mp4",
       "text-encoding-workaround/text-encoding-workaround.html",
     ]
   }
