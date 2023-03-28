@@ -131,6 +131,7 @@ void Worker::Initialize(web::Context* context) {
 
   // 10. Set worker global scope's name to the value of options's name member.
   dedicated_worker_global_scope->set_name(options_.options.name());
+  web_context_->SetupFinished();
   // (Moved) 2. Let owner be the relevant owner to add given outside settings.
   web::WindowOrWorkerGlobalScope* owner =
       options_.outside_context->GetWindowOrWorkerGlobalScope();
@@ -153,7 +154,6 @@ void Worker::Initialize(web::Context* context) {
   // "worker" otherwise.
   // 14. Obtain script
 
-  web_context_->SetupFinished();
   Obtain();
 }
 
@@ -336,11 +336,13 @@ void Worker::Abort() {
     worker_global_scope_->owner_set()->clear();
   }
   if (web_agent_) {
-    DCHECK(message_loop());
-    web_agent_->WaitUntilDone();
-    web_agent_->Stop();
-    web_agent_.reset();
+    std::unique_ptr<web::Agent> web_agent(std::move(web_agent_));
+    DCHECK(web_agent);
+    DCHECK(!web_agent_);
+    web_agent->WaitUntilDone();
     web_context_ = nullptr;
+    web_agent->Stop();
+    web_agent.reset();
   }
 }
 
