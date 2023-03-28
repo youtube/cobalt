@@ -73,7 +73,6 @@ void Worker::WillDestroyCurrentMessageLoop() {
   worker_global_scope_ = nullptr;
   message_port_ = nullptr;
   content_.reset();
-  error_.reset();
 }
 
 Worker::~Worker() { Abort(); }
@@ -192,6 +191,23 @@ void Worker::Obtain() {
       base::Bind(&Worker::OnLoadingComplete, base::Unretained(this)));
 }
 
+void Worker::SendErrorEventToOutside(const std::string& message) {
+  LOG(WARNING) << "Worker loading failed : " << message;
+  options_.outside_context->message_loop()->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(
+          [](base::WeakPtr<web::EventTarget> event_target,
+             const std::string& message, const std::string& filename) {
+            web::ErrorEventInit error;
+            error.set_message(message);
+            error.set_filename(filename);
+            event_target->DispatchEvent(new web::ErrorEvent(
+                event_target->environment_settings(), error));
+          },
+          base::AsWeakPtr(options_.outside_event_target), message,
+          web_context_->environment_settings()->creation_url().spec()));
+}
+
 void Worker::OnContentProduced(const loader::Origin& last_url_origin,
                                std::unique_ptr<std::string> content) {
   // Algorithm for 'run a worker'
@@ -209,35 +225,13 @@ void Worker::OnContentProduced(const loader::Origin& last_url_origin,
 void Worker::OnLoadingComplete(const base::Optional<std::string>& error) {
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
-  error_ = error;
   //     If the algorithm asynchronously completes with null or with a script
   //     whose error to rethrow is non-null, then:
-  if (error_ || !content_) {
+  if (error || !content_) {
     //     1. Queue a global task on the DOM manipulation task source given
     //        worker's relevant global object to fire an event named error at
     //        worker.
-    options_.outside_context->message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            [](web::WindowOrWorkerGlobalScope* global_scope,
-               const base::Optional<std::string>& message,
-               const base::SourceLocation& location) {
-              web::ErrorEventInit error;
-              error.set_message(message.value_or("No content for worker."));
-              error.set_filename(location.file_path);
-              error.set_lineno(location.line_number);
-              error.set_colno(location.column_number);
-              global_scope->DispatchEvent(new web::ErrorEvent(
-                  global_scope->environment_settings(), error));
-            },
-            base::Unretained(
-                options_.outside_context->GetWindowOrWorkerGlobalScope()),
-            error, options_.construction_location));
-    if (error_) {
-      LOG(WARNING) << "Script loading failed : " << *error;
-    } else {
-      LOG(WARNING) << "Script loading failed : no content received.";
-    }
+    SendErrorEventToOutside(error.value_or("No content for worker."));
     //     2. Run the environment discarding steps for inside settings.
     //     3. Return.
     return;
@@ -285,19 +279,7 @@ void Worker::Execute(const std::string& content,
   std::string retval = web_context_->script_runner()->Execute(
       content, script_location, mute_errors, &succeeded);
   if (!succeeded) {
-    options_.outside_context->message_loop()->task_runner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            [](web::Context* context, const std::string& message,
-               const std::string& filename) {
-              web::ErrorEventInit error;
-              error.set_message(message);
-              error.set_filename(filename);
-              context->GetWindowOrWorkerGlobalScope()->DispatchEvent(
-                  new web::ErrorEvent(context->environment_settings(), error));
-            },
-            options_.outside_context, retval,
-            web_context_->environment_settings()->creation_url().spec()));
+    SendErrorEventToOutside(retval);
   }
 
   // 24. Enable outside port's port message queue.

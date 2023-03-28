@@ -22,45 +22,48 @@
 
 <body>
   <script>
-  var window_onerror_count = 0;
-  window.onerror = (message, filename, lineno, colno, error) => {
-    ++window_onerror_count;
-    console.log(message);
-    if (message.includes('nonexisting_worker.js')) {
-      assertIncludes('aborted or failed with code 404', message);
-      assertIncludes('worker_load_test.html', filename);
-    } else {
+    var window_onerror_count = 0;
+    var worker_onerror_count = 0;
+    window.onerror = (message, filename, lineno, colno, error) => {
+      ++window_onerror_count;
+      console.log('window got onerror', message);
       notReached();
     }
-    if (window_onerror_count == 1) {
-      window.setTimeout(
-        () => {
-          assertEqual(1, window_onerror_count);
-          onEndTest();
-        }, 250);
 
-    }
-  }
-
-  // This worker is blocked because the URL can't resolve.
-  try {
-    var blocked_worker = new Worker('..:/blocked_worker.js');
-    notReached();
-  } catch(error) {
-    console.log(error);
-    assertEqual('SyntaxError', error.name);
-  }
-
-  // This worker is blocked because the script does not exist.
-  try {
-    var nonexisting_worker = new Worker('nonexisting_worker.js');
-    nonexisting_worker.onerror = function (event) {
-      // Note: The Worker's onerror handler (incorrectly) isn't called.
+    // This worker is blocked because the URL can't resolve.
+    try {
+      var blocked_worker = new Worker('..:/blocked_worker.js');
       notReached();
-    };
-  } catch (error) {
-    // The error is thrown asynchronously after the Worker constructor.
-    notReached();
-  }
+    } catch (error) {
+      console.log(error);
+      assertEqual('SyntaxError', error.name);
+    }
+
+    // This worker is blocked because the script does not exist.
+    try {
+      var nonexisting_worker = new Worker('nonexisting_worker.js');
+      nonexisting_worker.onerror = function (event) {
+        ++worker_onerror_count;
+        console.log(event.message);
+        if (event.message.includes('nonexisting_worker.js')) {
+          assertIncludes('aborted or failed with code 404', event.message);
+          assertIncludes('/testdata/nonexisting_worker.js', event.filename);
+        } else {
+          notReached();
+        }
+        if (worker_onerror_count == 1) {
+          window.setTimeout(
+            () => {
+              assertEqual(1, worker_onerror_count);
+              assertEqual(0, window_onerror_count);
+              onEndTest();
+            }, 250);
+
+        }
+      };
+    } catch (error) {
+      // The error is thrown asynchronously after the Worker constructor.
+      notReached();
+    }
   </script>
 </body>

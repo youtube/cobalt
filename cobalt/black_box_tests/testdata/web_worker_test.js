@@ -16,10 +16,8 @@ const data = 'web worker test loaded'
 self.postMessage(data);
 self.onmessage = function (event) {
     let message = `worker received ${event.data}`;
-    console.log(message);
     if (event.data == 'import scripts now') {
         // These should load and execute synchronously.
-        console.log('Worker importing scripts.');
         self.importScripts('web_worker_test_importscripts_1.js',
             'web_worker_test_importscripts_2.js',
             'web_worker_test_importscripts_3.js');
@@ -38,7 +36,6 @@ try {
         'web_worker_test_importscripts_3.js');
 } catch (e) {
     message = 'Expected exception message 4: ' + e;
-    console.log(message);
     self.postMessage(message);
 }
 
@@ -46,7 +43,6 @@ try {
     self.importScripts('...:...');
 } catch (e) {
     message = 'Expected exception message 5: ' + e;
-    console.log(message);
     self.postMessage(message);
 }
 

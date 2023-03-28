@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-console.log('worker test importscripts with syntax error');
 self.postMessage('Imported Script Before Syntax Error');
 self.Foo('Bar');
 self.postMessage('Imported Script After Syntax Error');

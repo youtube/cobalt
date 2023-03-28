@@ -22,31 +22,37 @@
 
 <body>
   <script>
-  var worker;
-  var window_onerror_count = 0;
-  window.onerror = (message, filename, lineno, colno, error) => {
-    ++window_onerror_count;
-    // Note: Worker execution errors currently don't pass line or column
-    // number in the error message.
-    assertIncludes('SecurityError', message);
-    assertIncludes('worker_csp_test.js', filename);
-    assertEqual(1, window_onerror_count);
-    window.setTimeout(
-      () => {
-        worker.terminate();
-        onEndTest();
-      }, 250);
-  }
+    var worker;
+    var window_onerror_count = 0;
+    var worker_onerror_count = 0;
+    window.onerror = (message, filename, lineno, colno, error) => {
+      ++window_onerror_count;
+      console.log('window got onerror', message);
+      notReached();
+    }
 
-  // This worker attempts to do an XHR request that is blocked by CSP.
-  worker = new Worker('worker_csp_test.js');
-  worker.onmessage = function (event) {
-    notReached();
-  };
-  worker.onerror = function (event) {
-    // Note: The Worker's onerror handler (incorrectly) isn't called.
-    notReached();
-  };
+    // This worker attempts to do an XHR request that is blocked by CSP.
+    worker = new Worker('worker_csp_test.js');
+    worker.onmessage = function (event) {
+      console.log('worker got onmessage', event.data);
+      notReached();
+    };
+    worker.onerror = function (event) {
+      ++worker_onerror_count;
+      console.log('worker got onerror', event.message);
+      // Note: Worker execution errors currently don't pass line or column
+      // number in the error message.
+      assertIncludes('SecurityError', event.message);
+      assertIncludes('worker_csp_test.js', event.filename);
+      assertEqual(1, worker_onerror_count);
+      window.setTimeout(
+        () => {
+          assertEqual(1, worker_onerror_count);
+          assertEqual(0, window_onerror_count);
+          worker.terminate();
+          onEndTest();
+        }, 250);
+    };
 
   </script>
 </body>

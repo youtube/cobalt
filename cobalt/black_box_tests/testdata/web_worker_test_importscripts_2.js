@@ -12,5 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-console.log('worker test importscripts 2');
 self.postMessage('Imported Script 2');

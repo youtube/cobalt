@@ -19,95 +19,99 @@
   functionality. This can be expanded as more functionality is implemented,
   but probably will be superseded by Web Platform Tests.
 -->
+
 <head>
-    <title>Cobalt Web Worker Test</title>
-    <script src='black_box_js_test_utils.js'></script>
+  <title>Cobalt Web Worker Test</title>
+  <script src='black_box_js_test_utils.js'></script>
 </head>
 
 <body>
-<script>
+  <script>
     var window_error_event_count = 0;
+    var worker_error_event_count = 0;
     window.onerror = function (message) {
-        window_error_event_count += 1;
-        assertIncludes('TypeError: self.Foo is not a function', message);
-        console.log('window got onerror', message);
+      window_error_event_count += 1;
+      console.error('window got onerror', message);
+      notReached();
     };
 
     var message_event_count = 0;
-    console.log('running');
 
-    // This is expected trigger a an error event on window.
+    // This is expected trigger an error event on the Worker object.
     var worker_with_error = new Worker('web_worker_test_with_syntax_error.js',
-        { name : 'worker_with_error'});
+      { name: 'worker_with_error' });
+    worker_with_error.onerror = function (event) {
+      worker_error_event_count += 1;
+      assertIncludes('TypeError: self.Foo is not a function', event.message);
+    };
 
-    var worker = new Worker('web_worker_test.js', { name : 'test_worker'});
-    console.log(worker);
-    worker.onmessage = function (event) {
-        message_event_count += 1;
-        console.log('window got message', message_event_count, 'from worker:', event.data);
-        switch (message_event_count) {
-            case 1:
-                assertEqual('web worker test loaded', event.data);
-                break;
-            case 2:
-                // The first script is expected to execute even though the next
-                // one has a syntax error.
-                assertEqual('Imported Script 1', event.data);
-                break;
-            case 3:
-                assertEqual('Imported Script Before Syntax Error', event.data);
-                break;
-            case 4:
-                assertEqual('Expected exception message 4: SyntaxError', event.data);
-                break;
-            case 5:
-                assertEqual('Expected exception message 5: SyntaxError', event.data);
-                worker.postMessage('import scripts now');
-                worker.postMessage('just some data');
-                worker.postMessage('a special message');
-                break;
-            case 6:
-                // Scripts loaded with importScripts are guaranteed to execute
-                // in order.
-                assertEqual('Imported Script 1', event.data);
-                break;
-            case 7:
-                assertEqual('Imported Script 2', event.data);
-                break;
-            case 8:
-                assertEqual('Imported Script 3', event.data);
-                break;
-            case 9:
-                assertEqual('worker received import scripts now', event.data);
-                break;
-            case 10:
-                assertEqual('IMPORT SCRIPTS NOW', event.data);
-                break;
-            case 11:
-                assertEqual('worker received just some data', event.data);
-                break;
-            case 12:
-                assertEqual('JUST SOME DATA', event.data);
-                break;
-            case 13:
-                assertEqual('worker received a special message', event.data);
-                break;
-            case 14:
-                assertEqual('A SPECIAL MESSAGE', event.data);
-                worker.terminate();
-                window.setTimeout(
-                    () => {
-                        assertEqual(14, message_event_count);
-                        assertEqual(1, window_error_event_count);
-                        onEndTest();
-                    }, 250);
-                break;
-        }
-    };
+    var worker = new Worker('web_worker_test.js', { name: 'test_worker' });
     worker.onerror = function (event) {
-        console.log('window got onerror');
-        notReached();
+      worker_error_event_count += 1;
+      console.error('worker got onerror', event.message);
+      notReached();
     };
-    console.log('end');
-</script>
+    worker.onmessage = function (event) {
+      message_event_count += 1;
+      switch (message_event_count) {
+        case 1:
+          assertEqual('web worker test loaded', event.data);
+          break;
+        case 2:
+          // The first script is expected to execute even though the next
+          // one has a syntax error.
+          assertEqual('Imported Script 1', event.data);
+          break;
+        case 3:
+          assertEqual('Imported Script Before Syntax Error', event.data);
+          break;
+        case 4:
+          assertEqual('Expected exception message 4: SyntaxError', event.data);
+          break;
+        case 5:
+          assertEqual('Expected exception message 5: SyntaxError', event.data);
+          worker.postMessage('import scripts now');
+          worker.postMessage('just some data');
+          worker.postMessage('a special message');
+          break;
+        case 6:
+          // Scripts loaded with importScripts are guaranteed to execute
+          // in order.
+          assertEqual('Imported Script 1', event.data);
+          break;
+        case 7:
+          assertEqual('Imported Script 2', event.data);
+          break;
+        case 8:
+          assertEqual('Imported Script 3', event.data);
+          break;
+        case 9:
+          assertEqual('worker received import scripts now', event.data);
+          break;
+        case 10:
+          assertEqual('IMPORT SCRIPTS NOW', event.data);
+          break;
+        case 11:
+          assertEqual('worker received just some data', event.data);
+          break;
+        case 12:
+          assertEqual('JUST SOME DATA', event.data);
+          break;
+        case 13:
+          assertEqual('worker received a special message', event.data);
+          break;
+        case 14:
+          assertEqual('A SPECIAL MESSAGE', event.data);
+          worker.terminate();
+          window.setTimeout(
+            () => {
+              assertEqual(14, message_event_count);
+              assertEqual(0, window_error_event_count);
+              assertEqual(1, worker_error_event_count);
+              onEndTest();
+            }, 250);
+          break;
+      }
+    };
+  </script>
 </body>

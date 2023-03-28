@@ -69,6 +69,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
     GURL url;
     web::Context* outside_context = nullptr;
+    web::EventTarget* outside_event_target;
     web::MessagePort* outside_port = nullptr;
     WorkerOptions options;
   };
@@ -96,6 +97,9 @@ class Worker : public base::MessageLoop::DestructionObserver {
   // Called by |Run| to perform initialization required on the dedicated
   // thread.
   void Initialize(web::Context* context);
+
+  // Send an error event to the outside object.
+  void SendErrorEventToOutside(const std::string& message);
 
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);
@@ -134,9 +138,6 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   // Content of the script. Released after Execute is called.
   std::unique_ptr<std::string> content_;
-
-  // If the script failed, contains the error message.
-  base::Optional<std::string> error_;
 
   // The execution ready flag.
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-environment-execution-ready-flag

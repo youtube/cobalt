@@ -22,35 +22,39 @@
 
 <body>
   <script>
-  var window_onerror_count = 0;
-  window.onerror = (message, filename, lineno, colno, error) => {
-    ++window_onerror_count;
-    if (message.includes('blocked_worker.js')) {
-      assertIncludes('rejected by security policy', message);
-      assertIncludes('worker_load_csp_test.html', filename);
-    } else {
+    var window_onerror_count = 0;
+    var worker_onerror_count = 0;
+    window.onerror = (message, filename, lineno, colno, error) => {
+      ++window_onerror_count;
+      console.log('window got onerror', message);
       notReached();
     }
-    if (window_onerror_count == 1) {
-      window.setTimeout(
-        () => {
-          assertEqual(1, window_onerror_count);
-          onEndTest();
-        }, 250);
 
-    }
-  }
+    // This worker is blocked because the URL isn't allowed by CSP.
+    try {
+      var blocked_worker = new Worker('https://www.google.com/blocked_worker.js');
+      blocked_worker.onerror = function (event) {
+        ++worker_onerror_count;
+        console.log('worker got onerror', event.message);
+        if (event.message.includes('blocked_worker.js')) {
+          assertIncludes('rejected by security policy', event.message);
+          assertEqual('https://www.google.com/blocked_worker.js', event.filename);
+        } else {
+          notReached();
+        }
+        if (worker_onerror_count == 1) {
+          window.setTimeout(
+            () => {
+              assertEqual(1, worker_onerror_count);
+              assertEqual(0, window_onerror_count);
+              onEndTest();
+            }, 250);
 
-  // This worker is blocked because the URL isn't allowed by CSP.
-  try {
-    var blocked_worker = new Worker('https://www.google.com/blocked_worker.js');
-    blocked_worker.onerror = function (event) {
-      // Note: The Worker's onerror handler (incorrectly) isn't called.
+        }
+      };
+    } catch (error) {
+      // The error is thrown asynchronously after the Worker constructor.
       notReached();
-    };
-  } catch (error) {
-    // The error is thrown asynchronously after the Worker constructor.
-    notReached();
-  }
+    }
   </script>
 </body>

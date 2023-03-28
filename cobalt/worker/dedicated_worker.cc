@@ -94,6 +94,7 @@ void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.
   options.outside_context = environment_settings()->context();
+  options.outside_event_target = this;
   options.outside_port = outside_port_.get();
   options.options = worker_options_;
   options.web_options.service_worker_jobs =
