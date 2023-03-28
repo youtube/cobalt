@@ -96,6 +96,7 @@ copy("demos_testdata") {
     "splash_screen/redirected.html",
     "splash_screen/render_postponed.html",
     "system-caption-settings/index.html",
+    "text-encoding-workaround/text-encoding-workaround.html",
     "timer-demo/timer-demo.html",
     "transitions-demo/transitions-demo.html",
     "transparent-animated-webp-demo/bottleflip_loader.webp",
@@ -123,7 +124,6 @@ copy("demos_testdata") {
       "media-element-demo/public/assets/hvc1_720p.mp4",
       "media-element-demo/public/assets/hvc1_hdr_480p.mp4",
       "media-element-demo/public/assets/progressive.mp4",
-      "text-encoding-workaround/text-encoding-workaround.html",
     ]
   }
 
