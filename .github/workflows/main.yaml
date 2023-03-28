@@ -182,7 +182,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          # Use fetch depth of 0 to get full history for a valid build id.
+          fetch-depth: 0
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
