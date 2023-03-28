@@ -13,6 +13,7 @@ exclude: |
             buildtools|
             crypto|
             net|
+            starboard/shared/playstation/glimp/shaders|
             testing|
             third_party|
             tools/gyp|
