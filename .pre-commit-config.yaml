@@ -47,7 +47,8 @@ repos:
                 starboard/[^/]+/i18n/|
                 cobalt/content/licenses/|
                 cobalt/fetch/embedded_scripts|
-                cobalt/loader/cors_preflight.cc
+                cobalt/loader/cors_preflight.cc|
+                internal/cobalt/browser/splash_screen/youtube_splash_screen.html
             )
 
 -   repo: local

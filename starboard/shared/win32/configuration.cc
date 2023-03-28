@@ -24,7 +24,8 @@ namespace win32 {
 namespace {
 
 const char* CobaltFallbackSplashScreenUrl() {
-  return "file:///cobalt/browser/splash_screen/youtube_splash_screen.html";
+  return "file:///internal/cobalt/browser/splash_screen/"
+         "youtube_splash_screen.html";
 }
 
 const char* CobaltRasterizerType() {
