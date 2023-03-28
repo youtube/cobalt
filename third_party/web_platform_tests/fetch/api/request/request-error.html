@@ -26,10 +26,12 @@
           "Expect TypeError exception");
       },"Input URL has credentials");
 
-      test(function() {
-        assert_throws(new TypeError() , function() { new Request("", {"mode" : "navigate"}); },
-          "Expect TypeError exception");
-      },"RequestInit's mode is navigate");
+      // Since request is polyfilled, it needs to be possible to create a Request with the mode
+      // 'navigate'.
+      // test(function() {
+      //   assert_throws(new TypeError() , function() { new Request("", {"mode" : "navigate"}); },
+      //     "Expect TypeError exception");
+      // },"RequestInit's mode is navigate");
 
       // Referrer is not supported due to privacy concerns.
       /*

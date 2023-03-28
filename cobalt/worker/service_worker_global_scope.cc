@@ -194,6 +194,7 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
 
 void ServiceWorkerGlobalScope::StartFetch(
     const GURL& url, bool main_resource,
+    const net::HttpRequestHeaders& request_headers,
     scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
     base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
     base::OnceCallback<void(const net::LoadTimingInfo&)>
@@ -208,11 +209,12 @@ void ServiceWorkerGlobalScope::StartFetch(
   if (base::MessageLoop::current() !=
       environment_settings()->context()->message_loop()) {
     environment_settings()->context()->message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(&ServiceWorkerGlobalScope::StartFetch,
-                                  base::Unretained(this), url, main_resource,
-                                  callback_task_runner, std::move(callback),
-                                  std::move(report_load_timing_info),
-                                  std::move(fallback)));
+        FROM_HERE,
+        base::BindOnce(&ServiceWorkerGlobalScope::StartFetch,
+                       base::Unretained(this), url, main_resource,
+                       request_headers, callback_task_runner,
+                       std::move(callback), std::move(report_load_timing_info),
+                       std::move(fallback)));
     return;
   }
   if (!service_worker()) {
@@ -242,7 +244,20 @@ void ServiceWorkerGlobalScope::StartFetch(
   auto* global_environment = get_global_environment(environment_settings());
   auto* isolate = global_environment->isolate();
   script::v8c::EntryScope entry_scope(isolate);
-  auto request = web::cache_utils::CreateRequest(isolate, url.spec());
+  base::DictionaryValue options;
+  if (main_resource) {
+    options.SetKey("mode", base::Value("navigate"));
+  }
+  base::ListValue headers;
+  for (auto header_pair : request_headers.GetHeaderVector()) {
+    base::ListValue header;
+    header.GetList().emplace_back(header_pair.key);
+    header.GetList().emplace_back(header_pair.value);
+    headers.GetList().push_back(std::move(header));
+  }
+  options.SetKey("headers", std::move(headers));
+  auto request =
+      web::cache_utils::CreateRequest(isolate, url.spec(), std::move(options));
   if (!request) {
     callback_task_runner->PostTask(FROM_HERE, std::move(fallback));
     return;

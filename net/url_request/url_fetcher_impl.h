@@ -84,6 +84,7 @@ class NET_EXPORT_PRIVATE URLFetcherImpl : public URLFetcher {
 #if defined(STARBOARD)
   URLFetcherResponseWriter* GetResponseWriter() const override;
 #endif
+  const HttpRequestHeaders& GetRequestHeaders() const override;
   HttpResponseHeaders* GetResponseHeaders() const override;
   HostPortPair GetSocketAddress() const override;
   const ProxyServer& ProxyServerUsed() const override;

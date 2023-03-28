@@ -159,7 +159,8 @@ void NetFetcher::Start() {
       return;
     }
     FetchInterceptorCoordinator::GetInstance()->TryIntercept(
-        original_url, main_resource_, task_runner_,
+        original_url, main_resource_, url_fetcher_->GetRequestHeaders(),
+        task_runner_,
         base::BindOnce(&NetFetcher::OnFetchIntercepted, AsWeakPtr()),
         base::BindOnce(&NetFetcher::ReportLoadTimingInfo, AsWeakPtr()),
         base::BindOnce(&NetFetcher::InterceptFallback, AsWeakPtr()));

@@ -411,8 +411,27 @@ base::Optional<v8::Local<v8::Value>> CreateInstance(
 }
 
 base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
-                                                   const std::string& url) {
-  return CreateInstance(isolate, "Request", {V8String(isolate, url)});
+                                                   const std::string& url,
+                                                   const base::Value& options) {
+  auto v8_options = v8::Object::New(isolate);
+  auto mode = options.FindKey("mode");
+  if (mode) {
+    Set(v8_options, "mode", V8String(isolate, mode->GetString()));
+  }
+  auto headers = options.FindKey("headers");
+  if (headers) {
+    auto v8_headers = v8::Object::New(isolate);
+    for (const auto& header : headers->GetList()) {
+      const auto& pair = header.GetList();
+      DCHECK(pair.size() == 2);
+      auto name = pair[0].GetString();
+      auto value = pair[1].GetString();
+      Set(v8_headers, name, V8String(isolate, value));
+    }
+    Set(v8_options, "headers", v8_headers);
+  }
+  return CreateInstance(isolate, "Request",
+                        {V8String(isolate, url), v8_options});
 }
 
 base::Optional<v8::Local<v8::Value>> CreateResponse(

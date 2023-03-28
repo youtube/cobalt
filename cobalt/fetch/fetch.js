@@ -146,8 +146,11 @@
   const VALID_METHODS_NOCORS = ['GET', 'HEAD', 'POST']
 
   // Modes that are allowed for RequestInit. Although 'navigate' is a valid
-  // request mode, it is not allowed in the RequestInit parameter.
-  const VALID_MODES = ['same-origin', 'no-cors', 'cors']
+  // request mode, it is not allowed in the RequestInit parameter. However,
+  // the request mode 'navigate' needs to be allowed since Request is
+  // polyfilled, so there is no other way to set request mode to 'navigae'
+  // even when it is correct to do so (requesting the main resource).
+  const VALID_MODES = ['same-origin', 'no-cors', 'cors', 'navigate']
 
   // Values that are allowed for Request redirect mode.
   const VALID_REDIRECT_MODES = ['follow', 'error', 'manual']

@@ -19,7 +19,9 @@
 
 #if defined(ENABLE_FAKE_MICROPHONE)
 
+#include <memory>
 #include <string>
+#include <utility>
 
 #include "base/optional.h"
 #include "base/threading/thread_checker.h"
@@ -103,6 +105,9 @@ class URLFetcherFake : public net::URLFetcher {
   void SetAutomaticallyRetryOnNetworkChanges(int max_retries) override {
     NOTREACHED();
   }
+  const net::HttpRequestHeaders& GetRequestHeaders() const override {
+    return extra_request_headers_;
+  }
   net::HttpResponseHeaders* GetResponseHeaders() const override {
     NOTREACHED();
     return NULL;
@@ -158,6 +163,7 @@ class URLFetcherFake : public net::URLFetcher {
   base::Optional<base::RepeatingTimer> download_timer_;
   net::ProxyServer proxy_server_;
   std::unique_ptr<net::URLFetcherResponseWriter> response_data_writer_;
+  net::HttpRequestHeaders extra_request_headers_;
   THREAD_CHECKER(thread_checker_);
 };
 

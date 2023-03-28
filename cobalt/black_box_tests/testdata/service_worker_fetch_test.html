@@ -31,7 +31,7 @@
         Promise.all(registrations.map(r => r.unregister())));
     const unregisterAndNotReached = () => unregisterAll().then(notReached);
 
-    const fetch_resource = () => fetch('service_worker_fetch_resource.js').then(r => r.text());
+    const fetchResource = () => fetch('service_worker_fetch_resource.js').then(r => r.text());
     const timeoutId = window.setTimeout(unregisterAndNotReached, 10000);
     window.activeServiceWorker = null;
     navigator.serviceWorker.onmessage = event => {
@@ -46,7 +46,7 @@
           unregisterAndNotReached();
           return;
         }
-        fetch_resource().then(body => {
+        fetchResource().then(body => {
           window.activeServiceWorker.postMessage({test: event.data.test, result: body});
         });
         return;
@@ -66,7 +66,7 @@
       window.activeServiceWorker.postMessage('start-test');
     });
 
-    unregisterAll().then(fetch_resource).then(body => {
+    unregisterAll().then(fetchResource).then(body => {
       if ('window.activeServiceWorker.postMessage("script-not-intercepted");\n' !== body) {
         unregisterAndNotReached();
         return;

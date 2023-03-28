@@ -71,6 +71,7 @@ static_library("worker") {
     "//cobalt/browser:generated_bindings",
     "//cobalt/loader",
     "//cobalt/web",
+    "//net",
     "//url",
   ]
 

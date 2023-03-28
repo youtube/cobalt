@@ -123,6 +123,7 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
     return response_writer_.get();
   }
 #endif
+  const HttpRequestHeaders& GetRequestHeaders() const;
   HttpResponseHeaders* GetResponseHeaders() const;
   HostPortPair GetSocketAddress() const;
   const ProxyServer& ProxyServerUsed() const;

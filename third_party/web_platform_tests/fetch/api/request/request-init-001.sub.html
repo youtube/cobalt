@@ -49,8 +49,11 @@
                                                   "strict-origin-when-cross-origin"
                                                   ]
       };
-      var modes = {"givenValues" : ["same-origin", "no-cors", "cors"],
-                   "expectedValues" : ["same-origin", "no-cors", "cors"]
+      // Allow 'navigate' to be passed in as a valid mode to requestInit. This is
+      // necessary since Request is a polyfill and there is no other way to set
+      // mode to 'navigate'.
+      var modes = {"givenValues" : ["same-origin", "no-cors", "cors", "navigate"],
+                   "expectedValues" : ["same-origin", "no-cors", "cors", "navigate"]
       };
       var credentials = {"givenValues" : ["omit", "same-origin", "include"],
                           "expectedValues" : ["omit", "same-origin", "include"]
