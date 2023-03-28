@@ -130,8 +130,9 @@ v8::Local<v8::Value> ToV8Value(const script::Any& any);
 base::Optional<v8::Local<v8::Value>> Evaluate(v8::Isolate* isolate,
                                               const std::string& js_code);
 
-base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
-                                                   const std::string& url);
+base::Optional<v8::Local<v8::Value>> CreateRequest(
+    v8::Isolate* isolate, const std::string& url,
+    const base::Value& options = base::DictionaryValue());
 base::Optional<v8::Local<v8::Value>> CreateResponse(
     v8::Isolate* isolate, const std::vector<uint8_t>& body,
     const base::Value& options);

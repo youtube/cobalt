@@ -322,6 +322,9 @@ class NET_EXPORT URLFetcher {
   virtual URLFetcherResponseWriter* GetResponseWriter() const = 0;
 #endif
 
+  // Retrieve the request headers from the request.
+  virtual const HttpRequestHeaders& GetRequestHeaders() const = 0;
+
   // Retrieve the response headers from the request.  Must only be called after
   // the OnURLFetchComplete callback has run.
   virtual HttpResponseHeaders* GetResponseHeaders() const = 0;

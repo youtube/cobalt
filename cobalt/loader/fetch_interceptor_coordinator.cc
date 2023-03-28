@@ -38,6 +38,7 @@ FetchInterceptorCoordinator::FetchInterceptorCoordinator()
 
 void FetchInterceptorCoordinator::TryIntercept(
     const GURL& url, bool main_resource,
+    const net::HttpRequestHeaders& request_headers,
     scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
     base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
     base::OnceCallback<void(const net::LoadTimingInfo&)>
@@ -67,9 +68,10 @@ void FetchInterceptorCoordinator::TryIntercept(
   //       Consider moving the interception out of the ServiceWorkerGlobalScope
   //       to avoid a race condition. Fetches should be able to be intercepted
   //       by an active, registered, service worker.
-  fetch_interceptor_->StartFetch(
-      url, main_resource, callback_task_runner, std::move(callback),
-      std::move(report_load_timing_info), std::move(fallback));
+  fetch_interceptor_->StartFetch(url, main_resource, request_headers,
+                                 callback_task_runner, std::move(callback),
+                                 std::move(report_load_timing_info),
+                                 std::move(fallback));
 }
 
 }  // namespace loader

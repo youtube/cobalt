@@ -365,6 +365,10 @@ void URLFetcherCore::SaveResponseWithWriter(
   response_writer_ = std::move(response_writer);
 }
 
+const HttpRequestHeaders& URLFetcherCore::GetRequestHeaders() const {
+  return extra_request_headers_;
+}
+
 HttpResponseHeaders* URLFetcherCore::GetResponseHeaders() const {
   return response_headers_.get();
 }

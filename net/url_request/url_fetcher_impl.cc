@@ -156,6 +156,10 @@ URLFetcherResponseWriter* URLFetcherImpl::GetResponseWriter() const {
 }
 #endif
 
+const HttpRequestHeaders& URLFetcherImpl::GetRequestHeaders() const {
+  return core_->GetRequestHeaders();
+}
+
 HttpResponseHeaders* URLFetcherImpl::GetResponseHeaders() const {
   return core_->GetResponseHeaders();
 }

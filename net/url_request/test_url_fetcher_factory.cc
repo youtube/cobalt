@@ -208,6 +208,10 @@ URLFetcherResponseWriter* TestURLFetcher::GetResponseWriter() const {
   return response_writer_.get();
 }
 
+const HttpRequestHeaders& TestURLFetcher::GetRequestHeaders() const {
+  return fake_extra_request_headers_;
+}
+
 HttpResponseHeaders* TestURLFetcher::GetResponseHeaders() const {
   return fake_response_headers_.get();
 }

@@ -74,6 +74,7 @@ _TESTS_NO_SIGNAL = [
     'service_worker_cache_keys_test',
     'service_worker_controller_activation_test',
     'service_worker_get_registrations_test',
+    'service_worker_fetch_main_resource_test',
     'service_worker_fetch_test',
     'service_worker_message_test',
     'service_worker_test',
