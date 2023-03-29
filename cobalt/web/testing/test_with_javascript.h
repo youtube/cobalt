@@ -24,6 +24,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/testing/test_with_javascript.h"
 
 namespace cobalt {
@@ -50,6 +51,10 @@ class TestWithJavaScriptBase
     if (window_) return window_->web_context();
     return worker::testing::TestWithJavaScriptBase<
         TypeIdProvider>::web_context();
+  }
+
+  web::WindowOrWorkerGlobalScope* GetWindowOrWorkerGlobalScope() const {
+    return web_context()->GetWindowOrWorkerGlobalScope();
   }
 
   script::EnvironmentSettings* environment_settings() {

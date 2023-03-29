@@ -10,7 +10,7 @@ Worker_dispatchEvent_ErrorEvent.htm, PASS
 # b/225037465
 Worker_cross_origin_security_err.htm, DISABLE
 
-# b/226640425
+# b/275741116
 Worker_ErrorEvent_bubbles_cancelable.htm, DISABLE
 Worker_ErrorEvent_filename.htm, DISABLE
 Worker_ErrorEvent_lineno.htm, DISABLE

@@ -32,7 +32,6 @@
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/language.h"
-#include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/browser/splash_screen_cache.h"
@@ -258,9 +257,6 @@ class WebModule::Impl {
 
   void ReduceMemory();
 
-  void LogScriptError(const base::SourceLocation& source_location,
-                      const std::string& error_message);
-
   void IsReadyToFreeze(volatile bool* is_ready_to_freeze) {
     if (window_->media_session()->media_session_client() == NULL) {
       *is_ready_to_freeze = true;
@@ -335,10 +331,6 @@ class WebModule::Impl {
       }
     }
   }
-
-  // Report an error encountered while running JS.
-  // Returns whether or not the error was handled.
-  bool ReportScriptError(const script::ErrorReport& error_report);
 
   // Inject the DOM event object into the window or the element.
   void InjectInputEvent(scoped_refptr<dom::Element> element,
@@ -516,11 +508,6 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
 #endif  // defined(ENABLE_DEBUGGER)
       synchronous_loader_interrupt_(data.synchronous_loader_interrupt) {
   DCHECK(web_context_);
-#if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
-  script::JavaScriptEngine::ErrorHandler error_handler =
-      base::Bind(&WebModule::Impl::LogScriptError, base::Unretained(this));
-  web_context_->javascript_engine()->RegisterErrorHandler(error_handler);
-#endif
   css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
       data.options.enable_map_to_mesh
           ? css_parser::Parser::kSupportsMapToMesh
@@ -722,21 +709,6 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
       data.options.clear_window_with_background_color));
   DCHECK(layout_manager_);
 
-#if !defined(COBALT_FORCE_CSP)
-  if (data.options.csp_enforcement_type == web::kCspEnforcementDisable) {
-    // If CSP is disabled, enable eval(). Otherwise, it will be enabled by
-    // a CSP directive.
-    web_context_->global_environment()->EnableEval();
-  }
-#endif
-
-  web_context_->global_environment()->SetReportEvalCallback(
-      base::Bind(&web::CspDelegate::ReportEval,
-                 base::Unretained(window_->csp_delegate())));
-
-  web_context_->global_environment()->SetReportErrorCallback(
-      base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this)));
-
   if (!data.options.loaded_callbacks.empty()) {
     document_load_observer_.reset(
         new DocumentLoadedObserver(data.options.loaded_callbacks));
@@ -756,8 +728,8 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   report_unload_timing_info_callback_ =
       data.options.collect_unload_event_time_callback;
 
-  is_running_ = true;
   web_context_->SetupFinished();
+  is_running_ = true;
 }
 
 WebModule::Impl::~Impl() {
@@ -1039,14 +1011,6 @@ void WebModule::Impl::SetUnloadEventTimingInfo(base::TimeTicks start_time,
   }
 }
 
-bool WebModule::Impl::ReportScriptError(
-    const script::ErrorReport& error_report) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(is_running_);
-  DCHECK(window_);
-  return window_->ReportScriptError(error_report);
-}
-
 #if defined(ENABLE_WEBDRIVER)
 void WebModule::Impl::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id,
@@ -1242,25 +1206,6 @@ void WebModule::Impl::ReduceMemory() {
   if (web_context_ && web_context_->javascript_engine()) {
     web_context_->javascript_engine()->CollectGarbage();
   }
-}
-
-void WebModule::Impl::LogScriptError(
-    const base::SourceLocation& source_location,
-    const std::string& error_message) {
-  std::string file_name =
-      base::FilePath(source_location.file_path).BaseName().value();
-
-  std::stringstream ss;
-  base::TimeDelta dt = base::StartupTimer::TimeElapsed();
-
-  // Create the error output.
-  // Example:
-  //   JS:50250:file.js(29,80): ka(...) is not iterable
-  //   JS:<time millis><js-file-name>(<line>,<column>):<message>
-  ss << "JS:" << dt.InMilliseconds() << ":" << file_name << "("
-     << source_location.line_number << "," << source_location.column_number
-     << "): " << error_message << "\n";
-  SbLogRaw(ss.str().c_str());
 }
 
 void WebModule::Impl::InjectBeforeUnloadEvent() {

@@ -126,6 +126,10 @@ static_library("web") {
     ":web_events",
     "//cobalt/browser:generated_types",
   ]
+
+  if (!is_gold) {
+    defines = [ "COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING" ]
+  }
 }
 
 static_library("window_timers") {

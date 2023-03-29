@@ -19,6 +19,8 @@
 #include "base/bind.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/web/csp_delegate_factory.h"
+#include "cobalt/web/error_event.h"
+#include "cobalt/web/error_event_init.h"
 #include "cobalt/web/event_target.h"
 
 namespace cobalt {
@@ -45,6 +47,19 @@ WindowOrWorkerGlobalScope::WindowOrWorkerGlobalScope(
       this, options.csp_options,
       base::Bind(&WindowOrWorkerGlobalScope::OnCspPolicyChanged,
                  base::Unretained(this)));
+
+  environment_settings()
+      ->context()
+      ->global_environment()
+      ->SetReportEvalCallback(base::Bind(&web::CspDelegate::ReportEval,
+                                         base::Unretained(csp_delegate())));
+
+  environment_settings()
+      ->context()
+      ->global_environment()
+      ->SetReportErrorCallback(
+          base::Bind(&WindowOrWorkerGlobalScope::ReportScriptError,
+                     base::Unretained(this)));
 }
 
 WindowOrWorkerGlobalScope::~WindowOrWorkerGlobalScope() {
@@ -115,6 +130,65 @@ scoped_refptr<CacheStorage> WindowOrWorkerGlobalScope::caches() const {
 
 scoped_refptr<Crypto> WindowOrWorkerGlobalScope::crypto() const {
   return crypto_;
+}
+
+bool WindowOrWorkerGlobalScope::ReportScriptError(
+    const script::ErrorReport& error_report) {
+  // Runtime script errors: when the user agent is required to report an error
+  // for a particular script, it must run these steps, after which the error is
+  // either handled or not handled:
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors
+
+  // 1. If target is in error reporting mode, then abort these steps; the error
+  //    is not handled.
+  if (is_reporting_script_error_) {
+    return false;
+  }
+
+  // 2. Let target be in error reporting mode.
+  is_reporting_script_error_ = true;
+
+  // 7. Let event be a new trusted ErrorEvent object that does not bubble but is
+  //    cancelable, and which has the event name error.
+  // NOTE: Cobalt does not currently support trusted events.
+  web::ErrorEventInit error;
+  error.set_bubbles(false);
+  error.set_cancelable(true);
+
+  if (error_report.is_muted) {
+    // 6. If script has muted errors, then set message to "Script error.", set
+    //    location to the empty string, set line and col to 0, and set error
+    //    object to null.
+    error.set_message("Script error.");
+    error.set_filename("");
+    error.set_lineno(0);
+    error.set_colno(0);
+    error.set_error(NULL);
+  } else {
+    // 8. Initialize event's message attribute to message.
+    error.set_message(error_report.message);
+    // 9. Initialize event's filename attribute to location.
+    error.set_filename(error_report.filename);
+    // 10. Initialize event's lineno attribute to line.
+    error.set_lineno(error_report.line_number);
+    // 11. Initialize event's colno attribute to col.
+    error.set_colno(error_report.column_number);
+    // 12. Initialize event's error attribute to error object.
+    error.set_error(error_report.error ? error_report.error.get() : NULL);
+  }
+
+  scoped_refptr<web::ErrorEvent> error_event(
+      new web::ErrorEvent(environment_settings(), error));
+
+  // 13. Dispatch event at target.
+  DispatchEvent(error_event);
+
+  // 14. Let target no longer be in error reporting mode.
+  is_reporting_script_error_ = false;
+
+  // 15. If event was canceled, then the error is handled. Otherwise, the error
+  //     is not handled.
+  return error_event->default_prevented();
 }
 
 }  // namespace web

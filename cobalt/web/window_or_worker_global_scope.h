@@ -132,6 +132,12 @@ class WindowOrWorkerGlobalScope : public EventTarget {
 
   const Options& options() { return options_; }
 
+  // Report an error encountered while running JS.
+  // Performs the steps specified for runtime script errors:
+  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors
+  // Returns whether or not the script was handled.
+  bool ReportScriptError(const script::ErrorReport& error_report);
+
   DEFINE_WRAPPABLE_TYPE(WindowOrWorkerGlobalScope);
 
  protected:
@@ -147,6 +153,11 @@ class WindowOrWorkerGlobalScope : public EventTarget {
   NavigatorBase* navigator_base_ = nullptr;
   // Global preflight cache.
   scoped_refptr<loader::CORSPreflightCache> preflight_cache_;
+
+  // Whether or not the window is currently reporting a script error. This is
+  // used to prevent infinite recursion, because reporting the error causes an
+  // event to be dispatched, which can generate a new script error.
+  bool is_reporting_script_error_ = false;
 
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.

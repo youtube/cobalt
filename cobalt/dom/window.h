@@ -340,11 +340,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   void SetApplicationState(base::ApplicationState state,
                            SbTimeMonotonic timestamp);
 
-  // Performs the steps specified for runtime script errors:
-  //   https://www.w3.org/TR/html50/webappapis.html#runtime-script-errors
-  // Returns whether or not the script was handled.
-  bool ReportScriptError(const script::ErrorReport& error_report);
-
   // ApplicationLifecycleState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(VisibilityState visibility_state) override;
@@ -413,11 +408,6 @@ class Window : public web::WindowOrWorkerGlobalScope,
   // state is not visible. In this case, the resize event will run when the
   // visibility state changes to visible.
   bool is_resize_event_pending_;
-
-  // Whether or not the window is currently reporting a script error. This is
-  // used to prevent infinite recursion, because reporting the error causes an
-  // event to be dispatched, which can generate a new script error.
-  bool is_reporting_script_error_;
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;
