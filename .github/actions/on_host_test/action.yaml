@@ -65,6 +65,10 @@ runs:
       shell: bash
       run: |
         set -x
+        # Starboard toolchains are downloaded to a different dir on github. Create a symlink to reassure our tooling that everything is fine.
+        if [ -d /root/starboard-toolchains ]; then
+          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+        fi
         loader_args=''
         if [ "${COBALT_BOOTLOADER}" != "null" ]; then
           loader_args="--loader_platform ${COBALT_BOOTLOADER} --loader_config ${{matrix.config}}"
