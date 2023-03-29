@@ -30,8 +30,6 @@
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/web/cache_utils.h"
-#include "cobalt/web/context.h"
-#include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/service_worker_registration_object.h"
@@ -182,7 +180,7 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
                        base::Unretained(options_.service_worker_jobs),
                        registration));
 
-    auto job = options_.service_worker_jobs->CreateJob(
+    auto job = options_.service_worker_jobs->CreateJobWithoutPromise(
         ServiceWorkerJobs::JobType::kUpdate, storage_key, scope,
         registration->waiting_worker()->script_url());
     options_.service_worker_jobs->message_loop()->task_runner()->PostTask(

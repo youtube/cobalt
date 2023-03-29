@@ -129,6 +129,7 @@ class ServiceWorkerJobs {
     JobQueue* containing_job_queue = nullptr;
     std::deque<std::unique_ptr<Job>> equivalent_jobs;
     bool force_bypass_cache_flag = false;
+    bool no_promise_okay = false;
 
     // Custom, not in the spec.
     //
@@ -299,6 +300,15 @@ class ServiceWorkerJobs {
     return CreateJob(type, storage_key, scope_url, script_url,
                      JobPromiseType::Create(std::move(promise)), client);
   }
+  std::unique_ptr<Job> CreateJobWithoutPromise(JobType type,
+                                               const url::Origin& storage_key,
+                                               const GURL& scope_url,
+                                               const GURL& script_url) {
+    auto job = CreateJob(type, storage_key, scope_url, script_url,
+                         std::unique_ptr<JobPromiseType>(), /*client=*/nullptr);
+    job->no_promise_okay = true;
+    return job;
+  }
   std::unique_ptr<Job> CreateJob(
       JobType type, const url::Origin& storage_key, const GURL& scope_url,
       const GURL& script_url, std::unique_ptr<JobPromiseType> promise = nullptr,
@@ -398,7 +408,6 @@ class ServiceWorkerJobs {
   void UpdateOnRunServiceWorker(scoped_refptr<UpdateJobState> state,
                                 scoped_refptr<ServiceWorkerObject> worker,
                                 bool run_result);
-
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#unregister-algorithm
   void Unregister(Job* job);
