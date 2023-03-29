@@ -277,7 +277,7 @@ target(gtest_target_type, "nplb") {
   deps += cobalt_platform_dependencies
 
   if (is_internal_build) {
-    deps += [ "//starboard/private/nplb:nplb_private" ]
+    deps += [ "//internal/starboard/private/nplb:nplb_private" ]
   }
 
   if (gl_type != "none") {

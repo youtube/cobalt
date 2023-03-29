@@ -166,7 +166,7 @@ source_set("starboard_headers_only") {
   ]
 
   if (is_internal_build) {
-    public_deps = [ "//starboard/private:private_starboard_headers" ]
+    public_deps = [ "//internal/starboard/private:private_starboard_headers" ]
   }
 }
 
