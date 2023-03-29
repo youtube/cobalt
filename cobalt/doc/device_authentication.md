@@ -35,7 +35,7 @@ function to sign the message using the secret key.  This method is preferred
 since it enables implementations where the key exists only in secure hardware
 and never enters the system's main memory.  A reference implementation, which
 depends on BoringSSL exists at
-[starboard/linux/x64x11/internal/system_sign_with_certification_secret_key.cc](../../starboard/linux/x64x11/internal/system_sign_with_certification_secret_key.cc).
+[internal/starboard/linux/x64x11/internal/system_sign_with_certification_secret_key.cc](../../internal/starboard/linux/x64x11/internal/system_sign_with_certification_secret_key.cc).
 
 ### Cobalt signing
 
