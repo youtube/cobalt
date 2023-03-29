@@ -35,8 +35,8 @@ static_library("input") {
 
   if (enable_vr) {
     sources += [
-      "private/camera_3d_vr.cc",
-      "private/camera_3d_vr.h",
+      "//internal/cobalt/input/private/camera_3d_vr.cc",
+      "//internal/cobalt/input/private/camera_3d_vr.h",
     ]
   } else {
     sources += [
