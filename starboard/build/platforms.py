@@ -19,7 +19,7 @@ style to this dictionary.
 import sys
 
 try:
-  from starboard.build.internal.internal_platforms import INTERNAL_PLATFORMS
+  from internal.starboard.build.internal_platforms import INTERNAL_PLATFORMS
 except ImportError:
   INTERNAL_PLATFORMS = {}
 
@@ -47,5 +47,5 @@ PLATFORMS.update(INTERNAL_PLATFORMS)
 
 if __name__ == '__main__':
   if len(sys.argv) != 2:
-    raise TypeError('Usage: {} <platform_name>'.format(sys.argv[0]))
+    raise TypeError(f'Usage: {sys.argv[0]} <platform_name>')
   print(PLATFORMS[sys.argv[1]])
