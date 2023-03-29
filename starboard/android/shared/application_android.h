@@ -22,10 +22,10 @@
 #include <vector>
 
 #include "game-activity/GameActivity.h"
-#include "starboard/android/shared/input_events_generator.h"
 #ifdef STARBOARD_INPUT_EVENTS_FILTER
-#include "starboard/android/shared/internal/input_events_filter.h"
+#include "internal/starboard/android/shared/internal/input_events_filter.h"
 #endif
+#include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
