@@ -479,7 +479,7 @@ static_library("starboard_platform") {
       "//internal/starboard/android/shared/internal/input_events_filter.h",
     ]
     defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
-    deps += [ "//starboard/android/shared/drm_system_extension" ]
+    deps += [ "//internal/starboard/android/shared/drm_system_extension" ]
   } else {
     sources += [
       "drm_create_system.cc",
