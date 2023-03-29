@@ -141,6 +141,8 @@ target(gtest_target_type, "nplb") {
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
     "player_get_preferred_output_mode_test.cc",
+    "player_test_fixture.cc",
+    "player_test_fixture.h",
     "player_test_util.cc",
     "player_test_util.h",
     "player_write_sample_test.cc",
