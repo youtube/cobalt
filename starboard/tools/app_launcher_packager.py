@@ -35,6 +35,7 @@ from starboard.tools.paths import REPOSITORY_ROOT
 # Default directories to app launcher resources.
 _INCLUDE_FILE_PATTERNS = [
     ('cobalt', '*.py'),
+    ('internal', '*.py'),
     ('starboard', '*.py'),
     ('starboard', '*.pfx'),
     # Just match everything since the Evergreen tests are written using shell
