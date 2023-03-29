@@ -29,7 +29,6 @@
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
-#include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/service_worker_persistent_settings.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"

@@ -599,9 +599,9 @@ void ServiceWorkerJobs::SoftUpdate(
   // 3. Let job be the result of running Create Job with update, registration’s
   // storage key, registration’s scope url, newestWorker’s script url, null, and
   // null.
-  std::unique_ptr<Job> job =
-      CreateJob(kUpdate, registration->storage_key(), registration->scope_url(),
-                newest_worker->script_url());
+  std::unique_ptr<Job> job = CreateJobWithoutPromise(
+      kUpdate, registration->storage_key(), registration->scope_url(),
+      newest_worker->script_url());
 
   // 4. Set job’s worker type to newestWorker’s type.
   // Cobalt only supports 'classic' worker type.
@@ -911,7 +911,12 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnLoadingComplete()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
-  if (!state->job->promise.get() || !state->job->client) {
+  bool check_promise = !state->job->no_promise_okay;
+  if (state->job->no_promise_okay && !state->job->client &&
+      web_context_registrations_.size() > 0) {
+    state->job->client = *(web_context_registrations_.begin());
+  }
+  if ((check_promise && !state->job->promise.get()) || !state->job->client) {
     // The job is already rejected, which means there was an error, or the
     // client is already shutdown, so finish the job and skip the remaining
     // steps.
@@ -1100,7 +1105,6 @@ bool ServiceWorkerJobs::WaitForAsynchronousExtensions(
   return registration->done_event()->IsSignaled();
 }
 
-
 void ServiceWorkerJobs::Install(
     Job* job, const scoped_refptr<ServiceWorkerObject>& worker,
     const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
@@ -1133,7 +1137,7 @@ void ServiceWorkerJobs::Install(
   UpdateWorkerState(registration->installing_worker(),
                     kServiceWorkerStateInstalling);
   // 6. Assert: job’s job promise is not null.
-  DCHECK(job->promise.get() != nullptr);
+  DCHECK(job->no_promise_okay || job->promise.get() != nullptr);
   // 7. Invoke Resolve Job Promise with job and registration.
   ResolveJobPromise(job, registration);
   // 8. Let settingsObjects be all environment settings objects whose origin is
@@ -1313,9 +1317,8 @@ void ServiceWorkerJobs::Install(
   TryActivate(registration);
 
   // Persist registration since the waiting_worker has been updated.
-  if (!registration->is_persisted())
-    scope_to_registration_map_->PersistRegistration(registration->storage_key(),
-                                                    registration->scope_url());
+  scope_to_registration_map_->PersistRegistration(registration->storage_key(),
+                                                  registration->scope_url());
 }
 
 bool ServiceWorkerJobs::IsAnyClientUsingRegistration(
@@ -1545,9 +1548,8 @@ void ServiceWorkerJobs::Activate(
 
     // Persist registration since the waiting_worker has been updated to nullptr
     // and the active_worker has been updated to the previous waiting_worker.
-    if (!registration->is_persisted())
-      scope_to_registration_map_->PersistRegistration(
-          registration->storage_key(), registration->scope_url());
+    scope_to_registration_map_->PersistRegistration(registration->storage_key(),
+                                                    registration->scope_url());
   }
 }
 
