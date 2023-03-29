@@ -44,7 +44,7 @@ repos:
                --ignore-words-list, atleast]
         exclude: |
             (?x)^(
-                starboard/[^/]+/i18n/|
+                (internal/)?starboard/[^/]+/i18n/|
                 cobalt/content/licenses/|
                 cobalt/fetch/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
