@@ -55,4 +55,4 @@ RUN mkdir /project_out_dir \
 
 USER ${USER:-defaultuser}
 
-CMD /code/third_party/repo-publishing-toolkit-local/preview-site.sh run
+CMD /code/third_party/internal/repo-publishing-toolkit-local/preview-site.sh run

@@ -147,7 +147,7 @@ services:
   docsite-deploy:
     <<: *shared-docsite-definitions
     image: cobalt-build-docsite-deploy
-    entrypoint: ["/code/third_party/repo-publishing-toolkit-local/preview-site.sh", "deploy"]
+    entrypoint: ["/code/third_party/internal/repo-publishing-toolkit-local/preview-site.sh", "deploy"]
 
   build-linux-stub:
     <<: *build-common-definitions
