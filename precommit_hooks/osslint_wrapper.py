@@ -16,7 +16,7 @@
 
 import sys
 try:
-  from internal.osslint import RunPrecommitCheck
+  from internal.precommit_hooks.osslint import RunPrecommitCheck
 except ImportError as e:
   print(e)
   sys.exit(0)

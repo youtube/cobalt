@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 try:
-  from internal.internal_tools_paths import checkstyle_path
+  from internal.precommit_hooks.internal_tools_paths import checkstyle_path
 except ImportError:
   checkstyle_path = None
 

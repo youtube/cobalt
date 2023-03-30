@@ -18,7 +18,7 @@
 import sys
 
 try:
-  from internal import sync_keyboxes
+  from internal.precommit_hooks import sync_keyboxes
 except ImportError:
   print('sync_keyboxes.py not found, skipping.')
   sys.exit(0)

@@ -16,7 +16,7 @@
 
 import sys
 try:
-  from internal.internal_file_check import CheckFiles
+  from internal.precommit_hooks.internal_file_check import CheckFiles
 except ImportError:
   print('internal_file_check.py not found, skipping')
   sys.exit(0)
