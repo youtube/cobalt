@@ -42,6 +42,7 @@
 #include "cobalt/worker/client_query_options.h"
 #include "cobalt/worker/frame_type.h"
 #include "cobalt/worker/service_worker.h"
+#include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_map.h"

@@ -31,9 +31,11 @@
 #include "cobalt/web/user_agent_platform_info.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/web/window_timers.h"
+#include "cobalt/worker/service_worker_consts.h"
 #include "cobalt/worker/service_worker_object.h"
 #include "cobalt/worker/worker_location.h"
 #include "cobalt/worker/worker_navigator.h"
+#include "net/base/mime_util.h"
 #include "starboard/atomic.h"
 #include "url/gurl.h"
 
@@ -135,9 +137,11 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
               *output_content = std::move(content);
             },
             content),
+        base::Bind(&ScriptLoader::UpdateOnResponseStarted,
+                   base::Unretained(this), error),
         base::Bind(&ScriptLoader::LoadingCompleteCallback,
                    base::Unretained(this), loader, error),
-        skip_fetch_intercept);
+        net::HttpRequestHeaders(), skip_fetch_intercept);
   }
 
   void LoadingCompleteCallback(std::unique_ptr<loader::Loader>* loader,
@@ -157,6 +161,31 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
                          },
                          &load_finished_));
     }
+  }
+
+  bool UpdateOnResponseStarted(
+      std::unique_ptr<std::string>* error, loader::Fetcher* fetcher,
+      const scoped_refptr<net::HttpResponseHeaders>& headers) {
+    std::string content_type;
+    bool mime_type_is_javascript = false;
+    if (headers->GetNormalizedHeader("Content-type", &content_type)) {
+      for (auto mime_type : ServiceWorkerConsts::kJavaScriptMimeTypes) {
+        if (net::MatchesMimeType(mime_type, content_type)) {
+          mime_type_is_javascript = true;
+          break;
+        }
+      }
+    }
+    if (content_type.empty()) {
+      error->reset(new std::string(base::StringPrintf(
+          ServiceWorkerConsts::kServiceWorkerRegisterNoMIMEError,
+          content_type.c_str())));
+    } else if (!mime_type_is_javascript) {
+      error->reset(new std::string(base::StringPrintf(
+          ServiceWorkerConsts::kServiceWorkerRegisterBadMIMEError,
+          content_type.c_str())));
+    }
+    return true;
   }
 
   std::unique_ptr<std::string>& GetContents(int index) {

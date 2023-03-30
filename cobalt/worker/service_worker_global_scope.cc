@@ -122,6 +122,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
             //     last update check time to the current time.
             // 11. If response’s unsafe response is a bad import script
             //     response, then return a network error.
+            // This is checked in WorkerGlobalScope.
 
             // 12. Set map[url] to response.
             service_worker->SetScriptResource(url, content);
