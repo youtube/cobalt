@@ -76,8 +76,8 @@ class WebDriverDispatcher {
     };
     // Send the result of the execution of a registered WebDriver command to be
     // sent as a response as described in the spec:
-    // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Responses
-    // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Failed-Commands
+    // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
+    // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#failed-commands
     virtual void SendResult(
         const base::Optional<protocol::SessionId>& session_id,
         protocol::Response::StatusCode status_code,
@@ -95,7 +95,7 @@ class WebDriverDispatcher {
     // Some forms of Invalid Requests are detected in the CommandCallback by
     // checking the path variables and command parameters. Invalid requests are
     // described here:
-    // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Invalid-Requests
+    // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#invalid-requests
     //
     // TODO: Invalid requests should be handled before calling the
     //   CommandCallback.

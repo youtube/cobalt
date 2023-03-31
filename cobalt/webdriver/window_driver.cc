@@ -578,7 +578,7 @@ util::CommandResult<void> WindowDriver::MouseMoveToInternal(
   // specified, the move is relative to the current mouse cursor. If an element
   // is provided but no offset, the mouse will be moved to the center of the
   // element.
-  //   https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidmoveto
+  //   https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidmoveto
   float x = 0;
   float y = 0;
   scoped_refptr<dom::Element> element;
