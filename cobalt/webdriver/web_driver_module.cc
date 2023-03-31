@@ -294,9 +294,16 @@ WebDriverModule::WebDriverModule(
       base::StringPrintf("/session/%s/execute", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::Execute)));
+  // https://www.w3.org/TR/2015/WD-webdriver-20150808/#execute-async-script
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kPost,
       base::StringPrintf("/session/%s/execute_async", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::ExecuteAsync)));
+  // https://www.w3.org/TR/2015/WD-webdriver-20150827/#execute-async-script
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      base::StringPrintf("/session/%s/execute/async", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::ExecuteAsync)));
   webdriver_dispatcher_->RegisterCommand(
