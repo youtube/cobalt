@@ -30,7 +30,7 @@ importScripts('/resources/testharness.js');
 
 for (const mimeType of badMimeTypes) {
   test(() => {
-    assert_throws_dom(
+    assert_throws(
       'NetworkError',
       () => { importScriptsWithMimeType(mimeType); },
       `importScripts with ${mimeType ? 'bad' : 'no'} MIME type ${mimeType || ''} throws NetworkError`,

@@ -20,7 +20,15 @@ promise_test(async t => {
 
   await wait_for_state(t, registration.installing, 'activated');
 
-  serviceWorker = registration.active;
+  // TODO(b/234788479) Implement waiting for update worker state tasks in
+  // Install algorithm, otherwise the worker is activated too early
+  if (registration.active) {
+    serviceWorker = registration.active;
+  } else if (registration.waiting) {
+    serviceWorker = registration.waiting;
+  } else {
+    serviceWorker = registration.installing;
+  }
 }, 'Global setup');
 
 promise_test(async t => {
