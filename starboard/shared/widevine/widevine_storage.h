@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "starboard/common/mutex.h"
-#include "third_party/ce_cdm/cdm/include/cdm.h"
+#include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
 namespace starboard {
 namespace shared {

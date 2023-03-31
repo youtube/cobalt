@@ -31,8 +31,8 @@
 #include "starboard/shared/widevine/widevine_storage.h"
 #include "starboard/shared/widevine/widevine_timer.h"
 #include "starboard/time.h"
-#include "third_party/ce_cdm/core/include/log.h"  // for wvcdm::InitLogging();
-#include "third_party/ce_cdm/core/include/string_conversions.h"
+#include "third_party/internal/ce_cdm/core/include/log.h"  // for wvcdm::InitLogging();
+#include "third_party/internal/ce_cdm/core/include/string_conversions.h"
 
 using wv3cdm = ::widevine::Cdm;
 

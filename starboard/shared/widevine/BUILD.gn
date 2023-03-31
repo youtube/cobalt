@@ -14,8 +14,8 @@
 
 config("oemcrypto_external") {
   include_dirs = [
-    "//third_party/ce_cdm/core/include",
-    "//third_party/ce_cdm/oemcrypto/include",
+    "//third_party/internal/ce_cdm/core/include",
+    "//third_party/internal/ce_cdm/oemcrypto/include",
   ]
 }
 
@@ -40,12 +40,12 @@ static_library("oemcrypto") {
   configs += [
     ":oemcrypto_internal",
     "//starboard/build/config:speed",
-    "//third_party/ce_cdm/cdm:shared_config",
+    "//third_party/internal/ce_cdm/cdm:shared_config",
   ]
 
   deps = [
     "//starboard/common",
     "//third_party/boringssl:crypto",
-    "//third_party/ce_cdm/oemcrypto/mock:oec_mock",
+    "//third_party/internal/ce_cdm/oemcrypto/mock:oec_mock",
   ]
 }

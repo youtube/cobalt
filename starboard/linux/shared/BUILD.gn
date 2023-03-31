@@ -449,7 +449,7 @@ static_library("starboard_platform_sources") {
     ]
     deps += [
       "//starboard/shared/widevine:oemcrypto",
-      "//third_party/ce_cdm/cdm:widevine_ce_cdm_static",
+      "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
     ]
   } else {
     sources += [

@@ -17,7 +17,7 @@
 #include <sstream>
 
 #include "starboard/common/murmurhash2.h"
-#include "third_party/ce_cdm/oemcrypto/mock/src/wv_keybox.h"
+#include "third_party/internal/ce_cdm/oemcrypto/mock/src/wv_keybox.h"
 
 namespace wvoec_mock {
 namespace {
