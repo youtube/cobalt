@@ -113,7 +113,7 @@ def CopyAndFilterOutDir(source_out_dir, dest_out_dir):
   return 0
 
 
-if __name__ == '__main__':
+def main():
   logging_format = '%(asctime)s %(levelname)-8s %(message)s'
   logging_level = logging.INFO
   logging.basicConfig(
@@ -134,4 +134,8 @@ if __name__ == '__main__':
       'the out directory is copied.')
   args = parser.parse_args()
 
-  sys.exit(CopyAndFilterOutDir(args.source_out_dir, args.dest_out_dir))
+  return CopyAndFilterOutDir(args.source_out_dir, args.dest_out_dir)
+
+
+if __name__ == '__main__':
+  sys.exit(main())
