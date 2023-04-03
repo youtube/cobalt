@@ -47,7 +47,7 @@ GIT_BUILD_NUMBER_PATTERN = r'[1-9]' + r'[0-9]' * 6 + r'[0-9]*'
 BUILD_NUMBER_TAG_PATTERN = r'^BUILD_NUMBER={}$'
 
 # git log --grep can't handle capture groups.
-BUILD_NUBER_PATTERN_WITH_CAPTURE = f'({GIT_BUILD_NUMBER_PATTERN})'
+BUILD_NUBER_PATTERN_WITH_CAPTURE = '({})'.format(GIT_BUILD_NUMBER_PATTERN)
 
 def _ListAsString(items):
   return ', '.join('"%s"' % x for x in items)
