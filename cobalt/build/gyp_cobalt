@@ -157,7 +157,7 @@ def main(argv):
     logging.error('GYP_DEFINES environment variable is not supported.')
     return RETVAL_ERROR
 
-  option.build_number = GetBuildNumber()
+  options.build_number = GetBuildNumber()
 
   try:
     gyp_runner = GypRunner(options)
