@@ -25,8 +25,8 @@ namespace {
 // option 1 disables all video codecs except av1
 // option 2 disables all video codecs except vp9
 constexpr std::array<const char*, 3> kDisableCodecCombinations{
-    "av01;hev1;hvc1;vp09;vp8.vp9", "avc1;avc3;hev1;hvc1;vp09;vp8;vp9",
-    "av01;avc1;avc3;hev1;hvc1;vp8"};
+    {"av01;hev1;hvc1;vp09;vp8.vp9", "avc1;avc3;hev1;hvc1;vp09;vp8;vp9",
+     "av01;avc1;avc3;hev1;hvc1;vp8"}};
 };  // namespace
 
 H5vccSettings::H5vccSettings(
