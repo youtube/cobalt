@@ -17,7 +17,11 @@ FROM linux-x64x11-bionic
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt update -qqy \
-    && apt install -qqy gcc-6 g++-6 \
+    && apt install -qqy --no-install-recommends \
+        gcc-6 g++-6 software-properties-common \
+    && add-apt-repository -y ppa:git-core/ppa \
+    && apt update -qqy \
+    && apt install -qqy --no-install-recommends git \
     && /opt/clean-after-apt.sh
 
 CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" is_clang=false using_old_compiler=true" && \
