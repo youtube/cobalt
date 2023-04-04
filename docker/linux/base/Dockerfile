@@ -21,6 +21,7 @@ RUN apt update -qqy \
         libexpat1-dev \
         gettext \
         unzip \
+        zlib1g-dev \
     && curl -fsSL "https://github.com/git/git/archive/v2.18.0.tar.gz" -o git-2.18.0.tar.gz \
     && tar -zxf git-2.18.0.tar.gz \
     && cd git-2.18.0 \
