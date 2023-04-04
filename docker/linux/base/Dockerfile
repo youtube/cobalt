@@ -4,6 +4,8 @@ FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian9}:${BASE_OS_TA
 
 ENV PYTHONUNBUFFERED 1
 
+ARG GIT_SHA265SUM="93993babac690a06906d832a1715c3315b4787a2845aeb500f7dcc82e1599df2  git-2.18.0.tar.gz"
+
 # === Install common dependencies
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
@@ -23,6 +25,7 @@ RUN apt update -qqy \
         unzip \
         zlib1g-dev \
     && curl -fsSL "https://github.com/git/git/archive/v2.18.0.tar.gz" -o git-2.18.0.tar.gz \
+    && echo ${GIT_SHA265SUM} | sha256sum --check \
     && tar -zxf git-2.18.0.tar.gz \
     && cd git-2.18.0 \
     && make prefix=/usr/local all \
