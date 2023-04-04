@@ -19,7 +19,7 @@ Required libraries can differ depending on your Linux distribution and version.
 
     ```
     $ sudo apt update && sudo apt install -qqy --no-install-recommends \
-        pkgconf ninja-build bison yasm binutils clang libgles2-mesa-dev \
+        pkgconf ninja-build bison nasm yasm binutils clang libgles2-mesa-dev \
         mesa-common-dev libpulse-dev libavresample-dev libasound2-dev \
         libxrender-dev libxcomposite-dev libxml2-dev curl git \
         python3.8-venv libxi-dev
