@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/element_driver.h"
+
+#include <memory>
 
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -266,14 +266,14 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
     return CommandResult(protocol::Response::kElementNotVisible);
   }
   // Click on an element.
-  //   https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidelementidclick
+  //   https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidelementidclick
   // The Element Click clicks the in-view center point of the element
-  //   https://w3c.github.io/webdriver/webdriver-spec.html#dfn-element-click
+  //   https://www.w3.org/TR/2015/WD-webdriver-20150808/#click
 
   // An element's in-view center point is the origin position of the rectangle
   // that is the intersection between the element's first DOM client rectangle
   // and the initial viewport.
-  //   https://w3c.github.io/webdriver/webdriver-spec.html#dfn-in-view-center-point
+  //   https://www.w3.org/TR/2017/WD-webdriver-20170125/#dfn-in-view-center-point
   scoped_refptr<dom::DOMRectList> dom_rects = element_->GetClientRects();
   if (dom_rects->length() == 0) {
     return CommandResult(protocol::Response::kElementNotVisible);

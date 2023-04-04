@@ -46,7 +46,7 @@ class WindowDriver;
 
 // ElementDriver could be considered a WebElement as described in the WebDriver
 // spec.
-// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#webelement
+// https://www.selenium.dev/documentation/legacy/json_wire_protocol/#webelement
 // Commands that interact with a WebElement, such as:
 //     /session/:sessionId/element/:id/some_command
 // will map to a method on this class.

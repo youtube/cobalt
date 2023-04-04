@@ -29,7 +29,7 @@ namespace protocol {
 class Response {
  public:
   // WebDriver Response Status Codes:
-  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Response-Status-Codes
+  // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#response-status-codes
   enum StatusCode {
     // The command executed successfully.
     kSuccess = 0,
@@ -79,13 +79,13 @@ class Response {
 
   // Create a JSON object that will be used as the response body for a failed
   // command:
-  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Failed-Commands
+  // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#failed-commands
   // TODO: Add support for screenshot, stack trace, etc.
   static std::unique_ptr<base::Value> CreateErrorResponse(
       const std::string& message);
 
   // Create a JSON object that will be used as the response body for a command:
-  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Responses
+  // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
   static std::unique_ptr<base::Value> CreateResponse(
       const base::Optional<protocol::SessionId>& session_id,
       StatusCode status_code,
