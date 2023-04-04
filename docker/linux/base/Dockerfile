@@ -15,6 +15,10 @@ RUN apt update -qqy \
         python3-setuptools \
         git ccache \
         curl xz-utils \
+        software-properties-common \
+    && add-apt-repository -y ppa:git-core/ppa \
+    && apt update -qqy \
+    && apt install -qqy --no-install-recommends git \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
