@@ -16,6 +16,8 @@ RUN apt update -qqy \
         git ccache \
         curl xz-utils \
         software-properties-common \
+    && apt-key adv --keyserver keyserver.ubuntu.com \
+        --recv-keys A1715D88E1DF1F24 \
     && add-apt-repository -y ppa:git-core/ppa \
     && apt update -qqy \
     && apt install -qqy --no-install-recommends git \
