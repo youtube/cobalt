@@ -15,13 +15,19 @@ RUN apt update -qqy \
         python3-setuptools \
         git ccache \
         curl xz-utils \
-        software-properties-common \
-        gnupg dirmngr \
-    && apt-key adv --keyserver keyserver.ubuntu.com \
-        --recv-keys A1715D88E1DF1F24 \
-    && add-apt-repository -y ppa:git-core/ppa \
-    && apt update -qqy \
-    && apt install -qqy --no-install-recommends git \
+        build-essential \
+        libssl-dev \
+        libcurl4-gnutls-dev \
+        libexpat1-dev \
+        gettext \
+        unzip \
+    && curl -fsSL "https://github.com/git/git/archive/v2.18.0.tar.gz" -o git-2.18.0.tar.gz \
+    && tar -zxf git-2.18.0.tar.gz \
+    && cd git-2.18.0 \
+    && make prefix=/usr/local all \
+    && make prefix=/usr/local install \
+    && cd .. \
+    && rm -rf git-2.18.0 git-2.18.0.tar.gz \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
