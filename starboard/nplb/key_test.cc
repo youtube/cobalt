@@ -37,6 +37,11 @@ TEST(SbKeyTest, CanReference) {
   EXPECT_NE(kSbKeyUnknown, kSbKeyPreviousChannel);
   EXPECT_NE(kSbKeyUnknown, kSbKeyLaunchThisApplication);
   EXPECT_NE(kSbKeyUnknown, kSbKeyMediaAudioTrack);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyVolumeUp);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyVolumeDown);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyVolumeMute);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyMenu);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyBrowserSearch);
 }
 
 }  // namespace

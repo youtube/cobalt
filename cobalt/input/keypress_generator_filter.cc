@@ -55,14 +55,10 @@ bool KeypressGeneratorFilter::ConditionallyGenerateKeypressEvent(
   int char_code = dom::KeyboardEvent::ComputeCharCode(orig_event.key_code(),
                                                       orig_event.shift_key());
 
-  if (char_code > 0) {
-    dom::KeyboardEventInit event(orig_event);
-    event.set_char_code(char_code);
-    DispatchKeyboardEvent(base::Tokens::keypress(), event);
-    return true;
-  }
-
-  return false;
+  dom::KeyboardEventInit event(orig_event);
+  event.set_char_code(char_code);
+  DispatchKeyboardEvent(base::Tokens::keypress(), event);
+  return true;
 }
 
 }  // namespace input
