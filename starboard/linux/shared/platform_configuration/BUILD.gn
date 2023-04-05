@@ -66,6 +66,13 @@ config("compiler_flags") {
       # Do not warn about unused function params.
       "-Wno-unused-parameter",
     ]
+
+    if (is_gold) {
+      cflags += [
+        # Don't generate an eh_frame and eh_frame_hdr section.
+        "-fno-asynchronous-unwind-tables",
+      ]
+    }
   }
 
   if (!cobalt_fastbuild && (is_debug || is_devel)) {
