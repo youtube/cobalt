@@ -1,0 +1,48 @@
+{
+  "docker_service": "build-linux",
+  "on_host_test": true,
+  "on_host_test_shards": ["0", "1", "2", "3", "integration"],
+  "platforms": [
+    "linux-x64x11",
+    "linux-x64x11-egl",
+    "linux-x64x11-skia",
+    "linux-x64x11-sbversion-12",
+    "linux-x64x11-sbversion-13",
+    "linux-x64x11-sbversion-14"
+  ],
+  "includes": [
+    {
+      "name":"x64",
+      "platform":"linux-x64x11",
+      "target_platform":"linux-x64x11"
+    },
+    {
+      "name":"egl",
+      "platform":"linux-x64x11-egl",
+      "target_platform":"linux-x64x11-egl"
+    },
+    {
+      "name":"skia",
+      "platform":"linux-x64x11-skia",
+      "target_platform":"linux-x64x11-skia"
+    },
+    {
+      "name":"sbversion-12",
+      "platform":"linux-x64x11-sbversion-12",
+      "target_platform":"linux-x64x11",
+      "sb_api_version":"sb_api_version=12"
+    },
+    {
+      "name":"sbversion-13",
+      "platform":"linux-x64x11-sbversion-13",
+      "target_platform":"linux-x64x11",
+      "sb_api_version":"sb_api_version=13"
+    },
+    {
+      "name":"sbversion-14",
+      "platform":"linux-x64x11-sbversion-14",
+      "target_platform":"linux-x64x11",
+      "sb_api_version":"sb_api_version=14"
+    }
+  ]
+}

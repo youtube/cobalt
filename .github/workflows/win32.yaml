@@ -1,0 +1,31 @@
+name: win32
+
+on:
+  pull_request:
+    types: [ready_for_review, opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - feature/*
+  push:
+    branches:
+      - main
+      - feature/*
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  win32:
+    uses: ./.github/workflows/main_win.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: win32
+      nightly: ${{ github.event.inputs.nightly }}

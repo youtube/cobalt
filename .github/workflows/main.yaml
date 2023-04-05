@@ -1,0 +1,287 @@
+# Reusable Cobalt CI workflow.
+
+name: main
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: 'Cobalt platform.'
+        required: true
+        type: string
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: string
+        default: 'false'
+
+#Global env vars.
+env:
+  REGISTRY: ghcr.io
+  IPV6_AVAILABLE: 0
+  LANG: en_US.UTF-8
+  IS_BUILDBOT_DOCKER: 1
+  IS_CI: 1
+  IS_DOCKER: 1
+  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+  SCCACHE: 1
+  SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
+  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+  SCCACHE_GCS_RW_MODE: READ_WRITE
+  SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
+  STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
+
+concurrency:
+  group: '${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.sha }}'
+  cancel-in-progress: true
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # Retrieves configuration from json file.
+  initialize:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
+      GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+    # All triggers except draft PRs, unless PR is labeled with runtest
+    if: |
+      github.event_name != 'pull_request' ||
+      (
+        github.event.pull_request.draft == false ||
+        (
+          github.event.action == 'labeled' &&
+          github.event.label.name == 'runtest'
+        )
+      )
+    steps:
+      - id: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Remove runtest if exists
+        if: github.event_name == 'pull_request'
+        continue-on-error: true  # Ignore this step if we cannot remove the label.
+        run: |
+          set +e
+          curl \
+            -X DELETE \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
+        shell: bash
+      - id: set-platforms
+        run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
+      - id: set-includes
+        run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
+      - id: set-on-device-test
+        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
+      - id: set-on-host-test
+        run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
+      - id: set-on-host-test-shards
+        run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
+      - id: set-on-host-test-bootloader
+        run: echo "bootloader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.bootloader')" >> $GITHUB_ENV
+      - id: set-docker-service
+        run: |
+          echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
+          echo $platforms
+    outputs:
+      platforms: ${{ env.platforms }}
+      includes: ${{ env.includes }}
+      on_device_test: ${{ env.on_device_test }}
+      on_host_test: ${{ env.on_host_test }}
+      on_host_test_shards: ${{ env.on_host_test_shards }}
+      bootloader: ${{ env.bootloader }}
+      docker_service: ${{ env.docker_service }}
+
+  # Builds, tags, and pushes Cobalt docker build images to ghr.
+  docker-build-image:
+    needs: [initialize]
+    runs-on: [self-hosted, linux, X64]
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: ${{ needs.initialize.outputs.docker_service }}
+          docker_image: cobalt-${{ needs.initialize.outputs.docker_service }}
+      - name: Set Docker Tag Output
+        id: set-docker-tag-output
+        run: |
+          echo $DOCKER_TAG
+          echo "docker_tag=$DOCKER_TAG"  >> $GITHUB_ENV
+    outputs:
+      docker_tag: ${{env.docker_tag}}
+
+  # Builds, tags, and pushes Cobalt unit test image to ghr.
+  docker-unittest-image:
+    if: needs.initialize.outputs.on_host_test == 'true'
+    needs: [initialize]
+    permissions:
+      packages: write
+    runs-on: [self-hosted, linux, X64]
+    steps:
+      - name: Checkout files
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: unittest
+          docker_image: cobalt-unittest
+      - name: Set Docker Tag Output
+        id: set-docker-unittest-tag-output
+        run: |
+          echo $DOCKER_TAG
+          echo "docker_unittest_tag=$DOCKER_TAG" >> $GITHUB_ENV
+    outputs:
+      docker_unittest_tag: ${{env.docker_unittest_tag}}
+
+  # Runs builds.
+  build:
+    needs: [initialize, docker-build-image]
+    permissions: {}
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.name}}_${{matrix.config}}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel, debug, qa, gold]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    env:
+      # We want temp folder to be on tmpfs which makes workloads faster.
+      # However, dind container ends up having / folder mounted on overlay
+      # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
+      TMPDIR: /__w/_temp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          # Use fetch depth of 0 to get full history for a valid build id.
+          fetch-depth: 0
+      - name: GN
+        uses: ./.github/actions/gn
+      - name: Build Cobalt
+        uses: ./.github/actions/build
+      - name: Upload Nightly Artifacts
+        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
+        uses: ./.github/actions/upload_nightly_artifacts
+      - name: Upload On Host Test Artifacts
+        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: onhost
+          os: linux
+      # For some reason passing needs.initialize.outputs.bootloader as parameter to build
+      # action didn't work, so instead we set an env var.
+      - name: Set bootloader config
+        if: ${{ needs.initialize.outputs.bootloader != 'null' }}
+        run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
+      # Build bootloader for on-host tests if necessary.
+      - name: Bootloader GN
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
+        uses: ./.github/actions/gn
+      - name: Build Bootloader
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
+        uses: ./.github/actions/build
+      - name: Upload Bootloader On Host Test Artifacts
+        if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: onhost
+          os: linux
+      - name: Upload On Device Test Artifacts
+        if: |
+          matrix.config == 'devel' &&
+          fromJSON(needs.initialize.outputs.on_device_test).enabled == true &&
+          (
+            github.event_name != 'pull_request' ||
+            contains(github.event.pull_request.labels.*.name, 'on_device')
+          )
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: ondevice
+          os: linux
+
+  # Runs on-host integration and unit tests.
+  on-device-test:
+    needs: [initialize, build]
+    if: |  # Always run if not a PR or if the PR has on_device label
+      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && (
+        github.event_name != 'pull_request' ||
+        contains(github.event.pull_request.labels.*.name, 'on_device')
+      )
+    runs-on: [self-hosted, linux, X64]
+    name: ${{ matrix.name }}_on_device_${{ matrix.shard }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        config: [devel]
+        shard: ${{ fromJson(needs.initialize.outputs.on_device_test).tests }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    env:
+      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Run Tests (${{ matrix.shard }})
+        uses: ./.github/actions/on_device_tests
+
+  # Runs on-host integration and unit tests.
+  on-host-test:
+    needs: [initialize, docker-unittest-image, build]
+    permissions: {}
+    if: needs.initialize.outputs.on_host_test == 'true'
+    runs-on: [self-hosted, linux, X64]
+    name: ${{matrix.name}}_${{matrix.shard}}_test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        shard: ${{ fromJson(needs.initialize.outputs.on_host_test_shards) }}
+        config: [devel]
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
+    env:
+      DISPLAY: :99
+      # For some reason tests complaining about HOME set to /github/home
+      # with permission denied error.
+      HOME: /root
+      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Run Tests
+        uses: ./.github/actions/on_host_test
+        with:
+          os: linux

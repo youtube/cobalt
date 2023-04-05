@@ -1,0 +1,47 @@
+name: linux
+
+on:
+  pull_request:
+    types: [ready_for_review, opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - feature/*
+  push:
+    branches:
+      - main
+      - feature/*
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  linux-x64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: linux
+      nightly: ${{ github.event.inputs.nightly }}
+  linux-clang-3-9:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: linux-clang-3-9
+      nightly: ${{ github.event.inputs.nightly }}
+  linux-gcc-6-3:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: linux-gcc-6-3
+      nightly: ${{ github.event.inputs.nightly }}

@@ -1,0 +1,57 @@
+{
+  "docker_service": "build-raspi",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  "platforms": [
+    "raspi-2",
+    "raspi-2-sbversion-12",
+    "raspi-2-sbversion-13",
+    "raspi-2-sbversion-14"
+  ],
+  "includes": [
+    {
+      "name":"raspi",
+      "platform":"raspi-2",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments": "is_clang=false",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-12",
+      "platform":"raspi-2-sbversion-12",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false",
+      "sb_api_version": "sb_api_version=12",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-13",
+      "platform":"raspi-2-sbversion-13",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false",
+      "sb_api_version": "sb_api_version=13",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-14",
+      "platform":"raspi-2-sbversion-14",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false",
+      "sb_api_version": "sb_api_version=14",
+      "dimension": "release_version=regex:10.*"
+    }
+  ]
+}
