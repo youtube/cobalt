@@ -274,6 +274,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # or early exit.
     return_code = 1
 
+    if return_code == 1:
+      raise ValueError('uh oh')
+
     # Setup for running executable
     self._CheckCallAdb('wait-for-device')
     self._Shutdown()

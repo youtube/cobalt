@@ -458,10 +458,9 @@ class TestRunner(object):
           loader_out_directory=self.loader_out_directory,
           launcher_args=self.launcher_args)
 
-    logging.info(
-        "XML test result logging: %s",
-        ("enabled" if
-         (self.log_xml_results or self.xml_output_dir) else "disabled"))
+    xml_output_enabled = self.log_xml_results or self.xml_output_dir
+    logging.info("XML test result logging: %s",
+                 ("enabled" if xml_output_enabled else "disabled"))
     if self.log_xml_results:
       out_path = MakeLauncher().GetDeviceOutputPath()
       xml_filename = "{}_testoutput.xml".format(target_name)
@@ -801,6 +800,8 @@ class TestRunner(object):
     results = []
     # Sort the targets so they are run in alphabetical order
     for test_target in sorted(self.test_targets.keys()):
+      if test_target not in ["text_encoding_test", "storage_test"]:
+        continue
       if (self.shard_index is not None) and self.sharding_test_config:
         (run_action, sub_shard_index,
          sub_shard_count) = self.sharding_test_config.get_test_run_config(

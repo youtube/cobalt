@@ -23,7 +23,6 @@
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/typed_arrays.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 
@@ -54,6 +53,8 @@ TextEncoderTest::~TextEncoderTest() {}
 
 TEST_F(TextEncoderTest, Constructor) {
   EXPECT_EQ("utf-8", text_encoder_->encoding());
+
+  abort();  // Crash and burn!
 }
 
 TEST_F(TextEncoderTest, Encode) {
