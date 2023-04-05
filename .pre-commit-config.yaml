@@ -13,7 +13,7 @@ exclude: |
             buildtools|
             crypto|
             net|
-            starboard/shared/playstation/glimp/shaders|
+            internal/starboard/shared/playstation/glimp/shaders|
             testing|
             third_party|
             tools/gyp|
@@ -48,7 +48,8 @@ repos:
                 cobalt/content/licenses/|
                 cobalt/fetch/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
-                internal/cobalt/browser/splash_screen/youtube_splash_screen.html
+                internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
+                internal/starboard/shared/playstation/storage_internal.cc
             )
 
 -   repo: local
