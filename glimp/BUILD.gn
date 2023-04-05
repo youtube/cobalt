@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/platform_path.gni")
+
 config("glimp_config") {
   include_dirs = [ "include" ]
   defines = [
@@ -20,8 +22,8 @@ config("glimp_config") {
     # the preprocessor to assemble an include file path, so we have to do
     # the concatenation here in GYP.
     # http://stackoverflow.com/questions/29601786/c-preprocessor-building-a-path-string
-    "GLIMP_EGLPLATFORM_INCLUDE=\"../../../starboard/$target_platform/glimp/eglplatform_public.h\"",
-    "GLIMP_KHRPLATFORM_INCLUDE=\"../../../starboard/$target_platform/glimp/khrplatform_public.h\"",
+    "GLIMP_EGLPLATFORM_INCLUDE=\"../../../$starboard_path/glimp/eglplatform_public.h\"",
+    "GLIMP_KHRPLATFORM_INCLUDE=\"../../../$starboard_path/glimp/khrplatform_public.h\"",
 
     # Uncomment the define below to enable and use tracing inside glimp.
     # "ENABLE_GLIMP_TRACING",
@@ -30,12 +32,12 @@ config("glimp_config") {
 
 group("glimp") {
   public_configs = [ ":glimp_config" ]
-  deps = [ "//starboard/${target_platform}/glimp:glimp_platform" ]
+  deps = [ "//$starboard_path/glimp:glimp_platform" ]
 }
 
 config("glimp_common_sources_public_config") {
   configs = [ ":glimp_config" ]
-  include_dirs = [ "//starboard/$target_platform/glimp/platform" ]
+  include_dirs = [ "//$starboard_path/glimp/platform" ]
 }
 
 source_set("glimp_common_sources") {
