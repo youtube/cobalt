@@ -76,7 +76,7 @@ repos:
         exclude: |
             (?x)(
                 ^cobalt/bindings/(templates|generated)/|
-                ^starboard/shared/uikit/.*\.h$
+                ^internal/starboard/shared/uikit/.*\.h$
             )
     -   id: yapf
         name: yapf
