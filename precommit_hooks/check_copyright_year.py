@@ -61,31 +61,36 @@ def CheckCopyrightYear(filenames: List[str]) -> bool:
   errors = []
 
   for filename in filenames:
-    with open(filename) as f:
-      for line_num, line in enumerate(f):
-        if line_num == _LINES_TO_CHECK:
-          print(f'Could not find copyright header in {filename} '
-                f'in the first {_LINES_TO_CHECK} lines.')
-          break
+    try:
+      with open(filename, encoding='utf-8') as f:
+        for line_num, line in enumerate(f):
+          if line_num == _LINES_TO_CHECK:
+            print(f'Could not find copyright header in {filename} '
+                  f'in the first {_LINES_TO_CHECK} lines.')
+            break
 
-        match = copyright_re.search(line)
-        if match:
-          created_year = int(match.group('created'))
-          if filename in new_files and created_year != current_year:
-            print(f'Copyright header for file {filename} has wrong year '
-                  f'{created_year}')
+          match = copyright_re.search(line)
+          if match:
+            created_year = int(match.group('created'))
+            if filename in new_files and created_year != current_year:
+              print(f'Copyright header for file {filename} has wrong year '
+                    f'{created_year}')
 
-          year = match.group('current')
-          if year and int(year) != current_year:
-            print(f'Copyright header for file {filename} has wrong ending year'
+            year = match.group('current')
+            if year and int(year) != current_year:
+              print(
+                  f'Copyright header for file {filename} has wrong ending year'
                   f' {year}')
 
-          # Strip to get rid of possible newline
-          author = match.group('author').rstrip()
-          if author != _ALLOWED_AUTHOR:
-            errors.append(f'Update author to be "{_ALLOWED_AUTHOR}" instead of'
-                          f' "{author}" for {filename}.')
-          break
+            # Strip to get rid of possible newline
+            author = match.group('author').rstrip()
+            if author != _ALLOWED_AUTHOR:
+              errors.append(
+                  f'Update author to be "{_ALLOWED_AUTHOR}" instead of'
+                  f' "{author}" for {filename}.')
+            break
+    except UnicodeDecodeError:
+      pass
 
   if errors:
     print()  # Separate errors from warnings by a newline.
