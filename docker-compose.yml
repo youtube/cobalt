@@ -27,6 +27,7 @@ services:
     build:
       args:
         - BASE_OS
+        - NEEDS_GIT_UPDATE=no
       context: ./docker/linux
       dockerfile: base/Dockerfile
     image: cobalt-base
@@ -36,6 +37,7 @@ services:
       args:
         - BASE_OS=ubuntu
         - BASE_OS_TAG=xenial
+        - NEEDS_GIT_UPDATE=yes
       context: ./docker/linux
       dockerfile: base/Dockerfile
     image: base-xenial
