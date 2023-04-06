@@ -816,8 +816,8 @@ SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 // |codec|: the video codec associated with the buffer.
 // |resolution_width|: the width of the video resolution.
 // |resolution_height|: the height of the video resolution.
-// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than non-
-//   HDR video.
+// |bits_per_pixel|: the bits per pixel. This value is larger for HDR than SDR
+//   video.
 SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_width,
                                           int resolution_height,
