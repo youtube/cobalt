@@ -255,7 +255,6 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/memory_flush.cc",
     "//starboard/shared/win32/memory_free.cc",
     "//starboard/shared/win32/memory_free_aligned.cc",
-    "//starboard/shared/win32/memory_get_stack_bounds.cc",
     "//starboard/shared/win32/memory_map.cc",
     "//starboard/shared/win32/memory_protect.cc",
     "//starboard/shared/win32/memory_reallocate_unchecked.cc",

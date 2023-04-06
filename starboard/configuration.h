@@ -65,6 +65,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// SbMemoryGetStackBounds API has been removed/deprecated.
+#define SB_STACK_BOUNDS_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Improves audio access unit processing.
 //   1.  Abstracted stream specific info from SbMediaAudioSampleInfo and
 //       SbMediaVideoSampleInfo into SbMediaAudioStreamInfo and

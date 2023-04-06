@@ -233,19 +233,6 @@ DO NOT CALL. Call SbMemoryDeallocateAligned(...) instead.
 void SbMemoryFreeAligned(void *memory)
 ```
 
-### SbMemoryGetStackBounds ###
-
-Gets the stack bounds for the current thread.
-
-`out_high`: The highest addressable byte + 1 for the current thread. `out_low`:
-The lowest addressable byte for the current thread.
-
-#### Declaration ####
-
-```
-void SbMemoryGetStackBounds(void **out_high, void **out_low)
-```
-
 ### SbMemoryMap ###
 
 Allocates `size_bytes` worth of physical memory pages and maps them into an
@@ -345,4 +332,3 @@ SbMemoryMap(). For example, if one call to `SbMemoryMap(0x1000)` returns
 ```
 bool SbMemoryUnmap(void *virtual_address, int64_t size_bytes)
 ```
-

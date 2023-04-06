@@ -211,7 +211,9 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
+#if SB_API_VERSION < SB_STACK_BOUNDS_REMOVED_API_VERSION
   REGISTER_SYMBOL(SbMemoryGetStackBounds);
+#endif
   REGISTER_SYMBOL(SbMemoryMap);
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMemoryMove);

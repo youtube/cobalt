@@ -15,6 +15,8 @@
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION < SB_STACK_BOUNDS_REMOVED_API_VERSION
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -40,3 +42,5 @@ TEST(SbMemoryGetStackBoundsTest, SanityCheck) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif

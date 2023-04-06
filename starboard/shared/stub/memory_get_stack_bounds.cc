@@ -14,4 +14,6 @@
 
 #include "starboard/memory.h"
 
+#if SB_API_VERSION < SB_STACK_BOUNDS_REMOVED_API_VERSION
 void SbMemoryGetStackBounds(void** out_high, void** out_low) {}
+#endif

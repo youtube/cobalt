@@ -59,6 +59,9 @@ This code has been separated out and refactored into `starboard/common/atomic.h`
 to break dependency cycle between Starboard interface and Starboard Common C++
 library.
 
+### Removed SbMemoryGetStackBounds
+This API is unused by Cobalt and has been deprecated.
+
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.
 This makes it possible to support these codecs in the future.
