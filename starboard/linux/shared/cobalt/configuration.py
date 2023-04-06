@@ -17,6 +17,8 @@ from cobalt.build import cobalt_configuration
 from starboard.tools.testing import test_filter
 
 _FILTERED_TESTS = {
+    # Tracked by b/185820828
+    'net_unittests': ['SpdyNetworkTransactionTest.SpdyBasicAuth',],
     'base_unittests': [
         # Fails when run in a sharded configuration: b/233108722, b/216774170
         'TaskQueueSelectorTest.TestHighestPriority',
