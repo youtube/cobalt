@@ -14,7 +14,7 @@ RUN apt update -qqy \
         python3-pip \
         python3-setuptools \
         git ccache \
-        curl xz-utils \
+        curl xz-utils wget \
     && apt-get clean autoclean \
     && apt-get autoremove -y --purge \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
