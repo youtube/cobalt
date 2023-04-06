@@ -3,7 +3,6 @@
 service-worker/clients-matchall-on-evaluation.https.html, PASS
 service-worker/fetch-event-add-async.https.html, PASS
 service-worker/import-scripts-cross-origin.https.html, PASS
-service-worker/import-scripts-mime-types.https.html, PASS
 service-worker/import-scripts-resource-map.https.html, PASS
 service-worker/import-scripts-updated-flag.https.html, PASS
 service-worker/register-default-scope.https.html, PASS
@@ -25,6 +24,9 @@ service-worker/update-result.https.html, PASS
 
 # TODO(b/275914032): Flaky test.
 service-worker/update-missing-import-scripts.https.html, DISABLE
+
+# b/275643772 MIME type check is flaky
+service-worker/import-scripts-mime-types.https.html, DISABLE
 
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/activation-after-registration.https.html, DISABLE
