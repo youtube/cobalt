@@ -1,0 +1,39 @@
+{
+  "docker_service": "build-raspi",
+  "bootloader": "true",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "unit_test",
+      "black_box_test"
+    ]
+  },
+  "platforms": [
+    "evergreen-arm-hardfp",
+    "evergreen-arm-hardfp-sbversion-13",
+    "evergreen-arm-hardfp-sbversion-12"
+  ],
+  "includes": [
+    {
+      "name":"hardfp",
+      "platform":"evergreen-arm-hardfp",
+      "target_platform":"evergreen-arm-hardfp",
+      "bootloader_platform": "raspi-2",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-13",
+      "platform":"evergreen-arm-hardfp-sbversion-13",
+      "target_platform":"evergreen-arm-hardfp",
+      "bootloader_platform": "raspi-2-sbversion-13",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-12",
+      "platform":"evergreen-arm-hardfp-sbversion-12",
+      "target_platform":"evergreen-arm-hardfp",
+      "bootloader_platform": "raspi-2-sbversion-12",
+      "dimension": "release_version=regex:10.*"
+    }
+  ]
+}

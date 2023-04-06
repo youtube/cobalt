@@ -1,0 +1,20 @@
+{
+  "docker_service": "build-android",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "unit_test",
+      "black_box_test"
+    ]
+  },
+  "platforms": [
+    "android-arm"
+  ],
+  "includes": [
+    {
+      "name":"arm",
+      "platform":"android-arm",
+      "target_platform":"android-arm"
+    }
+  ]
+}
