@@ -59,6 +59,7 @@ name##_8bpc(void); \
 name##_16bpc(void)
 
 void checkasm_check_msac(void);
+void checkasm_check_refmvs(void);
 decl_check_bitfns(void checkasm_check_cdef);
 decl_check_bitfns(void checkasm_check_filmgrain);
 decl_check_bitfns(void checkasm_check_ipred);
@@ -86,8 +87,6 @@ int float_near_abs_eps_array(const float *a, const float *b, float eps,
 int float_near_abs_eps_array_ulp(const float *a, const float *b, float eps,
                                  unsigned max_ulp, int len);
 
-static void *func_ref, *func_new;
-
 #define BENCH_RUNS (1 << 12) /* Trade-off between accuracy and speed */
 
 /* Decide whether or not the specified function needs to be tested */
@@ -99,6 +98,7 @@ static void *func_ref, *func_new;
  * is optional. */
 #define declare_func(ret, ...)\
     declare_new(ret, __VA_ARGS__)\
+    void *func_ref, *func_new;\
     typedef ret func_type(__VA_ARGS__);\
     checkasm_save_context()
 
@@ -116,7 +116,7 @@ static void *func_ref, *func_new;
 
 #if HAVE_ASM
 #if ARCH_X86
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 #define readtime() (_mm_lfence(), __rdtsc())
 #else
@@ -127,6 +127,9 @@ static inline uint64_t readtime(void) {
 }
 #define readtime readtime
 #endif
+#elif (ARCH_AARCH64 || ARCH_ARM) && defined(__APPLE__)
+#include <mach/mach_time.h>
+#define readtime() mach_absolute_time()
 #elif ARCH_AARCH64
 #ifdef _MSC_VER
 #include <windows.h>
@@ -182,34 +185,71 @@ static inline uint64_t readtime(void) {
 void checkasm_checked_call(void *func, ...);
 
 #if ARCH_X86_64
-/* Evil hack: detect incorrect assumptions that 32-bit ints are zero-extended
- * to 64-bit. This is done by clobbering the stack with junk around the stack
- * pointer and calling the assembly function through checked_call() with added
- * dummy arguments which forces all real arguments to be passed on the stack
- * and not in registers. For 32-bit arguments the upper half of the 64-bit
- * register locations on the stack will now contain junk which will cause
- * misbehaving functions to either produce incorrect output or segfault. Note
- * that even though this works extremely well in practice, it's technically
- * not guaranteed and false negatives is theoretically possible, but there
- * can never be any false positives. */
-void checkasm_stack_clobber(uint64_t clobber, ...);
+/* YMM and ZMM registers on x86 are turned off to save power when they haven't
+ * been used for some period of time. When they are used there will be a
+ * "warmup" period during which performance will be reduced and inconsistent
+ * which is problematic when trying to benchmark individual functions. We can
+ * work around this by periodically issuing "dummy" instructions that uses
+ * those registers to keep them powered on. */
+void checkasm_simd_warmup(void);
+
+/* The upper 32 bits of 32-bit data types are undefined when passed as function
+ * parameters. In practice those bits usually end up being zero which may hide
+ * certain bugs, such as using a register containing undefined bits as a pointer
+ * offset, so we want to intentionally clobber those bits with junk to expose
+ * any issues. The following set of macros automatically calculates a bitmask
+ * specifying which parameters should have their upper halves clobbered. */
+#ifdef _WIN32
+/* Integer and floating-point parameters share "register slots". */
+#define IGNORED_FP_ARGS 0
+#else
+/* Up to 8 floating-point parameters are passed in XMM registers, which are
+ * handled orthogonally from integer parameters passed in GPR registers. */
+#define IGNORED_FP_ARGS 8
+#endif
+#ifdef HAVE_C11_GENERIC
+#define clobber_type(arg) _Generic((void (*)(void*, arg))NULL,\
+     void (*)(void*, int32_t ): clobber_mask |= 1 << mpos++,\
+     void (*)(void*, uint32_t): clobber_mask |= 1 << mpos++,\
+     void (*)(void*, float   ): mpos += (fp_args++ >= IGNORED_FP_ARGS),\
+     void (*)(void*, double  ): mpos += (fp_args++ >= IGNORED_FP_ARGS),\
+     default:                   mpos++)
+#define init_clobber_mask(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, ...)\
+    unsigned clobber_mask = 0;\
+    {\
+        int mpos = 0, fp_args = 0;\
+        clobber_type(a); clobber_type(b); clobber_type(c); clobber_type(d);\
+        clobber_type(e); clobber_type(f); clobber_type(g); clobber_type(h);\
+        clobber_type(i); clobber_type(j); clobber_type(k); clobber_type(l);\
+        clobber_type(m); clobber_type(n); clobber_type(o); clobber_type(p);\
+    }
+#else
+/* Skip parameter clobbering on compilers without support for _Generic() */
+#define init_clobber_mask(...) unsigned clobber_mask = 0
+#endif
 #define declare_new(ret, ...)\
-    ret (*checked_call)(void *, int, int, int, int, int, __VA_ARGS__) =\
-    (void *)checkasm_checked_call;
-#define CLOB (UINT64_C(0xdeadbeefdeadbeef))
+    ret (*checked_call)(__VA_ARGS__, int, int, int, int, int, int, int,\
+                        int, int, int, int, int, int, int, int, int,\
+                        void*, unsigned) =\
+        (void*)checkasm_checked_call;\
+    init_clobber_mask(__VA_ARGS__, void*, void*, void*, void*,\
+                      void*, void*, void*, void*, void*, void*,\
+                      void*, void*, void*, void*, void*);
 #define call_new(...)\
     (checkasm_set_signal_handler_state(1),\
-     checkasm_stack_clobber(CLOB, CLOB, CLOB, CLOB, CLOB, CLOB, CLOB,\
-                            CLOB, CLOB, CLOB, CLOB, CLOB, CLOB, CLOB,\
-                            CLOB, CLOB, CLOB, CLOB, CLOB, CLOB, CLOB),\
-     checked_call(func_new, 0, 0, 0, 0, 0, __VA_ARGS__));\
+     checkasm_simd_warmup(),\
+     checked_call(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8,\
+                  7, 6, 5, 4, 3, 2, 1, func_new, clobber_mask));\
     checkasm_set_signal_handler_state(0)
 #elif ARCH_X86_32
 #define declare_new(ret, ...)\
-    ret (*checked_call)(void *, __VA_ARGS__) = (void *)checkasm_checked_call;
+    ret (*checked_call)(void *, __VA_ARGS__, int, int, int, int, int, int,\
+                        int, int, int, int, int, int, int, int, int) =\
+        (void *)checkasm_checked_call;
 #define call_new(...)\
     (checkasm_set_signal_handler_state(1),\
-     checked_call(func_new, __VA_ARGS__));\
+     checked_call(func_new, __VA_ARGS__, 15, 14, 13, 12,\
+                  11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1));\
     checkasm_set_signal_handler_state(0)
 #elif ARCH_ARM
 /* Use a dummy argument, to offset the real parameters by 2, not only 1.
@@ -217,17 +257,20 @@ void checkasm_stack_clobber(uint64_t clobber, ...);
  * the same even when the extra parameters have been removed. */
 void checkasm_checked_call_vfp(void *func, int dummy, ...);
 #define declare_new(ret, ...)\
-    ret (*checked_call)(void *, int dummy, __VA_ARGS__) =\
+    ret (*checked_call)(void *, int dummy, __VA_ARGS__,\
+                        int, int, int, int, int, int, int, int,\
+                        int, int, int, int, int, int, int) =\
     (void *)checkasm_checked_call_vfp;
 #define call_new(...)\
     (checkasm_set_signal_handler_state(1),\
-     checked_call(func_new, 0, __VA_ARGS__));\
+     checked_call(func_new, 0, __VA_ARGS__, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0));\
     checkasm_set_signal_handler_state(0)
 #elif ARCH_AARCH64 && !defined(__APPLE__)
 void checkasm_stack_clobber(uint64_t clobber, ...);
 #define declare_new(ret, ...)\
     ret (*checked_call)(void *, int, int, int, int, int, int, int,\
-                        __VA_ARGS__) =\
+                        __VA_ARGS__, int, int, int, int, int, int, int, int,\
+                        int, int, int, int, int, int, int) =\
     (void *)checkasm_checked_call;
 #define CLOB (UINT64_C(0xdeadbeefdeadbeef))
 #define call_new(...)\
@@ -236,7 +279,8 @@ void checkasm_stack_clobber(uint64_t clobber, ...);
                             CLOB, CLOB, CLOB, CLOB, CLOB, CLOB,\
                             CLOB, CLOB, CLOB, CLOB, CLOB, CLOB,\
                             CLOB, CLOB, CLOB, CLOB, CLOB),\
-     checked_call(func_new, 0, 0, 0, 0, 0, 0, 0, __VA_ARGS__));\
+     checked_call(func_new, 0, 0, 0, 0, 0, 0, 0, __VA_ARGS__,\
+                  7, 6, 5, 4, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0));\
     checkasm_set_signal_handler_state(0)
 #else
 #define declare_new(ret, ...)
@@ -259,15 +303,19 @@ void checkasm_stack_clobber(uint64_t clobber, ...);
 #define bench_new(...)\
     do {\
         if (checkasm_bench_func()) {\
+            func_type *const tfunc = func_new;\
             checkasm_set_signal_handler_state(1);\
-            func_type *tfunc = func_new;\
             uint64_t tsum = 0;\
-            int ti, tcount = 0;\
-            for (ti = 0; ti < BENCH_RUNS; ti++) {\
+            int tcount = 0;\
+            for (int ti = 0; ti < BENCH_RUNS; ti++) {\
                 uint64_t t = readtime();\
+                int talt = 0; (void)talt;\
                 tfunc(__VA_ARGS__);\
+                talt = 1;\
                 tfunc(__VA_ARGS__);\
+                talt = 0;\
                 tfunc(__VA_ARGS__);\
+                talt = 1;\
                 tfunc(__VA_ARGS__);\
                 t = readtime() - t;\
                 if (t*tcount <= tsum*4 && ti > 0) {\
@@ -277,31 +325,54 @@ void checkasm_stack_clobber(uint64_t clobber, ...);
             }\
             checkasm_set_signal_handler_state(0);\
             checkasm_update_bench(tcount, tsum);\
+        } else {\
+            const int talt = 0; (void)talt;\
+            call_new(__VA_ARGS__);\
         }\
     } while (0)
 #else
 #define bench_new(...) do {} while (0)
 #endif
 
+/* Alternates between two pointers. Intended to be used within bench_new()
+ * calls for functions which modifies their input buffer(s) to ensure that
+ * throughput, and not latency, is measured. */
+#define alternate(a, b) (talt ? (b) : (a))
+
+#define ROUND_UP(x,a) (((x)+((a)-1)) & ~((a)-1))
+#define PIXEL_RECT(name, w, h) \
+    ALIGN_STK_64(pixel, name##_buf, ((h)+32)*(ROUND_UP(w,64)+64) + 64,); \
+    ptrdiff_t name##_stride = sizeof(pixel)*(ROUND_UP(w,64)+64); \
+    (void)name##_stride; \
+    pixel *name = name##_buf + (ROUND_UP(w,64)+64)*16 + 64
+
+#define CLEAR_PIXEL_RECT(name) \
+    memset(name##_buf, 0x99, sizeof(name##_buf)) \
+
 #define DECL_CHECKASM_CHECK_FUNC(type) \
 int checkasm_check_##type(const char *const file, const int line, \
                           const type *const buf1, const ptrdiff_t stride1, \
                           const type *const buf2, const ptrdiff_t stride2, \
-                          const int w, const int h, const char *const name)
+                          const int w, const int h, const char *const name, \
+                          const int align_w, const int align_h, \
+                          const int padding)
 
-DECL_CHECKASM_CHECK_FUNC(uint8_t);
-DECL_CHECKASM_CHECK_FUNC(uint16_t);
+DECL_CHECKASM_CHECK_FUNC(int8_t);
 DECL_CHECKASM_CHECK_FUNC(int16_t);
 DECL_CHECKASM_CHECK_FUNC(int32_t);
+DECL_CHECKASM_CHECK_FUNC(uint8_t);
+DECL_CHECKASM_CHECK_FUNC(uint16_t);
+DECL_CHECKASM_CHECK_FUNC(uint32_t);
 
+#define CONCAT(a,b) a ## b
 
-#define PASTE(a,b) a ## b
-#define CONCAT(a,b) PASTE(a,b)
-
-#define checkasm_check(prefix, ...) CONCAT(checkasm_check_, prefix)(__FILE__, __LINE__, __VA_ARGS__)
+#define checkasm_check2(prefix, ...) CONCAT(checkasm_check_, prefix)(__FILE__, __LINE__, __VA_ARGS__)
+#define checkasm_check(prefix, ...) checkasm_check2(prefix, __VA_ARGS__, 0, 0, 0)
 
 #ifdef BITDEPTH
 #define checkasm_check_pixel(...) checkasm_check(PIXEL_TYPE, __VA_ARGS__)
+#define checkasm_check_pixel_padded(...) checkasm_check2(PIXEL_TYPE, __VA_ARGS__, 1, 1, 8)
+#define checkasm_check_pixel_padded_align(...) checkasm_check2(PIXEL_TYPE, __VA_ARGS__, 8)
 #define checkasm_check_coef(...)  checkasm_check(COEF_TYPE,  __VA_ARGS__)
 #endif
 

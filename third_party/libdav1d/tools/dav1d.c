@@ -29,6 +29,7 @@
 #include "vcs_version.h"
 #include "cli_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
@@ -63,7 +64,9 @@ static uint64_t get_time_nanos(void) {
     QueryPerformanceFrequency(&frequency);
     LARGE_INTEGER t;
     QueryPerformanceCounter(&t);
-    return 1000000000 * t.QuadPart / frequency.QuadPart;
+    uint64_t seconds = t.QuadPart / frequency.QuadPart;
+    uint64_t fractions = t.QuadPart % frequency.QuadPart;
+    return 1000000000 * seconds + 1000000000 * fractions / frequency.QuadPart;
 #elif defined(HAVE_CLOCK_GETTIME)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -113,18 +116,69 @@ static void synchronize(const int realtime, const unsigned cache,
 static void print_stats(const int istty, const unsigned n, const unsigned num,
                         const uint64_t elapsed, const double i_fps)
 {
-    if (istty) fputs("\r", stderr);
-    const double d_fps = 1e9 * n / elapsed;
-    const double speed = d_fps / i_fps;
-    if (num == 0xFFFFFFFF) {
-        fprintf(stderr, "Decoded %u frames", n);
-    } else {
-        fprintf(stderr, "Decoded %u/%u frames (%.1lf%%)", n, num,
-                100.0 * n / num);
+    char buf[80], *b = buf, *const end = buf + 80;
+
+    if (istty)
+        *b++ = '\r';
+    if (num == 0xFFFFFFFF)
+        b += snprintf(b, end - b, "Decoded %u frames", n);
+    else
+        b += snprintf(b, end - b, "Decoded %u/%u frames (%.1lf%%)",
+                      n, num, 100.0 * n / num);
+    if (b < end) {
+        const double d_fps = 1e9 * n / elapsed;
+        if (i_fps) {
+            const double speed = d_fps / i_fps;
+            b += snprintf(b, end - b, " - %.2lf/%.2lf fps (%.2lfx)",
+                          d_fps, i_fps, speed);
+        } else {
+            b += snprintf(b, end - b, " - %.2lf fps", d_fps);
+        }
     }
-    if (i_fps)
-        fprintf(stderr, " - %.2lf/%.2lf fps (%.2lfx)", d_fps, i_fps, speed);
-    if (!istty) fputs("\n", stderr);
+    if (!istty)
+        strcpy(b > end - 2 ? end - 2 : b, "\n");
+    fputs(buf, stderr);
+}
+
+static int picture_alloc(Dav1dPicture *const p, void *const _) {
+    const int hbd = p->p.bpc > 8;
+    const int aligned_w = (p->p.w + 127) & ~127;
+    const int aligned_h = (p->p.h + 127) & ~127;
+    const int has_chroma = p->p.layout != DAV1D_PIXEL_LAYOUT_I400;
+    const int ss_ver = p->p.layout == DAV1D_PIXEL_LAYOUT_I420;
+    const int ss_hor = p->p.layout != DAV1D_PIXEL_LAYOUT_I444;
+    ptrdiff_t y_stride = aligned_w << hbd;
+    ptrdiff_t uv_stride = has_chroma ? y_stride >> ss_hor : 0;
+    /* Due to how mapping of addresses to sets works in most L1 and L2 cache
+     * implementations, strides of multiples of certain power-of-two numbers
+     * may cause multiple rows of the same superblock to map to the same set,
+     * causing evictions of previous rows resulting in a reduction in cache
+     * hit rate. Avoid that by slightly padding the stride when necessary. */
+    if (!(y_stride & 1023))
+        y_stride += DAV1D_PICTURE_ALIGNMENT;
+    if (!(uv_stride & 1023) && has_chroma)
+        uv_stride += DAV1D_PICTURE_ALIGNMENT;
+    p->stride[0] = -y_stride;
+    p->stride[1] = -uv_stride;
+    const size_t y_sz = y_stride * aligned_h;
+    const size_t uv_sz = uv_stride * (aligned_h >> ss_ver);
+    const size_t pic_size = y_sz + 2 * uv_sz;
+
+    uint8_t *const buf = malloc(pic_size + DAV1D_PICTURE_ALIGNMENT * 2);
+    if (!buf) return DAV1D_ERR(ENOMEM);
+    p->allocator_data = buf;
+
+    const ptrdiff_t align_m1 = DAV1D_PICTURE_ALIGNMENT - 1;
+    uint8_t *const data = (uint8_t *)(((ptrdiff_t)buf + align_m1) & ~align_m1);
+    p->data[0] = data + y_sz - y_stride;
+    p->data[1] = has_chroma ? data + y_sz + uv_sz * 1 - uv_stride : NULL;
+    p->data[2] = has_chroma ? data + y_sz + uv_sz * 2 - uv_stride : NULL;
+
+    return 0;
+}
+
+static void picture_release(Dav1dPicture *const p, void *const _) {
+    free(p->allocator_data);
 }
 
 int main(const int argc, char *const *const argv) {
@@ -149,9 +203,11 @@ int main(const int argc, char *const *const argv) {
         return EXIT_FAILURE;
     }
 
-    init_demuxers();
-    init_muxers();
     parse(argc, argv, &cli_settings, &lib_settings);
+    if (cli_settings.neg_stride) {
+        lib_settings.allocator.alloc_picture_callback = picture_alloc;
+        lib_settings.allocator.release_picture_callback = picture_release;
+    }
 
     if ((res = input_open(&in, cli_settings.demuxer,
                           cli_settings.inputfile,
@@ -187,7 +243,6 @@ int main(const int argc, char *const *const argv) {
                     seq_skip);
     }
 
-    //getc(stdin);
     if (cli_settings.limit != 0 && cli_settings.limit < total)
         total = cli_settings.limit;
 
@@ -215,9 +270,10 @@ int main(const int argc, char *const *const argv) {
         memset(&p, 0, sizeof(p));
         if ((res = dav1d_send_data(c, &data)) < 0) {
             if (res != DAV1D_ERR(EAGAIN)) {
+                dav1d_data_unref(&data);
                 fprintf(stderr, "Error decoding frame: %s\n",
                         strerror(DAV1D_ERR(res)));
-                break;
+                if (res != DAV1D_ERR(EINVAL)) break;
             }
         }
 
@@ -225,7 +281,7 @@ int main(const int argc, char *const *const argv) {
             if (res != DAV1D_ERR(EAGAIN)) {
                 fprintf(stderr, "Error decoding frame: %s\n",
                         strerror(DAV1D_ERR(res)));
-                break;
+                if (res != DAV1D_ERR(EINVAL)) break;
             }
             res = 0;
         } else {
@@ -241,7 +297,7 @@ int main(const int argc, char *const *const argv) {
             if ((res = output_write(out, &p)) < 0)
                 break;
             n_out++;
-            if (nspf) {
+            if (nspf || !cli_settings.quiet) {
                 synchronize(cli_settings.realtime, cli_settings.realtime_cache,
                             n_out, nspf, tfirst, &elapsed, frametimes);
             }
@@ -261,6 +317,7 @@ int main(const int argc, char *const *const argv) {
             if (res != DAV1D_ERR(EAGAIN)) {
                 fprintf(stderr, "Error decoding frame: %s\n",
                         strerror(DAV1D_ERR(res)));
+                if (res != DAV1D_ERR(EINVAL)) break;
             } else {
                 res = 0;
                 break;
@@ -278,7 +335,7 @@ int main(const int argc, char *const *const argv) {
             if ((res = output_write(out, &p)) < 0)
                 break;
             n_out++;
-            if (nspf) {
+            if (nspf || !cli_settings.quiet) {
                 synchronize(cli_settings.realtime, cli_settings.realtime_cache,
                             n_out, nspf, tfirst, &elapsed, frametimes);
             }

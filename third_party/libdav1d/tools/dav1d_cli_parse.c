@@ -26,6 +26,7 @@
  */
 
 #include "config.h"
+#include "cli_config.h"
 
 #include <getopt.h>
 #include <limits.h>
@@ -49,44 +50,62 @@ enum {
     ARG_FRAME_TIMES,
     ARG_REALTIME,
     ARG_REALTIME_CACHE,
-    ARG_FRAME_THREADS,
-    ARG_TILE_THREADS,
+    ARG_THREADS,
+    ARG_FRAME_DELAY,
     ARG_VERIFY,
     ARG_FILM_GRAIN,
     ARG_OPPOINT,
     ARG_ALL_LAYERS,
     ARG_SIZE_LIMIT,
+    ARG_STRICT_STD_COMPLIANCE,
     ARG_CPU_MASK,
+    ARG_NEG_STRIDE,
+    ARG_OUTPUT_INVISIBLE,
+    ARG_INLOOP_FILTERS,
+    ARG_DECODE_FRAME_TYPE,
 };
 
 static const struct option long_opts[] = {
-    { "input",          1, NULL, 'i' },
-    { "output",         1, NULL, 'o' },
-    { "quiet",          0, NULL, 'q' },
-    { "demuxer",        1, NULL, ARG_DEMUXER },
-    { "muxer",          1, NULL, ARG_MUXER },
-    { "version",        0, NULL, 'v' },
-    { "frametimes",     1, NULL, ARG_FRAME_TIMES },
-    { "limit",          1, NULL, 'l' },
-    { "skip",           1, NULL, 's' },
-    { "realtime",       2, NULL, ARG_REALTIME },
-    { "realtimecache",  1, NULL, ARG_REALTIME_CACHE },
-    { "framethreads",   1, NULL, ARG_FRAME_THREADS },
-    { "tilethreads",    1, NULL, ARG_TILE_THREADS },
-    { "verify",         1, NULL, ARG_VERIFY },
-    { "filmgrain",      1, NULL, ARG_FILM_GRAIN },
-    { "oppoint",        1, NULL, ARG_OPPOINT },
-    { "alllayers",      1, NULL, ARG_ALL_LAYERS },
-    { "sizelimit",      1, NULL, ARG_SIZE_LIMIT },
-    { "cpumask",        1, NULL, ARG_CPU_MASK },
-    { NULL,             0, NULL, 0 },
+    { "input",           1, NULL, 'i' },
+    { "output",          1, NULL, 'o' },
+    { "quiet",           0, NULL, 'q' },
+    { "demuxer",         1, NULL, ARG_DEMUXER },
+    { "muxer",           1, NULL, ARG_MUXER },
+    { "version",         0, NULL, 'v' },
+    { "frametimes",      1, NULL, ARG_FRAME_TIMES },
+    { "limit",           1, NULL, 'l' },
+    { "skip",            1, NULL, 's' },
+    { "realtime",        2, NULL, ARG_REALTIME },
+    { "realtimecache",   1, NULL, ARG_REALTIME_CACHE },
+    { "threads",         1, NULL, ARG_THREADS },
+    { "framedelay",      1, NULL, ARG_FRAME_DELAY },
+    { "verify",          1, NULL, ARG_VERIFY },
+    { "filmgrain",       1, NULL, ARG_FILM_GRAIN },
+    { "oppoint",         1, NULL, ARG_OPPOINT },
+    { "alllayers",       1, NULL, ARG_ALL_LAYERS },
+    { "sizelimit",       1, NULL, ARG_SIZE_LIMIT },
+    { "strict",          1, NULL, ARG_STRICT_STD_COMPLIANCE },
+    { "cpumask",         1, NULL, ARG_CPU_MASK },
+    { "negstride",       0, NULL, ARG_NEG_STRIDE },
+    { "outputinvisible", 1, NULL, ARG_OUTPUT_INVISIBLE },
+    { "inloopfilters",   1, NULL, ARG_INLOOP_FILTERS },
+    { "decodeframetype", 1, NULL, ARG_DECODE_FRAME_TYPE },
+    { NULL,              0, NULL, 0 },
 };
+
+#if HAVE_XXHASH_H
+#define AVAILABLE_MUXERS "'md5', 'xxh3', 'yuv', 'yuv4mpeg2' or 'null'"
+#else
+#define AVAILABLE_MUXERS "'md5', 'yuv', 'yuv4mpeg2' or 'null'"
+#endif
 
 #if ARCH_AARCH64 || ARCH_ARM
 #define ALLOWED_CPU_MASKS " or 'neon'"
+#elif ARCH_PPC64LE
+#define ALLOWED_CPU_MASKS " or 'vsx'"
 #elif ARCH_X86
 #define ALLOWED_CPU_MASKS \
-    ", 'sse2', 'ssse3', 'sse41', 'avx2' or 'avx512'"
+    ", 'sse2', 'ssse3', 'sse41', 'avx2' or 'avx512icl'"
 #else
 #define ALLOWED_CPU_MASKS "not yet implemented for this architecture"
 #endif
@@ -102,10 +121,11 @@ static void usage(const char *const app, const char *const reason, ...) {
     }
     fprintf(stderr, "Usage: %s [options]\n\n", app);
     fprintf(stderr, "Supported options:\n"
-            " --input/-i  $file:    input file\n"
-            " --output/-o $file:    output file\n"
-            " --demuxer $name:      force demuxer type ('ivf', 'section5' or 'annexb'; default: detect from extension)\n"
-            " --muxer $name:        force muxer type ('md5', 'yuv', 'yuv4mpeg2' or 'null'; default: detect from extension)\n"
+            " --input/-i $file:     input file\n"
+            " --output/-o $file:    output file (%%n, %%w or %%h will be filled in for per-frame files)\n"
+            " --demuxer $name:      force demuxer type ('ivf', 'section5' or 'annexb'; default: detect from content)\n"
+            " --muxer $name:        force muxer type (" AVAILABLE_MUXERS "; default: detect from extension)\n"
+            "                       use 'frame' as prefix to write per-frame files; if filename contains %%n, will default to writing per-frame files\n"
             " --quiet/-q:           disable status messages\n"
             " --frametimes $file:   dump frame times to file\n"
             " --limit/-l $num:      stop decoding after $num frames\n"
@@ -113,14 +133,23 @@ static void usage(const char *const app, const char *const reason, ...) {
             " --realtime [$fract]:  limit framerate, optional argument to override input framerate\n"
             " --realtimecache $num: set the size of the cache in realtime mode (default: 0)\n"
             " --version/-v:         print version and exit\n"
-            " --framethreads $num:  number of frame threads (default: 1)\n"
-            " --tilethreads $num:   number of tile threads (default: 1)\n"
-            " --filmgrain $num:     enable film grain application (default: 1, except if muxer is md5)\n"
-            " --oppoint $num:       select an operating point of a scalable AV1 bitstream (0 - 32)\n"
+            " --threads $num:       number of threads (default: 0)\n"
+            " --framedelay $num:    maximum frame delay, capped at $threads (default: 0);\n"
+            "                       set to 1 for low-latency decoding\n"
+            " --filmgrain $num:     enable film grain application (default: 1, except if muxer is md5 or xxh3)\n"
+            " --oppoint $num:       select an operating point of a scalable AV1 bitstream (0 - 31)\n"
             " --alllayers $num:     output all spatial layers of a scalable AV1 bitstream (default: 1)\n"
             " --sizelimit $num:     stop decoding if the frame size exceeds the specified limit\n"
+            " --strict $num:        whether to abort decoding on standard compliance violations\n"
+            "                       that don't affect bitstream decoding (default: 1)\n"
             " --verify $md5:        verify decoded md5. implies --muxer md5, no output\n"
-            " --cpumask $mask:      restrict permitted CPU instruction sets (0" ALLOWED_CPU_MASKS "; default: -1)\n");
+            " --cpumask $mask:      restrict permitted CPU instruction sets (0" ALLOWED_CPU_MASKS "; default: -1)\n"
+            " --negstride:          use negative picture strides\n"
+            "                       this is mostly meant as a developer option\n"
+            " --outputinvisible $num: whether to output invisible (alt-ref) frames (default: 0)\n"
+            " --inloopfilters $str: which in-loop filters to enable (none, (no)deblock, (no)cdef, (no)restoration or all; default: all)\n"
+            " --decodeframetype $str: which frame types to decode (reference, intra, key or all; default: all)\n"
+            );
     exit(1);
 }
 
@@ -176,46 +205,64 @@ typedef struct EnumParseTable {
 
 #if ARCH_X86
 enum CpuMask {
-    X86_CPU_MASK_SSE    = DAV1D_X86_CPU_FLAG_SSE,
-    X86_CPU_MASK_SSE2   = DAV1D_X86_CPU_FLAG_SSE2   | X86_CPU_MASK_SSE,
-    X86_CPU_MASK_SSE3   = DAV1D_X86_CPU_FLAG_SSE3   | X86_CPU_MASK_SSE2,
-    X86_CPU_MASK_SSSE3  = DAV1D_X86_CPU_FLAG_SSSE3  | X86_CPU_MASK_SSE3,
-    X86_CPU_MASK_SSE41  = DAV1D_X86_CPU_FLAG_SSE41  | X86_CPU_MASK_SSSE3,
-    X86_CPU_MASK_SSE42  = DAV1D_X86_CPU_FLAG_SSE42  | X86_CPU_MASK_SSE41,
-    X86_CPU_MASK_AVX    = DAV1D_X86_CPU_FLAG_AVX    | X86_CPU_MASK_SSE42,
-    X86_CPU_MASK_AVX2   = DAV1D_X86_CPU_FLAG_AVX2   | X86_CPU_MASK_AVX,
-    X86_CPU_MASK_AVX512 = DAV1D_X86_CPU_FLAG_AVX512 | X86_CPU_MASK_AVX2,
+    X86_CPU_MASK_SSE2      = DAV1D_X86_CPU_FLAG_SSE2,
+    X86_CPU_MASK_SSSE3     = DAV1D_X86_CPU_FLAG_SSSE3     | X86_CPU_MASK_SSE2,
+    X86_CPU_MASK_SSE41     = DAV1D_X86_CPU_FLAG_SSE41     | X86_CPU_MASK_SSSE3,
+    X86_CPU_MASK_AVX2      = DAV1D_X86_CPU_FLAG_AVX2      | X86_CPU_MASK_SSE41,
+    X86_CPU_MASK_AVX512ICL = DAV1D_X86_CPU_FLAG_AVX512ICL | X86_CPU_MASK_AVX2,
 };
 #endif
 
 static const EnumParseTable cpu_mask_tbl[] = {
 #if ARCH_AARCH64 || ARCH_ARM
     { "neon", DAV1D_ARM_CPU_FLAG_NEON },
+#elif ARCH_PPC64LE
+    { "vsx", DAV1D_PPC_CPU_FLAG_VSX },
 #elif ARCH_X86
-    { "sse2",   X86_CPU_MASK_SSE2 },
-    { "ssse3",  X86_CPU_MASK_SSSE3 },
-    { "sse41",  X86_CPU_MASK_SSE41 },
-    { "avx2",   X86_CPU_MASK_AVX2 },
-    { "avx512", X86_CPU_MASK_AVX512 },
+    { "sse2",      X86_CPU_MASK_SSE2 },
+    { "ssse3",     X86_CPU_MASK_SSSE3 },
+    { "sse41",     X86_CPU_MASK_SSE41 },
+    { "avx2",      X86_CPU_MASK_AVX2 },
+    { "avx512icl", X86_CPU_MASK_AVX512ICL },
 #endif
-    { 0 },
+    { "none",      0 },
 };
 
+static const EnumParseTable inloop_filters_tbl[] = {
+    { "none",          DAV1D_INLOOPFILTER_NONE },
+    { "deblock",       DAV1D_INLOOPFILTER_DEBLOCK },
+    { "nodeblock",     DAV1D_INLOOPFILTER_ALL - DAV1D_INLOOPFILTER_DEBLOCK },
+    { "cdef",          DAV1D_INLOOPFILTER_CDEF },
+    { "nocdef",        DAV1D_INLOOPFILTER_ALL - DAV1D_INLOOPFILTER_CDEF },
+    { "restoration",   DAV1D_INLOOPFILTER_RESTORATION },
+    { "norestoration", DAV1D_INLOOPFILTER_ALL - DAV1D_INLOOPFILTER_RESTORATION },
+    { "all",           DAV1D_INLOOPFILTER_ALL },
+};
+
+static const EnumParseTable decode_frame_type_tbl[] = {
+    { "all",           DAV1D_DECODEFRAMETYPE_ALL },
+    { "reference",     DAV1D_DECODEFRAMETYPE_REFERENCE },
+    { "intra",         DAV1D_DECODEFRAMETYPE_INTRA },
+    { "key",           DAV1D_DECODEFRAMETYPE_KEY },
+};
+
+#define ARRAY_SIZE(n) (sizeof(n)/sizeof(*(n)))
+
 static unsigned parse_enum(char *optarg, const EnumParseTable *const tbl,
-                           const int option, const char *app)
+                           const int tbl_sz, const int option, const char *app)
 {
     char str[1024];
 
     strcpy(str, "any of ");
-    for (int n = 0; tbl[n].str; n++) {
+    for (int n = 0; n < tbl_sz; n++) {
         if (!strcmp(tbl[n].str, optarg))
             return tbl[n].val;
 
         if (n) {
-            if (!tbl[n + 1].str)
-                strcat(str, " or ");
-            else
+            if (n < tbl_sz - 1)
                 strcat(str, ", ");
+            else
+                strcat(str, " or ");
         }
         strcat(str, tbl[n].str);
     }
@@ -243,6 +290,7 @@ void parse(const int argc, char *const *const argv,
 
     memset(cli_settings, 0, sizeof(*cli_settings));
     dav1d_default_settings(lib_settings);
+    lib_settings->strict_std_compliance = 1; // override library default
     int grain_specified = 0;
 
     while ((o = getopt_long(argc, argv, short_opts, long_opts, NULL)) != -1) {
@@ -287,13 +335,13 @@ void parse(const int argc, char *const *const argv,
             cli_settings->realtime_cache =
                 parse_unsigned(optarg, ARG_REALTIME_CACHE, argv[0]);
             break;
-        case ARG_FRAME_THREADS:
-            lib_settings->n_frame_threads =
-                parse_unsigned(optarg, ARG_FRAME_THREADS, argv[0]);
+        case ARG_FRAME_DELAY:
+            lib_settings->max_frame_delay =
+                parse_unsigned(optarg, ARG_FRAME_DELAY, argv[0]);
             break;
-        case ARG_TILE_THREADS:
-            lib_settings->n_tile_threads =
-                parse_unsigned(optarg, ARG_TILE_THREADS, argv[0]);
+        case ARG_THREADS:
+            lib_settings->n_threads =
+                parse_unsigned(optarg, ARG_THREADS, argv[0]);
             break;
         case ARG_VERIFY:
             cli_settings->verify = optarg;
@@ -321,12 +369,33 @@ void parse(const int argc, char *const *const argv,
             lib_settings->frame_size_limit = (unsigned) res;
             break;
         }
+        case ARG_STRICT_STD_COMPLIANCE:
+            lib_settings->strict_std_compliance =
+                parse_unsigned(optarg, ARG_STRICT_STD_COMPLIANCE, argv[0]);
+            break;
         case 'v':
             fprintf(stderr, "%s\n", dav1d_version());
             exit(0);
         case ARG_CPU_MASK:
-            dav1d_set_cpu_flags_mask(parse_enum(optarg, cpu_mask_tbl,
+            dav1d_set_cpu_flags_mask(parse_enum(optarg, cpu_mask_tbl, ARRAY_SIZE(cpu_mask_tbl),
                                                 ARG_CPU_MASK, argv[0]));
+            break;
+        case ARG_NEG_STRIDE:
+            cli_settings->neg_stride = 1;
+            break;
+        case ARG_OUTPUT_INVISIBLE:
+            lib_settings->output_invisible_frames =
+                !!parse_unsigned(optarg, ARG_OUTPUT_INVISIBLE, argv[0]);
+            break;
+        case ARG_INLOOP_FILTERS:
+            lib_settings->inloop_filters =
+                parse_enum(optarg, inloop_filters_tbl,
+                           ARRAY_SIZE(inloop_filters_tbl),ARG_INLOOP_FILTERS, argv[0]);
+            break;
+        case ARG_DECODE_FRAME_TYPE:
+            lib_settings->decode_frame_type =
+                parse_enum(optarg, decode_frame_type_tbl,
+                           ARRAY_SIZE(decode_frame_type_tbl), ARG_DECODE_FRAME_TYPE, argv[0]);
             break;
         default:
             usage(argv[0], NULL);
@@ -338,8 +407,11 @@ void parse(const int argc, char *const *const argv,
     if (cli_settings->verify) {
         if (cli_settings->outputfile)
             usage(argv[0], "Verification (--verify) requires output file (-o/--output) to not set");
-        if (cli_settings->muxer && !strcmp(cli_settings->muxer, "md5"))
-            usage(argv[0], "Verification (--verify) requires the md5 muxer (--muxer md5)");
+        if (cli_settings->muxer && strcmp(cli_settings->muxer, "md5") &&
+            strcmp(cli_settings->muxer, "xxh3"))
+        {
+            usage(argv[0], "Verification (--verify) requires a checksum muxer (md5 or xxh3)");
+        }
 
         cli_settings->outputfile = "-";
         if (!cli_settings->muxer)
@@ -347,7 +419,8 @@ void parse(const int argc, char *const *const argv,
     }
 
     if (!grain_specified && cli_settings->muxer &&
-        !strcmp(cli_settings->muxer, "md5"))
+        (!strcmp(cli_settings->muxer, "md5") ||
+        !strcmp(cli_settings->muxer, "xxh3")))
     {
         lib_settings->apply_grain = 0;
     }

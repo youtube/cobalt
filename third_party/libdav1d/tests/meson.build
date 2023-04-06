@@ -31,12 +31,11 @@ if not get_option('enable_tests')
     subdir_done()
 endif
 
-libdav1d_nasm_objs_if_needed = []
-
 if is_asm_enabled
     checkasm_sources = files(
         'checkasm/checkasm.c',
         'checkasm/msac.c',
+        'checkasm/refmvs.c',
     )
 
     checkasm_tmpl_sources = files(
@@ -55,32 +54,32 @@ if is_asm_enabled
             'checkasm_bitdepth_@0@'.format(bitdepth),
             checkasm_tmpl_sources,
             include_directories: dav1d_inc_dirs,
-            c_args: ['-DBITDEPTH=@0@'.format(bitdepth), stackalign_flag],
+            c_args: ['-DBITDEPTH=@0@'.format(bitdepth)],
             install: false,
             build_by_default: false,
         )
-        checkasm_bitdepth_objs += checkasm_bitdepth_lib.extract_all_objects()
+        checkasm_bitdepth_objs += checkasm_bitdepth_lib.extract_all_objects(recursive: true)
     endforeach
 
-    checkasm_nasm_objs = []
-    if host_machine.cpu_family() == 'aarch64'
-        checkasm_sources += files('checkasm/arm/checkasm_64.S')
+    checkasm_asm_objs = []
+    checkasm_asm_sources = []
+    if host_machine.cpu_family() == 'aarch64' or host_machine.cpu() == 'arm64'
+        checkasm_asm_sources += files('checkasm/arm/checkasm_64.S')
     elif host_machine.cpu_family().startswith('arm')
-        checkasm_sources += files('checkasm/arm/checkasm_32.S')
+        checkasm_asm_sources += files('checkasm/arm/checkasm_32.S')
     elif host_machine.cpu_family().startswith('x86')
-        checkasm_nasm_objs = nasm_gen.process(files('checkasm/x86/checkasm.asm'))
+        checkasm_asm_objs += nasm_gen.process(files('checkasm/x86/checkasm.asm'))
     endif
 
-    m_lib = cc.find_library('m', required: false)
-
-    if meson.version().version_compare('< 0.48.999')
-        libdav1d_nasm_objs_if_needed = libdav1d_nasm_objs
+    if use_gaspp
+        checkasm_asm_objs += gaspp_gen.process(checkasm_asm_sources)
+    else
+        checkasm_sources += checkasm_asm_sources
     endif
 
     checkasm = executable('checkasm',
         checkasm_sources,
-        checkasm_nasm_objs,
-        libdav1d_nasm_objs_if_needed,
+        checkasm_asm_objs,
 
         objects: [
             checkasm_bitdepth_objs,
@@ -88,78 +87,62 @@ if is_asm_enabled
             ],
 
         include_directories: dav1d_inc_dirs,
-        c_args: [stackalign_flag, stackrealign_flag],
         build_by_default: false,
-        dependencies : [thread_dependency, rt_dependency, m_lib],
+        dependencies : [
+            thread_dependency,
+            rt_dependency,
+            libdl_dependency,
+            libm_dependency,
+            ],
         )
 
-    test('checkasm', checkasm, is_parallel: false)
+    test('checkasm', checkasm, suite: 'checkasm', timeout: 180, is_parallel: false)
+    benchmark('checkasm', checkasm, suite: 'checkasm', timeout: 3600, args: '--bench')
 endif
 
-dav1d_fuzzer_sources =  files('libfuzzer/dav1d_fuzzer.c')
-fuzzer_ldflags = []
+c99_extension_flag = cc.first_supported_argument(
+    '-Werror=c11-extensions',
+    '-Werror=c99-c11-compat',
+    '-Wc11-extensions',
+    '-Wc99-c11-compat',
+)
 
-if get_option('fuzzer_ldflags') != ''
-    fuzzer_ldflags += [get_option('fuzzer_ldflags')]
-endif
+# dav1d_api_headers
+foreach header : dav1d_api_headers
+    target = header + '_test'
 
-if fuzzing_engine == 'none'
-    dav1d_fuzzer_sources += files('libfuzzer/main.c')
-elif fuzzing_engine == 'libfuzzer'
-    fuzzer_ldflags += ['-fsanitize=fuzzer']
-elif fuzzing_engine == 'oss-fuzz'
-    # libFuzzingEngine needs libc++
-    fuzzer_ldflags += ['-lc++']
-endif
-
-dav1d_fuzzer = executable('dav1d_fuzzer',
-    dav1d_fuzzer_sources,
-    include_directories: dav1d_inc_dirs,
-    c_args: [stackalign_flag, stackrealign_flag],
-    link_args: fuzzer_ldflags,
-    link_with : libdav1d,
-    build_by_default: true,
-    dependencies : [thread_dependency],
-    )
-
-dav1d_fuzzer_mt = executable('dav1d_fuzzer_mt',
-    dav1d_fuzzer_sources,
-    include_directories: dav1d_inc_dirs,
-    c_args: [stackalign_flag, stackrealign_flag, '-DDAV1D_MT_FUZZING'],
-    link_args: fuzzer_ldflags,
-    link_with : libdav1d,
-    build_by_default: true,
-    dependencies : [thread_dependency],
-    )
-
-objcopy = find_program('objcopy',
-                       required: false)
-if (objcopy.found() and
-    not get_option('b_lto') and
-    get_option('default_library') == 'static' and
-    cc.has_function('posix_memalign', prefix : '#include <stdlib.h>', args : test_args))
-
-    libdav1d_af = custom_target('libdav1d_af',
-                                input: libdav1d,
-                                output: 'libdav1d_af.a',
-                                depends: libdav1d,
-                                command: [objcopy,
-                                          '--redefine-sym', 'malloc=__wrap_malloc',
-                                          '--redefine-sym', 'posix_memalign=__wrap_posix_memalign',
-                                          '--redefine-sym', 'pthread_create=__wrap_pthread_create',
-                                          '--redefine-sym', 'pthread_cond_init=__wrap_pthread_cond_init',
-                                          '--redefine-sym', 'pthread_mutex_init=__wrap_pthread_mutex_init',
-                                          '@INPUT@', '@OUTPUT@'])
-
-    dav1d_fuzzer_mem = executable('dav1d_fuzzer_mem',
-        dav1d_fuzzer_sources + ['libfuzzer/alloc_fail.c'],
+    header_test_exe = executable(target,
+        'header_test.c',
         include_directories: dav1d_inc_dirs,
-        c_args: [stackalign_flag, stackrealign_flag, '-DDAV1D_ALLOC_FAIL'],
-        link_args: fuzzer_ldflags + [join_paths(libdav1d_af.full_path())],
-        link_depends: libdav1d_af,
-        build_by_default: false,
-        dependencies : [thread_dependency],
-        )
+        c_args: ['-DDAV1D_TEST_HEADER="@0@"'.format(header), c99_extension_flag],
+        build_by_default: true
+    )
+
+    test(target, header_test_exe, suite: 'headers')
+endforeach
+
+
+# fuzzing binaries
+subdir('libfuzzer')
+
+# seek stress test binary, depends on dav1d cli tool
+if get_option('enable_tools')
+    seek_stress_sources = files('seek_stress.c')
+    seek_stress = executable('seek_stress',
+        seek_stress_sources, rev_target,
+        objects: [
+            dav1d.extract_objects('dav1d_cli_parse.c'),
+            dav1d_input_objs.extract_objects('input/input.c', 'input/ivf.c'),
+        ],
+        include_directories: [dav1d_inc_dirs, include_directories('../tools')],
+        link_with: libdav1d,
+        dependencies: [
+            thread_dependency,
+            rt_dependency,
+            getopt_dependency,
+            libm_dependency,
+        ],
+    )
 endif
 
 # Include dav1d test data repository with additional tests

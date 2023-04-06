@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018, VideoLAN and dav1d authors
+ * Copyright © 2018-2021, VideoLAN and dav1d authors
  * Copyright © 2018, Two Orioles, LLC
  * All rights reserved.
  *
@@ -40,11 +40,11 @@ typedef struct Av1FilterLUT {
 } Av1FilterLUT;
 
 typedef struct Av1RestorationUnit {
-    enum Dav1dRestorationType type;
-    int16_t filter_h[3];
-    int16_t filter_v[3];
+    uint8_t /* enum Dav1dRestorationType */ type;
+    int8_t filter_h[3];
+    int8_t filter_v[3];
     uint8_t sgr_idx;
-    int16_t sgr_weights[2];
+    int8_t sgr_weights[2];
 } Av1RestorationUnit;
 
 // each struct describes one 128x128 area (1 or 4 SBs), pre-superres-scaling
@@ -53,7 +53,7 @@ typedef struct Av1Filter {
     uint16_t filter_y[2 /* 0=col, 1=row */][32][3][2];
     uint16_t filter_uv[2 /* 0=col, 1=row */][32][2][2];
     int8_t cdef_idx[4]; // -1 means "unset"
-    uint16_t noskip_mask[32][2];
+    uint16_t noskip_mask[16][2]; // for 8x8 blocks, but stored on a 4x8 basis
 } Av1Filter;
 
 // each struct describes one 128x128 area (1 or 4 SBs), post-superres-scaling
@@ -72,8 +72,8 @@ void dav1d_create_lf_mask_inter(Av1Filter *lflvl, uint8_t (*level_cache)[4],
                                 const ptrdiff_t b4_stride,
                                 const uint8_t (*level)[8][2], int bx, int by,
                                 int iw, int ih, int skip_inter,
-                                enum BlockSize bs, const uint16_t *tx_mask,
-                                enum RectTxfmSize uvtx,
+                                enum BlockSize bs, enum RectTxfmSize max_ytx,
+                                const uint16_t *tx_mask, enum RectTxfmSize uvtx,
                                 enum Dav1dPixelLayout layout, uint8_t *ay,
                                 uint8_t *ly, uint8_t *auv, uint8_t *luv);
 void dav1d_calc_eih(Av1FilterLUT *lim_lut, int filter_sharpness);

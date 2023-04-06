@@ -110,7 +110,7 @@ typedef decl_emu_edge_fn(*emu_edge_fn);
 #define decl_resize_fn(name) \
 void (name)(pixel *dst, ptrdiff_t dst_stride, \
             const pixel *src, ptrdiff_t src_stride, \
-            int dst_w, int src_w, int h, int dx, int mx HIGHBD_DECL_SUFFIX)
+            int dst_w, int h, int src_w, int dx, int mx HIGHBD_DECL_SUFFIX)
 typedef decl_resize_fn(*resize_fn);
 
 typedef struct Dav1dMCDSPContext {
@@ -132,7 +132,5 @@ typedef struct Dav1dMCDSPContext {
 } Dav1dMCDSPContext;
 
 bitfn_decls(void dav1d_mc_dsp_init, Dav1dMCDSPContext *c);
-bitfn_decls(void dav1d_mc_dsp_init_arm, Dav1dMCDSPContext *c);
-bitfn_decls(void dav1d_mc_dsp_init_x86, Dav1dMCDSPContext *c);
 
 #endif /* DAV1D_SRC_MC_H */

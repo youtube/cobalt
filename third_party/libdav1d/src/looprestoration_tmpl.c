@@ -39,10 +39,10 @@
 
 // TODO Reuse p when no padding is needed (add and remove lpf pixels in p)
 // TODO Chroma only requires 2 rows of padding.
-static void padding(pixel *dst, const pixel *p, const ptrdiff_t p_stride,
-                    const pixel (*left)[4],
-                    const pixel *lpf, const ptrdiff_t lpf_stride,
-                    int unit_w, const int stripe_h, const enum LrEdgeFlags edges)
+static NOINLINE void
+padding(pixel *dst, const pixel *p, const ptrdiff_t stride,
+        const pixel (*left)[4], const pixel *lpf, int unit_w,
+        const int stripe_h, const enum LrEdgeFlags edges)
 {
     const int have_left = !!(edges & LR_HAVE_LEFT);
     const int have_right = !!(edges & LR_HAVE_RIGHT);
@@ -56,7 +56,7 @@ static void padding(pixel *dst, const pixel *p, const ptrdiff_t p_stride,
     if (edges & LR_HAVE_TOP) {
         // Copy previous loop filtered rows
         const pixel *const above_1 = lpf;
-        const pixel *const above_2 = above_1 + PXSTRIDE(lpf_stride);
+        const pixel *const above_2 = above_1 + PXSTRIDE(stride);
         pixel_copy(dst_l, above_1, unit_w);
         pixel_copy(dst_l + REST_UNIT_STRIDE, above_1, unit_w);
         pixel_copy(dst_l + 2 * REST_UNIT_STRIDE, above_2, unit_w);
@@ -75,14 +75,14 @@ static void padding(pixel *dst, const pixel *p, const ptrdiff_t p_stride,
     pixel *dst_tl = dst_l + 3 * REST_UNIT_STRIDE;
     if (edges & LR_HAVE_BOTTOM) {
         // Copy next loop filtered rows
-        const pixel *const below_1 = lpf + 6 * PXSTRIDE(lpf_stride);
-        const pixel *const below_2 = below_1 + PXSTRIDE(lpf_stride);
+        const pixel *const below_1 = lpf + 6 * PXSTRIDE(stride);
+        const pixel *const below_2 = below_1 + PXSTRIDE(stride);
         pixel_copy(dst_tl + stripe_h * REST_UNIT_STRIDE, below_1, unit_w);
         pixel_copy(dst_tl + (stripe_h + 1) * REST_UNIT_STRIDE, below_2, unit_w);
         pixel_copy(dst_tl + (stripe_h + 2) * REST_UNIT_STRIDE, below_2, unit_w);
     } else {
         // Pad with last row
-        const pixel *const src = p + (stripe_h - 1) * PXSTRIDE(p_stride);
+        const pixel *const src = p + (stripe_h - 1) * PXSTRIDE(stride);
         pixel_copy(dst_tl + stripe_h * REST_UNIT_STRIDE, src, unit_w);
         pixel_copy(dst_tl + (stripe_h + 1) * REST_UNIT_STRIDE, src, unit_w);
         pixel_copy(dst_tl + (stripe_h + 2) * REST_UNIT_STRIDE, src, unit_w);
@@ -97,7 +97,7 @@ static void padding(pixel *dst, const pixel *p, const ptrdiff_t p_stride,
     for (int j = 0; j < stripe_h; j++) {
         pixel_copy(dst_tl + 3 * have_left, p + 3 * have_left, unit_w - 3 * have_left);
         dst_tl += REST_UNIT_STRIDE;
-        p += PXSTRIDE(p_stride);
+        p += PXSTRIDE(stride);
     }
 
     if (!have_right) {
@@ -131,11 +131,10 @@ static void padding(pixel *dst, const pixel *p, const ptrdiff_t p_stride,
 // (since first and last tops are always 0 for chroma)
 // FIXME Could implement a version that requires less temporary memory
 // (should be possible to implement with only 6 rows of temp storage)
-static void wiener_c(pixel *p, const ptrdiff_t p_stride,
+static void wiener_c(pixel *p, const ptrdiff_t stride,
                      const pixel (*const left)[4],
-                     const pixel *lpf, const ptrdiff_t lpf_stride,
-                     const int w, const int h,
-                     const int16_t filterh[7], const int16_t filterv[7],
+                     const pixel *lpf, const int w, const int h,
+                     const LooprestorationParams *const params,
                      const enum LrEdgeFlags edges HIGHBD_DECL_SUFFIX)
 {
     // Wiener filtering is applied to a maximum stripe height of 64 + 3 pixels
@@ -143,23 +142,27 @@ static void wiener_c(pixel *p, const ptrdiff_t p_stride,
     pixel tmp[70 /*(64 + 3 + 3)*/ * REST_UNIT_STRIDE];
     pixel *tmp_ptr = tmp;
 
-    padding(tmp, p, p_stride, left, lpf, lpf_stride, w, h, edges);
+    padding(tmp, p, stride, left, lpf, w, h, edges);
 
     // Values stored between horizontal and vertical filtering don't
     // fit in a uint8_t.
     uint16_t hor[70 /*(64 + 3 + 3)*/ * REST_UNIT_STRIDE];
     uint16_t *hor_ptr = hor;
 
+    const int16_t (*const filter)[8] = params->filter;
     const int bitdepth = bitdepth_from_max(bitdepth_max);
     const int round_bits_h = 3 + (bitdepth == 12) * 2;
     const int rounding_off_h = 1 << (round_bits_h - 1);
     const int clip_limit = 1 << (bitdepth + 1 + 7 - round_bits_h);
     for (int j = 0; j < h + 6; j++) {
         for (int i = 0; i < w; i++) {
-            int sum = (tmp_ptr[i + 3] << 7) + (1 << (bitdepth + 6));
+            int sum = (1 << (bitdepth + 6));
+#if BITDEPTH == 8
+            sum += tmp_ptr[i + 3] * 128;
+#endif
 
             for (int k = 0; k < 7; k++) {
-                sum += tmp_ptr[i + k] * filterh[k];
+                sum += tmp_ptr[i + k] * filter[0][k];
             }
 
             hor_ptr[i] =
@@ -174,13 +177,13 @@ static void wiener_c(pixel *p, const ptrdiff_t p_stride,
     const int round_offset = 1 << (bitdepth + (round_bits_v - 1));
     for (int j = 0; j < h; j++) {
         for (int i = 0; i < w; i++) {
-            int sum = (hor[(j + 3) * REST_UNIT_STRIDE + i] << 7) - round_offset;
+            int sum = -round_offset;
 
             for (int k = 0; k < 7; k++) {
-                sum += hor[(j + k) * REST_UNIT_STRIDE + i] * filterv[k];
+                sum += hor[(j + k) * REST_UNIT_STRIDE + i] * filter[1][k];
             }
 
-            p[j * PXSTRIDE(p_stride) + i] =
+            p[j * PXSTRIDE(stride) + i] =
                 iclip_pixel((sum + rounding_off_v) >> round_bits_v);
         }
     }
@@ -208,44 +211,58 @@ static void wiener_c(pixel *p, const ptrdiff_t p_stride,
 // i: Pixel summed and stored (between loops)
 // c: Pixel summed not stored
 // x: Pixel not summed not stored
-static void boxsum3(coef *dst, const pixel *src, const int w, const int h) {
+static void boxsum3(int32_t *sumsq, coef *sum, const pixel *src,
+                    const int w, const int h)
+{
     // We skip the first row, as it is never used
     src += REST_UNIT_STRIDE;
-    dst += REST_UNIT_STRIDE;
 
     // We skip the first and last columns, as they are never used
     for (int x = 1; x < w - 1; x++) {
-        coef *ds = dst + x;
+        coef *sum_v = sum + x;
+        int32_t *sumsq_v = sumsq + x;
         const pixel *s = src + x;
-        int a = s[0], b = s[REST_UNIT_STRIDE];
+        int a = s[0], a2 = a * a;
+        int b = s[REST_UNIT_STRIDE], b2 = b * b;
 
         // We skip the first 2 rows, as they are skipped in the next loop and
         // we don't need the last 2 row as it is skipped in the next loop
         for (int y = 2; y < h - 2; y++) {
             s += REST_UNIT_STRIDE;
             const int c = s[REST_UNIT_STRIDE];
-            ds += REST_UNIT_STRIDE;
-            *ds = a + b + c;
+            const int c2 = c * c;
+            sum_v += REST_UNIT_STRIDE;
+            sumsq_v += REST_UNIT_STRIDE;
+            *sum_v = a + b + c;
+            *sumsq_v = a2 + b2 + c2;
             a = b;
+            a2 = b2;
             b = c;
+            b2 = c2;
         }
      }
 
-    // We skip the first 2 rows as they are never read
-    dst += REST_UNIT_STRIDE;
+    // We skip the first row as it is never read
+    sum += REST_UNIT_STRIDE;
+    sumsq += REST_UNIT_STRIDE;
     // We skip the last 2 rows as it is never read
     for (int y = 2; y < h - 2; y++) {
-        int a = dst[1], b = dst[2];
+        int a = sum[1], a2 = sumsq[1];
+        int b = sum[2], b2 = sumsq[2];
 
         // We don't store the first column as it is never read and
         // we don't store the last 2 columns as they are never read
         for (int x = 2; x < w - 2; x++) {
-            const int c = dst[x + 1];
-            dst[x] = a + b + c;
+            const int c = sum[x + 1], c2 = sumsq[x + 1];
+            sum[x] = a + b + c;
+            sumsq[x] = a2 + b2 + c2;
             a = b;
+            a2 = b2;
             b = c;
+            b2 = c2;
         }
-        dst += REST_UNIT_STRIDE;
+        sum += REST_UNIT_STRIDE;
+        sumsq += REST_UNIT_STRIDE;
     }
 }
 
@@ -271,168 +288,86 @@ static void boxsum3(coef *dst, const pixel *src, const int w, const int h) {
 // i: Pixel summed and stored (between loops)
 // c: Pixel summed not stored
 // x: Pixel not summed not stored
-static void boxsum5(coef *dst, const pixel *const src, const int w, const int h) {
-    // We skip the first row, as it is never used
-    dst += REST_UNIT_STRIDE;
-
+static void boxsum5(int32_t *sumsq, coef *sum, const pixel *const src,
+                    const int w, const int h)
+{
     for (int x = 0; x < w; x++) {
-        coef *ds = dst + x;
+        coef *sum_v = sum + x;
+        int32_t *sumsq_v = sumsq + x;
         const pixel *s = src + 3 * REST_UNIT_STRIDE + x;
-        int a = s[-3 * REST_UNIT_STRIDE];
-        int b = s[-2 * REST_UNIT_STRIDE];
-        int c = s[-1 * REST_UNIT_STRIDE];
-        int d = s[0];
+        int a = s[-3 * REST_UNIT_STRIDE], a2 = a * a;
+        int b = s[-2 * REST_UNIT_STRIDE], b2 = b * b;
+        int c = s[-1 * REST_UNIT_STRIDE], c2 = c * c;
+        int d = s[0], d2 = d * d;
 
         // We skip the first 2 rows, as they are skipped in the next loop and
         // we don't need the last 2 row as it is skipped in the next loop
         for (int y = 2; y < h - 2; y++) {
             s += REST_UNIT_STRIDE;
-            const int e = *s;
-            ds += REST_UNIT_STRIDE;
-            *ds = a + b + c + d + e;
+            const int e = *s, e2 = e * e;
+            sum_v += REST_UNIT_STRIDE;
+            sumsq_v += REST_UNIT_STRIDE;
+            *sum_v = a + b + c + d + e;
+            *sumsq_v = a2 + b2 + c2 + d2 + e2;
             a = b;
             b = c;
             c = d;
             d = e;
+            a2 = b2;
+            b2 = c2;
+            c2 = d2;
+            d2 = e2;
         }
     }
-
-    // We skip the first 2 rows as they are never read
-    dst += REST_UNIT_STRIDE;
-    for (int y = 2; y < h - 2; y++) {
-        int a = dst[0];
-        int b = dst[1];
-        int c = dst[2];
-        int d = dst[3];
-
-        for (int x = 2; x < w - 2; x++) {
-            const int e = dst[x + 2];
-            dst[x] = a + b + c + d + e;
-            a = b;
-            b = c;
-            c = d;
-            d = e;
-        }
-        dst += REST_UNIT_STRIDE;
-    }
-}
-
-// See boxsum3 function comments for details on row and column skipping
-static void boxsum3sqr(int32_t *dst, const pixel *src, const int w, const int h) {
-    // We skip the first row, as it is never used
-    src += REST_UNIT_STRIDE;
-    dst += REST_UNIT_STRIDE;
-
-    // We skip the first and last columns, as they are never used
-    for (int x = 1; x < w - 1; x++) {
-        int32_t *ds = dst + x;
-        const pixel *s = src + x;
-        int a = s[0] * s[0];
-        int b = s[REST_UNIT_STRIDE] * s[REST_UNIT_STRIDE];
-
-        // We skip the first row, as it is skipped in the next loop and
-        // we don't need the last row as it is skipped in the next loop
-        for (int y = 2; y < h - 2; y++) {
-            s += REST_UNIT_STRIDE;
-            const int c = s[REST_UNIT_STRIDE] * s[REST_UNIT_STRIDE];
-            ds += REST_UNIT_STRIDE;
-            *ds = a + b + c;
-            a = b;
-            b = c;
-        }
-     }
 
     // We skip the first row as it is never read
-    dst += REST_UNIT_STRIDE;
-    // We skip the last row as it is never read
+    sum += REST_UNIT_STRIDE;
+    sumsq += REST_UNIT_STRIDE;
     for (int y = 2; y < h - 2; y++) {
-        int a = dst[1], b = dst[2];
+        int a = sum[0], a2 = sumsq[0];
+        int b = sum[1], b2 = sumsq[1];
+        int c = sum[2], c2 = sumsq[2];
+        int d = sum[3], d2 = sumsq[3];
 
-        // We don't store the first column as it is never read and
-        // we don't store the last 2 columns as they are never read
         for (int x = 2; x < w - 2; x++) {
-            const int c = dst[x + 1];
-            dst[x] = a + b + c;
-            a = b;
-            b = c;
-        }
-        dst += REST_UNIT_STRIDE;
-    }
-}
-
-// See boxsum5 function comments for details on row and column skipping
-static void boxsum5sqr(int32_t *dst, const pixel *const src, const int w,
-                       const int h)
-{
-    // We skip the first row, as it is never used
-    dst += REST_UNIT_STRIDE;
-
-    for (int x = 0; x < w; x++) {
-        int32_t *ds = dst + x;
-        const pixel *s = src + 3 * REST_UNIT_STRIDE + x;
-        int a = s[-3 * REST_UNIT_STRIDE] * s[-3 * REST_UNIT_STRIDE];
-        int b = s[-2 * REST_UNIT_STRIDE] * s[-2 * REST_UNIT_STRIDE];
-        int c = s[-1 * REST_UNIT_STRIDE] * s[-1 * REST_UNIT_STRIDE];
-        int d = s[0] * s[0];
-
-        // We skip the first 2 rows, as they are skipped in the next loop and
-        // we don't need the last 2 row as it is skipped in the next loop
-        for (int y = 2; y < h - 2; y++) {
-            s += REST_UNIT_STRIDE;
-            const int e = s[0] * s[0];
-            ds += REST_UNIT_STRIDE;
-            *ds = a + b + c + d + e;
+            const int e = sum[x + 2], e2 = sumsq[x + 2];
+            sum[x] = a + b + c + d + e;
+            sumsq[x] = a2 + b2 + c2 + d2 + e2;
             a = b;
             b = c;
             c = d;
             d = e;
+            a2 = b2;
+            b2 = c2;
+            c2 = d2;
+            d2 = e2;
         }
-    }
-
-    // We skip the first 2 rows as they are never read
-    dst += REST_UNIT_STRIDE;
-    for (int y = 2; y < h - 2; y++) {
-        int a = dst[0];
-        int b = dst[1];
-        int c = dst[2];
-        int d = dst[3];
-
-        for (int x = 2; x < w - 2; x++) {
-            const int e = dst[x + 2];
-            dst[x] = a + b + c + d + e;
-            a = b;
-            b = c;
-            c = d;
-            d = e;
-        }
-        dst += REST_UNIT_STRIDE;
+        sum += REST_UNIT_STRIDE;
+        sumsq += REST_UNIT_STRIDE;
     }
 }
 
-static void selfguided_filter(coef *dst, const pixel *src,
-                              const ptrdiff_t src_stride, const int w,
-                              const int h, const int n, const int s
-                              HIGHBD_DECL_SUFFIX)
+static NOINLINE void
+selfguided_filter(coef *dst, const pixel *src, const ptrdiff_t src_stride,
+                  const int w, const int h, const int n, const unsigned s
+                  HIGHBD_DECL_SUFFIX)
 {
-    const int sgr_one_by_x = n == 25 ? 164 : 455;
+    const unsigned sgr_one_by_x = n == 25 ? 164 : 455;
 
     // Selfguided filter is applied to a maximum stripe height of 64 + 3 pixels
     // of padding above and below
-    int32_t A_[70 /*(64 + 3 + 3)*/ * REST_UNIT_STRIDE];
-    int32_t *A = A_ + 3 * REST_UNIT_STRIDE + 3;
+    int32_t sumsq[68 /*(64 + 2 + 2)*/ * REST_UNIT_STRIDE];
+    int32_t *A = sumsq + 2 * REST_UNIT_STRIDE + 3;
     // By inverting A and B after the boxsums, B can be of size coef instead
     // of int32_t
-    coef B_[70 /*(64 + 3 + 3)*/ * REST_UNIT_STRIDE];
-    coef *B = B_ + 3 * REST_UNIT_STRIDE + 3;
+    coef sum[68 /*(64 + 2 + 2)*/ * REST_UNIT_STRIDE];
+    coef *B = sum + 2 * REST_UNIT_STRIDE + 3;
 
     const int step = (n == 25) + 1;
-    if (n == 25) {
-        boxsum5(B_, src, w + 6, h + 6);
-        boxsum5sqr(A_, src, w + 6, h + 6);
-    } else {
-        boxsum3(B_, src, w + 6, h + 6);
-        boxsum3sqr(A_, src, w + 6, h + 6);
-    }
+    if (n == 25)
+        boxsum5(sumsq, sum, src, w + 6, h + 6);
+    else
+        boxsum3(sumsq, sum, src, w + 6, h + 6);
     const int bitdepth_min_8 = bitdepth_from_max(bitdepth_max) - 8;
 
     int32_t *AA = A - REST_UNIT_STRIDE;
@@ -446,11 +381,11 @@ static void selfguided_filter(coef *dst, const pixel *src,
 
             const unsigned p = imax(a * n - b * b, 0);
             const unsigned z = (p * s + (1 << 19)) >> 20;
-            const unsigned x = dav1d_sgr_x_by_x[imin(z, 255)];
+            const unsigned x = dav1d_sgr_x_by_x[umin(z, 255)];
 
             // This is where we invert A and B, so that B is of size coef.
             AA[i] = (x * BB[i] * sgr_one_by_x + (1 << 11)) >> 12;
-            BB[i] = 256 - x;
+            BB[i] = x;
         }
         AA += step * REST_UNIT_STRIDE;
         BB += step * REST_UNIT_STRIDE;
@@ -467,7 +402,7 @@ static void selfguided_filter(coef *dst, const pixel *src,
             for (int i = 0; i < w; i++) {
                 const int a = SIX_NEIGHBORS(B, i);
                 const int b = SIX_NEIGHBORS(A, i);
-                dst[i] = (a * src[i] + b + (1 << 8)) >> 9;
+                dst[i] = (b - a * src[i] + (1 << 8)) >> 9;
             }
             dst += 384 /* Maximum restoration width is 384 (256 * 1.5) */;
             src += REST_UNIT_STRIDE;
@@ -476,7 +411,7 @@ static void selfguided_filter(coef *dst, const pixel *src,
             for (int i = 0; i < w; i++) {
                 const int a = B[i] * 6 + (B[i - 1] + B[i + 1]) * 5;
                 const int b = A[i] * 6 + (A[i - 1] + A[i + 1]) * 5;
-                dst[i] = (a * src[i] + b + (1 << 7)) >> 8;
+                dst[i] = (b - a * src[i] + (1 << 7)) >> 8;
             }
             dst += 384 /* Maximum restoration width is 384 (256 * 1.5) */;
             src += REST_UNIT_STRIDE;
@@ -487,7 +422,7 @@ static void selfguided_filter(coef *dst, const pixel *src,
             for (int i = 0; i < w; i++) {
                 const int a = SIX_NEIGHBORS(B, i);
                 const int b = SIX_NEIGHBORS(A, i);
-                dst[i] = (a * src[i] + b + (1 << 8)) >> 9;
+                dst[i] = (b - a * src[i] + (1 << 8)) >> 9;
             }
         }
 #undef SIX_NEIGHBORS
@@ -500,7 +435,7 @@ static void selfguided_filter(coef *dst, const pixel *src,
             for (int i = 0; i < w; i++) {
                 const int a = EIGHT_NEIGHBORS(B, i);
                 const int b = EIGHT_NEIGHBORS(A, i);
-                dst[i] = (a * src[i] + b + (1 << 8)) >> 9;
+                dst[i] = (b - a * src[i] + (1 << 8)) >> 9;
             }
             dst += 384;
             src += REST_UNIT_STRIDE;
@@ -511,79 +446,109 @@ static void selfguided_filter(coef *dst, const pixel *src,
 #undef EIGHT_NEIGHBORS
 }
 
-static void selfguided_c(pixel *p, const ptrdiff_t p_stride,
-                         const pixel (*const left)[4],
-                         const pixel *lpf, const ptrdiff_t lpf_stride,
-                         const int w, const int h, const int sgr_idx,
-                         const int16_t sgr_w[2], const enum LrEdgeFlags edges
-                         HIGHBD_DECL_SUFFIX)
+static void sgr_5x5_c(pixel *p, const ptrdiff_t stride,
+                      const pixel (*const left)[4], const pixel *lpf,
+                      const int w, const int h,
+                      const LooprestorationParams *const params,
+                      const enum LrEdgeFlags edges HIGHBD_DECL_SUFFIX)
 {
     // Selfguided filter is applied to a maximum stripe height of 64 + 3 pixels
     // of padding above and below
     pixel tmp[70 /*(64 + 3 + 3)*/ * REST_UNIT_STRIDE];
 
-    padding(tmp, p, p_stride, left, lpf, lpf_stride, w, h, edges);
-
     // Selfguided filter outputs to a maximum stripe height of 64 and a
     // maximum restoration width of 384 (256 * 1.5)
     coef dst[64 * 384];
 
-    // both r1 and r0 can't be zero
-    if (!dav1d_sgr_params[sgr_idx][0]) {
-        const int s1 = dav1d_sgr_params[sgr_idx][3];
-        selfguided_filter(dst, tmp, REST_UNIT_STRIDE, w, h, 9, s1 HIGHBD_TAIL_SUFFIX);
-        const int w1 = (1 << 7) - sgr_w[1];
-        for (int j = 0; j < h; j++) {
-            for (int i = 0; i < w; i++) {
-                const int u = (p[i] << 4);
-                const int v = (u << 7) + w1 * (dst[j * 384 + i] - u);
-                p[i] = iclip_pixel((v + (1 << 10)) >> 11);
-            }
-            p += PXSTRIDE(p_stride);
+    padding(tmp, p, stride, left, lpf, w, h, edges);
+    selfguided_filter(dst, tmp, REST_UNIT_STRIDE, w, h, 25,
+                      params->sgr.s0 HIGHBD_TAIL_SUFFIX);
+
+    const int w0 = params->sgr.w0;
+    for (int j = 0; j < h; j++) {
+        for (int i = 0; i < w; i++) {
+            const int v = w0 * dst[j * 384 + i];
+            p[i] = iclip_pixel(p[i] + ((v + (1 << 10)) >> 11));
         }
-    } else if (!dav1d_sgr_params[sgr_idx][1]) {
-        const int s0 = dav1d_sgr_params[sgr_idx][2];
-        selfguided_filter(dst, tmp, REST_UNIT_STRIDE, w, h, 25, s0 HIGHBD_TAIL_SUFFIX);
-        const int w0 = sgr_w[0];
-        for (int j = 0; j < h; j++) {
-            for (int i = 0; i < w; i++) {
-                const int u = (p[i] << 4);
-                const int v = (u << 7) + w0 * (dst[j * 384 + i] - u);
-                p[i] = iclip_pixel((v + (1 << 10)) >> 11);
-            }
-            p += PXSTRIDE(p_stride);
-        }
-    } else {
-        coef dst1[64 * 384];
-        const int s0 = dav1d_sgr_params[sgr_idx][2];
-        const int s1 = dav1d_sgr_params[sgr_idx][3];
-        const int w0 = sgr_w[0];
-        const int w1 = (1 << 7) - w0 - sgr_w[1];
-        selfguided_filter(dst, tmp, REST_UNIT_STRIDE, w, h, 25, s0 HIGHBD_TAIL_SUFFIX);
-        selfguided_filter(dst1, tmp, REST_UNIT_STRIDE, w, h, 9, s1 HIGHBD_TAIL_SUFFIX);
-        for (int j = 0; j < h; j++) {
-            for (int i = 0; i < w; i++) {
-                const int u = (p[i] << 4);
-                const int v = (u << 7) + w0 * (dst[j * 384 + i] - u) +
-                              w1 * (dst1[j * 384 + i] - u);
-                p[i] = iclip_pixel((v + (1 << 10)) >> 11);
-            }
-            p += PXSTRIDE(p_stride);
-        }
+        p += PXSTRIDE(stride);
     }
 }
 
-COLD void bitfn(dav1d_loop_restoration_dsp_init)(Dav1dLoopRestorationDSPContext *const c) {
-    c->wiener = wiener_c;
-    c->selfguided = selfguided_c;
+static void sgr_3x3_c(pixel *p, const ptrdiff_t stride,
+                      const pixel (*const left)[4], const pixel *lpf,
+                      const int w, const int h,
+                      const LooprestorationParams *const params,
+                      const enum LrEdgeFlags edges HIGHBD_DECL_SUFFIX)
+{
+    pixel tmp[70 /*(64 + 3 + 3)*/ * REST_UNIT_STRIDE];
+    coef dst[64 * 384];
+
+    padding(tmp, p, stride, left, lpf, w, h, edges);
+    selfguided_filter(dst, tmp, REST_UNIT_STRIDE, w, h, 9,
+                      params->sgr.s1 HIGHBD_TAIL_SUFFIX);
+
+    const int w1 = params->sgr.w1;
+    for (int j = 0; j < h; j++) {
+        for (int i = 0; i < w; i++) {
+            const int v = w1 * dst[j * 384 + i];
+            p[i] = iclip_pixel(p[i] + ((v + (1 << 10)) >> 11));
+        }
+        p += PXSTRIDE(stride);
+    }
+}
+
+static void sgr_mix_c(pixel *p, const ptrdiff_t stride,
+                      const pixel (*const left)[4], const pixel *lpf,
+                      const int w, const int h,
+                      const LooprestorationParams *const params,
+                      const enum LrEdgeFlags edges HIGHBD_DECL_SUFFIX)
+{
+    pixel tmp[70 /*(64 + 3 + 3)*/ * REST_UNIT_STRIDE];
+    coef dst0[64 * 384];
+    coef dst1[64 * 384];
+
+    padding(tmp, p, stride, left, lpf, w, h, edges);
+    selfguided_filter(dst0, tmp, REST_UNIT_STRIDE, w, h, 25,
+                      params->sgr.s0 HIGHBD_TAIL_SUFFIX);
+    selfguided_filter(dst1, tmp, REST_UNIT_STRIDE, w, h,  9,
+                      params->sgr.s1 HIGHBD_TAIL_SUFFIX);
+
+    const int w0 = params->sgr.w0;
+    const int w1 = params->sgr.w1;
+    for (int j = 0; j < h; j++) {
+        for (int i = 0; i < w; i++) {
+            const int v = w0 * dst0[j * 384 + i] + w1 * dst1[j * 384 + i];
+            p[i] = iclip_pixel(p[i] + ((v + (1 << 10)) >> 11));
+        }
+        p += PXSTRIDE(stride);
+    }
+}
 
 #if HAVE_ASM
 #if ARCH_AARCH64 || ARCH_ARM
-    bitfn(dav1d_loop_restoration_dsp_init_arm)(c);
+#include "src/arm/looprestoration.h"
 #elif ARCH_PPC64LE
-    bitfn(dav1d_loop_restoration_dsp_init_ppc)(c);
+#include "src/ppc/looprestoration.h"
 #elif ARCH_X86
-    bitfn(dav1d_loop_restoration_dsp_init_x86)(c);
+#include "src/x86/looprestoration.h"
+#endif
+#endif
+
+COLD void bitfn(dav1d_loop_restoration_dsp_init)(Dav1dLoopRestorationDSPContext *const c,
+                                                 const int bpc)
+{
+    c->wiener[0] = c->wiener[1] = wiener_c;
+    c->sgr[0] = sgr_5x5_c;
+    c->sgr[1] = sgr_3x3_c;
+    c->sgr[2] = sgr_mix_c;
+
+#if HAVE_ASM
+#if ARCH_AARCH64 || ARCH_ARM
+    loop_restoration_dsp_init_arm(c, bpc);
+#elif ARCH_PPC64LE
+    loop_restoration_dsp_init_ppc(c, bpc);
+#elif ARCH_X86
+    loop_restoration_dsp_init_x86(c, bpc);
 #endif
 #endif
 }

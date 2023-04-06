@@ -23,6 +23,7 @@
 ; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+%include "config.asm"
 %include "ext/x86/x86inc.asm"
 
 SECTION_RODATA 64 ; avoids cacheline splits
@@ -67,7 +68,7 @@ struc msac
     .update_cdf: resd 1
 endstruc
 
-%define m(x) mangle(private_prefix %+ _ %+ x %+ SUFFIX)
+%define m(x, y) mangle(private_prefix %+ _ %+ x %+ y)
 
 SECTION .text
 
@@ -152,12 +153,13 @@ cglobal msac_decode_symbol_adapt4, 0, 6, 6
 .renorm4:
     bsr           ecx, t2d
     xor           ecx, 15  ; d
+.renorm5:
     shl           t2d, cl
     shl            t4, cl
     mov [t7+msac.rng], t2d
     not            t4
     sub           t1d, ecx
-    jge .end ; no refill required
+    jae .end ; no refill required
 
 ; refill:
     mov            t2, [t7+msac.buf]
@@ -167,7 +169,7 @@ cglobal msac_decode_symbol_adapt4, 0, 6, 6
 %endif
     lea            t5, [t2+gprsize]
     cmp            t5, rcx
-    jg .refill_eob
+    ja .refill_eob
     mov            t2, [t2]
     lea           ecx, [t1+23]
     add           t1d, 16
@@ -195,7 +197,7 @@ cglobal msac_decode_symbol_adapt4, 0, 6, 6
     sub           ecx, t1d ; c
 .refill_eob_loop:
     cmp            t2, t5
-    jge .refill_eob_end    ; eob reached
+    jae .refill_eob_end    ; eob reached
     movzx         t1d, byte [t2]
     inc            t2
     shl            t1, cl
@@ -240,7 +242,7 @@ cglobal msac_decode_symbol_adapt8, 0, 6, 6
     pcmpeqw        m1, m2
     pmovmskb      eax, m1
     test          t3d, t3d
-    jz m(msac_decode_symbol_adapt4).renorm
+    jz m(msac_decode_symbol_adapt4, SUFFIX).renorm
     movzx         t3d, word [t1+t4*2]
     pcmpeqw        m2, m2
     mov           t2d, t3d
@@ -257,7 +259,7 @@ cglobal msac_decode_symbol_adapt8, 0, 6, 6
     paddw          m0, m2
     mova         [t1], m0
     mov     [t1+t4*2], t2w
-    jmp m(msac_decode_symbol_adapt4).renorm
+    jmp m(msac_decode_symbol_adapt4, SUFFIX).renorm
 
 cglobal msac_decode_symbol_adapt16, 0, 6, 6
     DECODE_SYMBOL_ADAPT_INIT
@@ -330,7 +332,7 @@ cglobal msac_decode_symbol_adapt16, 0, 6, 6
 %if WIN64
     add           rsp, 48
 %endif
-    jmp m(msac_decode_symbol_adapt4).renorm2
+    jmp m(msac_decode_symbol_adapt4, SUFFIX).renorm2
 
 cglobal msac_decode_bool_adapt, 0, 6, 0
     movifnidn      t1, r1mp
@@ -366,7 +368,7 @@ cglobal msac_decode_bool_adapt, 0, 6, 0
 %endif
     not            t4
     test          t3d, t3d
-    jz m(msac_decode_symbol_adapt4).renorm3
+    jz m(msac_decode_symbol_adapt4, SUFFIX).renorm3
 %if UNIX64 == 0
     push           t6
 %endif
@@ -390,13 +392,13 @@ cglobal msac_decode_bool_adapt, 0, 6, 0
 %if WIN64
     mov           t1d, [t7+msac.cnt]
     pop            t6
-    jmp m(msac_decode_symbol_adapt4).renorm4
+    jmp m(msac_decode_symbol_adapt4, SUFFIX).renorm4
 %else
 %if ARCH_X86_64 == 0
     pop            t5
     pop            t6
 %endif
-    jmp m(msac_decode_symbol_adapt4).renorm3
+    jmp m(msac_decode_symbol_adapt4, SUFFIX).renorm3
 %endif
 
 cglobal msac_decode_bool_equi, 0, 6, 0
@@ -412,13 +414,20 @@ cglobal msac_decode_bool_equi, 0, 6, 0
     sub           t2d, t1d          ; r - v
     sub            t4, rax          ; dif - vw
     cmovb         t2d, t1d
+    mov           t1d, [t0+msac.cnt]
     cmovb          t4, t3
+    movifnidn      t7, t0
+    mov           ecx, 0xbfff
     setb           al ; the upper 32 bits contains garbage but that's OK
+    sub           ecx, t2d
     not            t4
+    ; In this case of this function, (d =) 16 - clz(v) = 2 - (v >> 14)
+    ;   i.e. (0 <= d <= 2) and v < (3 << 14)
+    shr           ecx, 14           ; d
 %if ARCH_X86_64 == 0
     movzx         eax, al
 %endif
-    jmp m(msac_decode_symbol_adapt4).renorm3
+    jmp m(msac_decode_symbol_adapt4, SUFFIX).renorm5
 
 cglobal msac_decode_bool, 0, 6, 0
     movifnidn      t0, r0mp
@@ -442,7 +451,7 @@ cglobal msac_decode_bool, 0, 6, 0
 %if ARCH_X86_64 == 0
     movzx         eax, al
 %endif
-    jmp m(msac_decode_symbol_adapt4).renorm3
+    jmp m(msac_decode_symbol_adapt4, SUFFIX).renorm3
 
 %macro HI_TOK 1 ; update_cdf
 %if ARCH_X86_64 == 0
@@ -504,7 +513,7 @@ cglobal msac_decode_bool, 0, 6, 0
     mov [t7+msac.rng], t2d
     not            t4
     sub           t5d, ecx
-    jge %%end
+    jae %%end
     mov            t2, [t7+msac.buf]
     mov           rcx, [t7+msac.end]
 %if UNIX64 == 0
@@ -598,3 +607,61 @@ cglobal msac_decode_hi_tok, 0, 7 + ARCH_X86_64, 6
     HI_TOK          1
 .no_update_cdf:
     HI_TOK          0
+
+%if ARCH_X86_64
+INIT_YMM avx2
+cglobal msac_decode_symbol_adapt16, 3, 6, 6
+    lea           rax, [pw_0xff00]
+    vpbroadcastw   m2, [t0+msac.rng]
+    mova           m0, [t1]
+    vpbroadcastw   m3, [t0+msac.dif+6]
+    vbroadcasti128 m4, [rax]
+    mov           t3d, [t0+msac.update_cdf]
+    mov           t4d, t2d
+    not            t2
+    mov            r5, rsp
+%if WIN64
+    and           rsp, ~31
+    sub           rsp, 40
+%else
+    and            r5, ~31
+    %define buf r5-32
+%endif
+    psrlw          m1, m0, 6
+    movd      [buf-4], xm2
+    pand           m2, m4
+    psllw          m1, 7
+    pmulhuw        m1, m2
+    paddw          m1, [rax+t2*2]
+    mova        [buf], m1
+    pmaxuw         m1, m3
+    pcmpeqw        m1, m3
+    pmovmskb      eax, m1
+    test          t3d, t3d
+    jz .renorm
+    movzx         t3d, word [t1+t4*2]
+    pcmpeqw        m2, m2
+    lea           t2d, [t3+80]
+    shr           t2d, 4
+    cmp           t3d, 32
+    adc           t3d, 0
+    movd          xm3, t2d
+    pavgw          m2, m1
+    psubw          m2, m0
+    psubw          m0, m1
+    psraw          m2, xm3
+    paddw          m0, m2
+    mova         [t1], m0
+    mov     [t1+t4*2], t3w
+.renorm:
+    tzcnt         eax, eax
+    mov            t4, [t0+msac.dif]
+    movzx         t1d, word [buf+rax-0]
+    movzx         t2d, word [buf+rax-2]
+    shr           eax, 1
+%if WIN64
+    mov           rsp, r5
+%endif
+    vzeroupper
+    jmp m(msac_decode_symbol_adapt4, _sse2).renorm2
+%endif
