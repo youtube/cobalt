@@ -34,7 +34,6 @@ from starboard.tools import config
 from starboard.tools import log_level
 from starboard.tools import platform
 
-
 # Return values used by main().
 RETVAL_SUCCESS = 0
 RETVAL_ERROR = 1
@@ -49,6 +48,7 @@ BUILD_NUMBER_TAG_PATTERN = r'^BUILD_NUMBER={}$'
 # git log --grep can't handle capture groups.
 BUILD_NUBER_PATTERN_WITH_CAPTURE = '({})'.format(GIT_BUILD_NUMBER_PATTERN)
 
+
 def _ListAsString(items):
   return ', '.join('"%s"' % x for x in items)
 
@@ -60,33 +60,51 @@ def _ParseCommandLineArguments(argv):
       formatter_class=argparse.RawDescriptionHelpFormatter,
       description=textwrap.dedent(__doc__))
 
-  parser.add_argument('-C', '--config', dest='build_configs', metavar='CONFIG',
-                      action='append', default=[], choices=config.GetAll(),
-                      help='Specifies build configurations. Supported '
-                      'configurations are %s. Can be specified multiple '
-                      'times, creates all configurations if nothing is '
-                      'given.' % _ListAsString(config.GetAll()))
+  parser.add_argument(
+      '-C',
+      '--config',
+      dest='build_configs',
+      metavar='CONFIG',
+      action='append',
+      default=[],
+      choices=config.GetAll(),
+      help='Specifies build configurations. Supported '
+      'configurations are %s. Can be specified multiple '
+      'times, creates all configurations if nothing is '
+      'given.' % _ListAsString(config.GetAll()))
 
   gyp_debug_options = build.GypDebugOptions()
-  parser.add_argument('-D', '--debug', dest='debug', metavar='DEBUGMODE',
-                      action='append', default=[],
-                      choices=gyp_debug_options + ['all'],
-                      help='Turn on a debugging mode for debugging GYP. '
-                      'Supported modes are %s or "all" for all of '
-                      'them.' % _ListAsString(gyp_debug_options))
+  parser.add_argument(
+      '-D',
+      '--debug',
+      dest='debug',
+      metavar='DEBUGMODE',
+      action='append',
+      default=[],
+      choices=gyp_debug_options + ['all'],
+      help='Turn on a debugging mode for debugging GYP. '
+      'Supported modes are %s or "all" for all of '
+      'them.' % _ListAsString(gyp_debug_options))
 
-  parser.add_argument('--check', action='store_true',
-                      help='Check format of gyp files.')
-  parser.add_argument('-v', '--verbose', action='store_true',
-                      help='Enables verbose logging. For more control over the '
-                      "logging level use '--log_level' instead.")
-  parser.add_argument('platform', choices=platform.GetAll(),
-                      metavar='platform',
-                      help='Target platform. Supported platforms are: %s.' % (
-                          _ListAsString(platform.GetAll())))
-  parser.add_argument('build_file', nargs='?',
-                      default=None,
-                      help='GYP build file. Uses all.gyp if nothing is given.')
+  parser.add_argument(
+      '--check', action='store_true', help='Check format of gyp files.')
+  parser.add_argument(
+      '-v',
+      '--verbose',
+      action='store_true',
+      help='Enables verbose logging. For more control over the '
+      "logging level use '--log_level' instead.")
+  parser.add_argument(
+      'platform',
+      choices=platform.GetAll(),
+      metavar='platform',
+      help='Target platform. Supported platforms are: %s.' %
+      (_ListAsString(platform.GetAll())))
+  parser.add_argument(
+      'build_file',
+      nargs='?',
+      default=None,
+      help='GYP build file. Uses all.gyp if nothing is given.')
 
   command_line.AddLoggingArguments(parser, default='warning')
 
