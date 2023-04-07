@@ -15,6 +15,8 @@
 
 import logging
 import os
+import re
+import subprocess
 
 import _env  # pylint: disable=unused-import
 from cobalt.build import gyp_utils
@@ -25,6 +27,58 @@ from starboard.tools.config import Config
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
+
+COMMIT_COUNT_BUILD_NUMBER_OFFSET = 1000000
+
+# Matches numbers > 1000000. The pattern is basic so git log --grep is able to
+# interpret it.
+GIT_BUILD_NUMBER_PATTERN = r'[1-9]' + r'[0-9]' * 6 + r'[0-9]*'
+BUILD_NUMBER_TAG_PATTERN = r'^BUILD_NUMBER={}$'
+
+# git log --grep can't handle capture groups.
+BUILD_NUBER_PATTERN_WITH_CAPTURE = '({})'.format(GIT_BUILD_NUMBER_PATTERN)
+
+
+def GetBuildNumberFromCommits():
+  full_pattern = BUILD_NUMBER_TAG_PATTERN.format(GIT_BUILD_NUMBER_PATTERN)
+  output = subprocess.check_output(
+      ['git', 'log', '--grep', full_pattern, '-1', '--pretty=%b']).decode()
+
+  full_pattern_with_capture = re.compile(
+      BUILD_NUMBER_TAG_PATTERN.format(BUILD_NUBER_PATTERN_WITH_CAPTURE),
+      flags=re.MULTILINE)
+  match = full_pattern_with_capture.match(output)
+  return match.group(1) if match else None
+
+
+def GetBuildNumberFromServer():
+  # Note $BUILD_ID_SERVER_URL will always be set in CI.
+  build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
+  if not build_id_server_url:
+    return None
+
+  build_num = gyp_utils.GetBuildNumber(version_server=build_id_server_url)
+  if build_num == 0:
+    raise ValueError('The build number received was zero.')
+  return build_num
+
+
+def GetBuildNumberFromCommitCount():
+  output = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'])
+  build_number = int(output.strip().decode('utf-8'))
+  return build_number + COMMIT_COUNT_BUILD_NUMBER_OFFSET
+
+
+def GetBuildNumber():
+  build_number = GetBuildNumberFromCommits()
+
+  if not build_number:
+    build_number = GetBuildNumberFromServer()
+
+  if not build_number:
+    build_number = GetBuildNumberFromCommitCount()
+
+  return build_number
 
 
 class CobaltConfiguration(application_configuration.ApplicationConfiguration):
@@ -41,7 +95,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   def GetVariables(self, config_name):
     variables = {
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
-        'cobalt_version': gyp_utils.GetBuildNumber(),
+        'cobalt_version': GetBuildNumber(),
 
         # This is here rather than cobalt_configuration.gypi so that it's
         # available for browser_bindings_gen.gyp.
