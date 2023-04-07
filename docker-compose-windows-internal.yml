@@ -1,0 +1,193 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This file should be combined with docker-compose-windows.yml by specifying
+# docker-compose -f docker-compose-windows.yml -f docker-compose-windows-internal.yml ...
+# on the command line.
+
+version: '2.4'
+
+volumes:
+  container-sccache:
+
+x-common-definitions: &common-definitions
+  stdin_open: true
+  environment:
+    - SCCACHE_DIR=c:/root/sccache
+    - SCCACHE_CACHE_SIZE="30G"
+  tty: true
+  volumes:
+    - ${COBALT_SRC:-.}:c:/code/
+    - ${SCCACHE_DIR:-container-sccache}:c:/root/sccache/
+  cpus: ${DOCKER_CPUS:-12}
+  mem_limit: ${DOCKER_MEMLIMIT:-100000M}
+
+x-shared-build-env: &shared-build-env
+  IS_CI: ${IS_CI:-0}
+  IS_DOCKER: 1
+  PYTHONPATH: c:/code/
+  CONFIG: ${CONFIG:-devel}
+  TARGET: ${TARGET:-cobalt_install}
+  NINJA_FLAGS: ${NINJA_FLAGS}
+
+services:
+  cobalt-build-win-internal:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/internal
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-win-base
+    image: cobalt-build-win-internal
+    scale: 0
+    depends_on:
+      - cobalt-build-win-base
+
+  ps4:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: ps4/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: ps4
+    image: cobalt-build-ps4
+    depends_on:
+      - cobalt-build-win-internal
+
+  ps5:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: ps5/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: ps5
+    image: cobalt-build-ps5
+    depends_on:
+      - cobalt-build-win-internal
+
+  xb1:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: xb1/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: xb1
+      COBALT_CONCURRENT_LINKS: ${COBALT_CONCURRENT_LINKS:-1}
+    image: cobalt-build-xb1
+    depends_on:
+      - cobalt-build-win-internal
+
+  nxswitch:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: nxswitch/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: nxswitch
+    image: cobalt-build-nxswitch
+    depends_on:
+      - cobalt-build-win-internal
+
+  # --------------------------------------------
+  # VS 2022 Upgrade Images for Console Platforms
+  # --------------------------------------------
+
+  cobalt-build-vs2022-win-internal:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/internal
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-vs2022-win-base
+    image: cobalt-build-vs2022-win-internal
+    scale: 0
+    depends_on:
+      - cobalt-build-vs2022-win-base
+
+  ps4-vs2022:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: ps4/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-vs2022-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: ps4
+    image: cobalt-build-ps4
+    depends_on:
+      - cobalt-build-vs2022-win-internal
+
+  ps5-vs2022:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: ps5/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-vs2022-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: ps5
+    image: cobalt-build-ps5
+    depends_on:
+      - cobalt-build-vs2022-win-internal
+
+  xb1-vs2022:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: xb1/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-vs2022-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: xb1
+      COBALT_CONCURRENT_LINKS: ${COBALT_CONCURRENT_LINKS:-1}
+    image: cobalt-build-xb1
+    depends_on:
+      - cobalt-build-vs2022-win-internal
+
+  nxswitch-vs2022:
+    <<: *common-definitions
+    build:
+      context: ./internal/docker/windows/
+      dockerfile: nxswitch/Dockerfile
+      args:
+        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
+        - FROM_IMAGE=cobalt-build-vs2022-win-internal
+    environment:
+      <<: *shared-build-env
+      PLATFORM: nxswitch
+    image: cobalt-build-nxswitch
+    depends_on:
+      - cobalt-build-vs2022-win-internal
