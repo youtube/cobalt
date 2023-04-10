@@ -281,6 +281,12 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
+      - name: Touch
+        run: |
+          set -eux
+          mkdir /root/.cobalt_storage
+          touch /root/.cobalt_storage/foobar
+        shell: bash
       - name: Run Tests
         uses: ./.github/actions/on_host_test
         with:
