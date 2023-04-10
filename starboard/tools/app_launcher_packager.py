@@ -36,6 +36,7 @@ from starboard.tools.paths import REPOSITORY_ROOT
 _INCLUDE_FILE_PATTERNS = [
     ('cobalt', '*.py'),
     ('internal', '*.py'),
+    ('internal', '*.pfx'),
     ('starboard', '*.py'),
     ('starboard', '*.pfx'),
     # Just match everything since the Evergreen tests are written using shell
