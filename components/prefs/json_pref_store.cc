@@ -206,9 +206,13 @@ void JsonPrefStore::SetValue(const std::string& key,
   base::Value* old_value = nullptr;
   prefs_->Get(key, &old_value);
   if (!old_value || !value->Equals(old_value)) {
+#if defined(STARBOARD)
     // Value::DictionaryValue::Set creates a nested dictionary treating a URL
     // key as a path, SetKey avoids this.
-    prefs_->SetKey(key, std::move(*value.get()));
+    prefs_->SetKey(key, base::Value::FromUniquePtrValue(std::move(value)));
+#else
+    prefs_->Set(key, std::move(value));
+#endif
     ReportValueChanged(key, flags);
   }
 }
@@ -222,7 +226,11 @@ void JsonPrefStore::SetValueSilently(const std::string& key,
   base::Value* old_value = nullptr;
   prefs_->Get(key, &old_value);
   if (!old_value || !value->Equals(old_value)) {
-    prefs_->SetPath({key}, base::Value::FromUniquePtrValue(std::move(value)));
+#if defined(STARBOARD)
+    prefs_->SetKey(key, base::Value::FromUniquePtrValue(std::move(value)));
+#else
+    prefs_->Set(key, std::move(value));
+#endif
     ScheduleWrite(flags);
   }
 }
