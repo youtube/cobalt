@@ -44,7 +44,7 @@ class NetArgsThread(threading.Thread):
   """Threaded version of NetArgs"""
 
   def __init__(self, host, port, arg_list):
-    super(NetArgsThread, self).__init__()
+    super().__init__()
     assert isinstance(arg_list, list)
     self.host = host
     self.port = port
@@ -57,7 +57,7 @@ class NetArgsThread(threading.Thread):
   def join(self):
     with self.mutex:
       self.join_called = True
-    return super(NetArgsThread, self).join()
+    return super().join()
 
   def ArgsSent(self):
     with self.mutex:

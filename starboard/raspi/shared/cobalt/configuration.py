@@ -24,7 +24,7 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
     return True
 
   def GetTestFilters(self):
-    filters = super(CobaltRaspiConfiguration, self).GetTestFilters()
+    filters = super().GetTestFilters()
     filters.extend([
         # TODO: Remove this filter once the layout_tests slowdown in the debug
         # configuration is resolved.
@@ -39,7 +39,7 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
     return filters
 
   def GetWebPlatformTestFilters(self):
-    filters = super(CobaltRaspiConfiguration, self).GetWebPlatformTestFilters()
+    filters = super().GetWebPlatformTestFilters()
     filters += [
         ('csp/WebPlatformTest.Run/'
          'content_security_policy_media_src_media_src_allowed_html'),

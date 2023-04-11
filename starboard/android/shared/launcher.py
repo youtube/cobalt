@@ -70,8 +70,7 @@ class StepTimer(object):
     else:
       self.end_time = time.time()
       total_time = self.end_time - self.start_time
-      sys.stderr.write('Step \"{}\" took {} seconds.\n'.format(
-          self.step_name, total_time))
+      sys.stderr.write(f'Step "{self.step_name}" took {total_time} seconds.\n')
 
 
 class AdbCommandBuilder(object):
@@ -129,8 +128,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def __init__(self, platform, target_name, config, device_id, **kwargs):
 
-    super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   **kwargs)
+    super().__init__(platform, target_name, config, device_id, **kwargs)
 
     if abstract_launcher.ARG_SYSTOOLS in self.launcher_args:
       # Use default adb binary from path.
@@ -151,9 +149,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb('shell', 'getprop', 'ro.build.fingerprint')
 
     out_directory = os.path.split(self.GetTargetPath())[0]
-    self.apk_path = os.path.join(out_directory, '{}.apk'.format(target_name))
+    self.apk_path = os.path.join(out_directory, f'{target_name}.apk')
     if not os.path.exists(self.apk_path):
-      raise Exception("Can't find APK {}".format(self.apk_path))
+      raise Exception(f"Can't find APK {self.apk_path}")
 
     # This flag is set when the main Run() loop exits.  If Kill() is called
     # after this flag is set, it will not do anything.
@@ -230,7 +228,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # run without targeting a specific device.
     p = self._PopenAdb(
         'connect',
-        '{}:5555'.format(self.device_id),
+        f'{self.device_id}:5555',
         stderr=subprocess.STDOUT,
         stdout=subprocess.PIPE,
     )
@@ -238,12 +236,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     p.wait()
 
     if 'connected to' not in result:
-      sys.stderr.write('Failed to connect to {}\n'.format(self.device_id))
-      sys.stderr.write('connect command exited with code {} '
-                       'and returned: {}'.format(p.returncode, result))
+      sys.stderr.write(f'Failed to connect to {self.device_id}\n')
+      sys.stderr.write(f'connect command exited with code {p.returncode} '
+                       f'and returned: {result}')
 
   def _Call(self, *args):
-    sys.stderr.write('{}\n'.format(' '.join(args)))
+    sys.stderr.write(f"{' '.join(args)}\n")
     if abstract_launcher.ARG_DRYRUN not in self.launcher_args:
       subprocess.call(args, close_fds=True)
 
@@ -252,7 +250,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._Call(*args)
 
   def _CheckCall(self, *args):
-    sys.stderr.write('{}\n'.format(' '.join(args)))
+    sys.stderr.write(f"{' '.join(args)}\n")
     if abstract_launcher.ARG_DRYRUN not in self.launcher_args:
       subprocess.check_call(args, close_fds=True)
 
@@ -262,7 +260,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _PopenAdb(self, *args, **kwargs):
     build_args = self.adb_builder.Build(*args)
-    sys.stderr.write('{}\n'.format(' '.join(build_args)))
+    sys.stderr.write(f"{' '.join(build_args)}\n")
     if abstract_launcher.ARG_DRYRUN in self.launcher_args:
       return subprocess.Popen(['echo', 'dry-run'])
     return subprocess.Popen(build_args, close_fds=True, **kwargs)
@@ -336,10 +334,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
         if param.startswith('--link='):
           # Android deeplinks go in the Intent data
           link = param.split('=')[1]
-          args += ['-d', "'{}'".format(link)]
+          args += ['-d', f"'{link}'"]
         else:
           command_line_params.append(param)
-      args += ['--esa', 'args', "'{}'".format(','.join(command_line_params))]
+      args += ['--esa', 'args', f"'{','.join(command_line_params)}'"]
       args += [_APP_START_INTENT]
 
       self._CheckCallAdb(*args)
@@ -385,7 +383,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       else:
         self._Shutdown()
       if self.local_port is not None:
-        self.CallAdb('forward', '--remove', 'tcp:{}'.format(self.local_port))
+        self.CallAdb('forward', '--remove', f'tcp:{self.local_port}')
       am_monitor.Shutdown()
       self.killed.set()
       run_timer.Stop()
@@ -404,7 +402,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return True
 
   def SendDeepLink(self, link):
-    shell_cmd = 'am start -d "{}" {}'.format(link, _APP_START_INTENT)
+    shell_cmd = f'am start -d "{link}" {_APP_START_INTENT}'
     args = ['shell', shell_cmd]
     self._CheckCallAdb(*args)
     return True
@@ -436,13 +434,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetHostAndPortGivenPort(self, port):
     forward_p = self._PopenAdb(
-        'forward', 'tcp:0', 'tcp:{}'.format(port), stdout=subprocess.PIPE)
+        'forward', 'tcp:0', f'tcp:{port}', stdout=subprocess.PIPE)
     forward_p.wait()
 
     self.local_port = CleanLine(
         forward_p.stdout.readline().decode()).rstrip('\n')
-    sys.stderr.write('ADB forward local port {} '
-                     '=> device port {}\n'.format(self.local_port, port))
+    sys.stderr.write(f'ADB forward local port {self.local_port} '
+                     '=> device port {port}\n')
     # pylint: disable=g-socket-gethostbyname
     return socket.gethostbyname('localhost'), self.local_port
 
@@ -452,4 +450,4 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def GetDeviceOutputPath(self):
     """Writable path where test targets can output files"""
-    return '/data/data/{}/cache/'.format(_APP_PACKAGE_NAME)
+    return f'/data/data/{_APP_PACKAGE_NAME}/cache/'

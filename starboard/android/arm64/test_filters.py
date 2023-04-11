@@ -24,5 +24,5 @@ class AndroidArm64TestFilters(shared_test_filters.TestFilters):
   """Starboard Android ARM-64 Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(AndroidArm64TestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

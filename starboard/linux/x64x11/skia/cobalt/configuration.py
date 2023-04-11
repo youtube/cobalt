@@ -22,7 +22,7 @@ class CobaltLinuxX64X11SkiaConfiguration(
   """Starboard Linux x64x11 Skia Cobalt configuration."""
 
   def GetTestFilters(self):
-    filters = super(CobaltLinuxX64X11SkiaConfiguration, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

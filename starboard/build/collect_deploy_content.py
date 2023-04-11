@@ -56,8 +56,8 @@ def _CheckDepth(max_depth, content_dir):
   depth = deepest_file.count(os.sep) + 1  # +1 for fencepost error
   logging.info('depth %d: %s', depth, deepest_file)
   if depth > max_depth:
-    raise RuntimeError('Content is %d levels deep (max allowed is %d): %s' %
-                       (depth, max_depth, deepest_file))
+    raise RuntimeError(f'Content is {depth} levels deep (max allowed is '
+                       f'{max_depth}): {deepest_file}')
 
 
 def _CopyTree(src_path, dst_path):
@@ -167,7 +167,7 @@ def main(argv):
     _CheckDepth(options.max_depth, options.output_dir)
 
   if options.stamp_file:
-    with open(options.stamp_file, 'w') as stamp_file:
+    with open(options.stamp_file, 'w', encoding='utf-8') as stamp_file:
       stamp_file.write('\n'.join(options.subdirs))
 
 

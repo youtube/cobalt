@@ -90,7 +90,7 @@ class NetLogThread(threading.Thread):
   """Threaded version of NetLog"""
 
   def __init__(self, host, port):
-    super(NetLogThread, self).__init__()
+    super().__init__()
     self.web_log = NetLog(host, port)
     self.alive = True
     self.log_mutex = threading.Lock()
@@ -99,7 +99,7 @@ class NetLogThread(threading.Thread):
 
   def join(self):
     self.alive = False
-    return super(NetLogThread, self).join()
+    return super().join()
 
   def GetLog(self):
     with self.log_mutex:

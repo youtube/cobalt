@@ -22,7 +22,7 @@ class EvergreenArmConfiguration(shared_configuration.EvergreenConfiguration):
   """Starboard Evergreen ARM platform configuration."""
 
   def __init__(self, platform):
-    super(EvergreenArmConfiguration, self).__init__(platform)
+    super().__init__(platform)
 
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 

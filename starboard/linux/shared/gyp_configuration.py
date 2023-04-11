@@ -22,7 +22,7 @@ class LinuxConfiguration(platform_configuration.PlatformConfiguration):
   """Starboard Linux platform configuration."""
 
   def __init__(self, platform):
-    super(LinuxConfiguration, self).__init__(platform)
+    super().__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
   def GetLauncherPath(self):

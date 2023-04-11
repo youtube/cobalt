@@ -27,5 +27,5 @@ class Raspi2SkiaTestFilters(_PARENT_TEST_FILTERS.Raspi2TestFilters):
   """Starboard Raspberry Pi 2 Skia Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(Raspi2SkiaTestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

@@ -13,7 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Classes that package common and related command-line arguments for Starboard tooling.
+"""Classes that package common and related command-line arguments for Starboard
+ tooling.
 
 These classes provide the opportunity for cleaner, more understandable, and more
 maintainable code. Each class stores packages of related parameters, most often
@@ -48,7 +49,7 @@ class LauncherParams(PlatformConfigParams):
 
   def __init__(self):
     """LauncherParams constructor."""
-    super(LauncherParams, self).__init__()
+    super().__init__()
     self.device_id = None
     self.out_directory = None
     self.loader_out_directory = None

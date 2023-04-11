@@ -52,7 +52,7 @@ _LOADER_TARGET = "elf_loader_sandbox"
 
 def _EnsureBuildDirectoryExists(path):
   if not os.path.exists(path):
-    raise ValueError("'{}' does not exist.".format(path))
+    raise ValueError(f"'{path}' does not exist.")
 
 
 def _FilterTests(target_list, filters, config_name):
@@ -177,8 +177,7 @@ class TestLauncher(object):
       self.launcher.Kill()
       logging.info("Launcher killed")
     except Exception:  # pylint: disable=broad-except
-      sys.stderr.write("Error while killing {}:\n".format(
-          self.launcher.target_name))
+      sys.stderr.write(f"Error while killing {self.launcher.target_name}:\n")
       traceback.print_exc(file=sys.stderr)
 
   def Join(self):
@@ -192,8 +191,7 @@ class TestLauncher(object):
       return_code = self.launcher.Run()
       logging.info("Finished running launcher")
     except Exception:  # pylint: disable=broad-except
-      sys.stderr.write("Error while running {}:\n".format(
-          self.launcher.target_name))
+      sys.stderr.write(f"Error while running {self.launcher.target_name}:\n")
       traceback.print_exc(file=sys.stderr)
 
     with self.return_code_lock:
@@ -433,8 +431,8 @@ class TestRunner(object):
       test_params.append("--gtest_filter=" + gtest_filter_value)
 
     if shard_count is not None:
-      test_params.append("--gtest_total_shards={}".format(shard_count))
-      test_params.append("--gtest_shard_index={}".format(shard_index))
+      test_params.append(f"--gtest_total_shards={shard_count}")
+      test_params.append(f"--gtest_shard_index={shard_index}")
 
     # Path to where the test results XML will be created (if applicable).
     # For on-device testing, this is w.r.t on device storage.
@@ -464,12 +462,12 @@ class TestRunner(object):
          (self.log_xml_results or self.xml_output_dir) else "disabled"))
     if self.log_xml_results:
       out_path = MakeLauncher().GetDeviceOutputPath()
-      xml_filename = "{}_testoutput.xml".format(target_name)
+      xml_filename = f"{target_name}_testoutput.xml"
       if out_path:
         test_result_xml_path = os.path.join(out_path, xml_filename)
       else:
         test_result_xml_path = xml_filename
-      test_params.append("--gtest_output=xml:{}".format(test_result_xml_path))
+      test_params.append(f"--gtest_output=xml:{test_result_xml_path}")
       logging.info(("Xml results for this test will "
                     "be logged to '%s'."), test_result_xml_path)
     elif self.xml_output_dir:
@@ -482,7 +480,7 @@ class TestRunner(object):
       test_result_xml_path = os.path.join(xml_output_subdir, "sponge_log.xml")
       logging.info("Xml output for this test will be saved to: %s",
                    test_result_xml_path)
-      test_params.append("--gtest_output=xml:%s" % (test_result_xml_path))
+      test_params.append(f"--gtest_output=xml:{test_result_xml_path}")
     logging.info("XML test result path: %s", test_result_xml_path)
 
     # Turn off color codes from output to make it easy to parse
@@ -504,7 +502,7 @@ class TestRunner(object):
 
     dump_params = " ARGS:" + " ".join(test_params) if test_params else ""
     dump_env = " ENV VARS: " + ";".join(
-        "{}={}".format(k, v) for k, v in env.items()) if env else ""
+        f"{k}={v}" for k, v in env.items()) if env else ""
     # Output either the name of the test target or the specific test case
     # being run.
     # pylint: disable=g-long-ternary
@@ -515,7 +513,7 @@ class TestRunner(object):
     sys.stdout.write("\n")
 
     if test_params:
-      sys.stdout.write(" {}\n".format(test_params))
+      sys.stdout.write(f" {test_params}\n")
     test_reader.Start()
     logging.info("Starting test launcher")
     test_launcher.Start()
@@ -788,7 +786,7 @@ class TestRunner(object):
     except subprocess.CalledProcessError as e:
       result = False
       sys.stderr.write("Error occurred during building.\n")
-      sys.stderr.write("{}\n".format(e))
+      sys.stderr.write(f"{e}\n")
 
     return result
 

@@ -36,28 +36,24 @@ class ValidateTestShardingConfigTests(unittest.TestCase):
     chunk_index += 1
     # Test is skipped
     if test_action == test_sharding.ShardingTestConfig.SKIP_TEST:
-      self.assertNotIn(
-          test_target, expected_default_shard,
-          'Test {} is not skipped in default shard.'.format(test_target))
+      self.assertNotIn(test_target, expected_default_shard,
+                       f'Test {test_target} is not skipped in default shard.')
     # Test is fully run
     if test_action == test_sharding.ShardingTestConfig.RUN_FULL_TEST:
-      self.assertIn(
-          test_target, expected_default_shard,
-          'Test {} is not present in default shard'.format(test_target))
+      self.assertIn(test_target, expected_default_shard,
+                    f'Test {test_target} is not present in default shard')
       self.assertEqual(
           expected_default_shard[test_target], '*',
-          'Test {} is not fully run in default shard. Instead is '
-          'run partially ({} of {} chunks)'.format(test_target, chunk_index,
-                                                   chunk_total))
+          f'Test {test_target} is not fully run in default shard. Instead is '
+          f'run partially ({chunk_index} of {chunk_total} chunks)')
     # Test is partially run
     if test_action == test_sharding.ShardingTestConfig.RUN_PARTIAL_TEST:
-      self.assertIn(
-          test_target, expected_default_shard,
-          'Test {} is not present in default shard'.format(test_target))
+      self.assertIn(test_target, expected_default_shard,
+                    f'Test {test_target} is not present in default shard')
       self.assertEqual(expected_default_shard[test_target][0], chunk_index,
-                       'Test {} has incorrect chunk index'.format(test_target))
+                       f'Test {test_target} has incorrect chunk index')
       self.assertEqual(expected_default_shard[test_target][1], chunk_total,
-                       'Test {} has incorrect chunk total'.format(test_target))
+                       f'Test {test_target} has incorrect chunk total')
 
   def load_sharding_config(self, input_shards, expected_default_shard):
     sharding_config = test_sharding.ShardingTestConfig(

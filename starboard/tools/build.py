@@ -224,8 +224,8 @@ def _LoadPlatformModule(platform_name, file_name, function_name):
       else:
         platform_module = sys.modules['platform_module']
     else:
-      module_path = os.path.join('config', '%s.py' % platform_name)
-      platform_module = importlib.import_module('config.%s' % platform_name)
+      module_path = os.path.join('config', f'{platform_name}.py')
+      platform_module = importlib.import_module(f'config.{platform_name}')
   except (ImportError, IOError):
     logging.exception('Unable to import "%s".', module_path)
     return None

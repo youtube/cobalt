@@ -24,5 +24,5 @@ class LinuxX64X11SkiaTestFilters(shared_test_filters.LinuxX64X11TestFilters):
   """Starboard Linux X64 X11 Skia Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(LinuxX64X11SkiaTestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

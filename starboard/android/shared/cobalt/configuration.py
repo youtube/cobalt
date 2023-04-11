@@ -24,7 +24,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
     return True
 
   def GetTestFilters(self):
-    filters = super(CobaltAndroidConfiguration, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
@@ -43,8 +43,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
     }
 
   def GetWebPlatformTestFilters(self):
-    filters = super(CobaltAndroidConfiguration,
-                    self).GetWebPlatformTestFilters()
+    filters = super().GetWebPlatformTestFilters()
     filters += [
         # Test Name (content-security-policy/media-src/media-src-allowed.html):
         # Allowed media src

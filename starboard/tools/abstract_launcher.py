@@ -241,8 +241,7 @@ class AbstractLauncher(object):
       RuntimeError: Deep link not supported on platform.
     """
     raise RuntimeError(
-        "Deep link not supported for this platform (link {} sent).".format(
-            link))
+        f"Deep link not supported for this platform (link {link} sent).")
 
   # Not like SendSuspendResume sending signals to cobalt, system suspend and
   # resume send system signals to suspend and resume cobalt process.

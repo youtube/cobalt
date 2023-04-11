@@ -38,7 +38,7 @@ def GetProcessStatus(pid):
   Args:
     pid: process id of specified cobalt instance.
   """
-  output = subprocess.check_output(["ps -o state= -p {}".format(pid)],
+  output = subprocess.check_output([f"ps -o state= -p {pid}"],
                                    shell=True).decode()
   return output
 
@@ -47,8 +47,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   """Class for launching Cobalt/tools on Linux."""
 
   def __init__(self, platform, target_name, config, device_id, **kwargs):
-    super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   **kwargs)
+    super().__init__(platform, target_name, config, device_id, **kwargs)
     # Starts should be generally quick on Linux, default is 2 minutes
     self.startup_timeout_seconds = 15
     if self.device_id:

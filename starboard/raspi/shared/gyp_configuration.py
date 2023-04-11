@@ -22,7 +22,7 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
   """Starboard Raspberry Pi platform configuration."""
 
   def __init__(self, platform):
-    super(RaspiPlatformConfig, self).__init__(platform)
+    super().__init__(platform)
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 
   def GetLauncherPath(self):

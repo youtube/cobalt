@@ -109,7 +109,7 @@ def _CreateArgumentParser():
   class MyParser(argparse.ArgumentParser):
 
     def error(self, message):
-      sys.stderr.write('error: {}\n'.format(message))
+      sys.stderr.write(f'error: {message}\n')
       self.print_help()
       sys.exit(2)
 

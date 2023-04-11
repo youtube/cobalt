@@ -24,5 +24,5 @@ class EvergreenArm64TestFilters(shared_test_filters.TestFilters):
   """Starboard Evergreen Arm64 Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(EvergreenArm64TestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

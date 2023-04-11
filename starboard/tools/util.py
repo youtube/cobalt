@@ -187,7 +187,7 @@ def Compress(job_list):
   outputs = []
   for source, dest in job_list:
     logging.info('Compressing %s -> %s.zip', source, dest)
-    outputs.append('%s.zip' % dest)
+    outputs.append(f'{dest}.zip')
     compress_procs.append(
         multiprocessing.Process(
             target=shutil.make_archive, args=(dest, 'zip', source, None)))

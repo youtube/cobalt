@@ -40,7 +40,7 @@ def BuildTargets(targets, out_directory, dry_run=False, extra_build_flags=None):
     args_list.append('-n')
 
   args_list.append(APP_LAUNCHER_TARGET)
-  args_list.extend(['{}_install'.format(test_name) for test_name in targets])
+  args_list.extend([f'{test_name}_install' for test_name in targets])
   if extra_build_flags:
     args_list.extend(extra_build_flags)
 

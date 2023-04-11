@@ -47,7 +47,7 @@ class AndroidX86TestFilters(shared_test_filters.TestFilters):
   """Starboard Android X86 Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(AndroidX86TestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

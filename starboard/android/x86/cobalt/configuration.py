@@ -1,4 +1,4 @@
-# Copyright 2017-2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2017 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ class CobaltAndroidX86Configuration(configuration.CobaltAndroidConfiguration):
   """Starboard Android x86 Cobalt configuration."""
 
   def GetTestFilters(self):
-    filters = super(CobaltAndroidX86Configuration, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

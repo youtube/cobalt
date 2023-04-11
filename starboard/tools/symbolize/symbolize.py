@@ -43,9 +43,10 @@ import sys
 from starboard.build import clang
 from starboard.tools import build
 
-_SYMBOLIZER = os.path.join(
-    build.GetToolchainsDir(), 'x86_64-linux-gnu-clang-chromium-{}'.format(
-        clang.GetClangSpecification().revision), 'bin', 'llvm-symbolizer')
+_SYMBOLIZER = os.path.join(build.GetToolchainsDir(),
+                           (f'x86_64-linux-gnu-clang-chromium-'
+                            f'{clang.GetClangSpecification().revision}'), 'bin',
+                           'llvm-symbolizer')
 
 _RE_ASAN = re.compile(
     r'\s*(#[0-9]{1,3})\s*(0x[a-z0-9]*)\s*\(<unknown\smodule>\)')
@@ -69,10 +70,10 @@ def _Symbolize(filename, library, base_address):
       crashed, typically found in the logs.
   """
   if not os.path.exists(filename):
-    raise ValueError('File not found: {}.'.format(filename))
+    raise ValueError(f'File not found: {filename}.')
   if not os.path.exists(library):
-    raise ValueError('Library not found: {}.'.format(library))
-  with open(filename) as f:
+    raise ValueError(f'Library not found: {library}.')
+  with open(filename, encoding='utf-8') as f:
     for line in f:
       # Address Sanitizer
       match = _RE_ASAN.match(line)
@@ -80,8 +81,8 @@ def _Symbolize(filename, library, base_address):
         offset = int(match.group(2), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
         if results and '?' not in results[0] and '?' not in results[1]:
-          sys.stdout.write('    {} {} in {} {}\n'.format(
-              match.group(1), hex(offset), results[0], results[1]))
+          sys.stdout.write(f'    {match.group(1)} {hex(offset)} in '
+                           f'{results[0]} {results[1]}\n')
           continue
       # Cobalt
       match = _RE_COBALT.match(line)
@@ -89,7 +90,7 @@ def _Symbolize(filename, library, base_address):
         offset = int(match.group(1), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
         if results and '?' not in results[0]:
-          sys.stdout.write('        {} [{}]\n'.format(hex(offset), results[0]))
+          sys.stdout.write(f'        {hex(offset)} [{results[0]}]\n')
           continue
       # Raw
       match = _RE_RAW.match(line)
@@ -97,8 +98,7 @@ def _Symbolize(filename, library, base_address):
         offset = int(match.group(1), 0) - int(base_address, 0)
         results = _RunSymbolizer(library, str(offset))
         if results:
-          sys.stdout.write('{} {} in {}\n'.format(
-              hex(offset), results[0], results[1]))
+          sys.stdout.write(f'{hex(offset)} {results[0]} in {results[1]}\n')
           continue
       sys.stdout.write(line)
 
@@ -142,7 +142,7 @@ def main():
 
   if not os.path.exists(_SYMBOLIZER):
     raise ValueError(
-        'Please update {} with a valid llvm-symbolizer path.'.format(__file__))
+        f'Please update {__file__} with a valid llvm-symbolizer path.')
 
   return _Symbolize(args.filename, args.library, args.base_address[0])
 

@@ -24,7 +24,7 @@ class CobaltX64Configuration(cobalt_configuration.CobaltConfiguration):
     return True
 
   def GetTestFilters(self):
-    filters = super(CobaltX64Configuration, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

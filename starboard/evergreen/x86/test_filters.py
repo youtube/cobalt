@@ -27,7 +27,7 @@ class EvergreenX86TestFilters(shared_test_filters.TestFilters):
   """Starboard Evergreen X86 Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(EvergreenX86TestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     # Remove the exclusion filter on SbDrmTest.AnySupportedKeySystems.
     # Generally, children of linux/shared do not support widevine, but children
     # of linux/x64x11 do, if the content decryption module is present.

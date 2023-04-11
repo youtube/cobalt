@@ -160,8 +160,8 @@ def main():
   _REQUEST['request']['app'][0]['version'] = args.version
 
   if args.print_request:
-    print('Querying server: {}'.format(_ENDPOINT_QA if args.qa else _ENDPOINT))
-    print('Sending request: {}'.format(json.dumps(_REQUEST)))
+    print(f'Querying server: {_ENDPOINT_QA if args.qa else _ENDPOINT}')
+    print(f'Sending request: {json.dumps(_REQUEST)}')
 
   print(
       requests.post(

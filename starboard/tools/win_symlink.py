@@ -47,13 +47,13 @@ def ToDevicePath(dos_path, encoding=None):
     Absolute device path starting with "\\?\".
   """
   # This type is compatible with both python 2 and 3.
-  unicode_type = type(u'')
+  unicode_type = type('')
   if not isinstance(dos_path, unicode_type) and encoding is not None:
     dos_path = dos_path.decode(encoding)
   path = os.path.abspath(dos_path)
-  if path.startswith(u'\\\\'):
-    return u'\\\\?\\UNC\\' + path[2:]
-  return u'\\\\?\\' + path
+  if path.startswith('\\\\'):
+    return '\\\\?\\UNC\\' + path[2:]
+  return '\\\\?\\' + path
 
 
 def _RemoveEmptyDirectory(path):
@@ -130,7 +130,7 @@ def ReadReparsePointShell(path):
     # Expected if the link doesn't exist.
     return None
   try:
-    pattern = re.compile('.*<SYMLINKD>[ ]+%s \\[(.*)]' % os.path.basename(path))
+    pattern = re.compile(f'.*<SYMLINKD>[ ]+{os.path.basename(path)} \\[(.*)]')
     for l in out.splitlines():
       m = pattern.match(l)
       if m:
@@ -202,8 +202,7 @@ def CreateReparsePoint(from_folder, link_folder):
     subprocess.check_output(
         ['cmd', '/c', 'mklink', '/j', link_folder, from_folder])
   if not IsReparsePoint(link_folder):
-    raise OSError('Could not create sym link %s to %s' %
-                  (link_folder, from_folder))
+    raise OSError(f'Could not create sym link {link_folder} to {from_folder}')
 
 
 def UnlinkReparsePoint(link_dir):
@@ -219,7 +218,7 @@ def UnlinkReparsePoint(link_dir):
     except Exception as err:  # pylint: disable=broad-except
       logging.exception('could not remove %s because of %s', link_dir, err)
   if IsReparsePoint(link_dir):
-    raise IOError('Link still exists: %s' % ReadReparsePoint(link_dir))
+    raise IOError(f'Link still exists: {ReadReparsePoint(link_dir)}')
   if os.path.isdir(link_dir):
     logging.info('WARNING - Link as folder still exists: %s', link_dir)
 

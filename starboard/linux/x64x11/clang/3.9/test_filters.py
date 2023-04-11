@@ -24,5 +24,5 @@ class LinuxX64X11Clang39TestFilters(shared_test_filters.TestFilters):
   """Starboard Linux X64 X11 Clang 3.9 Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(LinuxX64X11Clang39TestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

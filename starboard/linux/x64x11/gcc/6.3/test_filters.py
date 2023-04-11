@@ -30,7 +30,7 @@ class LinuxX64X11Gcc63TestFilters(shared_test_filters.TestFilters):
   """Starboard Linux X64 X11 gcc 6.3 Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(LinuxX64X11Gcc63TestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

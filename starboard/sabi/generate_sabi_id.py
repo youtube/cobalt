@@ -46,7 +46,7 @@ def _GenerateSabiId(sabi_json, omaha):
   if omaha:
     sabi_id = '\\\\' + sabi_id[:-1] + '\\\\}'
     sabi_id = sabi_id.replace('"', '\\"')
-    sabi_id = '"{}"'.format(sabi_id)
+    sabi_id = f'"{sabi_id}"'
   return ''.join(sabi_id.split())
 
 

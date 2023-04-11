@@ -24,5 +24,5 @@ class AndroidArm64VulkanTestFilters(shared_test_filters.TestFilters):
   """Starboard Android ARM-64 Vulkan Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(AndroidArm64VulkanTestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

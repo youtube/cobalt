@@ -158,7 +158,7 @@ class Packager(object):
     """Get application-specific packaging information."""
     platform_path = self.GetPlatformInfo(platform_name)
     try:
-      return _ImportModule(platform_path, '{}.package'.format(application_name))
+      return _ImportModule(platform_path, f'{application_name}.package')
     except ImportError as e:
       # No package parameters specified for this platform.
       logging.debug('Failed to import cobalt.package: %s', e)

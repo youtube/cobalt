@@ -48,13 +48,13 @@ class ShardingTestConfig(object):
       logging.debug(
           '%s',
           json.dumps(self.platform_sharding_config, sort_keys=True, indent=2))
-    except FileNotFoundError:
-      raise RuntimeError('No sharding configuration file found.')
+    except FileNotFoundError as e:
+      raise RuntimeError('No sharding configuration file found.') from e
 
   def _read_platform_sharding_config(self,
                                      platform,
                                      filename=_SHARDING_CONFIG_FILE):
-    with open(filename, 'r') as file:
+    with open(filename, 'r', encoding='utf-8') as file:
       sharding_json = json.load(file)
       for platform_key in sharding_json:
         if platform in platform_key:
@@ -138,8 +138,8 @@ class ShardingTestConfig(object):
       if len(unmapped_chunks) > 1:
         raise ValueError('Invalid Sharding Configuration: default shard must '
                          'not contain multiple chunks from the same test ('
-                         'test:{} unmapped_chunks:{}).'.format(
-                             test_name, unmapped_chunks))
+                         f'test:{test_name} unmapped_chunks:'
+                         f'{unmapped_chunks}).')
       # Add the unmapped test chunk to the default shard.
       chunk_index = list(unmapped_chunks)[0]
       chunk_total = chunk_totals_by_test[test_name]

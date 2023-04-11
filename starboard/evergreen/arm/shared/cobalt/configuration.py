@@ -22,15 +22,14 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
 
   def __init__(  # pylint:disable=useless-super-delegation
       self, platform_configuration, application_name, application_directory):
-    super(CobaltARMConfiguration,
-          self).__init__(platform_configuration, application_name,
-                         application_directory)
+    super().__init__(platform_configuration, application_name,
+                     application_directory)
 
   def WebdriverBenchmarksEnabled(self):
     return True
 
   def GetTestFilters(self):
-    filters = super(CobaltARMConfiguration, self).GetTestFilters()
+    filters = super().GetTestFilters()
     filters.extend([
         test_filter.TestFilter('bindings_test', 'DateBindingsTest.PosixEpoch'),
         # TODO: Remove this filter once the layout_tests slowdown in the debug
@@ -44,7 +43,7 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
     return filters
 
   def GetWebPlatformTestFilters(self):
-    filters = super(CobaltARMConfiguration, self).GetWebPlatformTestFilters()
+    filters = super().GetWebPlatformTestFilters()
     filters += [
         ('csp/WebPlatformTest.Run/'
          'content_security_policy_media_src_media_src_allowed_html'),

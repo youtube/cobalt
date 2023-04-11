@@ -49,7 +49,7 @@ class ValidateSabiTest(unittest.TestCase):
         if match:
           sabi_schema_path = os.path.join(
               sabi_utils.SABI_SCHEMA_PATH,
-              'sabi-v{}.schema.json'.format(match.group(1)))
+              f'sabi-v{match.group(1)}.schema.json')
           sabi_json = sabi_utils.LoadSabi(os.path.join(root, f))
           sabi_schema = sabi_utils.LoadSabiSchema(sabi_schema_path)
           self.assertTrue(validate_sabi.ValidateSabi(sabi_json, sabi_schema))

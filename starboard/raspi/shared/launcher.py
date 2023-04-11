@@ -76,8 +76,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def __init__(self, platform, target_name, config, device_id, **kwargs):
     # pylint: disable=super-with-arguments
-    super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   **kwargs)
+    super().__init__(platform, target_name, config, device_id, **kwargs)
     env = os.environ.copy()
     env.update(self.env_variables)
     self.full_env = env

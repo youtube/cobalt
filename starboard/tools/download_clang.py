@@ -61,7 +61,7 @@ def Retry(function, exceptions_tuple, max_tries=3, retry_wait_s=5):
       print(e)
       if i == max_tries - 1:
         raise
-      print('Retrying in %d s ...' % retry_wait_s)
+      print(f'Retrying in {retry_wait_s} s ...')
       sys.stdout.flush()
       time.sleep(retry_wait_s)
       continue
@@ -87,7 +87,7 @@ def UpdateClang(target_dir, revision):
   stamp_file = os.path.join(target_dir, 'cr_build_revision')
 
   try:
-    with open(stamp_file, 'r') as f:
+    with open(stamp_file, 'r', encoding='utf-8') as f:
       if f.read().rstrip() == revision:
         return
   except IOError:
@@ -99,7 +99,7 @@ def UpdateClang(target_dir, revision):
   if os.path.exists(target_dir):
     shutil.rmtree(target_dir)
 
-  cds_file = 'clang-%s.tgz' % revision
+  cds_file = f'clang-{revision}.tgz'
   cds_full_url = os.environ.get(
       'CDS_CLANG_BUCKET_OVERRIDE',
       'https://commondatastorage.googleapis.com/chromium-browser-clang'
@@ -108,10 +108,10 @@ def UpdateClang(target_dir, revision):
     DownloadAndUnpack(cds_full_url, target_dir)
   except requests.RequestException as e:
     print(e)
-    print('Failed to download prebuilt clang %s' % cds_full_url)
+    print(f'Failed to download prebuilt clang {cds_full_url}')
     raise
 
-  with open(stamp_file, 'w') as f:
+  with open(stamp_file, 'w', encoding='utf-8') as f:
     f.write(revision)
     f.write('\n')
 

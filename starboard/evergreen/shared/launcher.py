@@ -54,8 +54,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     kwargs['env_variables'] = env_variables
 
     # pylint: disable=super-with-arguments
-    super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   **kwargs)
+    super().__init__(platform, target_name, config, device_id, **kwargs)
 
     self.loader_platform = kwargs.get('loader_platform')
     if not self.loader_platform:

@@ -25,5 +25,5 @@ class EvergreenArmHardFPTestFilters(shared_test_filters.EvergreenArmTestFilters
   """Starboard Evergreen ARM HardFP Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(EvergreenArmHardFPTestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

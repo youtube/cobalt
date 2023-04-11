@@ -34,7 +34,7 @@ class EvergreenArmTestFilters(shared_test_filters.TestFilters):
   """Starboard Evergreen Arm Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(EvergreenArmTestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

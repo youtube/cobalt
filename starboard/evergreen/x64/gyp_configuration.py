@@ -22,7 +22,7 @@ class EvergreenX64Configuration(shared_configuration.EvergreenConfiguration):
   """Starboard Evergreen x64 platform configuration."""
 
   def __init__(self, platform):
-    super(EvergreenX64Configuration, self).__init__(platform)
+    super().__init__(platform)
 
     self.AppendApplicationConfigurationPath(os.path.dirname(__file__))
 

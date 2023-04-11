@@ -24,5 +24,5 @@ class Raspi2TestFilters(shared_test_filters.TestFilters):
   """Starboard Raspberry Pi 2 Platform Test Filters."""
 
   def GetTestFilters(self):
-    filters = super(Raspi2TestFilters, self).GetTestFilters()
+    filters = super().GetTestFilters()
     return filters

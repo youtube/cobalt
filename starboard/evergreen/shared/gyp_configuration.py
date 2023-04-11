@@ -26,7 +26,7 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
     return os.path.dirname(__file__)
 
   def GetTestTargets(self):
-    tests = super(EvergreenConfiguration, self).GetTestTargets()
+    tests = super().GetTestTargets()
     tests.extend({'cobalt_slot_management_test', 'updater_test'})
     return [test for test in tests if test not in self.__FORBIDDEN_TESTS]
 

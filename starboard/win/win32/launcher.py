@@ -30,8 +30,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
   """Run an application on Windows."""
 
   def __init__(self, platform, target_name, config, device_id, **kwargs):
-    super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   **kwargs)
+    super().__init__(platform, target_name, config, device_id, **kwargs)
     self.executable_path = self.GetTargetPath()
 
     self.executable_mini_dump_path = self.executable_path + '.dmp'
