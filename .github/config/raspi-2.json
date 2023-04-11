@@ -1,0 +1,13 @@
+{
+  "docker_service": "build-raspi",
+  "platforms": [
+    "raspi-2"
+  ],
+  "includes": [
+    {
+      "name":"raspi",
+      "platform":"raspi-2",
+      "target_platform":"raspi-2"
+    }
+  ]
+}

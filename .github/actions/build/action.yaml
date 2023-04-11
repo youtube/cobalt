@@ -1,0 +1,35 @@
+name: Build Cobalt
+description: Builds Cobalt targets
+runs:
+  using: "composite"
+  steps:
+    - name: Configure Environment
+      shell: bash
+      run: |
+        echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+    - name: Build
+      run: |
+        set -x
+        # GitHub Runners have home set to /github/home.
+        if [ -d /root/starboard-toolchains ]; then
+          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+        fi
+        if [ -z ${COBALT_BOOTLOADER+x} ]; then
+          BUILD_TARGET=all
+          if [[ "${{matrix.config}}" =~ ^(qa|gold)$ ]]; then
+            BUILD_TARGET='cobalt_deploy app_launcher_zip'
+          fi
+          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{ matrix.platform }}
+          ninja -v -C ${GITHUB_WORKSPACE}/out/${{matrix.platform}}_${{matrix.config}} ${BUILD_TARGET}
+        else
+          $GITHUB_WORKSPACE/cobalt/build/gyp_cobalt -v -C ${{ matrix.config }} ${{matrix.bootloader_platform}}
+          if [[ "${{matrix.platform}}" =~ ^evergreen-x64 ]]; then
+            ninja -v -C ${GITHUB_WORKSPACE}/out/${{matrix.bootloader_platform}}_${{matrix.config}} elf_loader_sandbox
+            if [[ "${{matrix.config}}" == "devel" ]]; then
+              ninja -v -C ${GITHUB_WORKSPACE}/out/${{matrix.bootloader_platform}}_${{matrix.config}} loader_app_deploy elf_loader_sandbox_deploy crashpad_handler_deploy
+            fi
+          elif [[ "${{matrix.platform}}" =~ ^evergreen-arm-hardfp ]]; then
+              ninja -v -C ${GITHUB_WORKSPACE}/out/${{matrix.bootloader_platform}}_${{matrix.config}} loader_app_deploy elf_loader_sandbox_deploy crashpad_handler_deploy
+          fi  
+        fi
+      shell: bash
