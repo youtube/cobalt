@@ -184,7 +184,7 @@
             <font weight="400" style="normal">NotoSansArmenian-Regular.woff2</font>
             <font weight="700" style="normal">NotoSansArmenian-Bold.woff2</font>
         </family>
-        <family lang="und-Geor,und-Geok" pages="0,5,16,45,254">
+        <family lang="und-Geor,und-Geok" pages="0,5,16,28,45,254">
             <font weight="400" style="normal">NotoSansGeorgian-Regular.woff2</font>
             <font weight="700" style="normal">NotoSansGeorgian-Bold.woff2</font>
         </family>
