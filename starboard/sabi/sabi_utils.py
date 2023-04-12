@@ -50,7 +50,7 @@ def LoadSabi(filename):
   Returns:
     The contents of the desired Starboard ABI file.
   """
-  with open(filename) as f:
+  with open(filename, encoding='utf-8') as f:
     return json.load(f)['variables']
 
 
@@ -64,5 +64,5 @@ def LoadSabiSchema(filename):
   Returns:
     The contents of the schema associated with the provided Starboard ABI file.
   """
-  with open(filename) as f:
+  with open(filename, encoding='utf-8') as f:
     return json.load(f)

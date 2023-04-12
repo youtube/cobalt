@@ -80,7 +80,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.LogLn('\n*** Found crash dump! ***\nMinDumpPath:' +
                self.executable_mini_dump_path)
     mini_dump_printer.PrintMiniDump(self.executable_mini_dump_path,
-                                    self.executable_path, self.output_file)
+                                    self.output_file)
 
   def GetDeviceIp(self):
     """Gets the device IP."""

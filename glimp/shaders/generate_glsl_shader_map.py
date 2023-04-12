@@ -70,7 +70,7 @@ def GetHeaderDataDefinitionStringForFile(input_file):
     data_definition_string = '{\n'
     for output_line_data in Chunks(file_contents, chunk_size):
       data_definition_string += (
-          ' '.join(['0x{0:02x},'.format(y) for y in output_line_data]) + '\n')
+          ' '.join([f'0x{y:02x},' for y in output_line_data]) + '\n')
     data_definition_string += '};\n\n'
     return data_definition_string
 
@@ -81,8 +81,7 @@ def GetHeaderDataDefinitionString(files):
   data_definition_string = ''
   for path in files:
     input_file_variable_name = GetBasename(path)
-    data_definition_string += ('const uint8_t %s[] =\n' %
-                               input_file_variable_name)
+    data_definition_string += f'const uint8_t {input_file_variable_name}[] =\n'
     data_definition_string += GetHeaderDataDefinitionStringForFile(path)
 
   return data_definition_string
@@ -107,8 +106,8 @@ def GetGenerateMapFunctionString(hash_to_shader_map):
   for k, v in hash_to_shader_map.items():
     input_file_variable_name = GetBasename(v)
     generate_map_function_string += (
-        '  (*out_map)[%uU] = ShaderData(%s, sizeof(%s));\n' %
-        (k, input_file_variable_name, input_file_variable_name))
+        f'  (*out_map)[{k}U] = ShaderData({input_file_variable_name}, '
+        f'sizeof({input_file_variable_name}));\n')
 
   generate_map_function_string += '}'
   return generate_map_function_string
@@ -132,8 +131,8 @@ def GetShaderNameFunctionString(hash_to_shader_map):
 
   for k, v in hash_to_shader_map.items():
     input_file_variable_name = GetBasename(v)
-    get_shader_name_function_string += ('    case %uU: return \"%s\";\n' %
-                                        (k, input_file_variable_name))
+    get_shader_name_function_string += (f'    case {k}U: return '
+                                        f'\"{input_file_variable_name}\";\n')
 
   get_shader_name_function_string += '  }\n  return NULL;\n}'
   return get_shader_name_function_string
@@ -177,7 +176,7 @@ def GenerateHeaderFileOutput(output_file_name, hash_to_shader_map):
   """
 
   include_guard = 'GLIMP_SHADERS_GENERATED_GLSL_SHADER_MAP_H_'
-  with open(output_file_name, 'w') as output_file:
+  with open(output_file_name, 'w', encoding='utf-8') as output_file:
     output_file.write(
         HEADER_FILE_TEMPLATE.format(
             include_guard=include_guard,
@@ -251,7 +250,7 @@ def HashGLSLShaderFile(glsl_filename):
   The hashing source is taken from the "one_at_a_time" hash function, by Bob
   Jenkins, in the public domain at http://burtleburtle.net/bob/hash/doobs.html.
   """
-  with open(glsl_filename, 'r') as glsl_file:
+  with open(glsl_filename, 'r', encoding='utf-8') as glsl_file:
     glsl_contents = glsl_file.read()
 
   def AddUint32(a, b):
@@ -303,7 +302,7 @@ def GetAllShaderFiles(input_files_filename, input_files_dir):
   with |input_files_dir|.
   """
   files = []
-  with open(input_files_filename) as input_files_file:
+  with open(input_files_filename, encoding='utf-8') as input_files_file:
     files = [x.strip() for x in input_files_file.readlines()]
 
   for filename in files:

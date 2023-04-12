@@ -29,8 +29,10 @@ from starboard.sabi import generate_sabi_id
 from starboard.tools import paths
 
 _TEST_SABI = os.path.join(paths.STARBOARD_ROOT, 'sabi', 'test', 'sabi.json')
+# pylint: disable=line-too-long
 _TEST_SABI_ID = '{"alignment_char":1,"alignment_double":8,"alignment_float":4,"alignment_int":4,"alignment_llong":8,"alignment_long":8,"alignment_pointer":8,"alignment_short":2,"calling_convention":"sysv","endianness":"little","floating_point_abi":"","floating_point_fpu":"","sb_api_version":12,"signedness_of_char":"signed","signedness_of_enum":"signed","size_of_char":1,"size_of_double":8,"size_of_enum":4,"size_of_float":4,"size_of_int":4,"size_of_llong":8,"size_of_long":8,"size_of_pointer":8,"size_of_short":2,"target_arch":"x64","target_arch_sub":"","word_size":64}'
 _TEST_SABI_ID_OMAHA = '"\\\\{\\"alignment_char\\":1,\\"alignment_double\\":8,\\"alignment_float\\":4,\\"alignment_int\\":4,\\"alignment_llong\\":8,\\"alignment_long\\":8,\\"alignment_pointer\\":8,\\"alignment_short\\":2,\\"calling_convention\\":\\"sysv\\",\\"endianness\\":\\"little\\",\\"floating_point_abi\\":\\"\\",\\"floating_point_fpu\\":\\"\\",\\"sb_api_version\\":12,\\"signedness_of_char\\":\\"signed\\",\\"signedness_of_enum\\":\\"signed\\",\\"size_of_char\\":1,\\"size_of_double\\":8,\\"size_of_enum\\":4,\\"size_of_float\\":4,\\"size_of_int\\":4,\\"size_of_llong\\":8,\\"size_of_long\\":8,\\"size_of_pointer\\":8,\\"size_of_short\\":2,\\"target_arch\\":\\"x64\\",\\"target_arch_sub\\":\\"\\",\\"word_size\\":64\\\\}"'
+# pylint: enable=line-too-long
 
 
 class GenerateSabiIdTest(unittest.TestCase):
@@ -44,7 +46,7 @@ class GenerateSabiIdTest(unittest.TestCase):
       generate_sabi_id.DoMain(['-f', 'invalid_filename'])
 
   def testRainyDayBadFile(self):
-    bad_sabi_json = tempfile.NamedTemporaryFile(mode='w')
+    bad_sabi_json = tempfile.NamedTemporaryFile(mode='w')  # pylint: disable=consider-using-with
     bad_sabi_json.write('{}')
     with self.assertRaises(json.decoder.JSONDecodeError):
       generate_sabi_id.DoMain(['-f', bad_sabi_json.name])

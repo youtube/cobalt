@@ -46,16 +46,16 @@ def SourceCodeFilter(filename):
 
 def AddInvalidSpace(pathname):
   """Add a space in the very beginning of the file."""
-  with open(pathname, 'r') as f:
+  with open(pathname, 'r', encoding='utf-8') as f:
     content = f.read()
   content = ' ' + content
-  with open(pathname, 'w') as f:
+  with open(pathname, 'w', encoding='utf-8') as f:
     f.write(content)
 
 
 def ReplaceLicenseHeader(pathname):
   """Replace license headers in /* ... */ to // ...."""
-  with open(pathname, 'r') as f:
+  with open(pathname, 'r', encoding='utf-8') as f:
     lines = f.readlines()
   # Guestimate the copyright header
   for i in range(0, len(lines)):
@@ -75,13 +75,13 @@ def ReplaceLicenseHeader(pathname):
         lines[j] = '//' + line_without_star
     if i >= len(lines) - 1:
       break
-  with open(pathname, 'w') as f:
+  with open(pathname, 'w', encoding='utf-8') as f:
     f.writelines(lines)
 
 
 def ReplaceMediaNamespace(pathname):
   """Move namespace media into namespace cobalt."""
-  with open(pathname, 'r') as f:
+  with open(pathname, 'r', encoding='utf-8') as f:
     source_lines = f.readlines()
   target_lines = []
   for i in range(0, len(source_lines)):
@@ -94,7 +94,7 @@ def ReplaceMediaNamespace(pathname):
           '}  // namespace cobalt') == -1:
         target_lines.append('}  // namespace cobalt\n')
 
-  with open(pathname, 'w') as f:
+  with open(pathname, 'w', encoding='utf-8') as f:
     f.writelines(target_lines)
 
 
@@ -198,7 +198,7 @@ def DumpCHeadersAndFunctions(pathname):
     c_function_list = [
         x for x in C_FUNCTION_LIST.replace('\n', '').split(',') if x
     ]
-  with open(pathname, 'r') as f:
+  with open(pathname, 'r', encoding='utf-8') as f:
     source_lines = f.readlines()
   first = True
 
@@ -268,7 +268,7 @@ def DumpCHeadersAndFunctions(pathname):
     RemoveHeader(source_lines, 'stdint.h')
     AddProjectHeader(source_lines, 'starboard/types.h')
 
-  with open(pathname, 'w') as f:
+  with open(pathname, 'w', encoding='utf-8') as f:
     f.writelines(source_lines)
 
 

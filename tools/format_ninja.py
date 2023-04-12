@@ -101,7 +101,7 @@ def normalize_all_paths(json_content: List[object]) -> List[object]:
 
 
 def normalize_json_file(filename: str) -> List[object]:
-  with open(filename) as f:
+  with open(filename, encoding='utf-8') as f:
     content = json.load(f)
 
   validate_json_database(content)
@@ -111,7 +111,7 @@ def normalize_json_file(filename: str) -> List[object]:
 
 def main(json_database: str, output_filename: str):
   json_content = normalize_json_file(json_database)
-  with open(output_filename, 'w') as f:
+  with open(output_filename, 'w', encoding='utf-8') as f:
     json.dump(json_content, f, indent=4, sort_keys=True)
 
 

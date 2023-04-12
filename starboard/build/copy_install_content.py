@@ -82,7 +82,7 @@ def copy_files(files_to_copy, base_dir, output_dir):
 
 
 def write_outputs(output, depfile, files):
-  with open(depfile, 'w') as f:
+  with open(depfile, 'w', encoding='utf-8') as f:
     f.write('{}: \\\n  {}\n'.format(output, ' \\\n  '.join(sorted(files))))
   # Touch the output file to tell ninja that the script ran successfully.
   pathlib.Path(output).touch()
@@ -113,7 +113,7 @@ def main():
 
   # Load file names from the file containing the list of file names.
   # The file name list must be passed in a file to due to command line limits.
-  with open(options.files_list) as input_file:
+  with open(options.files_list, encoding='utf-8') as input_file:
     file_names = [line.strip() for line in input_file]
 
   copy_files(file_names, options.base_dir, options.output_dir)

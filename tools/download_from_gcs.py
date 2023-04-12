@@ -31,7 +31,7 @@ except ImportError:
 try:
   from ssl import create_default_context
 except ImportError:
-  create_default_context = lambda: None
+  create_default_context = lambda: None  #pylint: disable=unnecessary-lambda-assignment
 
 _BASE_GCS_URL = 'https://storage.googleapis.com'
 _BUFFER_SIZE = 2 * 1024 * 1024
@@ -53,7 +53,7 @@ def ExtractSha1(filename):
 
 
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
-  url = '{}/{}/{}'.format(_BASE_GCS_URL, bucket, sha1)
+  url = f'{_BASE_GCS_URL}/{bucket}/{sha1}'
   context = create_default_context()
 
   try:
@@ -92,7 +92,7 @@ def MaybeDownloadFileFromGcs(bucket, sha1_file, output_file, force=False):
   """
   if not os.path.exists(sha1_file):
     logging.error("Provided sha1 file %s doesn't exist", sha1_file)
-  with open(sha1_file) as fd:
+  with open(sha1_file, encoding='utf-8') as fd:
     sha1 = fd.read().strip()
 
   if not force and os.path.exists(output_file):
@@ -168,5 +168,5 @@ if __name__ == '__main__':
     MaybeDownloadFileFromGcs(args.bucket, args.sha1, args.output, args.force)
 
   if args.stamp_file:
-    with open(args.stamp_file, 'w'):
+    with open(args.stamp_file, 'w', encoding='utf-8'):
       pass

@@ -22,8 +22,7 @@ class CobaltLinuxX64X11Clang39Configuration(
   """Starboard Linux x64x11 Clang 3.9 Cobalt configuration."""
 
   def GetTestFilters(self):
-    filters = super(CobaltLinuxX64X11Clang39Configuration,
-                    self).GetTestFilters()
+    filters = super().GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters

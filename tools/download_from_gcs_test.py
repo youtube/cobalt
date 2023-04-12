@@ -41,7 +41,7 @@ def _Sha1sMatch(file_to_read, file_to_hash):
     logging.error('%s does not exist.', file_to_hash)
     return False
 
-  with open(file_to_read) as f:
+  with open(file_to_read, encoding='utf-8') as f:
     sha1 = f.read().strip()
 
   return download_from_gcs.ExtractSha1(file_to_hash) == sha1

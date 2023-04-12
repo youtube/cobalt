@@ -2,7 +2,6 @@
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 """
 A simple wrapper for protoc.
 Script for //third_party/protobuf/proto_library.gni .
@@ -22,7 +21,6 @@ import argparse
 import os.path
 import subprocess
 import sys
-import tempfile
 
 PROTOC_INCLUDE_POINT = "// @@protoc_insertion_point(includes)"
 
@@ -44,8 +42,7 @@ def VerifyProtoNames(protos):
 
 def StripProtoExtension(filename):
   if not filename.endswith(".proto"):
-    raise RuntimeError("Invalid proto filename extension: "
-                       "{0} .".format(filename))
+    raise RuntimeError(f"Invalid proto filename extension: {filename} .")
   return filename.rsplit(".", 1)[0]
 
 
@@ -53,7 +50,7 @@ def WriteIncludes(headers, include):
   for filename in headers:
     include_point_found = False
     contents = []
-    with open(filename) as f:
+    with open(filename, encoding="utf-8") as f:
       for line in f:
         stripped_line = line.strip()
         contents.append(stripped_line)
@@ -61,50 +58,54 @@ def WriteIncludes(headers, include):
           if include_point_found:
             raise RuntimeError("Multiple include points found.")
           include_point_found = True
-          extra_statement = "#include \"{0}\"".format(include)
+          extra_statement = f'#include "{include}"'
           contents.append(extra_statement)
 
       if not include_point_found:
-        raise RuntimeError("Include point not found in header: "
-                           "{0} .".format(filename))
+        raise RuntimeError(f"Include point not found in header: {filename} .")
 
-    with open(filename, "w") as f:
+    with open(filename, "w", encoding="utf-8") as f:
       for line in contents:
         print(line, file=f)
 
 
 def main(argv):
   parser = argparse.ArgumentParser()
-  parser.add_argument("--protoc", required=True,
-                      help="Relative path to compiler.")
+  parser.add_argument(
+      "--protoc", required=True, help="Relative path to compiler.")
 
-  parser.add_argument("--proto-in-dir", required=True,
-                      help="Base directory with source protos.")
-  parser.add_argument("--cc-out-dir",
-                      help="Output directory for standard C++ generator.")
-  parser.add_argument("--py-out-dir",
-                      help="Output directory for standard Python generator.")
-  parser.add_argument("--js-out-dir",
-                      help="Output directory for standard JS generator.")
-  parser.add_argument("--plugin-out-dir",
-                      help="Output directory for custom generator plugin.")
+  parser.add_argument(
+      "--proto-in-dir",
+      required=True,
+      help="Base directory with source protos.")
+  parser.add_argument(
+      "--cc-out-dir", help="Output directory for standard C++ generator.")
+  parser.add_argument(
+      "--py-out-dir", help="Output directory for standard Python generator.")
+  parser.add_argument(
+      "--js-out-dir", help="Output directory for standard JS generator.")
+  parser.add_argument(
+      "--plugin-out-dir", help="Output directory for custom generator plugin.")
 
-  parser.add_argument('--enable-kythe-annotations', action='store_true',
-                      help='Enable generation of Kythe kzip, used for '
-                      'codesearch.')
-  parser.add_argument("--plugin",
-                      help="Relative path to custom generator plugin.")
-  parser.add_argument("--plugin-options",
-                      help="Custom generator plugin options.")
-  parser.add_argument("--cc-options",
-                      help="Standard C++ generator options.")
-  parser.add_argument("--include",
-                      help="Name of include to insert into generated headers.")
-  parser.add_argument("--import-dir", action="append", default=[],
-                      help="Extra import directory for protos, can be repeated."
-  )
-  parser.add_argument("--descriptor-set-out",
-                      help="Path to write a descriptor.")
+  parser.add_argument(
+      "--enable-kythe-annotations",
+      action="store_true",
+      help="Enable generation of Kythe kzip, used for "
+      "codesearch.")
+  parser.add_argument(
+      "--plugin", help="Relative path to custom generator plugin.")
+  parser.add_argument(
+      "--plugin-options", help="Custom generator plugin options.")
+  parser.add_argument("--cc-options", help="Standard C++ generator options.")
+  parser.add_argument(
+      "--include", help="Name of include to insert into generated headers.")
+  parser.add_argument(
+      "--import-dir",
+      action="append",
+      default=[],
+      help="Extra import directory for protos, can be repeated.")
+  parser.add_argument(
+      "--descriptor-set-out", help="Path to write a descriptor.")
   parser.add_argument(
       "--descriptor-set-dependency-file",
       help="Path to write the dependency file for descriptor set.")
@@ -116,8 +117,8 @@ def main(argv):
       help="Do not include imported files into generated descriptor.",
       action="store_true",
       default=False)
-  parser.add_argument("protos", nargs="+",
-                      help="Input protobuf definition file(s).")
+  parser.add_argument(
+      "protos", nargs="+", help="Input protobuf definition file(s).")
 
   options = parser.parse_args(argv)
 
@@ -142,8 +143,8 @@ def main(argv):
     cc_options_list = []
     if options.enable_kythe_annotations:
       cc_options_list.extend([
-          'annotate_headers', 'annotation_pragma_name=kythe_metadata',
-          'annotation_guard_name=KYTHE_IS_RUNNING'
+          "annotate_headers", "annotation_pragma_name=kythe_metadata",
+          "annotation_guard_name=KYTHE_IS_RUNNING"
       ])
 
     # cc_options will likely have trailing colon so needs to be inserted at the
@@ -151,7 +152,7 @@ def main(argv):
     if options.cc_options:
       cc_options_list.append(options.cc_options)
 
-    cc_options = FormatGeneratorOptions(','.join(cc_options_list))
+    cc_options = FormatGeneratorOptions(",".join(cc_options_list))
     protoc_cmd += ["--cpp_out", cc_options + cc_out_dir]
     for filename in protos:
       stripped_name = StripProtoExtension(filename)
@@ -160,8 +161,8 @@ def main(argv):
   if options.plugin_out_dir:
     plugin_options = FormatGeneratorOptions(options.plugin_options)
     protoc_cmd += [
-      "--plugin", "protoc-gen-plugin=" + os.path.relpath(options.plugin),
-      "--plugin_out", plugin_options + options.plugin_out_dir
+        "--plugin", "protoc-gen-plugin=" + os.path.relpath(options.plugin),
+        "--plugin_out", plugin_options + options.plugin_out_dir
     ]
 
   protoc_cmd += ["--proto_path", proto_dir]
@@ -177,11 +178,11 @@ def main(argv):
 
   dependency_file_data = None
   if options.descriptor_set_out and options.descriptor_set_dependency_file:
-    protoc_cmd += ['--dependency_out', options.descriptor_set_dependency_file]
+    protoc_cmd += ["--dependency_out", options.descriptor_set_dependency_file]
     ret = subprocess.call(protoc_cmd)
 
-    with open(options.descriptor_set_dependency_file, 'rb') as f:
-      dependency_file_data = f.read().decode('utf-8')
+    with open(options.descriptor_set_dependency_file, "rb") as f:
+      dependency_file_data = f.read().decode("utf-8")
 
   ret = subprocess.call(protoc_cmd)
   if ret != 0:
@@ -189,14 +190,13 @@ def main(argv):
       # Windows error codes such as 0xC0000005 and 0xC0000409 are much easier to
       # recognize and differentiate in hex. In order to print them as unsigned
       # hex we need to add 4 Gig to them.
-      error_number = "0x%08X" % (ret + (1 << 32))
+      error_number = f"0x{ret + (1 << 32):08X}"
     else:
-      error_number = "%d" % ret
-    raise RuntimeError("Protoc has returned non-zero status: "
-                       "{0}".format(error_number))
+      error_number = f"{ret}"
+    raise RuntimeError(f"Protoc has returned non-zero status: {error_number}")
 
   if dependency_file_data:
-    with open(options.descriptor_set_dependency_file, 'w') as f:
+    with open(options.descriptor_set_dependency_file, "w", encoding="utf-8") as f:  #pylint: disable=line-too-long
       f.write(options.descriptor_set_out + ":")
       f.write(dependency_file_data)
 

@@ -43,7 +43,7 @@ def main():
     os.makedirs(arguments.directory)
 
   if arguments.stamp_file:
-    open(arguments.stamp_file, 'a').close()  # pylint: disable=consider-using-with
+    open(arguments.stamp_file, 'a', encoding='utf-8').close()  # pylint: disable=consider-using-with
 
 
 if __name__ == '__main__':

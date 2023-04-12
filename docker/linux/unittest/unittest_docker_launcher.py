@@ -41,7 +41,7 @@ def main(argv):
 
   out_dir = '/out'
 
-  exc('unzip -q {}/app_launcher -d /app_launcher_out'.format(out_dir))
+  exc(f'unzip -q {out_dir}/app_launcher -d /app_launcher_out')
 
   xvfb_prefix = ('xvfb-run -a --server-args="-screen 0 1920x1080x24'
                  '+render +extension GLX -noreset"')
@@ -59,19 +59,19 @@ def main(argv):
   test_command = ' '.join(test_command)
 
   start_t = time.time()
-  exc('{} {}'.format(xvfb_prefix, test_command))
+  exc(f'{xvfb_prefix} {test_command}')
   end_t = time.time()
 
   # Output shard timing information to file.
   duration_t = (end_t - start_t) / 60.0
-  shard_timing_json = '{}/shard_timing.json'.format(out_dir)
+  shard_timing_json = f'{out_dir}/shard_timing.json'
   try:
-    with open(shard_timing_json, 'r') as f:
+    with open(shard_timing_json, 'r', encoding='utf-8') as f:
       json_content = json.loads(f.read())
   except FileNotFoundError:
     json_content = {}
-  json_content[str(shard_index)] = '{:.2f}'.format(duration_t)
-  with open(shard_timing_json, 'w+') as f:
+  json_content[str(shard_index)] = f'{duration_t:.2f}'
+  with open(shard_timing_json, 'w+', encoding='utf-8') as f:
     json.dump(json_content, f, sort_keys=True, indent=2)
 
 
