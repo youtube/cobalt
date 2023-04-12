@@ -462,7 +462,8 @@ class TestRunner(object):
          (self.log_xml_results or self.xml_output_dir) else "disabled"))
     if self.log_xml_results:
       out_path = MakeLauncher().GetDeviceOutputPath()
-      xml_filename = f"{target_name}_testoutput.xml"
+      shard_suffix = "" if shard_count is None else f"_{shard_index}"
+      xml_filename = f"{target_name}{shard_suffix}_testoutput.xml"
       if out_path:
         test_result_xml_path = os.path.join(out_path, xml_filename)
       else:
@@ -472,7 +473,9 @@ class TestRunner(object):
                     "be logged to '%s'."), test_result_xml_path)
     elif self.xml_output_dir:
       # Have gtest create and save a test result xml
-      xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
+      shard_dir = "" if shard_count is None else f"{shard_index}"
+      xml_output_subdir = os.path.join(self.xml_output_dir, shard_dir,
+                                       target_name)
       try:
         os.makedirs(xml_output_subdir)
       except OSError:
