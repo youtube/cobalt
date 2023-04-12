@@ -59,10 +59,9 @@ runs:
       shell: bash
       run: |
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+        echo "TEST_RESULTS_DIR=${GITHUB_WORKSPACE}/unit-test-reports" >> $GITHUB_ENV
     - name: Run Tests
       shell: bash
-      env:
-        TEST_RESULTS_DIR: unit-test-reports
       run: |
         set -x
         loader_args=''
@@ -77,12 +76,11 @@ runs:
           if [[ "${{inputs.os}}" == 'windows' ]]; then
             python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
           else
-            mkdir ${TEST_RESULTS_DIR}
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR}
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR}
           fi
         fi
     - name: Archive unit test results
       uses: actions/upload-artifact@v3
       with:
         name: unit-test-report
-        path: unit-test-reports/**/*.xml
+        path: ${TEST_RESULTS_DIR}/**/*.xml
