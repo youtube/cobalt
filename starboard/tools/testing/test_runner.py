@@ -478,8 +478,8 @@ class TestRunner(object):
                                        target_name)
       try:
         os.makedirs(xml_output_subdir)
-      except OSError:
-        pass
+      except OSError as ose:
+        logging.warning("Unable to create xml output directory: %s", ose)
       test_result_xml_path = os.path.join(xml_output_subdir, "sponge_log.xml")
       logging.info("Xml output for this test will be saved to: %s",
                    test_result_xml_path)
