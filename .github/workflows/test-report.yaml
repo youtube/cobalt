@@ -19,5 +19,5 @@ jobs:
         uses: dorny/test-reporter@c9b3d0e2bd2a4e96aaf424dbaa31c46b42318226
         with:
           name: Cobalt Unit Tests
-          path: test_results/*.xml
+          path: test_results/**/*.xml
           reporter: jest-junit
