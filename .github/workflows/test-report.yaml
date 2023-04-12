@@ -3,7 +3,10 @@ on:
   workflow_run:
     # runs after main workflow
     workflows:
-      - main
+      - evergreen
+      - linux
+      # TODO
+      # - win32
     types:
       - completed
 jobs:
