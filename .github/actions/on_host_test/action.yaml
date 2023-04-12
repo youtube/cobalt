@@ -83,4 +83,4 @@ runs:
       uses: actions/upload-artifact@v3
       with:
         name: unit-test-report
-        path: ${TEST_RESULTS_DIR}/**/*.xml
+        path: ${{ env.TEST_RESULTS_DIR }}/**/*.xml
