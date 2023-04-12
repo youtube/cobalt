@@ -28,7 +28,7 @@ class StartLatencyTest(TestCase):
   """
 
   def __init__(self, *args, **kwargs):
-    super(StartLatencyTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_times', default=5, type=int)
@@ -145,12 +145,12 @@ TEST_PARAMETERS = [
 ]
 
 for name, playback_url, mime_str in TEST_PARAMETERS:
-  TestCase.CreateTest(StartLatencyTest, 'first_start_latency_%s' % (name),
+  TestCase.CreateTest(StartLatencyTest, f'first_start_latency_{name}',
                       StartLatencyTest.run_first_start_latency_test, name,
                       playback_url, mime_str)
-  TestCase.CreateTest(StartLatencyTest, 'play_pause_latency_%s' % (name),
+  TestCase.CreateTest(StartLatencyTest, f'play_pause_latency_{name}',
                       StartLatencyTest.run_play_pause_latency_test, name,
                       playback_url, mime_str)
-  TestCase.CreateTest(StartLatencyTest, 'fastforward_latency_%s' % (name),
+  TestCase.CreateTest(StartLatencyTest, f'fastforward_latency_{name}',
                       StartLatencyTest.run_fastforward_latency_test, name,
                       playback_url, mime_str)

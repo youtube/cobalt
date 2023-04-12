@@ -43,9 +43,9 @@ class JavascriptRequestDetector(MakeRequestHandlerClass(_SERVER_ROOT_PATH)):
         'foo.bar.baz.qux/21.2.1.41.0'
 
     if not ua_request_header == expected_ua_request_header:
-      raise ValueError('UA string in HTTP request header does not match with '\
-          'UA params overrides specified in command line\n'\
-          'UA string in HTTP request header:%s' % (ua_request_header))
+      raise ValueError('UA string in HTTP request header does not match with '
+                       'UA params overrides specified in command line\n'
+                       f'UA string in HTTP request header:{ua_request_header}')
 
     return SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 

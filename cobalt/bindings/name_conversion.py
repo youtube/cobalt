@@ -36,7 +36,7 @@ special_token_list = ['3d']
 
 # Regular expression to capture all of the special tokens.
 special_token_re = re.compile(
-    '(%s)' % '|'.join(special_token_list), flags=re.IGNORECASE)
+    f"({'|'.join(special_token_list)})", flags=re.IGNORECASE)
 
 # Split tokens on non-alphanumeric characters (excluding underscores).
 enumeration_value_word_delimeter_re = re.compile(r'[^a-zA-Z0-9]')
@@ -46,8 +46,8 @@ def convert_to_regular_cobalt_name(class_name):
   cobalt_name = titlecase_word_delimiter_re.sub('_', class_name).lower()
   for term in word_list:
     replacement = [
-        token for token in re.split('_?(%s)_?' %
-                                    term, cobalt_name, re.IGNORECASE) if token
+        token for token in re.split(f'_?({term})_?', cobalt_name, re.IGNORECASE)
+        if token
     ]
     cobalt_name = '_'.join(replacement)
   return cobalt_name
@@ -79,9 +79,9 @@ def convert_to_cobalt_constant_name(constant_name):
 
 
 def convert_to_cobalt_enumeration_value(enum_type, enum_value):
-  return 'k%s%s' % (enum_type, ''.join(
-      (token.capitalize()
-       for token in enumeration_value_word_delimeter_re.split(enum_value))))
+  tokens = enumeration_value_word_delimeter_re.split(enum_value)
+  capitalized_tokens_joined = ''.join(token.capitalize() for token in tokens)
+  return f'k{enum_type}{capitalized_tokens_joined}'
 
 
 def get_interface_name(idl_type):

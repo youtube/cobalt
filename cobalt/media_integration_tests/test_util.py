@@ -46,11 +46,11 @@ class MimeStrings():
 
   @staticmethod
   def create_video_mime_string(codec, resolution):
-    return '%s; %s' % (codec, MimeStrings.RESOLUTIONS[resolution])
+    return f'{codec}; {MimeStrings.RESOLUTIONS[resolution]}'
 
   @staticmethod
   def create_audio_mime_string(codec, channels):
-    return '%s; channels=%d' % (codec, channels)
+    return f'{codec}; channels={channels}'
 
 
 class PlaybackUrls():

@@ -72,7 +72,7 @@ def Request(request_type, path='', parameters=None):
   Returns:
     The dictionary returned by the WebDriver server
   """
-  url = '%s/%s' % (WEBDRIVER_HOST, path)
+  url = f'{WEBDRIVER_HOST}/{path}'
   headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
   if request_type == GET:
     request = requests.get(url, data=json.dumps(parameters), headers=headers)
@@ -85,11 +85,13 @@ def Request(request_type, path='', parameters=None):
   if request.status_code == 200:
     return result
   else:
-    print('*** Error %d %s: \"%s\"' %
-          (request.status_code, RESPONSE_STATUS_CODES[result['status']]
-           if isinstance(result, dict) else 'unknown',
-           result['value']['message'] if isinstance(result, dict) else result))
-    print('*** Error %d: %s' % (request.status_code, result))
+    print(
+        f'*** Error {request.status_code} '
+        f"{RESPONSE_STATUS_CODES[result['status']] if isinstance(result, dict) else 'unknown'}"  # pylint: disable=line-too-long
+        ': \"'
+        f"{result['value']['message'] if isinstance(result, dict) else result}"
+        '\"')
+    print(f'*** Error {request.status_code}: {result}')
   return None
 
 
@@ -106,9 +108,8 @@ def SessionRequest(session_id, request_type, path=None, parameters=None):
     The dictionary returned by the WebDriver server
   """
   if path:
-    return Request(request_type, 'session/%s/%s' % (session_id, path),
-                   parameters)
-  return Request(request_type, 'session/%s' % (session_id), parameters)
+    return Request(request_type, f'session/{session_id}/{path}', parameters)
+  return Request(request_type, f'session/{session_id}', parameters)
 
 
 def ElementRequest(session_id,
@@ -117,8 +118,7 @@ def ElementRequest(session_id,
                    path=None,
                    parameters=None):
   return SessionRequest(session_id, request_type,
-                        'element/%s/%s' % (element_id[u'ELEMENT'], path),
-                        parameters)
+                        f"element/{element_id['ELEMENT']}/{path}", parameters)
 
 
 def GetSessionID():
@@ -129,7 +129,7 @@ def GetSessionID():
   """
   request = Request(POST, 'session', {'desiredCapabilities': {}})
   if request:
-    session_id = request[u'sessionId']
+    session_id = request['sessionId']
   else:
     # If creating a new session id fails, use an already existing session.
     request = Request(GET, 'sessions')
@@ -159,7 +159,7 @@ def GetScreenShot(session_id, filename):
   """
   request = SessionRequest(session_id, GET, 'screenshot')
   if request:
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
       f.write(binascii.a2b_base64(request['value']))
       f.close()
 
@@ -173,7 +173,7 @@ def GetElementScreenShot(session_id, element_id, filename):
   """
   request = ElementRequest(session_id, element_id, GET, 'screenshot')
   if request:
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
       f.write(binascii.a2b_base64(request['value']))
       f.close()
 
@@ -184,22 +184,22 @@ def GetActiveElement(session_id):
 
 def Moveto(session_id, element, xoffset, yoffset):
   return SessionRequest(session_id, POST, 'moveto', {
-      u'element': element,
-      u'xoffset': xoffset,
-      u'yoffset': yoffset
+      'element': element,
+      'xoffset': xoffset,
+      'yoffset': yoffset
   })
 
 
 def Click(session_id, button):
-  return SessionRequest(session_id, POST, 'click', {u'button': button})
+  return SessionRequest(session_id, POST, 'click', {'button': button})
 
 
 def Buttondown(session_id, button):
-  return SessionRequest(session_id, POST, 'buttondown', {u'button': button})
+  return SessionRequest(session_id, POST, 'buttondown', {'button': button})
 
 
 def Buttonup(session_id, button):
-  return SessionRequest(session_id, POST, 'buttonup', {u'button': button})
+  return SessionRequest(session_id, POST, 'buttonup', {'button': button})
 
 
 def ElementName(session_id, element_id):
@@ -212,17 +212,17 @@ def ElementText(session_id, element_id):
 
 def ElementClick(session_id, element_id, button):
   return ElementRequest(session_id, element_id, POST, 'click',
-                        {u'button': button})
+                        {'button': button})
 
 
 def ElementKeys(session_id, element_id, keys):
-  return ElementRequest(session_id, element_id, POST, 'value', {u'value': keys})
+  return ElementRequest(session_id, element_id, POST, 'value', {'value': keys})
 
 
 def ElementFind(session_id, using, value):
   result = SessionRequest(session_id, POST, 'element', {
-      u'using': using,
-      u'value': value
+      'using': using,
+      'value': value
   })
   return None if result is None else result['value']
 
@@ -233,17 +233,17 @@ def MouseTest():
   session_id = GetSessionID()
   try:
     active_element = GetActiveElement(session_id)
-    print('active_element : %s' % active_element)
+    print(f'active_element : {active_element}')
 
     for xoffset in range(0, 1900, 20):
-      print('Moveto: %s' % Moveto(session_id, active_element, xoffset, 200))
+      print(f'Moveto: {Moveto(session_id, active_element, xoffset, 200)}')
       time.sleep(0.05)
 
     selected_element = ElementFind(session_id, 'class name',
                                    'ytlr-tile-renderer--focused')
-    print('selected_element : %s' % selected_element)
+    print(f'selected_element : {selected_element}')
 
-    print('ElementClick: %s' % ElementClick(session_id, selected_element, 0))
+    print(f'ElementClick: {ElementClick(session_id, selected_element, 0)}')
 
   except KeyboardInterrupt:
     print('Bye')
@@ -258,17 +258,16 @@ def ElementScreenShotTest():
   try:
     selected_element = ElementFind(session_id, 'class name',
                                    'ytlr-tile-renderer--focused')
-    print('Selected List element : %s' % selected_element)
+    print(f'Selected List element : {selected_element}')
 
     # Write screenshots for the selected element, until interrupted.
     while True:
       selected_element = ElementFind(session_id, 'class name',
                                      'ytlr-tile-renderer--focused')
-      print('Selected List element : %s' % selected_element)
+      print(f'Selected List element : {selected_element}')
       if selected_element is not None:
-        print('GetElementScreenShot: %s' % GetElementScreenShot(
-            session_id, selected_element,
-            'element-' + selected_element['ELEMENT'] + '.png'))
+        print('GetElementScreenShot: '
+              f"{GetElementScreenShot(session_id, selected_element, 'element-' + selected_element['ELEMENT'] + '.png')}")  # pylint: disable=line-too-long
 
   except KeyboardInterrupt:
     print('Bye')
@@ -282,21 +281,21 @@ def ElementUniqueTest():
   session_id = GetSessionID()
   try:
     initial_active_element = GetActiveElement(session_id)
-    print('initial active_element : %s' % initial_active_element)
+    print(f'initial active_element : {initial_active_element}')
 
     initial_selected_element = ElementFind(session_id, 'class name',
                                            'ytlr-tile-renderer--focused')
-    print('Selected List element : %s' % initial_selected_element)
+    print(f'Selected List element : {initial_selected_element}')
     while True:
       active_element = GetActiveElement(session_id)
-      print('active_element : %s' % active_element)
+      print(f'active_element : {active_element}')
 
       if initial_active_element != active_element:
         break
 
       selected_element = ElementFind(session_id, 'class name',
                                      'ytlr-tile-renderer--focused')
-      print('Selected List element : %s' % selected_element)
+      print(f'Selected List element : {selected_element}')
 
       if initial_selected_element != selected_element:
         break

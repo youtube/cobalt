@@ -33,7 +33,7 @@ def encode(raw_content, encoding_type):
     return encode_deflate(raw_content)
   elif encoding_type == 'br':
     return encode_brotli(raw_content)
-  raise ValueError('Unknown encoding type used [{}].'.format(encoding_type))
+  raise ValueError(f'Unknown encoding type used [{encoding_type}].')
 
 
 def encode_gzip(raw_content):

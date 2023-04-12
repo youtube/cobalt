@@ -116,7 +116,7 @@ class FlattenedInterface(object):
     """
     flattened_interfaces = list(flattened_interfaces)
     assert all((isinstance(i, cls) for i in flattened_interfaces))
-    with open(output_file, 'w') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
       pickle.dump(flattened_interfaces, f)
 
   @classmethod
@@ -128,7 +128,7 @@ class FlattenedInterface(object):
     Returns:
       A list of FlattenedInterface objects.
     """
-    with open(pickle_file) as f:
+    with open(pickle_file, encoding='utf-8') as f:
       unpickled_list = pickle.load(f)
     assert all((isinstance(item, cls) for item in unpickled_list))
     return unpickled_list
@@ -153,7 +153,7 @@ def _FlattenInterfaces(idl_files):
   """Parse the list of idl_files and return a list of FlattenedInterfaces."""
   # Import idl_reader here rather than at the beginning of the file because the
   # module import path will be set based on an argument to this script.
-  import idl_reader  # pylint: disable=g-import-not-at-top
+  import idl_reader  # pylint: disable=import-outside-toplevel
 
   # Create an IdlReader that will parse the IDL and return the internal
   # representation of the interface.
@@ -187,7 +187,7 @@ def _FlattenInterfaces(idl_files):
         partial_interfaces[name].append(interface)
       else:
         assert name not in interfaces, ('Multiple IDL files found for '
-                                        'interface: %s') % name
+                                        f'interface: {name}')
         interfaces[name] = interface
 
   # Merge partial interfaces into their main interface.
@@ -243,13 +243,13 @@ def main(argv):
   parser.add_argument(
       '--blink_scripts_dir',
       required=True,
-      help='Specify the directory from which blink\'s scripts should be imported.'
-  )
+      help=('Specify the directory from which blink\'s scripts should be '
+            'imported.'))
 
   options = parser.parse_args(argv)
 
   if not os.path.isdir(options.blink_scripts_dir):
-    raise RuntimeError('%s is not a directory' % options.blink_scripts_dir)
+    raise RuntimeError(f'{options.blink_scripts_dir} is not a directory')
 
   # Set the script directory dynamically. This ensures that Blink's IDLs will
   # be loaded using Blink's IDL parsing scripts (and Cobalt IDLs will be loaded

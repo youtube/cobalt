@@ -60,7 +60,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   def GetPostIncludes(self):
     # Insert cobalt_configuration.gypi into the post includes list.
-    includes = super(CobaltConfiguration, self).GetPostIncludes()
+    includes = super().GetPostIncludes()
     includes[:0] = [os.path.join(paths.BUILD_ROOT, 'cobalt_configuration.gypi')]
     return includes
 

@@ -26,7 +26,7 @@ class DroppedFrameTest(TestCase):
   """
 
   def __init__(self, *args, **kwargs):
-    super(DroppedFrameTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_times', default=5, type=int)

@@ -70,8 +70,8 @@ def get_dictionary_default_value(idl_type, idl_literal, name):
   """Mapping to cobalt value filtering for dictionary acceptable values."""
   if is_any_type(idl_type) and not idl_literal.is_null:
     raise ValueError('Unsupported default value in dictionary: '
-                     '\'%s %s = %s\'. Only null default is supported.' %
-                     (idl_type, name, idl_literal))
+                     f"'{idl_type} {name} = {idl_literal}'. "
+                     'Only null default is supported.')
   return idl_literal_to_cobalt_literal(idl_type, idl_literal)
 
 
@@ -207,7 +207,7 @@ def get_conversion_flags(idl_type, extended_attributes):
     flags.append('kConversionFlagObjectOnly')
 
   if flags:
-    return '(%s)' % ' | '.join(flags)
+    return f"({' | '.join(flags)})"
   else:
     return 'kNoConversionFlags'
 
@@ -233,7 +233,7 @@ class ContextBuilder(object):
             not idl_type.is_callback_interface), 'Callback types not supported.'
     element_cobalt_type = self.idl_type_to_cobalt_type(
         self.resolve_typedef(element_idl_type))
-    return '::cobalt::script::Sequence< %s >' % element_cobalt_type
+    return f'::cobalt::script::Sequence< {element_cobalt_type} >'
 
   def idl_promise_type_to_cobalt(self, idl_type):
     """Map IDL promise type to C++ promise type implementation."""
@@ -244,8 +244,8 @@ class ContextBuilder(object):
             not idl_type.is_callback_interface), 'Callback types not supported.'
     element_cobalt_type = self.idl_type_to_cobalt_type(
         self.resolve_typedef(result_idl_type))
-    result = 'std::unique_ptr<::cobalt::script::Promise< %s* > >' % (
-        element_cobalt_type)
+    result = ('std::unique_ptr<::cobalt::script::Promise'
+              f'< {element_cobalt_type}* > >')
     return result
 
   def idl_union_type_to_cobalt(self, idl_type):
@@ -269,11 +269,11 @@ class ContextBuilder(object):
       # Some member types need to be wrapped with ScriptValue::Handle.
       if is_any_type(flattened_type) or is_array_buffer_or_view_type(
           flattened_type):
-        cobalt_type = '::cobalt::script::Handle<{}>'.format(cobalt_type)
+        cobalt_type = f'::cobalt::script::Handle<{cobalt_type}>'
       cobalt_types.append(cobalt_type)
 
-    return '::cobalt::script::UnionType%d<%s >' % (len(cobalt_types),
-                                                   ', '.join(cobalt_types))
+    return (f'::cobalt::script::UnionType{len(cobalt_types)}<'
+            f"{', '.join(cobalt_types)} >")
 
   def get_implemented_interface_name(self, idl_type):
     interface_name = get_interface_name(idl_type)
@@ -291,11 +291,11 @@ class ContextBuilder(object):
     elif idl_type.is_string_type:
       cobalt_type = idl_string_type_to_cobalt(idl_type)
     elif idl_type.is_callback_interface:
-      cobalt_type = '::cobalt::script::CallbackInterfaceTraits<%s >' % (
-          self.get_implemented_interface_name(idl_type))
+      cobalt_type = ('::cobalt::script::CallbackInterfaceTraits<'
+                     f'{self.get_implemented_interface_name(idl_type)} >')
     elif idl_type.is_interface_type:
-      cobalt_type = 'scoped_refptr<%s>' % self.get_implemented_interface_name(
-          idl_type)
+      cobalt_type = ('scoped_refptr<'
+                     f'{self.get_implemented_interface_name(idl_type)}>')
     elif idl_type.is_union_type:
       cobalt_type = self.idl_union_type_to_cobalt(idl_type)
     elif idl_type.is_enum:
@@ -315,11 +315,11 @@ class ContextBuilder(object):
     elif is_promise_type(idl_type):
       cobalt_type = self.idl_promise_type_to_cobalt(idl_type)
     elif is_array_buffer_or_view_type(idl_type):
-      cobalt_type = '::cobalt::script::{}'.format(idl_type.base_type)
-    assert cobalt_type, 'Unsupported idl_type %s' % idl_type
+      cobalt_type = f'::cobalt::script::{idl_type.base_type}'
+    assert cobalt_type, f'Unsupported idl_type {idl_type}'
 
     if cobalt_type_is_optional(idl_type):
-      cobalt_type = 'base::Optional<%s >' % cobalt_type
+      cobalt_type = f'base::Optional<{cobalt_type} >'
 
     return cobalt_type
 
@@ -332,7 +332,7 @@ class ContextBuilder(object):
     else:
       cobalt_type = self.idl_type_to_cobalt_type(idl_type)
     if getattr(typed_object, 'is_variadic', False):
-      cobalt_type = 'std::vector<%s>' % cobalt_type
+      cobalt_type = f'std::vector<{cobalt_type}>'
     return cobalt_type
 
   def typed_object_to_arg_type(self, interface, typed_object):
@@ -344,11 +344,11 @@ class ContextBuilder(object):
         idl_type.is_callback_interface):
       return base_type + '*'
     if is_any_type(idl_type) or is_array_buffer_or_view_type(idl_type):
-      return 'const ::cobalt::script::ScriptValue<%s>*' % base_type
+      return f'const ::cobalt::script::ScriptValue<{base_type}>*'
     elif cobalt_type_is_optional(idl_type) or is_sequence_type(idl_type) or (
         idl_type.is_string_type or idl_type.is_interface_type or
         idl_type.is_union_type):
-      return 'const %s&' % base_type
+      return f'const {base_type}&'
     return base_type
 
   def argument_context(self, interface, argument):
@@ -466,10 +466,10 @@ class ContextBuilder(object):
     if operation.name:
       cobalt_name = capitalize_function_name(operation.name)
     elif is_indexed:
-      cobalt_name = 'AnonymousIndexed%s' % function_suffix[special_type]
+      cobalt_name = f'AnonymousIndexed{function_suffix[special_type]}'
     else:
       assert is_named
-      cobalt_name = 'AnonymousNamed%s' % function_suffix[special_type]
+      cobalt_name = f'AnonymousNamed{function_suffix[special_type]}'
 
     context = {
         'name': cobalt_name,

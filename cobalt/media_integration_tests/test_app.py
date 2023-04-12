@@ -30,7 +30,7 @@ WAIT_UNTIL_REACH_STATE_DEFAULT_TIMEOUT_SECONDS = 30
 WAIT_UNTIL_ADS_END_DEFAULT_TIMEOUT_SECONDS = 120
 WAIT_UNTIL_MEDIA_TIME_REACHED_DEFAULT_TIMEOUT_SECONDS = 30
 
-ACCOUNT_SELECTOR_ADD_ACCOUNT_TEXT = u'Add account'
+ACCOUNT_SELECTOR_ADD_ACCOUNT_TEXT = 'Add account'
 
 
 def GetValueFromQueryResult(query_result, key, default):
@@ -61,13 +61,13 @@ def GetValueFromQueryResult(query_result, key, default):
       try:
         # Try to parse numbers and booleans.
         parsed_value = json.loads(value)
-      except ValueError:
-        raise RuntimeError('Failed to parse query result.')
+      except ValueError as e:
+        raise RuntimeError('Failed to parse query result.') from e
 
       return parsed_value
 
-  raise NotImplementedError('Convertion from (%s) to (%s) is not supported.' %
-                            (value_type, default_value_type))
+  raise NotImplementedError(f'Convertion from ({value_type}) to '
+                            f'({default_value_type}) is not supported.')
 
 
 class AdditionalKeys():
@@ -75,12 +75,12 @@ class AdditionalKeys():
     Set of special keys codes for media control, corresponding to cobalt
     webdriver AdditionalSpecialKey.
   """
-  MEDIA_NEXT_TRACK = u'\uf000'
-  MEDIA_PREV_TRACK = u'\uf001'
-  MEDIA_STOP = u'\uf002'
-  MEDIA_PLAY_PAUSE = u'\uf003'
-  MEDIA_REWIND = u'\uf004'
-  MEDIA_FAST_FORWARD = u'\uf005'
+  MEDIA_NEXT_TRACK = '\uf000'
+  MEDIA_PREV_TRACK = '\uf001'
+  MEDIA_STOP = '\uf002'
+  MEDIA_PLAY_PAUSE = '\uf003'
+  MEDIA_REWIND = '\uf004'
+  MEDIA_FAST_FORWARD = '\uf005'
 
 
 class Features():
@@ -164,7 +164,7 @@ class PipelineState():
 
   def __init__(self, query_result=None):
     # If there's no player existing, the query return unicode code "null".
-    if (not query_result is None and not query_result == u'null' and
+    if (not query_result is None and not query_result == 'null' and
         not isinstance(query_result, dict)):
       raise NotImplementedError
 
@@ -311,7 +311,7 @@ class MediaSessionPlaybackState(int):
     if string == 'playing':
       return 2
     raise NotImplementedError(
-        '"%s" is not a valid media session playback state.' % string)
+        f'"{string}" is not a valid media session playback state.')
 
 
 class MediaSessionState():
@@ -364,7 +364,7 @@ class VideoElementState():
 
   def __init__(self, query_result=None):
     # If there's no player existing, the query return unicode code "null".
-    if (not query_result is None and not query_result == u'null' and
+    if (not query_result is None and not query_result == 'null' and
         not isinstance(query_result, dict)):
       raise NotImplementedError
 
@@ -543,7 +543,8 @@ class TestApp():
     try:
       result = self.runner.webdriver.execute_script(script)
     except Exception as e:  # pylint: disable=broad-except
-      raise RuntimeError('Fail to execute script with error (%s).' % (str(e)))
+      raise RuntimeError('Fail to execute script with error '
+                         f'({str(e)}).') from e
     return result
 
   def _OnNewLogLine(self, line):
@@ -682,8 +683,8 @@ class TestApp():
       time.sleep(WAIT_INTERVAL_SECONDS)
     execute_interval = time.time() - start_time
     if execute_interval > timeout:
-      raise RuntimeError('WaitUntilReachState timed out after (%f) seconds.' %
-                         (execute_interval))
+      raise RuntimeError('WaitUntilReachState timed out after '
+                         f'({execute_interval}) seconds.')
 
   # The result is an array of overlay header text contents.
   _OVERLAY_QUERY_JS_CODE = """
@@ -791,9 +792,9 @@ class TestApp():
 
     execute_interval = time.time() - start_time
     if execute_interval > timeout:
-      raise RuntimeError(
-          'WaitUntilReachState timed out after (%f) seconds, ads_state: (%d).' %
-          (execute_interval, ads_state))
+      raise RuntimeError('WaitUntilReachState timed out after '
+                         f'({execute_interval}) seconds, '
+                         f'ads_state: ({ads_state}).')
 
   def WaitUntilMediaTimeReached(
       self,
@@ -822,8 +823,7 @@ class TestApp():
                              adjusted_timeout)
 
   def IsMediaTypeSupported(self, mime):
-    return self.ExecuteScript('return MediaSource.isTypeSupported("%s");' %
-                              (mime))
+    return self.ExecuteScript(f'return MediaSource.isTypeSupported("{mime}");')
 
   def PlayOrPause(self):
     self.SendKeys(AdditionalKeys.MEDIA_PLAY_PAUSE)

@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=invalid-name
 """A wrapper around the native-trace-members binary
 
 This script is responsible for:
@@ -63,7 +64,7 @@ for out_dir in LINUX_OUT_DIRS:
     break
 
 if not found_dir:
-  logging.error('At least one of {} must exist.'.format(LINUX_OUT_DIRS))
+  logging.error('At least one of %s must exist.', LINUX_OUT_DIRS)
   sys.exit(1)
 
 
@@ -72,9 +73,10 @@ def GetRawClangCommands():
 
   to build the target "all".
   """
-  p = subprocess.Popen(['ninja', '-t', 'commands', 'all'],
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE)
+  p = subprocess.Popen(  # pylint: disable=consider-using-with
+      ['ninja', '-t', 'commands', 'all'],
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE)
   stdout, stderr = p.communicate()
   assert len(stderr) == 0
   assert p.returncode == 0
@@ -194,12 +196,14 @@ def main():
     # TODO: Accept list of files as arguments.
     if not source_file.startswith('../../cobalt/dom/'):
       continue
-    p = subprocess.Popen(
-        tool_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(  # pylint: disable=consider-using-with
+        tool_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE)
     stdout, stderr = p.communicate()
     if len(stderr.decode()) != 0 or p.returncode != 0:
       logging.error(stderr)
-      exit(1)
+      exit(1)  # pylint: disable=consider-using-sys-exit
     for line in stdout.decode().splitlines():
       # Load and then dump to JSON to standardize w.r.t. to whitespace/order, so
       # we can use the stringified object itself as a key into a set.
@@ -239,24 +243,22 @@ def main():
     if message_type == 'needsTraceMembersDeclaration':
       parent_class_friendly = suggestion['parentClassFriendly']
       field_name = suggestion['fieldName']
-      print('{} needs to declare TraceMembers because of field {}'.format(
-          parent_class_friendly, field_name))
+      print(f'{parent_class_friendly} needs to declare TraceMembers because '
+            f'of field {field_name}')
       print('  void TraceMembers(script::Tracer* tracer) override;')
     elif message_type == 'needsTracerTraceField':
       parent_class_friendly = suggestion['parentClassFriendly']
       field_name = suggestion['fieldName']
-      print('{} needs to trace field {}'.format(parent_class_friendly,
-                                                field_name))
-      print('  tracer->Trace({});'.format(field_name))
+      print(f'{parent_class_friendly} needs to trace field {field_name}')
+      print(f'  tracer->Trace({field_name});')
     elif message_type == 'needsCallBaseTraceMembers':
       parent_class_friendly = suggestion['parentClassFriendly']
       base_names = suggestion['baseNames']
-      print(
-          '{} needs to call base class TraceMembers in its TraceMembers'.format(
-              parent_class_friendly))
+      print(f'{parent_class_friendly} needs to call base class TraceMembers '
+            'in its TraceMembers')
       print('Something like (this is probably over-qualified):')
       for base_name in base_names:
-        print('  {}::TraceMembers(tracer);'.format(base_name))
+        print(f'  {base_name}::TraceMembers(tracer);')
     else:
       assert False
 

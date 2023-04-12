@@ -32,8 +32,8 @@ class CodecCapabilityTest(TestCase):
       for res_name, _ in reversed(MimeStrings.RESOLUTIONS.items()):
         if app.IsMediaTypeSupported(
             MimeStrings.create_video_mime_string(codec_mime, res_name)):
-          return '[%s, %s]' % (codec_name, res_name)
-    return '[%s, n/a]' % (codec_name)
+          return f'[{codec_name}, {res_name}]'
+    return f'[{codec_name}, n/a]'
 
   # Returns a string which shows the max supported channels, or "n/a" if the
   # codec is not supported.
@@ -43,8 +43,8 @@ class CodecCapabilityTest(TestCase):
       for channels in [6, 4, 2]:
         if app.IsMediaTypeSupported(
             MimeStrings.create_audio_mime_string(codec_mime, channels)):
-          return '[%s, %s]' % (codec_name, channels)
-    return '[%s, n/a]' % (codec_name)
+          return f'[{codec_name}, {channels}]'
+    return f'[{codec_name}, n/a]'
 
   def test_video_codec_capability(self):
     app = self.CreateCobaltApp(PlaybackUrls.DEFAULT)

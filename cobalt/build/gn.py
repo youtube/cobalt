@@ -37,15 +37,14 @@ def main(out_directory: str, platform: str, build_type: str,
 
   if overwrite_args or not os.path.exists(dst_args_gn_file):
     shutil.copy(src_args_gn_file, dst_args_gn_file)
-    with open(dst_args_gn_file, 'a') as f:
+    with open(dst_args_gn_file, 'a', encoding='utf-8') as f:
       f.write(f'build_type = "{build_type}"\n')
   else:
     print(f'{dst_args_gn_file} already exists.' +
           ' Running ninja will regenerate build files automatically.')
 
   gn_command = [
-      'gn', '--script-executable={}'.format(sys.executable), 'gen',
-      out_directory
+      'gn', f'--script-executable={sys.executable}', 'gen', out_directory
   ] + gn_gen_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)

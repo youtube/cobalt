@@ -40,7 +40,7 @@ class PathBuilder(object):
   @property
   def generated_conversion_header_path(self):
     return os.path.join(self.generated_root,
-                        '%s_gen_type_conversion.h' % self.engine_prefix)
+                        f'{self.engine_prefix}_gen_type_conversion.h')
 
   @property
   def generated_conversion_include_path(self):
@@ -59,7 +59,7 @@ class PathBuilder(object):
       enum_info = self.info_provider.enumerations[interface_name]
       idl_path = enum_info['full_path']
     else:
-      raise KeyError('Unknown interface name %s' % interface_name)
+      raise KeyError(f'Unknown interface name {interface_name}')
 
     rel_idl_path = os.path.relpath(idl_path, self.interfaces_root)
     components = os.path.dirname(rel_idl_path).split(os.sep)
@@ -75,8 +75,7 @@ class PathBuilder(object):
 
   def FullBindingsClassName(self, impl_name, interface_name):
     """Get the fully qualified name of the generated bindings class."""
-    return '%s::%s' % (self.Namespace(interface_name),
-                       self.BindingsClass(impl_name))
+    return f'{self.Namespace(interface_name)}::{self.BindingsClass(impl_name)}'
 
   def FullClassName(self, impl_name, interface_name=None):
     """Get the fully qualified name of the implementation class."""
@@ -107,7 +106,7 @@ class PathBuilder(object):
         interface_info['full_path'],
         forward_slashes=True,
         output_directory=self.generated_root,
-        output_prefix='%s_' % self.engine_prefix,
+        output_prefix=f'{self.engine_prefix}_',
         output_extension='h',
         base_directory=os.path.dirname(self.interfaces_root))
 
@@ -118,7 +117,7 @@ class PathBuilder(object):
         interface_info['full_path'],
         forward_slashes=True,
         output_directory=self.generated_root,
-        output_prefix='%s_' % self.engine_prefix,
+        output_prefix=f'{self.engine_prefix}_',
         output_extension='cc',
         base_directory=os.path.dirname(self.interfaces_root))
 
@@ -144,7 +143,7 @@ class PathBuilder(object):
         interface_info['full_path'],
         forward_slashes=True,
         output_directory=self.generated_root,
-        output_prefix='%s_' % self.engine_prefix,
+        output_prefix=f'{self.engine_prefix}_',
         output_extension='cc',
         base_directory=os.path.dirname(self.interfaces_root))
 
@@ -170,6 +169,6 @@ class PathBuilder(object):
         interface_info['full_path'],
         forward_slashes=True,
         output_directory=self.generated_root,
-        output_prefix='%s_' % self.engine_prefix,
+        output_prefix=f'{self.engine_prefix}_',
         output_extension='cc',
         base_directory=os.path.dirname(self.interfaces_root))

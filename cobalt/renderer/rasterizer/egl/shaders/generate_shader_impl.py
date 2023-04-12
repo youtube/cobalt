@@ -127,7 +127,7 @@ def GetDataDefinitionStringForFile(filename):
   data_definition_string = '{\n'
   for output_line_data in GetChunk(file_contents, chunk_size):
     data_definition_string += (
-        '  ' + ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) + '\n')
+        '  ' + ' '.join([f'0x{ord(y):02x},' for y in output_line_data]) + '\n')
   data_definition_string += '};\n'
   return data_definition_string
 
@@ -137,7 +137,7 @@ def GetShaderSourceDefinitions(files):
   source_definition_string = ''
   for filename in files:
     class_name = GetShaderClassName(filename)
-    source_definition_string += '\nconst char %s::kSource[] = ' % class_name
+    source_definition_string += f'\nconst char {class_name}::kSource[] = '
     source_definition_string += GetDataDefinitionStringForFile(filename)
   return source_definition_string
 
@@ -169,7 +169,7 @@ def GenerateSourceFile(source_filename, header_filename, all_shaders):
   """Generate the actual C++ source file."""
   header_filename = os.path.basename(header_filename)
   current_year = datetime.datetime.now().year
-  with open(source_filename, 'w') as output_file:
+  with open(source_filename, 'w', encoding='utf-8') as output_file:
     output_file.write(
         SOURCE_FILE_TEMPLATE.format(
             year=current_year,
@@ -239,7 +239,7 @@ def GetAttributeMethods(attributes):
   """Return a string representing C++ methods for the given attributes."""
   methods = ''
   for index, name in enumerate(attributes):
-    methods += '\nGLuint {0}() const {{ return {1}; }}'.format(name, index)
+    methods += f'\nGLuint {name}() const {{ return {index}; }}'
   return methods
 
 
@@ -248,11 +248,10 @@ def GetUniformMethods(uniforms):
   methods = ''
   for name in uniforms:
     base, count = ParseUniformName(name)
-    methods += '\nGLuint {0}() const {{ return {0}_; }}'.format(base)
+    methods += f'\nGLuint {base}() const {{ return {base}_; }}'
     if count:
       methods += (
-          '\nstatic constexpr GLsizei {0}_count() {{ return {1}; }}'.format(
-              base, count))
+          f'\nstatic constexpr GLsizei {base}_count() {{ return {count}; }}')
   return methods
 
 
@@ -261,8 +260,7 @@ def GetSamplerMethods(samplers):
   methods = ''
   for index, name in enumerate(samplers):
     methods += (
-        '\nGLenum {0}_texunit() const {{ return GL_TEXTURE{1}; }}'.format(
-            name, index))
+        f'\nGLenum {name}_texunit() const {{ return GL_TEXTURE{index}; }}')
   return methods
 
 
@@ -274,24 +272,22 @@ def GetPragmaArrayMethods(pragma_arrays, samplers):
     if not elements:
       continue
 
-    method = '\nGLuint {0}(int index) const {{\n'.format(array_name)
+    method = f'\nGLuint {array_name}(int index) const {{\n'
 
     for index in range(len(elements)):
-      method += '  if (index == {0}) return {1}();\n'.format(
-          index, elements[index])
-    method += '  NOTREACHED();\n  return {0}();\n}}'.format(elements[0])
+      method += f'  if (index == {index}) return {elements[index]}();\n'
+    method += f'  NOTREACHED();\n  return {elements[0]}();\n}}'
 
     methods += (method)
 
     if samplers.count(elements[0]) == 0:
       continue
 
-    method = '\nGLenum {0}_texunit(int index) const {{\n'.format(array_name)
+    method = f'\nGLenum {array_name}_texunit(int index) const {{\n'
     # Generate *_texunit() for samplers.
     for index in range(len(elements)):
-      method += '  if (index == {0}) return {1}_texunit();\n'.format(
-          index, elements[index])
-    method += '  NOTREACHED();\n  return {0}_texunit();\n}}'.format(elements[0])
+      method += f'  if (index == {index}) return {elements[index]}_texunit();\n'
+    method += f'  NOTREACHED();\n  return {elements[0]}_texunit();\n}}'
 
     methods += (method)
   return methods
@@ -301,7 +297,7 @@ def GetInitializePreLink(attributes):
   """Returns a string representing C++ statements to process during prelink."""
   statements = ''
   for name in attributes:
-    statements += '\nBindAttribLocation(program, {0}(), "{0}");'.format(name)
+    statements += f'\nBindAttribLocation(program, {name}(), "{name}");'
   return statements
 
 
@@ -310,7 +306,7 @@ def GetInitializePostLink(uniforms):
   statements = ''
   for name in uniforms:
     base, unused_count = ParseUniformName(name)
-    statements += '\n{0}_ = GetUniformLocation(program, "{0}");'.format(base)
+    statements += f'\n{base}_ = GetUniformLocation(program, "{base}");'
   return statements
 
 
@@ -319,7 +315,7 @@ def GetInitializePostUse(samplers):
   statements = ''
   for name in samplers:
     statements += (
-        '\nSetTextureUnitForUniformSampler({0}(), {0}_texunit());'.format(name))
+        f'\nSetTextureUnitForUniformSampler({name}(), {name}_texunit());')
   return statements
 
 
@@ -328,7 +324,7 @@ def GetVariables(variable_names):
   variables = ''
   for name in variable_names:
     base, unused_count = ParseUniformName(name)
-    variables += '\nGLuint {0}_;'.format(base)
+    variables += f'\nGLuint {base}_;'
   return variables
 
 
@@ -413,9 +409,9 @@ namespace egl {{
 
 def GenerateHeaderFile(output_filename, all_shaders):
   """Generate the actual C++ header file."""
-  include_guard = 'GENERATED_%s_H_' % GetBasename(output_filename).upper()
+  include_guard = f'GENERATED_{GetBasename(output_filename).upper()}_H_'
   current_year = datetime.datetime.now().year
-  with open(output_filename, 'w') as output_file:
+  with open(output_filename, 'w', encoding='utf-8') as output_file:
     output_file.write(
         HEADER_FILE_TEMPLATE.format(
             year=current_year,
@@ -425,7 +421,7 @@ def GenerateHeaderFile(output_filename, all_shaders):
 
 def main(output_header_filename, output_source_filename, shader_files_file):
   all_shader_files = []
-  with open(shader_files_file, 'r') as input_file:
+  with open(shader_files_file, 'r', encoding='utf-8') as input_file:
     shader_files = input_file.read().splitlines()
     for filename in shader_files:
       # Ignore *.inc files. These are include files and not shader files.

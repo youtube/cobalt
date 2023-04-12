@@ -51,7 +51,7 @@ def get_overload_contexts(expression_generator, method_overloads):
         effective_overload_set_by_length(overloaded_methods))
 
     overload_context['length'] = min(
-        [length for length, _ in effective_overloads_by_length])
+        length for length, _ in effective_overloads_by_length)
 
     # The first four steps of the overload resolution algorithm involve
     # removing entries from the set S of all overloads where the number

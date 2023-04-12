@@ -37,7 +37,7 @@ class TestCase(unittest.TestCase):
   """The base class for media integration test cases."""
 
   def __init__(self, *args, **kwargs):
-    super(TestCase, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self.launcher_params = _launcher_params
     self.supported_features = _supported_features
 
@@ -60,6 +60,6 @@ class TestCase(unittest.TestCase):
 
   @staticmethod
   def CreateTest(test_class, test_name, test_function, *args):
-    test_method = lambda self: test_function(self, *args)
-    test_method.__name__ = 'test_%s' % test_name
+    test_method = lambda self: test_function(self, *args)  # pylint: disable=unnecessary-lambda-assignment
+    test_method.__name__ = f'test_{test_name}'
     setattr(test_class, test_method.__name__, test_method)

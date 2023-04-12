@@ -52,9 +52,8 @@ def parse_options():
   if options.output_directory is None:
     parser.error('Must specify output directory using --output-directory.')
   if len(args) != 1:
-    parser.error(
-        'Must specify exactly 1 input file as argument, but %d given.' %
-        len(args))
+    parser.error('Must specify exactly 1 input file as argument, '
+                 f'but {len(args)} given.')
   idl_filename = os.path.realpath(args[0])
   return options, idl_filename
 

@@ -1,4 +1,17 @@
 #!/usr/bin/python2
+# Copyright 2017 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the 'License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an 'AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Syncs to a given Cobalt build id.
 
 Syncs current gclient instance to a given build id, as
@@ -26,11 +39,11 @@ class SubprocessFailedException(Exception):
   """Exception for non-zero subprocess exits."""
 
   def __init__(self, command):
-    super(SubprocessFailedException, self).__init__()  # pylint: disable=super-with-arguments
+    super().__init__()
     self.command = command
 
   def __str__(self):
-    return "Subprocess failed '{0}'".format(self.command)
+    return f"Subprocess failed '{self.command}'"
 
 
 def _RunGitCommand(gitargs, **kwargs):
@@ -71,7 +84,7 @@ def _RunGitCommandReturnExitCode(gitargs, **kwargs):
 
 
 def main():
-  dev_null = open(os.devnull, "w")  # pylint: disable=consider-using-with
+  dev_null = open(os.devnull, "w", encoding="utf-8")  # pylint: disable=consider-using-with
   arg_parser = argparse.ArgumentParser(
       description="Syncs to a given Cobalt build id")
   arg_parser.add_argument("buildid", nargs=1)
@@ -86,8 +99,7 @@ def main():
       params={_BUILD_ID_QUERY_PARAMETER_NAME: args.buildid[0]})
   if not r.ok:
     print(
-        "HTTP request failed\n{0} {1}\n{2}".format(r.status_code, r.reason,
-                                                   r.text),
+        f"HTTP request failed\n{r.status_code} {r.reason}\n{r.text}",
         file=sys.stderr)
     return 1
   # The response starts with a security-related close expression line
@@ -113,7 +125,7 @@ def main():
                 stderr=dev_null)[0]))
 
     if is_dirty:
-      print("{0} is dirty, please resolve".format(relpath))
+      print(f"{relpath} is dirty, please resolve")
       return 1
 
     (requested_repo, _) = rep_hash.split("@")
@@ -121,21 +133,21 @@ def main():
                                 cwd=path)[0].strip().decode("utf-8")
     if requested_repo.endswith(".git"):
       if remote_url + ".git" == requested_repo:
-        print(("WARNING: You are syncing to {0} instead of {1}. While these "
-               "point to the same repo, the differing extension will cause "
-               "different build ids to be generated. If you need the same "
-               "id, you'll need to specifically clone {0} (note the .git "
-               "extension).").format(requested_repo, remote_url))
+        print(f"WARNING: You are syncing to {requested_repo} instead of "
+              f"{remote_url}. While these point to the same repo, the "
+              "differing extension will cause different build ids to be "
+              "generated. If you need the same id, you'll need to specifically"
+              f" clone {requested_repo} (note the .git extension).")
         remote_url += ".git"
 
     if remote_url != requested_repo:
       if args.force and path != git_root:
         shutil.rmtree(path)
       else:
-        print(("{0} exists but does not point to the requested repo for that "
-               "path, {1}. Either replace that directory manually or run this "
-               "script with --force. --force will not try to remove the top "
-               "level repository.").format(path, requested_repo))
+        print(f"{path} exists but does not point to the requested repo for "
+              f"that path, {requested_repo}. Either replace that directory"
+              " manually or run this script with --force. --force will not try"
+              " to remove the top level repository.")
         return 1
 
   for relpath, rep_hash in hashes.items():
@@ -147,7 +159,7 @@ def main():
     (requested_repo, requested_hash) = rep_hash.split("@")
 
     if not os.path.exists(path):
-      print("Missing path {0}, cloning from {1}.".format(path, requested_repo))
+      print(f"Missing path {path}, cloning from {requested_repo}.")
       try:
         # The clone command will create all missing directories leading to the
         # path.  If the clone is successful, we continue on as usual and let
@@ -171,8 +183,7 @@ def main():
 
     user_visible_commit = symbolic_ref if symbolic_ref else current_hash[0:7]
 
-    print("{0} was at {1} now {2}".format(path, user_visible_commit,
-                                          requested_hash[0:7]))
+    print(f"{path} was at {user_visible_commit} now {requested_hash[0:7]}")
 
     _RunGitCommand(["checkout", "-q", "--detach", requested_hash], cwd=path)
 

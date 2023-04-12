@@ -80,9 +80,8 @@ def SelectFont(font_node, package_categories):
   elif category == '4':
     return True
   else:
-    raise ValueError(
-        'Package category for "%s" must be between 0 and 4 (is: %s)' %
-        (package_name, category))
+    raise ValueError(f'Package category for "{package_name}" must be between '
+                     f'0 and 4 (is: {category})')
 
 
 def FilterFonts(filter_function, node, families, fonts):
@@ -190,7 +189,7 @@ def DoMain(argv):
   FilterFonts(filter_function, fonts_doc, kept_families, kept_fonts)
 
   if options.output_xml:
-    with open(options.output_xml, 'w') as f:
+    with open(options.output_xml, 'w', encoding='utf-8') as f:
       f.write(fonts_doc.toprettyxml(indent='  '))
 
   if options.fonts_dir:

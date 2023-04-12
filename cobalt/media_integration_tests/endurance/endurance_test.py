@@ -40,7 +40,7 @@ class EnduranceTest(TestCase):
   """
 
   def __init__(self, *args, **kwargs):
-    super(EnduranceTest, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -129,19 +129,19 @@ class EnduranceTest(TestCase):
 
   def GenerateErrorString(self, err_msg):
     return (
-        '%s (running time: %f, player identifier: "%s", is playing: %r, '
-        'playback start time: %f, last media time: %f (updated at %f), '
-        'last written audio timestamp: %d (updated at %f), '
-        'last written video timestamp: %d (updated at %f), '
-        'audio eos written at %f, video eos written at %f, '
-        'playback ended at %f).' %
-        (err_msg, time.time() - self.start_time, self.player_identifier,
-         self.playback_is_playing, self.playback_start_time,
-         self.last_media_time, self.last_media_time_update_time,
-         self.last_written_audio_timestamp, self.last_written_audio_update_time,
-         self.last_written_video_timestamp, self.last_written_video_update_time,
-         self.audio_eos_written_time, self.video_eos_written_time,
-         self.playback_end_time))
+        f'{err_msg} (running time: {time.time() - self.start_time}, '
+        f'player identifier: "{self.player_identifier}", '
+        f'is playing: {self.playback_is_playing}, '
+        f'playback start time: {self.playback_start_time}, '
+        f'last media time: {self.last_media_time} '
+        f'(updated at {self.last_media_time_update_time}), '
+        f'last written audio timestamp: {self.last_written_audio_timestamp} '
+        f'(updated at {self.last_written_audio_update_time}), '
+        f'last written video timestamp: {self.last_written_video_timestamp} '
+        f'(updated at {self.last_written_video_update_time}), '
+        f'audio eos written at {self.audio_eos_written_time}, '
+        f'video eos written at {self.video_eos_written_time}, '
+        f'playback ended at {self.playback_end_time}).')
 
   def SendRandomAction(self, app):
 
@@ -195,8 +195,8 @@ class EnduranceTest(TestCase):
               current_running_time - self.last_state_check_time <
               PLAYER_INITIALIZATION_WAITING_TIMEOUT,
               self.GenerateErrorString(
-                  'Timed out waiting for player initialization (waited: %f).' %
-                  (current_running_time - self.last_state_check_time)))
+                  'Timed out waiting for player initialization (waited: '
+                  f'{current_running_time - self.last_state_check_time}).'))
           continue
         self.last_state_check_time = current_running_time
         # Skip to next playback if it has been played for long time.
@@ -215,8 +215,8 @@ class EnduranceTest(TestCase):
                 current_running_time - self.last_media_time_update_time <
                 MEDIA_TIME_UPDATE_WAITING_TIMEOUT,
                 self.GenerateErrorString(
-                    'Timed out waiting for media time update (waited: %f).' %
-                    (current_running_time - self.last_media_time_update_time)))
+                    'Timed out waiting for media time update (waited: '
+                    f'{current_running_time - self.last_media_time_update_time}).'))  # pylint: disable=line-too-long
           # Check written audio timestamp.
           if (self.last_written_audio_update_time > 0 and
               self.audio_eos_written_time == -1):
@@ -224,9 +224,8 @@ class EnduranceTest(TestCase):
                 current_running_time - self.last_written_audio_update_time <
                 WRITTEN_INPUT_WAITING_TIMEOUT,
                 self.GenerateErrorString(
-                    'Timed out waiting for new audio input (waited: %f).' %
-                    (current_running_time -
-                     self.last_written_audio_update_time)))
+                    'Timed out waiting for new audio input (waited: '
+                    f'{current_running_time - self.last_written_audio_update_time}).'))  # pylint: disable=line-too-long
           # Check written video timestamp.
           if (self.last_written_video_update_time > 0 and
               self.video_eos_written_time == -1):
@@ -234,9 +233,8 @@ class EnduranceTest(TestCase):
                 current_running_time - self.last_written_video_update_time <
                 WRITTEN_INPUT_WAITING_TIMEOUT,
                 self.GenerateErrorString(
-                    'Timed out waiting for new video input (waited: %f).' %
-                    (current_running_time -
-                     self.last_written_video_update_time)))
+                    'Timed out waiting for new video input (waited: '
+                    f'{current_running_time -self.last_written_video_update_time}).'))  # pylint: disable=line-too-long
           # Check if the playback ends properly.
           if (self.audio_eos_written_time > 0 and
               self.video_eos_written_time > 0 and self.playback_end_time > 0):
@@ -244,8 +242,8 @@ class EnduranceTest(TestCase):
                 current_running_time - self.playback_end_time <
                 PLAYBACK_END_WAITING_TIMEOUT,
                 self.GenerateErrorString(
-                    'Timed out waiting for playback to end (waited: %f).' %
-                    (current_running_time - self.playback_end_time,)))
+                    'Timed out waiting for playback to end (waited: '
+                    f'{current_running_time - self.playback_end_time}).'))
 
         # Send random actions.
         if (self.needs_random_action and

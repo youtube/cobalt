@@ -46,7 +46,7 @@ def BuildId(output_path, version_number):
   timestamp = time.time()
   date_rep = datetime.datetime.fromtimestamp(timestamp).strftime('%c')
 
-  with open(output_path, 'w') as f:
+  with open(output_path, 'w', encoding='utf-8') as f:
     f.write(
         template.format(
             date_rep=date_rep,

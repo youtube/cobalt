@@ -77,8 +77,7 @@ def get_indexed_special_operation(interface, special):
       if (special in operation.specials and operation.arguments and
           str(operation.arguments[0].idl_type) == 'unsigned long'))
   assert len(special_operations) <= 1, (
-      'Multiple indexed %ss defined on interface: %s' %
-      (special, interface.name))
+      f'Multiple indexed {special}s defined on interface: {interface.name}')
   return special_operations[0] if special_operations else None
 
 
@@ -106,7 +105,7 @@ def get_named_special_operation(interface, special):
       if (special in operation.specials and operation.arguments and
           str(operation.arguments[0].idl_type) == 'DOMString'))
   assert len(special_operations) <= 1, (
-      'Multiple named %ss defined on interface: %s' % (special, interface.name))
+      f'Multiple named {special}s defined on interface: {interface.name}')
   return special_operations[0] if special_operations else None
 
 
@@ -186,9 +185,8 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
   __metaclass__ = abc.ABCMeta
 
   def __init__(self, templates_dir, info_provider, cache_dir, output_dir):
-    super(CodeGeneratorCobalt,
-          self).__init__('CodeGeneratorCobalt', info_provider, cache_dir,
-                         output_dir)
+    super().__init__('CodeGeneratorCobalt', info_provider, cache_dir,
+                     output_dir)
     # CodeGeneratorBase inititalizes this with the v8 template path, so
     # reinitialize it with cobalt's template path
 
@@ -225,7 +223,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     if definition_name in definitions.enumerations:
       return self.generate_enum_code(definition_name,
                                      definitions.enumerations[definition_name])
-    raise ValueError('%s is not in IDL definitions' % definition_name)
+    raise ValueError(f'{definition_name} is not in IDL definitions')
 
   def generate_interface_code(self, definitions, interface_name, interface):
     interface_info = self.info_provider.interfaces_info[interface_name]
@@ -326,7 +324,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
 
     return {
         'fully_qualified_name':
-            '%s::%s' % (namespace, dictionary_name),
+            f'{namespace}::{dictionary_name}',
         'include':
             self.path_builder.DictionaryHeaderIncludePath(dictionary_name),
         'conditional':
@@ -338,7 +336,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
   def referenced_enum_context(self, enum_name):
     namespace = '::'.join(self.path_builder.NamespaceComponents(enum_name))
     return {
-        'fully_qualified_name': '%s::%s' % (namespace, enum_name),
+        'fully_qualified_name': f'{namespace}::{enum_name}',
         'include': self.path_builder.EnumHeaderIncludePath(enum_name),
         'conditional': None,
         'is_callback_interface': False,
@@ -381,7 +379,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         impl_name = interface_info.get('implemented_as') or interface_name
         referenced_classes.append({
             'fully_qualified_name':
-                '%s::%s' % (namespace, impl_name),
+                f'{namespace}::{impl_name}',
             'include':
                 self.path_builder.ImplementationHeaderPath(interface_name),
             'conditional':
@@ -392,8 +390,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
         if include_bindings_class:
           referenced_classes.append({
               'fully_qualified_name':
-                  '%s::%s' %
-                  (namespace, self.path_builder.BindingsClass(impl_name)),
+                  f'{namespace}::{self.path_builder.BindingsClass(impl_name)}',
               'include':
                   self.path_builder.BindingsHeaderIncludePath(interface_name),
               'conditional':
@@ -442,7 +439,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
       referenced_interface_names.add(dictionary.parent)
       parent_namespace = '::'.join(
           self.path_builder.NamespaceComponents(dictionary.parent))
-      context['parent'] = '%s::%s' % (parent_namespace, dictionary.parent)
+      context['parent'] = f'{parent_namespace}::{dictionary.parent}'
 
     referenced_class_contexts = self.referenced_class_contexts(
         referenced_interface_names, for_conversion)
@@ -626,7 +623,7 @@ def main(argv):
     templates_dir = argv[2]
     dummy_filename = argv[3]
   except IndexError:
-    print('Usage: %s CACHE_DIR TEMPLATES_DIR DUMMY_FILENAME' % argv[0])
+    print(f'Usage: {argv[0]} CACHE_DIR TEMPLATES_DIR DUMMY_FILENAME')
     return 1
 
   # Delete all jinja2 .cache files, since they will get regenerated anyways.
@@ -659,7 +656,7 @@ def main(argv):
   # Create a dummy file as output for the build system,
   # since filenames of individual cache files are unpredictable and opaque
   # (they are hashes of the template path, which varies based on environment)
-  with open(dummy_filename, 'w') as dummy_file:
+  with open(dummy_filename, 'w', encoding='utf-8') as dummy_file:
     pass  # |open| creates or touches the file
 
 

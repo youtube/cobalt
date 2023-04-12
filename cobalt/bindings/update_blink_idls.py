@@ -15,7 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Generate IDL files for interfaces that are not implemented in Cobalt.
 
 This will do a shallow clone of the chromium repository and gather the set of
@@ -59,8 +58,10 @@ def _CloneChromium(branch, destination_dir):
     branch: Name of a branch in Chromium's git repository.
     destination_dir: Directory into which Chromium repository will be cloned.
   """
-  clone_command = ['git', 'clone', '--depth', '1', '--branch', branch,
-                   _CHROMIUM_REPOSITORY_URL, '.']
+  clone_command = [
+      'git', 'clone', '--depth', '1', '--branch', branch,
+      _CHROMIUM_REPOSITORY_URL, '.'
+  ]
   subprocess.check_call(clone_command, cwd=destination_dir)
 
 
@@ -80,7 +81,7 @@ def _WriteUnsupportedInterfaceIDL(interface_name, output_dir):
     output_dir: Directory into which the generated IDL file will be written.
   """
   output_idl_filename = os.path.join(output_dir, interface_name) + '.idl'
-  with open(output_idl_filename, 'w') as f:
+  with open(output_idl_filename, 'w', encoding='utf-8') as f:
     f.write(_UNIMPLEMENTED_INTERFACE_TEMPLATE.format(interface_name))
 
 
@@ -95,15 +96,16 @@ def _WritePartiallySupportedInterfaceIDL(interface, output_dir):
   """
   output_idl_filename = os.path.join(output_dir,
                                      interface.name) + '_unsupported.idl'
-  with open(output_idl_filename, 'w') as f:
-    f.write('partial interface %s {\n' % interface.name)
+  with open(output_idl_filename, 'w', encoding='utf-8') as f:
+    f.write(f'partial interface {interface.name} '
+            '{\n')
     for c in interface.constants:
       # Type doesn't matter so use long
-      f.write('  [NotSupported] const long %s;\n' % c)
+      f.write(f'  [NotSupported] const long {c};\n')
     for a in interface.attributes:
-      f.write('  [NotSupported] attribute long %s;\n' % a)
+      f.write(f'  [NotSupported] attribute long {a};\n')
     for o in interface.operations:
-      f.write('  [NotSupported] void %s();\n' % o)
+      f.write(f'  [NotSupported] void {o}();\n')
     f.write('}\n')
 
 
@@ -121,16 +123,16 @@ def main(argv):
       help='Directory containing a chromium repository. If the --branch '
       'argument is set, the directory will be clobbered and the specified '
       'branch will be cloned into this directory.')
-  parser.add_argument('--output_dir',
-                      required=True,
-                      help='Directory into which IDL files will be placed. '
-                      'The current contents will be clobbered.')
+  parser.add_argument(
+      '--output_dir',
+      required=True,
+      help='Directory into which IDL files will be placed. '
+      'The current contents will be clobbered.')
 
   options = parser.parse_args(argv)
   logging_format = '%(asctime)s %(levelname)-8s %(message)s'
-  logging.basicConfig(level=logging.INFO,
-                      format=logging_format,
-                      datefmt='%m-%d %H:%M')
+  logging.basicConfig(
+      level=logging.INFO, format=logging_format, datefmt='%m-%d %H:%M')
 
   temp_dir = tempfile.mkdtemp()
 
@@ -153,25 +155,28 @@ def main(argv):
     # Gather the blink IDLs
     logging.info('Gathering blink IDLs.')
     blink_pickle_file = os.path.join(temp_dir, 'blink_idl.pickle')
-    subprocess.check_call(
-        ['python', 'flatten_idls.py', '--directory', os.path.join(
-            chromium_dir, 'third_party/WebKit/Source/core'), '--directory',
-         os.path.join(chromium_dir, 'third_party/WebKit/Source/modules'),
-         '--ignore', '*/InspectorInstrumentation.idl', '--blink_scripts_dir',
-         os.path.join(chromium_dir,
-                      'third_party/WebKit/Source/bindings/scripts'),
-         '--output_path', blink_pickle_file])
+    subprocess.check_call([
+        'python', 'flatten_idls.py', '--directory',
+        os.path.join(chromium_dir,
+                     'third_party/WebKit/Source/core'), '--directory',
+        os.path.join(chromium_dir, 'third_party/WebKit/Source/modules'),
+        '--ignore', '*/InspectorInstrumentation.idl', '--blink_scripts_dir',
+        os.path.join(chromium_dir,
+                     'third_party/WebKit/Source/bindings/scripts'),
+        '--output_path', blink_pickle_file
+    ])
 
     # Gather Cobalt's IDLs
     logging.info('Gathering Cobalt IDLs.')
     cobalt_root = os.path.join(_SCRIPT_DIR, '../../../')
     cobalt_pickle_file = os.path.join(temp_dir, 'cobalt_idl.pickle')
-    subprocess.check_call(
-        ['python', 'flatten_idls.py', '--directory', os.path.join(
-            cobalt_root, 'cobalt'), '--ignore', '*/cobalt/bindings/*',
-         '--blink_scripts_dir', os.path.join(
-             cobalt_root, 'third_party/blink/Source/bindings/scripts'),
-         '--output_path', cobalt_pickle_file])
+    subprocess.check_call([
+        'python', 'flatten_idls.py', '--directory',
+        os.path.join(cobalt_root, 'cobalt'), '--ignore', '*/cobalt/bindings/*',
+        '--blink_scripts_dir',
+        os.path.join(cobalt_root, 'third_party/blink/Source/bindings/scripts'),
+        '--output_path', cobalt_pickle_file
+    ])
 
     # Unpickle the files.
     blink_interfaces = _LoadInterfaces(blink_pickle_file)

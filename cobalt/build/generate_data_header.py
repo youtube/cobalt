@@ -62,7 +62,7 @@ def WriteFileDataToHeader(filename, output_file):
       return ord(x) if is_py2 else x
 
     output_string = ',\n'.join([
-        ', '.join(['0x%02x' % GetByte(y)
+        ', '.join([f'0x{GetByte(y):02x}'
                    for y in x])
         for x in Chunks(file_contents, 13)
     ])
@@ -95,7 +95,7 @@ def GetInputFilesToConcatenate(paths):
     elif os.path.isfile(path):
       file_list.append(InputFile(path, os.path.dirname(path)))
     else:
-      raise ValueError('%s is not a file or directory.' % path)
+      raise ValueError(f'{path} is not a file or directory.')
   return file_list
 
 
@@ -104,7 +104,7 @@ def WriteAllFilesToHeader(input_files, output_file):
 
   for input_file in input_files:
     input_file_variable_name = input_file.GetVariableName()
-    output_file.write('const unsigned char %s[] =\n' % input_file_variable_name)
+    output_file.write(f'const unsigned char {input_file_variable_name}[] =\n')
     WriteFileDataToHeader(input_file.path, output_file)
 
 
@@ -127,16 +127,16 @@ def GenerateMapFunction(input_files, output_file):
   for input_file in input_files:
     # The lookup key will be the file path relative to the input directory
     input_file_variable_name = input_file.GetVariableName()
-    output_file.write('  out_map["%s"] = FileContents(%s, sizeof(%s));\n' %
-                      (input_file.GetRelativePath(), input_file_variable_name,
-                       input_file_variable_name))
+    output_file.write(f'  out_map["{input_file.GetRelativePath()}"] = '
+                      f'FileContents({input_file_variable_name}, '
+                      f'sizeof({input_file_variable_name}));\n')
 
   output_file.write('}\n\n')
 
 
 def WriteHeader(namespace, output_file_name, files_to_concatenate):
   """Writes an embedded resource header to the given output filename."""
-  with open(output_file_name, 'w') as output_file:
+  with open(output_file_name, 'w', encoding='utf-8') as output_file:
     include_guard = '_COBALT_GENERATED_' + namespace.upper() + '_H_'
     output_file.write('// Copyright 2014 The Cobalt Authors. '
                       'All Rights Reserved.\n'
@@ -159,7 +159,7 @@ def main(namespace, output_file_name, paths):
 
 if __name__ == '__main__':
   if len(sys.argv) < 4:
-    print('usage:\n %s <namespace> <output-file> <inputs...> \n' % sys.argv[0])
+    print(f'usage:\n {sys.argv[0]} <namespace> <output-file> <inputs...> \n')
     print(__doc__)
     sys.exit(1)
   main(sys.argv[1], sys.argv[2], sys.argv[3:])
