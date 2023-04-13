@@ -93,12 +93,7 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
             'debug'),
         test_filter.TestFilter(
             'web_platform_tests',
-            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel'),
-        # TODO(b/275914032): Flaky test.
-        test_filter.TestFilter('web_platform_tests',
-                               ('service_workers/WebPlatformTest.Run/'
-                                'service_workers_service_worker_update_missing_'
-                                'import_scripts_https_html'), 'devel')
+            'cors/WebPlatformTest.Run/cors_preflight_failure_htm', 'devel')
     ])
     return filters
 
