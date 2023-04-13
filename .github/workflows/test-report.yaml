@@ -1,0 +1,26 @@
+name: 'Test Report'
+on:
+  workflow_run:
+    # runs after main workflow
+    workflows:
+      - evergreen
+      - linux
+      # TODO
+      # - win32
+    types:
+      - completed
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download test results
+        uses: actions/download-artifact@v3
+        with:
+          name: unit-test-report
+          path: ${GITHUB_WORKSPACE}/test_results
+      - name: Create Report
+        uses: dorny/test-reporter@c9b3d0e2bd2a4e96aaf424dbaa31c46b42318226
+        with:
+          name: Cobalt Unit Tests
+          path: ${GITHUB_WORKSPACE}/test_results/**/*.xml
+          reporter: jest-junit
