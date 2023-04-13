@@ -27,7 +27,7 @@ def _CheckFileForPython3Compatibility(filename: str) -> bool:
     print(f'{filename} is not a valid path, skipping.')
     return False
 
-  temp_directory = tempfile.TemporaryDirectory()
+  temp_directory = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
   temp_file = os.path.join(temp_directory.name, 'cfile')
   had_errors = False
 

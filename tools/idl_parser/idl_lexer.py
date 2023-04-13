@@ -2,7 +2,7 @@
 # Copyright (c) 2013 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
+# pylint: disable=invalid-name
 """ Lexer for PPAPI IDL
 
 The lexer uses the PLY library to build a tokenizer which understands both
@@ -19,15 +19,15 @@ import sys
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 sys.path.insert(0, os.path.join(SRC_DIR, 'third_party'))
-from ply import lex
+from ply import lex  # pylint: disable=wrong-import-position
 
 
 #
 # IDL Lexer
 #
 class IDLLexer(object):
-  # 'literals' is a value expected by lex which specifies a list of valid
-  # literal tokens, meaning the token type and token value are identical.
+  ''''literals' is a value expected by lex which specifies a list of valid
+  literal tokens, meaning the token type and token value are identical.'''
   literals = r'"*.(){}[],;:=+-/~|&^?<>'
 
   # 't_ignore' contains ignored characters (spaces and tabs)
@@ -36,16 +36,16 @@ class IDLLexer(object):
   # 'tokens' is a value required by lex which specifies the complete list
   # of valid token types.
   tokens = [
-    # Data types
+      # Data types
       'float',
       'integer',
       'string',
 
-    # Symbol and keywords types
+      # Symbol and keywords types
       'COMMENT',
       'identifier',
 
-    # MultiChar operators
+      # MultiChar operators
       'ELLIPSIS',
   ]
 
@@ -53,59 +53,59 @@ class IDLLexer(object):
   # KEYWORD_OR_SYMBOL are matched against keywords dictionary, to determine
   # if the token is actually a keyword.
   keywords = {
-    'any' : 'ANY',
-    'attribute' : 'ATTRIBUTE',
-    'boolean' : 'BOOLEAN',
-    'byte' : 'BYTE',
-    'ByteString' : 'BYTESTRING',
-    'callback' : 'CALLBACK',
-    'const' : 'CONST',
-    'creator' : 'CREATOR',
-    'Date' : 'DATE',
-    'deleter' : 'DELETER',
-    'dictionary' : 'DICTIONARY',
-    'DOMString' : 'DOMSTRING',
-    'double' : 'DOUBLE',
-    'enum'  : 'ENUM',
-    'exception' : 'EXCEPTION',
-    'false' : 'FALSE',
-    'float' : 'FLOAT',
-    'FrozenArray' : 'FROZENARRAY',
-    'getter': 'GETTER',
-    'implements' : 'IMPLEMENTS',
-    'Infinity' : 'INFINITY',
-    'inherit' : 'INHERIT',
-    'interface' : 'INTERFACE',
-    'iterable': 'ITERABLE',
-    'legacycaller' : 'LEGACYCALLER',
-    'legacyiterable' : 'LEGACYITERABLE',
-    'long' : 'LONG',
-    'maplike': 'MAPLIKE',
-    'Nan' : 'NAN',
-    'null' : 'NULL',
-    'object' : 'OBJECT',
-    'octet' : 'OCTET',
-    'optional' : 'OPTIONAL',
-    'or' : 'OR',
-    'partial' : 'PARTIAL',
-    'Promise' : 'PROMISE',
-    'readonly' : 'READONLY',
-    'RegExp' : 'REGEXP',
-    'record' : 'RECORD',
-    'required' : 'REQUIRED',
-    'sequence' : 'SEQUENCE',
-    'serializer' : 'SERIALIZER',
-    'setlike' : 'SETLIKE',
-    'setter': 'SETTER',
-    'short' : 'SHORT',
-    'static' : 'STATIC',
-    'stringifier' : 'STRINGIFIER',
-    'typedef' : 'TYPEDEF',
-    'true' : 'TRUE',
-    'unsigned' : 'UNSIGNED',
-    'unrestricted' : 'UNRESTRICTED',
-    'USVString' : 'USVSTRING',
-    'void' : 'VOID'
+      'any': 'ANY',
+      'attribute': 'ATTRIBUTE',
+      'boolean': 'BOOLEAN',
+      'byte': 'BYTE',
+      'ByteString': 'BYTESTRING',
+      'callback': 'CALLBACK',
+      'const': 'CONST',
+      'creator': 'CREATOR',
+      'Date': 'DATE',
+      'deleter': 'DELETER',
+      'dictionary': 'DICTIONARY',
+      'DOMString': 'DOMSTRING',
+      'double': 'DOUBLE',
+      'enum': 'ENUM',
+      'exception': 'EXCEPTION',
+      'false': 'FALSE',
+      'float': 'FLOAT',
+      'FrozenArray': 'FROZENARRAY',
+      'getter': 'GETTER',
+      'implements': 'IMPLEMENTS',
+      'Infinity': 'INFINITY',
+      'inherit': 'INHERIT',
+      'interface': 'INTERFACE',
+      'iterable': 'ITERABLE',
+      'legacycaller': 'LEGACYCALLER',
+      'legacyiterable': 'LEGACYITERABLE',
+      'long': 'LONG',
+      'maplike': 'MAPLIKE',
+      'Nan': 'NAN',
+      'null': 'NULL',
+      'object': 'OBJECT',
+      'octet': 'OCTET',
+      'optional': 'OPTIONAL',
+      'or': 'OR',
+      'partial': 'PARTIAL',
+      'Promise': 'PROMISE',
+      'readonly': 'READONLY',
+      'RegExp': 'REGEXP',
+      'record': 'RECORD',
+      'required': 'REQUIRED',
+      'sequence': 'SEQUENCE',
+      'serializer': 'SERIALIZER',
+      'setlike': 'SETLIKE',
+      'setter': 'SETTER',
+      'short': 'SHORT',
+      'static': 'STATIC',
+      'stringifier': 'STRINGIFIER',
+      'typedef': 'TYPEDEF',
+      'true': 'TRUE',
+      'unsigned': 'UNSIGNED',
+      'unrestricted': 'UNRESTRICTED',
+      'USVString': 'USVSTRING',
+      'void': 'VOID'
   }
 
   # Token definitions
@@ -130,7 +130,6 @@ class IDLLexer(object):
   def t_integer(self, t):
     r'-?([1-9][0-9]*|0[Xx][0-9A-Fa-f]+|0[0-7]*)'
     return t
-
 
   # A line ending '\n', we use this to increment the line number
   def t_LINE_END(self, t):
@@ -183,7 +182,6 @@ class IDLLexer(object):
     sys.stderr.write(out + '\n')
     self._lex_errors += 1
 
-
   def AddLines(self, count):
     # Set the lexer position for the beginning of the next line.  In the case
     # of multiple lines, tokens can not exist on any of the lines except the
@@ -197,33 +195,31 @@ class IDLLexer(object):
     # Generate a message containing the file and line number of a token.
     filename = self.Lexer().filename
     if filename:
-      return "%s(%d) : %s" % (filename, line + 1, msg)
-    return "<BuiltIn> : %s" % msg
+      return f'{filename}({line+1}) : {msg}'
+    return f'<BuiltIn> : {msg}'
 
   def SourceLine(self, line, pos):
     # Create a source line marker
     caret = ' ' * pos + '^'
     # We decrement the line number since the array is 0 based while the
     # line numbers are 1 based.
-    return "%s\n%s" % (self.lines[line - 1], caret)
+    return f'{self.lines[line - 1]}\n{caret}'
 
   def ErrorMessage(self, line, pos, msg):
-    return "\n%s\n%s" % (
-        self.FileLineMsg(line, msg),
-        self.SourceLine(line, pos))
+    return f'\n{self.FileLineMsg(line, msg)}\n{self.SourceLine(line, pos)}'
 
 #
 # Tokenizer
 #
 # The token function returns the next token provided by IDLLexer for matching
-# against the leaf paterns.
+# against the leaf patterns.
 #
+
   def token(self):
     tok = self.Lexer().token()
     if tok:
       self.last = tok
     return tok
-
 
   def GetTokens(self):
     outlist = []
@@ -281,6 +277,7 @@ class IDLLexer(object):
     self._lexobj = None
     self.last = None
     self.lines = None
+
 
 # If run by itself, attempt to build the lexer
 if __name__ == '__main__':
