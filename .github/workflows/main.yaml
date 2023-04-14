@@ -15,7 +15,7 @@ on:
         type: string
         default: 'false'
 
-#Global env vars.
+# Global env vars.
 env:
   REGISTRY: ghcr.io
   IPV6_AVAILABLE: 0
