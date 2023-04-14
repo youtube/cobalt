@@ -76,3 +76,9 @@ urllib3==1.26.12 \
     --hash=sha256:3fa96cf423e6987997fc326ae8df396db2a8b7c667747d47ddd8ecba91f4a74e \
     --hash=sha256:b930dd878d5a8afb066a637fbb35144fe7901e3b209d1cd4f524bd0e9deee997
     # via selenium
+junit2html==30.1.3 \
+    --hash=sha256:842e833917c60b5a4a6a2f7ffebd069e6c572ced82f66b12e395c7ab3dceae6b
+jinja2==3.1.2 \
+    --hash=sha256:6088930bfe239f0e6710546ab9c19c9ef35e29792895fed6e6e31a023a182a61
+MarkupSafe==2.1.2 \
+    --hash=sha256:28057e985dace2f478e042eaa15606c7efccb700797660629da387eb289b9323

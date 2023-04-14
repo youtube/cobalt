@@ -79,3 +79,20 @@ runs:
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR}
           fi
         fi
+    - name: Unit test results
+      shell: bash
+      run: |
+        set -x
+        shopt -s globstar
+        for i in $TEST_RESULTS_DIR/**/*.xml; do
+          if [ -s $i ]; then
+            junit2html --summary-matrix $i
+          else
+            echo "$i is empty. Did the test crash?"
+          fi
+        done
+    - name: Archive unit test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: unit-test-report
+        path: ${{ env.TEST_RESULTS_DIR }}
