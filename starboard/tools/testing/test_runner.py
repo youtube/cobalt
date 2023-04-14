@@ -462,6 +462,7 @@ class TestRunner(object):
          (self.log_xml_results or self.xml_output_dir) else "disabled"))
     if self.log_xml_results:
       out_path = MakeLauncher().GetDeviceOutputPath()
+      # The filename is used by MH to deduce the target name.
       xml_filename = f"{target_name}_testoutput.xml"
       if out_path:
         test_result_xml_path = os.path.join(out_path, xml_filename)
@@ -471,13 +472,14 @@ class TestRunner(object):
       logging.info(("Xml results for this test will "
                     "be logged to '%s'."), test_result_xml_path)
     elif self.xml_output_dir:
-      # Have gtest create and save a test result xml
       xml_output_subdir = os.path.join(self.xml_output_dir, target_name)
       try:
         os.makedirs(xml_output_subdir)
-      except OSError:
-        pass
-      test_result_xml_path = os.path.join(xml_output_subdir, "sponge_log.xml")
+      except OSError as ose:
+        logging.warning("Unable to create xml output directory: %s", ose)
+      # The filename is used by GitHub actions to deduce the target name.
+      test_result_xml_path = os.path.join(xml_output_subdir,
+                                          f"{target_name}.xml")
       logging.info("Xml output for this test will be saved to: %s",
                    test_result_xml_path)
       test_params.append(f"--gtest_output=xml:{test_result_xml_path}")
@@ -914,7 +916,7 @@ def main():
       "--xml_output_dir",
       help="If defined, results will be saved as xml files in given directory."
       " Output for each test suite will be in it's own subdirectory and file:"
-      " <xml_output_dir>/<test_suite_name>/sponge_log.xml")
+      " <xml_output_dir>/<test_suite_name>/<test_suite_name>.xml")
   arg_parser.add_argument(
       "-l",
       "--log_xml_results",
