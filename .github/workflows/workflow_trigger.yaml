@@ -7,11 +7,11 @@ on:
         type: choice
         description: Branch
         options:
-          - '23.lts.1\+'
-          - '22.lts.1\+'
-          - '21.lts.1\+'
-          - '20.lts.1\+'
-          - '19.lts.1\+'
+          - '23.lts.1+'
+          - '22.lts.1+'
+          - '21.lts.1+'
+          - '20.lts.1+'
+          - '19.lts.1+'
           - 'rc_11'
           - 'COBALT_9'
       workflow:
@@ -43,6 +43,6 @@ jobs:
       - name: Trigger Nightly
         run: |
           set -x
-          gh workflow run ${{github.event.workflow}}_${{github.event.branch}} --ref ${{github.event.branch}} -f nightly=${{github.event.nightly}}
+          gh workflow run ${{github.event.inputs.workflow}}_${{github.event.inputs.branch}} --ref ${{github.event.inputs.branch}} -f nightly=${{github.event.inputs.nightly}}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
