@@ -43,6 +43,8 @@ _FILTERED_TESTS = {
         'SbSocketAddressTypes/SbSocketResolveTest.SunnyDayFiltered/filter_ipv6_type_ipv6',
         'SbSocketAddressTypes/SbSocketSetOptionsTest.RainyDayInvalidSocket/type_ipv4',
         'SbSocketAddressTypes/SbSocketSetOptionsTest.RainyDayInvalidSocket/type_ipv6',
+        # Flakiness is tracked in b/278276779.
+        'Semaphore.ThreadTakesWait_TimeExpires',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
