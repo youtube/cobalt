@@ -38,30 +38,20 @@
 #define COLOR_RED    FOREGROUND_RED
 #define COLOR_GREEN  FOREGROUND_GREEN
 #define COLOR_YELLOW (FOREGROUND_RED|FOREGROUND_GREEN)
-
-static unsigned get_seed(void) {
-    return GetTickCount();
-}
 #else
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
+#include <pthread.h>
+#ifdef HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
 #ifdef __APPLE__
 #include <mach/mach_time.h>
 #endif
 #define COLOR_RED    1
 #define COLOR_GREEN  2
 #define COLOR_YELLOW 3
-
-static unsigned get_seed(void) {
-#ifdef __APPLE__
-    return (unsigned) mach_absolute_time();
-#elif defined(HAVE_CLOCK_GETTIME)
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (unsigned) (1000000000ULL * ts.tv_sec + ts.tv_nsec);
-#endif
-}
 #endif
 
 /* List of tests to invoke */
@@ -70,6 +60,7 @@ static const struct {
     void (*func)(void);
 } tests[] = {
     { "msac", checkasm_check_msac },
+    { "refmvs", checkasm_check_refmvs },
 #if CONFIG_8BPC
     { "cdef_8bpc", checkasm_check_cdef_8bpc },
     { "filmgrain_8bpc", checkasm_check_filmgrain_8bpc },
@@ -98,19 +89,15 @@ static const struct {
     unsigned flag;
 } cpus[] = {
 #if ARCH_X86
-    { "SSE",     "sse",    DAV1D_X86_CPU_FLAG_SSE },
-    { "SSE2",    "sse2",   DAV1D_X86_CPU_FLAG_SSE2 },
-    { "SSE3",    "sse3",   DAV1D_X86_CPU_FLAG_SSE3 },
-    { "SSSE3",   "ssse3",  DAV1D_X86_CPU_FLAG_SSSE3 },
-    { "SSE4.1",  "sse4",   DAV1D_X86_CPU_FLAG_SSE41 },
-    { "SSE4.2",  "sse42",  DAV1D_X86_CPU_FLAG_SSE42 },
-    { "AVX",     "avx",    DAV1D_X86_CPU_FLAG_AVX },
-    { "AVX2",    "avx2",   DAV1D_X86_CPU_FLAG_AVX2 },
-    { "AVX-512", "avx512", DAV1D_X86_CPU_FLAG_AVX512 },
+    { "SSE2",               "sse2",      DAV1D_X86_CPU_FLAG_SSE2 },
+    { "SSSE3",              "ssse3",     DAV1D_X86_CPU_FLAG_SSSE3 },
+    { "SSE4.1",             "sse4",      DAV1D_X86_CPU_FLAG_SSE41 },
+    { "AVX2",               "avx2",      DAV1D_X86_CPU_FLAG_AVX2 },
+    { "AVX-512 (Ice Lake)", "avx512icl", DAV1D_X86_CPU_FLAG_AVX512ICL },
 #elif ARCH_AARCH64 || ARCH_ARM
-    { "NEON",    "neon",   DAV1D_ARM_CPU_FLAG_NEON },
+    { "NEON",               "neon",      DAV1D_ARM_CPU_FLAG_NEON },
 #elif ARCH_PPC64LE
-    { "VSX",     "vsx",    DAV1D_PPC_CPU_FLAG_VSX },
+    { "VSX",                "vsx",       DAV1D_PPC_CPU_FLAG_VSX },
 #endif
     { 0 }
 };
@@ -129,7 +116,7 @@ typedef struct CheckasmFunc {
     struct CheckasmFunc *child[2];
     CheckasmFuncVersion versions;
     uint8_t color; /* 0 = red, 1 = black */
-    char name[1];
+    char name[];
 } CheckasmFunc;
 
 /* Internal state */
@@ -138,18 +125,22 @@ static struct {
     CheckasmFunc *current_func;
     CheckasmFuncVersion *current_func_ver;
     const char *current_test_name;
-    const char *bench_pattern;
-    size_t bench_pattern_len;
     int num_checked;
     int num_failed;
     int nop_time;
     unsigned cpu_flag;
     const char *cpu_flag_name;
-    const char *test_name;
-    unsigned int seed;
+    const char *test_pattern;
+    const char *function_pattern;
+    unsigned seed;
+    int bench;
     int bench_c;
     int verbose;
     int function_listing;
+    int catch_signals;
+#if ARCH_X86_64
+    void (*simd_warmup)(void);
+#endif
 } state;
 
 /* float compare support code */
@@ -160,7 +151,7 @@ typedef union {
 
 static uint32_t xs_state[4];
 
-static void xor128_srand(unsigned int seed) {
+static void xor128_srand(unsigned seed) {
     xs_state[0] = seed;
     xs_state[1] = ( seed & 0xffff0000) | (~seed & 0x0000ffff);
     xs_state[2] = (~seed & 0xffff0000) | ( seed & 0x0000ffff);
@@ -336,15 +327,15 @@ static int cmp_nop(const void *a, const void *b) {
 /* Measure the overhead of the timing code (in decicycles) */
 static int measure_nop_time(void) {
     uint16_t nops[10000];
-    int i, nop_sum = 0;
+    int nop_sum = 0;
 
-    for (i = 0; i < 10000; i++) {
+    for (int i = 0; i < 10000; i++) {
         uint64_t t = readtime();
         nops[i] = (uint16_t) (readtime() - t);
     }
 
     qsort(nops, 10000, sizeof(uint16_t), cmp_nop);
-    for (i = 2500; i < 7500; i++)
+    for (int i = 2500; i < 7500; i++)
         nop_sum += nops[i];
 
     return nop_sum / 500;
@@ -360,8 +351,8 @@ static void print_benchs(const CheckasmFunc *const f) {
             const CheckasmFuncVersion *v = &f->versions;
             do {
                 if (v->iterations) {
-                    int decicycles = (int) (10*v->cycles/v->iterations -
-                                            state.nop_time) / 4;
+                    const int decicycles = (int) (10*v->cycles/v->iterations -
+                                                  state.nop_time) / 4;
                     printf("%s_%s: %d.%d\n", f->name, cpu_suffix(v->cpu),
                            decicycles/10, decicycles%10);
                 }
@@ -414,7 +405,7 @@ static CheckasmFunc *rotate_tree(CheckasmFunc *const f, const int dir) {
 #define is_red(f) ((f) && !(f)->color)
 
 /* Balance a left-leaning red-black tree at the specified node */
-static void balance_tree(CheckasmFunc **root) {
+static void balance_tree(CheckasmFunc **const root) {
     CheckasmFunc *const f = *root;
 
     if (is_red(f->child[0]) && is_red(f->child[1])) {
@@ -428,12 +419,12 @@ static void balance_tree(CheckasmFunc **root) {
 }
 
 /* Get a node with the specified name, creating it if it doesn't exist */
-static CheckasmFunc *get_func(CheckasmFunc **root, const char *const name) {
+static CheckasmFunc *get_func(CheckasmFunc **const root, const char *const name) {
     CheckasmFunc *f = *root;
 
     if (f) {
         /* Search the tree for a matching node */
-        int cmp = cmp_func_names(name, f->name);
+        const int cmp = cmp_func_names(name, f->name);
         if (cmp) {
             f = get_func(&f->child[cmp > 0], name);
 
@@ -443,9 +434,9 @@ static CheckasmFunc *get_func(CheckasmFunc **root, const char *const name) {
         }
     } else {
         /* Allocate and insert a new node into the tree */
-        const size_t name_length = strlen(name);
-        f = *root = checkasm_malloc(sizeof(CheckasmFunc) + name_length);
-        memcpy(f->name, name, name_length + 1);
+        const size_t name_length = strlen(name) + 1;
+        f = *root = checkasm_malloc(offsetof(CheckasmFunc, name) + name_length);
+        memcpy(f->name, name, name_length);
     }
 
     return f;
@@ -457,37 +448,65 @@ checkasm_context checkasm_context_buf;
  * gracefully instead of just aborting abruptly. */
 #ifdef _WIN32
 static LONG NTAPI signal_handler(EXCEPTION_POINTERS *const e) {
+    if (!state.catch_signals)
+        return EXCEPTION_CONTINUE_SEARCH;
+
+    const char *err;
     switch (e->ExceptionRecord->ExceptionCode) {
     case EXCEPTION_FLT_DIVIDE_BY_ZERO:
     case EXCEPTION_INT_DIVIDE_BY_ZERO:
-        checkasm_fail_func("fatal arithmetic error");
+        err = "fatal arithmetic error";
         break;
     case EXCEPTION_ILLEGAL_INSTRUCTION:
     case EXCEPTION_PRIV_INSTRUCTION:
-        checkasm_fail_func("illegal instruction");
+        err = "illegal instruction";
         break;
     case EXCEPTION_ACCESS_VIOLATION:
     case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
     case EXCEPTION_DATATYPE_MISALIGNMENT:
     case EXCEPTION_IN_PAGE_ERROR:
     case EXCEPTION_STACK_OVERFLOW:
-        checkasm_fail_func("segmentation fault");
+        err = "segmentation fault";
         break;
     default:
         return EXCEPTION_CONTINUE_SEARCH;
     }
+    state.catch_signals = 0;
+    checkasm_fail_func(err);
     checkasm_load_context();
     return EXCEPTION_CONTINUE_EXECUTION; /* never reached, but shuts up gcc */
 }
 #else
 static void signal_handler(const int s) {
-    checkasm_set_signal_handler_state(0);
-    checkasm_fail_func(s == SIGFPE ? "fatal arithmetic error" :
-                       s == SIGILL ? "illegal instruction" :
-                                     "segmentation fault");
-    checkasm_load_context();
+    if (state.catch_signals) {
+        state.catch_signals = 0;
+        checkasm_fail_func(s == SIGFPE ? "fatal arithmetic error" :
+                           s == SIGILL ? "illegal instruction" :
+                                         "segmentation fault");
+        checkasm_load_context();
+    } else {
+        /* fall back to the default signal handler */
+        static const struct sigaction default_sa = { .sa_handler = SIG_DFL };
+        sigaction(s, &default_sa, NULL);
+        raise(s);
+    }
 }
 #endif
+
+/* Compares a string with a wildcard pattern. */
+static int wildstrcmp(const char *str, const char *pattern) {
+    const char *wild = strchr(pattern, '*');
+    if (wild) {
+        const size_t len = wild - pattern;
+        if (strncmp(str, pattern, len)) return 1;
+        while (*++wild == '*');
+        if (!*wild) return 0;
+        str += len;
+        while (*str && wildstrcmp(str, wild)) str++;
+        return !*str;
+    }
+    return strcmp(str, pattern);
+}
 
 /* Perform tests and benchmarks for the specified
  * cpu flag if supported by the host */
@@ -501,7 +520,7 @@ static void check_cpu_flag(const char *const name, unsigned flag) {
     if (!flag || state.cpu_flag != old_cpu_flag) {
         state.cpu_flag_name = name;
         for (int i = 0; tests[i].func; i++) {
-            if (state.test_name && strcmp(tests[i].name, state.test_name))
+            if (state.test_pattern && wildstrcmp(tests[i].name, state.test_pattern))
                 continue;
             xor128_srand(state.seed);
             state.current_test_name = tests[i].name;
@@ -518,39 +537,59 @@ static void print_cpu_name(void) {
     }
 }
 
+static unsigned get_seed(void) {
+#ifdef _WIN32
+    LARGE_INTEGER i;
+    QueryPerformanceCounter(&i);
+    return i.LowPart;
+#elif defined(__APPLE__)
+    return (unsigned) mach_absolute_time();
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (unsigned) (1000000000ULL * ts.tv_sec + ts.tv_nsec);
+#endif
+}
+
 int main(int argc, char *argv[]) {
-    (void)func_new, (void)func_ref;
     state.seed = get_seed();
-    int ret = 0;
 
     while (argc > 1) {
-        if (!strncmp(argv[1], "--help", 6)) {
-            fprintf(stdout,
+        if (!strncmp(argv[1], "--help", 6) || !strcmp(argv[1], "-h")) {
+            fprintf(stderr,
                     "checkasm [options] <random seed>\n"
-                    "    <random seed>       Numeric value to seed the rng\n"
+                    "    <random seed>              Numeric value to seed the rng\n"
                     "Options:\n"
-                    "    --test=<test_name>  Test only <test_name>\n"
-                    "    --bench=<pattern>   Test and benchmark the functions matching <pattern>\n"
-                    "    --list-functions    List available functions\n"
-                    "    --list-tests        List available tests\n"
-                    "    --bench-c           Benchmark the C-only functions\n"
-                    "    --verbose -v        Print failures verbosely\n");
+                    "    --affinity=<cpu>           Run the process on CPU <cpu>\n"
+                    "    --test=<pattern>           Test only <pattern>\n"
+                    "    --function=<pattern> -f    Test only the functions matching <pattern>\n"
+                    "    --bench -b                 Benchmark the tested functions\n"
+                    "    --list-functions           List available functions\n"
+                    "    --list-tests               List available tests\n"
+                    "    --bench-c -c               Benchmark the C-only functions\n"
+                    "    --verbose -v               Print failures verbosely\n");
             return 0;
-        } else if (!strncmp(argv[1], "--bench-c", 9)) {
+        } else if (!strcmp(argv[1], "--bench-c") || !strcmp(argv[1], "-c")) {
             state.bench_c = 1;
-        } else if (!strncmp(argv[1], "--bench", 7)) {
+        } else if (!strcmp(argv[1], "--bench") || !strcmp(argv[1], "-b")) {
 #ifndef readtime
             fprintf(stderr,
                     "checkasm: --bench is not supported on your system\n");
             return 1;
 #endif
-            if (argv[1][7] == '=') {
-                state.bench_pattern = argv[1] + 8;
-                state.bench_pattern_len = strlen(state.bench_pattern);
-            } else
-                state.bench_pattern = "";
+            state.bench = 1;
         } else if (!strncmp(argv[1], "--test=", 7)) {
-            state.test_name = argv[1] + 7;
+            state.test_pattern = argv[1] + 7;
+        } else if (!strcmp(argv[1], "-t")) {
+            state.test_pattern = argc > 1 ? argv[2] : "";
+            argc--;
+            argv++;
+        } else if (!strncmp(argv[1], "--function=", 11)) {
+            state.function_pattern = argv[1] + 11;
+        } else if (!strcmp(argv[1], "-f")) {
+            state.function_pattern = argc > 1 ? argv[2] : "";
+            argc--;
+            argv++;
         } else if (!strcmp(argv[1], "--list-functions")) {
             state.function_listing = 1;
         } else if (!strcmp(argv[1], "--list-tests")) {
@@ -559,23 +598,121 @@ int main(int argc, char *argv[]) {
             return 0;
         } else if (!strcmp(argv[1], "--verbose") || !strcmp(argv[1], "-v")) {
             state.verbose = 1;
+        } else if (!strncmp(argv[1], "--affinity=", 11)) {
+            unsigned long affinity = strtoul(argv[1] + 11, NULL, 16);
+#ifdef _WIN32
+            BOOL (WINAPI *spdcs)(HANDLE, const ULONG*, ULONG) =
+                (void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetProcessDefaultCpuSets");
+            HANDLE process = GetCurrentProcess();
+            int affinity_err;
+            if (spdcs) {
+                affinity_err = !spdcs(process, (ULONG[]){ affinity + 256 }, 1);
+            } else {
+                if (affinity < sizeof(DWORD_PTR) * 8)
+                    affinity_err = !SetProcessAffinityMask(process, (DWORD_PTR)1 << affinity);
+                else
+                    affinity_err = 1;
+            }
+            if (affinity_err) {
+                fprintf(stderr, "checkasm: invalid cpu affinity (%lu)\n", affinity);
+                return 1;
+            } else {
+                fprintf(stderr, "checkasm: running on cpu %lu\n", affinity);
+            }
+#elif defined(HAVE_PTHREAD_SETAFFINITY_NP) && defined(CPU_SET)
+            cpu_set_t set;
+            CPU_ZERO(&set);
+            CPU_SET(affinity, &set);
+            if (pthread_setaffinity_np(pthread_self(), sizeof(set), &set)) {
+                fprintf(stderr, "checkasm: invalid cpu affinity (%lu)\n", affinity);
+                return 1;
+            } else {
+                fprintf(stderr, "checkasm: running on cpu %lu\n", affinity);
+            }
+#else
+            (void)affinity;
+            fprintf(stderr,
+                    "checkasm: --affinity is not supported on your system\n");
+            return 1;
+#endif
         } else {
-            state.seed = (unsigned int) strtoul(argv[1], NULL, 10);
+            state.seed = (unsigned) strtoul(argv[1], NULL, 10);
         }
 
         argc--;
         argv++;
     }
 
-    fprintf(stderr, "checkasm: using random seed %u\n", state.seed);
+#if TRIM_DSP_FUNCTIONS
+    fprintf(stderr, "checkasm: reference functions unavailable\n");
+    return 0;
+#endif
+
+    dav1d_init_cpu();
+
+#ifdef _WIN32
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+    AddVectoredExceptionHandler(0, signal_handler);
+#endif
+#else
+    const struct sigaction sa = {
+        .sa_handler = signal_handler,
+        .sa_flags = SA_NODEFER,
+    };
+    sigaction(SIGBUS,  &sa, NULL);
+    sigaction(SIGFPE,  &sa, NULL);
+    sigaction(SIGILL,  &sa, NULL);
+    sigaction(SIGSEGV, &sa, NULL);
+#endif
+
+#ifdef readtime
+    if (state.bench) {
+        static int testing = 0;
+        checkasm_save_context();
+        if (!testing) {
+            checkasm_set_signal_handler_state(1);
+            testing = 1;
+            readtime();
+            checkasm_set_signal_handler_state(0);
+        } else {
+            fprintf(stderr, "checkasm: unable to access cycle counter\n");
+            return 1;
+        }
+    }
+#endif
+
+    int ret = 0;
+
+    if (!state.function_listing) {
+#if ARCH_X86_64
+        void checkasm_warmup_avx2(void);
+        void checkasm_warmup_avx512(void);
+        const unsigned cpu_flags = dav1d_get_cpu_flags();
+        if (cpu_flags & DAV1D_X86_CPU_FLAG_AVX512ICL)
+            state.simd_warmup = checkasm_warmup_avx512;
+        else if (cpu_flags & DAV1D_X86_CPU_FLAG_AVX2)
+            state.simd_warmup = checkasm_warmup_avx2;
+        checkasm_simd_warmup();
+#endif
+#if ARCH_X86
+        unsigned checkasm_init_x86(char *name);
+        char name[48];
+        const unsigned cpuid = checkasm_init_x86(name);
+        for (size_t len = strlen(name); len && name[len-1] == ' '; len--)
+            name[len-1] = '\0'; /* trim trailing whitespace */
+        fprintf(stderr, "checkasm: %s (%08X) using random seed %u\n", name, cpuid, state.seed);
+#else
+        fprintf(stderr, "checkasm: using random seed %u\n", state.seed);
+#endif
+    }
 
     check_cpu_flag(NULL, 0);
+
     if (state.function_listing) {
         print_functions(state.funcs);
     } else {
         for (int i = 0; cpus[i].flag; i++)
             check_cpu_flag(cpus[i].name, cpus[i].flag);
-
         if (!state.num_checked) {
             fprintf(stderr, "checkasm: no tests to perform\n");
         } else if (state.num_failed) {
@@ -585,7 +722,7 @@ int main(int argc, char *argv[]) {
         } else {
             fprintf(stderr, "checkasm: all %d tests passed\n", state.num_checked);
 #ifdef readtime
-            if (state.bench_pattern) {
+            if (state.bench) {
                 state.nop_time = measure_nop_time();
                 printf("nop: %d.%d\n", state.nop_time/10, state.nop_time%10);
                 print_benchs(state.funcs);
@@ -609,8 +746,11 @@ void *checkasm_check_func(void *const func, const char *const name, ...) {
     const int name_length = vsnprintf(name_buf, sizeof(name_buf), name, arg);
     va_end(arg);
 
-    if (!func || name_length <= 0 || (size_t)name_length >= sizeof(name_buf))
+    if (!func || name_length <= 0 || (size_t)name_length >= sizeof(name_buf) ||
+        (state.function_pattern && wildstrcmp(name_buf, state.function_pattern)))
+    {
         return NULL;
+    }
 
     state.current_func = get_func(&state.funcs, name_buf);
 
@@ -651,15 +791,15 @@ void *checkasm_check_func(void *const func, const char *const name, ...) {
 
 /* Decide whether or not the current function needs to be benchmarked */
 int checkasm_bench_func(void) {
-    return !state.num_failed && state.bench_pattern &&
-           !strncmp(state.current_func->name, state.bench_pattern,
-                    state.bench_pattern_len);
+    return !state.num_failed && state.bench;
 }
 
 /* Indicate that the current test has failed, return whether verbose printing
  * is requested. */
 int checkasm_fail_func(const char *const msg, ...) {
-    if (state.current_func_ver->cpu && state.current_func_ver->ok) {
+    if (state.current_func_ver && state.current_func_ver->cpu &&
+        state.current_func_ver->ok)
+    {
         va_list arg;
 
         print_cpu_name();
@@ -723,54 +863,104 @@ void checkasm_report(const char *const name, ...) {
 }
 
 void checkasm_set_signal_handler_state(const int enabled) {
-#ifdef _WIN32
-    if (enabled)
-        AddVectoredExceptionHandler(0, signal_handler);
-    else
-        RemoveVectoredExceptionHandler(signal_handler);
-#else
-    void (*const handler)(int) = enabled ? signal_handler : SIG_DFL;
-    signal(SIGBUS,  handler);
-    signal(SIGFPE,  handler);
-    signal(SIGILL,  handler);
-    signal(SIGSEGV, handler);
-#endif
+    state.catch_signals = enabled;
+}
+
+static int check_err(const char *const file, const int line,
+                     const char *const name, const int w, const int h,
+                     int *const err)
+{
+    if (*err)
+        return 0;
+    if (!checkasm_fail_func("%s:%d", file, line))
+        return 1;
+    *err = 1;
+    fprintf(stderr, "%s (%dx%d):\n", name, w, h);
+    return 0;
 }
 
 #define DEF_CHECKASM_CHECK_FUNC(type, fmt) \
 int checkasm_check_##type(const char *const file, const int line, \
                           const type *buf1, ptrdiff_t stride1, \
                           const type *buf2, ptrdiff_t stride2, \
-                          const int w, int h, const char *const name) \
+                          const int w, int h, const char *const name, \
+                          const int align_w, const int align_h, \
+                          const int padding) \
 { \
+    int aligned_w = (w + align_w - 1) & ~(align_w - 1); \
+    int aligned_h = (h + align_h - 1) & ~(align_h - 1); \
+    int err = 0; \
     stride1 /= sizeof(*buf1); \
     stride2 /= sizeof(*buf2); \
     int y = 0; \
     for (y = 0; y < h; y++) \
         if (memcmp(&buf1[y*stride1], &buf2[y*stride2], w*sizeof(*buf1))) \
             break; \
-    if (y == h) \
-        return 0; \
-    if (!checkasm_fail_func("%s:%d", file, line)) \
-        return 1; \
-    fprintf(stderr, "%s:\n", name); \
-    while (h--) { \
-        for (int x = 0; x < w; x++) \
-            fprintf(stderr, " " fmt, buf1[x]); \
-        fprintf(stderr, "    "); \
-        for (int x = 0; x < w; x++) \
-            fprintf(stderr, " " fmt, buf2[x]); \
-        fprintf(stderr, "    "); \
-        for (int x = 0; x < w; x++) \
-            fprintf(stderr, "%c", buf1[x] != buf2[x] ? 'x' : '.'); \
-        buf1 += stride1; \
-        buf2 += stride2; \
-        fprintf(stderr, "\n"); \
+    if (y != h) { \
+        if (check_err(file, line, name, w, h, &err)) \
+            return 1; \
+        for (y = 0; y < h; y++) { \
+            for (int x = 0; x < w; x++) \
+                fprintf(stderr, " " fmt, buf1[x]); \
+            fprintf(stderr, "    "); \
+            for (int x = 0; x < w; x++) \
+                fprintf(stderr, " " fmt, buf2[x]); \
+            fprintf(stderr, "    "); \
+            for (int x = 0; x < w; x++) \
+                fprintf(stderr, "%c", buf1[x] != buf2[x] ? 'x' : '.'); \
+            buf1 += stride1; \
+            buf2 += stride2; \
+            fprintf(stderr, "\n"); \
+        } \
+        buf1 -= h*stride1; \
+        buf2 -= h*stride2; \
     } \
-    return 1; \
+    for (y = -padding; y < 0; y++) \
+        if (memcmp(&buf1[y*stride1 - padding], &buf2[y*stride2 - padding], \
+                   (w + 2*padding)*sizeof(*buf1))) { \
+            if (check_err(file, line, name, w, h, &err)) \
+                return 1; \
+            fprintf(stderr, " overwrite above\n"); \
+            break; \
+        } \
+    for (y = aligned_h; y < aligned_h + padding; y++) \
+        if (memcmp(&buf1[y*stride1 - padding], &buf2[y*stride2 - padding], \
+                   (w + 2*padding)*sizeof(*buf1))) { \
+            if (check_err(file, line, name, w, h, &err)) \
+                return 1; \
+            fprintf(stderr, " overwrite below\n"); \
+            break; \
+        } \
+    for (y = 0; y < h; y++) \
+        if (memcmp(&buf1[y*stride1 - padding], &buf2[y*stride2 - padding], \
+                   padding*sizeof(*buf1))) { \
+            if (check_err(file, line, name, w, h, &err)) \
+                return 1; \
+            fprintf(stderr, " overwrite left\n"); \
+            break; \
+        } \
+    for (y = 0; y < h; y++) \
+        if (memcmp(&buf1[y*stride1 + aligned_w], &buf2[y*stride2 + aligned_w], \
+                   padding*sizeof(*buf1))) { \
+            if (check_err(file, line, name, w, h, &err)) \
+                return 1; \
+            fprintf(stderr, " overwrite right\n"); \
+            break; \
+        } \
+    return err; \
 }
 
-DEF_CHECKASM_CHECK_FUNC(uint8_t,  "%02x")
-DEF_CHECKASM_CHECK_FUNC(uint16_t, "%04x")
+DEF_CHECKASM_CHECK_FUNC(int8_t,   "%4d")
 DEF_CHECKASM_CHECK_FUNC(int16_t,  "%6d")
 DEF_CHECKASM_CHECK_FUNC(int32_t,  "%9d")
+DEF_CHECKASM_CHECK_FUNC(uint8_t,  "%02x")
+DEF_CHECKASM_CHECK_FUNC(uint16_t, "%04x")
+DEF_CHECKASM_CHECK_FUNC(uint32_t, "%08x")
+
+#if ARCH_X86_64
+void checkasm_simd_warmup(void)
+{
+    if (state.simd_warmup)
+        state.simd_warmup();
+}
+#endif

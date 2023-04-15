@@ -2,7 +2,6 @@
 # Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 """
 A simple wrapper for protoc.
 
@@ -10,7 +9,7 @@ A simple wrapper for protoc.
 - Handles building with system protobuf as an option.
 """
 
-import optparse
+import optparse  #pylint: disable=deprecated-module
 import os.path
 import shutil
 import subprocess
@@ -18,6 +17,7 @@ import sys
 import tempfile
 
 PROTOC_INCLUDE_POINT = '// @@protoc_insertion_point(includes)\n'
+
 
 def ModifyHeader(header_file, extra_header):
   """Adds |extra_header| to |header_file|. Returns 0 on success.
@@ -27,17 +27,17 @@ def ModifyHeader(header_file, extra_header):
   """
   include_point_found = False
   header_contents = []
-  with open(header_file) as f:
+  with open(header_file, encoding='utf=8') as f:
     for line in f:
       header_contents.append(line)
       if line == PROTOC_INCLUDE_POINT:
-        extra_header_msg = '#include "%s"\n' % extra_header
+        extra_header_msg = f'#include "{extra_header}"\n'
         header_contents.append(extra_header_msg)
-        include_point_found = True;
+        include_point_found = True
   if not include_point_found:
     return 1
 
-  with open(header_file, 'wb') as f:
+  with open(header_file, 'wb', encoding='utf-8') as f:
     f.write(''.join(header_contents))
   return 0
 
@@ -48,8 +48,12 @@ def RewriteProtoFilesForSystemProtobuf(path):
     for filename in os.listdir(path):
       if not filename.endswith('.proto'):
         continue
-      with open(os.path.join(path, filename), 'r') as src_file:
-        with open(os.path.join(wrapper_dir, filename), 'w') as dst_file:
+      # pylint: disable=line-too-long
+      with open(
+          os.path.join(path, filename), 'r', encoding='utf-8') as src_file:
+        with open(
+            os.path.join(wrapper_dir, filename), 'w',
+            encoding='utf-8') as dst_file:
           for line in src_file:
             # Remove lines that break build with system protobuf.
             # We cannot optimize for lite runtime, because system lite runtime
@@ -59,27 +63,34 @@ def RewriteProtoFilesForSystemProtobuf(path):
             if 'LITE_RUNTIME' in line or 'retain_unknown_fields' in line:
               continue
             dst_file.write(line)
-
+      # pylint: enable=line-too-long
     return wrapper_dir
   except:
     shutil.rmtree(wrapper_dir)
     raise
 
 
-def main(argv):
+def main(argv):  # pylint: disable=unused-argument
   parser = optparse.OptionParser()
-  parser.add_option('--include', dest='extra_header',
-                    help='The extra header to include. This must be specified '
-                         'along with --protobuf.')
-  parser.add_option('--protobuf', dest='generated_header',
-                    help='The c++ protobuf header to add the extra header to. '
-                         'This must be specified along with --include.')
-  parser.add_option('--proto-in-dir',
-                    help='The directory containing .proto files.')
+  parser.add_option(
+      '--include',
+      dest='extra_header',
+      help='The extra header to include. This must be specified '
+      'along with --protobuf.')
+  parser.add_option(
+      '--protobuf',
+      dest='generated_header',
+      help='The c++ protobuf header to add the extra header to. '
+      'This must be specified along with --include.')
+  parser.add_option(
+      '--proto-in-dir', help='The directory containing .proto files.')
   parser.add_option('--proto-in-file', help='Input file to compile.')
-  parser.add_option('--use-system-protobuf', type=int, default=0,
-                    help='Option to use system-installed protobuf '
-                         'instead of bundled one.')
+  parser.add_option(
+      '--use-system-protobuf',
+      type=int,
+      default=0,
+      help='Option to use system-installed protobuf '
+      'instead of bundled one.')
   (options, args) = parser.parse_args(sys.argv)
   if len(args) < 2:
     return 1
@@ -90,8 +101,10 @@ def main(argv):
   try:
     # Run what is hopefully protoc.
     protoc_args = args[1:]
-    protoc_args += ['--proto_path=%s' % proto_path,
-                    os.path.join(proto_path, options.proto_in_file)]
+    protoc_args += [
+        f'--proto_path={proto_path}',
+        os.path.join(proto_path, options.proto_in_file)
+    ]
     ret = subprocess.call(protoc_args)
     if ret != 0:
       return ret

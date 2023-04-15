@@ -206,6 +206,12 @@ source_set("zlib_inflate_chunk_simd") {
 
     if (!is_win && use_cobalt_customizations) {
       cflags_c = [ "-Wno-unused-function" ]
+      if (is_clang_16) {
+        cflags_c += [
+          # inffast_chunk.c a function definition without a prototype
+          "-Wno-deprecated-non-prototype",
+        ]
+      }
     }
 
     if (use_arm_neon_optimizations && !is_debug) {
@@ -342,6 +348,13 @@ component("zlib_hidden") {
   deps = []
   cflags_c = []
 
+  if (is_clang_16 && use_cobalt_customizations) {
+    cflags_c += [
+      "-Wno-deprecated-non-prototype",
+      "-Wno-unused-but-set-variable",
+    ]
+  }
+
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
     deps += [
       ":zlib_adler32_simd",
@@ -420,6 +433,12 @@ config("minizip_warnings") {
   if (is_clang) {
     # zlib uses `if ((a == b))` for some reason.
     cflags = [ "-Wno-parentheses-equality" ]
+    if (is_clang_16 && use_cobalt_customizations) {
+      cflags += [
+        "-Wno-misleading-indentation",
+        "-Wno-unused-but-set-variable"
+      ]
+    }
   }
 }
 

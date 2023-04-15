@@ -23,24 +23,25 @@
 ; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+%include "config.asm"
 %include "ext/x86/x86inc.asm"
 
 SECTION .text
 
-cglobal cpu_cpuid, 0, 5, 0, info, leaf
-    mov        r4, infomp
+cglobal cpu_cpuid, 0, 5, 0, regs, leaf, subleaf
+    mov        r4, regsmp
     mov       eax, leafm
-    xor       ecx, ecx
+    mov       ecx, subleafm
 %if ARCH_X86_64
-    push      rbx
+    mov        r5, rbx
 %endif
     cpuid
     mov  [r4+4*0], eax
     mov  [r4+4*1], ebx
-    mov  [r4+4*2], ecx
-    mov  [r4+4*3], edx
+    mov  [r4+4*2], edx
+    mov  [r4+4*3], ecx
 %if ARCH_X86_64
-    pop       rbx
+    mov       rbx, r5
 %endif
     RET
 

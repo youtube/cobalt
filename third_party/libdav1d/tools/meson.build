@@ -39,6 +39,18 @@ dav1d_output_sources = files(
     'output/yuv.c',
 )
 
+# hacky check for xxhash.h to allow copying it to tools/output
+if not get_option('xxhash_muxer').disabled()
+    xxhash_include = '-I' + meson.current_source_dir() / 'output'
+    if cc.has_header_symbol('xxhash.h', 'XXH3_createState', args : xxhash_include)
+        dav1d_output_sources += 'output/xxhash.c'
+        xxh3_found = true
+    elif get_option('xxhash_muxer').enabled()
+        # manual error since 'required' kw arg in has_header_symbol() was only added in meson 0.50
+        error( 'C symbol XXH3_createState not found in header xxhash.h')
+    endif
+endif
+
 dav1d_input_objs = static_library('dav1d_input',
     dav1d_input_sources,
 
@@ -69,6 +81,8 @@ endif
 # Configuratin data for cli_config.h
 cli_cdata = configuration_data()
 
+cli_cdata.set10('HAVE_XXHASH_H', get_variable('xxh3_found', false))
+
 cli_config_h_target = configure_file(output: 'cli_config.h', configuration: cli_cdata)
 
 # dav1d cli tool sources
@@ -77,12 +91,33 @@ dav1d_sources = files(
     'dav1d_cli_parse.c',
 )
 
+if host_machine.system() == 'windows'
+    rc_file = configure_file(
+        input : 'dav1d.rc.in',
+        output : 'dav1d.rc',
+        configuration : rc_data
+    )
+
+    dav1d_rc_obj = winmod.compile_resources(rc_file,
+       depend_files : files('dav1d.manifest'),
+       include_directories : include_directories('.')
+    )
+else
+    dav1d_rc_obj = []
+endif
+
 dav1d = executable('dav1d',
     dav1d_sources,
+    dav1d_rc_obj,
     rev_target, cli_config_h_target,
 
     link_with : [libdav1d, dav1d_input_objs, dav1d_output_objs],
     include_directories : [dav1d_inc_dirs],
-    dependencies : [getopt_dependency, thread_dependency, rt_dependency],
+    dependencies : [
+        getopt_dependency,
+        thread_dependency,
+        rt_dependency,
+        libm_dependency,
+        ],
     install : true,
 )

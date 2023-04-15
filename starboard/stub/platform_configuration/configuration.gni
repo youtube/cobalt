@@ -28,3 +28,5 @@ pedantic_warnings_config_path =
     "//starboard/stub/platform_configuration:pedantic_warnings"
 no_pedantic_warnings_config_path =
     "//starboard/stub/platform_configuration:no_pedantic_warnings"
+
+is_clang_16 = true

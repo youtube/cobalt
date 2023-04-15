@@ -166,6 +166,8 @@ SbKey AInputEventToSbKey(GameActivityKeyEvent* event) {
       return kSbKeyHome;
     case AKEYCODE_MOVE_END:
       return kSbKeyEnd;
+    case AKEYCODE_SEARCH:
+      return kSbKeyBrowserSearch;
 
     // D-pad
     case AKEYCODE_DPAD_UP:
@@ -377,13 +379,17 @@ SbKey AInputEventToSbKey(GameActivityKeyEvent* event) {
     case AKEYCODE_Z:
       return static_cast<SbKey>(kSbKeyA + (keycode - AKEYCODE_A));
 
-    // Don't handle these keys so the OS can in a uniform manner.
+    // Required, but will not be used by the YouTube application.
     case AKEYCODE_VOLUME_UP:
+      return kSbKeyVolumeUp;
     case AKEYCODE_VOLUME_DOWN:
+      return kSbKeyVolumeDown;
     case AKEYCODE_MUTE:
+      return kSbKeyVolumeMute;
+
+    // Don't handle these keys so the OS can in a uniform manner.
     case AKEYCODE_BRIGHTNESS_UP:
     case AKEYCODE_BRIGHTNESS_DOWN:
-    case AKEYCODE_SEARCH:
     default:
       return kSbKeyUnknown;
   }
@@ -486,11 +492,6 @@ void PushKeyEvent(SbKey key,
                   SbWindow window,
                   GameActivityMotionEvent* android_event,
                   Events* events) {
-  if (key == kSbKeyUnknown) {
-    SB_NOTREACHED();
-    return;
-  }
-
   std::unique_ptr<SbInputData> data(new SbInputData());
   memset(data.get(), 0, sizeof(*data));
 
@@ -522,11 +523,6 @@ void PushKeyEvent(SbKey key,
                   SbWindow window,
                   GameActivityKeyEvent* android_event,
                   Events* events) {
-  if (key == kSbKeyUnknown) {
-    SB_NOTREACHED();
-    return;
-  }
-
   std::unique_ptr<SbInputData> data(new SbInputData());
   memset(data.get(), 0, sizeof(*data));
 
@@ -665,9 +661,6 @@ bool InputEventsGenerator::CreateInputEventsFromGameActivityEvent(
   }
 
   SbKey key = AInputEventToSbKey(android_event);
-  if (key == kSbKeyUnknown) {
-    return false;
-  }
 
   if (android_event->flags & AKEY_EVENT_FLAG_FALLBACK && IsDPadKey(key)) {
     // For fallback DPad keys, we flow into special processing to manage the

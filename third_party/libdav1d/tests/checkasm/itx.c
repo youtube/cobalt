@@ -138,14 +138,21 @@ static int copy_subcoefs(coef *coeff,
      * dimensions are non-zero. This leads to braching to specific optimized
      * simd versions (e.g. dc-only) so that we get full asm coverage in this
      * test */
-    const uint16_t *const scan = dav1d_scans[tx][dav1d_tx_type_class[txtp]];
+
+    const enum TxClass tx_class = dav1d_tx_type_class[txtp];
+    const uint16_t *const scan = dav1d_scans[tx];
     const int sub_high = subsh > 0 ? subsh * 8 - 1 : 0;
     const int sub_low  = subsh > 1 ? sub_high - 8 : 0;
     int n, eob;
 
     for (n = 0, eob = 0; n < sw * sh; n++) {
-        const int rc = scan[n];
-        const int rcx = rc % sh, rcy = rc / sh;
+        int rc, rcx, rcy;
+        if (tx_class == TX_CLASS_2D)
+            rc = scan[n], rcx = rc % sh, rcy = rc / sh;
+        else if (tx_class == TX_CLASS_H)
+            rcx = n % sh, rcy = n / sh, rc = n;
+        else /* tx_class == TX_CLASS_V */
+            rcx = n / sw, rcy = n % sw, rc = rcy * sh + rcx;
 
         /* Pick a random eob within this sub-itx */
         if (rcx > sub_high || rcy > sub_high) {
@@ -156,8 +163,18 @@ static int copy_subcoefs(coef *coeff,
 
     if (eob)
         eob += rnd() % (n - eob - 1);
-    for (n = eob + 1; n < sw * sh; n++)
-        coeff[scan[n]] = 0;
+    if (tx_class == TX_CLASS_2D)
+        for (n = eob + 1; n < sw * sh; n++)
+            coeff[scan[n]] = 0;
+    else if (tx_class == TX_CLASS_H)
+        for (n = eob + 1; n < sw * sh; n++)
+            coeff[n] = 0;
+    else /* tx_class == TX_CLASS_V */ {
+        for (int rcx = eob / sw, rcy = eob % sw; rcx < sh; rcx++, rcy = -1)
+            while (++rcy < sw)
+                coeff[rcy * sh + rcx] = 0;
+        n = sw * sh;
+    }
     for (; n < 32 * 32; n++)
         coeff[n] = rnd();
     return eob;
@@ -222,14 +239,69 @@ static int ftx(coef *const buf, const enum RectTxfmSize tx,
     return copy_subcoefs(buf, tx, txtp, sw, sh, subsh);
 }
 
+static void check_itxfm_add(Dav1dInvTxfmDSPContext *const c,
+                            const enum RectTxfmSize tx)
+{
+    ALIGN_STK_64(coef, coeff, 2, [32 * 32]);
+    PIXEL_RECT(c_dst, 64, 64);
+    PIXEL_RECT(a_dst, 64, 64);
+
+    static const uint8_t subsh_iters[5] = { 2, 2, 3, 5, 5 };
+
+    const int w = dav1d_txfm_dimensions[tx].w * 4;
+    const int h = dav1d_txfm_dimensions[tx].h * 4;
+    const int subsh_max = subsh_iters[imax(dav1d_txfm_dimensions[tx].lw,
+                                           dav1d_txfm_dimensions[tx].lh)];
+#if BITDEPTH == 16
+    const int bpc_min = 10, bpc_max = 12;
+#else
+    const int bpc_min = 8, bpc_max = 8;
+#endif
+
+    declare_func(void, pixel *dst, ptrdiff_t dst_stride, coef *coeff,
+                 int eob HIGHBD_DECL_SUFFIX);
+
+    for (int bpc = bpc_min; bpc <= bpc_max; bpc += 2) {
+        bitfn(dav1d_itx_dsp_init)(c, bpc);
+        for (enum TxfmType txtp = 0; txtp < N_TX_TYPES_PLUS_LL; txtp++)
+            for (int subsh = 0; subsh < subsh_max; subsh++)
+                if (check_func(c->itxfm_add[tx][txtp],
+                               "inv_txfm_add_%dx%d_%s_%s_%d_%dbpc",
+                               w, h, itx_1d_names[itx_1d_types[txtp][0]],
+                               itx_1d_names[itx_1d_types[txtp][1]], subsh,
+                               bpc))
+                {
+                    const int bitdepth_max = (1 << bpc) - 1;
+                    const int eob = ftx(coeff[0], tx, txtp, w, h, subsh, bitdepth_max);
+                    memcpy(coeff[1], coeff[0], sizeof(*coeff));
+
+                    CLEAR_PIXEL_RECT(c_dst);
+                    CLEAR_PIXEL_RECT(a_dst);
+
+                    for (int y = 0; y < h; y++)
+                        for (int x = 0; x < w; x++)
+                            c_dst[y*PXSTRIDE(c_dst_stride) + x] =
+                            a_dst[y*PXSTRIDE(a_dst_stride) + x] = rnd() & bitdepth_max;
+
+                    call_ref(c_dst, c_dst_stride, coeff[0], eob
+                             HIGHBD_TAIL_SUFFIX);
+                    call_new(a_dst, a_dst_stride, coeff[1], eob
+                             HIGHBD_TAIL_SUFFIX);
+
+                    checkasm_check_pixel_padded(c_dst, c_dst_stride,
+                                                a_dst, a_dst_stride,
+                                                w, h, "dst");
+                    if (memcmp(coeff[0], coeff[1], sizeof(*coeff)))
+                        fail();
+
+                    bench_new(alternate(c_dst, a_dst), a_dst_stride,
+                              alternate(coeff[0], coeff[1]), eob HIGHBD_TAIL_SUFFIX);
+                }
+    }
+    report("add_%dx%d", w, h);
+}
+
 void bitfn(checkasm_check_itx)(void) {
-    Dav1dInvTxfmDSPContext c;
-    bitfn(dav1d_itx_dsp_init)(&c);
-
-    ALIGN_STK_32(coef, coeff, 2, [32 * 32]);
-    ALIGN_STK_32(pixel, c_dst, 64 * 64,);
-    ALIGN_STK_32(pixel, a_dst, 64 * 64,);
-
     static const uint8_t txfm_size_order[N_RECT_TX_SIZES] = {
         TX_4X4,   RTX_4X8,  RTX_4X16,
         RTX_8X4,  TX_8X8,   RTX_8X16,  RTX_8X32,
@@ -238,51 +310,9 @@ void bitfn(checkasm_check_itx)(void) {
                             RTX_64X16, RTX_64X32, TX_64X64
     };
 
-    static const uint8_t subsh_iters[5] = { 2, 2, 3, 5, 5 };
+    /* Zero unused function pointer elements. */
+    Dav1dInvTxfmDSPContext c = { { { 0 } } };
 
-    declare_func(void, pixel *dst, ptrdiff_t dst_stride, coef *coeff, int eob
-                 HIGHBD_DECL_SUFFIX);
-
-    for (int i = 0; i < N_RECT_TX_SIZES; i++) {
-        const enum RectTxfmSize tx = txfm_size_order[i];
-        const int w = dav1d_txfm_dimensions[tx].w * 4;
-        const int h = dav1d_txfm_dimensions[tx].h * 4;
-        const int subsh_max = subsh_iters[imax(dav1d_txfm_dimensions[tx].lw,
-                                               dav1d_txfm_dimensions[tx].lh)];
-
-        for (enum TxfmType txtp = 0; txtp < N_TX_TYPES_PLUS_LL; txtp++)
-            for (int subsh = 0; subsh < subsh_max; subsh++)
-                if (check_func(c.itxfm_add[tx][txtp],
-                               "inv_txfm_add_%dx%d_%s_%s_%d_%dbpc",
-                               w, h, itx_1d_names[itx_1d_types[txtp][0]],
-                               itx_1d_names[itx_1d_types[txtp][1]], subsh,
-                               BITDEPTH))
-                {
-#if BITDEPTH == 16
-                    const int bitdepth_max = rnd() & 1 ? 0x3ff : 0xfff;
-#else
-                    const int bitdepth_max = 0xff;
-#endif
-                    const int eob = ftx(coeff[0], tx, txtp, w, h, subsh, bitdepth_max);
-                    memcpy(coeff[1], coeff[0], sizeof(*coeff));
-
-                    for (int j = 0; j < w * h; j++)
-                        c_dst[j] = a_dst[j] = rnd() & bitdepth_max;
-
-                    call_ref(c_dst, w * sizeof(*c_dst), coeff[0], eob
-                             HIGHBD_TAIL_SUFFIX);
-                    call_new(a_dst, w * sizeof(*c_dst), coeff[1], eob
-                             HIGHBD_TAIL_SUFFIX);
-
-                    checkasm_check_pixel(c_dst, w * sizeof(*c_dst),
-                                         a_dst, w * sizeof(*a_dst),
-                                         w, h, "dst");
-                    if (memcmp(coeff[0], coeff[1], sizeof(*coeff)))
-                        fail();
-
-                    bench_new(a_dst, w * sizeof(*c_dst), coeff[0], eob
-                              HIGHBD_TAIL_SUFFIX);
-                }
-        report("add_%dx%d", w, h);
-    }
+    for (int i = 0; i < N_RECT_TX_SIZES; i++)
+        check_itxfm_add(&c, txfm_size_order[i]);
 }

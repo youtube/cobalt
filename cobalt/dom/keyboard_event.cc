@@ -324,11 +324,11 @@ std::string KeyboardEvent::NonPrintableKey(int32_t key_code) const {
     case keycode::kBrowserHome:
       return "BrowserHome";
     case keycode::kVolumeMute:
-      return "VolumeMute";
+      return "AudioVolumeMute";
     case keycode::kVolumeDown:
-      return "VolumeMute";
+      return "AudioVolumeDown";
     case keycode::kVolumeUp:
-      return "VolumeMute";
+      return "AudioVolumeUp";
     case keycode::kMediaNextTrack:
       return "MediaNextTrack";
     case keycode::kMediaPrevTrack:

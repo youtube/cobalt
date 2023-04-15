@@ -75,6 +75,19 @@ config("compiler_flags") {
     }
   }
 
+  if (is_clang_16) {
+    cflags += [
+      # Do not warn about an implicit conversion from int to float
+      "-Wno-implicit-int-float-conversion",
+
+      # Do not warn about an implicit conversion from int to char16
+      "-Wno-implicit-int-conversion",
+
+      # Do not remove null pointer checks.
+      "-fno-delete-null-pointer-checks",
+    ]
+  }
+
   if (!cobalt_fastbuild && (is_debug || is_devel)) {
     cflags += [ "-g" ]
   }

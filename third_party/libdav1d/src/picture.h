@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018, VideoLAN and dav1d authors
+ * Copyright © 2018-2021, VideoLAN and dav1d authors
  * Copyright © 2018, Two Orioles, LLC
  * All rights reserved.
  *
@@ -43,14 +43,29 @@ enum PlaneType {
     PLANE_TYPE_ALL,
 };
 
+enum PictureFlags {
+    PICTURE_FLAG_NEW_SEQUENCE =       1 << 0,
+    PICTURE_FLAG_NEW_OP_PARAMS_INFO = 1 << 1,
+    PICTURE_FLAG_NEW_TEMPORAL_UNIT  = 1 << 2,
+};
+
 typedef struct Dav1dThreadPicture {
     Dav1dPicture p;
     int visible;
-    struct thread_data *t;
+    // This can be set for inter frames, non-key intra frames, or for invisible
+    // keyframes that have not yet been made visible using the show-existing-frame
+    // mechanism.
+    int showable;
+    enum PictureFlags flags;
     // [0] block data (including segmentation map and motion vectors)
     // [1] pixel data
     atomic_uint *progress;
 } Dav1dThreadPicture;
+
+typedef struct Dav1dPictureBuffer {
+    void *data;
+    struct Dav1dPictureBuffer *next;
+} Dav1dPictureBuffer;
 
 /*
  * Allocate a picture with custom border size.
@@ -73,6 +88,8 @@ int dav1d_picture_alloc_copy(Dav1dContext *c, Dav1dPicture *dst, const int w,
 void dav1d_picture_ref(Dav1dPicture *dst, const Dav1dPicture *src);
 void dav1d_thread_picture_ref(Dav1dThreadPicture *dst,
                               const Dav1dThreadPicture *src);
+void dav1d_thread_picture_move_ref(Dav1dThreadPicture *dst,
+                                   Dav1dThreadPicture *src);
 void dav1d_thread_picture_unref(Dav1dThreadPicture *p);
 
 /**
@@ -80,33 +97,13 @@ void dav1d_thread_picture_unref(Dav1dThreadPicture *p);
  */
 void dav1d_picture_move_ref(Dav1dPicture *dst, Dav1dPicture *src);
 
-/**
- * Wait for picture to reach a certain stage.
- *
- * y is in full-pixel units. If pt is not UV, this is in luma
- * units, else it is in chroma units.
- * plane_type is used to determine how many pixels delay are
- * introduced by loopfilter processes.
- *
- * Returns 0 on success, and 1 if there was an error while decoding p
- */
-int dav1d_thread_picture_wait(const Dav1dThreadPicture *p, int y,
-                               enum PlaneType plane_type);
-
-/**
- * Signal decoding progress.
- *
- * y is in full-pixel luma units. FRAME_ERROR is used to signal a decoding
- * error to frames using this frame as reference frame.
- * plane_type denotes whether we have completed block data (pass 1;
- * PLANE_TYPE_BLOCK), pixel data (pass 2, PLANE_TYPE_Y) or both (no
- * 2-pass decoding; PLANE_TYPE_ALL).
- */
-void dav1d_thread_picture_signal(const Dav1dThreadPicture *p, int y,
-                                 enum PlaneType plane_type);
-
 int dav1d_default_picture_alloc(Dav1dPicture *p, void *cookie);
 void dav1d_default_picture_release(Dav1dPicture *p, void *cookie);
 void dav1d_picture_unref_internal(Dav1dPicture *p);
+
+/**
+ * Get event flags from picture flags.
+ */
+enum Dav1dEventFlags dav1d_picture_get_event_flags(const Dav1dThreadPicture *p);
 
 #endif /* DAV1D_SRC_PICTURE_H */

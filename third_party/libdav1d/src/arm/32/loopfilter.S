@@ -143,8 +143,8 @@ function lpf_8_wd\wd\()_neon
         vaddw.s8        q1,  q1,  d4
         vmov.i8         d7,  #3
         vqmovn.s16      d2,  q1       // f
-        vqadd.s8        d4,  d6,  d2  // imin(f + 4, 128)
-        vqadd.s8        d5,  d7,  d2  // imin(f + 3, 128)
+        vqadd.s8        d4,  d6,  d2  // imin(f + 4, 127)
+        vqadd.s8        d5,  d7,  d2  // imin(f + 3, 127)
         vshr.s8         d4,  d4,  #3  // f1
         vshr.s8         d5,  d5,  #3  // f2
         vmovl.u8        q1,  d23      // p0
@@ -515,7 +515,7 @@ function lpf_v_8_8_neon
         lpf_8_wd8
 
         sub             r10, r0,  r1, lsl #1
-        sub             r10, r10,  r1
+        sub             r10, r10, r1
         vst1.8          {d21}, [r10, :64], r1 // p2
         vst1.8          {d24}, [r0,  :64], r1 // q0
         vst1.8          {d22}, [r10, :64], r1 // p1
@@ -734,13 +734,13 @@ function lpf_h_16_8_neon
         bx              r12
 endfunc
 
-// void dav1d_lpf_v_sb_y_neon(pixel *dst, const ptrdiff_t stride,
-//                            const uint32_t *const vmask,
-//                            const uint8_t (*l)[4], ptrdiff_t b4_stride,
-//                            const Av1FilterLUT *lut, const int w)
+// void dav1d_lpf_v_sb_y_8bpc_neon(pixel *dst, const ptrdiff_t stride,
+//                                 const uint32_t *const vmask,
+//                                 const uint8_t (*l)[4], ptrdiff_t b4_stride,
+//                                 const Av1FilterLUT *lut, const int w)
 
 .macro lpf_func dir, type
-function lpf_\dir\()_sb_\type\()_neon, export=1
+function lpf_\dir\()_sb_\type\()_8bpc_neon, export=1
         push            {r4-r11,lr}
         vpush           {q4-q7}
         ldrd            r4,  r5,  [sp, #100]
@@ -783,11 +783,11 @@ function lpf_\dir\()_sb_\type\()_neon, export=1
         vld1.8          {d6[]}, [r5]   // sharp[1]
         sub             r5,  r5,  #8
         vbif            d1,  d0,  d3   // if (!l[0][0]) L = l[offset][0]
+        vtst.32         d2,  d1,  d2   // L != 0
         vmul.i32        d1,  d1,  d4   // L
 .ifc \type, y
         vdup.32         d15, r2        // vmask[2]
 .endif
-        vtst.32         d2,  d1,  d2   // L != 0
         vdup.32         d14, r7        // vmask[1]
         vmov            r10, r11, d2
         orrs            r10, r10, r11

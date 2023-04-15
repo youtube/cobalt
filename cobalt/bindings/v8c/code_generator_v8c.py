@@ -26,22 +26,22 @@ class ExpressionGeneratorV8c(ExpressionGenerator):
   """Implementation of ExpressionGenerator for V8."""
 
   def is_undefined(self, arg):
-    return '{}->IsUndefined()'.format(arg)
+    return f'{arg}->IsUndefined()'
 
   def is_undefined_or_null(self, arg):
-    return '{}->IsNullOrUndefined()'.format(arg)
+    return f'{arg}->IsNullOrUndefined()'
 
   def inherits_interface(self, interface_name, arg):
-    return ('{}->IsObject() ? '
+    return (f'{arg}->IsObject() ? '
             'wrapper_factory->DoesObjectImplementInterface(object, '
-            'base::GetTypeId<{}>()) : false').format(arg, interface_name)
+            f'base::GetTypeId<{interface_name}>()) : false')
 
   def is_number(self, arg):
-    return '{}->IsNumber()'.format(arg)
+    return f'{arg}->IsNumber()'.format(arg)
 
   def is_type(self, interface_name, arg):
-    return ('{}->IsObject() ? '
-            'object->Is{}(): false').format(arg, interface_name)
+    return (f'{arg}->IsObject() ? '
+            f'object->Is{interface_name}(): false')
 
 
 class CodeGeneratorV8c(CodeGeneratorCobalt):
@@ -52,7 +52,7 @@ class CodeGeneratorV8c(CodeGeneratorCobalt):
   def __init__(self, *args, **kwargs):
     module_path, _ = os.path.split(os.path.realpath(__file__))
     templates_dir = os.path.normpath(os.path.join(module_path, 'templates'))
-    super(CodeGeneratorV8c, self).__init__(templates_dir, *args, **kwargs)
+    super().__init__(templates_dir, *args, **kwargs)
 
   def build_interface_context(self, interface, interface_info, definitions):
     # Due to a V8 internals quirks, named constructor attributes MUST come
@@ -60,13 +60,14 @@ class CodeGeneratorV8c(CodeGeneratorCobalt):
     # as the "name" property on the function template value, overriding the
     # originally selected name from |FunctionTemplate::SetClassName|.  Efforts
     # to document/modify this behavior in V8 are underway.
-    context = super(CodeGeneratorV8c, self).build_interface_context(
-        interface, interface_info, definitions)
+    context = super().build_interface_context(interface, interface_info,
+                                              definitions)
     context['all_attributes_v8_order_quirk'] = sorted(
-        [a for a in context['attributes'] + context['static_attributes']],
+        context['attributes'] + context['static_attributes'],
         key=lambda a: not a.get('is_named_constructor_attribute', False))
     return context
 
+  # pylint: disable=invalid-overridden-method
   @property
   def generated_file_prefix(self):
     return 'v8c'
@@ -74,3 +75,5 @@ class CodeGeneratorV8c(CodeGeneratorCobalt):
   @property
   def expression_generator(self):
     return CodeGeneratorV8c._expression_generator
+
+  # pylint: enable=invalid-overridden-method

@@ -43,11 +43,13 @@
 uint8_t *dav1d_data_create_internal(Dav1dData *const buf, const size_t sz) {
     validate_input_or_ret(buf != NULL, NULL);
 
+    if (sz > SIZE_MAX / 2) return NULL;
     buf->ref = dav1d_ref_create(sz);
     if (!buf->ref) return NULL;
     buf->data = buf->ref->const_data;
-    buf->sz = buf->m.size = sz;
+    buf->sz = sz;
     dav1d_data_props_set_defaults(&buf->m);
+    buf->m.size = sz;
 
     return buf->ref->data;
 }
@@ -65,8 +67,9 @@ int dav1d_data_wrap_internal(Dav1dData *const buf, const uint8_t *const ptr,
     buf->ref = dav1d_ref_wrap(ptr, free_callback, cookie);
     if (!buf->ref) return DAV1D_ERR(ENOMEM);
     buf->data = ptr;
-    buf->sz = buf->m.size = sz;
+    buf->sz = sz;
     dav1d_data_props_set_defaults(&buf->m);
+    buf->m.size = sz;
 
     return 0;
 }
@@ -101,18 +104,6 @@ void dav1d_data_ref(Dav1dData *const dst, const Dav1dData *const src) {
     *dst = *src;
 }
 
-void dav1d_data_move_ref(Dav1dData *const dst, Dav1dData *const src) {
-    validate_input(dst != NULL);
-    validate_input(dst->data == NULL);
-    validate_input(src != NULL);
-
-    if (src->ref)
-        validate_input(src->data != NULL);
-
-    *dst = *src;
-    memset(src, 0, sizeof(*src));
-}
-
 void dav1d_data_props_copy(Dav1dDataProps *const dst,
                            const Dav1dDataProps *const src)
 {
@@ -127,11 +118,17 @@ void dav1d_data_props_copy(Dav1dDataProps *const dst,
 void dav1d_data_props_set_defaults(Dav1dDataProps *const props) {
     assert(props != NULL);
 
+    memset(props, 0, sizeof(*props));
     props->timestamp = INT64_MIN;
-    props->duration = 0;
     props->offset = -1;
-    props->user_data.data = NULL;
-    props->user_data.ref = NULL;
+}
+
+void dav1d_data_props_unref_internal(Dav1dDataProps *const props) {
+    validate_input(props != NULL);
+
+    struct Dav1dRef *user_data_ref = props->user_data.ref;
+    dav1d_data_props_set_defaults(props);
+    dav1d_ref_dec(&user_data_ref);
 }
 
 void dav1d_data_unref_internal(Dav1dData *const buf) {
@@ -143,5 +140,6 @@ void dav1d_data_unref_internal(Dav1dData *const buf) {
         dav1d_ref_dec(&buf->ref);
     }
     memset(buf, 0, sizeof(*buf));
+    dav1d_data_props_set_defaults(&buf->m);
     dav1d_ref_dec(&user_data_ref);
 }

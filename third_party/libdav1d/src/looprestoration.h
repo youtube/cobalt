@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018, VideoLAN and dav1d authors
+ * Copyright © 2018-2021, VideoLAN and dav1d authors
  * Copyright © 2018, Two Orioles, LLC
  * All rights reserved.
  *
@@ -46,35 +46,34 @@ typedef const pixel (*const_left_pixel_row)[4];
 typedef const void *const_left_pixel_row;
 #endif
 
-// Although the spec applies restoration filters over 4x4 blocks, the wiener
-// filter can be applied to a bigger surface.
+typedef union LooprestorationParams {
+    ALIGN(int16_t filter[2][8], 16);
+    struct {
+        uint32_t s0, s1;
+        int16_t w0, w1;
+    } sgr;
+} LooprestorationParams;
+
+// Although the spec applies restoration filters over 4x4 blocks,
+// they can be applied to a bigger surface.
 //    * w is constrained by the restoration unit size (w <= 256)
 //    * h is constrained by the stripe height (h <= 64)
-#define decl_wiener_filter_fn(name) \
+// The filter functions are allowed to do aligned writes past the right
+// edge of the buffer, aligned up to the minimum loop restoration unit size
+// (which is 32 pixels for subsampled chroma and 64 pixels for luma).
+#define decl_lr_filter_fn(name) \
 void (name)(pixel *dst, ptrdiff_t dst_stride, \
             const_left_pixel_row left, \
-            const pixel *lpf, ptrdiff_t lpf_stride, \
-            int w, int h, const int16_t filterh[7], \
-            const int16_t filterv[7], enum LrEdgeFlags edges \
-            HIGHBD_DECL_SUFFIX)
-typedef decl_wiener_filter_fn(*wienerfilter_fn);
-
-#define decl_selfguided_filter_fn(name) \
-void (name)(pixel *dst, ptrdiff_t dst_stride, \
-            const_left_pixel_row left, \
-            const pixel *lpf, ptrdiff_t lpf_stride, \
-            int w, int h, int sgr_idx, const int16_t sgr_w[2], \
-            const enum LrEdgeFlags edges HIGHBD_DECL_SUFFIX)
-typedef decl_selfguided_filter_fn(*selfguided_fn);
+            const pixel *lpf, int w, int h, \
+            const LooprestorationParams *params, \
+            enum LrEdgeFlags edges HIGHBD_DECL_SUFFIX)
+typedef decl_lr_filter_fn(*looprestorationfilter_fn);
 
 typedef struct Dav1dLoopRestorationDSPContext {
-    wienerfilter_fn wiener;
-    selfguided_fn selfguided;
+    looprestorationfilter_fn wiener[2]; /* 7-tap, 5-tap */
+    looprestorationfilter_fn sgr[3]; /* 5x5, 3x3, mix */
 } Dav1dLoopRestorationDSPContext;
 
-bitfn_decls(void dav1d_loop_restoration_dsp_init, Dav1dLoopRestorationDSPContext *c);
-bitfn_decls(void dav1d_loop_restoration_dsp_init_arm, Dav1dLoopRestorationDSPContext *c);
-bitfn_decls(void dav1d_loop_restoration_dsp_init_x86, Dav1dLoopRestorationDSPContext *c);
-bitfn_decls(void dav1d_loop_restoration_dsp_init_ppc, Dav1dLoopRestorationDSPContext *c);
+bitfn_decls(void dav1d_loop_restoration_dsp_init, Dav1dLoopRestorationDSPContext *c, int bpc);
 
 #endif /* DAV1D_SRC_LOOPRESTORATION_H */

@@ -5,7 +5,7 @@
   "scripts": {
     "start": "npm run watch & npm run server",
     "build": "webpack",
-    "server": "http-server dist",
+    "server": "http-server -c-1 dist",
     "watch": "webpack --watch"
   },
   "author": "",

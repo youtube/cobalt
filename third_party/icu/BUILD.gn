@@ -89,6 +89,13 @@ config("icu_config") {
   if (is_starboard && is_win) {
     cflags = [ "/wd4805"]
   }
+
+  if (is_clang_16 && use_cobalt_customizations) {
+    cflags = [
+      # nfsubs.cpp contains variable pow which is set but not used.
+      "-Wno-unused-but-set-variable",
+    ]
+  }
 }
 
 if (is_starboard) {

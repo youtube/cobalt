@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018, VideoLAN and dav1d authors
+ * Copyright © 2018-2021, VideoLAN and dav1d authors
  * Copyright © 2018, Two Orioles, LLC
  * All rights reserved.
  *
@@ -29,10 +29,9 @@
 
 #include <string.h>
 
-#include "src/thread.h"
-#include "common/intops.h"
+#include "common/frame.h"
 
-#include "src/cdf.h"
+#include "src/internal.h"
 #include "src/tables.h"
 
 #define CDF1(x) (32768-(x))
@@ -4015,7 +4014,7 @@ void dav1d_cdf_thread_update(const Dav1dFrameHeader *const hdr,
     update_cdf_1d(11, m.txtp_inter2);
     update_bit_1d(4, m.txtp_inter3);
 
-    if (!(hdr->frame_type & 1)) {
+    if (IS_KEY_OR_INTRA(hdr)) {
         update_bit_0d(m.intrabc);
 
         update_cdf_1d(N_MV_JOINTS - 1, dmv.joint);
@@ -4096,17 +4095,16 @@ void dav1d_cdf_thread_copy(CdfContext *const dst, const CdfThreadContext *const 
     }
 }
 
-int dav1d_cdf_thread_alloc(CdfThreadContext *const cdf,
-                           struct thread_data *const t)
+int dav1d_cdf_thread_alloc(Dav1dContext *const c, CdfThreadContext *const cdf,
+                           const int have_frame_mt)
 {
-    cdf->ref = dav1d_ref_create(sizeof(CdfContext) +
-                                (t != NULL) * sizeof(atomic_uint));
+    cdf->ref = dav1d_ref_create_using_pool(c->cdf_pool,
+                                           sizeof(CdfContext) + sizeof(atomic_uint));
     if (!cdf->ref) return DAV1D_ERR(ENOMEM);
     cdf->data.cdf = cdf->ref->data;
-    if (t) {
+    if (have_frame_mt) {
         cdf->progress = (atomic_uint *) &cdf->data.cdf[1];
         atomic_init(cdf->progress, 0);
-        cdf->t = t;
     }
     return 0;
 }
@@ -4120,26 +4118,6 @@ void dav1d_cdf_thread_ref(CdfThreadContext *const dst,
 }
 
 void dav1d_cdf_thread_unref(CdfThreadContext *const cdf) {
-    if (cdf->ref)
-        dav1d_ref_dec(&cdf->ref);
-    memset(cdf, 0, sizeof(*cdf));
-}
-
-void dav1d_cdf_thread_wait(CdfThreadContext *const cdf) {
-    if (!cdf->t) return;
-
-    if (atomic_load(cdf->progress)) return;
-    dav1d_pthread_mutex_lock(&cdf->t->lock);
-    while (!atomic_load(cdf->progress))
-        dav1d_pthread_cond_wait(&cdf->t->cond, &cdf->t->lock);
-    dav1d_pthread_mutex_unlock(&cdf->t->lock);
-}
-
-void dav1d_cdf_thread_signal(CdfThreadContext *const cdf) {
-    if (!cdf->t) return;
-
-    dav1d_pthread_mutex_lock(&cdf->t->lock);
-    atomic_store(cdf->progress, 1);
-    dav1d_pthread_cond_broadcast(&cdf->t->cond);
-    dav1d_pthread_mutex_unlock(&cdf->t->lock);
+    memset(&cdf->data, 0, sizeof(*cdf) - offsetof(CdfThreadContext, data));
+    dav1d_ref_dec(&cdf->ref);
 }

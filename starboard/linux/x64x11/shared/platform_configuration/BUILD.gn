@@ -23,10 +23,7 @@ config("platform_configuration") {
 
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
-  libs = [
-    "//third_party/libdav1d/platforms/linux-x64/libdav1d.a",
-    "//third_party/libvpx/platforms/linux-x64/libvpx.a",
-  ]
+  libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.a" ]
 }
 
 config("linker_flags") {

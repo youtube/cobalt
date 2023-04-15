@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=redefined-outer-name,redefined-builtin,broad-except,unused-argument
+'''Collectd module for Cobalt'''
 
 import json
 import time
 import argparse
-import random
 import websocket
 
 try:
@@ -27,14 +28,13 @@ conf_ = {'host': 'localhost', 'port': 9222}
 
 
 def config(conf):
-  print('config called {!r}'.format(conf))
+  print(f'config called {conf!r}')
   conf_['collectd_conf'] = conf
-  collectd.info('config called {!r}'.format(conf))
+  collectd.info(f'config called {conf!r}')
 
 
 def reconnect():
-  ws = websocket.create_connection('ws://{}:{}'.format(conf_['host'],
-                                                       conf_['port']))
+  ws = websocket.create_connection(f"ws://{conf_['host']}:{conf_['port']}")
   ws.settimeout(3)
   setattr(ws, 'message_id', 1)
   conf_['ws'] = ws
@@ -43,7 +43,7 @@ def reconnect():
 def init():
   conf = conf_['collectd_conf']
   for child in conf.children:
-    collectd.info('conf.child key {} values {}'.format(child.key, child.values))
+    collectd.info(f'conf.child key {child.key} values {child.values}')
     if child.key.lower() == 'address':
       host, port = child.values[0].split(':')
       conf_['host'] = host
@@ -67,7 +67,7 @@ def wait_result(ws, result_id, timeout):
       if 'result' in parsed_message and parsed_message['id'] == result_id:
         matching_result = parsed_message
         break
-    except:
+    except Exception:
       break
   return (matching_result, messages)
 
@@ -101,13 +101,13 @@ def report_cobalt_stat(key, collectd_type):
     # collectd.warning('key {} value: {}'.format(key, value))
     report_value('cobalt', collectd_type, key, value)
   except TypeError:
-    collectd.warning('Failed to collect: {} {}'.format(key, val))
+    collectd.warning(f'Failed to collect: {key} {val}')
 
 
 # Tuple of a Cobalt Cval, and data type
-# Collectd frontends like CGP group values to graphs by the reported data type. The types here are
-# simple gauges grouped by their rough estimated orders of magnitude, so that all plots are still
-# somewhat discernible.
+# Collectd frontends like CGP group values to graphs by the reported data type.
+# The types here are simple gauges grouped by their rough estimated orders of
+# magnitude, so that all plots are still somewhat discernible.
 tracked_stats = [('Cobalt.Lifetime', 'lifetime'),
                  ('Count.DOM.ActiveJavaScriptEvents', 'gauge'),
                  ('Count.DOM.Attrs', 'gauge_10k'),
@@ -152,24 +152,28 @@ if collectd:
   collectd.register_init(init)
   collectd.register_read(read)
 
-
 # Debugcode to verify plugin connection
 if __name__ == '__main__':
+
   class Bunch:
-      def __init__(self, **kwds):
-          self.__dict__.update(kwds)
-  def debugprint(*args,**kwargs):
-    print('{!r} {!r}'.format(args,kwargs))
+
+    def __init__(self, **kwds):
+      self.__dict__.update(kwds)
+
+  def debugprint(*args, **kwargs):
+    print(f'{args!r} {kwargs!r}')
+
   def debugvalues(**kwargs):
     debugprint(**kwargs)
-    return Bunch(dispatch=debugprint,**kwargs)
-  collectd = Bunch(info=debugprint,warning=debugprint,Values=debugvalues)
+    return Bunch(dispatch=debugprint, **kwargs)
+
+  collectd = Bunch(info=debugprint, warning=debugprint, Values=debugvalues)
   parser = argparse.ArgumentParser()
   parser.add_argument('--host', default='localhost')
   parser.add_argument('--port', type=int, default=9222)
   args = parser.parse_args()
-  conf = Bunch(children=[Bunch( key='address',
-    values=['{}:{}'.format(args.host,args.port)])])
-  conf_['collectd_conf']  = conf
+  conf = Bunch(
+      children=[Bunch(key='address', values=[f'{args.host}:{args.port}'])])
+  conf_['collectd_conf'] = conf
   init()
   cobalt_read()

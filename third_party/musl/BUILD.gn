@@ -57,6 +57,8 @@ static_library("c_internal") {
     "-isystem" + rebase_path("arch/$musl_arch", root_build_dir),
     "-isystem" + rebase_path("arch/generic", root_build_dir),
     "-w",
+    # shgetc.c call to undeclared function '__uflow'
+    "-Wno-implicit-function-declaration",
   ]
 
   # Enables temporary situation where main cobalt is built with glibc headers

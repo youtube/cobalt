@@ -29,13 +29,12 @@ class LinuxStadiaConfiguration(shared_configuration.LinuxConfiguration):
                platform='linux-stadia',
                asan_enabled_by_default=True,
                sabi_json_path='starboard/sabi/default/sabi.json'):
-    super(LinuxStadiaConfiguration,
-          self).__init__(platform, asan_enabled_by_default, sabi_json_path)
+    super().__init__(platform, asan_enabled_by_default, sabi_json_path)  # pylint: disable=too-many-function-args
 
   def GetTargetToolchain(self, **kwargs):
     return self.GetHostToolchain(**kwargs)
 
-  def GetHostToolchain(self, **kwargs):
+  def GetHostToolchain(self, **kwargs):  #pylint: disable=unused-argument
     environment_variables = self.GetEnvironmentVariables()
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']

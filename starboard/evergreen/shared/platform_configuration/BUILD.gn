@@ -131,6 +131,13 @@ config("platform_configuration") {
     ]
   }
 
+  if (is_clang_16) {
+    cflags += [
+      # Do not remove null pointer checks.
+      "-fno-delete-null-pointer-checks",
+    ]
+  }
+
   if (use_asan) {
     cflags += [
       "-fsanitize=address",

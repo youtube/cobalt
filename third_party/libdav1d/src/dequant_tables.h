@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018, VideoLAN and dav1d authors
+ * Copyright © 2018-2021, VideoLAN and dav1d authors
  * Copyright © 2018, Two Orioles, LLC
  * All rights reserved.
  *
@@ -32,6 +32,6 @@
 
 #include "src/levels.h"
 
-extern const uint16_t dav1d_dq_tbl[][QINDEX_RANGE][2];
+EXTERN const uint16_t dav1d_dq_tbl[3][QINDEX_RANGE][2];
 
 #endif /* DAV1D_SRC_DEQUANT_TABLES_H */

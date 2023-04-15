@@ -33,3 +33,5 @@ size_config_path = "//starboard/raspi/shared/platform_configuration:size"
 
 # TODO(b/219073252): Enable -fno-exceptions and don't mix it with -fexceptions.
 enable_exceptions_override = true
+
+is_clang_16 = current_toolchain == host_toolchain

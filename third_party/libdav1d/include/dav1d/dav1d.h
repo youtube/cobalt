@@ -38,10 +38,7 @@ extern "C" {
 #include "common.h"
 #include "picture.h"
 #include "data.h"
-
-#define DAV1D_API_VERSION_MAJOR 3
-#define DAV1D_API_VERSION_MINOR 1
-#define DAV1D_API_VERSION_PATCH 0
+#include "version.h"
 
 typedef struct Dav1dContext Dav1dContext;
 typedef struct Dav1dRef Dav1dRef;
@@ -61,16 +58,44 @@ typedef struct Dav1dLogger {
     void (*callback)(void *cookie, const char *format, va_list ap);
 } Dav1dLogger;
 
+enum Dav1dInloopFilterType {
+    DAV1D_INLOOPFILTER_NONE        = 0,
+    DAV1D_INLOOPFILTER_DEBLOCK     = 1 << 0,
+    DAV1D_INLOOPFILTER_CDEF        = 1 << 1,
+    DAV1D_INLOOPFILTER_RESTORATION = 1 << 2,
+    DAV1D_INLOOPFILTER_ALL = DAV1D_INLOOPFILTER_DEBLOCK |
+                             DAV1D_INLOOPFILTER_CDEF |
+                             DAV1D_INLOOPFILTER_RESTORATION,
+};
+
+enum Dav1dDecodeFrameType {
+    DAV1D_DECODEFRAMETYPE_ALL   = 0, ///< decode and return all frames
+    DAV1D_DECODEFRAMETYPE_REFERENCE = 1,///< decode and return frames referenced by other frames only
+    DAV1D_DECODEFRAMETYPE_INTRA = 2, ///< decode and return intra frames only (includes keyframes)
+    DAV1D_DECODEFRAMETYPE_KEY   = 3, ///< decode and return keyframes only
+};
+
 typedef struct Dav1dSettings {
-    int n_threads; ///< number of threads (0 = auto)
-    int max_frame_delay; ///< Set to 1 for low-latency decoding (0 = auto)
-    int apply_grain;
-    int operating_point; ///< select an operating point for scalable AV1 bitstreams (0 - 31)
-    int all_layers; ///< output all spatial layers of a scalable AV1 biststream
-    unsigned frame_size_limit; ///< maximum frame size, in pixels (0 = unlimited)
+    int n_threads; ///< number of threads (0 = number of logical cores in host system, default 0)
+    int max_frame_delay; ///< Set to 1 for low-latency decoding (0 = ceil(sqrt(n_threads)), default 0)
+    int apply_grain; ///< whether to apply film grain on output frames (default 1)
+    int operating_point; ///< select an operating point for scalable AV1 bitstreams (0 - 31, default 0)
+    int all_layers; ///< output all spatial layers of a scalable AV1 biststream (default 1)
+    unsigned frame_size_limit; ///< maximum frame size, in pixels (0 = unlimited, default 0)
     Dav1dPicAllocator allocator; ///< Picture allocator callback.
     Dav1dLogger logger; ///< Logger callback.
-    uint8_t reserved[32]; ///< reserved for future use
+    int strict_std_compliance; ///< whether to abort decoding on standard compliance violations
+                               ///< that don't affect actual bitstream decoding (e.g. inconsistent
+                               ///< or invalid metadata, default 0)
+    int output_invisible_frames; ///< output invisibly coded frames (in coding order) in addition
+                                 ///< to all visible frames. Because of show-existing-frame, this
+                                 ///< means some frames may appear twice (once when coded,
+                                 ///< once when shown, default 0)
+    enum Dav1dInloopFilterType inloop_filters; ///< postfilters to enable during decoding (default
+                                               ///< DAV1D_INLOOPFILTER_ALL)
+    enum Dav1dDecodeFrameType decode_frame_type; ///< frame types to decode (default
+                                                 ///< DAV1D_DECODEFRAMETYPE_ALL)
+    uint8_t reserved[16]; ///< reserved for future use
 } Dav1dSettings;
 
 /**
@@ -110,7 +135,7 @@ DAV1D_API int dav1d_open(Dav1dContext **c_out, const Dav1dSettings *s);
  *                  0: Success, and out is filled with the parsed Sequence Header
  *                     OBU parameters.
  *  DAV1D_ERR(ENOENT): No Sequence Header OBUs were found in the buffer.
- *  other negative DAV1D_ERR codes: Invalid data in the buffer, invalid passed-in
+ *  Other negative DAV1D_ERR codes: Invalid data in the buffer, invalid passed-in
  *                                  arguments, and other errors during parsing.
  *
  * @note It is safe to feed this function data containing other OBUs than a
@@ -121,7 +146,8 @@ DAV1D_API int dav1d_parse_sequence_header(Dav1dSequenceHeader *out,
                                           const uint8_t *buf, const size_t sz);
 
 /**
- * Feed bitstream data to the decoder.
+ * Feed bitstream data to the decoder, in the form of one or multiple AV1
+ * Open Bitstream Units (OBUs).
  *
  * @param   c Input decoder instance.
  * @param  in Input bitstream data. On success, ownership of the reference is
@@ -132,8 +158,9 @@ DAV1D_API int dav1d_parse_sequence_header(Dav1dSequenceHeader *out,
  *  DAV1D_ERR(EAGAIN): The data can't be consumed. dav1d_get_picture() should
  *                     be called to get one or more frames before the function
  *                     can consume new data.
- *  other negative DAV1D_ERR codes: Error during decoding or because of invalid
- *                                  passed-in arguments.
+ *  Other negative DAV1D_ERR codes: Error during decoding or because of invalid
+ *                                  passed-in arguments. The reference remains
+ *                                  owned by the caller.
  */
 DAV1D_API int dav1d_send_data(Dav1dContext *c, Dav1dData *in);
 
@@ -148,7 +175,7 @@ DAV1D_API int dav1d_send_data(Dav1dContext *c, Dav1dData *in);
  *         0: Success, and a frame is returned.
  *  DAV1D_ERR(EAGAIN): Not enough data to output a frame. dav1d_send_data()
  *                     should be called with new input.
- *  other negative DAV1D_ERR codes: Error during decoding or because of invalid
+ *  Other negative DAV1D_ERR codes: Error during decoding or because of invalid
  *                                  passed-in arguments.
  *
  * @note To drain buffered frames from the decoder (i.e. on end of stream),
@@ -188,6 +215,27 @@ DAV1D_API int dav1d_send_data(Dav1dContext *c, Dav1dData *in);
  * @endcode
  */
 DAV1D_API int dav1d_get_picture(Dav1dContext *c, Dav1dPicture *out);
+
+/**
+ * Apply film grain to a previously decoded picture. If the picture contains no
+ * film grain metadata, then this function merely returns a new reference.
+ *
+ * @param   c Input decoder instance.
+ * @param out Output frame. The caller assumes ownership of the returned
+ *            reference.
+ * @param  in Input frame. No ownership is transferred.
+ *
+ * @return
+ *         0: Success, and a frame is returned.
+ *  Other negative DAV1D_ERR codes: Error due to lack of memory or because of
+ *                                  invalid passed-in arguments.
+ *
+ * @note If `Dav1dSettings.apply_grain` is true, film grain was already applied
+ *       by `dav1d_get_picture`, and so calling this function leads to double
+ *       application of film grain. Users should only call this when needed.
+ */
+DAV1D_API int dav1d_apply_grain(Dav1dContext *c, Dav1dPicture *out,
+                                const Dav1dPicture *in);
 
 /**
  * Close a decoder instance and free all associated memory.
@@ -236,6 +284,34 @@ enum Dav1dEventFlags {
  *
  */
 DAV1D_API int dav1d_get_event_flags(Dav1dContext *c, enum Dav1dEventFlags *flags);
+
+/**
+ * Retrieve the user-provided metadata associated with the input data packet
+ * for the last decoding error reported to the user, i.e. a negative return
+ * value (not EAGAIN) from dav1d_send_data() or dav1d_get_picture().
+ *
+ * @param   c Input decoder instance.
+ * @param out Output Dav1dDataProps. On success, the caller assumes ownership of
+ *            the returned reference.
+ *
+ * @return 0 on success, or < 0 (a negative DAV1D_ERR code) on error.
+ */
+DAV1D_API int dav1d_get_decode_error_data_props(Dav1dContext *c, Dav1dDataProps *out);
+
+/**
+ * Get the decoder delay, which is the number of internally buffered frames, not
+ * including reference frames.
+ * This value is guaranteed to be >= 1 and <= max_frame_delay.
+ *
+ * @param s Input settings context.
+ *
+ * @return Decoder frame delay on success, or < 0 (a negative DAV1D_ERR code) on
+ *         error.
+ *
+ * @note The returned delay is valid only for a Dav1dContext initialized with the
+ *       provided Dav1dSettings.
+ */
+DAV1D_API int dav1d_get_frame_delay(const Dav1dSettings *s);
 
 # ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018, VideoLAN and dav1d authors
+ * Copyright © 2018-2021, VideoLAN and dav1d authors
  * Copyright © 2018, Two Orioles, LLC
  * All rights reserved.
  *
@@ -32,6 +32,6 @@
 
 #include "src/levels.h"
 
-extern const uint16_t *const dav1d_scans[N_RECT_TX_SIZES][3];
+EXTERN const uint16_t *const dav1d_scans[N_RECT_TX_SIZES];
 
 #endif /* DAV1D_SRC_SCAN_H */

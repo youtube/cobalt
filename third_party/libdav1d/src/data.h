@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018, VideoLAN and dav1d authors
+ * Copyright © 2018-2021, VideoLAN and dav1d authors
  * Copyright © 2018, Two Orioles, LLC
  * All rights reserved.
  *
@@ -33,12 +33,7 @@
 void dav1d_data_ref(Dav1dData *dst, const Dav1dData *src);
 
 /**
- * Move a data reference.
- */
-void dav1d_data_move_ref(Dav1dData *dst, Dav1dData *src);
-
-/**
- * Copy the source properties to the destitionatin and increase the
+ * Copy the source properties to the destination and increase the
  * user_data's reference count (if it's not NULL).
  */
 void dav1d_data_props_copy(Dav1dDataProps *dst, const Dav1dDataProps *src);
@@ -56,5 +51,6 @@ int dav1d_data_wrap_user_data_internal(Dav1dData *buf,
                                                              void *cookie),
                                        void *cookie);
 void dav1d_data_unref_internal(Dav1dData *buf);
+void dav1d_data_props_unref_internal(Dav1dDataProps *props);
 
 #endif /* DAV1D_SRC_DATA_H */

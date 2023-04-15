@@ -1276,9 +1276,6 @@ DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
   SbKey key = KeyCodeToSbKey(device_info->tuning
                                  ? device_info->tuning->GetKeyCode(event.code)
                                  : event.code);
-  if (key == kSbKeyUnknown) {
-    return NULL;
-  }
 
   SbInputData* data = new SbInputData();
   memset(data, 0, sizeof(*data));

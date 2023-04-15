@@ -31,10 +31,10 @@
 #include "src/thread.h"
 
 struct thread_data {
-  dav1d_pthread_t thread;
-  dav1d_pthread_cond_t cond;
-  dav1d_pthread_mutex_t lock;
-  int inited;
+    pthread_t thread;
+    pthread_cond_t cond;
+    pthread_mutex_t lock;
+    int inited;
 };
 
 #endif /* DAV1D_SRC_THREAD_DATA_H */

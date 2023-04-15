@@ -28,47 +28,72 @@
 #include "config.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #include "common/attributes.h"
 
 #include "src/x86/cpu.h"
 
-void dav1d_cpu_cpuid(uint32_t *info, int leaf);
-uint64_t dav1d_cpu_xgetbv(int xcr);
+typedef struct {
+    uint32_t eax, ebx, edx, ecx;
+} CpuidRegisters;
+
+void dav1d_cpu_cpuid(CpuidRegisters *regs, unsigned leaf, unsigned subleaf);
+uint64_t dav1d_cpu_xgetbv(unsigned xcr);
+
+#define X(reg, mask) (((reg) & (mask)) == (mask))
 
 COLD unsigned dav1d_get_cpu_flags_x86(void) {
-    uint32_t info[4] = {0}, n_ids;
+    union {
+        CpuidRegisters r;
+        struct {
+            uint32_t max_leaf;
+            char vendor[12];
+        };
+    } cpu;
+    dav1d_cpu_cpuid(&cpu.r, 0, 0);
     unsigned flags = 0;
 
-    dav1d_cpu_cpuid(info, 0);
-    n_ids = info[0];
+    if (cpu.max_leaf >= 1) {
+        CpuidRegisters r;
+        dav1d_cpu_cpuid(&r, 1, 0);
+        const unsigned model  = ((r.eax >> 4) & 0x0f) + ((r.eax >> 12) & 0xf0);
+        const unsigned family = ((r.eax >> 8) & 0x0f) + ((r.eax >> 20) & 0xff);
 
-    if (n_ids >= 1) {
-        dav1d_cpu_cpuid(info, 1);
-        if (info[3] & (1 << 25)) flags |= DAV1D_X86_CPU_FLAG_SSE;
-        if (info[3] & (1 << 26)) flags |= DAV1D_X86_CPU_FLAG_SSE2;
-        if (info[2] & (1 <<  0)) flags |= DAV1D_X86_CPU_FLAG_SSE3;
-        if (info[2] & (1 <<  9)) flags |= DAV1D_X86_CPU_FLAG_SSSE3;
-        if (info[2] & (1 << 19)) flags |= DAV1D_X86_CPU_FLAG_SSE41;
-        if (info[2] & (1 << 20)) flags |= DAV1D_X86_CPU_FLAG_SSE42;
+        if (X(r.edx, 0x06008000)) /* CMOV/SSE/SSE2 */ {
+            flags |= DAV1D_X86_CPU_FLAG_SSE2;
+            if (X(r.ecx, 0x00000201)) /* SSE3/SSSE3 */ {
+                flags |= DAV1D_X86_CPU_FLAG_SSSE3;
+                if (X(r.ecx, 0x00080000)) /* SSE4.1 */
+                    flags |= DAV1D_X86_CPU_FLAG_SSE41;
+            }
+        }
 #if ARCH_X86_64
         /* We only support >128-bit SIMD on x86-64. */
-        if (info[2] & (1 << 27)) /* OSXSAVE */ {
-            uint64_t xcr = dav1d_cpu_xgetbv(0);
-            if ((xcr & 0x00000006) == 0x00000006) /* XMM/YMM */ {
-                if (info[2] & (1 << 28)) flags |= DAV1D_X86_CPU_FLAG_AVX;
-                if (n_ids >= 7) {
-                    dav1d_cpu_cpuid(info, 7);
-                    if ((info[1] & 0x00000128) == 0x00000128)
+        if (X(r.ecx, 0x18000000)) /* OSXSAVE/AVX */ {
+            const uint64_t xcr0 = dav1d_cpu_xgetbv(0);
+            if (X(xcr0, 0x00000006)) /* XMM/YMM */ {
+                if (cpu.max_leaf >= 7) {
+                    dav1d_cpu_cpuid(&r, 7, 0);
+                    if (X(r.ebx, 0x00000128)) /* BMI1/BMI2/AVX2 */ {
                         flags |= DAV1D_X86_CPU_FLAG_AVX2;
-                    if ((xcr & 0x000000e0) == 0x000000e0) /* ZMM/OPMASK */ {
-                        if ((info[1] & 0xd0030000) == 0xd0030000)
-                            flags |= DAV1D_X86_CPU_FLAG_AVX512;
+                        if (X(xcr0, 0x000000e0)) /* ZMM/OPMASK */ {
+                            if (X(r.ebx, 0xd0230000) && X(r.ecx, 0x00005f42))
+                                flags |= DAV1D_X86_CPU_FLAG_AVX512ICL;
+                        }
                     }
                 }
             }
         }
 #endif
+        if (!memcmp(cpu.vendor, "AuthenticAMD", sizeof(cpu.vendor))) {
+            if ((flags & DAV1D_X86_CPU_FLAG_AVX2) && (family < 0x19 ||
+                (family == 0x19 && (model < 0x10 || (model >= 0x20 && model < 0x60)))))
+            {
+                /* Excavator, Zen, Zen+, Zen 2, Zen 3, Zen 3+ */
+                flags |= DAV1D_X86_CPU_FLAG_SLOW_GATHER;
+            }
+        }
     }
 
     return flags;
