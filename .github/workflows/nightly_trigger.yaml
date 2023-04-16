@@ -2,7 +2,8 @@ name: nightly_trigger
 
 on:
   schedule:
-    - cron: '0 4 * * *'
+    # GMT timezone.
+    - cron: '30 4 * * *'
   workflow_dispatch:
 
 jobs:
