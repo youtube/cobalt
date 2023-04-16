@@ -11,6 +11,7 @@ on:
       - main
       - feature/*
   schedule:
+    # GMT timezone.
     - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
