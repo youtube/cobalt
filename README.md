@@ -1,7 +1,5 @@
 # Cobalt [![Build Status](https://img.shields.io/badge/-Build%20Status-blueviolet)](https://github.com/youtube/cobalt/blob/main/BUILD_STATUS.md)
 
-Test change
-
 ## Overview
 
 Cobalt is a lightweight application container (i.e. an application runtime, like
