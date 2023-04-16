@@ -64,8 +64,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
   # pexpect times out each second to allow Kill to quickly stop a test run
   _PEXPECT_TIMEOUT = 1
 
+  # Retry Pexpect commands up to this many times
+  _PEXPECT_OUTER_RETRIES = 3
   # Wait up to 30 seconds for the password prompt from the raspi
-  _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 30
+  _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 10
   # Wait up to 900 seconds for new output from the raspi
   _PEXPECT_READLINE_TIMEOUT_MAX_RETRIES = 900
   # Delay between subsequent SSH commands
@@ -107,6 +109,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _InitPexpectCommands(self):
     """Initializes all of the pexpect commands needed for running the test."""
+
+    # Ensure no trailing slashes
+    self.out_directory = self.out_directory.rstrip('/')
 
     # TODO(b/218889313): This should reference the bin/ subdir when that's
     # used.
@@ -154,7 +159,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.test_command = (f'{test_base_command} {test_success_output}'
                          f'{test_failure_output}')
 
-  def _PexpectSpawnAndConnect(self, command):
+  def _PexpectSpawnAndConnect_inner(self, command):
     """Spawns a process with pexpect and connect to the raspi.
 
     Args:
@@ -188,19 +193,42 @@ class Launcher(abstract_launcher.AbstractLauncher):
           self._PexpectSendLine('echo ' + Launcher._SSH_LOGIN_SIGNAL)
           i = self.pexpect_process.expect([Launcher._SSH_LOGIN_SIGNAL])
           break
-      except pexpect.TIMEOUT:
+      except (pexpect.TIMEOUT, OSError, pexpect.ExceptionPexpect) as err:
         if self.shutdown_initiated.is_set():
           return
         retry_count += 1
         # Check if the max retry count has been exceeded. If it has, then
         # re-raise the timeout exception.
         if retry_count > Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES:
-          raise
+          raise RuntimeError(f'Failed after {retry_count} retries') from err
+
+  def _PexpectSpawnAndConnect(self, command):
+    """Outer retry wrapper"""
+    retry_count = 0
+    while True:
+      try:
+        self._PexpectSpawnAndConnect_inner(command)
+        break
+      except RuntimeError as err:
+        retry_count += 1
+        if retry_count > Launcher._PEXPECT_OUTER_RETRIES:
+          raise RuntimeError(
+              f'Outer pexpect retry failed after {retry_count}') from err
 
   def _PexpectSendLine(self, cmd):
     """Send lines to Pexpect and record the last command for logging purposes"""
-    self.last_run_pexpect_cmd = cmd
-    self.pexpect_process.sendline(cmd)
+    retries = 5
+    while True:
+      logging.info('sending >> : %s ', cmd)
+      try:
+        self.last_run_pexpect_cmd = cmd
+        self.pexpect_process.sendline(cmd)
+        break
+      except OSError as err:
+        retries -= 1
+        if not retries:
+          raise RuntimeError('PexpectSendLine failed') from err
+        time.sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""
@@ -231,6 +259,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         # re-raise the timeout exception.
         if retry_count > Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES:
           raise
+        time.sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
   def _Sleep(self, val):
     self._PexpectSendLine(f'sleep {val};echo {Launcher._SSH_SLEEP_SIGNAL}')
@@ -260,19 +289,21 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _WaitForPrompt(self):
     """Sends empty commands, until a bash prompt is returned"""
-    retry_count = 5
+    retry_count = 0
     while True:
       try:
         self.pexpect_process.expect(self._RASPI_PROMPT)
         break
-      except pexpect.TIMEOUT:
+      except (pexpect.TIMEOUT, OSError, pexpect.ExceptionPexpect,
+              pexpect.exceptions.EOF) as err:
         logging.info('Timeout exception during WaitForPrompt command: %s',
                      self.last_run_pexpect_cmd)
         if self.shutdown_initiated.is_set():
           return
-        retry_count -= 1
-        if not retry_count:
-          raise
+        retry_count += 1
+        if retry_count > Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES:
+          raise RuntimeError(
+              f'Failed to wait for prompt after {retry_count}') from err
         self._PexpectSendLine('echo ' + Launcher._SSH_SLEEP_SIGNAL)
         time.sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
@@ -343,6 +374,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
       if not self.shutdown_initiated.is_set():
+        logging.info('Sending test command >> %s', self.test_command)
         self._PexpectSendLine(self.test_command)
         self._PexpectReadLines()
 
