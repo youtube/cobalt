@@ -94,6 +94,10 @@
 // Moved atomic operations C++ wrappers to starboard/common.
 #define SB_ATOMIC_MOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum Starboard version for media tests based on 2024 hardware
+// certification requirements.
+#define SB_MINIMUM_API_VERSION_FOR_2024_HW_CERT SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
