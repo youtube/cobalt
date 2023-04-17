@@ -58,6 +58,10 @@ jobs:
         # v2
         uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
         with:
+          excludeTitle: true
+          excludeDescription: true
+          checkAllCommitMessages: true
+          accessToken: ${{ secrets.GITHUB_TOKEN }}
           pattern: '^b\/\d+$'
           flags: 'gm'
           error: 'Commit message should include at least one bug ID on a separate line (e.g. b/12345).'
