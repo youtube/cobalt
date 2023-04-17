@@ -48,6 +48,9 @@ extern const char kLoaderUseMemoryMappedFile[];
 
 // The loader app should query for and log its memory usage.
 extern const char kLoaderTrackMemory[];
+
+// Reset the Evergreen update for the app based on the the initial URL.
+extern const char kResetEvergreenUpdate[];
 }  // namespace loader_app
 }  // namespace starboard
 

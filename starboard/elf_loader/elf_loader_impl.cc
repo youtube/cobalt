@@ -182,7 +182,9 @@ void* ElfLoaderImpl::LookupSymbol(const char* symbol) {
 }
 
 ElfLoaderImpl::~ElfLoaderImpl() {
-  dynamic_section_->CallDestructors();
+  if (dynamic_section_) {
+    dynamic_section_->CallDestructors();
+  }
 }
 }  // namespace elf_loader
 }  // namespace starboard
