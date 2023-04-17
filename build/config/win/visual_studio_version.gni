@@ -36,7 +36,12 @@ if (is_starboard) {
   if (is_docker_build) {
     _default_visual_studio_path = "C:/BuildTools"
   } else {
-    _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/2017/Professional"
+    if (use_visual_studio_2022) {
+      _vis_std_year = "2022"
+    } else {
+      _vis_std_year = "2017"
+    }
+    _default_visual_studio_path = "C:/Program Files (x86)/Microsoft Visual Studio/$_vis_std_year/Professional"
   }
 
   declare_args() {
