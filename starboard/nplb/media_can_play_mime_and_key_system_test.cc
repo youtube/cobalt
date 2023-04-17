@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <map>
+#include <string>
 #include <utility>
-#include <vector>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -746,12 +746,13 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidateQueriesUnderPeakCapability) {
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, VerifyMaxBitrate) {
-  int av1_4k_bitrate = 42000000;
-#if SB_API_VERSION >= SB_MINIMUM_API_VERSION_FOR_2024_HW_CERT
-  av1_4k_bitrate = 40000000;
-#endif  // SB_API_VERSION >= SB_MINIMUM_API_VERSION_FOR_2024_HW_CERT
+#if SB_API_VERSION >= SB_2024_HW_CERT_API_VERSION
+  constexpr int kAv14kBitrate = 40000000;
+#else
+  constexpr int kAv14kBitrate = 42000000;
+#endif  // SB_API_VERSION >= SB_2024_HW_CERT_API_VERSION
 
-  const std::vector<std::pair<std::string, int>> codec_support_queries = {
+  const std::pair<std::string, int> kCodecSupportQueries[] = {
       {// AV1 1080P SDR
        "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
        "framerate=30",
@@ -759,11 +760,11 @@ TEST(SbMediaCanPlayMimeAndKeySystem, VerifyMaxBitrate) {
       {// AV1 4K SDR
        "video/mp4; codecs=\"av01.0.13M.08\"; width=3840; height=2160; "
        "framerate=30",
-       av1_4k_bitrate},
+       kAv14kBitrate},
       {// AV1 4K HDR
        "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
        "height=2160; framerate=30",
-       av1_4k_bitrate},
+       kAv14kBitrate},
       {// AV1 8K SDR
        "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320; "
        "framerate=30",
@@ -800,19 +801,18 @@ TEST(SbMediaCanPlayMimeAndKeySystem, VerifyMaxBitrate) {
       return support == kSbMediaSupportTypeProbably
                  ? testing::AssertionSuccess()
                  : testing::AssertionFailure()
-                       << "SbMediaCanPlayMimeAndKeySystem(" << full_query
-                       << ", " << (key_system.empty() ? "\"\"" : key_system)
-                       << ") returns: " << support;
+                       << "SbMediaCanPlayMimeAndKeySystem(\"" << full_query
+                       << "\", \"" << key_system << "\") returns: " << support;
     }
 
     return testing::AssertionSuccess();
   };
 
-  const char* key_systems[] = {"", "com.widevine", "com.youtube.playready",
-                               "com.youtube.fairplay"};
+  constexpr const char* kKeysystems[] = {
+      "", "com.widevine", "com.youtube.playready", "com.youtube.fairplay"};
 
-  for (auto& params : codec_support_queries) {
-    for (auto& key_system : key_systems) {
+  for (auto& params : kCodecSupportQueries) {
+    for (auto& key_system : kKeysystems) {
       ASSERT_TRUE(validate_bitrate(params.first, params.second, key_system));
     }
   }
