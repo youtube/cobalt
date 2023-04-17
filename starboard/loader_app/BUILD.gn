@@ -25,6 +25,7 @@ group("common_loader_app_dependencies") {
     ":app_key",
     ":installation_manager",
     ":memory_tracker_thread",
+    ":reset_evergreen_update",
     ":slot_management",
     "//starboard",
     "//starboard/elf_loader:constants",
@@ -315,5 +316,26 @@ static_library("memory_tracker_thread") {
   deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
+  ]
+}
+
+static_library("reset_evergreen_update") {
+  sources = [
+    "reset_evergreen_update.cc",
+    "reset_evergreen_update.h",
+  ]
+  deps = [ "//starboard" ]
+}
+
+target(gtest_target_type, "reset_evergreen_update_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "reset_evergreen_update_test.cc",
+  ]
+  deps = [
+    ":reset_evergreen_update",
+    "//testing/gmock",
+    "//testing/gtest",
   ]
 }

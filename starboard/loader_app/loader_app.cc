@@ -28,6 +28,7 @@
 #include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
+#include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "starboard/memory.h"
@@ -196,6 +197,14 @@ void SbEventHandle(const SbEvent* event) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
     const starboard::shared::starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
+
+    if (command_line.HasSwitch(starboard::loader_app::kResetEvergreenUpdate)) {
+      SB_LOG(INFO) << "Resetting the Evergreen Update";
+      starboard::loader_app::ResetEvergreenUpdate();
+      SbSystemRequestStop(0);
+      SB_CHECK(SbMutexRelease(&mutex) == true);
+      return;
+    }
 
     if (command_line.HasSwitch(starboard::loader_app::kLoaderAppVersion)) {
       std::string versiong_msg = "Loader app version: ";

@@ -173,6 +173,7 @@ class PlatformConfiguration(object):
         'installation_manager_test',
         'nplb',
         'player_filter_tests',
+        'reset_evergreen_update_test',
         'slot_management_test',
         'starboard_platform_tests',
     ]

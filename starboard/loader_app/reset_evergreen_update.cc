@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/loader_app/loader_app_switches.h"
+#include "starboard/loader_app/reset_evergreen_update.h"
+
+#include <cstring>
+#include <vector>
+
+#include "starboard/common/file.h"
+#include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 
 namespace starboard {
 namespace loader_app {
 
-const char kContent[] = "content";
-const char kURL[] = "url";
-const char kEvergreenLite[] = "evergreen_lite";
-const char kLoaderAppVersion[] = "loader_app_version";
-const char kShowSABI[] = "show_sabi";
-const char kUseCompressedUpdates[] = "use_compressed_updates";
-const char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
-const char kLoaderTrackMemory[] = "loader_track_memory";
-const char kResetEvergreenUpdate[] = "reset_evergreen_update";
+bool ResetEvergreenUpdate() {
+  std::vector<char> storage_dir(kSbFileMaxPath);
+  if (!SbSystemGetPath(kSbSystemPathStorageDirectory, storage_dir.data(),
+                       kSbFileMaxPath)) {
+    SB_LOG(ERROR)
+        << "ResetEvergreenUpdate: Failed to get kSbSystemPathStorageDirectory";
+    return false;
+  }
+
+  return SbFileDeleteRecursive(storage_dir.data(), true);
+}
 
 }  // namespace loader_app
 }  // namespace starboard
