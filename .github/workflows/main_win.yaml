@@ -58,10 +58,6 @@ jobs:
         )
       )
     steps:
-      - name: Set VC
-        # Use a virtual circuit when sending requests to the server, to prevent transient DNS issues.
-        run: set vc
-        shell: bash
       - id: Checkout
         uses: actions/checkout@v3
         with:
@@ -106,11 +102,6 @@ jobs:
       packages: write
     runs-on: windows-2019
     steps:
-      - name: Set VC
-        # Use a virtual circuit when sending requests to the server, to prevent transient DNS issues.
-        run: set vc
-        # Use a virtual circuit when sending requests to the server, to prevent transient DNS issues.
-        shell: bash
       - name: Checkout files
         uses: actions/checkout@v3
         with:
@@ -144,10 +135,6 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel, debug, qa, gold]
     steps:
-      - name: Set VC
-        # Use a virtual circuit when sending requests to the server, to prevent transient DNS issues.
-        run: set vc
-        shell: bash
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -182,10 +169,6 @@ jobs:
         config: [devel]
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
-      - name: Set VC
-        # Use a virtual circuit when sending requests to the server, to prevent transient DNS issues.
-        run: set vc
-        shell: bash
       - name: Checkout
         uses: actions/checkout@v3
         with:
