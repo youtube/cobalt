@@ -1,5 +1,7 @@
 # Helper script to automate installing Visual Studio 22 and required components.
 
+New-Item -Path "C:\" -Name "src" -ItemType "directory" -Force
+
 Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vs_professional.exe `
     -OutFile C:\src\vs_professional.exe
 
