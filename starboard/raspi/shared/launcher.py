@@ -64,6 +64,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   # pexpect times out each second to allow Kill to quickly stop a test run
   _PEXPECT_TIMEOUT = 1
 
+  _PEXPECT_SHUTDOWN_SLEEP_TIME = 3
+
   # Wait up to 30 seconds for the password prompt from the raspi
   _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 30
   # Wait up to 900 seconds for new output from the raspi
@@ -244,7 +246,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if self.return_value:
         logging.info('Sending dmesg')
         self._PexpectSendLine('dmesg -P --color=never | tail -n 100')
-        time.sleep(3)
+        time.sleep(self._PEXPECT_SHUTDOWN_SLEEP_TIME)
         try:
           self.pexpect_process.readlines()
         except pexpect.TIMEOUT:
@@ -255,7 +257,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       # Send ctrl-c to the raspi and close the process.
       self._PexpectSendLine(chr(3))
-      time.sleep(1)  # Allow a second for normal shutdown
+      time.sleep(self._PEXPECT_TIMEOUT)  # Allow a second for normal shutdown
       self.pexpect_process.close()
 
   def _WaitForPrompt(self):
