@@ -18,6 +18,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
@@ -132,6 +133,8 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   void AudioThreadFunc();
 
   int WriteData(JniEnvExt* env, const void* buffer, int size, SbTime sync_time);
+
+  void ReportError(bool capability_changed, const std::string& error_message);
 
   Type* const type_;
   const int channels_;
