@@ -55,10 +55,9 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
   copy("copy_loader_app_lib") {
     install_content = true
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/libcobalt.so" ]
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/install/lib/libcobalt.so" ]
     } else if (target_cpu == "arm64") {
-      sources =
-          [ "$root_out_dir/../evergreen-$target_cpu_$build_type/libcobalt.so" ]
+      sources = [ "$root_out_dir/../evergreen-$target_cpu_$build_type/install/lib/libcobalt.so" ]
     } else {
       sources = []
     }
