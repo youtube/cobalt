@@ -20,6 +20,7 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
+#include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -49,16 +50,22 @@ void ErrorFunc(SbPlayer player,
 
 }  // namespace
 
-std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
+std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
+    const char* key_system) {
+  SB_DCHECK(key_system);
+
+  const char* kEmptyName = NULL;
+
   const char* kAudioTestFiles[] = {"beneath_the_canopy_aac_stereo.dmp",
-                                   "beneath_the_canopy_aac_5_1.dmp",
-                                   "beneath_the_canopy_aac_mono.dmp",
-                                   "beneath_the_canopy_opus_5_1.dmp",
                                    "beneath_the_canopy_opus_stereo.dmp",
-                                   "beneath_the_canopy_opus_mono.dmp",
-                                   "sintel_329_ec3.dmp",
-                                   "sintel_381_ac3.dmp",
-                                   "heaac.dmp"};
+                                   "sintel_329_ec3.dmp", "sintel_381_ac3.dmp"};
+
+  // For uncommon audio formats, we add audio only tests, without tests combined
+  // with a video stream, to shorten the overall test time.
+  const char* kAudioOnlyTestFiles[] = {
+      "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_mono.dmp",
+      "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
+      "heaac.dmp"};
 
   const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
                                    "beneath_the_canopy_248_vp9.dmp",
@@ -67,38 +74,72 @@ std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs() {
   const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                              kSbPlayerOutputModePunchOut};
 
-  std::vector<SbPlayerTestConfig> test_configs;
-
-  const char* kEmptyName = NULL;
-
+  std::vector<const char*> supported_audio_files;
+  supported_audio_files.push_back(kEmptyName);
   for (auto audio_filename : kAudioTestFiles) {
-    VideoDmpReader dmp_reader(audio_filename);
+    VideoDmpReader dmp_reader(audio_filename,
+                              VideoDmpReader::kEnableReadOnDemand);
     SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
-
     if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
-                                       "")) {
+                                       key_system)) {
+      supported_audio_files.push_back(audio_filename);
+    }
+  }
+
+  std::vector<const char*> supported_video_files;
+  supported_video_files.push_back(kEmptyName);
+  for (auto video_filename : kVideoTestFiles) {
+    VideoDmpReader dmp_reader(video_filename,
+                              VideoDmpReader::kEnableReadOnDemand);
+    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
+                                       key_system)) {
+      supported_video_files.push_back(video_filename);
+    }
+  }
+
+  std::vector<SbPlayerTestConfig> test_configs;
+  for (auto audio_filename : supported_audio_files) {
+    SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
+    if (audio_filename) {
+      VideoDmpReader audio_dmp_reader(audio_filename,
+                                      VideoDmpReader::kEnableReadOnDemand);
+      audio_codec = audio_dmp_reader.audio_codec();
+    }
+    for (auto video_filename : supported_video_files) {
+      SbMediaVideoCodec video_codec = kSbMediaVideoCodecNone;
+      if (video_filename) {
+        VideoDmpReader video_dmp_reader(video_filename,
+                                        VideoDmpReader::kEnableReadOnDemand);
+        video_codec = video_dmp_reader.video_codec();
+      }
+      if (audio_codec == kSbMediaAudioCodecNone &&
+          video_codec == kSbMediaVideoCodecNone) {
+        continue;
+      }
+
       for (auto output_mode : kOutputModes) {
-        if (IsOutputModeSupported(output_mode, dmp_reader.audio_codec(),
-                                  kSbMediaVideoCodecNone)) {
-          test_configs.push_back(
-              std::make_tuple(audio_filename, kEmptyName, output_mode));
+        if (IsOutputModeSupported(output_mode, audio_codec, video_codec,
+                                  key_system)) {
+          test_configs.push_back(std::make_tuple(audio_filename, video_filename,
+                                                 output_mode, key_system));
         }
       }
     }
   }
 
-  for (auto video_filename : kVideoTestFiles) {
-    VideoDmpReader dmp_reader(video_filename);
-    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
-    if (!SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
-                                        "")) {
-      continue;
-    }
-    for (auto output_mode : kOutputModes) {
-      if (IsOutputModeSupported(output_mode, kSbMediaAudioCodecNone,
-                                dmp_reader.video_codec())) {
-        test_configs.push_back(
-            std::make_tuple(kEmptyName, video_filename, output_mode));
+  for (auto audio_filename : kAudioOnlyTestFiles) {
+    VideoDmpReader dmp_reader(audio_filename,
+                              VideoDmpReader::kEnableReadOnDemand);
+    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
+    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
+                                       key_system)) {
+      for (auto output_mode : kOutputModes) {
+        if (IsOutputModeSupported(output_mode, dmp_reader.audio_codec(),
+                                  kSbMediaVideoCodecNone, key_system)) {
+          test_configs.push_back(std::make_tuple(audio_filename, kEmptyName,
+                                                 output_mode, key_system));
+        }
       }
     }
   }
@@ -236,13 +277,32 @@ void CallSbPlayerWriteSamples(
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,
-                           SbMediaVideoCodec video_codec) {
+                           SbMediaVideoCodec video_codec,
+                           const char* key_system) {
+  SB_DCHECK(key_system);
+
   PlayerCreationParam creation_param =
       CreatePlayerCreationParam(audio_codec, video_codec, output_mode);
 
   SbPlayerCreationParam param = {};
   creation_param.ConvertTo(&param);
-  return SbPlayerGetPreferredOutputMode(&param) == output_mode;
+
+  if (strlen(key_system) > 0) {
+    param.drm_system = SbDrmCreateSystem(
+        key_system, NULL /* context */, DummySessionUpdateRequestFunc,
+        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+        DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+
+    if (!SbDrmSystemIsValid(param.drm_system)) {
+      return false;
+    }
+  }
+
+  bool supported = SbPlayerGetPreferredOutputMode(&param) == output_mode;
+  if (SbDrmSystemIsValid(param.drm_system)) {
+    SbDrmDestroySystem(param.drm_system);
+  }
+  return supported;
 }
 
 }  // namespace nplb

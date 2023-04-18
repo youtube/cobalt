@@ -18,9 +18,11 @@
 #include <atomic>
 #include <deque>
 #include <set>
+#include <string>
 
 #include "starboard/common/queue.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/drm.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -35,56 +37,41 @@ class SbPlayerTestFixture {
   // A simple encapsulation of grouped samples.
   class GroupedSamples {
    public:
-    int start_index() const { return start_index_; }
-    int samples_to_write() const { return samples_to_write_; }
-    bool write_eos() const { return write_eos_; }
+    int audio_start_index() const { return audio_start_index_; }
+    int audio_samples_to_write() const { return audio_samples_to_write_; }
+    bool write_audio_eos() const { return write_audio_eos_; }
 
-   protected:
-    GroupedSamples(SbMediaType media_type,
-                   int start_index,
-                   int samples_to_write)
-        : media_type_(media_type),
-          start_index_(start_index),
-          samples_to_write_(samples_to_write) {}
+    int video_start_index() const { return video_start_index_; }
+    int video_samples_to_write() const { return video_samples_to_write_; }
+    bool write_video_eos() const { return write_video_eos_; }
 
-    SbMediaType media_type_;
-    int start_index_ = 0;
-    int samples_to_write_ = 0;
-    bool write_eos_ = false;
-  };
-
-  class AudioSamples : public GroupedSamples {
-   public:
-    AudioSamples() : GroupedSamples(kSbMediaTypeAudio, 0, 0) {}
-    AudioSamples(int start_index, int samples_to_write)
-        : GroupedSamples(kSbMediaTypeAudio, start_index, samples_to_write) {}
-
-    AudioSamples& WithEOS() {
-      write_eos_ = true;
-      return *this;
+    void AddAudioSamples(int audio_start_index, int audio_samples_to_write) {
+      audio_start_index_ = audio_start_index;
+      audio_samples_to_write_ = audio_samples_to_write;
     }
-  };
-
-  class VideoSamples : public GroupedSamples {
-   public:
-    VideoSamples() : GroupedSamples(kSbMediaTypeVideo, 0, 0) {}
-    VideoSamples(int start_index, int samples_to_write)
-        : GroupedSamples(kSbMediaTypeVideo, start_index, samples_to_write) {}
-
-    VideoSamples& WithEOS() {
-      write_eos_ = true;
-      return *this;
+    void AddAudioSamplesWithEOS(int audio_start_index,
+                                int audio_samples_to_write) {
+      AddAudioSamples(audio_start_index, audio_samples_to_write);
+      write_audio_eos_ = true;
     }
-  };
+    void AddVideoSamples(int video_start_index, int video_samples_to_write) {
+      video_start_index_ = video_start_index;
+      video_samples_to_write_ = video_samples_to_write;
+    }
 
-  class AudioEOS : public AudioSamples {
-   public:
-    AudioEOS() { write_eos_ = true; }
-  };
+    void AddVideoSamplesWithEOS(int video_start_index,
+                                int video_samples_to_write) {
+      AddVideoSamples(video_start_index, video_samples_to_write);
+      write_video_eos_ = true;
+    }
 
-  class VideoEOS : public VideoSamples {
-   public:
-    VideoEOS() { write_eos_ = true; }
+   private:
+    int audio_start_index_ = 0;
+    int audio_samples_to_write_ = 0;
+    bool write_audio_eos_ = false;
+    int video_start_index_ = 0;
+    int video_samples_to_write_ = 0;
+    bool write_video_eos_ = false;
   };
 
   explicit SbPlayerTestFixture(const SbPlayerTestConfig& config);
@@ -95,14 +82,13 @@ class SbPlayerTestFixture {
   // |kSbPlayerDecoderStateNeedsData| internally. When writing EOS are
   // requested, the function will write EOS after all samples of the same type
   // are written.
-  void Write(const AudioSamples& audio_samples);
-  void Write(const VideoSamples& video_samples);
-  void Write(const AudioSamples& audio_samples,
-             const VideoSamples& video_samples);
+  void Write(const GroupedSamples& grouped_samples);
   // Wait until kSbPlayerStateEndOfStream received.
   void WaitForPlayerEndOfStream();
 
   SbPlayer GetPlayer() { return player_; }
+  bool HasAudio() const { return audio_dmp_reader_; }
+  bool HasVideo() const { return video_dmp_reader_; }
 
  private:
   static constexpr SbTime kDefaultWaitForDecoderStateNeedsDataTimeout =
@@ -160,8 +146,8 @@ class SbPlayerTestFixture {
   void OnPlayerState(SbPlayer player, SbPlayerState state, int ticket);
   void OnError(SbPlayer player, SbPlayerError error, const char* message);
 
-  void InitializePlayer();
-  void TearDownPlayer();
+  void Initialize();
+  void TearDown();
 
   void WriteSamples(SbMediaType media_type,
                     int start_index,
@@ -199,11 +185,13 @@ class SbPlayerTestFixture {
 
   shared::starboard::ThreadChecker thread_checker_;
   const SbPlayerOutputMode output_mode_;
+  std::string key_system_;
   scoped_ptr<VideoDmpReader> audio_dmp_reader_;
   scoped_ptr<VideoDmpReader> video_dmp_reader_;
   testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;
+  SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
 
   // Queue of events from the underlying player.
   Queue<CallbackEvent> callback_event_queue_;
