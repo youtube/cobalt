@@ -88,13 +88,7 @@ function wait_for_update(test, registration) {
         registration.removeEventListener('updatefound', handler);
         // b/234788479 Implement waiting for update worker state tasks in
         // Install algorithm, otherwise the worker is activated too early
-        if (registration.installing) {
-          resolve(registration.installing);
-        } else if (registration.waiting) {
-          resolve(registration.waiting);
-        } else {
-          resolve(registration.active);
-        }
+        resolve(get_newest_worker(registration));
       });
       registration.addEventListener('updatefound', handler);
     }));
