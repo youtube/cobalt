@@ -736,21 +736,6 @@ bool ApplicationAndroid::GetOverlayedBoolValue(const char* var_name) {
   overlayed_bool_variables_[var_name] = value;
   return value;
 }
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_VolumeStateReceiver_nativeVolumeChanged(JNIEnv* env,
-                                                             jobject jcaller,
-                                                             jint volumeDelta) {
-  SbKey key = volumeDelta > 0 ? SbKey::kSbKeyVolumeUp : SbKey::kSbKeyVolumeDown;
-  ApplicationAndroid::Get()->SendKeyboardInject(key);
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
-                                                           jobject jcaller) {
-  ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
-}
-
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
