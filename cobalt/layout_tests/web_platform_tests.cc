@@ -213,33 +213,36 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 
   web::CspDelegateFactory::GetInstance()->OverrideCreator(
       web::kCspEnforcementEnable, CspDelegatePermissive::Create);
+
+  std::unique_ptr<browser::UserAgentPlatformInfo> platform_info(
+      new browser::UserAgentPlatformInfo());
+  std::unique_ptr<browser::ServiceWorkerRegistry> service_worker_registry(
+      new browser::ServiceWorkerRegistry(&web_settings, &network_module,
+                                         platform_info.get(), url));
+
+  browser::WebModule::Options web_module_options;
   // Use test runner mode to allow the content itself to dictate when it is
   // ready for layout should be performed.  See cobalt/dom/test_runner.h.
-  browser::WebModule::Options web_module_options;
   web_module_options.layout_trigger = layout::LayoutManager::kTestRunnerMode;
+
   // We assume that we won't suspend/resume while running the tests, and so
   // we take advantage of the convenience of inline script tags.
   web_module_options.enable_inline_script_warnings = false;
 
   web_module_options.web_options.web_settings = &web_settings;
   web_module_options.web_options.network_module = &network_module;
+  web_module_options.web_options.service_worker_jobs =
+      service_worker_registry->service_worker_jobs();
+  web_module_options.web_options.platform_info = platform_info.get();
 
   // Prepare a slot for our results to be placed when ready.
   base::Optional<browser::WebModule::LayoutResults> results;
   base::RunLoop run_loop;
 
-  // Create the WebModule and wait for a layout to occur.
-  browser::WebModule web_module("RunWebPlatformTest");
-
-  // Create Service Worker Registry
-  browser::ServiceWorkerRegistry* service_worker_registry =
-      new browser::ServiceWorkerRegistry(&web_settings, &network_module,
-                                         new browser::UserAgentPlatformInfo(),
-                                         url);
-  web_module_options.web_options.service_worker_jobs =
-      service_worker_registry->service_worker_jobs();
-
-  web_module.Run(
+  // Run the WebModule and wait for a layout to occur.
+  std::unique_ptr<browser::WebModule> web_module(
+      new browser::WebModule("RunWebPlatformTest"));
+  web_module->Run(
       url, base::kApplicationStateStarted, nullptr /* scroll_engine */,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results),
       base::Bind(&WebModuleErrorCallback, &run_loop,
@@ -249,12 +252,16 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       can_play_type_handler.get(), media_module.get(), kDefaultViewportSize,
       &resource_provider, 60.0f, web_module_options);
   run_loop.Run();
+
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
   std::string output;
-  web_module.ExecuteJavascript(extract_results,
-                               base::SourceLocation(__FILE__, __LINE__, 1),
-                               &output, got_results);
+  web_module->ExecuteJavascript(extract_results,
+                                base::SourceLocation(__FILE__, __LINE__, 1),
+                                &output, got_results);
+  // Ensure that the WebModule stops before stopping the ServiceWorkerRegistry.
+  web_module.reset();
+  service_worker_registry.reset();
   return output;
 }
 

@@ -18,6 +18,7 @@ service-worker/Service-Worker-Allowed-header.https.html, PASS
 service-worker/skip-waiting-without-client.https.html, PASS
 service-worker/uncontrolled-page.https.html, PASS
 service-worker/unregister.https.html, PASS
+service-worker/update-no-cache-request-headers.https.html, PASS
 
 # b/278652803 flaky test.
 service-worker/import-scripts-cross-origin.https.html, DISABLE
@@ -27,9 +28,6 @@ service-worker/update-result.https.html, DISABLE
 
 # TODO(b/275914032): Flaky test.
 service-worker/update-missing-import-scripts.https.html, DISABLE
-
-# Tests pass with memory leakage issue.
-service-worker/update-no-cache-request-headers.https.html, DISABLE
 
 # b/275643772 MIME type check is flaky
 service-worker/import-scripts-mime-types.https.html, DISABLE
