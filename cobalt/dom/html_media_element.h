@@ -146,6 +146,12 @@ class HTMLMediaElement : public HTMLElement,
   // function won't modify the target of the |event| passed in.
   void ScheduleEvent(const scoped_refptr<web::Event>& event);
 
+  // Returns semicolon separated names of audio connectors, like
+  // "hdmi;bluetooth".
+  // TODO(b/267678497): The current interface is tentative, to be refined.
+  std::string h5vcc_audio_connectors(
+      script::ExceptionState* exception_state) const;
+
   // Set max video capabilities.
   void SetMaxVideoCapabilities(const std::string& max_video_capabilities,
                                script::ExceptionState* exception_state);

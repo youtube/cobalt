@@ -305,6 +305,17 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
 // Well-defined value for an invalid player.
 #define kSbPlayerInvalid ((SbPlayer)NULL)
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
+// The audio write duration when all the audio connectors are local.
+#define kSbPlayerWriteDurationLocal (kSbTimeSecond / 2)
+
+// The audio write duration when at least one of the audio connectors are
+// remote.
+#define kSbPlayerWriteDurationRemote (kSbTimeSecond * 10)
+
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
 // Returns whether the given player handle is valid.
 static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
   return player != kSbPlayerInvalid;
@@ -622,6 +633,66 @@ SB_EXPORT void SbPlayerGetInfo2(SbPlayer player,
 //
 // |player| must not be |kSbPlayerInvalid|.
 SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
+
+// Returns the audio configurations used by |player|.
+//
+// Returns true when |out_audio_configuration| is filled with the information of
+// the configuration of the audio output devices used by |player|.  Returns
+// false for |index| 0 to indicate that there is no audio output for this
+// |player|.  Returns false for |index| greater than 0 to indicate that there
+// are no more audio output configurations other than the ones already returned.
+//
+// The app will use the information returned to determine audio related
+// behaviors, like:
+//
+//   Audio Write Duration: Audio write duration is how far past the current
+//       playback position the app will write audio samples. The app will write
+//       all samples between |current_playback_position| and
+//       |current_playback_position| + |audio_write_duration|, as soon as they
+//       are available.
+//
+//       |audio_write_duration| will be to `kSbPlayerWriteDurationLocal` when
+//       all audio configurations linked to |player| is local, or if there isn't
+//       any audio output.  It will be set to `kSbPlayerWriteDurationRemote` for
+//       remote or wireless audio outputs, i.e. one of
+//       `kSbMediaAudioConnectorBluetooth` or `kSbMediaAudioConnectorRemote*`.
+//
+//       The app only guarantees to write |audio_write_duration| past
+//       |current_playback_position|, but the app is free to write more samples
+//       than that.  So the platform shouldn't rely on this for flow control.
+//       The platform should achieve flow control by sending
+//       `kSbPlayerDecoderStateNeedsData` less frequently.
+//
+//       The platform is responsible for guaranteeing that when only
+//       |audio_write_duration| audio samples are written at a time, no playback
+//       issues occur (such as transient or indefinite hanging).
+//
+// The audio configurations should be available as soon as possible, and they
+// have to be available when the |player| is at `kSbPlayerStatePresenting`.
+//
+// The app will set |audio_write_duration| to `kSbPlayerWriteDurationLocal`
+// when the audio configuration isn't available (i.e. the function returns false
+// when index is 0).  The platform has to make the audio configuration
+// available immediately after the SbPlayer is created, if it expects the app to
+// treat the platform as using wireless audio outputs.
+//
+// Once at least one audio configurations are returned, the return values
+// shouldn't change during the life time of |player|.  The platform may inform
+// the app of any changes by sending `kSbPlayerErrorCapabilityChanged` to
+// request a playback restart.
+//
+// |player|: The player about which information is being retrieved. Must not be
+//   |kSbPlayerInvalid|.
+// |index|: The index of the audio output configuration.  Must be greater than
+//   or equal to 0.
+// |out_audio_configuration|: The information about the audio output, refer to
+//   |SbMediaAudioConfiguration| for more details.  Must not be NULL.
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+SB_EXPORT bool SbPlayerGetAudioConfiguration(
+    SbPlayer player,
+    int index,
+    SbMediaAudioConfiguration* out_audio_configuration);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 #ifdef __cplusplus
 }  // extern "C"

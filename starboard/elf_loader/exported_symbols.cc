@@ -190,7 +190,9 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMediaIsSupported);
 #endif  // SB_API_VERSION < 13
+#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
+#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
@@ -241,6 +243,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbOnce);
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  REGISTER_SYMBOL(SbPlayerGetAudioConfiguration);
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   REGISTER_SYMBOL(SbPlayerGetCurrentFrame);
 #if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   REGISTER_SYMBOL(SbPlayerGetInfo);

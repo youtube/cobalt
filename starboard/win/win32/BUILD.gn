@@ -15,7 +15,7 @@
 static_library("starboard_platform") {
   sources = [
     "//starboard/shared/starboard/localized_strings.cc",
-    "//starboard/shared/starboard/media/media_get_audio_configuration_5_1.cc",
+    "//starboard/shared/starboard/media/media_get_audio_configuration.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/system_request_blur.cc",
     "//starboard/shared/starboard/system_request_conceal.cc",
