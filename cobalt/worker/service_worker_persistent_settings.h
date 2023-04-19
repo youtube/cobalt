@@ -94,8 +94,6 @@ class ServiceWorkerPersistentSettings {
       persistent_settings_;
 
   std::set<std::string> key_set_;
-
-  std::unique_ptr<cobalt::cache::Cache> cache_;
 };
 
 }  // namespace worker
