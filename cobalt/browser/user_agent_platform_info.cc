@@ -27,6 +27,7 @@
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/system_property.h"
 #if SB_IS(EVERGREEN)
 #include "starboard/extension/installation_manager.h"
 #endif  // SB_IS(EVERGREEN)
@@ -34,6 +35,8 @@
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/utils.h"
 #endif
+
+using starboard::kSystemPropertyMaxLength;
 
 namespace cobalt {
 namespace browser {
@@ -219,7 +222,6 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_starboard_version(
       base::StringPrintf("Starboard/%d", SB_API_VERSION));
 
-  const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
   bool result;
 
@@ -292,9 +294,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 #if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   result = SbSystemGetProperty(kSbSystemPropertyDeviceType, value,
                                kSystemPropertyMaxLength);
-  if (result) {
-    info.set_device_type(value);
-  }
+  SB_DCHECK(result);
+  info.set_device_type(value);
 #else
   // Fill platform info if it is a hardware TV device.
   info.set_device_type(SbSystemGetDeviceType());

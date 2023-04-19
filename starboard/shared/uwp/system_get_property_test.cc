@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/system_property.h"
 #include "starboard/system.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using starboard::kSystemPropertyMaxLength;
 using testing::MatchesRegex;
 
 TEST(SbSystemGetPropertyTest, UserAgentAuxField) {
-  const size_t kSystemPropertyMaxLength = 1024;
   char out_value[kSystemPropertyMaxLength];
   bool result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField,
                                     out_value, kSystemPropertyMaxLength);

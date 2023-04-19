@@ -12,18 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/protocol/server_status.h"
 
+#include <memory>
+#include <utility>
+
 #include "cobalt/version.h"
+#include "starboard/common/system_property.h"
+
+using starboard::kSystemPropertyMaxLength;
 
 namespace cobalt {
 namespace webdriver {
 namespace protocol {
 
 ServerStatus::ServerStatus() {
-  const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
   bool result;
 

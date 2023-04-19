@@ -31,6 +31,7 @@ static_library("webdriver") {
     "//cobalt/script",
     "//net",
     "//net:http_server",
+    "//starboard/common",
     "//third_party/icu:icuuc",
     "//url",
   ]

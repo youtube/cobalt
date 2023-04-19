@@ -23,11 +23,14 @@
 #include "client/crash_report_database.h"
 #include "client/crashpad_client.h"
 #include "client/settings.h"
+#include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
 #include "third_party/crashpad/snapshot/sanitized/sanitization_information.h"
+
+using starboard::kSystemPropertyMaxLength;
 
 namespace third_party {
 namespace crashpad {
@@ -112,7 +115,6 @@ std::map<std::string, std::string> GetPlatformInfo() {
   platform_info.insert({"starboard_version",
                         base::StringPrintf("Starboard/%d", SB_API_VERSION)});
 
-  const size_t kSystemPropertyMaxLength = 1024;
   std::vector<char> value(kSystemPropertyMaxLength);
   bool result;
   result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName,

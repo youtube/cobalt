@@ -18,7 +18,10 @@
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/version.h"
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
+#include "starboard/common/system_property.h"
 #include "starboard/system.h"
+
+using starboard::kSystemPropertyMaxLength;
 
 namespace cobalt {
 namespace h5vcc {
@@ -55,7 +58,6 @@ std::string H5vccSystem::platform() const {
 std::string H5vccSystem::advertising_id() const {
   std::string result;
 #if SB_API_VERSION >= 14
-  const size_t kSystemPropertyMaxLength = 1024;
   char property[kSystemPropertyMaxLength] = {0};
   if (!SbSystemGetProperty(kSbSystemPropertyAdvertisingId, property,
                            SB_ARRAY_SIZE_INT(property))) {
@@ -69,7 +71,6 @@ std::string H5vccSystem::advertising_id() const {
 bool H5vccSystem::limit_ad_tracking() const {
   bool result = false;
 #if SB_API_VERSION >= 14
-  const size_t kSystemPropertyMaxLength = 1024;
   char property[kSystemPropertyMaxLength] = {0};
   if (!SbSystemGetProperty(kSbSystemPropertyLimitAdTracking, property,
                            SB_ARRAY_SIZE_INT(property))) {
