@@ -39,7 +39,7 @@ def get_build_number_from_commits():
   full_pattern_with_capture = re.compile(
       BUILD_NUMBER_TAG_PATTERN.format(BUILD_NUBER_PATTERN_WITH_CAPTURE),
       flags=re.MULTILINE)
-  match = full_pattern_with_capture.match(output)
+  match = full_pattern_with_capture.search(output)
   return match.group(1) if match else None
 
 
