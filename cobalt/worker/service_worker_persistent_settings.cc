@@ -90,9 +90,6 @@ ServiceWorkerPersistentSettings::ServiceWorkerPersistentSettings(
       ServiceWorkerConsts::kSettingsJson));
   persistent_settings_->ValidatePersistentSettings();
   DCHECK(persistent_settings_);
-
-  cache_.reset(cobalt::cache::Cache::GetInstance());
-  DCHECK(cache_);
 }
 
 void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
@@ -243,9 +240,10 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
     if (script_url_value.is_string()) {
       auto script_url_string = script_url_value.GetString();
       auto script_url = GURL(script_url_string);
-      std::unique_ptr<std::vector<uint8_t>> data = cache_->Retrieve(
-          disk_cache::ResourceType::kServiceWorkerScript,
-          web::cache_utils::GetKey(key_string + script_url_string));
+      std::unique_ptr<std::vector<uint8_t>> data =
+          cobalt::cache::Cache::GetInstance()->Retrieve(
+              disk_cache::ResourceType::kServiceWorkerScript,
+              web::cache_utils::GetKey(key_string + script_url_string));
       if (data == nullptr) {
         return false;
       }
@@ -382,7 +380,7 @@ ServiceWorkerPersistentSettings::WriteServiceWorkerObjectSettings(
     // Use Cache::Store to persist the script resource.
     std::string resource = *(script_resource.second.content.get());
     std::vector<uint8_t> data(resource.begin(), resource.end());
-    cache_->Store(
+    cobalt::cache::Cache::GetInstance()->Store(
         disk_cache::ResourceType::kServiceWorkerScript,
         web::cache_utils::GetKey(registration_key_string + script_url_string),
         data,
@@ -448,7 +446,7 @@ void ServiceWorkerPersistentSettings::RemoveServiceWorkerObjectSettings(
       auto script_url_value = std::move(script_urls_list[i]);
       if (script_url_value.is_string()) {
         auto script_url_string = script_url_value.GetString();
-        cache_->Delete(
+        cobalt::cache::Cache::GetInstance()->Delete(
             disk_cache::ResourceType::kServiceWorkerScript,
             web::cache_utils::GetKey(key_string + script_url_string));
       }
