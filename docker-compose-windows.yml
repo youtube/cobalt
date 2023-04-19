@@ -156,6 +156,7 @@ services:
       PLATFORM: win-win32
     image: cobalt-build-win32
 
+
   win-win32-vs2022:
     <<: *common-definitions
     build:
