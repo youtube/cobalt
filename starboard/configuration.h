@@ -68,6 +68,9 @@
 // SbMemoryGetStackBounds API has been removed/deprecated.
 #define SB_STACK_BOUNDS_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// SystemDeviceType enum is converted to a string from enum
+#define SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // Improves audio access unit processing.
 //   1.  Abstracted stream specific info from SbMediaAudioSampleInfo and
 //       SbMediaVideoSampleInfo into SbMediaAudioStreamInfo and
@@ -179,7 +182,7 @@ struct CompileAssert {};
   void operator=(const TypeName&) = delete
 #else
 #define SB_DISALLOW_COPY_AND_ASSIGN \
-#error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
+  #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
 #endif  // SB_API_VERSION < 13
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
@@ -268,8 +271,10 @@ struct CompileAssert {};
 #endif
 #endif  // SB_OVERRIDE
 #else
-#define SB_OVERRIDE \
-#error "The SB_OVERRIDE macro is deprecated. Please use \"override\" instead."
+#define SB_OVERRIDE                                                   \
+  #error                                                              \
+      "The SB_OVERRIDE macro is deprecated. Please use \"override\" " \
+      "instead."
 #endif  // SB_API_VERSION < 13
 
 // Declare numeric literals of signed 64-bit type.

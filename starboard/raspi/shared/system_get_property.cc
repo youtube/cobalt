@@ -32,6 +32,10 @@ const char* kModelRevision = "Rev";
 
 const char* kFriendlyName = "Raspberry Pi";
 
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+const char kSystemDeviceTypeUnknown[] = "UNKNOWN";
+#endif
+
 // Read device model from /proc/device-tree/model
 std::string GetModelName() {
   const char* file_path = "/proc/device-tree/model";
@@ -164,6 +168,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         "X11; Linux armv7l");
     }
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+    case kSbSystemPropertyDeviceType:
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        kSystemDeviceTypeUnknown);
+#endif
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__

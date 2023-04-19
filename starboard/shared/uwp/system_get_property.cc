@@ -71,6 +71,12 @@ const char kUnknownChipset[] = "UwpUnknown";
 // XOR key for certification secret.
 const char kRandomKey[] = "27539";
 
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+const char kSystemDeviceTypeDesktop[] = "DESKTOP";
+const char kSystemDeviceTypeGame[] = "GAME";
+const char kSystemDeviceTypeUnknown[] = "UNKNOWN";
+#endif
+
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
@@ -282,6 +288,24 @@ std::string GetAdvertisingId() {
   return platformStringToString(advertising_id);
 }
 
+bool GetDeviceType(char* out_value, int value_length) {
+  AnalyticsVersionInfo ^ version_info = AnalyticsInfo::VersionInfo;
+  std::string family = starboard::shared::win32::platformStringToString(
+      version_info->DeviceFamily);
+  std::string device_type;
+  if (family.compare("Windows.Desktop") == 0) {
+    return CopyStringAndTestIfSuccess(out_value, value_length,
+                                      kSystemDeviceTypeDesktop);
+  }
+  if (family.compare("Windows.Xbox") == 0) {
+    return CopyStringAndTestIfSuccess(out_value, value_length,
+                                      kSystemDeviceTypeGame);
+  }
+  SB_NOTREACHED();
+  return CopyStringAndTestIfSuccess(out_value, value_length,
+                                    kSystemDeviceTypeUnknown);
+}
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -353,6 +377,10 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                         advertising_id.empty() ? "1" : "0");
     }
 #endif  // SB_API_VERSION >= 14
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+    case kSbSystemPropertyDeviceType:
+      return GetDeviceType(out_value, value_length);
+#endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;
