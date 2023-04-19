@@ -12,7 +12,11 @@ namespace net {
 CookieOptions::CookieOptions()
     : exclude_httponly_(true),
       same_site_cookie_mode_(SameSiteCookieMode::DO_NOT_INCLUDE),
+#if defined(STARBOARD)
+      update_access_time_(false),
+#else
       update_access_time_(true),
+#endif
       server_time_() {}
 
 }  // namespace net
