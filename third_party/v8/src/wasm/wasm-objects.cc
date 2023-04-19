@@ -1517,7 +1517,6 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     }
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
         isolate->wasm_engine(), &env, kind, sig, false, expected_arity);
-#if !defined(DISABLE_WASM_STARBOARD)
     // std::move(uint8_t[]) issue
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
@@ -1532,7 +1531,6 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     isolate->counters()->wasm_reloc_size()->Increment(
         published_code->reloc_info().length());
     call_target = published_code->instruction_start();
-#endif
   }
 
   // Update the dispatch table.

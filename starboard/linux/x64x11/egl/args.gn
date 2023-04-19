@@ -15,3 +15,4 @@
 target_platform = "linux-x64x11-egl"
 target_os = "linux"
 target_cpu = "x64"
+v8_enable_webassembly = true

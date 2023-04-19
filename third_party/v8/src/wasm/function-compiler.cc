@@ -181,9 +181,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   }
 
   WasmCompilationResult result;
-
-  // Cobalt does not support WASM.
-#if !defined(DISABLE_WASM_STARBOARD)
   switch (tier_) {
     case ExecutionTier::kNone:
       UNREACHABLE();
@@ -211,7 +208,6 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       result.for_debugging = for_debugging_;
       break;
   }
-#endif
 
   return result;
 }

@@ -5794,7 +5794,7 @@ bool V8::TryHandleSignal(int signum, void* info, void* context) {
 
 #if V8_OS_WIN
 bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
-#if V8_TARGET_ARCH_X64 && !DISABLE_WASM_STARBOARD
+#if V8_TARGET_ARCH_X64
   return i::trap_handler::TryHandleWasmTrap(exception);
 #endif
   return false;
@@ -8944,10 +8944,8 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
       // of that context.
       // A handle scope for the native context.
       i::HandleScope handle_scope(isolate);
-#if !defined(DISABLE_WASM_STARBOARD)
       isolate->wasm_engine()->DeleteCompileJobsOnContext(
           isolate->native_context());
-#endif
     }
   }
   // TODO(ahaas): move other non-heap activity out of the heap call.
