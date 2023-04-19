@@ -13,7 +13,7 @@ on:
       - feature/*
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.sha }}'
+  group: '${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.pull_request.number || github.sha }}'
   cancel-in-progress: true
 
 permissions: {}
