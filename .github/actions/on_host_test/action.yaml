@@ -59,6 +59,8 @@ runs:
       shell: bash
       run: |
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+        echo "TEST_RESULTS_DIR=${GITHUB_WORKSPACE}/unit-test-results" >> $GITHUB_ENV
+        echo "TEST_REPORT_FILE=${GITHUB_WORKSPACE}/${{matrix.platform}}-${{matrix.shard}}" >> $GITHUB_ENV
     - name: Run Tests
       shell: bash
       run: |
@@ -75,6 +77,19 @@ runs:
           if [[ "${{inputs.os}}" == 'windows' ]]; then
             python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r
           else
-            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 $GITHUB_WORKSPACE/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args}
+            xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR}
           fi
         fi
+    - name: Process unit test results
+      if: failure()
+      shell: bash
+      run: |
+        set -x
+        echo "Saving unit test report to ${TEST_REPORT_FILE}"
+        python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_report_parser.py ${TEST_RESULTS_DIR} > ${TEST_REPORT_FILE}
+    - name: Upload unit test report
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: unit-test-reports
+        path: ${{env.TEST_REPORT_FILE}}
