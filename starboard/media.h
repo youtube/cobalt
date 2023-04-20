@@ -90,12 +90,28 @@ typedef enum SbMediaSupportType {
 
 // Possible audio connector types.
 typedef enum SbMediaAudioConnector {
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  kSbMediaAudioConnectorUnknown,
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   kSbMediaAudioConnectorNone,
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
   kSbMediaAudioConnectorAnalog,
   kSbMediaAudioConnectorBluetooth,
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  kSbMediaAudioConnectorBuiltIn,
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   kSbMediaAudioConnectorHdmi,
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  // A wired remote audio output, like a remote speaker via Ethernet.
+  kSbMediaAudioConnectorRemoteWired,
+  // A wireless remote audio output, like a remote speaker via Wi-Fi.
+  kSbMediaAudioConnectorRemoteWireless,
+  // A remote audio output cannot be classified into other existing types.
+  kSbMediaAudioConnectorRemoteOther,
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   kSbMediaAudioConnectorNetwork,
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   kSbMediaAudioConnectorSpdif,
   kSbMediaAudioConnectorUsb,
 } SbMediaAudioConnector;
@@ -494,11 +510,18 @@ typedef struct SbMediaVideoSampleInfo {
 // A structure describing the audio configuration parameters of a single audio
 // output.
 typedef struct SbMediaAudioConfiguration {
+#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   // The platform-defined index of the associated audio output.
   int index;
+#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  // The type of audio connector. Will be |kSbMediaAudioConnectorUnknown| if
+  // this device cannot provide this information.
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   // The type of audio connector. Will be the empty |kSbMediaAudioConnectorNone|
   // if this device cannot provide this information.
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   SbMediaAudioConnector connector;
 
   // The expected latency of audio over this output, in microseconds, or |0| if
@@ -832,7 +855,9 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
 // guaranteeing that when only |duration| audio samples are written at a time,
 // no playback issues occur (such as transient or indefinite hanging). The
 // platform may assume |duration| >= 0.5 seconds.
+#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 SB_EXPORT void SbMediaSetAudioWriteDuration(SbTime duration);
+#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
 #ifdef __cplusplus
 }  // extern "C"

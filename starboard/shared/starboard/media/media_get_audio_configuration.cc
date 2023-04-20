@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,29 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Implementation of SbMediaGetAudioConfiguration for a 5.1 surround sound.
+// Default implementation of SbMediaGetAudioConfiguration().
 
 #include "starboard/media.h"
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
-#error File media_get_audio_configuration_5_1.cc is deprecated, \
-    consider using media_get_audio_configuration.cc instead.
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#include "starboard/audio_sink.h"
+#include "starboard/common/log.h"
 
 bool SbMediaGetAudioConfiguration(
     int output_index,
     SbMediaAudioConfiguration* out_configuration) {
-  if (output_index != 0 || out_configuration == NULL) {
+  SB_DCHECK(output_index >= 0);
+  SB_DCHECK(out_configuration);
+
+  if (output_index != 0) {
     return false;
   }
 
   *out_configuration = {};
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  out_configuration->connector = kSbMediaAudioConnectorUnknown;
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   out_configuration->index = 0;
   out_configuration->connector = kSbMediaAudioConnectorNone;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
   out_configuration->latency = 0;
   out_configuration->coding_type = kSbMediaAudioCodingTypePcm;
-  // There are 6 channels in 5.1 surround sound.
-  out_configuration->number_of_channels = 6;
+  out_configuration->number_of_channels = SbAudioSinkGetMaxChannels();
   return true;
 }

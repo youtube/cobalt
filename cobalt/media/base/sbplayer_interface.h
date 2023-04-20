@@ -81,6 +81,12 @@ class SbPlayerInterface {
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  virtual bool GetAudioConfiguration(
+      SbPlayer player, int index,
+      SbMediaAudioConfiguration* out_audio_configuration) = 0;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+
   // disabled by default, but can be enabled via h5vcc setting.
   void EnableCValStats(bool should_enable) {
     cval_stats_.Enable(should_enable);
@@ -137,6 +143,12 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void GetUrlPlayerExtraInfo(
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  bool GetAudioConfiguration(
+      SbPlayer player, int index,
+      SbMediaAudioConfiguration* out_audio_configuration) override;
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
 
  private:
   void (*enhanced_audio_player_write_samples_)(

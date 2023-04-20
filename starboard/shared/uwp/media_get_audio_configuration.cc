@@ -24,8 +24,7 @@ bool SbMediaGetAudioConfiguration(
     return false;
   }
 
-  out_configuration->index = 0;
-  out_configuration->connector = kSbMediaAudioConnectorNone;
+  out_configuration->connector = kSbMediaAudioConnectorUnknown;
   out_configuration->latency = 0;
   out_configuration->coding_type = kSbMediaAudioCodingTypePcm;
 
