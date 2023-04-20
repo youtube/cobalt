@@ -1,0 +1,87 @@
+name: Label Cherry Pick
+
+on:
+  pull_request_target:
+    types:
+      - labeled
+      - closed
+
+jobs:
+  prepare_branch_list:
+    runs-on: ubuntu-latest
+    outputs:
+      target_branch: ${{ steps.set-branches.outputs.target_branch }}
+    steps:
+    - name: Set Branches
+      id: set-branches
+      env:
+        PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+        EVENT_ACTION: ${{ github.event.action }}
+        LABEL_NAME: ${{ github.event.label.name }}
+        BASE_REF: ${{ github.base_ref }}
+      run: |
+        if [[ $EVENT_ACTION == 'closed' ]]; then
+          labels=$(echo "$PR_LABELS" | jq -r '.[].name')
+        else
+          labels=$LABEL_NAME
+        fi
+
+        branches=("23.lts.1+" "22.lts.1+" "21.lts.1+", "20.lts.1+" "19.lts.1+" "19.android.1+" "rc_11" "COBALT_9")
+        filtered_branches=()
+        for branch in "${branches[@]}"; do
+          if [[ $branch == $BASE_REF ]]; then
+            continue
+          fi
+
+          for label in $labels; do
+            if [[ $label == "cp-$branch" ]]; then
+              filtered_branches+=("$branch")
+            fi
+          done
+        done
+
+        echo "target_branch=$(echo -n "$filtered_branches" | jq -cRs 'split("\n")')" >> $GITHUB_OUTPUT
+
+  cherry_pick:
+    runs-on: ubuntu-latest
+    needs: prepare_branch_list
+    if: |
+      needs.prepare_branch_list.outputs.target_branch != '[]' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.merge_commit_sha != null
+    strategy:
+      matrix:
+        target_branch: ${{ fromJson(needs.prepare_branch_list.outputs.target_branch) }}
+    env:
+      ACCESS_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+      REPOSITORY: ${{ github.repository }}
+      GITHUB_REF: ${{ github.ref }}
+      MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.target_branch }}
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --global user.name "GitHub Release Automation"
+          git config --global user.email "github@google.com"
+
+      - name: Cherry pick merge commit
+        run: |
+          git fetch origin ${{ matrix.target_branch }}
+          git cherry-pick -x $MERGE_COMMIT_SHA
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@2b011faafdcbc9ceb11414d64d0573f37c774b04 # v4.2.3
+        with:
+          token: ${{ secrets.CHERRY_PICK_TOKEN }}
+          base: ${{ matrix.target_branch }}
+          branch: "${{ matrix.target_branch }}-${{ github.event.pull_request.number }}"
+          committer: GitHub Release Automation <github@google.com>
+          reviewers: ${{ github.event.pull_request.user.login }}
+          title: "Cherry pick PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          body: |
+            "Refer to the original PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
