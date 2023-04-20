@@ -163,6 +163,7 @@ static_library("stub_sources") {
     "//starboard/shared/stub/once.cc",
     "//starboard/shared/stub/player_create.cc",
     "//starboard/shared/stub/player_destroy.cc",
+    "//starboard/shared/stub/player_get_audio_configuration.cc",
     "//starboard/shared/stub/player_get_current_frame.cc",
     "//starboard/shared/stub/player_get_info.cc",
     "//starboard/shared/stub/player_get_maximum_number_of_samples_per_write.cc",

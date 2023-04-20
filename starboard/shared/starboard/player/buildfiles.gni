@@ -24,6 +24,7 @@ common_player_sources = [
   "//starboard/shared/starboard/player/job_thread.h",
   "//starboard/shared/starboard/player/player_create.cc",
   "//starboard/shared/starboard/player/player_destroy.cc",
+  "//starboard/shared/starboard/player/player_get_audio_configuration.cc",
   "//starboard/shared/starboard/player/player_get_current_frame.cc",
   "//starboard/shared/starboard/player/player_get_info.cc",
   "//starboard/shared/starboard/player/player_get_maximum_number_of_samples_per_write.cc",

@@ -180,6 +180,9 @@ void ChunkDemuxerStream::Seek(base::TimeDelta time) {
   DCHECK(state_ == UNINITIALIZED || state_ == RETURNING_ABORT_FOR_READS)
       << state_;
 
+#if defined(STARBOARD)
+  write_head_ = time;
+#endif // defined (STARBOARD)
   stream_->Seek(time);
 }
 
@@ -224,6 +227,15 @@ bool ChunkDemuxerStream::EvictCodedFrames(base::TimeDelta media_time,
   // know which GOP currentTime points to.
   return stream_->GarbageCollectIfNeeded(media_time, newDataSize);
 }
+
+#if defined(STARBOARD)
+
+base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
+  base::AutoLock auto_lock(lock_);
+  return write_head_;
+}
+
+#endif  // defined(STARBOARD)
 
 void ChunkDemuxerStream::OnMemoryPressure(
     base::TimeDelta media_time,
@@ -473,6 +485,7 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
 
   DemuxerStream::Status status = DemuxerStream::kAborted;
   std::vector<scoped_refptr<DecoderBuffer>> buffers;
+  base::TimeDelta write_head = write_head_;
 
   if (pending_config_change_) {
     status = kConfigChanged;
@@ -491,6 +504,7 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
                  << buffer->timestamp().InSecondsF() << ", dur "
                  << buffer->duration().InSecondsF() << ", key "
                  << buffer->is_key_frame();
+        write_head = std::max(write_head, buffer->timestamp());
         buffers.push_back(std::move(buffer));
         status = DemuxerStream::kOk;
       } else if (stream_status == SourceBufferStreamStatus::kEndOfStream) {
@@ -529,6 +543,8 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
     return;
   }
 
+  DCHECK_LE(write_head_, write_head);
+  write_head_ = write_head;
   std::move(read_cb_).Run(status, buffers);
 }
 #else // defined(STARBOARD)
@@ -1076,6 +1092,25 @@ bool ChunkDemuxer::EvictCodedFrames(const std::string& id,
   }
   return itr->second->EvictCodedFrames(currentMediaTime, newDataSize);
 }
+
+#if defined(STARBOARD)
+
+base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(IsValidId(id));
+
+  auto iter = id_to_streams_map_.find(id);
+  if (iter == id_to_streams_map_.end() ||
+      iter->second.empty()) {
+    // Handled just in case.
+    SB_NOTREACHED();
+    return base::TimeDelta();
+  }
+
+  return iter->second[0]->GetWriteHead();
+}
+
+#endif  // defined(STARBOARD)
 
 bool ChunkDemuxer::AppendData(const std::string& id,
                               const uint8_t* data,

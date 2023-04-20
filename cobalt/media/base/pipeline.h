@@ -98,6 +98,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+      SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
       MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
 
   virtual ~Pipeline() {}
@@ -216,6 +219,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // video or the video has not been rendered yet, the width and height will
   // be 0.
   virtual void GetNaturalVideoSize(gfx::Size* out_size) const = 0;
+
+  // Gets the names of audio connectors used by the audio output.
+  virtual std::vector<std::string> GetAudioConnectors() const = 0;
 
   // Return true if loading progress has been made since the last time this
   // method was called.
