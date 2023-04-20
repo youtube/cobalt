@@ -94,6 +94,10 @@
 // Moved atomic operations C++ wrappers to starboard/common.
 #define SB_ATOMIC_MOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Minimum Starboard version for media tests based on 2024 hardware
+// certification requirements.
+#define SB_2024_HW_CERT_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -179,7 +183,7 @@ struct CompileAssert {};
   void operator=(const TypeName&) = delete
 #else
 #define SB_DISALLOW_COPY_AND_ASSIGN \
-#error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
+  #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
 #endif  // SB_API_VERSION < 13
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
@@ -268,8 +272,10 @@ struct CompileAssert {};
 #endif
 #endif  // SB_OVERRIDE
 #else
-#define SB_OVERRIDE \
-#error "The SB_OVERRIDE macro is deprecated. Please use \"override\" instead."
+#define SB_OVERRIDE                                                   \
+  #error                                                              \
+      "The SB_OVERRIDE macro is deprecated. Please use \"override\" " \
+      "instead."
 #endif  // SB_API_VERSION < 13
 
 // Declare numeric literals of signed 64-bit type.

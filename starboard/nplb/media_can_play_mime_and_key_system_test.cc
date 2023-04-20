@@ -13,7 +13,10 @@
 // limitations under the License.
 
 #include <map>
+#include <string>
+#include <utility>
 
+#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/nplb/drm_helpers.h"
@@ -739,6 +742,111 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidateQueriesUnderPeakCapability) {
     result = SbMediaCanPlayMimeAndKeySystem(
         "video/webm; codecs=\"vp9\"; width=256; height=144; framerate=30", "");
     ASSERT_EQ(result, kSbMediaSupportTypeProbably);
+  }
+}
+
+TEST(SbMediaCanPlayMimeAndKeySystem, VerifyMaxBitrate) {
+#if SB_API_VERSION >= SB_2024_HW_CERT_API_VERSION
+  constexpr int kAv14kBitrate = 40000000;
+#else
+  constexpr int kAv14kBitrate = 42000000;
+#endif  // SB_API_VERSION >= SB_2024_HW_CERT_API_VERSION
+
+  const std::pair<std::string, int> kCodecSupportQueries[] = {
+      {// AV1 1080P SDR
+       "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
+       "framerate=30",
+       20000000},
+      {// AV1 4K SDR
+       "video/mp4; codecs=\"av01.0.13M.08\"; width=3840; height=2160; "
+       "framerate=30",
+       kAv14kBitrate},
+      {// AV1 4K HDR
+       "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
+       "height=2160; framerate=30",
+       kAv14kBitrate},
+      {// AV1 8K SDR
+       "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320; "
+       "framerate=30",
+       60000000},
+      {// AV1 8K HDR
+       "video/mp4; codecs=\"av01.0.16M.10.0.110.09.16.09.0\"; width=7680; "
+       "height=4320; framerate=30",
+       60000000},
+      {// VP9 1080P SDR
+       "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=30",
+       20000000},
+      {// VP9 1080P HDR
+       "video/webm; codecs=\"vp09.02.41.10.01.09.16.09.00\"; width=1920; "
+       "height=1080; framerate=30",
+       20000000},
+      {// VP9 4K SDR
+       "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=30",
+       40000000},
+      {// VP9 4K HDR
+       "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
+       "height=2160; framerate=30",
+       40000000},
+  };
+
+  auto validate_bitrate = [](const std::string& query, const int bitrate,
+                             const std::string& key_system) {
+    SbMediaSupportType support =
+        SbMediaCanPlayMimeAndKeySystem(query.c_str(), key_system.c_str());
+    if (support == kSbMediaSupportTypeProbably) {
+      const std::string full_query =
+          query + "; bitrate=" + std::to_string(bitrate);
+      support = SbMediaCanPlayMimeAndKeySystem(full_query.c_str(),
+                                               key_system.c_str());
+      return support == kSbMediaSupportTypeProbably
+                 ? testing::AssertionSuccess()
+                 : testing::AssertionFailure()
+                       << "SbMediaCanPlayMimeAndKeySystem(\"" << full_query
+                       << "\", \"" << key_system << "\") returns: " << support;
+    }
+
+    return testing::AssertionSuccess();
+  };
+
+  constexpr const char* kKeysystems[] = {
+      "", "com.widevine", "com.youtube.playready", "com.youtube.fairplay"};
+
+  for (auto& params : kCodecSupportQueries) {
+    for (auto& key_system : kKeysystems) {
+      ASSERT_TRUE(validate_bitrate(params.first, params.second, key_system));
+    }
+  }
+
+  // All platforms must support AVC main and high profile 4.2 1080p at 30 fps.
+  SbMediaSupportType support = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.4d002a\"; width=1920; height=1080; "
+      "framerate=30; bitrate=20000000",
+      "");
+  ASSERT_EQ(support, kSbMediaSupportTypeProbably);
+
+  support = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"avc1.64002a\"; width=1920; height=1080; "
+      "framerate=30; bitrate=20000000",
+      "");
+  ASSERT_EQ(support, kSbMediaSupportTypeProbably);
+
+  // 8K-capable devices must support VP9 4K at 60 fps.
+  support = SbMediaCanPlayMimeAndKeySystem(
+      "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320; "
+      "framerate=30",
+      "");
+  if (support == kSbMediaSupportTypeProbably) {
+    support = SbMediaCanPlayMimeAndKeySystem(
+        "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=60; "
+        "bitrate=40000000",
+        "");
+    ASSERT_EQ(support, kSbMediaSupportTypeProbably);
+
+    support = SbMediaCanPlayMimeAndKeySystem(
+        "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
+        "height=2160; framerate=60; bitrate=40000000",
+        "");
+    ASSERT_EQ(support, kSbMediaSupportTypeProbably);
   }
 }
 
