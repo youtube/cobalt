@@ -12,20 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/system_property.h"
+// Module Overview: Starboard System Property module
+//
+// Implements helper functions for getting system property.
+
+#ifndef STARBOARD_COMMON_SYSTEM_PROPERTY_H_
+#define STARBOARD_COMMON_SYSTEM_PROPERTY_H_
+
+#include <string>
+
 #include "starboard/system.h"
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
+namespace starboard {
 
-using starboard::kSystemPropertyMaxLength;
-using testing::MatchesRegex;
+const size_t kSystemPropertyMaxLength = 1024;
 
-TEST(SbSystemGetPropertyTest, UserAgentAuxField) {
-  char out_value[kSystemPropertyMaxLength];
-  bool result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField,
-                                    out_value, kSystemPropertyMaxLength);
-  EXPECT_TRUE(result);
-  // Assert that the output value matches 4 numbers separated by periods.
-  EXPECT_THAT(out_value, MatchesRegex("\\d+\\.\\d+\\.\\d+\\.\\d+"));
+inline std::string GetSystemPropertyString(SbSystemPropertyId id) {
+  char value[kSystemPropertyMaxLength];
+  bool result;
+  result = SbSystemGetProperty(id, value, kSystemPropertyMaxLength);
+  if (result) {
+    return std::string(value);
+  }
+  return "";
 }
+
+}  // namespace starboard
+
+#endif  // STARBOARD_COMMON_SYSTEM_PROPERTY_H_

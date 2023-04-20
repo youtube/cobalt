@@ -24,6 +24,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/system_property.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -51,6 +52,10 @@ namespace filter {
 namespace {
 
 using ::starboard::shared::uwp::AudioRendererPassthrough;
+
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+const char kSystemDeviceTypeDesktop[] = "DESKTOP";
+#endif
 
 double GetRefreshRate() {
   return static_cast<double>(uwp::ApplicationUwp::Get()->GetRefreshRate());
@@ -211,10 +216,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
 #if !SB_HAS(GPU_DECODERS_ON_DESKTOP)
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
     if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
       SB_LOG(WARNING) << "GPU decoder disabled on Desktop.";
       return false;
     }
+#else
+    if (GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
+        kSystemDeviceTypeDesktop) {
+      SB_LOG(WARNING) << "GPU decoder disabled on Desktop.";
+      return false;
+    }
+#endif
 #endif  // !SB_HAS(GPU_DECODERS_ON_DESKTOP)
     if (video_codec != kSbMediaVideoCodecVp9 &&
         video_codec != kSbMediaVideoCodecAv1) {

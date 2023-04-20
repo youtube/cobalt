@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/browser/user_agent_string.h"
+
 #include <map>
 
 #include "cobalt/browser/user_agent_platform_info.h"
-#include "cobalt/browser/user_agent_string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -28,7 +29,7 @@ UserAgentPlatformInfo CreateEmptyPlatformInfo() {
   platform_info.set_starboard_version("");
   platform_info.set_os_name_and_version("");
   platform_info.set_original_design_manufacturer("");
-  platform_info.set_device_type(kSbSystemDeviceTypeUnknown);
+  platform_info.set_device_type("UNKNOWN");
   platform_info.set_chipset_model_number("");
   platform_info.set_model_year("");
   platform_info.set_firmware_version("");
@@ -306,7 +307,7 @@ TEST(UserAgentStringFactoryTest, WithPlatformInfo) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
   platform_info.set_original_design_manufacturer("Aperture_Science_Innovators");
-  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
+  platform_info.set_device_type("OTT");
   platform_info.set_chipset_model_number("P-body/Orange_Atlas/Blue");
   platform_info.set_model_year("2013");
   platform_info.set_firmware_version("0,01");
@@ -323,7 +324,7 @@ TEST(UserAgentStringFactoryTest, WithPlatformInfo) {
 TEST(UserAgentStringFactoryTest, WithOnlyBrandModelAndDeviceType) {
   UserAgentPlatformInfo platform_info =
       CreateOnlyOSNameAndVersionPlatformInfo();
-  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
+  platform_info.set_device_type("OTT");
   platform_info.set_brand("Aperture Science");
   platform_info.set_model("GLaDOS");
   std::string user_agent_string = CreateUserAgentString(platform_info);
@@ -336,7 +337,7 @@ TEST(UserAgentStringFactoryTest, WithOnlyBrandModelAndDeviceType) {
 TEST(UserAgentStringFactoryTest, WithStarboardVersion) {
   UserAgentPlatformInfo platform_info = CreateEmptyPlatformInfo();
   platform_info.set_starboard_version("Starboard/6");
-  platform_info.set_device_type(kSbSystemDeviceTypeOverTheTopBox);
+  platform_info.set_device_type("OTT");
   std::string user_agent_string = CreateUserAgentString(platform_info);
 
   const char* tv_info_str =
@@ -429,7 +430,8 @@ TEST(GetUserAgentInputMapTest, FailSafeWithInvalidInput) {
   GetUserAgentInputMap(user_agent_input, user_agent_input_map);
 
   std::map<std::string, std::string> expected_user_agent_input_map{
-      {"aux_field", ""}, {"device_type", "GAME"},
+      {"aux_field", ""},
+      {"device_type", "GAME"},
   };
   EXPECT_TRUE(user_agent_input_map == expected_user_agent_input_map);
 }

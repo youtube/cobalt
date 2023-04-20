@@ -35,6 +35,7 @@
 #include "starboard/common/queue.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
+#include "starboard/common/system_property.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/event.h"
@@ -162,6 +163,10 @@ const char kStarboardArgumentsPath[] = "arguments\\starboard_arguments.txt";
 const int64_t kMaxArgumentFileSizeBytes = 4 * 1024 * 1024;
 
 int main_return_value = 0;
+
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+const char kSystemDeviceTypeDesktop[] = "DESKTOP";
+#endif
 
 // IDisplayRequest is both "non-agile" and apparently
 // incompatible with Platform::Agile (it doesn't fully implement
@@ -1310,9 +1315,16 @@ int InternalMain() {
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
   // Early exit for gold builds on desktop as a security measure.
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
     return main_return_value;
   }
+#else
+  if (GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
+      kSystemDeviceTypeDesktop) {
+    return main_return_value;
+  }
+#endif
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
   shared::win32::RegisterMainThread();

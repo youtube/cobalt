@@ -27,6 +27,7 @@
 #include "cobalt_build_id.h"  // NOLINT(build/include_subdir)
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/system_property.h"
 #if SB_IS(EVERGREEN)
 #include "starboard/extension/installation_manager.h"
 #endif  // SB_IS(EVERGREEN)
@@ -34,6 +35,8 @@
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/utils.h"
 #endif
+
+using starboard::kSystemPropertyMaxLength;
 
 namespace cobalt {
 namespace browser {
@@ -106,6 +109,8 @@ void GetUserAgentInputMap(
 
 namespace {
 
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+
 struct DeviceTypeName {
   SbSystemDeviceType device_type;
   char device_type_string[10];
@@ -145,6 +150,7 @@ SbSystemDeviceType GetDeviceType(std::string device_type_string) {
   return kSbSystemDeviceTypeUnknown;
 }
 #endif
+#endif  // SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
 
 static bool isAsciiAlphaDigit(int c) {
   return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
@@ -216,7 +222,6 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_starboard_version(
       base::StringPrintf("Starboard/%d", SB_API_VERSION));
 
-  const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
   bool result;
 
@@ -286,8 +291,15 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
     info.set_aux_field(value);
   }
 
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+  result = SbSystemGetProperty(kSbSystemPropertyDeviceType, value,
+                               kSystemPropertyMaxLength);
+  SB_DCHECK(result);
+  info.set_device_type(value);
+#else
   // Fill platform info if it is a hardware TV device.
   info.set_device_type(SbSystemGetDeviceType());
+#endif
 
   // Chipset model number
   result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber, value,
@@ -354,7 +366,11 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
           info.set_original_design_manufacturer(input.second);
           LOG(INFO) << "Set original design manufacturer to " << input.second;
         } else if (!input.first.compare("device_type")) {
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
           info.set_device_type(GetDeviceType(input.second));
+#else
+          info.set_device_type(input.second);
+#endif
           LOG(INFO) << "Set device type to " << input.second;
         } else if (!input.first.compare("chipset_model_number")) {
           info.set_chipset_model_number(input.second);
@@ -429,9 +445,15 @@ void UserAgentPlatformInfo::set_original_design_manufacturer(
         Sanitize(original_design_manufacturer, isAsciiAlphaDigit);
   }
 }
+
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
 void UserAgentPlatformInfo::set_device_type(SbSystemDeviceType device_type) {
   device_type_ = device_type;
   device_type_string_ = CreateDeviceTypeString(device_type_);
+}
+#endif
+void UserAgentPlatformInfo::set_device_type(const std::string& device_type) {
+  device_type_string_ = device_type;
 }
 
 void UserAgentPlatformInfo::set_chipset_model_number(

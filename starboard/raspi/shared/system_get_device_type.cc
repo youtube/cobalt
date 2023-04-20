@@ -14,6 +14,10 @@
 
 #include "starboard/system.h"
 
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+
 SbSystemDeviceType SbSystemGetDeviceType() {
   return kSbSystemDeviceTypeUnknown;
 }
+
+#endif

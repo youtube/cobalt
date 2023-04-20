@@ -32,6 +32,11 @@ namespace {
 
 const char kFriendlyName[] = "Android";
 const char kUnknownValue[] = "unknown";
+
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+const char kSystemDeviceTypeAtv[] = "ATV";
+#endif
+
 // This is a format string template and the %s is meant to be replaced by
 // the Android release version number (e.g. "7.0" for Nougat).
 const char kPlatformNameFormat[] =
@@ -161,6 +166,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         limit_ad_tracking_enabled ? "1" : "0");
     }
+#endif
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+    case kSbSystemPropertyDeviceType:
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        kSystemDeviceTypeAtv);
 #endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__

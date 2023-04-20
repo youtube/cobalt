@@ -22,6 +22,10 @@ namespace {
 const char* kFriendlyName = "Windows Desktop";
 const char* kPlatformName = "win32; Windows x86_64";
 
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+const char kSystemDeviceTypeDesktop[] = "DESKTOP";
+#endif
+
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
@@ -66,6 +70,12 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(
           out_value, value_length,
           starboard::GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
+#endif
+
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+    case kSbSystemPropertyDeviceType:
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        kSystemDeviceTypeDesktop);
 #endif
 
     default:

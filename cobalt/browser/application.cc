@@ -72,6 +72,7 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "cobalt/watchdog/watchdog.h"
+#include "starboard/common/system_property.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 #include "starboard/extension/crash_handler.h"
@@ -120,10 +121,17 @@ std::string GetDevServersListenIp() {
   // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
 
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   // Desktop PCs default to loopback.
   if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
     listen_ip = ip_v6 ? "::1" : "127.0.0.1";
   }
+#else
+  if (starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
+      "DESKTOP") {
+    listen_ip = ip_v6 ? "::1" : "127.0.0.1";
+  }
+#endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();

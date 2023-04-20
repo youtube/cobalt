@@ -79,6 +79,7 @@ static_library("common") {
     "storage.cc",
     "storage.h",
     "string.h",
+    "system_property.h",
     "thread.cc",
     "thread.h",
     "thread_collision_warner.cc",

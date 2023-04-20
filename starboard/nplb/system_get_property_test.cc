@@ -26,6 +26,7 @@ namespace {
 // Size of appropriate value buffer.
 const size_t kValueSize = 1024;
 
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
 bool IsCEDevice(SbSystemDeviceType device_type) {
   switch (device_type) {
     case kSbSystemDeviceTypeBlueRayDiskPlayer:
@@ -39,6 +40,14 @@ bool IsCEDevice(SbSystemDeviceType device_type) {
     default:
       return false;
   }
+}
+#endif
+bool IsCEDevice(std::string device_type) {
+  if (device_type == "BDP" || device_type == "GAME" || device_type == "OTT" ||
+      device_type == "STB" || device_type == "TV") {
+    return true;
+  }
+  return false;
 }
 
 void BasicTest(SbSystemPropertyId id,
@@ -83,7 +92,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
   BasicTest(kSbSystemPropertySystemIntegratorName, false, true, __LINE__);
   BasicTest(kSbSystemPropertySpeechApiKey, false, true, __LINE__);
-
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   if (IsCEDevice(SbSystemGetDeviceType())) {
     BasicTest(kSbSystemPropertyBrandName, true, true, __LINE__);
     BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
@@ -93,6 +102,22 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
     BasicTest(kSbSystemPropertyModelName, false, true, __LINE__);
     BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
   }
+#else
+  const size_t kSystemPropertyMaxLength = 1024;
+  char value[kSystemPropertyMaxLength];
+  bool result;
+  result = SbSystemGetProperty(kSbSystemPropertyDeviceType, value,
+                               kSystemPropertyMaxLength);
+  if (result && IsCEDevice(std::string(value))) {
+    BasicTest(kSbSystemPropertyBrandName, true, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
+  } else {
+    BasicTest(kSbSystemPropertyBrandName, false, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelName, false, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
+  }
+#endif
 }
 
 TEST(SbSystemGetPropertyTest, FailsGracefullyZeroBufferLength) {

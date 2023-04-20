@@ -355,7 +355,9 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 14
   REGISTER_SYMBOL(SbSystemGetConnectionType);
 #endif
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   REGISTER_SYMBOL(SbSystemGetDeviceType);
+#endif
   REGISTER_SYMBOL(SbSystemGetErrorString);
   REGISTER_SYMBOL(SbSystemGetExtension);
   REGISTER_SYMBOL(SbSystemGetLastError);

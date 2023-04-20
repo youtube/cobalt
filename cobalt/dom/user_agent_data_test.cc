@@ -87,7 +87,7 @@ void UserAgentDataTest::InitializeEmptyPlatformInfo() {
   platform_info_->set_starboard_version("");
   platform_info_->set_os_name_and_version("");
   platform_info_->set_original_design_manufacturer("");
-  platform_info_->set_device_type(kSbSystemDeviceTypeUnknown);
+  platform_info_->set_device_type("UNKNOWN");
   platform_info_->set_chipset_model_number("");
   platform_info_->set_model_year("");
   platform_info_->set_firmware_version("");

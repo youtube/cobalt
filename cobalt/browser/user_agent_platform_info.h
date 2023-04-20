@@ -43,7 +43,11 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   base::Optional<std::string> original_design_manufacturer() const override {
     return original_design_manufacturer_;
   }
+
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   SbSystemDeviceType device_type() const override { return device_type_; }
+#endif
+
   const std::string& device_type_string() const override {
     return device_type_string_;
   }
@@ -86,7 +90,10 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   void set_os_name_and_version(const std::string& os_name_and_version);
   void set_original_design_manufacturer(
       base::Optional<std::string> original_design_manufacturer);
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   void set_device_type(SbSystemDeviceType device_type);
+#endif
+  void set_device_type(const std::string& device_type);
   void set_chipset_model_number(
       base::Optional<std::string> chipset_model_number);
   void set_model_year(base::Optional<std::string> model_year);
@@ -109,7 +116,9 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   std::string starboard_version_;
   std::string os_name_and_version_;
   base::Optional<std::string> original_design_manufacturer_;
+#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
   SbSystemDeviceType device_type_ = kSbSystemDeviceTypeUnknown;
+#endif
   std::string device_type_string_;
   base::Optional<std::string> chipset_model_number_;
   base::Optional<std::string> model_year_;

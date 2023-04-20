@@ -22,8 +22,11 @@
 #include "components/update_client/patcher.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/unzipper.h"
+#include "starboard/common/system_property.h"
 #include "starboard/system.h"
 #include "url/gurl.h"
+
+using starboard::kSystemPropertyMaxLength;
 
 namespace {
 
@@ -35,7 +38,6 @@ const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
 const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
-  const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
   bool result;
   result = SbSystemGetProperty(id, value, kSystemPropertyMaxLength);

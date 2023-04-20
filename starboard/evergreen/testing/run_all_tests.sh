@@ -24,7 +24,9 @@ AUTH_METHOD="public-key"
 USE_COMPRESSED_SYSTEM_IMAGE="false"
 SYSTEM_IMAGE_EXTENSION=".so"
 
-DISABLE_TESTS="false"
+# TODO(b/270605628) Enable the test once the new Cobalt binaries no longer
+# contain the removed Starboard API.
+DISABLE_TESTS="true"
 
 while getopts "d:a:c" o; do
     case "${o}" in
