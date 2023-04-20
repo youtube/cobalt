@@ -17,12 +17,16 @@
 
 #include <ostream>
 
+#include "cobalt/extension/audio_write_ahead.h"
 #include "starboard/media.h"
 
 namespace starboard {
 
 const char* GetMediaAudioCodecName(SbMediaAudioCodec codec);
 const char* GetMediaVideoCodecName(SbMediaVideoCodec codec);
+const char* GetMediaAudioConnectorName(SbMediaAudioConnector connector);
+const char* GetCobaltExtensionMediaAudioConnectorName(
+    CobaltExtensionMediaAudioConnector connector);
 const char* GetMediaPrimaryIdName(SbMediaPrimaryId primary_id);
 const char* GetMediaTransferIdName(SbMediaTransferId transfer_id);
 const char* GetMediaMatrixIdName(SbMediaMatrixId matrix_id);

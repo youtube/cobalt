@@ -79,6 +79,10 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
   bool EvictCodedFrames(base::TimeDelta media_time, size_t newDataSize);
 
+#if defined(STARBOARD)
+  base::TimeDelta GetWriteHead() const;
+#endif  // defined(STARBOARD)
+
   void OnMemoryPressure(
       base::TimeDelta media_time,
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
@@ -207,6 +211,9 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   State state_ GUARDED_BY(lock_);
   ReadCB read_cb_ GUARDED_BY(lock_);
   bool is_enabled_ GUARDED_BY(lock_);
+#if defined(STARBOARD)
+  base::TimeDelta write_head_ GUARDED_BY(lock_);
+#endif  // defined(STARBOARD)
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ChunkDemuxerStream);
 };
@@ -382,6 +389,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   bool EvictCodedFrames(const std::string& id,
                         base::TimeDelta currentMediaTime,
                         size_t newDataSize) WARN_UNUSED_RESULT;
+
+#if defined(STARBOARD)
+  base::TimeDelta GetWriteHead(const std::string& id) const;
+#endif  // defined(STARBOARD)
 
   void OnMemoryPressure(
       base::TimeDelta currentMediaTime,

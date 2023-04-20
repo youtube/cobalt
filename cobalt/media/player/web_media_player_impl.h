@@ -110,6 +110,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      WebMediaPlayerDelegate* delegate,
                      bool allow_resume_after_suspend,
                      bool allow_batched_sample_write,
+                     SbTime audio_write_duration_local,
+                     SbTime audio_write_duration_remote,
                      ::media::MediaLog* const media_log);
   ~WebMediaPlayerImpl() override;
 
@@ -145,6 +147,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Dimensions of the video.
   int GetNaturalWidth() const override;
   int GetNaturalHeight() const override;
+
+  // Names of audio connectors used by the playback.
+  std::vector<std::string> GetAudioConnectors() const override;
 
   // Getters of playback state.
   bool IsPaused() const override;

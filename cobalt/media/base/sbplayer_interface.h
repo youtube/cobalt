@@ -15,6 +15,7 @@
 #ifndef COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
 #define COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
 
+#include "cobalt/extension/audio_write_ahead.h"
 #include "cobalt/media/base/cval_stats.h"
 #include "starboard/player.h"
 
@@ -68,6 +69,11 @@ class SbPlayerInterface {
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
+  virtual bool IsAudioWriteAheadExtensionEnabled() const = 0;
+  virtual bool GetAudioConfiguration(
+      SbPlayer player, int index,
+      CobaltExtensionMediaAudioConfiguration* out_audio_configuration) = 0;
+
   // disabled by default, but can be enabled via h5vcc setting.
   void EnableCValStats(bool should_enable) {
     cval_stats_.Enable(should_enable);
@@ -77,6 +83,8 @@ class SbPlayerInterface {
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
  public:
+  DefaultSbPlayerInterface();
+
   SbPlayer Create(
       SbWindow window, const SbPlayerCreationParam* creation_param,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -113,6 +121,17 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void GetUrlPlayerExtraInfo(
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
+  bool IsAudioWriteAheadExtensionEnabled() const override;
+  bool GetAudioConfiguration(
+      SbPlayer player, int index,
+      CobaltExtensionMediaAudioConfiguration* out_audio_configuration) override;
+
+ private:
+  bool (*audio_write_duration_player_get_audio_configuration_)(
+      SbPlayer player, int index,
+      CobaltExtensionMediaAudioConfiguration* out_audio_configuration) =
+      nullptr;
 };
 
 

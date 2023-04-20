@@ -194,6 +194,18 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
+  } else if (sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
+    if (name == "AudioWriteDurationLocal" && value > 0) {
+      audio_write_duration_local_ = value;
+      LOG(INFO) << "Set AudioWriteDurationLocal to "
+                << audio_write_duration_local_;
+      return true;
+    } else if (name == "AudioWriteDurationRemote" && value > 0) {
+      audio_write_duration_remote_ = value;
+      LOG(INFO) << "Set AudioWriteDurationRemote to "
+                << audio_write_duration_remote_;
+      return true;
+    }
   }
   return false;
 }
@@ -206,12 +218,21 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
     window = system_window_->GetSbWindow();
   }
 
+  SbTime audio_write_duration_local = -1;
+  SbTime audio_write_duration_remote = -1;
+
+  if (sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
+    audio_write_duration_local = audio_write_duration_local_;
+    audio_write_duration_remote = audio_write_duration_remote_;
+  }
+
   return std::unique_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
       sbplayer_interface_.get(), window,
       base::Bind(&MediaModule::GetSbDecodeTargetGraphicsContextProvider,
                  base::Unretained(this)),
       client, this, options_.allow_resume_after_suspend,
-      allow_batched_sample_write_, &media_log_));
+      allow_batched_sample_write_, audio_write_duration_local,
+      audio_write_duration_remote, &media_log_));
 }
 
 void MediaModule::Suspend() {

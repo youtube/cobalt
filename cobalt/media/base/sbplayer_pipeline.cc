@@ -30,12 +30,14 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/startup_timer.h"
+#include "cobalt/extension/audio_write_ahead.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/playback_statistics.h"
 #include "cobalt/media/base/sbplayer_bridge.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+#include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/time.h"
@@ -66,6 +68,7 @@ using ::media::DemuxerStream;
 using ::media::PipelineStatistics;
 using ::media::PipelineStatusCallback;
 using ::media::VideoDecoderConfig;
+using ::starboard::GetCobaltExtensionMediaAudioConnectorName;
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
 
@@ -90,6 +93,35 @@ struct StartTaskParameters {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 };
 
+bool HasRemoteAudioOutputs(
+    const std::vector<CobaltExtensionMediaAudioConfiguration>& configurations) {
+  for (auto&& configuration : configurations) {
+    const auto connector = configuration.connector;
+    switch (connector) {
+      case kCobaltExtensionMediaAudioConnectorUnknown:
+      case kCobaltExtensionMediaAudioConnectorAnalog:
+      case kCobaltExtensionMediaAudioConnectorBuiltIn:
+      case kCobaltExtensionMediaAudioConnectorHdmi:
+      case kCobaltExtensionMediaAudioConnectorSpdif:
+      case kCobaltExtensionMediaAudioConnectorUsb:
+        LOG(INFO) << "Encountered local audio connector: "
+                  << GetCobaltExtensionMediaAudioConnectorName(connector);
+        break;
+      case kCobaltExtensionMediaAudioConnectorBluetooth:
+      case kCobaltExtensionMediaAudioConnectorRemoteWired:
+      case kCobaltExtensionMediaAudioConnectorRemoteWireless:
+      case kCobaltExtensionMediaAudioConnectorRemoteOther:
+        LOG(INFO) << "Encountered remote audio connector: "
+                  << GetCobaltExtensionMediaAudioConnectorName(connector);
+        return true;
+    }
+  }
+
+  LOG(INFO) << "No remote audio outputs found.";
+
+  return false;
+}
+
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
 class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
@@ -103,6 +135,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
+      SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
       MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
 
@@ -148,6 +181,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   TimeDelta GetMediaStartDate() const override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void GetNaturalVideoSize(gfx::Size* out_size) const override;
+  std::vector<std::string> GetAudioConnectors() const override;
 
   bool DidLoadingProgress() const override;
   PipelineStatistics GetStatistics() const override;
@@ -322,19 +356,29 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   DecodeTargetProvider* decode_target_provider_;
 
+  // The following two variables are used only when the Configurable Audio Write
+  // Ahead extension is enabled.
+  const SbTime audio_write_duration_local_;
+  const SbTime audio_write_duration_remote_;
+
+  // When the Configurable Audio Write Ahead extension is enabled,
+  // the two variables below should always contain the same value.
+  //
   // Read audio from the stream if |timestamp_of_last_written_audio_| is less
-  // than |seek_time_| + |kAudioPrerollLimit|, this effectively allows 10
-  // seconds of audio to be written to the SbPlayer after playback startup or
-  // seek.
-  static const SbTime kAudioPrerollLimit = 10 * kSbTimeSecond;
-  // Don't read audio from the stream more than |kAudioLimit| ahead of the
-  // current media time during playing.
-  static const SbTime kAudioLimit = kSbTimeSecond;
+  // than |seek_time_| + |audio_write_duration_for_preroll_|, this effectively
+  // allows 10 seconds of audio to be written to the SbPlayer after playback
+  // startup or seek.
+  SbTime audio_write_duration_ = 0;
+  // Don't read audio from the stream more than |audio_write_duration_| ahead of
+  // the current media time during playing.
+  SbTime audio_write_duration_for_preroll_ = audio_write_duration_;
+
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
   static const SbTime kMediaTimeCheckInterval = 0.1 * kSbTimeSecond;
   // Timestamp for the last written audio.
   SbTime timestamp_of_last_written_audio_ = 0;
+
   // Last media time reported by GetMediaTime().
   base::CVal<SbTime> last_media_time_;
   // Time when we last checked the media time.
@@ -357,6 +401,7 @@ SbPlayerPipeline::SbPlayerPipeline(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
     MediaLog* media_log, DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
           base::StringPrintf("%X", g_pipeline_identifier_counter++)),
@@ -398,6 +443,8 @@ SbPlayerPipeline::SbPlayerPipeline(
                     kSbPlayerStateInitialized,
                     "The underlying SbPlayer state of the media pipeline."),
       decode_target_provider_(decode_target_provider),
+      audio_write_duration_local_(audio_write_duration_local),
+      audio_write_duration_remote_(audio_write_duration_remote),
       last_media_time_(base::StringPrintf("Media.Pipeline.%s.LastMediaTime",
                                           pipeline_identifier_.c_str()),
                        0, "Last media time reported by the underlying player."),
@@ -406,7 +453,15 @@ SbPlayerPipeline::SbPlayerPipeline(
                              pipeline_identifier_.c_str()),
           "", "The max video capabilities required for the media pipeline."),
       playback_statistics_(pipeline_identifier_) {
-  SbMediaSetAudioWriteDuration(kAudioLimit);
+  DCHECK(sbplayer_interface_);
+  if (!sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
+    audio_write_duration_ = kSbTimeSecond;
+    audio_write_duration_for_preroll_ = 10 * kSbTimeSecond;
+    SbMediaSetAudioWriteDuration(audio_write_duration_);
+    LOG(INFO) << "Setting audio write duration to " << audio_write_duration_
+              << ", the duration during preroll is "
+              << audio_write_duration_for_preroll_;
+  }
 }
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
@@ -782,6 +837,27 @@ void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
   *out_size = natural_size_;
 }
 
+std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
+  if (sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
+    base::AutoLock auto_lock(lock_);
+    if (!player_bridge_) {
+      return std::vector<std::string>();
+    }
+
+    std::vector<std::string> connectors;
+
+    auto configurations = player_bridge_->GetAudioConfigurations();
+    for (auto&& configuration : configurations) {
+      connectors.push_back(
+          GetCobaltExtensionMediaAudioConnectorName(configuration.connector));
+    }
+
+    return connectors;
+  }
+
+  return std::vector<std::string>();
+}
+
 bool SbPlayerPipeline::DidLoadingProgress() const {
   base::AutoLock auto_lock(lock_);
   bool ret = did_loading_progress_;
@@ -1037,6 +1113,18 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         *decode_to_texture_output_mode_, decode_target_provider_,
         max_video_capabilities_, pipeline_identifier_));
     if (player_bridge_->IsValid()) {
+      if (sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
+        // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
+        // returns no audio configurations, update the write durations again
+        // before the SbPlayer reaches `kSbPlayerStatePresenting`.
+        audio_write_duration_for_preroll_ = audio_write_duration_ =
+            HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+                ? audio_write_duration_remote_
+                : audio_write_duration_local_;
+        LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
+                  << audio_write_duration_for_preroll_;
+      }
+
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
     } else {
@@ -1270,17 +1358,18 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
       GetMediaTime();
     }
 
-    // Delay reading audio more than |kAudioLimit| ahead of playback after the
-    // player has received enough audio for preroll, taking into account that
-    // our estimate of playback time might be behind by
+    // Delay reading audio more than |audio_write_duration_| ahead of playback
+    // after the player has received enough audio for preroll, taking into
+    // account that our estimate of playback time might be behind by
     // |kMediaTimeCheckInterval|.
     if (timestamp_of_last_written_audio_ - seek_time_.ToSbTime() >
-        kAudioPrerollLimit) {
+        audio_write_duration_for_preroll_) {
       // The estimated time ahead of playback may be negative if no audio has
       // been written.
       SbTime time_ahead_of_playback =
           timestamp_of_last_written_audio_ - last_media_time_;
-      if (time_ahead_of_playback > (kAudioLimit + kMediaTimeCheckInterval)) {
+      if (time_ahead_of_playback >
+          (audio_write_duration_ + kMediaTimeCheckInterval)) {
         task_runner_->PostDelayedTask(
             FROM_HERE,
             base::Bind(&SbPlayerPipeline::DelayedNeedData, this, max_buffers),
@@ -1349,6 +1438,15 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       if (video_stream_) {
         playback_statistics_.OnPresenting(
             video_stream_->video_decoder_config());
+      }
+      if (sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
+        audio_write_duration_for_preroll_ = audio_write_duration_ =
+            HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
+                ? audio_write_duration_remote_
+                : audio_write_duration_local_;
+        LOG(INFO)
+            << "SbPlayerBridge reaches kSbPlayerStatePresenting, with audio"
+            << " write duration at " << audio_write_duration_;
       }
       break;
     }
@@ -1606,12 +1704,14 @@ scoped_refptr<Pipeline> Pipeline::Create(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
     MediaLog* media_log, DecodeTargetProvider* decode_target_provider) {
-  return new SbPlayerPipeline(interface, window, task_runner,
-                              get_decode_target_graphics_context_provider_func,
-                              allow_resume_after_suspend,
-                              allow_batched_sample_write, media_log,
-                              decode_target_provider);
+  return new SbPlayerPipeline(
+      interface, window, task_runner,
+      get_decode_target_graphics_context_provider_func,
+      allow_resume_after_suspend, allow_batched_sample_write,
+      audio_write_duration_local, audio_write_duration_remote, media_log,
+      decode_target_provider);
 }
 
 }  // namespace media

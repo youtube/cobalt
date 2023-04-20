@@ -453,6 +453,17 @@ void SourceBuffer::set_track_defaults(
   track_defaults_ = track_defaults;
 }
 
+double SourceBuffer::write_head(script::ExceptionState* exception_state) const {
+  if (media_source_ == NULL) {
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
+    return 0.0;
+  }
+
+  DCHECK(chunk_demuxer_);
+  return chunk_demuxer_->GetWriteHead(id_).InSecondsF();
+}
+
 void SourceBuffer::OnRemovedFromMediaSource() {
   if (media_source_ == NULL) {
     return;

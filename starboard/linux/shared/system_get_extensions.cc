@@ -14,6 +14,7 @@
 
 #include "starboard/system.h"
 
+#include "cobalt/extension/audio_write_ahead.h"
 #include "cobalt/extension/configuration.h"
 #include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/demuxer.h"
@@ -22,6 +23,7 @@
 #include "cobalt/extension/platform_service.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
+#include "starboard/shared/audio_write_ahead/audio_write_ahead.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
@@ -58,6 +60,10 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::shared::posix::GetFreeSpaceApi();
+  }
+  if (strcmp(name, kCobaltExtensionConfigurableAudioWriteAheadName) == 0) {
+    return starboard::shared::audio_write_ahead::
+        GetConfigurableAudioWriteAheadApi();
   }
   if (strcmp(name, kCobaltExtensionDemuxerApi) == 0) {
     auto command_line =

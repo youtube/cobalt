@@ -134,6 +134,9 @@ class SourceBuffer : public web::EventTarget {
 
   // Custom, not in any spec.
   //
+  // Return the highest presentation timestamp written to SbPlayer.
+  double write_head(script::ExceptionState* exception_state) const;
+
   void OnRemovedFromMediaSource();
   double GetHighestPresentationTimestamp() const;
 

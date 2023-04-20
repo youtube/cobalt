@@ -38,4 +38,10 @@ interface SourceBuffer : EventTarget {
   // [RaisesException] void abort();
   [RaisesException] void remove(double start, unrestricted double end);
   [RaisesException] attribute TrackDefaultList trackDefaults;
+
+  // Non standard interface (b/267678497).
+  // Returns the highest presentation timestamp written to SbPlayer, raises
+  // `InvalidStateError` if the SourceBuffer object has been removed from the
+  // MediaSource object.
+  [RaisesException] readonly attribute double writeHead;
 };

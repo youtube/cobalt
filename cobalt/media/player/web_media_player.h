@@ -130,6 +130,9 @@ class WebMediaPlayer {
   virtual int GetNaturalWidth() const = 0;
   virtual int GetNaturalHeight() const = 0;
 
+  // Names of audio connectors used by the playback.
+  virtual std::vector<std::string> GetAudioConnectors() const = 0;
+
   // Getters of playback state.
   virtual bool IsPaused() const = 0;
   virtual bool IsSeeking() const = 0;

@@ -14,6 +14,7 @@
 
 #include "starboard/media.h"
 
+#include "cobalt/extension/audio_write_ahead.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/configuration_constants.h"
@@ -146,6 +147,18 @@ class SbMediaSetAudioWriteDurationTest
     SbMediaType type;
     int ticket;
   };
+
+  void SetUp() override {
+    static const CobaltExtensionConfigurableAudioWriteAheadApi* extension_api =
+        static_cast<const CobaltExtensionConfigurableAudioWriteAheadApi*>(
+            SbSystemGetExtension(
+                kCobaltExtensionConfigurableAudioWriteAheadName));
+    if (!extension_api) {
+      return;
+    }
+    GTEST_SKIP() << "Skipping all tests as "
+                    "CobaltExtensionConfigurableAudioWriteAhead is enabled.";
+  }
 
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   VideoDmpReader dmp_reader_;

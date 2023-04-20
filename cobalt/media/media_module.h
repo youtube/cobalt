@@ -24,6 +24,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/extension/audio_write_ahead.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/can_play_type_handler.h"
@@ -122,6 +123,12 @@ class MediaModule : public WebMediaPlayerFactory,
   bool suspended_ = false;
 
   bool allow_batched_sample_write_ = false;
+
+  // The following two variables are used only when the Configurable Audio Write
+  // Ahead extension is enabled.
+  SbTime audio_write_duration_local_ = kCobaltExtensionPlayerWriteDurationLocal;
+  SbTime audio_write_duration_remote_ =
+      kCobaltExtensionPlayerWriteDurationRemote;
 
   DecoderBufferAllocator decoder_buffer_allocator_;
 };
