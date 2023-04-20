@@ -57,11 +57,11 @@ class FFMPEGDispatch {
   unsigned (*avutil_version)(void);
   void* (*av_malloc)(size_t size);
   void (*av_freep)(void* ptr);
+#if LIBAVUTIL_VERSION_INT > LIBAVUTIL_VERSION_52_8
   AVFrame* (*av_frame_alloc)(void);
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   void (*av_frame_free)(AVFrame** frame);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   void (*av_frame_unref)(AVFrame* frame);
+#endif  // LIBAVUTIL_VERSION_INT > LIBAVUTIL_VERSION_52_8
   int (*av_samples_get_buffer_size)(int* linesize,
                                     int nb_channels,
                                     int nb_samples,
@@ -83,9 +83,9 @@ class FFMPEGDispatch {
 
   unsigned (*avcodec_version)(void);
   AVCodecContext* (*avcodec_alloc_context3)(const AVCodec* codec);
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+#if LIBAVUTIL_VERSION_INT > LIBAVUTIL_VERSION_52_8
   void (*avcodec_free_context)(AVCodecContext** avctx);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+#endif  // LIBAVUTIL_VERSION_INT > LIBAVUTIL_VERSION_52_8
   AVCodec* (*avcodec_find_decoder)(int id);
   int (*avcodec_close)(AVCodecContext* avctx);
   int (*avcodec_open2)(AVCodecContext* avctx,
