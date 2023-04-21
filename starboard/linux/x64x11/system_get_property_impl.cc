@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/x64x11/system_properties.h"
@@ -30,10 +31,6 @@ const char kFriendlyName[] = "Linux Desktop";
 const char kModelName[] = "ModelName";
 const char kPlatformName[] = "X11; Linux x86_64";
 const char kSystemIntegratorName[] = "SystemIntegratorName";
-
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
-const char kSystemDeviceTypeDesktop[] = "DESKTOP";
-#endif
 
 #if SB_API_VERSION >= 14
 const char kModelYear[] = "2023";
@@ -128,7 +125,7 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
 #if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kSystemDeviceTypeDesktop);
+                                        kSystemDeviceTypeDesktopPC);
 #endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__

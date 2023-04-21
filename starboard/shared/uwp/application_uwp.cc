@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/device_type.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -163,10 +164,6 @@ const char kStarboardArgumentsPath[] = "arguments\\starboard_arguments.txt";
 const int64_t kMaxArgumentFileSizeBytes = 4 * 1024 * 1024;
 
 int main_return_value = 0;
-
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
-const char kSystemDeviceTypeDesktop[] = "DESKTOP";
-#endif
 
 // IDisplayRequest is both "non-agile" and apparently
 // incompatible with Platform::Agile (it doesn't fully implement
@@ -1321,7 +1318,7 @@ int InternalMain() {
   }
 #else
   if (GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
-      kSystemDeviceTypeDesktop) {
+      kSystemDeviceTypeDesktopPC) {
     return main_return_value;
   }
 #endif
