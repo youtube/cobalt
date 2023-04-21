@@ -54,8 +54,8 @@ EOD
 
 function scp_with_password() {
   expect <<EOD
-# Some directories, e.g., fonts, may take a few minutes to copy.
-set timeout 180
+# Some directories, e.g., cobalt/content, may take a few minutes to copy.
+set timeout 360
 spawn scp $@
 expect {
     "password:" {
