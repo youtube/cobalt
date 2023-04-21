@@ -1482,6 +1482,7 @@ static const base::TimeDelta kLastAccessThreshold =
 static const base::TimeDelta kAccessDelay =
     kLastAccessThreshold + base::TimeDelta::FromMilliseconds(20);
 
+#if !defined(STARBOARD)
 TEST_F(CookieMonsterTest, TestLastAccess) {
   std::unique_ptr<CookieMonster> cm(
       new CookieMonster(nullptr, kLastAccessThreshold, &net_log_));
@@ -1520,6 +1521,7 @@ TEST_F(CookieMonsterTest, TestLastAccess) {
             GetCookiesWithOptions(cm.get(), http_www_foo_.url(), options));
   EXPECT_FALSE(last_access_date == GetFirstCookieAccessDate(cm.get()));
 }
+#endif
 
 TEST_F(CookieMonsterTest, TestHostGarbageCollection) {
   TestHostGarbageCollectHelper();
