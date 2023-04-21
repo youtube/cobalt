@@ -14,32 +14,6 @@
       "player_filter_tests": [2, 2]
     }
   ],
-  "xb1|ps4|ps5|nxswitch":[
-    {
-      "base_unittests":"*",
-      "layout_tests":"*",
-      "loader_test":"*",
-      "math_test":"*",
-      "media_capture_test":"*",
-      "media_session_test":"*",
-      "media_stream_test":"*",
-      "memory_store_test":"*",
-      "nb_test":"*",
-      "network_test":"*",
-      "poem_unittests":"*",
-      "render_tree_test":"*",
-      "renderer_test":"*",
-      "slot_management_test":"*",
-      "starboard_platform_tests":"*",
-      "storage_test":"*",
-      "text_encoding_test":"*",
-      "web_animations_test":"*",
-      "webdriver_test":"*",
-      "websocket_test":"*",
-      "xhr_test":"*",
-      "zip_unittests":"*"
-    }
-  ],
   "raspi-2":[
     {
       "base_unittests": [1, 6],
