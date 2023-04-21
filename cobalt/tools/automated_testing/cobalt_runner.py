@@ -254,6 +254,14 @@ class CobaltRunner(object):
 
     self.launcher_read_pipe = os.fdopen(read_fd, 'r')
     self.launcher_write_pipe = os.fdopen(write_fd, 'w')
+    launcher_args = {}
+    if self.launcher_params.target_params:
+      for param in self.launcher_params.target_params:
+        pname = param.replace('--', '')
+        val = True
+        if '=' in pname:
+          pname, val = pname.split('=')
+        launcher_args[pname] = val
 
     self.launcher = abstract_launcher.LauncherFactory(
         self.launcher_params.platform,
@@ -265,7 +273,8 @@ class CobaltRunner(object):
         out_directory=self.launcher_params.out_directory,
         loader_platform=self.launcher_params.loader_platform,
         loader_config=self.launcher_params.loader_config,
-        loader_out_directory=self.launcher_params.loader_out_directory)
+        loader_out_directory=self.launcher_params.loader_out_directory,
+        launcher_args=launcher_args)
 
     self.runner_thread = threading.Thread(target=self._RunLauncher)
     self.runner_thread.start()
