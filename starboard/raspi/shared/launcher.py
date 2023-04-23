@@ -26,10 +26,11 @@ import time
 
 import pexpect
 from starboard.tools import abstract_launcher
+from starboard.raspi.shared import retry
 
 
 # pylint: disable=unused-argument
-def _SigIntOrSigTermHandler(signum, frame):
+def _sigint_or_sigterm_handler(signum, frame):
   """Clean up and exit with status |signum|.
 
   Args:
@@ -42,7 +43,7 @@ def _SigIntOrSigTermHandler(signum, frame):
 
 
 # First call returns True, otherwise return false.
-def FirstRun():
+def first_run():
   v = globals()
   if 'first_run' not in v:
     v['first_run'] = False
@@ -65,7 +66,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
   _PEXPECT_TIMEOUT = 1
 
   _PEXPECT_SHUTDOWN_SLEEP_TIME = 3
+  # Time to wait after processes were killed
+  _PROCESS_KILL_SLEEP_TIME = 10
 
+  # Retrys for getting a clean prompt
+  _PROMPT_WAIT_MAX_RETRIES = 5
   # Wait up to 30 seconds for the password prompt from the raspi
   _PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES = 30
   # Wait up to 900 seconds for new output from the raspi
@@ -102,8 +107,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.log_targets = kwargs.get('log_targets', True)
 
-    signal.signal(signal.SIGINT, functools.partial(_SigIntOrSigTermHandler))
-    signal.signal(signal.SIGTERM, functools.partial(_SigIntOrSigTermHandler))
+    signal.signal(signal.SIGINT, functools.partial(_sigint_or_sigterm_handler))
+    signal.signal(signal.SIGTERM, functools.partial(_sigint_or_sigterm_handler))
 
     self.last_run_pexpect_cmd = ''
 
@@ -169,35 +174,32 @@ class Launcher(abstract_launcher.AbstractLauncher):
         command, timeout=Launcher._PEXPECT_TIMEOUT, **kwargs)
     # Let pexpect output directly to our output stream
     self.pexpect_process.logfile_read = self.output_file
-    retry_count = 0
     expected_prompts = [
         r'.*Are\syou\ssure.*',  # Fingerprint verification
         r'.* password:',  # Password prompt
         '.*[a-zA-Z]+.*',  # Any other text input
     ]
-    while True:
-      try:
-        i = self.pexpect_process.expect(expected_prompts)
-        if i == 0:
-          self._PexpectSendLine('yes')
-        elif i == 1:
-          self._PexpectSendLine(Launcher._RASPI_PASSWORD)
-          break
-        else:
-          # If any other input comes in, maybe we've logged in with rsa key or
-          # raspi does not have password. Check if we've logged in by echoing
-          # a special sentence and expect it back.
-          self._PexpectSendLine('echo ' + Launcher._SSH_LOGIN_SIGNAL)
-          i = self.pexpect_process.expect([Launcher._SSH_LOGIN_SIGNAL])
-          break
-      except pexpect.TIMEOUT:
-        if self.shutdown_initiated.is_set():
-          return
-        retry_count += 1
-        # Check if the max retry count has been exceeded. If it has, then
-        # re-raise the timeout exception.
-        if retry_count > Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES:
-          raise
+
+    # pylint: disable=unnecessary-lambda
+    @retry.retry(
+        exceptions=(pexpect.TIMEOUT,),
+        retries=Launcher._PEXPECT_PASSWORD_TIMEOUT_MAX_RETRIES,
+        backoff=lambda: self.shutdown_initiated.is_set(),
+        wrap_exceptions=False)
+    def _inner():
+      i = self.pexpect_process.expect(expected_prompts)
+      if i == 0:
+        self._PexpectSendLine('yes')
+      elif i == 1:
+        self._PexpectSendLine(Launcher._RASPI_PASSWORD)
+      else:
+        # If any other input comes in, maybe we've logged in with rsa key or
+        # raspi does not have password. Check if we've logged in by echoing
+        # a special sentence and expect it back.
+        self._PexpectSendLine('echo ' + Launcher._SSH_LOGIN_SIGNAL)
+        i = self.pexpect_process.expect([Launcher._SSH_LOGIN_SIGNAL])
+
+    _inner()
 
   def _PexpectSendLine(self, cmd):
     """Send lines to Pexpect and record the last command for logging purposes"""
@@ -206,33 +208,28 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _PexpectReadLines(self):
     """Reads all lines from the pexpect process."""
-
-    retry_count = 0
-    while True:
-      try:
+    # pylint: disable=unnecessary-lambda
+    @retry.retry(
+        exceptions=(pexpect.TIMEOUT,),
+        retries=Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES,
+        backoff=lambda: self.shutdown_initiated.is_set(),
+        wrap_exceptions=False)
+    def _readloop():
+      while True:
         # Sanitize the line to remove ansi color codes.
         line = Launcher._PEXPECT_SANITIZE_LINE_RE.sub(
             '', self.pexpect_process.readline())
         self.output_file.flush()
         if not line:
-          break
+          return
         # Check for the test complete tag. It will be followed by either a
         # success or failure tag.
         if line.startswith(self.test_complete_tag):
           if line.find(self.test_success_tag) != -1:
             self.return_value = 0
-          break
-        # A line was successfully read without timing out; reset the retry
-        # count before attempting to read the next line.
-        retry_count = 0
-      except pexpect.TIMEOUT:
-        if self.shutdown_initiated.is_set():
           return
-        retry_count += 1
-        # Check if the max retry count has been exceeded. If it has, then
-        # re-raise the timeout exception.
-        if retry_count > Launcher._PEXPECT_READLINE_TIMEOUT_MAX_RETRIES:
-          raise
+
+    _readloop()
 
   def _Sleep(self, val):
     self._PexpectSendLine(f'sleep {val};echo {Launcher._SSH_SLEEP_SIGNAL}')
@@ -262,21 +259,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _WaitForPrompt(self):
     """Sends empty commands, until a bash prompt is returned"""
-    retry_count = 5
-    while True:
-      try:
-        self.pexpect_process.expect(self._RASPI_PROMPT)
-        break
-      except pexpect.TIMEOUT:
-        logging.info('Timeout exception during WaitForPrompt command: %s',
-                     self.last_run_pexpect_cmd)
-        if self.shutdown_initiated.is_set():
-          return
-        retry_count -= 1
-        if not retry_count:
-          raise
-        self._PexpectSendLine('echo ' + Launcher._SSH_SLEEP_SIGNAL)
-        time.sleep(self._INTER_COMMAND_DELAY_SECONDS)
+
+    def backoff():
+      self._PexpectSendLine('echo ' + Launcher._SSH_SLEEP_SIGNAL)
+      time.sleep(self._INTER_COMMAND_DELAY_SECONDS)
+      return self.shutdown_initiated.is_set()
+
+    retry.with_retry(
+        lambda: self.pexpect_process.expect(self._RASPI_PROMPT),
+        exceptions=(pexpect.TIMEOUT,),
+        retries=Launcher._PROMPT_WAIT_MAX_RETRIES,
+        backoff=backoff,
+        wrap_exceptions=False)
 
   def _KillExistingCobaltProcesses(self):
     """If there are leftover Cobalt processes, kill them.
@@ -296,7 +290,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       logging.warning('Forced to pkill existing instance(s) of cobalt. '
                       'Pausing to ensure no further operations are run '
                       'before processes shut down.')
-      time.sleep(10)
+      time.sleep(Launcher._PROCESS_KILL_SLEEP_TIME)
     logging.info('Done killing existing processes')
 
   def Run(self):
@@ -332,7 +326,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if self.test_result_xml_path:
         first_run_commands.append(f'touch {self.test_result_xml_path}')
       first_run_commands.extend(['free -mh', 'ps -ux', 'df -h'])
-      if FirstRun():
+      if first_run():
         for cmd in first_run_commands:
           if not self.shutdown_initiated.is_set():
             self._PexpectSendLine(cmd)
@@ -379,7 +373,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Initiate the shutdown. This causes the run to abort within one second.
     self.shutdown_initiated.set()
     # Wait up to three seconds for the run to be set to inactive.
-    self.run_inactive.wait(3)
+    self.run_inactive.wait(Launcher._PEXPECT_SHUTDOWN_SLEEP_TIME)
 
   def GetDeviceIp(self):
     """Gets the device IP."""
