@@ -286,7 +286,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # Send ctrl-c to the raspi and close the process.
       with contextlib.suppress(Launcher._RETRY_EXCEPTIONS):
         self._PexpectSendLine(chr(3))
-      time.sleep(self._PEXPECT_TIMEOUT)  # Allow a second for normal shutdown
+      time.sleep(self._PEXPECT_TIMEOUT)  # Allow time for normal shutdown
       with contextlib.suppress(Launcher._RETRY_EXCEPTIONS):
         self.pexpect_process.close()
 

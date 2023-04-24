@@ -80,6 +80,7 @@ class LauncherAPITest(LauncherTest):
     self.assertEqual(self._make_launcher().GetDeviceIp(), self.device_id)
 
   def test_output(self):
+    # The path is hardcoded in the launcher
     self.assertEqual(self._make_launcher().GetDeviceOutputPath(), '/tmp')
 
   def test_kill(self):

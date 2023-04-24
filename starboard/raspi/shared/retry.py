@@ -76,7 +76,7 @@ def with_retry(function: Callable,
     :param kwargs: Called function named args.
     :param exceptions: Sequence of exception types that will be retried.
     :param retries: Max retries attempted.
-    :param retries: Optional backoff callable. Truthy return from callable
+    :param backoff: Optional backoff callable. Truthy return from callable
         terminates the loop.
     :param wrap_exceptions: If true ( default ) wrap underlying exceptions in
         RetriesExceeded exception type
@@ -99,7 +99,7 @@ def retry(exceptions: Sequence = (Exception,),
 
     :param exceptions: Sequence of exception types that will be retried.
     :param retries: Max retries attempted.
-    :param retries: Optional backoff callable. Truthy return from callable
+    :param backoff: Optional backoff callable. Truthy return from callable
         terminates the loop.
     :param wrap_exceptions: If true ( default ) wrap underlying exceptions in
         RetriesExceeded exception type

@@ -87,7 +87,7 @@ class RetryTest(unittest.TestCase):
   @retry.retry(exceptions=(OSError,), retries=1, wrap_exceptions=False)
   def decorated_os_problem_nowrap(self, param):
     self.actual_calls += 1
-    return _problem(param, 'decorated problem method')
+    return _problem(param, 'decorated problem method, pass-through exceptions')
 
   @retry.retry(exceptions=(OSError,), retries=5)
   def decorated_os_problem_3(self, param):
