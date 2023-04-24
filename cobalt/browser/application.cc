@@ -72,6 +72,7 @@
 #include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "cobalt/watchdog/watchdog.h"
+#include "starboard/common/device_type.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
@@ -128,7 +129,7 @@ std::string GetDevServersListenIp() {
   }
 #else
   if (starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
-      "DESKTOP") {
+      starboard::kSystemDeviceTypeDesktopPC) {
     listen_ip = ip_v6 ? "::1" : "127.0.0.1";
   }
 #endif
