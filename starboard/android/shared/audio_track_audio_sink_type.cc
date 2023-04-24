@@ -181,8 +181,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
-      error_func_(kSbPlayerErrorCapabilityChanged,
-                  "Audio device capability changed", context_);
+      ReportError(kSbPlayerErrorCapabilityChanged,
+                  "Audio device capability changed");
       break;
     }
 
@@ -325,10 +325,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
       bool capabilities_changed =
           written_frames == AudioTrackBridge::kAudioTrackErrorDeadObject;
-      error_func_(
+      ReportError(
           capabilities_changed,
-          FormatString("Error while writing frames: %d", written_frames),
-          context_);
+          FormatString("Error while writing frames: %d", written_frames));
       SB_LOG(INFO) << "Restarting playback.";
       break;
     } else if (written_frames > 0) {
@@ -379,6 +378,14 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
   }
   SB_DCHECK(samples_written % channels_ == 0);
   return samples_written / channels_;
+}
+
+void AudioTrackAudioSink::ReportError(bool capability_changed,
+                                      const std::string& error_message) {
+  SB_LOG(INFO) << "AudioTrackAudioSink error: " << error_message;
+  if (error_func_) {
+    error_func_(capability_changed, error_message, context_);
+  }
 }
 
 void AudioTrackAudioSink::SetVolume(double volume) {
