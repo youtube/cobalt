@@ -26,6 +26,9 @@
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
+#error i'm not going to compile
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
