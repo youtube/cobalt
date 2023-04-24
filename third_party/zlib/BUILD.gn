@@ -204,7 +204,7 @@ source_set("zlib_inflate_chunk_simd") {
       "contrib/optimizations/inflate.c",
     ]
 
-    if (!is_win && use_cobalt_customizations) {
+    if (true) {
       cflags_c = [ "-Wno-unused-function" ]
       if (is_clang_16) {
         cflags_c += [
