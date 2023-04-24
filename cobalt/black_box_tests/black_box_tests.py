@@ -62,7 +62,8 @@ _TESTS_NO_SIGNAL = [
     'allow_eval',
     'disable_eval_with_csp',
     'persistent_cookie',
-    'soft_mic_platform_service_test',
+    # TODO(b/279437561) Disabled: flaky on 22LTS and older
+    # 'soft_mic_platform_service_test',
     'web_debugger',
     'web_platform_tests',
 ]
