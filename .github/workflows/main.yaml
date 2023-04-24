@@ -231,11 +231,14 @@ jobs:
   # Runs on-host integration and unit tests.
   on-device-test:
     needs: [initialize, build]
-    if: |  # Always run if not a PR or if the PR has on_device label
-      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && (
-        github.event_name != 'pull_request' ||
-        contains(github.event.pull_request.labels.*.name, 'on_device')
-      )
+    # Run ODT when on_device label is applied on PR.
+    # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
+    if: |
+      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && ((
+        github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'on_device') )
+          || ( inputs.nightly == 'true' && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False')  ||
+          ( github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' ) )
     runs-on: [self-hosted, linux, X64]
     name: ${{ matrix.name }}_on_device_${{ matrix.shard }}
     container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
