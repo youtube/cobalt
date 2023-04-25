@@ -70,9 +70,6 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
     super().__init__(platform_configuration, application_name,
                      application_directory)
 
-  def WebdriverBenchmarksEnabled(self):
-    return True
-
   def GetTestFilters(self):
     filters = super().GetTestFilters()
     for target, tests in _FILTERED_TESTS.items():

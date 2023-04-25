@@ -71,9 +71,7 @@ class.
 
    Define a subclass of
    `starboard.build.application_configuration.ApplicationConfiguration` and
-   override any desired methods. In particular, you probably at least want to
-   override the `GetDefaultTargetBuildFile()` method to point at your root
-   `.gyp` file from step 1.
+   override any desired methods.
 
 3. Register your Application in your `starboard_configuration.py` file in your
    source tree root.
