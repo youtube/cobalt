@@ -35,7 +35,7 @@ class LinuxStadiaConfiguration(shared_configuration.LinuxConfiguration):
     return self.GetHostToolchain(**kwargs)
 
   def GetHostToolchain(self, **kwargs):  #pylint: disable=unused-argument
-    environment_variables = self.GetEnvironmentVariables()
+    environment_variables = {}
     cc_path = environment_variables['CC']
     cxx_path = environment_variables['CXX']
 

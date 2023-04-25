@@ -20,9 +20,6 @@ from starboard.tools.testing import test_filter
 class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Android Cobalt shared configuration."""
 
-  def WebdriverBenchmarksEnabled(self):
-    return True
-
   def GetTestFilters(self):
     filters = super().GetTestFilters()
     for target, tests in self.__FILTERED_TESTS.items():

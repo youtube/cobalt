@@ -15,8 +15,6 @@
 
 import os
 
-from cobalt.tools import paths
-import cobalt.tools.webdriver_benchmark_config as wb_config
 from starboard.build import application_configuration
 from starboard.tools.config import Config
 
@@ -57,12 +55,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'use_openssl': 1,
     }
     return variables
-
-  def GetPostIncludes(self):
-    # Insert cobalt_configuration.gypi into the post includes list.
-    includes = super().GetPostIncludes()
-    includes[:0] = [os.path.join(paths.BUILD_ROOT, 'cobalt_configuration.gypi')]
-    return includes
 
   def GetWebPlatformTestFilters(self):
     """Gets all tests to be excluded from a black box test run."""
@@ -185,25 +177,3 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'xhr_test',
         'zip_unittests',
     ]
-
-  def GetDefaultTargetBuildFile(self):
-    return os.path.join(paths.BUILD_ROOT, 'all.gyp')
-
-  def WebdriverBenchmarksEnabled(self):
-    """Determines if webdriver benchmarks are enabled or not.
-
-    Returns:
-      True if webdriver benchmarks can run on this platform, False if not.
-    """
-    return False
-
-  def GetDefaultSampleSize(self):
-    return wb_config.STANDARD_SIZE
-
-  def GetWebdriverBenchmarksTargetParams(self):
-    """Gets command line params to pass to the Cobalt executable."""
-    return []
-
-  def GetWebdriverBenchmarksParams(self):
-    """Gets command line params to pass to the webdriver benchmark script."""
-    return []
