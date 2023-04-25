@@ -479,12 +479,13 @@ void FFmpegDemuxerImpl<FFMPEG>::ScopedPtrAVFreePacket::operator()(
     return;
   }
   auto* packet = static_cast<AVPacket*>(ptr);
-#if LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
-  GetDispatch()->av_packet_free(&packet);
-#else
-  GetDispatch()->av_free_packet(packet);
-  GetDispatch()->av_free(packet);
-#endif  // LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
+
+  if (GetDispatch()->avcodec_version() > kAVCodecSupportsAvPacketAlloc) {
+    GetDispatch()->av_packet_free(&packet);
+  } else {
+    GetDispatch()->av_free_packet(packet);
+    GetDispatch()->av_free(packet);
+  }
 }
 
 FFmpegDemuxerImpl<FFMPEG>::FFmpegDemuxerImpl(
@@ -714,15 +715,15 @@ FFmpegDemuxerImpl<FFMPEG>::ScopedAVPacket
 FFmpegDemuxerImpl<FFMPEG>::CreateScopedAVPacket() {
   ScopedAVPacket packet;
 
-#if LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
-  packet.reset(GetDispatch()->av_packet_alloc());
-#else
-  // av_packet_alloc is not available.
-  packet.reset(
-      static_cast<AVPacket*>(GetDispatch()->av_malloc(sizeof(AVPacket))));
-  memset(packet.get(), 0, sizeof(AVPacket));
-  GetDispatch()->av_init_packet(packet.get());
-#endif  // LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
+  if (GetDispatch()->avcodec_version() > kAVCodecSupportsAvPacketAlloc) {
+    packet.reset(GetDispatch()->av_packet_alloc());
+  } else {
+    // av_packet_alloc is not available.
+    packet.reset(
+        static_cast<AVPacket*>(GetDispatch()->av_malloc(sizeof(AVPacket))));
+    memset(packet.get(), 0, sizeof(AVPacket));
+    GetDispatch()->av_init_packet(packet.get());
+  }
 
   return packet;
 }
@@ -775,13 +776,13 @@ FFmpegDemuxerImpl<FFMPEG>::ScopedAVPacket FFmpegDemuxerImpl<
       continue;
     }
 
-// This is a packet for a stream we don't care about. Unref it (clear the
-// fields) and keep searching.
-#if LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
-    GetDispatch()->av_packet_unref(packet.get());
-#else
-    GetDispatch()->av_free_packet(packet.get());
-#endif  // LIBAVCODEC_VERSION_INT >= LIBAVCODEC_VERSION_57_100
+    // This is a packet for a stream we don't care about. Unref it (clear the
+    // fields) and keep searching.
+    if (GetDispatch()->avcodec_version() > kAVCodecSupportsAvPacketAlloc) {
+      GetDispatch()->av_packet_unref(packet.get());
+    } else {
+      GetDispatch()->av_free_packet(packet.get());
+    }
   }
 
   SB_NOTREACHED();
@@ -919,9 +920,9 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseVideoConfig(
   const double aspect_ratio =
       video_stream->sample_aspect_ratio.num
           ? get_aspect_ratio(video_stream->sample_aspect_ratio)
-          : codec_context->sample_aspect_ratio.num
-                ? get_aspect_ratio(codec_context->sample_aspect_ratio)
-                : 0.0;
+      : codec_context->sample_aspect_ratio.num
+          ? get_aspect_ratio(codec_context->sample_aspect_ratio)
+          : 0.0;
   {
     double width = config->visible_rect_width;
     double height = config->visible_rect_height;
@@ -976,7 +977,7 @@ bool FFmpegDemuxerImpl<FFMPEG>::ParseVideoConfig(
            codec_context->profile >
 #ifdef FF_PROFILE_HEVC_REXT
                FF_PROFILE_HEVC_REXT
-#else  // FF_PROFILE_HEVC_REXT
+#else   // FF_PROFILE_HEVC_REXT
                FF_PROFILE_HEVC_MAIN_STILL_PICTURE
 #endif  // FF_PROFILE_HEVC_REXT
            ) &&

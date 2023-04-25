@@ -318,11 +318,11 @@ void AudioDecoderImpl<FFMPEG>::InitializeCodec() {
     return;
   }
 
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  av_frame_ = ffmpeg_->av_frame_alloc();
-#else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  av_frame_ = ffmpeg_->avcodec_alloc_frame();
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
+    av_frame_ = ffmpeg_->av_frame_alloc();
+  } else {
+    av_frame_ = ffmpeg_->avcodec_alloc_frame();
+  }
   if (av_frame_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate audio frame";
     TeardownCodec();
