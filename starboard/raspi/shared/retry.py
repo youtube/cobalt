@@ -22,7 +22,6 @@ tests cannot currently dynamically include dependencies.
 TODO(b/279249837): Remove this and use an off the shelf package.
 """
 
-from typing import Sequence, Callable
 import functools
 import logging
 
@@ -30,19 +29,19 @@ import logging
 class RetriesExceeded(RuntimeError):
   """Exception recording retry failure conditions"""
 
-  def __init__(self, retries: int, function: Callable, *args, **kwargs) -> None:
-    super().__init__(*args, **kwargs)
+  def __init__(self, retries, function, *args, **kwargs):
+    super(RetriesExceeded,self).__init__(*args, **kwargs)
     self.retries = retries
     self.function = function
 
-  def __str__(self) -> str:
+  def __str__(self):
     callable_str = getattr(self.function, '__name__', repr(self.function))
-    return (f'Retries exceeded while calling {callable_str}'
-            f' with max {self.retries}') + super().__str__()
+    return ('Retries exceeded while calling {}'
+            ' with max {}: '.format(callable_str, self.retries)) + super(RetriesExceeded,self).__str__()
 
 
-def _retry_function(function: Callable, exceptions: Sequence, retries: int,
-                    backoff: Callable, wrap_exceptions: bool):
+def _retry_function(function, exceptions, retries,
+                    backoff, wrap_exceptions):
   current_retry = 0
   while current_retry <= retries:
     try:
@@ -55,21 +54,21 @@ def _retry_function(function: Callable, exceptions: Sequence, retries: int,
         # If 0 retries were attempted, pass up original exception
         if not retries or not wrap_exceptions:
           raise
-        raise RetriesExceeded(retries, function) from inner
+        raise RetriesExceeded(retries, function, inner)
       if backoff:
         if backoff():
-          raise StopIteration() from inner
+          raise StopIteration(inner)
 
   raise RuntimeError('Bug: we should never get here')
 
 
-def with_retry(function: Callable,
-               args: tuple = (),
-               kwargs: dict = None,
-               exceptions: Sequence = (Exception,),
-               retries: int = 0,
-               backoff: Callable = None,
-               wrap_exceptions: bool = True):
+def with_retry(function,
+               args = (),
+               kwargs = None,
+               exceptions = (Exception,),
+               retries = 0,
+               backoff = None,
+               wrap_exceptions = True):
   """Call a function with retry on exception
 
     :param args: Called function positional args.
@@ -91,10 +90,10 @@ def with_retry(function: Callable,
   )
 
 
-def retry(exceptions: Sequence = (Exception,),
-          retries: int = 0,
-          backoff: Callable = None,
-          wrap_exceptions: bool = True):
+def retry(exceptions = (Exception,),
+          retries = 0,
+          backoff = None,
+          wrap_exceptions = True):
   """Decorator for self-retrying function on thrown exception
 
     :param exceptions: Sequence of exception types that will be retried.

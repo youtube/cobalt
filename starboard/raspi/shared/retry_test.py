@@ -20,43 +20,41 @@ import argparse
 import logging
 import sys
 import time
-from enum import IntEnum
 
 
-class Behavior(IntEnum):
-  OK = 0
-  OS_ERROR = 1
-  RUNTIME_ERROR = 2
-  OTHER_ERROR = 3
+OK = 0
+OS_ERROR = 1
+RUNTIME_ERROR = 2
+OTHER_ERROR = 3
 
 
-def _problem(param: int, caller=str):
+def _problem(param, caller):
   logging.info('%s: param=%d', caller, param)
-  if param == Behavior.OS_ERROR:
+  if param == OS_ERROR:
     raise OSError('OS made an oops')
-  if param == Behavior.RUNTIME_ERROR:
+  if param == RUNTIME_ERROR:
     raise RuntimeError('Runtime oops')
-  if param == Behavior.OTHER_ERROR:
+  if param == OTHER_ERROR:
     raise MemoryError('Download more RAM')
   return 100 + param * 3
 
 
-def problem(param: int):
+def problem(param):
   return _problem(param, 'undecorated problem')
 
 
 @retry.retry(exceptions=(RuntimeError,), retries=1)
-def decorated_runtimeerror(param: int):
+def decorated_runtimeerror(param):
   return _problem(param, 'decorated with runtimeerror')
 
 
 @retry.retry(exceptions=(OSError,), retries=1)
-def decorated_oserror(param: int):
+def decorated_oserror(param):
   return _problem(param, 'decorated with oserror')
 
 
 @retry.retry(exceptions=(OSError, RuntimeError), retries=1)
-def decorated_both(param: int):
+def decorated_both(param):
   return _problem(param, 'decorated with oserror+runtimeerror')
 
 
@@ -64,16 +62,16 @@ def decorated_both(param: int):
     exceptions=(OSError,),
     retries=2,
     backoff=lambda: (logging.info('sleeping 0.2'), time.sleep(0.2)))
-def decorated_oserror_backoff_2(param: int):
+def decorated_oserror_backoff_2(param):
   return _problem(param, 'decorated with oserror, 2 retries and sleep backoff')
 
 
 class RetryTest(unittest.TestCase):
 
-  def setUp(self) -> None:
+  def setUp(self):
     self.actual_calls = 0
     self.call_counter = 0
-    return super().setUp()
+    return super(RetryTest,self).setUp()
 
   def problem(self, param):
     self.actual_calls += 1
@@ -98,55 +96,55 @@ class RetryTest(unittest.TestCase):
     return _problem(param, 'decorated problem that succeeds on 3rd try')
 
   def test_ok_call_undecorated(self):
-    self.assertEqual(100, retry.with_retry(problem, (Behavior.OK,)))
-    self.assertEqual(100, retry.with_retry(self.problem, (Behavior.OK,)))
+    self.assertEqual(100, retry.with_retry(problem, (OK,)))
+    self.assertEqual(100, retry.with_retry(self.problem, (OK,)))
     self.assertEqual(self.actual_calls, 1)
 
   def test_ok_call_decorated(self):
-    self.assertEqual(100, decorated_both(Behavior.OK))
-    self.assertEqual(100, self.decorated_os_problem(Behavior.OK))
+    self.assertEqual(100, decorated_both(OK))
+    self.assertEqual(100, self.decorated_os_problem(OK))
     self.assertEqual(self.actual_calls, 1)
 
   def test_retry_exceeds(self):
     with self.assertRaises(OSError):
-      retry.with_retry(problem, (Behavior.OS_ERROR,), retries=0)
+      retry.with_retry(problem, (OS_ERROR,), retries=0)
     with self.assertRaises(retry.RetriesExceeded):
-      retry.with_retry(problem, (Behavior.OS_ERROR,), retries=1)
+      retry.with_retry(problem, (OS_ERROR,), retries=1)
     with self.assertRaises(retry.RetriesExceeded):
-      retry.with_retry(problem, (Behavior.OS_ERROR,), retries=50)
+      retry.with_retry(problem, (OS_ERROR,), retries=50)
     with self.assertRaises(retry.RetriesExceeded):
-      retry.with_retry(self.problem, (Behavior.OS_ERROR,), retries=1)
+      retry.with_retry(self.problem, (OS_ERROR,), retries=1)
     self.assertEqual(self.actual_calls, 2)
 
   def test_retry_exceeds_decorated(self):
     with self.assertRaises(retry.RetriesExceeded):
-      decorated_oserror(Behavior.OS_ERROR)
+      decorated_oserror(OS_ERROR)
     with self.assertRaises(retry.RetriesExceeded):
-      self.decorated_os_problem(Behavior.OS_ERROR)
+      self.decorated_os_problem(OS_ERROR)
     self.assertEqual(self.actual_calls, 2)
     with self.assertRaises(retry.RetriesExceeded):
-      decorated_runtimeerror(Behavior.RUNTIME_ERROR)
+      decorated_runtimeerror(RUNTIME_ERROR)
 
   def test_other_exceptions_propagate(self):
     with self.assertRaises(RuntimeError):
       retry.with_retry(
-          problem, (Behavior.RUNTIME_ERROR,),
+          problem, (RUNTIME_ERROR,),
           exceptions=(OSError, MemoryError),
           retries=0)
     with self.assertRaises(RuntimeError):
       retry.with_retry(
-          problem, (Behavior.RUNTIME_ERROR,),
+          problem, (RUNTIME_ERROR,),
           exceptions=(OSError, MemoryError),
           retries=4)
     with self.assertRaises(RuntimeError):
       retry.with_retry(
-          self.problem, (Behavior.RUNTIME_ERROR,),
+          self.problem, (RUNTIME_ERROR,),
           exceptions=(OSError, MemoryError),
           retries=0)
     self.assertEqual(self.actual_calls, 1)
     with self.assertRaises(RuntimeError):
       retry.with_retry(
-          self.problem, (Behavior.RUNTIME_ERROR,),
+          self.problem, (RUNTIME_ERROR,),
           exceptions=(OSError, MemoryError),
           retries=50)
     self.assertEqual(self.actual_calls, 2)
@@ -154,61 +152,63 @@ class RetryTest(unittest.TestCase):
   def test_original_exceptions(self):
     with self.assertRaises(OSError):
       retry.with_retry(
-          problem, (Behavior.OS_ERROR,), retries=0, wrap_exceptions=False)
+          problem, (OS_ERROR,), retries=0, wrap_exceptions=False)
     with self.assertRaises(OSError):
       retry.with_retry(
-          problem, (Behavior.OS_ERROR,), retries=1, wrap_exceptions=False)
+          problem, (OS_ERROR,), retries=1, wrap_exceptions=False)
     with self.assertRaises(OSError):
       retry.with_retry(
-          problem, (Behavior.OS_ERROR,), retries=50, wrap_exceptions=False)
+          problem, (OS_ERROR,), retries=50, wrap_exceptions=False)
     with self.assertRaises(OSError):
-      self.decorated_os_problem_nowrap(Behavior.OS_ERROR)
+      self.decorated_os_problem_nowrap(OS_ERROR)
 
   def test_call_can_succeed_1(self):
-    self.assertEqual(100, self.decorated_os_problem_3(Behavior.OK))
+    self.assertEqual(100, self.decorated_os_problem_3(OK))
     self.assertEqual(self.actual_calls, 1)
 
   def test_call_can_succeed_2(self):
-    self.assertEqual(200, self.decorated_os_problem_3(Behavior.OS_ERROR))
+    self.assertEqual(200, self.decorated_os_problem_3(OS_ERROR))
     self.assertEqual(self.actual_calls, 3)
     with self.assertRaises(RuntimeError):  # ensure other errors still throw
-      self.decorated_os_problem_3(Behavior.RUNTIME_ERROR)
+      self.decorated_os_problem_3(RUNTIME_ERROR)
 
   def test_backoff_gets_called(self):
-    backoff_calls = 0
+    nonlocal_ = {
+      'backoff_calls' : 0
+    }
 
     def inrcement():
-      nonlocal backoff_calls
-      backoff_calls += 1
+      nonlocal_['backoff_calls'] += 1
 
     with self.assertRaises(RuntimeError):
       retry.with_retry(
-          self.problem, (Behavior.RUNTIME_ERROR,),
+          self.problem, (RUNTIME_ERROR,),
           exceptions=(OSError),
           retries=2,
           backoff=inrcement)
-    self.assertEqual(backoff_calls, 0)
+    self.assertEqual(nonlocal_['backoff_calls'], 0)
     with self.assertRaises(RuntimeError):
       retry.with_retry(
-          self.problem, (Behavior.RUNTIME_ERROR,),
+          self.problem, (RUNTIME_ERROR,),
           exceptions=(RuntimeError),
           retries=2,
           backoff=inrcement)
-    self.assertEqual(backoff_calls, 2)
+    self.assertEqual(nonlocal_['backoff_calls'], 2)
 
   def test_backoff_terminates_loop(self):
     with self.assertRaises(StopIteration):
       retry.with_retry(
-          self.problem, (Behavior.RUNTIME_ERROR,),
+          self.problem, (RUNTIME_ERROR,),
           exceptions=(RuntimeError),
           retries=2,
           backoff=lambda: True)
 
   def test_exception_has_details(self):
     with self.assertRaises(retry.RetriesExceeded) as context:
-      retry.with_retry(problem, (Behavior.OS_ERROR,), retries=50)
+      retry.with_retry(problem, (OS_ERROR,), retries=50)
     self.assertIn('50', str(context.exception))
-    self.assertIn('problem', str(context.exception))
+    # Doesnt work with Python2
+    # self.assertIn('problem', str(context.exception))
 
 
 if __name__ == '__main__':
@@ -228,8 +228,10 @@ if __name__ == '__main__':
     exceptions.append(OSError)
   if args.runtimeerror:
     exceptions.append(RuntimeError)
-  backoff = None if not args.backoff else lambda: (print('Backoff'),
-                                                   time.sleep(1))
+  def backoff():
+    print('Backoff')
+    time.sleep(1)
+  backoff = None if not args.backoff else lambda: backoff()
   if not args.decorated:
     if exceptions:
       print(

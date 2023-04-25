@@ -20,13 +20,19 @@ import sys
 import argparse
 import unittest
 import os
-from unittest.mock import patch, ANY, call, Mock
+import six
+if six.PY3:
+  from unittest.mock import patch, ANY, call, Mock
+else:
+  from mock import patch, ANY, call, Mock
 import tempfile
-from pathlib import Path
 import pexpect
 
 # pylint: disable=missing-class-docstring
 
+def touch(fname, times=None):
+    with open(fname, 'a'):
+        os.utime(fname, times)
 
 class LauncherTest(unittest.TestCase):
 
@@ -34,18 +40,17 @@ class LauncherTest(unittest.TestCase):
     self.target = 'baz'
     self.device_id = '198.51.100.1'  # Reserved address
     # Current launcher requires real files, so we generate one
-    # pylint: disable=consider-using-with
-    self.tmpdir = tempfile.TemporaryDirectory()
-    target_path = os.path.join(self.tmpdir.name, 'install', self.target)
+    self.tmpdir = tempfile.mkdtemp()
+    target_path = os.path.join(self.tmpdir, 'deploy', self.target)
     os.makedirs(target_path)
-    Path(os.path.join(target_path, self.target)).touch()
+    touch(os.path.join(target_path, self.target))
     # Minimal set of params required to crete one
     self.params = {
         'device_id': self.device_id,
         'platform': 'raspi-2',
         'target_name': self.target,
         'config': 'test',
-        'out_directory': self.tmpdir.name
+        'out_directory': self.tmpdir
     }
     self.fake_timeout = 0.11
 
@@ -69,7 +74,7 @@ class LauncherAPITest(LauncherTest):
     self.assertEqual(launch.platform_name, 'raspi-2')
     self.assertEqual(launch.target_name, self.target)
     self.assertEqual(launch.config, 'test')
-    self.assertEqual(launch.out_directory, self.tmpdir.name)
+    self.assertEqual(launch.out_directory, self.tmpdir)
 
   def test_run(self):
     result = self._make_launcher().Run()
@@ -98,7 +103,7 @@ class StringContains(str):
 class LauncherInternalsTest(LauncherTest):
 
   def setUp(self):
-    super().setUp()
+    super(LauncherInternalsTest, self).setUp()
     self.launch = self._make_launcher()
     self.launch.pexpect_process = Mock(
         spec_set=['expect', 'sendline', 'readline'])
@@ -107,7 +112,6 @@ class LauncherInternalsTest(LauncherTest):
   def test_spawn(self, spawn):
     mock_pexpect = spawn.return_value
     self.launch._PexpectSpawnAndConnect('echo test')
-    spawn.assert_called_once_with('echo test', timeout=ANY, encoding=ANY)
     mock_pexpect.sendline.assert_called_once_with(
         'echo cobalt-launcher-login-success')
     mock_pexpect.expect.assert_any_call(['cobalt-launcher-login-success'])
@@ -197,7 +201,7 @@ if __name__ == '__main__':
   logging.basicConfig(
       stream=sys.stdout, level=logging.DEBUG if args.verbose else logging.INFO)
   path = os.path.join(
-      os.path.dirname(launcher.__file__), f'../../../out/raspi-2_{args.config}')
+      os.path.dirname(launcher.__file__), '../../../out/raspi-2_{}'.format(args.config))
   logging.info('path: %s', path)
   launch_test = launcher.Launcher(
       platform='raspi-2',

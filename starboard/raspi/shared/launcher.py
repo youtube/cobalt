@@ -22,7 +22,6 @@ import signal
 import sys
 import threading
 import time
-import contextlib
 
 import _env  # pylint: disable=unused-import
 import pexpect
@@ -51,6 +50,19 @@ def first_run():
     return True
   return False
 
+class suppress(object):
+    """Suprress, lifted from Python3"""
+    def __init__(self, *exceptions):
+        self._exceptions = exceptions
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exctype, excinst, exctb):
+        return exctype is not None and issubclass(exctype, self._exceptions)
+
+def _CommandBackoff():
+  time.sleep(Launcher._INTER_COMMAND_DELAY_SECONDS)
 
 class Launcher(abstract_launcher.AbstractLauncher):
   """Class for launching Cobalt/tools on Raspi."""
@@ -179,11 +191,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                           test_failure_output)
 
   # pylint: disable=no-method-argument
-  def _CommandBackoff():
-    time.sleep(Launcher._INTER_COMMAND_DELAY_SECONDS)
 
   def _ShutdownBackoff(self):
-    Launcher._CommandBackoff()
+    _CommandBackoff()
     return self.shutdown_initiated.is_set()
 
   @retry.retry(
@@ -276,18 +286,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
       # Check if kernel logged OOM kill or any other system failure message
       if self.return_value:
         logging.info('Sending dmesg')
-        with contextlib.suppress(Launcher._RETRY_EXCEPTIONS):
+        with suppress(Launcher._RETRY_EXCEPTIONS):
           self._PexpectSendLine('dmesg -P --color=never | tail -n 100')
         time.sleep(self._PEXPECT_SHUTDOWN_SLEEP_TIME)
-        with contextlib.suppress(Launcher._RETRY_EXCEPTIONS):
+        with suppress(Launcher._RETRY_EXCEPTIONS):
           self.pexpect_process.readlines()
         logging.info('Done sending dmesg')
 
       # Send ctrl-c to the raspi and close the process.
-      with contextlib.suppress(Launcher._RETRY_EXCEPTIONS):
+      with suppress(Launcher._RETRY_EXCEPTIONS):
         self._PexpectSendLine(chr(3))
       time.sleep(self._PEXPECT_TIMEOUT)  # Allow time for normal shutdown
-      with contextlib.suppress(Launcher._RETRY_EXCEPTIONS):
+      with suppress(Launcher._RETRY_EXCEPTIONS):
         self.pexpect_process.close()
 
   def _WaitForPrompt(self):
