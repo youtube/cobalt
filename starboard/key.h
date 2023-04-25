@@ -222,6 +222,9 @@ typedef enum SbKey {
 
   kSbKeyInfo = 0x1C9,
   kSbKeyGuide = 0x1CA,
+#if SB_API_VERSION >= SB_RECORD_KEY_CODE_API_VERSION
+  kSbKeyRecord = 0x1CB,
+#endif
 
   // Key codes from OCAP,
   //   https://apps.cablelabs.com/specification/opencable-application-platform-ocap/
