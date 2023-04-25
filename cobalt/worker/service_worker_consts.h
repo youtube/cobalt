@@ -30,6 +30,10 @@ struct ServiceWorkerConsts {
 
   // Constants for ServiceWorkerPersistentSettings
   static const char kSettingsJson[];
+
+  // Array of JavaScript mime types, according to the MIME Sniffinc spec:
+  //   https://mimesniff.spec.whatwg.org/#javascript-mime-type
+  static const char* const kJavaScriptMimeTypes[16];
 };
 
 }  // namespace worker
