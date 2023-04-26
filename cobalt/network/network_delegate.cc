@@ -26,8 +26,10 @@ namespace cobalt {
 namespace network {
 
 NetworkDelegate::NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
-                                 network::HTTPSRequirement https_requirement)
+                                 network::HTTPSRequirement https_requirement,
+                                 network::CORSPolicy cors_policy)
     : cookie_policy_(cookie_policy),
+      cors_policy_(cors_policy),
       cookies_enabled_(true),
       https_requirement_(https_requirement) {}
 

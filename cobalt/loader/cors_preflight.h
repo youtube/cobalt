@@ -27,6 +27,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/cors_preflight_cache.h"
+#include "cobalt/network/network_delegate.h"
 #include "cobalt/network/network_module.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -57,6 +58,9 @@ class CORSPreflight : public net::URLFetcherDelegate {
   void set_headers(const net::HttpRequestHeaders& headers) {
     headers_ = headers;
   }
+  void set_cors_policy(const network::CORSPolicy cors_policy) {
+    cors_policy_ = cors_policy;
+  }
   // Determine if CORS Preflight is needed by a cross origin request
   bool IsPreflightNeeded();
   // The send method can be called after initializing this class.
@@ -65,9 +69,10 @@ class CORSPreflight : public net::URLFetcherDelegate {
   bool Send();
   // CORS Check is done on response to ensure simple CORS request is
   // allowed by the server.
-  static bool CORSCheck(const net::HttpResponseHeaders& response_headers,
-                        const std::string& serialized_origin,
-                        bool credentials_mode_is_include);
+  static bool CORSCheck(
+      const net::HttpResponseHeaders& response_headers,
+      const std::string& serialized_origin, bool credentials_mode_is_include,
+      network::CORSPolicy cors_policy = network::kCORSRequired);
   // Checks if a header(a name-value pair) is a CORS-Safelisted request-header.
   static bool IsSafeRequestHeader(const std::string& name,
                                   const std::string& value);
@@ -88,6 +93,7 @@ class CORSPreflight : public net::URLFetcherDelegate {
 
   bool credentials_mode_is_include_;
   bool force_preflight_;
+  network::CORSPolicy cors_policy_ = network::kCORSRequired;
   GURL url_;
   net::URLFetcher::RequestType method_;
   const network::NetworkModule* network_module_;

@@ -15,6 +15,7 @@
 #ifndef COBALT_NETWORK_NETWORK_DELEGATE_H_
 #define COBALT_NETWORK_NETWORK_DELEGATE_H_
 
+#include <set>
 #include <string>
 
 #include "net/base/static_cookie_policy.h"
@@ -30,6 +31,11 @@ enum HTTPSRequirement {
   kHTTPSOptional,
 };
 
+enum CORSPolicy {
+  kCORSRequired,
+  kCORSOptional,
+};
+
 // A NetworkDelegate receives callbacks when network events occur.
 // Each override can specify custom behavior or just add additional logging.
 // We do nothing for most events, but our network delegate
@@ -37,12 +43,15 @@ enum HTTPSRequirement {
 class NetworkDelegate : public net::NetworkDelegate {
  public:
   NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
-                  network::HTTPSRequirement https_requirement);
+                  network::HTTPSRequirement https_requirement,
+                  network::CORSPolicy cors_policy);
   ~NetworkDelegate() override;
 
   // For debugging, we allow blocking all cookies.
   void set_cookies_enabled(bool enabled) { cookies_enabled_ = enabled; }
   bool cookies_enabled() const { return cookies_enabled_; }
+
+  network::CORSPolicy cors_policy() const { return cors_policy_; }
 
  protected:
   // net::NetworkDelegate implementation.
@@ -88,10 +97,10 @@ class NetworkDelegate : public net::NetworkDelegate {
   bool OnCanAccessFile(const net::URLRequest& request,
                        const base::FilePath& original_path,
                        const base::FilePath& absolute_path) const override;
-  virtual bool OnCanEnablePrivacyMode(
-      const GURL& url, const GURL& site_for_cookies) const override;
-  virtual bool OnAreExperimentalCookieFeaturesEnabled() const override;
-  virtual bool OnCancelURLRequestWithPolicyViolatingReferrerHeader(
+  bool OnCanEnablePrivacyMode(const GURL& url,
+                              const GURL& site_for_cookies) const override;
+  bool OnAreExperimentalCookieFeaturesEnabled() const override;
+  bool OnCancelURLRequestWithPolicyViolatingReferrerHeader(
       const net::URLRequest& request, const GURL& target_url,
       const GURL& referrer_url) const override;
 
@@ -100,24 +109,23 @@ class NetworkDelegate : public net::NetworkDelegate {
   // Reporting is a central mechanism for sending out-of-band error reports
   // to origins from various other components (e.g. HTTP Public Key Pinning,
   // Interventions, or Content Security Policy could potentially use it).
-  virtual bool OnCanQueueReportingReport(
-      const url::Origin& origin) const override;
+  bool OnCanQueueReportingReport(const url::Origin& origin) const override;
 
-  virtual void OnCanSendReportingReports(
-      std::set<url::Origin> origins,
-      base::OnceCallback<void(std::set<url::Origin>)> result_callback)
-      const override;
+  void OnCanSendReportingReports(std::set<url::Origin> origins,
+                                 base::OnceCallback<void(std::set<url::Origin>)>
+                                     result_callback) const override;
 
-  virtual bool OnCanSetReportingClient(const url::Origin& origin,
-                                       const GURL& endpoint) const override;
+  bool OnCanSetReportingClient(const url::Origin& origin,
+                               const GURL& endpoint) const override;
 
-  virtual bool OnCanUseReportingClient(const url::Origin& origin,
-                                       const GURL& endpoint) const override;
+  bool OnCanUseReportingClient(const url::Origin& origin,
+                               const GURL& endpoint) const override;
 
   net::StaticCookiePolicy::Type ComputeCookiePolicy() const;
 
  private:
   net::StaticCookiePolicy::Type cookie_policy_;
+  network::CORSPolicy cors_policy_;
   bool cookies_enabled_;
   network::HTTPSRequirement https_requirement_;
 

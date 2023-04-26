@@ -331,7 +331,8 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
     net::HttpResponseHeaders* response_headers = source->GetResponseHeaders();
     std::string methods, headernames;
     // If status is not ok status, return network error
-    if (!CORSCheck(*response_headers, origin_, credentials_mode_is_include_) ||
+    if (!CORSCheck(*response_headers, origin_, credentials_mode_is_include_,
+                   cors_policy_) ||
         source->GetResponseCode() < 200 || source->GetResponseCode() > 299) {
       error_callback_.Run();
       return;
@@ -406,7 +407,14 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
 // https://fetch.spec.whatwg.org/#concept-cors-check
 bool CORSPreflight::CORSCheck(const net::HttpResponseHeaders& response_headers,
                               const std::string& serialized_origin,
-                              bool credentials_mode_is_include) {
+                              bool credentials_mode_is_include,
+                              network::CORSPolicy cors_policy) {
+#ifndef COBALT_FORCE_CORS
+  if (cors_policy == network::kCORSOptional) {
+    DLOG(WARNING) << "Cors check disabled, allowing request without checking.";
+    return true;
+  }
+#endif
   // 1. Let origin be the result of extracting header list values given `Access-
   //    Control-Allow-Origin` and response's header list.
   std::string allowed_origin, empty_container, allow_credentials;
