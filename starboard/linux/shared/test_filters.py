@@ -21,12 +21,8 @@ from starboard.tools.testing import test_filter
 
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
-    'player_filter_tests': [
-        # libdav1d crashes when fed invalid data
-        'VideoDecoderTests/VideoDecoderTest.*Invalid*',
-    ],
+    'nplb': [],
 }
-_FILTERED_TESTS['nplb'] = []
 # Conditionally disables tests that require ipv6
 if os.getenv('IPV6_AVAILABLE', '1') == '0':
   _FILTERED_TESTS['nplb'].extend([
