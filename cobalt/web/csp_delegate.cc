@@ -80,8 +80,8 @@ bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
     if (csp_header_policy_ == csp::kCSPRequired || should_allow) {
       return should_allow;
     } else {
-      DLOG(WARNING) << "Page must include Content-Security-Policy header, it "
-                       "will fail to load in production builds of Cobalt!";
+      LOG(WARNING) << "Page must include Content-Security-Policy header, it "
+                      "will fail to load in production builds of Cobalt!";
     }
   }
 
@@ -185,7 +185,7 @@ bool CspDelegateSecure::OnReceiveHeaders(const csp::ResponseHeaders& headers) {
   } else {
     // Didn't find Content-Security-Policy header.
     if (!headers.content_security_policy_report_only().empty()) {
-      DLOG(INFO)
+      LOG(INFO)
           << "Content-Security-Policy-Report-Only headers were "
              "received, but Content-Security-Policy headers are required.";
     }
