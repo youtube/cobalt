@@ -135,12 +135,6 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }
 
-  if (frames_per_input_buffer_ == 0) {
-    frames_per_input_buffer_ = ParseAc3SyncframeAudioSampleCount(
-        input_buffers.front()->data(), input_buffers.front()->size());
-    SB_LOG(INFO) << "Got frames per input buffer " << frames_per_input_buffer_;
-  }
-
   can_accept_more_data_.store(false);
 
   decoder_->Decode(
@@ -596,6 +590,21 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   int decoded_audio_sample_rate;
   auto decoded_audio = decoder_->Read(&decoded_audio_sample_rate);
   SB_DCHECK(decoded_audio);
+
+  // We set |frames_per_input_buffer_| before adding first |decoded_audio| into
+  // |decoded_audios_|. The usage of |frames_per_input_buffer_| in
+  // UpdateStatusAndWriteData() from another thread only happens when there is
+  // audio decoded, so it's thread-safe even if the code is not synchronized
+  // using a lock.
+  if (frames_per_input_buffer_ == 0) {
+    frames_per_input_buffer_ = ParseAc3SyncframeAudioSampleCount(
+        decoded_audio->buffer(), decoded_audio->size());
+    SB_LOG(INFO) << "Got frames per input buffer " << frames_per_input_buffer_;
+  }
+
+  SB_DCHECK(frames_per_input_buffer_ ==
+            ParseAc3SyncframeAudioSampleCount(decoded_audio->buffer(),
+                                              decoded_audio->size()));
 
   ScopedLock scoped_lock(mutex_);
   decoded_audios_.push(decoded_audio);
