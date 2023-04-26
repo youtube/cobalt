@@ -233,8 +233,8 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
   if (!service_worker_global_scope->csp_delegate()->OnReceiveHeaders(
           csp_headers)) {
     // https://www.w3.org/TR/service-workers/#content-security-policy
-    DLOG(WARNING) << "Warning: No Content Security Header received for the "
-                     "service worker.";
+    LOG(WARNING) << "Warning: No Content Security Header received for the "
+                    "service worker.";
   }
   web_context_->SetupFinished();
   // 8.11. If serviceWorker is an active worker, and there are any tasks queued
@@ -298,8 +298,8 @@ void ServiceWorkerObject::Initialize(web::Context* context) {
       // set of event types to handle remains an empty set. The user agents are
       // encouraged to show a warning that the event listeners must be added on
       // the very first evaluation of the worker script.
-      DLOG(WARNING) << "ServiceWorkerGlobalScope's event listeners must be "
-                       "added on the first evaluation of the worker script.";
+      LOG(WARNING) << "ServiceWorkerGlobalScope's event listeners must be "
+                      "added on the first evaluation of the worker script.";
     }
     event_types.clear();
   }
