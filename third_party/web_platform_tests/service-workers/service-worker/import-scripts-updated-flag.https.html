@@ -38,10 +38,18 @@ promise_test(function(t) {
           // other sub-tests in this file are declared synchronously, this test
           // will be the final test executed.
           promise_test(function(t) {
-              return registration.unregister();
-            });
-
-          return registration.active;
+            return registration.unregister();
+          });
+          // TODO(b/234788479) Implement waiting for update worker state tasks in
+          // Install algorithm, otherwise the worker is activated too early
+          if (registration.active) {
+            serviceWorker = registration.active;
+          } else if (registration.waiting) {
+            serviceWorker = registration.waiting;
+          } else {
+            serviceWorker = registration.installing;
+          }
+          return serviceWorker;
         });
 
     return register;
