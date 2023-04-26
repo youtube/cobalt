@@ -41,9 +41,9 @@ void construct_ffmpeg_dispatch() {
 
 void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   SB_DCHECK(ffmpeg->is_valid());
-// Load the desired symbols from the shared libraries. Note: If a symbol is
-// listed as a '.text' entry in the output of 'objdump -T' on the shared
-// library file, then it is directly available from it.
+  // Load the desired symbols from the shared libraries. Note: If a symbol is
+  // listed as a '.text' entry in the output of 'objdump -T' on the shared
+  // library file, then it is directly available from it.
 
 #define INITSYMBOL(symbol) \
   ffmpeg->symbol = reinterpret_cast<decltype(FFMPEGDispatch::symbol)>(symbol);
