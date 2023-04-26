@@ -263,9 +263,11 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
 bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
   SB_DCHECK(packet != NULL);
 
-#if LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
-  ffmpeg_->avcodec_get_frame_defaults(av_frame_);
-#endif  // LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
+  if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
+    ffmpeg_->av_frame_unref(av_frame_);
+  } else {
+    ffmpeg_->avcodec_get_frame_defaults(av_frame_);
+  }
   int frame_decoded = 0;
   int decode_result = ffmpeg_->avcodec_decode_video2(codec_context_, av_frame_,
                                                      &frame_decoded, packet);
