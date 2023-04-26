@@ -118,6 +118,9 @@
 // certification requirements.
 #define SB_2024_HW_CERT_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Support the keycode for the remote record button.
+#define SB_RECORD_KEY_CODE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------

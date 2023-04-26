@@ -62,6 +62,10 @@ library.
 ### Removed SbMemoryGetStackBounds
 This API is unused by Cobalt and has been deprecated.
 
+### Add the keycode for the remote record button.
+By supporting the keycode for the remote record button on Cobalt, the webapp can be
+programmed to respond to the remote record button in the future.
+
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.
 This makes it possible to support these codecs in the future.

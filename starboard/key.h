@@ -215,6 +215,9 @@ typedef enum SbKey {
   kSbKeyYellow = 0x195,
   kSbKeyBlue = 0x196,
 
+#if SB_API_VERSION >= SB_RECORD_KEY_CODE_API_VERSION
+  kSbKeyRecord = 0x1A0,
+#endif
   kSbKeyChannelUp = 0x1AB,
   kSbKeyChannelDown = 0x1AC,
   kSbKeySubtitle = 0x1CC,
