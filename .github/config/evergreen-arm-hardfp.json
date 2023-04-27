@@ -5,7 +5,10 @@
     "enabled": true,
     "tests": [
       "evergreen_test",
-      "unit_test"
+      "0",
+      "1",
+      "2",
+      "3"
     ]
   },
   "platforms": [
