@@ -14,7 +14,7 @@
 3.  Run it to regenerate the site.
 
     ```shell
-    $ docker run -it --mount type=bind,source=$(pwd),target=/code docsite
+    $ docker run -it --mount type=bind,source=${COBALT_SRC},target=/code docsite
     ```
 
 4.  (Optional) To preview the changes you must commit the generated files and
