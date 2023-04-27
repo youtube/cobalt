@@ -777,8 +777,11 @@ class TestRunner(object):
       # The loader is not built with the same platform configuration as our
       # tests so we need to build it separately.
       if self.loader_platform:
+        target_list = [_LOADER_TARGET]
+        if not self.loader_platform.startswith("android"):
+          target_list.append(_CRASHPAD_TARGET)
         build_tests.BuildTargets(
-            [_LOADER_TARGET, _CRASHPAD_TARGET], self.loader_out_directory,
+            target_list, self.loader_out_directory,
             self.dry_run,
             extra_flags + [os.getenv("TEST_RUNNER_PLATFORM_BUILD_FLAGS", "")])
       build_tests.BuildTargets(
