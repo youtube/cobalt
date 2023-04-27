@@ -247,39 +247,55 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
 
 void FFMPEGDispatchImpl::LoadSymbols() {
   SB_DCHECK(is_valid());
-// Load the desired symbols from the shared libraries. Note: If a symbol is
-// listed as a '.text' entry in the output of 'objdump -T' on the shared
-// library file, then it is directly available from it.
+  // Load the desired symbols from the shared libraries. Note: If a symbol is
+  // listed as a '.text' entry in the output of 'objdump -T' on the shared
+  // library file, then it is directly available from it.
+  char* errstr;
+  errstr = dlerror();
+  if (errstr != NULL) {
+    SB_LOG(INFO) << "LoadSymbols - checking dlerror shows:" << errstr;
+  }
 
 #define INITSYMBOL(library, symbol)                                     \
   ffmpeg_->symbol = reinterpret_cast<decltype(FFMPEGDispatch::symbol)>( \
-      dlsym(library, #symbol));
+      dlsym(library, #symbol));                                         \
+  errstr = dlerror();                                                   \
+  if (errstr != NULL) {                                                 \
+    SB_LOG(INFO) << "Load Symbols ran into error:" << errstr;           \
+  }
 
   // Load symbols from the avutil shared library.
   INITSYMBOL(avutil_, avutil_version);
   SB_DCHECK(ffmpeg_->avutil_version);
+  SB_LOG(INFO) << "Opened avutil  - version is:" << ffmpeg_->avutil_version()
+               << std::endl;
   INITSYMBOL(avutil_, av_malloc);
   INITSYMBOL(avutil_, av_freep);
-  INITSYMBOL(avutil_, av_frame_alloc);
   INITSYMBOL(avutil_, av_free);
   INITSYMBOL(avutil_, av_rescale_rnd);
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  INITSYMBOL(avutil_, av_frame_free);
-  INITSYMBOL(avutil_, av_dict_get);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  INITSYMBOL(avutil_, av_frame_unref);
   INITSYMBOL(avutil_, av_samples_get_buffer_size);
   INITSYMBOL(avutil_, av_opt_set_int);
   INITSYMBOL(avutil_, av_image_check_size);
-  INITSYMBOL(avutil_, av_buffer_create);
+  if (ffmpeg_->avutil_version() > kAVUtilSupportsBufferCreate) {
+    INITSYMBOL(avutil_, av_buffer_create);
+  }
 
   // Load symbols from the avcodec shared library.
   INITSYMBOL(avcodec_, avcodec_version);
   SB_DCHECK(ffmpeg_->avcodec_version);
+  SB_LOG(INFO) << "Opened libavcodec - version is:"
+               << ffmpeg_->avcodec_version() << std::endl;
+
+  if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
+    INITSYMBOL(avcodec_, av_frame_alloc);
+    INITSYMBOL(avcodec_, av_frame_unref);
+    INITSYMBOL(avcodec_, av_frame_free);
+    INITSYMBOL(avcodec_, av_dict_get);
+  }
   INITSYMBOL(avcodec_, avcodec_alloc_context3);
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  INITSYMBOL(avcodec_, avcodec_free_context);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvcodecFreeContext) {
+    INITSYMBOL(avcodec_, avcodec_free_context);
+  }
   INITSYMBOL(avcodec_, avcodec_find_decoder);
   INITSYMBOL(avcodec_, avcodec_close);
   INITSYMBOL(avcodec_, avcodec_open2);
@@ -290,15 +306,20 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_alloc_frame);
   INITSYMBOL(avcodec_, avcodec_get_frame_defaults);
   INITSYMBOL(avcodec_, avcodec_align_dimensions2);
-  INITSYMBOL(avcodec_, av_packet_alloc);
-  INITSYMBOL(avcodec_, av_packet_free);
-  INITSYMBOL(avcodec_, av_packet_unref);
-  INITSYMBOL(avcodec_, avcodec_parameters_to_context);
+
+  if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvPacketAlloc) {
+    INITSYMBOL(avcodec_, av_packet_alloc);
+    INITSYMBOL(avcodec_, av_packet_free);
+    INITSYMBOL(avcodec_, av_packet_unref);
+    INITSYMBOL(avcodec_, avcodec_parameters_to_context);
+  }
   INITSYMBOL(avcodec_, av_free_packet);
 
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_, avformat_version);
   SB_DCHECK(ffmpeg_->avformat_version);
+  SB_LOG(INFO) << "Opened libavformat - version is:"
+               << ffmpeg_->avformat_version() << std::endl;
   INITSYMBOL(avformat_, av_register_all);
   SB_DCHECK(ffmpeg_->av_register_all);
   INITSYMBOL(avformat_, av_read_frame);

@@ -31,7 +31,9 @@ runs:
         if [ -d /root/starboard-toolchains ]; then
           ln -s /root/starboard-toolchains /github/home/starboard-toolchains
         fi
-        ninja -v -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+        # Set Ninja output format
+        NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
+        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
       shell: bash
     - name: Show Sccache Stats
       run: sccache -s
