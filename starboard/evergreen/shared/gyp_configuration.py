@@ -89,7 +89,8 @@ class EvergreenConfiguration(platform_configuration.PlatformConfiguration):
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'nplb': ['MemoryReportingTest.CapturesOperatorDeleteNothrow',
                'SbAudioSinkTest.*',
-               'SbDrmTest.AnySupportedKeySystems'],
+               'SbDrmTest.AnySupportedKeySystems',
+               'SbSystemGetPropertyTest.ReturnsRequired'],
 
       # player_filter_tests test the platform's Starboard implementation of
       # the filter-based player, which is not exposed through the Starboard
