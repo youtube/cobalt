@@ -15,4 +15,3 @@
 target_platform = "android-arm"
 target_os = "android"
 target_cpu = "arm"
-v8_enable_webassembly = true

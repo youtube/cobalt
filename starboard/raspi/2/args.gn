@@ -16,4 +16,3 @@ target_platform = "raspi-2"
 target_os = "linux"
 target_cpu = "arm"
 is_clang = false
-v8_enable_webassembly = true

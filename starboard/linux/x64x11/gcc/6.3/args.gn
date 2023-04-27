@@ -17,4 +17,3 @@ target_os = "linux"
 target_cpu = "x64"
 is_clang = false
 using_old_compiler = true
-v8_enable_webassembly = true

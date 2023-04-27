@@ -178,14 +178,14 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
   size_t total_size = 0;
   for (auto& vec : vectors) total_size += vec.size();
   // Use default-initialization (== no initialization).
-  std::unique_ptr<byte[]> result{new byte[total_size]};
-  byte* ptr = result.get();
+  byte* result = new byte[total_size];
+  byte* ptr = result;
   for (auto& vec : vectors) {
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
     memcpy(ptr, vec.begin(), vec.size());
     ptr += vec.size();
   }
-  return result;
+  return std::unique_ptr<const byte[]>(result);
 }
 
 void WasmCode::RegisterTrapHandlerData() {
