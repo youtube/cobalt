@@ -40,6 +40,8 @@ static_library("common") {
     "condition_variable.h",
     "configuration_defaults.cc",
     "configuration_defaults.h",
+    "device_type.cc",
+    "device_type.h",
     "experimental/concurrency_debug.cc",
     "experimental/concurrency_debug.h",
     "file.cc",

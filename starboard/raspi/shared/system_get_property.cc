@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 
+#include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/environment.h"
@@ -31,10 +32,6 @@ const char* kBrandName = "Raspberry Pi Foundation";
 const char* kModelRevision = "Rev";
 
 const char* kFriendlyName = "Raspberry Pi";
-
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
-const char kSystemDeviceTypeUnknown[] = "UNKNOWN";
-#endif
 
 // Read device model from /proc/device-tree/model
 std::string GetModelName() {
@@ -171,7 +168,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 #if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kSystemDeviceTypeUnknown);
+                                        starboard::kSystemDeviceTypeUnknown);
 #endif
 
     default:

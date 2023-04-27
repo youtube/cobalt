@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "internal/starboard/xb1/shared/internal_shims.h"
+#include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
@@ -70,12 +71,6 @@ const char kUnknownChipset[] = "UwpUnknown";
 
 // XOR key for certification secret.
 const char kRandomKey[] = "27539";
-
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
-const char kSystemDeviceTypeDesktop[] = "DESKTOP";
-const char kSystemDeviceTypeGame[] = "GAME";
-const char kSystemDeviceTypeUnknown[] = "UNKNOWN";
-#endif
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -295,15 +290,15 @@ bool GetDeviceType(char* out_value, int value_length) {
   std::string device_type;
   if (family.compare("Windows.Desktop") == 0) {
     return CopyStringAndTestIfSuccess(out_value, value_length,
-                                      kSystemDeviceTypeDesktop);
+                                      starboard::kSystemDeviceTypeDesktopPC);
   }
   if (family.compare("Windows.Xbox") == 0) {
     return CopyStringAndTestIfSuccess(out_value, value_length,
-                                      kSystemDeviceTypeGame);
+                                      starboard::kSystemDeviceTypeGameConsole);
   }
   SB_NOTREACHED();
   return CopyStringAndTestIfSuccess(out_value, value_length,
-                                    kSystemDeviceTypeUnknown);
+                                    starboard::kSystemDeviceTypeUnknown);
 }
 
 }  // namespace

@@ -19,16 +19,67 @@
 RASPI_USERNAME="pi"
 RASPI_PASSWORD="raspberry"
 
+function ssh_with_password() {
+  expect <<EOD
 # The longest timeout for cycling Cobalt is 300 seconds. 360 seconds is used for
 # the expect timeout to allow Cobalt to be cycled, with a one minute cushion.
-EXPECT_TIMEOUT="360"
+set timeout 360
+spawn -noecho ssh ${RASPI_USERNAME}@${RASPI_ADDR} "$@"
+log_user 0
+expect {
+    "password:" {
+        log_user 1
+        send "${RASPI_PASSWORD}\r"
+        expect {
+            timeout {
+                puts stderr "\n expect command timed out after sending password"
+                exit 1
+            } eof {}
+        }
+    } timeout {
+        puts stderr "\n expect timed out waiting for password prompt"
+        exit 1
+    } eof {
+        puts stderr "received eof from spawn command"
+        exit 1
+    }
+}
+EOD
 
-function ssh_with_password() {
-  expect -c "spawn -noecho ssh ${RASPI_USERNAME}@${RASPI_ADDR} \"$@\"; log_user 0; expect \"password\"; log_user 1; send \"${RASPI_PASSWORD}\\r\"; set timeout ${EXPECT_TIMEOUT};  expect \"eof\""
+  if [[ $? -eq 1 ]]; then
+    echo "ssh_with_password() failed, exiting" 1>&2
+    exit 1
+  fi
 }
 
 function scp_with_password() {
-  expect -c "spawn scp $@; expect \"password\"; send \"${RASPI_PASSWORD}\\r\"; interact"
+  expect <<EOD
+# Some directories, e.g., cobalt/content, may take a few minutes to copy.
+set timeout 360
+spawn scp $@
+expect {
+    "password:" {
+        send "${RASPI_PASSWORD}\r"
+        expect {
+            timeout {
+                puts stderr "\n expect timed out after sending password"
+                exit 1
+            } eof {}
+        }
+    } timeout {
+        puts stderr "\n expect timed out waiting for password prompt"
+        exit 1
+    } eof {
+        puts stderr "received eof from spawn command"
+        exit 1
+    }
+}
+EOD
+
+  if [[ $? -eq 1 ]]; then
+    echo "scp_with_password() failed, exiting" 1>&2
+    exit 1
+  fi
 }
 
 function ssh_with_key() {

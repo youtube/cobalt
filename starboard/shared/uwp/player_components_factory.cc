@@ -21,6 +21,7 @@
 #include "internal/starboard/xb1/shared/av1_video_decoder.h"
 #include "internal/starboard/xb1/shared/video_decoder_uwp.h"
 #include "internal/starboard/xb1/shared/vpx_video_decoder.h"
+#include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
@@ -52,10 +53,6 @@ namespace filter {
 namespace {
 
 using ::starboard::shared::uwp::AudioRendererPassthrough;
-
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
-const char kSystemDeviceTypeDesktop[] = "DESKTOP";
-#endif
 
 double GetRefreshRate() {
   return static_cast<double>(uwp::ApplicationUwp::Get()->GetRefreshRate());
@@ -223,7 +220,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 #else
     if (GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
-        kSystemDeviceTypeDesktop) {
+        kSystemDeviceTypeDesktopPC) {
       SB_LOG(WARNING) << "GPU decoder disabled on Desktop.";
       return false;
     }

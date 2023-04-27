@@ -14,7 +14,9 @@
 
 #include <string.h>
 
+#include "starboard/common/device_type.h"
 #include "starboard/common/string.h"
+#include "starboard/common/system_property.h"
 #include "starboard/memory.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -43,8 +45,11 @@ bool IsCEDevice(SbSystemDeviceType device_type) {
 }
 #endif
 bool IsCEDevice(std::string device_type) {
-  if (device_type == "BDP" || device_type == "GAME" || device_type == "OTT" ||
-      device_type == "STB" || device_type == "TV") {
+  if (device_type == kSystemDeviceTypeBlueRayDiskPlayer ||
+      device_type == kSystemDeviceTypeGameConsole ||
+      device_type == kSystemDeviceTypeOverTheTopBox ||
+      device_type == kSystemDeviceTypeSetTopBox ||
+      device_type == kSystemDeviceTypeTV) {
     return true;
   }
   return false;
@@ -182,6 +187,39 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
     }
   }
 }
+
+#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+TEST(SbSystemGetPropertyTest, DeviceTypeAllowed) {
+  std::string device_type =
+      GetSystemPropertyString(kSbSystemPropertyDeviceType);
+
+  std::string device_type_values[] = {
+      kSystemDeviceTypeBlueRayDiskPlayer,
+      kSystemDeviceTypeGameConsole,
+      kSystemDeviceTypeOverTheTopBox,
+      kSystemDeviceTypeSetTopBox,
+      kSystemDeviceTypeTV,
+      kSystemDeviceTypeAndroidTV,
+      kSystemDeviceTypeDesktopPC,
+      kSystemDeviceTypeVideoProjector,
+      kSystemDeviceTypeMultimediaDevices,
+      kSystemDeviceTypeMonitor,
+      kSystemDeviceTypeAuto,
+      kSystemDeviceTypeSoundBar,
+      kSystemDeviceTypeHospitality,
+      kSystemDeviceTypeUnknown,
+  };
+  bool result = false;
+
+  for (std::string val : device_type_values) {
+    if (val == device_type) {
+      result = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(result);
+}
+#endif
 
 }  // namespace
 }  // namespace nplb

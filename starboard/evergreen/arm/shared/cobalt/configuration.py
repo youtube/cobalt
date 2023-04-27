@@ -25,9 +25,6 @@ class CobaltARMConfiguration(cobalt_configuration.CobaltConfiguration):
     super().__init__(platform_configuration, application_name,
                      application_directory)
 
-  def WebdriverBenchmarksEnabled(self):
-    return True
-
   def GetTestFilters(self):
     filters = super().GetTestFilters()
     filters.extend([

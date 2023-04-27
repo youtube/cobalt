@@ -70,9 +70,7 @@ brotli==1.0.9 \
     # via -r requirements.in
 future==0.18.3 \
     --hash=sha256:34a17436ed1e96697a86f9de3d15a3b0be01d8bc8de9c1dffd59fb8234ed5307
-    # via
-    #   -r requirements.in
-    #   junitparser
+    # via junitparser
 junitparser==2.8.0 \
     --hash=sha256:e1a7d41e0c92ca032c46eed07a6268c478f90ec1f411ea8a76b69f245e57cfb6
     # via -r requirements.in

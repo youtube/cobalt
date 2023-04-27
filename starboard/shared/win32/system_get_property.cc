@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/environment.h"
@@ -21,10 +22,6 @@ namespace {
 
 const char* kFriendlyName = "Windows Desktop";
 const char* kPlatformName = "win32; Windows x86_64";
-
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
-const char kSystemDeviceTypeDesktop[] = "DESKTOP";
-#endif
 
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -75,7 +72,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 #if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        kSystemDeviceTypeDesktop);
+                                        starboard::kSystemDeviceTypeDesktopPC);
 #endif
 
     default:

@@ -21,8 +21,6 @@ port directory of the platform they wish to customize
 class defined here.
 """
 
-import os
-
 
 class ApplicationConfiguration(object):
   """Base build configuration class for all Starboard applications.
@@ -54,46 +52,6 @@ class ApplicationConfiguration(object):
     """Gets the directory of the application configuration."""
     return self._application_directory
 
-  def GetPreIncludes(self):
-    """Get a list of absolute paths to gypi files to include in order.
-
-    These files will be included by GYP before any processed .gyp file. The
-    files returned by this function will be included by GYP before any other
-    gypi files.
-
-    Returns:
-      An ordered list containing absolute paths to .gypi files.
-    """
-    return []
-
-  def GetPostIncludes(self):
-    """Get a list of absolute paths to gypi files to include in order.
-
-    These files will be included by GYP before any processed .gyp file. The
-    files return by this function will be included by GYP after any other gypi
-    files.
-
-    Returns:
-      An ordered list containing absolute paths to .gypi files.
-    """
-    standard_gypi_path = os.path.join(self.GetDirectory(), 'configuration.gypi')
-    if os.path.isfile(standard_gypi_path):
-      return [standard_gypi_path]
-    return []
-
-  def GetEnvironmentVariables(self):
-    """Get a Mapping of environment variable overrides.
-
-    The environment variables returned by this function are set before calling
-    GYP or GN and can be used to manipulate their behavior. They will override
-    any environment variables of the same name in the calling environment, or
-    any that are set by default or by the platform.
-
-    Returns:
-      A dictionary containing environment variables.
-    """
-    return {}
-
   def GetVariables(self, config_name):
     """Get a Mapping of GYP/GN variable overrides.
 
@@ -107,18 +65,6 @@ class ApplicationConfiguration(object):
     Returns:
       A Mapping of GYP/GN variables to be merged into the global Mapping
       provided to GYP/GN.
-    """
-    del config_name
-    return {}
-
-  def GetGeneratorVariables(self, config_name):
-    """Get a Mapping of generator variable overrides.
-
-    Args:
-      config_name: The name of the starboard.tools.config build type.
-
-    Returns:
-      A Mapping of generator variable names and values.
     """
     del config_name
     return {}
@@ -142,7 +88,3 @@ class ApplicationConfiguration(object):
       A list of strings of test target names.
     """
     return []
-
-  def GetDefaultTargetBuildFile(self):
-    """Gets the build file to build by default."""
-    return None

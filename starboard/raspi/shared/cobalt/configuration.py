@@ -20,9 +20,6 @@ from starboard.tools.testing import test_filter
 class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   """Starboard Raspberry Pi shared Cobalt configuration."""
 
-  def WebdriverBenchmarksEnabled(self):
-    return True
-
   def GetTestFilters(self):
     filters = super().GetTestFilters()
     filters.extend([
