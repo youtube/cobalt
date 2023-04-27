@@ -166,5 +166,5 @@ declare_args() {
   is_clang_16 = false
 
   # Enable WASM and install WebAssembly global.
-  v8_enable_wasm = false
+  v8_enable_webassembly = false
 }
