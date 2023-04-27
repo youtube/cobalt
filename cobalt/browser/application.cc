@@ -142,6 +142,7 @@ std::string GetDevServersListenIp() {
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+  LOG(INFO) << "----------------- listen ip: " << listen_ip;
   return listen_ip;
 }
 #endif  // defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
