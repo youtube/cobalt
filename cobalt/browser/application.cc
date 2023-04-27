@@ -598,6 +598,28 @@ void AddCrashHandlerAnnotations() {
   }
 }
 
+void AddCrashHandlerApplicationState(base::ApplicationState state) {
+  auto crash_handler_extension =
+      static_cast<const CobaltExtensionCrashHandlerApi*>(
+          SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
+  if (!crash_handler_extension) {
+    DLOG(INFO) << "No crash handler extension, not sending application state.";
+    return;
+  }
+
+  std::string application_state = std::string(GetApplicationStateString(state));
+  application_state.push_back('\0');
+
+  if (crash_handler_extension->version > 1) {
+    if (crash_handler_extension->SetString("application_state",
+                                           application_state.c_str())) {
+      DLOG(INFO) << "Sent application state to crash handler.";
+      return;
+    }
+  }
+  DLOG(ERROR) << "Could not send application state to crash handler.";
+}
+
 }  // namespace
 
 // Helper stub to disable histogram tracking in StatisticsRecorder
@@ -1207,6 +1229,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeStop:
       LOG(INFO) << "Got quit event.";
       if (watchdog) watchdog->UpdateState(base::kApplicationStateStopped);
+      AddCrashHandlerApplicationState(base::kApplicationStateStopped);
       Quit();
       LOG(INFO) << "Finished quitting.";
       break;
@@ -1325,6 +1348,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
       return;
   }
   if (watchdog) watchdog->UpdateState(browser_module_->GetApplicationState());
+  AddCrashHandlerApplicationState(browser_module_->GetApplicationState());
 }
 
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {
