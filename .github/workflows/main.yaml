@@ -88,6 +88,8 @@ jobs:
         run: |
           echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')" >> $GITHUB_ENV
           echo $platforms
+      - id: set-manifest
+        run: echo "manifest=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.api_leak_detector_manifest')" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
@@ -96,6 +98,7 @@ jobs:
       on_host_test_shards: ${{ env.on_host_test_shards }}
       bootloader: ${{ env.bootloader }}
       docker_service: ${{ env.docker_service }}
+      manifest: ${{ env.manifest }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -188,6 +191,11 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+      - name: API Leak Detector
+        if: ${{ needs.initialize.outputs.manifest != 'null' }}
+        uses: ./.github/actions/api_leak_detector
+        with:
+          manifest: ${{ needs.initialize.outputs.manifest }}
       - name: Upload Nightly Artifacts
         if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts

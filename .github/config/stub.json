@@ -3,6 +3,7 @@
   "platforms": [
     "stub"
   ],
+  "api_leak_detector_manifest": "gn_built_docker_debian10_manifest",
   "includes": [
     {
       "name":"stub",

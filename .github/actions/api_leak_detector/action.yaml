@@ -1,0 +1,19 @@
+name: API Leak Detector
+description: Runs API leak detection
+inputs:
+  manifest:
+    description: API leak detector manifest
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: API Leak Detector
+      run: |
+        set -xue
+        cd "${GITHUB_WORKSPACE}"
+        python3 ${GITHUB_WORKSPACE}/starboard/tools/api_leak_detector/api_leak_detector.py \
+                -p ${{ matrix.target_platform }} \
+                -c ${{ matrix.config }} \
+                --submit-check \
+                --relative-manifest-path ${{ matrix.target_platform }}/${{ matrix.config }}/${{ inputs.manifest }}
+      shell: bash
