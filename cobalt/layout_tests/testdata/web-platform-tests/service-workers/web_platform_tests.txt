@@ -2,7 +2,6 @@
 
 service-worker/clients-matchall-on-evaluation.https.html, PASS
 service-worker/fetch-event-add-async.https.html, PASS
-service-worker/import-scripts-cross-origin.https.html, PASS
 service-worker/import-scripts-resource-map.https.html, PASS
 service-worker/import-scripts-updated-flag.https.html, PASS
 service-worker/register-default-scope.https.html, PASS
@@ -20,7 +19,12 @@ service-worker/skip-waiting-without-client.https.html, PASS
 service-worker/uncontrolled-page.https.html, PASS
 service-worker/unregister.https.html, PASS
 service-worker/update-no-cache-request-headers.https.html, PASS
-service-worker/update-result.https.html, PASS
+
+# b/278652803 flaky test.
+service-worker/import-scripts-cross-origin.https.html, DISABLE
+
+# b/274011216 flaky test
+service-worker/update-result.https.html, DISABLE
 
 # TODO(b/275914032): Flaky test.
 service-worker/update-missing-import-scripts.https.html, DISABLE
