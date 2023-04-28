@@ -147,11 +147,6 @@ UpdaterModule::UpdaterModule(network::NetworkModule* network_module,
   updater_thread_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&UpdaterModule::Initialize, base::Unretained(this)));
-
-  // Mark the current installation as successful.
-  updater_thread_->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&UpdaterModule::MarkSuccessful, base::Unretained(this)));
 }
 
 UpdaterModule::~UpdaterModule() {
@@ -238,8 +233,14 @@ void UpdaterModule::Finalize() {
 }
 
 void UpdaterModule::MarkSuccessful() {
+  updater_thread_->task_runner()->PostTask(
+      FROM_HERE,
+      base::Bind(&UpdaterModule::MarkSuccessfulImpl, base::Unretained(this)));
+}
+
+void UpdaterModule::MarkSuccessfulImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "UpdaterModule::MarkSuccessful";
+  LOG(INFO) << "UpdaterModule::MarkSuccessfulImpl";
 
   auto installation_manager =
       static_cast<const CobaltExtensionInstallationManagerApi*>(

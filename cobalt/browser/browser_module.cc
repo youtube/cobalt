@@ -691,6 +691,11 @@ void BrowserModule::OnLoad() {
 
   on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
 
+#if SB_IS(EVERGREEN)
+  // Mark the Evergreen update successful
+  updater_module_->MarkSuccessful();
+#endif
+
   web_module_loaded_.Signal();
 
   options_.persistent_settings->ValidatePersistentSettings();
