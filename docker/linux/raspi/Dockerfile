@@ -20,9 +20,12 @@ ARG raspi_tools=cobalt_raspi_tools.tar.bz2
 # Required by the gyp build system.
 ENV RASPI_HOME=${raspi_home}
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NOWARNINGS=yes
+
 # libxml2 and binutils* needed for evergreen
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+RUN apt-get update -qqy \
+    && apt-get install -qqy --no-install-recommends \
         g++-multilib \
         bzip2 \
         libxml2 \

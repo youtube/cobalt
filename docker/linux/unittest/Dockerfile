@@ -14,8 +14,11 @@
 
 FROM cobalt-base
 
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NOWARNINGS=yes
+
+RUN apt-get update -qqy \
+    && apt-get install -qqy --no-install-recommends \
         libasound2 \
         libatomic1 \
         libavcodec-dev \

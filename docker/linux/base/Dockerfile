@@ -20,16 +20,21 @@ COPY base/clean-after-apt.sh /opt/clean-after-apt.sh
 
 ENV PYTHONUNBUFFERED 1
 
-# === Install common dependencies
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
-        python3-dev \
-        python3-pip \
-        python3-requests \
-        python3-setuptools \
-        python3-six \
-        git ccache \
-        curl xz-utils \
-    && /opt/clean-after-apt.sh
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NOWARNINGS=yes
 
+# === Install common dependencies
+RUN apt-get update -qqy \
+	&& apt-get install -qqy --no-install-recommends \
+	python3-dev \
+	python3-venv \
+	python3-wheel \
+	python3-pip \
+	python3-requests \
+	python3-setuptools \
+	python3-six \
+	git ccache \
+	curl xz-utils \
+	&& /opt/clean-after-apt.sh
+RUN ["ln", "-sf", "/usr/bin/python3", "/usr/bin/python"]
 CMD ["/usr/bin/python","--version"]

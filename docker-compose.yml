@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: '2.4'
+version: "2.4"
 
 volumes:
   android-debug-keystore:
@@ -29,8 +29,7 @@ x-build-volumes: &build-volumes
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
 
 x-build-common-definitions: &build-common-definitions
-  <<: *common-definitions
-  <<: *build-volumes
+  <<: [*common-definitions, *build-volumes]
   depends_on:
     - build-base
 
@@ -67,17 +66,17 @@ x-shared-unittest-definitions: &shared-unittest-definitions
     - ${COBALT_SRC:-.}/out/${PLATFORM:-linux-x64x11}_${CONFIG:-devel}/testoutput:/tmp/testoutput
   # TODO: Get NPLB unittests to run with IPv6 without using the host network.
   network_mode: "host"
-  depends_on: [ base ]
+  depends_on: [base]
 
 services:
-#### Tools
+  #### Tools
   pre-commit:
     build:
       context: ./docker/precommit_hooks
       dockerfile: Dockerfile
     image: pre-commit
     volumes:
-    - ${COBALT_SRC:-.}:/code/
+      - ${COBALT_SRC:-.}:/code/
     environment:
       FROM_REF: ${FROM_REF:-HEAD^1}
       TO_REF: ${TO_REF:-HEAD}
@@ -88,11 +87,11 @@ services:
       dockerfile: Dockerfile
     image: cobalt-build-pytest
     volumes:
-    - ${COBALT_SRC:-.}:/code/
+      - ${COBALT_SRC:-.}:/code/
     depends_on:
       - base
 
-#### Cobalt build containers
+  #### Cobalt build containers
   base:
     build:
       args:
@@ -147,7 +146,11 @@ services:
   docsite-deploy:
     <<: *shared-docsite-definitions
     image: cobalt-build-docsite-deploy
-    entrypoint: ["/code/third_party/internal/repo-publishing-toolkit-local/preview-site.sh", "deploy"]
+    entrypoint:
+      [
+        "/code/third_party/internal/repo-publishing-toolkit-local/preview-site.sh",
+        "deploy",
+      ]
 
   build-linux-stub:
     <<: *build-common-definitions
@@ -155,7 +158,7 @@ services:
       context: ./docker/linux
       dockerfile: stub/Dockerfile
     image: cobalt-build-linux-stub
-    depends_on: [ build-base ]
+    depends_on: [build-base]
     environment:
       <<: *shared-build-env
 
@@ -165,7 +168,7 @@ services:
       context: ./docker/linux
       dockerfile: stub/Dockerfile
     image: cobalt-build-linux-stub
-    depends_on: [ build-base ]
+    depends_on: [build-base]
     environment:
       <<: *shared-build-env
       PLATFORM: stub
@@ -177,7 +180,7 @@ services:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
     image: cobalt-build-linux
-    depends_on: [ build-base ]
+    depends_on: [build-base]
     environment:
       <<: *shared-build-env
 
@@ -187,7 +190,7 @@ services:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
     image: cobalt-build-linux
-    depends_on: [ build-base ]
+    depends_on: [build-base]
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11
@@ -195,8 +198,7 @@ services:
       TARGET: ${TARGET:-cobalt_install}
 
   linux-x64x11-bionic:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<: [*common-definitions, *build-volumes]
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
@@ -208,8 +210,7 @@ services:
     scale: 0
 
   linux-x64x11-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<: [*common-definitions, *build-volumes]
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -222,8 +223,7 @@ services:
       - linux-x64x11-bionic
 
   build-linux-gcc:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<: [*common-definitions, *build-volumes]
     build:
       context: ./docker/linux
       dockerfile: gcc-6-3/Dockerfile
@@ -232,8 +232,7 @@ services:
       - linux-x64x11-bionic
 
   linux-x64x11-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<: [*common-definitions, *build-volumes]
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -246,8 +245,7 @@ services:
       - linux-x64x11-bionic
 
   build-linux-clang-3-9:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<: [*common-definitions, *build-volumes]
     build:
       context: ./docker/linux/
       dockerfile: clang-3-9/Dockerfile
@@ -267,7 +265,7 @@ services:
   android-x86:
     <<: *build-common-definitions
     image: cobalt-build-android
-    depends_on: [ build-android ]
+    depends_on: [build-android]
     environment:
       <<: *shared-build-env
       PLATFORM: android-x86
@@ -277,7 +275,7 @@ services:
   android-arm:
     <<: *build-common-definitions
     image: cobalt-build-android
-    depends_on: [ build-android ]
+    depends_on: [build-android]
     environment:
       <<: *shared-build-env
       PLATFORM: android-arm
@@ -287,7 +285,7 @@ services:
   android-arm64:
     <<: *build-common-definitions
     image: cobalt-build-android
-    depends_on: [ build-android ]
+    depends_on: [build-android]
     environment:
       <<: *shared-build-env
       PLATFORM: android-arm64
@@ -321,14 +319,14 @@ services:
       context: ./docker/linux
       dockerfile: evergreen/Dockerfile
     image: cobalt-build-evergreen
-    depends_on: [ build-base ]
+    depends_on: [build-base]
     environment:
       <<: *shared-build-env
 
   evergreen-x64:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x64
@@ -337,7 +335,7 @@ services:
   evergreen-x64-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x64-sbversion-12
@@ -347,7 +345,7 @@ services:
   evergreen-x86:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x86
@@ -356,7 +354,7 @@ services:
   evergreen-x86-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-x86-sbversion-12
@@ -366,7 +364,7 @@ services:
   evergreen-arm64:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm64
@@ -375,7 +373,7 @@ services:
   evergreen-arm64-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm64-sbversion-12
@@ -385,7 +383,7 @@ services:
   evergreen-arm-hardfp:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-hardfp
@@ -394,7 +392,7 @@ services:
   evergreen-arm-hardfp-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-hardfp-sbversion-12
@@ -404,7 +402,7 @@ services:
   evergreen-arm-softfp:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-softfp
@@ -413,7 +411,7 @@ services:
   evergreen-arm-softfp-sbversion-12:
     <<: *build-common-definitions
     image: cobalt-build-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-softfp-sbversion-12
@@ -429,7 +427,7 @@ services:
       args:
         - FROM_IMAGE=cobalt-build-evergreen
     image: cobalt-build-linux-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
 
@@ -441,7 +439,7 @@ services:
       args:
         - FROM_IMAGE=cobalt-build-evergreen
     image: cobalt-build-linux-x64x11-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [build-evergreen]
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-sbversion-12
@@ -485,14 +483,13 @@ services:
     entrypoint: ["python3", "/unittest_docker_launcher.py", "3"]
 
   xvfb:
-    image: xvfb
     ports:
       - "99:99"
     image: cobalt-xvfb
     build:
       context: ./docker/linux/
       dockerfile: integrationtest/Dockerfile.xvfb
-    depends_on: [ unittest ]
+    depends_on: [unittest]
 
   integration_test:
     <<: *build-common-definitions
@@ -500,7 +497,7 @@ services:
     build:
       context: ./docker/linux/
       dockerfile: integrationtest/Dockerfile
-    depends_on: [ xvfb ]
+    depends_on: [xvfb]
     working_dir: /code
     environment:
       - DISPLAY=xvfb:99

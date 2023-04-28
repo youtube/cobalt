@@ -15,8 +15,11 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-build-base}
 
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NOWARNINGS=yes
+
+RUN apt-get update -qqy \
+    && apt-get install -qqy --no-install-recommends \
         clang \
         libgles2-mesa-dev \
         mesa-common-dev \

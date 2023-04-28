@@ -14,8 +14,11 @@
 
 FROM gcr.io/cloud-marketplace-containers/google/debian10:latest
 
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NOWARNINGS=yes
+
+RUN apt-get update -qqy \
+    && apt-get install -qqy --no-install-recommends \
         git python2 python3 python3-pip \
         python3-setuptools python3-wheel \
         libncurses5 curl unzip \

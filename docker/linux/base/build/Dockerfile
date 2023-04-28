@@ -17,9 +17,12 @@ FROM ${FROM_IMAGE:-cobalt-base}
 
 ARG HOME=/root
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NOWARNINGS=yes
+
 # === Install common build tools, required by all platforms
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+RUN apt-get update -qqy \
+    && apt-get install -qqy --no-install-recommends \
         binutils \
         bison \
         nasm \
@@ -33,8 +36,8 @@ RUN apt update -qqy \
 ARG NVM_SHA256SUM="f068e17dacb88f73302790cc076956c7a0d459ce9b01df842ff3e75744f9e2fe /tmp/install.sh"
 ARG NVM_URL="https://cobalt.googlesource.com/third_party/nvm/+/refs/tags/v0.35.3/install.sh?format=TEXT"
 ENV NVM_DIR=${HOME}/.nvm
-ENV NODE_VERSION 16.19.1
-
+ 
+ENV NODE_VERSION=
 RUN curl --silent -o- ${NVM_URL} \
   | base64 -d > /tmp/install.sh \
    && echo ${NVM_SHA256SUM} | sha256sum --check \
@@ -42,14 +45,15 @@ RUN curl --silent -o- ${NVM_URL} \
 
 # === Pinned Node version to v16, as this is latest one that will work on
 # legacy Debian systems
-ARG LTS_VERSION=v16
+ARG NODE_LTS_VERSION=lts/gallium
 RUN . $NVM_DIR/nvm.sh \
-   && nvm install --lts ${LTS_VERSION} \
-   && nvm alias default ${LTS_VERSION}/* \
+   && nvm install --lts ${NODE_LTS_VERSION} \
+   && nvm alias default ${NODE_LTS_VERSION} \
    && nvm use default
 
-ENV NODE_PATH $NVM_DIR/v$NODE_VERSION/lib/node_modules
-ENV PATH $NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH
+# RUN export NVM_NODE_VERSION=$(. $NVM_DIR/nvm.sh && nvm current)
+RUN echo "export NODE_PATH=$NVM_DIR/$(. $NVM_DIR/nvm.sh && nvm current)/lib/node_modules" >> ~/.bashrc
+RUN echo "export PATH=$NVM_DIR/versions/node/$(. $NVM_DIR/nvm.sh && nvm current)/bin:$PATH" >> ~/.bashrc
 
 # === Get GN via CIPD
 ARG GN_SHA256SUM="af7b2dcb3905bca56655e12131b365f1cba8e159db80d2022330c4f522fab2ef  /tmp/gn.zip"
@@ -76,7 +80,7 @@ RUN cd /tmp && mkdir ${HOME}/ccache
 ARG SCCACHE=sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
 ARG SCCACHE_SHA256=e6cd8485f93d683a49c83796b9986f090901765aa4feb40d191b03ea770311d8
 RUN cd /tmp \
-    && curl -L -O https://github.com/mozilla/sccache/releases/download/v0.3.0/${SCCACHE} \
+    && curl --silent -L -O https://github.com/mozilla/sccache/releases/download/v0.3.0/${SCCACHE} \
     && echo "${SCCACHE_SHA256} *${SCCACHE}" | sha256sum -c - \
     && tar xvzf ${SCCACHE} -C /usr/local/bin --strip-components=1 \
     && chmod +x /usr/local/bin/sccache \
@@ -112,4 +116,5 @@ RUN cd /tmp \
     && rm clang-llvmorg-${CLANG_16_VER}.tgz
 
 WORKDIR /code
+RUN ["ln", "-sf", "/usr/bin/python3", "/usr/bin/python"]
 CMD ["/usr/bin/python","--version"]

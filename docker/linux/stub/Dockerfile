@@ -14,11 +14,14 @@
 
 FROM cobalt-build-base
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBCONF_NOWARNINGS=yes
+
 # Using clang in the deps here to correctly resolve the appropriate libstdc++.
 # Previously this specifically pulled in libstdc++6-dev which is no longer
 # available since we updated the base image to Debian 10 / Buster.
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+RUN apt-get update -qqy \
+    && apt-get install -qqy --no-install-recommends \
         clang \
         mesa-common-dev \
         libx11-dev \
