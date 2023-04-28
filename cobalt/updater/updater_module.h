@@ -156,6 +156,8 @@ class UpdaterModule {
   bool GetUseCompressedUpdates() const;
   void SetUseCompressedUpdates(bool use_compressed_updates);
 
+  void MarkSuccessful();
+
  private:
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
@@ -173,7 +175,7 @@ class UpdaterModule {
 
   void Initialize();
   void Finalize();
-  void MarkSuccessful();
+  void MarkSuccessfulImpl();
   void Update();
 };
 
