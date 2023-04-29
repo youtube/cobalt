@@ -28,7 +28,6 @@ title: "Starboard: configuration.gni Reference Guide"
 | **`sb_enable_cpp17_audit`**<br><br> Enables an NPLB audit of C++17 support.<br><br>The default value is `true`. |
 | **`sb_enable_lib`**<br><br> Enables embedding Cobalt as a shared library within another app. This requires a 'lib' starboard implementation for the corresponding platform.<br><br>The default value is `false`. |
 | **`sb_enable_opus_sse`**<br><br> Enables optimizations on SSE compatible platforms.<br><br>The default value is `true`. |
-| **`sb_evergreen_compatible_enable_lite`**<br><br> Whether to adopt Evergreen Lite on the Evergreen compatible platform.<br><br>The default value is `false`. |
 | **`sb_evergreen_compatible_package`**<br><br> Whether to generate the whole package containing both Loader app and Cobalt core on the Evergreen compatible platform.<br><br>The default value is `false`. |
 | **`sb_evergreen_compatible_use_libunwind`**<br><br> Whether to use the libunwind library on Evergreen compatible platform.<br><br>The default value is `false`. |
 | **`sb_filter_based_player`**<br><br> Used to indicate that the player is filter based.<br><br>The default value is `true`. |
