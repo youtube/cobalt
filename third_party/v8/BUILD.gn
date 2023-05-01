@@ -730,6 +730,9 @@ config("features") {
   if (v8_dict_mode_prototypes) {
     defines += [ "V8_DICT_MODE_PROTOTYPES" ]
   }
+  if (v8_enable_webassembly) {
+    defines += [ "V8_ENABLE_WEBASSEMBLY" ]
+  }
 }
 
 config("toolchain") {
