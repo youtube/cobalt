@@ -54,7 +54,19 @@ configurations.
 
 ## Pre-built images
 
-Note: Pre-built images from a public container registry are not yet available.
+Pre-built images are available at https://github.com/orgs/youtube/packages?repo_name=cobalt
+
+For example, a container for building Android platform from main branch can be pulled as follows:
+
+```
+docker pull ghcr.io/youtube/cobalt/cobalt-build-android:main
+```
+
+Similarly, from LTS branch for Evergreen platform:
+
+```
+docker pull ghcr.io/youtube/cobalt/cobalt-build-evergreen:23.lts
+```
 
 ## Troubleshooting
 
