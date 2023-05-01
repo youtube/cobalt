@@ -376,7 +376,18 @@ struct JniEnvExt : public JNIEnv {
     if (!ExceptionCheck()) {
       return;
     }
+
+    SB_LOG(ERROR) << "Colin test: AbortOnException";
     ExceptionDescribe();
+
+    jthrowable exc = ExceptionOccurred();
+    jboolean isCopy = false;
+    jmethodID toString = GetMethodID(FindClass("java/lang/Object"), "toString", "()Ljava/lang/String;");
+    jstring s = (jstring)CallObjectMethod(exc, toString);
+    const char* utf = GetStringUTFChars(s, &isCopy);
+    // SB_LOG(ERROR) << s;
+    SB_LOG(ERROR) << utf;
+
     SbSystemBreakIntoDebugger();
   }
 };

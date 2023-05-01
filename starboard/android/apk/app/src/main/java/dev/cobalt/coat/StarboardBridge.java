@@ -832,4 +832,10 @@ public class StarboardBridge {
   public HashMap<String, String> getCrashContext() {
     return this.crashContext;
   }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public void throwException() {
+    throw new RuntimeException("Colin test exception");
+  }
 }

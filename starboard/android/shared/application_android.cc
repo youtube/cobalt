@@ -234,6 +234,12 @@ void ApplicationAndroid::OnResume() {
 
 void ApplicationAndroid::OnSuspend() {
   JniEnvExt* env = JniEnvExt::Get();
+  
+  // this is test code to make the app crash. see if the exception log is generated correctly.
+  SB_LOG(ERROR) << "Colin test: ApplicationAndroid::OnSuspend() run into starboard throwException()";
+  env->CallStarboardVoidMethodOrAbort("throwException", "()V");
+  // end of test code
+
   env->CallStarboardVoidMethodOrAbort("beforeSuspend", "()V");
 }
 
