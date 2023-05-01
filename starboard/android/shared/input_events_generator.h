@@ -66,7 +66,8 @@ class InputEventsGenerator {
                             int32_t motion_axis,
                             GameActivityMotionEvent* android_event,
                             Events* events);
-  void UpdateDeviceFlatMapIfNecessary(GameActivityMotionEvent* android_event);
+  void UpdateDeviceFlatMapIfNecessary(GameActivityMotionEvent* android_event,
+                                      jobject input_device);
   void UpdateDeviceFlatMapIfNecessary(GameActivityKeyEvent* android_event);
 
   void ProcessFallbackDPadEvent(SbInputEventType type,
