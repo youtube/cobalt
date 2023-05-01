@@ -95,6 +95,10 @@ std::unique_ptr<Event> CreateMoveEventWithKey(
 }
 
 float GetFlat(jobject input_device, int axis) {
+  if (input_device == NULL) {
+    return 0.0f;
+  }
+
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> motion_range(env->CallObjectMethodOrAbort(
       input_device, "getMotionRange",
