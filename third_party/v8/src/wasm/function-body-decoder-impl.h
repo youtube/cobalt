@@ -3156,7 +3156,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #undef DECODE_IMPL2
 
   OpcodeHandler GetOpcodeHandler(uint8_t opcode) {
-#ifndef V8_OS_STARBOARD
+#if !defined(V8_OS_STARBOARD) || defined(V8_ENABLE_WEBASSEMBLY)
     static constexpr std::array<OpcodeHandler, 256> kOpcodeHandlers =
         base::make_array<256>(GetOpcodeHandlerTableEntry);
 #else

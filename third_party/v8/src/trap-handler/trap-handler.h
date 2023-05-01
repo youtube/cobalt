@@ -106,11 +106,21 @@ inline bool IsTrapHandlerEnabled() {
 V8_NOINLINE V8_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress();
 
 inline bool IsThreadInWasm() {
+#if !defined(V8_ENABLE_WEBASSEMBLY)
   SB_NOTREACHED();
+#endif
   return false;
 }
-inline void SetThreadInWasm() { SB_NOTREACHED(); }
-inline void ClearThreadInWasm() { SB_NOTREACHED(); }
+inline void SetThreadInWasm() {
+#if !defined(V8_ENABLE_WEBASSEMBLY)
+  SB_NOTREACHED();
+#endif
+}
+inline void ClearThreadInWasm() {
+#if !defined(V8_ENABLE_WEBASSEMBLY)
+  SB_NOTREACHED();
+#endif
+}
 #else
 extern THREAD_LOCAL int g_thread_in_wasm_code;
 

@@ -102,7 +102,11 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
 
   isolate_->SetAllowWasmCodeGenerationCallback(
       [](v8::Local<v8::Context> context, v8::Local<v8::String> source) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+        return true;
+#else
         return false;
+#endif
       });
 
   isolate_->AddMessageListenerWithErrorLevel(
