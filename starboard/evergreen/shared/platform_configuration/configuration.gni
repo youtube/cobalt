@@ -18,7 +18,7 @@ sb_is_evergreen = true
 
 cobalt_font_package = "empty"
 
-yasm_exists = true
+nasm_exists = true
 
 # Override that omits the "data" subdirectory.
 # TODO: Remove when omitted for all platforms in base_configuration.gni.

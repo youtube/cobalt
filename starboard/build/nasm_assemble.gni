@@ -69,7 +69,7 @@ template("nasm_assemble") {
                            ])
 
     # Flags.
-    args = [ "$path_to_yasm" ]
+    args = [ "$path_to_nasm" ]
     args += _nasm_flags
     if (defined(invoker.nasm_flags)) {
       args += invoker.nasm_flags
@@ -105,9 +105,7 @@ template("nasm_assemble") {
     }
 
     # Output file.
-    outputs = [
-      "$root_out_dir/obj/third_party/libjpeg-turbo/{{source_name_part}}.asm.o",
-    ]
+    outputs = [ "$target_out_dir/$source_set_name/{{source_name_part}}.asm.o" ]
     args += [
       "-o",
       rebase_path(outputs[0], root_build_dir),
