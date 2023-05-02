@@ -3,3 +3,4 @@ coverage<7
 requests==2.25.1
 jsonschema<5
 junitparser==2.8.0
+pexpect==4.8.0
