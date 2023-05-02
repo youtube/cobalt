@@ -30,6 +30,7 @@ jobs:
     with:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
   evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -38,6 +39,7 @@ jobs:
     with:
       platform: evergreen-arm-hardfp
       nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
   evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -46,6 +48,7 @@ jobs:
     with:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
   evergreen-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -54,3 +57,4 @@ jobs:
     with:
       platform: evergreen-x86
       nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
