@@ -33,6 +33,8 @@ declare_args() {
   is_docker_build = getenv("IS_DOCKER") == "1"
 
   using_old_compiler = false
+
+  build_with_separate_cobalt_toolchain = false
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -96,12 +98,23 @@ if (target_cpu == "x86" || target_cpu == "arm") {
   _host_toolchain_cpu = host_cpu
 }
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
-if (sb_is_evergreen) {
-  target_toolchain = "//starboard/build/toolchain/linux:clang_lld"
+
+if (build_with_separate_cobalt_toolchain) {
+  cobalt_toolchain = "//starboard/build/toolchain/linux:clang_lld"
+  starboard_toolchain = "//$starboard_path/toolchain:starboard"
 } else {
-  target_toolchain = "//$starboard_path/toolchain:target"
+  if (sb_is_evergreen) {
+    cobalt_toolchain = "//starboard/build/toolchain/linux:clang_lld"
+  } else {
+    cobalt_toolchain = "//$starboard_path/toolchain:target"
+  }
+  starboard_toolchain = cobalt_toolchain
 }
-set_default_toolchain(target_toolchain)
+set_default_toolchain(cobalt_toolchain)
+
+import("//$starboard_path/platform_configuration/configuration.gni")
+import("//starboard/build/config/build_assertions.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 
 declare_args() {
   use_tsan = getenv("USE_TSAN") == 1
@@ -313,7 +326,7 @@ template("executable") {
     forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  if (current_toolchain == default_toolchain &&
+  if (is_starboardized_toolchain &&
       (!defined(invoker.install_target) || invoker.install_target)) {
     executable_target_name = target_name
 
@@ -359,7 +372,7 @@ template("shared_library") {
     forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  if (current_toolchain == default_toolchain &&
+  if (is_starboardized_toolchain &&
       (!defined(invoker.install_target) || invoker.install_target)) {
     shared_library_target_name = target_name
 
