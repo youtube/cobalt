@@ -208,6 +208,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 #else
       UNREACHABLE();
 #endif
+      break;
     case OS::MemoryPermission::kReadWriteExecute:
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
       new_protection =
