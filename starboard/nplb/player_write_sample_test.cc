@@ -28,6 +28,12 @@ typedef SbPlayerTestFixture::AudioSamples AudioSamples;
 typedef SbPlayerTestFixture::VideoEOS VideoEOS;
 typedef SbPlayerTestFixture::VideoSamples VideoSamples;
 
+#define ASSERT_NO_PLAYER_ERROR(statement)        \
+  { statement; }                                 \
+  if (player_fixture_.HasError()) {              \
+    FAIL() << player_fixture_.GetErrorMessage(); \
+  }
+
 class SbPlayerWriteSampleTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
@@ -37,10 +43,11 @@ class SbPlayerWriteSampleTest
   void TearDown() override;
 
   SbMediaType test_media_type_;
-  std::unique_ptr<SbPlayerTestFixture> player_fixture_;
+  SbPlayerTestFixture player_fixture_;
 };
 
-SbPlayerWriteSampleTest::SbPlayerWriteSampleTest() {
+SbPlayerWriteSampleTest::SbPlayerWriteSampleTest()
+    : player_fixture_(GetParam()) {
   auto config = GetParam();
   const char* audio_filename = std::get<0>(config);
   const char* video_filename = std::get<1>(config);
@@ -63,52 +70,49 @@ SbPlayerWriteSampleTest::SbPlayerWriteSampleTest() {
 }
 
 void SbPlayerWriteSampleTest::SetUp() {
-  ASSERT_NO_FATAL_FAILURE(
-      player_fixture_.reset(new SbPlayerTestFixture(GetParam())));
+  ASSERT_NO_PLAYER_ERROR(player_fixture_.InitializePlayer());
 }
 
 void SbPlayerWriteSampleTest::TearDown() {
-  ASSERT_NO_FATAL_FAILURE(player_fixture_.reset());
+  ASSERT_NO_PLAYER_ERROR(player_fixture_.TearDownPlayer());
 }
 
 TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->Seek(kSbTimeSecond));
+  ASSERT_NO_PLAYER_ERROR(player_fixture_.Seek(kSbTimeSecond));
 }
 
 TEST_P(SbPlayerWriteSampleTest, NoInput) {
   if (test_media_type_ == kSbMediaTypeAudio) {
-    ASSERT_NO_FATAL_FAILURE(player_fixture_->Write(AudioEOS()));
+    ASSERT_NO_PLAYER_ERROR(player_fixture_.Write(AudioEOS()));
   } else {
     SB_DCHECK(test_media_type_ == kSbMediaTypeVideo);
-    ASSERT_NO_FATAL_FAILURE(player_fixture_->Write(VideoEOS()));
+    ASSERT_NO_PLAYER_ERROR(player_fixture_.Write(VideoEOS()));
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+  ASSERT_NO_PLAYER_ERROR(player_fixture_.WaitForPlayerEndOfStream());
 }
 
 TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
   int max_batch_size = SbPlayerGetMaximumNumberOfSamplesPerWrite(
-      player_fixture_->GetPlayer(), test_media_type_);
+      player_fixture_.GetPlayer(), test_media_type_);
   if (test_media_type_ == kSbMediaTypeAudio) {
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(AudioSamples(0, max_batch_size).WithEOS()));
+    ASSERT_NO_PLAYER_ERROR(
+        player_fixture_.Write(AudioSamples(0, max_batch_size).WithEOS()));
   } else {
     SB_DCHECK(test_media_type_ == kSbMediaTypeVideo);
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(VideoSamples(0, max_batch_size).WithEOS()));
+    ASSERT_NO_PLAYER_ERROR(
+        player_fixture_.Write(VideoSamples(0, max_batch_size).WithEOS()));
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+  ASSERT_NO_PLAYER_ERROR(player_fixture_.WaitForPlayerEndOfStream());
 }
 
 TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
   if (test_media_type_ == kSbMediaTypeAudio) {
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(AudioSamples(0, 8).WithEOS()));
+    ASSERT_NO_PLAYER_ERROR(player_fixture_.Write(AudioSamples(0, 8).WithEOS()));
   } else {
     SB_DCHECK(test_media_type_ == kSbMediaTypeVideo);
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(VideoSamples(0, 8).WithEOS()));
+    ASSERT_NO_PLAYER_ERROR(player_fixture_.Write(VideoSamples(0, 8).WithEOS()));
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+  ASSERT_NO_PLAYER_ERROR(player_fixture_.WaitForPlayerEndOfStream());
 }
 
 std::string GetSbPlayerTestConfigName(

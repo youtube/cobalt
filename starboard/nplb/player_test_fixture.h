@@ -18,7 +18,9 @@
 #include <atomic>
 #include <deque>
 #include <set>
+#include <string>
 
+#include "starboard/common/mutex.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/nplb/player_test_util.h"
@@ -90,6 +92,9 @@ class SbPlayerTestFixture {
   explicit SbPlayerTestFixture(const SbPlayerTestConfig& config);
   ~SbPlayerTestFixture();
 
+  void InitializePlayer();
+  void TearDownPlayer();
+
   void Seek(const SbTime time);
   // Write audio and video samples. It waits for
   // |kSbPlayerDecoderStateNeedsData| internally. When writing EOS are
@@ -102,7 +107,12 @@ class SbPlayerTestFixture {
   // Wait until kSbPlayerStateEndOfStream received.
   void WaitForPlayerEndOfStream();
 
-  SbPlayer GetPlayer() { return player_; }
+  SbPlayer GetPlayer() const { return player_; }
+  bool HasError() const { return error_occurred_; }
+  std::string GetErrorMessage() const {
+    ScopedLock scoped_lock(error_message_mutex_);
+    return error_message_;
+  }
 
  private:
   static constexpr SbTime kDefaultWaitForDecoderStateNeedsDataTimeout =
@@ -160,9 +170,6 @@ class SbPlayerTestFixture {
   void OnPlayerState(SbPlayer player, SbPlayerState state, int ticket);
   void OnError(SbPlayer player, SbPlayerError error, const char* message);
 
-  void InitializePlayer();
-  void TearDownPlayer();
-
   void WriteSamples(SbMediaType media_type,
                     int start_index,
                     int samples_to_write);
@@ -191,7 +198,7 @@ class SbPlayerTestFixture {
 
   // Determine if the the current event is valid based on previously received
   // player state updates, or other inputs to the player.
-  void AssertPlayerStateIsValid(SbPlayerState state) const;
+  void AssertPlayerStateIsValid(SbPlayerState state);
 
   bool HasReceivedPlayerState(SbPlayerState state) const {
     return player_state_set_.find(state) != player_state_set_.end();
@@ -221,6 +228,8 @@ class SbPlayerTestFixture {
   bool audio_end_of_stream_written_ = false;
   bool video_end_of_stream_written_ = false;
   std::atomic_bool error_occurred_{false};
+  Mutex error_message_mutex_;
+  std::string error_message_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
 };
 
