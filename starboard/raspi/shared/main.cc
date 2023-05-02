@@ -62,24 +62,21 @@ int main(int argc, char** argv) {
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 #if SB_MODULAR_BUILD
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
+  int result = SbRunStarboardMain(argc, argv, SbEventHandle);
 #else
   starboard::raspi::shared::ApplicationDispmanx application;
   int result = application.Run(argc, argv);
+#endif  // SB_MODULAR_BUILD
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
-#endif  // SB_MODULAR_BUILD
 }
 
 #if SB_MODULAR_BUILD
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::raspi::shared::ApplicationDispmanx application(callback);
   int result = application.Run(argc, argv);
-  starboard::shared::signal::UninstallSuspendSignalHandlers();
-  starboard::shared::signal::UninstallDebugSignalHandlers();
-  starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
 #endif  // SB_MODULAR_BUILD
