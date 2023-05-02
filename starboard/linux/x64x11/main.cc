@@ -65,7 +65,7 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
 #endif
 
 #if SB_MODULAR_BUILD
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
+  int result = SbRunStarboardMain(argc, argv, SbEventHandle);
 #else
   starboard::shared::x11::ApplicationX11 application;
   int result = 0;
@@ -73,11 +73,11 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
     starboard::shared::starboard::LinkReceiver receiver(&application);
     result = application.Run(argc, argv);
   }
+#endif  // SB_MODULAR_BUILD
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
-#endif  // SB_MODULAR_BUILD
 }
 
 #if SB_MODULAR_BUILD
@@ -88,9 +88,6 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
     starboard::shared::starboard::LinkReceiver receiver(&application);
     result = application.Run(argc, argv);
   }
-  starboard::shared::signal::UninstallSuspendSignalHandlers();
-  starboard::shared::signal::UninstallDebugSignalHandlers();
-  starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
 #endif  // SB_MODULAR_BUILD
