@@ -41,7 +41,9 @@ namespace ffmpeg {
 constexpr int kAVCodecSupportsAvFrameAlloc = 3616101;
 constexpr int kAVCodecSupportsAvcodecFreeContext = 3620708;
 constexpr int kAVCodecSupportsAvPacketAlloc = 3738724;
-constexpr int kAVUtilSupportsBufferCreate = 3670272;
+// https://github.com/libav/libav/blob/8e401dbe90cc77b1f3067a917d9fa48cefa3fcdb/libavutil/version.h
+// AV_VERSION_INT(52, 8, 0)
+constexpr int kAVUtilSupportsBufferCreate = 3409920;
 
 class FFMPEGDispatch {
  public:
