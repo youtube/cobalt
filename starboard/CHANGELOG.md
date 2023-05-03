@@ -66,6 +66,12 @@ This API is unused by Cobalt and has been deprecated.
 By supporting the keycode for the remote record button on Cobalt, the webapp can be
 programmed to respond to the remote record button in the future.
 
+### Removed SbSystemDeviceType and added kSbSystemPropertyDeviceType
+This enumeration of device types `SbSystemDeviceType` has been deprecated. We
+added new system property `kSbSystemPropertyDeviceType` for device type as a string.
+All the allowed device type values are now checked by nplb test:
+`starboard/nplb/system_get_property_test.cc`.
+
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.
 This makes it possible to support these codecs in the future.
