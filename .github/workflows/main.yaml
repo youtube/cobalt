@@ -19,7 +19,7 @@ on:
         required: false
         type: boolean
         default: false
-      leak_manifest_file_path:
+      leak_manifest_filename:
         description: 'Path to the leak manifest.'
         required: false
         type: string
@@ -202,7 +202,7 @@ jobs:
         uses: ./.github/actions/api_leak_detector
         if: inputs.run_api_leak_detector
         with:
-          relative_manifest_path: ${{ inputs.leak_manifest_file_path }}
+          relative_manifest_path: ${{ inputs.leak_manifest_filename }}
       - name: Upload Nightly Artifacts
         if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
