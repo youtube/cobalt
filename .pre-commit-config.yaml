@@ -11,6 +11,7 @@ exclude: |
             base|
             build|
             buildtools|
+            components/metrics|
             crypto|
             net|
             internal/starboard/shared/playstation/glimp/shaders|
