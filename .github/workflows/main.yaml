@@ -14,16 +14,6 @@ on:
         required: true
         type: string
         default: 'false'
-      run_api_leak_detector:
-        description: 'Whether to run the api leak detector.'
-        required: false
-        type: boolean
-        default: false
-      leak_manifest_file_path:
-        description: 'Path to the leak manifest.'
-        required: false
-        type: string
-        default: ""
 
 # Global env vars.
 env:
@@ -198,11 +188,6 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
-      - name: Run API Leak Detector
-        uses: ./.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
-        with:
-          relative_manifest_path: ${{ inputs.leak_manifest_file_path }}
       - name: Upload Nightly Artifacts
         if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
         uses: ./.github/actions/upload_nightly_artifacts
