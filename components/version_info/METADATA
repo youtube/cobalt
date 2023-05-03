@@ -1,0 +1,21 @@
+name: "version_info"
+description:
+  "Filtered subtree at components/version_info."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "https://cobalt.googlesource.com/components/version_info_filtered_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/chromium/chromium"
+  }
+  # Closest commit hash to m70.
+  version: "737f4cc3d91409d092991dc6834788b9e4c5613a"
+  last_upgrade_date {
+    year: 2018
+    month: 08
+    day: 01
+  }
+}
