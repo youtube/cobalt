@@ -12,6 +12,7 @@ exclude: |
             build|
             buildtools|
             components/metrics|
+            components/metrics_services_manager|
             components/ukm|
             crypto|
             net|
