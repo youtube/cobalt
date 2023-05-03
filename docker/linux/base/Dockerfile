@@ -22,6 +22,7 @@ ENV PYTHONUNBUFFERED 1
 
 # === Install common dependencies
 RUN apt update -qqy \
+    && apt -qqy upgrade \
     && apt install -qqy --no-install-recommends \
         python3-dev \
         python3-pip \
