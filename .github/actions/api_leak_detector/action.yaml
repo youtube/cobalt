@@ -1,0 +1,21 @@
+name: Run API Leak Detector
+description: Runs the API leak detector
+inputs:
+  relative_manifest_path:
+    description: "Path to leak manifest file."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Detector
+      shell: bash
+      run: |
+        set -x
+        env
+        MANIFEST_FLAG=""
+        if [ "${{ inputs.relative_manifest_path }}" != "" ]; then
+          MANIFEST_FLAG="--relative-manifest-path ${{ matrix.target_platform }}/${{matrix.config}}/${{ inputs.relative_manifest_path }}"
+        fi
+        python3 starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.target_platform }} -c ${{matrix.config}} --submit-check $MANIFEST_FLAG
