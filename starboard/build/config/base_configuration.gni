@@ -20,6 +20,12 @@ import("//starboard/build/config/enable_vr.gni")
 # All build arguments in this file must have documentation.
 # Please follow the formatting in this file when adding new ones.
 
+if (build_with_separate_cobalt_toolchain) {
+  default_target_type = "shared_library"
+} else {
+  default_target_type = "executable"
+}
+
 declare_args() {
   # Enables the nasm compiler to be used to compile .asm files.
   nasm_exists = false
@@ -55,12 +61,12 @@ declare_args() {
   # The target type for test targets. Allows changing the target type
   # on platforms where the native code may require an additional packaging step
   # (ex. Android).
-  gtest_target_type = "executable"
+  gtest_target_type = default_target_type
 
   # The target type for executable targets. Allows changing the target type
   # on platforms where the native code may require an additional packaging step
   # (ex. Android).
-  final_executable_type = "executable"
+  final_executable_type = default_target_type
 
   # Halt execution on failure to allocate memory.
   abort_on_allocation_failure = true

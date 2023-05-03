@@ -92,9 +92,11 @@ config("host") {
 config("target") {
   if (current_toolchain != host_toolchain) {
     if (final_executable_type == "shared_library") {
-      # Rewrite main() functions into StarboardMain. TODO: This is a
-      # hack, it would be better to be more surgical, here.
-      defines = [ "main=StarboardMain" ]
+      if (!build_with_separate_cobalt_toolchain) {
+        # Rewrite main() functions into StarboardMain. TODO: This is a
+        # hack, it would be better to be more surgical, here.
+        defines = [ "main=StarboardMain" ]
+      }
 
       # To link into a shared library on Linux and similar platforms,
       # the compiler must be told to generate Position Independent Code.

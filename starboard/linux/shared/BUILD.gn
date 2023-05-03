@@ -434,18 +434,20 @@ static_library("starboard_platform_sources") {
   }
 }
 
-target(gtest_target_type, "starboard_platform_tests") {
-  testonly = true
+if (current_toolchain == starboard_toolchain) {
+  target(gtest_target_type, "starboard_platform_tests") {
+    testonly = true
 
-  sources = media_tests_sources + player_tests_sources +
-            [ "//starboard/common/test_main.cc" ]
+    sources = media_tests_sources + player_tests_sources +
+              [ "//starboard/common/test_main.cc" ]
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+    configs += [ "//starboard/build/config:starboard_implementation" ]
 
-  deps = [
-    "//starboard",
-    "//starboard/shared/starboard/player/filter/testing:test_util",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+    deps = [
+      "//starboard",
+      "//starboard/shared/starboard/player/filter/testing:test_util",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }

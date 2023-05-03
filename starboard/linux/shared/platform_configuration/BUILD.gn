@@ -34,7 +34,7 @@ config("compiler_flags") {
       "-fcolor-diagnostics",
 
       # Default visibility to hidden, to enable dead stripping.
-      "-fvisibility=hidden",
+      "-fvisibility=default",
 
       # Warn for implicit type conversions that may change a value.
       "-Wconversion",
