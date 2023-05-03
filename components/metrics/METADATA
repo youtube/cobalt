@@ -1,0 +1,16 @@
+name: "metrics"
+description:
+  "Subtree at components/metrics."
+
+third_party {
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/src/components/metrics"
+  }
+  version: "734293972a4b3f6d949e489ac02145538fb59c70"
+  last_upgrade_date {
+    year: 2018
+    month: 08
+    day: 30
+  }
+}
