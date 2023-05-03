@@ -119,7 +119,7 @@ void H5vccStorage::ClearCookies() {
   net::CookieStore* cookie_store =
       network_module_->url_request_context()->cookie_store();
   auto* cookie_monster = static_cast<net::CookieMonster*>(cookie_store);
-  network_module_->task_runner()->PostBlockingTask(
+  network_module_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&net::CookieMonster::DeleteAllMatchingInfoAsync,
                  base::Unretained(cookie_monster), net::CookieDeletionInfo(),

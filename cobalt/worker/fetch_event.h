@@ -41,7 +41,7 @@ class FetchEvent : public ::cobalt::worker::ExtendableEvent {
              const FetchEventInit& event_init_dict);
   FetchEvent(script::EnvironmentSettings*, base::Token type,
              const FetchEventInit& event_init_dict,
-             scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+             scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
              RespondWithCallback respond_with_callback,
              ReportLoadTimingInfo report_load_timing_info);
   ~FetchEvent() override = default;
@@ -67,7 +67,7 @@ class FetchEvent : public ::cobalt::worker::ExtendableEvent {
   void RespondWithDone();
 
   script::EnvironmentSettings* environment_settings_;
-  scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> callback_task_runner_;
   RespondWithCallback respond_with_callback_;
   ReportLoadTimingInfo report_load_timing_info_;
   std::unique_ptr<script::ValueHandleHolder::Reference> request_;

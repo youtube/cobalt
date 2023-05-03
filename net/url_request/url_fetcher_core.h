@@ -257,7 +257,7 @@ class URLFetcherCore : public base::RefCountedThreadSafe<URLFetcherCore>,
   // Task runner for the creating sequence. Used to interact with the delegate.
   const scoped_refptr<base::SequencedTaskRunner> delegate_task_runner_;
   // Task runner for network operations.
-  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
   // Task runner for upload file access.
   scoped_refptr<base::TaskRunner> upload_file_task_runner_;
   std::unique_ptr<URLRequest> request_;  // The actual request this wraps

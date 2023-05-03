@@ -214,7 +214,7 @@ class FetcherTestURLRequestContext : public TestURLRequestContext {
 class FetcherTestURLRequestContextGetter : public URLRequestContextGetter {
  public:
   FetcherTestURLRequestContextGetter(
-      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner,
+      scoped_refptr<base::SequencedTaskRunner> network_task_runner,
       const std::string& hanging_domain)
       : network_task_runner_(network_task_runner),
         hanging_domain_(hanging_domain),
@@ -229,7 +229,7 @@ class FetcherTestURLRequestContextGetter : public URLRequestContextGetter {
   FetcherTestURLRequestContext* GetURLRequestContext() override {
     // Calling this on the wrong thread may be either a bug in the test or a bug
     // in production code.
-    EXPECT_TRUE(network_task_runner_->BelongsToCurrentThread());
+    EXPECT_TRUE(network_task_runner_->RunsTasksInCurrentSequence());
 
     if (shutting_down_)
       return nullptr;
@@ -242,7 +242,7 @@ class FetcherTestURLRequestContextGetter : public URLRequestContextGetter {
     return context_.get();
   }
 
-  scoped_refptr<base::SingleThreadTaskRunner> GetNetworkTaskRunner()
+  scoped_refptr<base::SequencedTaskRunner> GetNetworkTaskRunner()
       const override {
     return network_task_runner_;
   }
@@ -304,7 +304,7 @@ class FetcherTestURLRequestContextGetter : public URLRequestContextGetter {
   // Convenience method to access the context as a FetcherTestURLRequestContext
   // without going through GetURLRequestContext.
   FetcherTestURLRequestContext* context() {
-    DCHECK(network_task_runner_->BelongsToCurrentThread());
+    DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
     return context_.get();
   }
 
@@ -318,13 +318,13 @@ class FetcherTestURLRequestContextGetter : public URLRequestContextGetter {
   ~FetcherTestURLRequestContextGetter() override {
     // |context_| may only be deleted on the network thread. Fortunately,
     // the parent class already ensures it's deleted on the network thread.
-    DCHECK(network_task_runner_->BelongsToCurrentThread());
+    DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
     if (!on_destruction_callback_.is_null())
       std::move(on_destruction_callback_).Run();
   }
 
  private:
-  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
   const std::string hanging_domain_;
 
   // May be null.
