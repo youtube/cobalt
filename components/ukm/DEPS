@@ -1,0 +1,16 @@
+include_rules = [
+  "+components/metrics",
+  "+components/prefs",
+  "+components/unified_consent",
+  "+components/variations",
+  "+mojo/public",
+  "+services/metrics/public",
+  "+third_party/metrics_proto",
+  "+third_party/zlib/google",
+]
+
+specific_include_rules = {
+  ".*unittest\.cc": [
+    "+components/sync_preferences/testing_pref_service_syncable.h",
+  ]
+}
