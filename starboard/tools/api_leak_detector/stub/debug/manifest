@@ -87,7 +87,6 @@ malloc
 mbrtowc
 mbsnrtowcs
 mbsrtowcs
-memrchr
 open
 poll
 printf

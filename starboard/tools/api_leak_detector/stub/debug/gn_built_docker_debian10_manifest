@@ -89,7 +89,6 @@ malloc
 mbrtowc
 mbsnrtowcs
 mbsrtowcs
-memrchr
 poll
 printf
 pthread_cond_broadcast
