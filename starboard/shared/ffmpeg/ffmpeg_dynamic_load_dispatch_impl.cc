@@ -291,7 +291,11 @@ void FFMPEGDispatchImpl::LoadSymbols() {
     INITSYMBOL(avcodec_, av_frame_unref);
     INITSYMBOL(avcodec_, av_frame_free);
     INITSYMBOL(avcodec_, av_dict_get);
+  } else {
+    INITSYMBOL(avcodec_, avcodec_alloc_frame);
+    INITSYMBOL(avcodec_, avcodec_get_frame_defaults);
   }
+
   INITSYMBOL(avcodec_, avcodec_alloc_context3);
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvcodecFreeContext) {
     INITSYMBOL(avcodec_, avcodec_free_context);
@@ -303,8 +307,6 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_decode_audio4);
   INITSYMBOL(avcodec_, avcodec_decode_video2);
   INITSYMBOL(avcodec_, avcodec_flush_buffers);
-  INITSYMBOL(avcodec_, avcodec_alloc_frame);
-  INITSYMBOL(avcodec_, avcodec_get_frame_defaults);
   INITSYMBOL(avcodec_, avcodec_align_dimensions2);
 
   if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvPacketAlloc) {
@@ -312,8 +314,9 @@ void FFMPEGDispatchImpl::LoadSymbols() {
     INITSYMBOL(avcodec_, av_packet_free);
     INITSYMBOL(avcodec_, av_packet_unref);
     INITSYMBOL(avcodec_, avcodec_parameters_to_context);
+  } else {
+    INITSYMBOL(avcodec_, av_free_packet);
   }
-  INITSYMBOL(avcodec_, av_free_packet);
 
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_, avformat_version);
