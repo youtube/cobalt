@@ -14,6 +14,7 @@ exclude: |
             components/metrics|
             components/metrics_services_manager|
             components/ukm|
+            components/variations|
             crypto|
             net|
             internal/starboard/shared/playstation/glimp/shaders|
