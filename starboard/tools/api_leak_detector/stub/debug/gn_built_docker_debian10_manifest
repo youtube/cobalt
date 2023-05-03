@@ -5,8 +5,10 @@
 _ITM_RU1
 _ITM_RU8
 _ITM_addUserCommitAction
+_ITM_deregisterTMCloneTable
 _ITM_memcpyRnWt
 _ITM_memcpyRtWn
+_ITM_registerTMCloneTable
 _Unwind_DeleteException
 _Unwind_GetDataRelBase
 _Unwind_GetIPInfo
@@ -22,6 +24,7 @@ __assert_fail
 __ctype_b_loc
 __ctype_get_mb_cur_max
 __cxa_atexit
+__cxa_finalize
 __duplocale
 __errno_location
 __freelocale
@@ -86,6 +89,7 @@ malloc
 mbrtowc
 mbsnrtowcs
 mbsrtowcs
+memrchr
 poll
 printf
 pthread_cond_broadcast
@@ -107,7 +111,9 @@ setlocale
 setvbuf
 snprintf
 sprintf
+stderr
 stdin
+stdout
 strdup
 strerror
 strtold_l
