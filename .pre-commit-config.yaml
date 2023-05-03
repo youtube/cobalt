@@ -18,6 +18,7 @@ exclude: |
             components/variations|
             components/version_info|
             crypto|
+            extensions/buildflags|
             net|
             internal/starboard/shared/playstation/glimp/shaders|
             testing|

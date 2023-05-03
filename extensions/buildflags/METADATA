@@ -1,0 +1,21 @@
+name: "buildflags"
+description:
+  "Filtered subtree at extensions/buildflags."
+
+third_party {
+  url {
+    type: LOCAL_SOURCE
+    value: "https://cobalt.googlesource.com/extensions/buildflags_filtered_mirror"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/chromium/chromium"
+  }
+  # Closest commit hash to m70.
+  version: "835b1103d31bdb8a2df943e3c837099a79e930ad"
+  last_upgrade_date {
+    year: 2018
+    month: 03
+    day: 08
+  }
+}
