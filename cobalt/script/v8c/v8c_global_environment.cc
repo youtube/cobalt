@@ -22,6 +22,7 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cache/cache.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/v8c/embedded_resources.h"
 #include "cobalt/script/v8c/entry_scope.h"
@@ -102,7 +103,11 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
 
   isolate_->SetAllowWasmCodeGenerationCallback(
       [](v8::Local<v8::Context> context, v8::Local<v8::String> source) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+        return true;
+#else
         return false;
+#endif
       });
 
   isolate_->AddMessageListenerWithErrorLevel(

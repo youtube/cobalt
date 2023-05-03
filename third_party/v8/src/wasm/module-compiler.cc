@@ -114,7 +114,6 @@ class CompilationUnitQueues {
     bool ShouldPublish(int num_processed_units) const;
   };
 
-#if !defined(DISABLE_WASM_STARBOARD)
   explicit CompilationUnitQueues(int num_declared_functions)
       : num_declared_functions_(num_declared_functions) {
     // Add one first queue, to add units to.
@@ -131,9 +130,6 @@ class CompilationUnitQueues {
       std::atomic_init(&top_tier_compiled_.get()[i], false);
     }
   }
-#else
-  explicit CompilationUnitQueues(int /*max_tasks*/) {}
-#endif
 
   Queue* GetQueueForTask(int task_id) {
     int required_queues = task_id + 1;
@@ -195,7 +191,6 @@ class CompilationUnitQueues {
                 Vector<WasmCompilationUnit> top_tier_units,
                 const WasmModule* module) {
     DCHECK_LT(0, baseline_units.size() + top_tier_units.size());
-#if !defined(DISABLE_WASM_STARBOARD)
     // Add to the individual queues in a round-robin fashion. No special care is
     // taken to balance them; they will be balanced by work stealing.
     QueueImpl* queue;
@@ -232,7 +227,6 @@ class CompilationUnitQueues {
         }
       }
     }
-#endif
   }
 
   void AddTopTierPriorityUnit(WasmCompilationUnit unit, size_t priority) {
@@ -261,11 +255,9 @@ class CompilationUnitQueues {
   // if this method returns non-zero.
   size_t GetTotalSize() const {
     size_t total = 0;
-#if !defined(DISABLE_WASM_STARBOARD)
     for (auto& atomic_counter : num_units_) {
       total += atomic_counter.load(std::memory_order_relaxed);
     }
-#endif
     return total;
   }
 
@@ -305,9 +297,7 @@ class CompilationUnitQueues {
 
   struct BigUnitsQueue {
     BigUnitsQueue() {
-#if !defined(DISABLE_WASM_STARBOARD)
       for (auto& atomic : has_units) std::atomic_init(&atomic, false);
-#endif
     }
 
     base::Mutex mutex;
@@ -343,11 +333,9 @@ class CompilationUnitQueues {
   }
 
   int GetLowestTierWithUnits() const {
-#if !defined(DISABLE_WASM_STARBOARD)
     for (int tier = 0; tier < kNumTiers; ++tier) {
       if (num_units_[tier].load(std::memory_order_relaxed) > 0) return tier;
     }
-#endif
     return kNumTiers;
   }
 
@@ -398,12 +386,10 @@ class CompilationUnitQueues {
   }
 
   base::Optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
-#if !defined(DISABLE_WASM_STARBOARD)
     // Fast path without locking.
     if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
       return {};
     }
-#endif
     base::MutexGuard guard(&big_units_queue_.mutex);
     if (big_units_queue_.units[tier].empty()) return {};
     WasmCompilationUnit unit = big_units_queue_.units[tier].top().unit;
@@ -612,11 +598,7 @@ class CompilationStateImpl {
   void SetHighPriority() { has_priority_ = true; }
 
   bool failed() const {
-#if !defined(DISABLE_WASM_STARBOARD)
     return compile_failed_.load(std::memory_order_relaxed);
-#else
-    return false;
-#endif
   }
 
   bool baseline_compilation_finished() const {
@@ -1655,10 +1637,9 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
                                                           uses_liftoff);
   native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, module, code_size_estimate);
-#if !defined(DISABLE_WASM_STARBOARD)
   // std::move(uint8_t[] issue)
   native_module->SetWireBytes(std::move(wire_bytes_copy));
-#endif
+
   // Sync compilation is user blocking, so we increase the priority.
   native_module->compilation_state()->SetHighPriority();
 
@@ -3296,12 +3277,10 @@ size_t CompilationStateImpl::NumOutstandingCompilations() const {
 }
 
 void CompilationStateImpl::SetError() {
-#if !defined(DISABLE_WASM_STARBOARD)
   compile_cancelled_.store(true, std::memory_order_relaxed);
   if (compile_failed_.exchange(true, std::memory_order_relaxed)) {
     return;  // Already failed before.
   }
-#endif
 
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
   TriggerCallbacks();

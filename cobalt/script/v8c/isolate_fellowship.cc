@@ -43,16 +43,21 @@ const char kIsolateFellowshipBuildTime[] = __DATE__ " " __TIME__;
 // v8 instance is created.
 void V8FlagsInit() {
   std::vector<std::string> kV8CommandLineFlags = {
-    "--optimize_for_size",
-    // Starboard disallow rwx memory access.
-    "--write_protect_code_memory",
-    // Cobalt's TraceMembers and
-    // ScriptValue::*Reference do not currently
-    // support incremental tracing.
-    "--noincremental_marking_wrappers",
-    "--noexpose_wasm",
-    "--novalidate_asm",
+      "--optimize_for_size",
+      // Starboard disallow rwx memory access.
+      "--write_protect_code_memory",
+      // Cobalt's TraceMembers and
+      // ScriptValue::*Reference do not currently
+      // support incremental tracing.
+      "--noincremental_marking_wrappers",
+      "--novalidate_asm",
   };
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  kV8CommandLineFlags.push_back("--expose_wasm");
+#else
+  kV8CommandLineFlags.push_back("--noexpose_wasm");
+#endif
 
   if (!configuration::Configuration::GetInstance()->CobaltEnableJit()) {
     kV8CommandLineFlags.push_back("--jitless");
@@ -63,8 +68,7 @@ void V8FlagsInit() {
   }
 
   for (auto flag_str : kV8CommandLineFlags) {
-    v8::V8::SetFlagsFromString(flag_str.c_str(),
-                               strlen(flag_str.c_str()));
+    v8::V8::SetFlagsFromString(flag_str.c_str(), strlen(flag_str.c_str()));
   }
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -104,7 +108,6 @@ IsolateFellowship::~IsolateFellowship() {
   DCHECK(array_buffer_allocator);
   delete array_buffer_allocator;
   array_buffer_allocator = nullptr;
-
 }
 
 }  // namespace v8c

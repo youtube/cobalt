@@ -419,10 +419,6 @@ config("internal_config_base") {
       "DISABLE_GRAPHS_STARBOARD",
       "DISABLE_UNWIND_STARBOARD",
 
-      # "DISABLE_WASM_STARBOARD",
-      "DISABLE_WASM_COMPILER_ISSUE_STARBOARD",
-      "NO_ARRAY_MOVE_STARBOARD",
-
       # Disable mitigations for executing untrusted code.
       # Disabled by default on x86 due to conflicting requirements with embedded
       # builtins.
@@ -434,6 +430,13 @@ config("internal_config_base") {
       "DISABLE_UNTRUSTED_CODE_MITIGATIONS",
       "NOMINMAX",
     ]
+
+    if (!v8_enable_webassembly) {
+      defines += [
+        "DISABLE_WASM_COMPILER_ISSUE_STARBOARD",
+        "NO_ARRAY_MOVE_STARBOARD",
+      ]
+    }
 
     if (is_starboard && !is_win) {
       defines -= [ "NOMINMAX" ]
@@ -726,6 +729,9 @@ config("features") {
   }
   if (v8_dict_mode_prototypes) {
     defines += [ "V8_DICT_MODE_PROTOTYPES" ]
+  }
+  if (v8_enable_webassembly) {
+    defines += [ "V8_ENABLE_WEBASSEMBLY" ]
   }
 }
 
@@ -3417,14 +3423,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/vector.h",
     "src/utils/version.cc",
     "src/utils/version.h",
-    # No WASM for Cobalt
-    # "src/wasm/baseline/liftoff-assembler-defs.h",
-    # "src/wasm/baseline/liftoff-assembler.cc",
-    # "src/wasm/baseline/liftoff-assembler.h",
-    # "src/wasm/baseline/liftoff-compiler.cc",
-    # "src/wasm/baseline/liftoff-compiler.h",
-    # "src/wasm/baseline/liftoff-register.h",
-    # "src/wasm/code-space-access.h",
     "src/wasm/compilation-environment.h",
     "src/wasm/decoder.h",
     "src/wasm/function-body-decoder-impl.h",
@@ -3517,7 +3515,19 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone.h",
   ]
 
-  if (is_starboard) {
+  if (v8_enable_webassembly) {
+    sources += [
+      "src/wasm/baseline/liftoff-assembler-defs.h",
+      "src/wasm/baseline/liftoff-assembler.cc",
+      "src/wasm/baseline/liftoff-assembler.h",
+      "src/wasm/baseline/liftoff-compiler.cc",
+      "src/wasm/baseline/liftoff-compiler.h",
+      "src/wasm/baseline/liftoff-register.h",
+      "src/wasm/code-space-access.h",
+    ]
+  }
+
+  if (is_starboard && !v8_enable_webassembly) {
     sources += [ "src/wasm/baseline/liftoff-compiler-starboard.cc" ]
   }
 
@@ -3591,9 +3601,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/ia32/frame-constants-ia32.h",
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
+      ]
+    }
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
       "src/codegen/x64/assembler-x64-inl.h",
@@ -3623,9 +3637,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
       "src/third_party/valgrind/valgrind.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/x64/liftoff-assembler-x64.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/x64/liftoff-assembler-x64.h",
+      ]
+    }
 
     # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
     # based on Darwin and thus POSIX-compliant to a similar degree.
@@ -3676,9 +3694,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/arm/simulator-arm.h",
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/arm/liftoff-assembler-arm.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/arm/liftoff-assembler-arm.h",
+      ]
+    }
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
       "src/codegen/arm64/assembler-arm64-inl.h",
@@ -3720,9 +3742,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/arm64/simulator-logic-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
+      ]
+    }
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
     }
@@ -3758,9 +3784,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/mips/simulator-mips.h",
       "src/regexp/mips/regexp-macro-assembler-mips.cc",
       "src/regexp/mips/regexp-macro-assembler-mips.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/mips/liftoff-assembler-mips.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/mips/liftoff-assembler-mips.h",
+      ]
+    }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
       "src/codegen/mips64/assembler-mips64-inl.h",
@@ -3787,9 +3817,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/mips64/simulator-mips64.h",
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
+      ]
+    }
   } else if (v8_current_cpu == "ppc") {
     sources += [  ### gcmole(arch:ppc) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
@@ -3850,9 +3884,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/ppc/simulator-ppc.h",
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
       "src/regexp/ppc/regexp-macro-assembler-ppc.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
+      ]
+    }
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [  ### gcmole(arch:s390) ###
       "src/codegen/s390/assembler-s390-inl.h",
@@ -3882,9 +3920,13 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/s390/simulator-s390.h",
       "src/regexp/s390/regexp-macro-assembler-s390.cc",
       "src/regexp/s390/regexp-macro-assembler-s390.h",
-      # No WASM for Cobalt
-      # "src/wasm/baseline/s390/liftoff-assembler-s390.h",
     ]
+
+    if (v8_enable_webassembly) {
+      sources += [
+        "src/wasm/baseline/s390/liftoff-assembler-s390.h",
+      ]
+    }
   }
 
   configs = [

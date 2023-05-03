@@ -209,7 +209,16 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
       UNREACHABLE();
 #endif
       break;
+    case OS::MemoryPermission::kReadWriteExecute:
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+      new_protection =
+          SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite| kSbMemoryMapProtectExec);
+#else
+      UNREACHABLE();
+#endif
+      break;
     default:
+      SB_LOG(WARNING) << "OS::SetPermissions: Unsupported type access=" << static_cast<int>(access);
       // All other types are not supported by Starboard.
       return false;
   }

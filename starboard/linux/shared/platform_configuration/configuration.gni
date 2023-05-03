@@ -39,3 +39,5 @@ platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
 enable_in_app_dial = true
 
 is_clang_16 = current_toolchain == host_toolchain
+
+v8_enable_webassembly = true
