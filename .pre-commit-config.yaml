@@ -11,8 +11,14 @@ exclude: |
             base|
             build|
             buildtools|
+            components/crash/core/common|
             components/metrics|
+            components/metrics_services_manager|
+            components/ukm|
+            components/variations|
+            components/version_info|
             crypto|
+            extensions/buildflags|
             net|
             internal/starboard/shared/playstation/glimp/shaders|
             testing|
