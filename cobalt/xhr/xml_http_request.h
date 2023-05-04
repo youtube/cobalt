@@ -337,6 +337,7 @@ class XMLHttpRequestImpl
   // All members requiring initialization are grouped below.
   bool error_;
   bool is_cross_origin_;
+  network::CORSPolicy cors_policy_;
   bool is_data_url_;
   bool is_redirect_;
   net::URLFetcher::RequestType method_;

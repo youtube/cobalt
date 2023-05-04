@@ -60,12 +60,14 @@ class NetworkModule {
         : cookie_policy(net::StaticCookiePolicy::BLOCK_ALL_THIRD_PARTY_COOKIES),
           ignore_certificate_errors(false),
           https_requirement(network::kHTTPSRequired),
+          cors_policy(network::kCORSRequired),
           preferred_language("en-US"),
           max_network_delay(0),
           persistent_settings(nullptr) {}
     net::StaticCookiePolicy::Type cookie_policy;
     bool ignore_certificate_errors;
     HTTPSRequirement https_requirement;
+    network::CORSPolicy cors_policy;
     std::string preferred_language;
     std::string custom_proxy;
     SbTime max_network_delay;

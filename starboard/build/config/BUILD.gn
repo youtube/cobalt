@@ -51,6 +51,7 @@ config("base") {
       "OFFICIAL_BUILD",
       "TRACING_DISABLED",
       "COBALT_FORCE_CSP",
+      "COBALT_FORCE_CORS",
     ]
   }
 

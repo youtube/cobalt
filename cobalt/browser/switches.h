@@ -36,6 +36,8 @@ extern const char kWaitForWebDebugger[];
 extern const char kWaitForWebDebuggerHelp[];
 #endif  // ENABLE_DEBUGGER
 
+extern const char kAllowAllCrossOrigin[];
+extern const char kAllowAllCrossOriginHelp[];
 extern const char kDisableImageAnimations[];
 extern const char kDisableImageAnimationsHelp[];
 extern const char kForceDeterministicRendering[];

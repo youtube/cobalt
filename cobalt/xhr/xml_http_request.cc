@@ -344,6 +344,12 @@ void XMLHttpRequest::TraceMembers(script::Tracer* tracer) {
 XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
     : error_(false),
       is_cross_origin_(false),
+      cors_policy_(xhr->environment_settings()
+                       ->context()
+                       ->fetcher_factory()
+                       ->network_module()
+                       ->network_delegate()
+                       ->cors_policy()),
       is_data_url_(false),
       is_redirect_(false),
       method_(net::URLFetcher::GET),
@@ -918,7 +924,7 @@ void XMLHttpRequestImpl::OnURLFetchResponseStarted(
   if (is_cross_origin_) {
     if (!loader::CORSPreflight::CORSCheck(*http_response_headers_,
                                           origin_.SerializedOrigin(),
-                                          with_credentials_)) {
+                                          with_credentials_, cors_policy_)) {
       HandleRequestError(XMLHttpRequest::kNetworkError);
       return;
     }
@@ -1177,7 +1183,7 @@ void XMLHttpRequestImpl::OnRedirect(const net::HttpResponseHeaders& headers) {
   // CORS check for the received response
   if (is_cross_origin_) {
     if (!loader::CORSPreflight::CORSCheck(headers, origin_.SerializedOrigin(),
-                                          with_credentials_)) {
+                                          with_credentials_, cors_policy_)) {
       HandleRequestError(XMLHttpRequest::kNetworkError);
       return;
     }
@@ -1452,6 +1458,7 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
             ->GetWindowOrWorkerGlobalScope()
             ->get_preflight_cache()));
     corspreflight_->set_headers(request_headers_);
+    corspreflight_->set_cors_policy(cors_policy_);
     // For cross-origin requests, don't send or save auth data / cookies unless
     // withCredentials was set.
     // To make a cross-origin request, add origin, referrer source, credentials,

@@ -147,6 +147,11 @@ const char kRequireCSPHelp[] =
     "Forbid Cobalt to start without receiving csp headers which is enabled by "
     "default in production.";
 
+const char kAllowAllCrossOrigin[] = "allow_all_cross_origin";
+const char kAllowAllCrossOriginHelp[] =
+    "Disables SOP checks and allows all cross-origin connections in "
+    "development builds.";
+
 const char kRequireHTTPSLocation[] = "require_https";
 const char kRequireHTTPSLocationHelp[] =
     "Ask Cobalt to only accept https url which is enabled by default in "
@@ -458,6 +463,7 @@ std::string HelpMessage() {
         {kMinCompatibilityVersion, kMinCompatibilityVersionHelp},
         {kNullSavegame, kNullSavegameHelp}, {kProd, kProdHelp},
         {kRequireCSP, kRequireCSPHelp},
+        {kAllowAllCrossOrigin, kAllowAllCrossOriginHelp},
         {kRequireHTTPSLocation, kRequireHTTPSLocationHelp},
         {kShutdownAfter, kShutdownAfterHelp},
         {kStubImageDecoder, kStubImageDecoderHelp},

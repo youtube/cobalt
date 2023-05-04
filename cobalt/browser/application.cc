@@ -515,6 +515,7 @@ struct NonTrivialStaticFields {
 struct SecurityFlags {
   csp::CSPHeaderPolicy csp_header_policy;
   network::HTTPSRequirement https_requirement;
+  network::CORSPolicy cors_policy;
 };
 
 // |non_trivial_static_fields| will be lazily created on the first time it's
@@ -810,7 +811,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.web_options.extra_web_file_dir =
       GetExtraWebFileDir();
-  SecurityFlags security_flags{csp::kCSPRequired, network::kHTTPSRequired};
+  SecurityFlags security_flags{csp::kCSPRequired, network::kHTTPSRequired,
+                               network::kCORSRequired};
   // Set callback to be notified when a navigation occurs that destroys the
   // underlying WebModule.
   options.web_module_created_callback =
@@ -839,9 +841,14 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     security_flags.csp_header_policy = csp::kCSPOptional;
   }
 
+  if (command_line->HasSwitch(browser::switches::kAllowAllCrossOrigin)) {
+    security_flags.cors_policy = network::kCORSOptional;
+  }
+
   if (command_line->HasSwitch(browser::switches::kProd)) {
     security_flags.https_requirement = network::kHTTPSRequired;
     security_flags.csp_header_policy = csp::kCSPRequired;
+    security_flags.cors_policy = network::kCORSRequired;
   }
 
   if (command_line->HasSwitch(switches::kVideoPlaybackRateMultiplier)) {
@@ -882,7 +889,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   security_flags.csp_header_policy = csp::kCSPRequired;
 #endif  // defined(COBALT_FORCE_CSP)
 
+#if defined(COBALT_FORCE_CORS)
+  security_flags.cors_policy = network::kCORSRequired;
+#endif  // defined(COBALT_FORCE_CORS)
+
   network_module_options.https_requirement = security_flags.https_requirement;
+  network_module_options.cors_policy = security_flags.cors_policy;
   options.web_module_options.csp_header_policy =
       security_flags.csp_header_policy;
   options.web_module_options.csp_enforcement_type = web::kCspEnforcementEnable;
