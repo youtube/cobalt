@@ -21,11 +21,11 @@ import("//starboard/build/config/enable_vr.gni")
 # Please follow the formatting in this file when adding new ones.
 
 declare_args() {
-  # Enables the yasm compiler to be used to compile .asm files.
-  yasm_exists = false
+  # Enables the nasm compiler to be used to compile .asm files.
+  nasm_exists = false
 
   # Where yasm can be found on the host device.
-  path_to_yasm = "yasm"
+  path_to_nasm = "nasm"
 
   # The Starboard API version of the current build configuration. The default
   # value is meant to be overridden by a Starboard ABI file.

@@ -29,7 +29,7 @@ source_set("libjpeg_headers") {
   }
 }
 
-if (yasm_exists && (current_cpu == "x86" || current_cpu == "x64")) {
+if (nasm_exists && (current_cpu == "x86" || current_cpu == "x64")) {
   if (is_starboard) {
     import("//starboard/build/nasm_assemble.gni")
   } else {
@@ -162,10 +162,10 @@ static_library("simd") {
     defines = []
   }
 
-  if (current_cpu == "x86" && yasm_exists) {
+  if (current_cpu == "x86" && nasm_exists) {
     deps += [ ":simd_asm" ]
     sources = [ "simd/i386/jsimd.c" ]
-  } else if (current_cpu == "x64" && yasm_exists) {
+  } else if (current_cpu == "x64" && nasm_exists) {
     deps += [ ":simd_asm" ]
     sources = [ "simd/x86_64/jsimd.c" ]
   } else if ((current_cpu == "arm" || current_cpu == "arm64") && arm_use_neon) {
