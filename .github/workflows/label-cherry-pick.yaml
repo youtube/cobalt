@@ -72,12 +72,23 @@ jobs:
       - name: Cherry pick merge commit
         run: |
           git fetch origin ${{ matrix.target_branch }}
+          set +e
           git cherry-pick -x $MERGE_COMMIT_SHA
+          RES=$?
+          set -e
+          if [ $RES -eq 0 ]; then
+            echo "CREATE_PR_AS_DRAFT=false" >> $GITHUB_ENV
+          else
+            echo "CREATE_PR_AS_DRAFT=true" >> $GITHUB_ENV
+            git add .
+            git cherry-pick --continue
+          fi
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@2b011faafdcbc9ceb11414d64d0573f37c774b04 # v4.2.3
         with:
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
+          draft: ${{ env.CREATE_PR_AS_DRAFT }}
           base: ${{ matrix.target_branch }}
           branch: "${{ matrix.target_branch }}-${{ github.event.pull_request.number }}"
           committer: GitHub Release Automation <github@google.com>
