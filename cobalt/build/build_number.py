@@ -17,7 +17,7 @@ import json
 import logging
 import os
 import subprocess
-from six.moves import urllib
+import urllib
 from cobalt.tools import paths
 
 _SUBREPO_PATHS = ['starboard/keyboxes']
@@ -39,7 +39,7 @@ def CheckRevInfo(key, cwd=None):
   git_get_revision_args = ['git', 'rev-parse', 'HEAD']
   revision = subprocess.check_output(
       git_get_revision_args, cwd=cwd).strip().decode('utf-8')
-  return {key: '{}@{}'.format(remote, revision)}
+  return {key: f'{remote}@{revision}'}
 
 
 def GetRevinfo():
@@ -76,7 +76,7 @@ def GetOrGenerateNewBuildNumber(version_server=_VERSION_SERVER_URL):
   """Send a request to the build version server for a build number."""
 
   if os.path.isfile(BUILD_ID_PATH):
-    with open(BUILD_ID_PATH, 'r') as build_id_file:
+    with open(BUILD_ID_PATH, 'r', encoding='utf-8') as build_id_file:
       build_number = int(build_id_file.read().replace('\n', ''))
       logging.info('Retrieving build number from %s', BUILD_ID_PATH)
       return build_number
