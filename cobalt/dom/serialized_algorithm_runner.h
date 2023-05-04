@@ -15,6 +15,7 @@
 #ifndef COBALT_DOM_SERIALIZED_ALGORITHM_RUNNER_H_
 #define COBALT_DOM_SERIALIZED_ALGORITHM_RUNNER_H_
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -26,6 +27,7 @@
 #include "base/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "starboard/common/mutex.h"
+#include "starboard/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -84,11 +86,31 @@ class SerializedAlgorithmRunner {
                              const starboard::Mutex& mutex)
           : synchronization_required_(synchronization_required), mutex_(mutex) {
         if (synchronization_required_) {
-          mutex_.Acquire();
+          // Crash if we are trying to re-acquire again on the same thread.
+          CHECK_NE(acquired_thread_id_, SbThreadGetId());
+
+          SbTime start = SbTimeGetMonotonicNow();
+          SbTime wait_interval = kSbTimeMillisecond;
+          constexpr SbTime kMaxWaitInterval = kSbTimeMillisecond * 16;
+
+          for (;;) {
+            if (mutex_.AcquireTry()) {
+              break;
+            }
+            SbThreadSleep(wait_interval);
+            // Double the wait interval upon every failure, but cap it at
+            // kMaxWaitInterval.
+            wait_interval = std::min(wait_interval * 2, kMaxWaitInterval);
+            // Crash if we've been waiting for too long.
+            CHECK_LT(SbTimeGetMonotonicNow() - start, kSbTimeSecond);
+          }
+          acquired_thread_id_ = SbThreadGetId();
         }
       }
       ~ScopedLockWhenRequired() {
         if (synchronization_required_) {
+          CHECK_EQ(acquired_thread_id_, SbThreadGetId());
+          acquired_thread_id_ = kSbThreadInvalidId;
           mutex_.Release();
         }
       }
@@ -96,6 +118,7 @@ class SerializedAlgorithmRunner {
      private:
       const bool synchronization_required_;
       const starboard::Mutex& mutex_;
+      SbThreadId acquired_thread_id_ = kSbThreadInvalidId;
     };
 
     Handle(bool synchronization_required,
