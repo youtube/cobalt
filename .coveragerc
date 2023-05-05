@@ -1,6 +1,8 @@
 # pycov configuration
 
 [run]
+source=.
+
 omit=
   # Exclude test files from coverage report
   *_test.py
