@@ -28,7 +28,7 @@ runs:
           echo "LOADER_PLATFORM=${COBALT_BOOTLOADER}" >> $GITHUB_ENV
         fi
 
-        # dimension env
+        # Dimension env
         if [ "${{ matrix.dimension }}" != "null" ]; then
           echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
         fi
@@ -41,14 +41,6 @@ runs:
           echo "SHARD_NAME=unit_test_${{ matrix.shard }}" >> $GITHUB_ENV
           echo "TEST_TYPE=unit_test" >> $GITHUB_ENV
           echo "USE_SHARDING=1" >> $GITHUB_ENV
-        fi
-
-        if [[ "${{ matrix.target_platform }}" == "android"* ]]; then
-          # Test retries for android
-          echo "TEST_ATTEMPTS=3" >> $GITHUB_ENV
-        elif [[ "${{ matrix.target_platform }}" == "raspi"* || $COBALT_BOOTLOADER == "raspi"* ]]; then
-          # Test retries for raspi (and raspi on evergreen)
-          echo "TEST_ATTEMPTS=3" >> $GITHUB_ENV
         fi
       shell: bash
     - name: trigger ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
@@ -82,7 +74,7 @@ runs:
             ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
             ${DIMENSION:+"--dimension" "$DIMENSION"} \
             ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
-            ${TEST_ATTEMPTS:+"--test_attempts" "$TEST_ATTEMPTS"} \
+            ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
             --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
             --label github \
             --label ${GITHUB_EVENT_NAME} \
