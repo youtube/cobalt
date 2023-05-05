@@ -1,0 +1,9 @@
+# pycov configuration
+
+[run]
+omit=
+  # Exclude test files from coverage report
+  *_test.py
+
+  # Exclude scripts in third_party/
+  third_party/*
