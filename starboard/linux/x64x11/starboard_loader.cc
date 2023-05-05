@@ -16,33 +16,28 @@
 #include <stdio.h>
 #include <time.h>
 
+#include <string>
+
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 
-#define CONCATENATE_STRINGS(a, b) a b
-
 int main(int argc, char** argv) {
-  static const char* s_libraryPath1 =
-      "/usr/local/google/home/andrewsavage/cobalt/cobalt_src/out/"
-      "linux-x64x11_devel/"
-      "starboard/libstarboard_platform.so";
-  static const char* s_libraryPath2 = CONCATENATE_STRINGS(
-      CONCATENATE_STRINGS("/usr/local/google/home/andrewsavage/cobalt/"
-                          "cobalt_src/out/linux-x64x11_devel/lib",
-                          SB_LOADER_MODULE),
-      ".so");
+  const std::string s_libraryPath1 =
+      std::string(OUT_DIRECTORY) + "/starboard/libstarboard_platform_group.so";
+  const std::string s_libraryPath2 =
+      std::string(OUT_DIRECTORY) + "/lib" + SB_LOADER_MODULE + ".so";
   int startResult;
   printf("Loader: %s\n", __FILE__);
-  printf("Loading: %s\n", s_libraryPath1);
-  void* handle1 = dlopen(s_libraryPath1, RTLD_NOW);
+  printf("Loading: %s\n", s_libraryPath1.c_str());
+  void* handle1 = dlopen(s_libraryPath1.c_str(), RTLD_NOW);
   if (!handle1) {
     printf("dlopen failure: %s", dlerror());
     return 1;
   }
 
-  printf("Loading: %s\n", s_libraryPath2);
-  void* handle2 = dlopen(s_libraryPath2, RTLD_NOW);
+  printf("Loading: %s\n", s_libraryPath2.c_str());
+  void* handle2 = dlopen(s_libraryPath2.c_str(), RTLD_NOW);
   if (!handle2) {
     printf("dlopen failure: %s", dlerror());
     return 1;
