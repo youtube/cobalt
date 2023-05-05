@@ -61,6 +61,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.device_ip = socket.gethostbyname(socket.gethostname())
 
     self.executable = self.GetTargetPath()
+    if not os.path.exists(self.executable):
+      self.executable += "_loader"
 
     env = os.environ.copy()
     env.update(self.env_variables)
