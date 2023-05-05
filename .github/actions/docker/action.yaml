@@ -78,12 +78,12 @@ runs:
     - name: Build containers with docker-compose
       id: build-image
       if: env.need_to_build == 'true'
-      uses: smartlyio/docker-compose-action@83392e28664cc0cb5b3208e8d75697d01da8db18 # v1.7.1
-      with:
-        serviceName: ${{ inputs.docker_service }}
-        build: false
-        push: "on:push"
-        composeArguments: "--no-start"
+      env:
+        SERVICE: ${{inputs.docker_service}}
+      shell: bash
+      run: |
+        set -xue
+        DOCKER_BUILDKIT=0 docker compose -f docker-compose.yml up --build --no-start "${SERVICE}"
     - name: Tag images
       id: tag-images
       if: env.need_to_build == 'true'
