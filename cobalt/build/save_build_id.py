@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright 2016 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -75,8 +75,8 @@ def main():
     return RETVAL_ERROR
 
   try:
-    with open(_BUILD_ID_PATH, 'w') as build_id_file:
-      build_id_file.write('{0}'.format(options.build_id))
+    with open(_BUILD_ID_PATH, 'w', encoding='utf-8') as build_id_file:
+      build_id_file.write(f'{options.build_id}')
   except RuntimeError as e:
     logging.error(e)
     return RETVAL_ERROR
