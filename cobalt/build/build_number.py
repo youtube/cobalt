@@ -18,6 +18,7 @@ import logging
 import os
 import subprocess
 import urllib
+import urllib.request
 from cobalt.tools import paths
 
 _SUBREPO_PATHS = ['starboard/keyboxes']
