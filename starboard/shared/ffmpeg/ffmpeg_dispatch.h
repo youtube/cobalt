@@ -23,13 +23,27 @@
 
 struct AVCodec;
 struct AVCodecContext;
+struct AVCodecParameters;
 struct AVDictionary;
+struct AVDictionaryEntry;
+struct AVFormatContext;
 struct AVFrame;
+struct AVInputFormat;
+struct AVIOContext;
 struct AVPacket;
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
+
+//  derived from AV_VERSION_INT(a, b, c)   ((a)<<16 | (b)<<8 | (c))
+//  https://github.com/FFmpeg/FFmpeg/blob/master/doc/APIchanges#L1981
+constexpr int kAVCodecSupportsAvFrameAlloc = 3616101;
+constexpr int kAVCodecSupportsAvcodecFreeContext = 3620708;
+constexpr int kAVCodecSupportsAvPacketAlloc = 3738724;
+// https://github.com/libav/libav/blob/8e401dbe90cc77b1f3067a917d9fa48cefa3fcdb/libavutil/version.h
+// AV_VERSION_INT(52, 8, 0)
+constexpr int kAVUtilSupportsBufferCreate = 3409920;
 
 class FFMPEGDispatch {
  public:
@@ -53,9 +67,7 @@ class FFMPEGDispatch {
   void* (*av_malloc)(size_t size);
   void (*av_freep)(void* ptr);
   AVFrame* (*av_frame_alloc)(void);
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   void (*av_frame_free)(AVFrame** frame);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   void (*av_frame_unref)(AVFrame* frame);
   int (*av_samples_get_buffer_size)(int* linesize,
                                     int nb_channels,
@@ -78,9 +90,7 @@ class FFMPEGDispatch {
 
   unsigned (*avcodec_version)(void);
   AVCodecContext* (*avcodec_alloc_context3)(const AVCodec* codec);
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   void (*avcodec_free_context)(AVCodecContext** avctx);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   AVCodec* (*avcodec_find_decoder)(int id);
   int (*avcodec_close)(AVCodecContext* avctx);
   int (*avcodec_open2)(AVCodecContext* avctx,
@@ -104,6 +114,40 @@ class FFMPEGDispatch {
 
   unsigned (*avformat_version)(void);
   void (*av_register_all)(void);
+
+  void (*av_free)(void* ptr);
+  void (*av_free_packet)(AVPacket* pkt);
+  AVPacket* (*av_packet_alloc)(void);
+  void (*av_packet_free)(AVPacket** pkt);
+  AVDictionaryEntry* (*av_dict_get)(const AVDictionary* m,
+                                    const char* key,
+                                    const AVDictionaryEntry* prev,
+                                    int flags);
+  // Note: |rnd| represents type enum AVRounding.
+  int64_t (*av_rescale_rnd)(int64_t a, int64_t b, int64_t c, int rnd);
+  int (*av_seek_frame)(AVFormatContext* s,
+                       int stream_index,
+                       int64_t timestamp,
+                       int flags);
+  int (*av_read_frame)(AVFormatContext* s, AVPacket* pkt);
+  void (*av_packet_unref)(AVPacket* pkt);
+  int (*avformat_open_input)(AVFormatContext** ps,
+                             const char* filename,
+                             AVInputFormat* fmt,
+                             AVDictionary** options);
+  void (*avformat_close_input)(AVFormatContext** s);
+  AVFormatContext* (*avformat_alloc_context)(void);
+  int (*avformat_find_stream_info)(AVFormatContext* ic, AVDictionary** options);
+  AVIOContext* (*avio_alloc_context)(
+      unsigned char* buffer,
+      int buffer_size,
+      int write_flag,
+      void* opaque,
+      int (*read_packet)(void* opaque, uint8_t* buf, int buf_size),
+      int (*write_packet)(void* opaque, uint8_t* buf, int buf_size),
+      int64_t (*seek)(void* opaque, int64_t offset, int whence));
+  int (*avcodec_parameters_to_context)(AVCodecContext* codec,
+                                       const AVCodecParameters* par);
 
   int specialization_version() const;
 

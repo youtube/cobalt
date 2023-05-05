@@ -17,6 +17,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 
+#include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/once.h"
 
@@ -43,22 +44,19 @@ void FFMPEGDispatch::CloseCodec(AVCodecContext* codec_context) {
 }
 
 void FFMPEGDispatch::FreeFrame(AVFrame** frame) {
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  av_frame_free(frame);
-#else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  av_freep(frame);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
+  if (avcodec_version() > kAVCodecSupportsAvFrameAlloc) {
+    av_frame_free(frame);
+  } else {
+    av_freep(frame);
+  }
 }
 
 void FFMPEGDispatch::FreeContext(AVCodecContext** avctx) {
-#if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  avcodec_free_context(avctx);
-#else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
-  if (avctx->extradata_size) {
-    av_freep(&((*avctx)->extradata));
+  if (avcodec_version() > kAVCodecSupportsAvcodecFreeContext) {
+    avcodec_free_context(avctx);
+  } else {
+    av_freep(avctx);
   }
-  av_freep(avctx);
-#endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 }
 
 }  // namespace ffmpeg
