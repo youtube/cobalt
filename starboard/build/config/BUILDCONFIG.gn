@@ -85,6 +85,10 @@ if (is_mac) {
 # Get the path to the starboard implementation and include its GN
 # configuration.
 import("//starboard/build/platform_path.gni")
+
+import("//$starboard_path/platform_configuration/configuration.gni")
+import("//starboard/build/config/build_assertions.gni")
+
 # TODO(b/272790873): Set host_cpu to x86 for 32 bit builds.
 if (target_cpu == "x86" || target_cpu == "arm") {
   _host_toolchain_cpu = "x86"
@@ -92,11 +96,12 @@ if (target_cpu == "x86" || target_cpu == "arm") {
   _host_toolchain_cpu = host_cpu
 }
 host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
-target_toolchain = "//$starboard_path/toolchain:target"
+if (sb_is_evergreen) {
+  target_toolchain = "//starboard/build/toolchain/linux:clang_lld"
+} else {
+  target_toolchain = "//$starboard_path/toolchain:target"
+}
 set_default_toolchain(target_toolchain)
-
-import("//$starboard_path/platform_configuration/configuration.gni")
-import("//starboard/build/config/build_assertions.gni")
 
 declare_args() {
   use_tsan = getenv("USE_TSAN") == 1
