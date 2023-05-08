@@ -33,6 +33,7 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/KeyboardInputConnection.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/MediaPlaybackService.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
