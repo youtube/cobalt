@@ -280,7 +280,6 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif
       on_error_retry_count_(0),
       waiting_for_error_retry_(false),
-      will_quit_(false),
       application_state_(initial_application_state),
       main_web_module_generation_(0),
       next_timeline_id_(1),
