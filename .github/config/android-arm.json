@@ -9,7 +9,7 @@
       "3",
       "black_box_test"
     ],
-    "test_attempts": 3
+    "test_attempts": 2
   },
   "platforms": [
     "android-arm"

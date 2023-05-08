@@ -10,7 +10,7 @@
       "4",
       "5"
     ],
-    "test_attempts": 3
+    "test_attempts": 2
   },
   "platforms": [
     "raspi-2",
