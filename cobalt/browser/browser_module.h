@@ -688,15 +688,6 @@ class BrowserModule {
   // resume until the error retry occurs.
   bool waiting_for_error_retry_;
 
-  // Set when the application is about to quit. May be set from a thread other
-  // than the one hosting this object, and read from another.
-  bool will_quit_;
-
-  // The |will_quit_| flag may be set from one thread (e.g. not the one hosting
-  // this object) and read from another. This lock is used to
-  // ensure synchronous access.
-  base::Lock quit_lock_;
-
   // The current application state.
   base::ApplicationState application_state_;
 
