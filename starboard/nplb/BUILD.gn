@@ -275,7 +275,7 @@ target(gtest_target_type, "nplb") {
     "//testing/gmock",
   ]
 
-  deps += cobalt_platform_dependencies
+  # deps += cobalt_platform_dependencies
 
   if (is_internal_build) {
     deps += [ "//internal/starboard/private/nplb:nplb_private" ]

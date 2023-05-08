@@ -62,7 +62,8 @@ static_library("audio") {
     "//cobalt/web:dom_exception",
     "//starboard:starboard_headers_only",
   ]
-  deps += cobalt_platform_dependencies
+
+  # deps += cobalt_platform_dependencies
 }
 
 target(gtest_target_type, "audio_test") {
@@ -80,5 +81,6 @@ target(gtest_target_type, "audio_test") {
     "//cobalt/test:run_all_unittests",
     "//testing/gtest",
   ]
-  deps += cobalt_platform_dependencies
+
+  # deps += cobalt_platform_dependencies
 }

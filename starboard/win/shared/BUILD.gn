@@ -369,6 +369,7 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     "//third_party/opus",
   ]
+  deps += cobalt_platform_dependencies
 
   if (is_internal_build) {
     deps += [ "//internal/starboard/private/shared/stub:private_sources" ]

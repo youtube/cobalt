@@ -77,7 +77,7 @@ static_library("network") {
   }
 
   if (!sb_is_evergreen) {
-    deps += cobalt_platform_dependencies
+    # deps += cobalt_platform_dependencies
   }
 }
 

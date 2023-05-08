@@ -19,5 +19,5 @@ target(final_executable_type, "simple_sandbox") {
 
   deps = [ "//cobalt/base" ]
 
-  deps += cobalt_platform_dependencies
+  # deps += cobalt_platform_dependencies
 }

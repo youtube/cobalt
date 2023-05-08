@@ -471,6 +471,7 @@ static_library("starboard_platform") {
     "//third_party/libevent",
     "//third_party/opus",
   ]
+  deps += cobalt_platform_dependencies
 
   if (is_internal_build) {
     sources += [
