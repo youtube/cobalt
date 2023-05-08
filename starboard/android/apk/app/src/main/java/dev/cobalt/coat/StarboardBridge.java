@@ -107,8 +107,11 @@ public class StarboardBridge {
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
   private final HashMap<String, String> crashContext = new HashMap<>();
 
+  private static final String AMATI_EXPERIENCE_FEATURE =
+      "com.google.android.feature.AMATI_EXPERIENCE";
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
+  private final boolean isAmatiDevice;
 
   public StarboardBridge(
       Context appContext,
@@ -138,6 +141,7 @@ public class StarboardBridge {
     this.resourceOverlay = new ResourceOverlay(appContext);
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
+    this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
   }
 
   private native boolean nativeInitialize();
@@ -674,6 +678,13 @@ public class StarboardBridge {
       Log.e(TAG, "Can't find our own package", ex);
     }
 
+    if (this.isAmatiDevice) {
+      sb.append(" TvOS:A"); // Amati
+    } else {
+      sb.append(" TvOS:W"); // Watson
+    }
+
+    Log.e(TAG, "Colin test: UserAgentAuxField is " + sb.toString());
     return sb.toString();
   }
 
