@@ -122,11 +122,11 @@ class AndroidConfiguration(PlatformConfiguration):
     # variations are supported.
     if (configuration == 'debug' or configuration == 'devel'):
       variables.update({
-        'cobalt_font_package': 'standard',
+          'cobalt_font_package': 'standard',
       })
     else:
       variables.update({
-        'cobalt_font_package': 'android_system',
+          'cobalt_font_package': 'android_system',
       })
     return variables
 
@@ -296,6 +296,10 @@ class AndroidConfiguration(PlatformConfiguration):
   # A map of failing or crashing tests per target.
   __FILTERED_TESTS = {  # pylint: disable=invalid-name
       'player_filter_tests': [
+          # Invalid input may lead to unexpected behaviors.
+          'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/*',
+          'AudioDecoderTests/AudioDecoderTest.MultipleValidInputsAfterInvalidInput/*',
+
           # GetMaxNumberOfCachedFrames() on Android is device dependent,
           # and Android doesn't provide an API to get it. So, this function
           # doesn't make sense on Android. But HoldFramesUntilFull tests depend
