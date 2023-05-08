@@ -42,7 +42,6 @@ RUN mkdir C:\TEMP;`
     Remove-Item C:\TEMP\vs_buildtools.exe
 
 ENV VSINSTALLDIR "C:\BuildTools"
-ENV VS_INSTALL_DIR "C:\BuildTools"
 ENV MSVC_TOOLS_VERSION "14.16.27023"
 ENV MSVC_REDIST_VERSION "14.16.27012"
 
