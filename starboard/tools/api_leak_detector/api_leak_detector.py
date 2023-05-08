@@ -85,17 +85,17 @@ _UNKNOWN_LIBRARIES = 'unknown_library(ies)'
 _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
 
-def _DiffWithManifest(leaked_symbols, manifest_path):
-  manifest_symbols = _LoadManifest(manifest_path)
+def DiffWithManifest(leaked_symbols, manifest_path):
+  manifest_symbols = LoadManifest(manifest_path)
   introduced = leaked_symbols.difference(manifest_symbols)
   removed = manifest_symbols.difference(leaked_symbols)
   return introduced, removed
 
 
-def _FindLibraries(config_path):
+def FindLibraries(config_path):
   """Returns all non-ignored static libraries in the build config directory."""
   print('Loading libraries to ignore...', file=sys.stderr)
-  libs_to_ignore = _LoadLibrariesToIgnore()
+  libs_to_ignore = LoadLibrariesToIgnore()
 
   libs = []
   for root, dirs, filenames in os.walk(config_path):
@@ -108,7 +108,7 @@ def _FindLibraries(config_path):
   return libs
 
 
-def _FindLeakingSourceFiles(leaking_symbols, nm_output, config_dir):
+def FindLeakingSourceFiles(leaking_symbols, nm_output, config_dir):
   r"""Collects and formats all filenames that have leaks in the nm output.
 
   This function works by iterating through the provided output, keeping track
@@ -138,7 +138,7 @@ def _FindLeakingSourceFiles(leaking_symbols, nm_output, config_dir):
   """
   files = {}
   filename = None
-  for line in _ProcessNmOutput(nm_output, True):
+  for line in ProcessNmOutput(nm_output, True):
     if config_dir in line:
 
       # See the description above to understand what the string manipulation
@@ -161,7 +161,7 @@ def _FindLeakingSourceFiles(leaking_symbols, nm_output, config_dir):
   return files
 
 
-def _InversedKeys(nested_dict):
+def InversedKeys(nested_dict):
   """Returns a copy of a 2D dict with its inner and outer keys swapped."""
   inverse = collections.defaultdict(dict)
   for outer_key, outer_value in nested_dict.items():
@@ -171,7 +171,7 @@ def _InversedKeys(nested_dict):
   return inverse
 
 
-def _FindLeakLocations(leaked_symbols, config_path):
+def FindLeakLocations(leaked_symbols, config_path):
   """Returns the static libraries and source files leaked APIs are used in.
 
   Args:
@@ -187,23 +187,23 @@ def _FindLeakLocations(leaked_symbols, config_path):
   libs_to_symbols = {}
 
   print('Collecting static libraries...', file=sys.stderr)
-  libs = _FindLibraries(config_path)
+  libs = FindLibraries(config_path)
 
   print('Searching the static libraries for leaks...', file=sys.stderr)
   for lib in libs:
     print(lib)
     libname = os.path.basename(lib)
-    nm_output = _RunCommand(['nm', '-u', lib])
+    nm_output = RunCommand(['nm', '-u', lib])
     libs_to_symbols[libname] = set()
-    for symbol in _ProcessNmOutput(nm_output):
+    for symbol in ProcessNmOutput(nm_output):
       if symbol not in leaked_symbols:
         continue
       libs_to_symbols[libname].add(symbol)
     if not libs_to_symbols[libname]:
       del libs_to_symbols[libname]
       continue
-    leaking_files[libname] = _FindLeakingSourceFiles(libs_to_symbols[libname],
-                                                     nm_output, config_dir)
+    leaking_files[libname] = FindLeakingSourceFiles(libs_to_symbols[libname],
+                                                    nm_output, config_dir)
     if not leaking_files[libname]:
       del leaking_files[libname]
 
@@ -217,10 +217,10 @@ def _FindLeakLocations(leaked_symbols, config_path):
         symbol: {_UNKNOWN_SOURCE_FILES} for symbol in leaked_without_libraries
     }
 
-  return _InversedKeys(leaking_files)
+  return InversedKeys(leaking_files)
 
 
-def _LoadAllowedC99Symbols():
+def LoadAllowedC99Symbols():
   allowed_c99_symbols = set()
 
   with open(_ALLOWED_C99_SYMBOLS_PATH, encoding='utf-8') as f:
@@ -233,7 +233,7 @@ def _LoadAllowedC99Symbols():
   return allowed_c99_symbols
 
 
-def _LoadManifest(manifest_path):
+def LoadManifest(manifest_path):
   symbols = set()
 
   with open(manifest_path, encoding='utf-8') as f:
@@ -245,7 +245,7 @@ def _LoadManifest(manifest_path):
   return symbols
 
 
-def _LoadLibrariesToIgnore():
+def LoadLibrariesToIgnore():
   # We should *always* ignore libstarboard_platform.a.
   libs = set(['libstarboard_platform.a'])
 
@@ -264,7 +264,7 @@ def _LoadLibrariesToIgnore():
   return libs
 
 
-def _ParseArgs():
+def ParseArgs():
   """Parse all of the arguments provided on the command line."""
   parser = argparse.ArgumentParser()
   mode = parser.add_mutually_exclusive_group(required=True)
@@ -302,7 +302,7 @@ def _ParseArgs():
   return parser.parse_args()
 
 
-def _PrettyPrint(output, indent=0, inc=2, file=sys.stderr):
+def PrettyPrint(output, indent=0, inc=2, file=sys.stderr):
   """Alternative to pprint that produces better output for our use case."""
   if isinstance(output, dict):
     if indent == 0:
@@ -311,7 +311,7 @@ def _PrettyPrint(output, indent=0, inc=2, file=sys.stderr):
       newline = 0
     for key, value in sorted(output.items()):
       print('{}{}{}'.format('\n' * newline, ' ' * indent, key), file=file)
-      _PrettyPrint(value, indent + inc)
+      PrettyPrint(value, indent + inc)
   elif isinstance(output, set):
     for value in sorted(output):
       print(f"{' ' * indent}{value}", file=file)
@@ -319,7 +319,7 @@ def _PrettyPrint(output, indent=0, inc=2, file=sys.stderr):
     print(f"{' ' * indent}{output}", file=file)
 
 
-def _ProcessNmOutput(nm_output, collect_files=False):
+def ProcessNmOutput(nm_output, collect_files=False):
   """Parses the 'nm' output and collects the matched and unresolved symbols.
 
   This function retains all of the allowlisted libraries that were loaded on
@@ -329,7 +329,7 @@ def _ProcessNmOutput(nm_output, collect_files=False):
     nm_output: The output from a previously ran 'nm -u' command.
     collect_files: Identifies whether or not to include files in the results.
       This increases the reusability of the function (see
-      _FindLeakingSourceFiles).
+      FindLeakingSourceFiles).
 
   Yields:
     Unresolved symbols that match _RE_SYMBOL_AND_ANY_VERSION_INFO.
@@ -350,13 +350,13 @@ def _ProcessNmOutput(nm_output, collect_files=False):
       print(f'Invalid line in nm output: {line}', file=sys.stderr)
 
 
-def _RunCommand(args):
+def RunCommand(args):
   """Executes a command with the given arguments and returns the output."""
   return subprocess.check_output(args)
 
 
 def main():
-  args = _ParseArgs()
+  args = ParseArgs()
   config_dir = f'{args.platform}_{args.config}'
   config_path = os.path.join(paths.BUILD_OUTPUT_ROOT, config_dir)
   manifest_path = os.path.join(
@@ -365,10 +365,10 @@ def main():
   print(_API_LEAK_DETECTOR_TITLE, file=sys.stderr)
 
   print('Loading allowed C99 symbols...', file=sys.stderr)
-  allowed_c99_symbols = _LoadAllowedC99Symbols()
+  allowed_c99_symbols = LoadAllowedC99Symbols()
 
   print(f'Building {config_dir} if necessary...', file=sys.stderr)
-  _RunCommand(['ninja', '-j256', '-C', config_path, args.target])
+  RunCommand(['ninja', '-j256', '-C', config_path, args.target])
 
   # First try using the GYP shared library path 'lib/libcobalt.so'.
   # TODO(b/211885836): stop considering the GYP shared library path once all
@@ -383,7 +383,7 @@ def main():
   print(f'Analyzing: {binary_path}', file=sys.stderr)
 
   # Get all of the unresolved symbols of the binary.
-  nm_output = _RunCommand([
+  nm_output = RunCommand([
       'nm',
       '-u',
       '-C',  # Demangle C++ symbols
@@ -396,21 +396,21 @@ def main():
     return symbol.startswith('Sb') or symbol.startswith('kSb')
 
   leaked_symbols = set(
-      symbol for symbol in _ProcessNmOutput(nm_output) \
+      symbol for symbol in ProcessNmOutput(nm_output) \
           if symbol not in allowed_c99_symbols and not IsSbSymbol(symbol)
   )
 
   if args.manifest:
     print('Done!', file=sys.stderr)
     print(_MANIFEST_HEADER)
-    _PrettyPrint(leaked_symbols, file=sys.stdout)
+    PrettyPrint(leaked_symbols, file=sys.stdout)
     return 0
 
   if args.submit_check:
-    introduced, removed = _DiffWithManifest(leaked_symbols, manifest_path)
+    introduced, removed = DiffWithManifest(leaked_symbols, manifest_path)
     if introduced:
-      _PrettyPrint(
-          {'Leaks introduced:': _FindLeakLocations(introduced, config_path)})
+      PrettyPrint(
+          {'Leaks introduced:': FindLeakLocations(introduced, config_path)})
       print(
           '\nPlease see advice for addressing new leaks at go/cobalt-api-leaks.'
       )
@@ -418,7 +418,7 @@ def main():
       print('\nNo leaks were introduced.', file=sys.stderr)
 
     if removed:
-      _PrettyPrint({'Leaks removed:': removed})
+      PrettyPrint({'Leaks removed:': removed})
       print('\nPlease delete removed leaks from the manifest file.')
     else:
       print('No leaks were removed.', file=sys.stderr)
@@ -429,7 +429,7 @@ def main():
 
   if args.inspect:
     if leaked_symbols:
-      _PrettyPrint(_FindLeakLocations(leaked_symbols, config_path))
+      PrettyPrint(FindLeakLocations(leaked_symbols, config_path))
     else:
       print('No leaks found!', file=sys.stderr)
     return 0
