@@ -51,6 +51,9 @@ class ExtendedResourcesManager {
   bool GetD3D12Objects(Microsoft::WRL::ComPtr<ID3D12Device>* device,
                        void** command_queue);
 
+  // Wait up to 10 sec until gpu decoders became ready or return false
+  bool WaitGpuDecoderReady() const;
+
   bool IsGpuDecoderReady() const {
     return is_av1_shader_compiled_ && is_vp9_shader_compiled_;
   }
@@ -82,6 +85,7 @@ class ExtendedResourcesManager {
 
   shared::starboard::ThreadChecker thread_checker_;
   Mutex mutex_;
+  Mutex shaders_compilation_mutex_;
   atomic_bool is_extended_resources_acquired_;
 
   std::atomic_bool is_av1_shader_compiled_ = {false};
@@ -99,6 +103,8 @@ class ExtendedResourcesManager {
   // This condition variable is used to synchronize changes to
   // is_extended_resources_acquired_.
   ConditionVariable acquisition_condition_;
+  // This condition variable is used to wait shaders compilation finished.
+  ConditionVariable shaders_compilation_condition_;
 };
 
 }  // namespace uwp
