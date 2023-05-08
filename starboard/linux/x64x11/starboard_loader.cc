@@ -23,36 +23,36 @@
 #include "starboard/event.h"
 
 int main(int argc, char** argv) {
-  const std::string s_libraryPath1 =
+  const std::string starboard_library_path =
       std::string(OUT_DIRECTORY) + "/starboard/libstarboard_platform_group.so";
-  const std::string s_libraryPath2 =
+  const std::string target_library_path =
       std::string(OUT_DIRECTORY) + "/lib" + SB_LOADER_MODULE + ".so";
-  int startResult;
+
   printf("Loader: %s\n", __FILE__);
-  printf("Loading: %s\n", s_libraryPath1.c_str());
-  void* handle1 = dlopen(s_libraryPath1.c_str(), RTLD_NOW);
-  if (!handle1) {
+  printf("Loading: %s\n", starboard_library_path.c_str());
+  void* starboard_library = dlopen(starboard_library_path.c_str(), RTLD_NOW);
+  if (!starboard_library) {
     printf("dlopen failure: %s", dlerror());
     return 1;
   }
 
-  printf("Loading: %s\n", s_libraryPath2.c_str());
-  void* handle2 = dlopen(s_libraryPath2.c_str(), RTLD_NOW);
-  if (!handle2) {
+  printf("Loading: %s\n", target_library_path.c_str());
+  void* target_library = dlopen(target_library_path.c_str(), RTLD_NOW);
+  if (!target_library) {
     printf("dlopen failure: %s", dlerror());
     return 1;
   }
 
-  void* callback = nullptr;
-  callback = dlsym(handle2, "SbEventHandle");
-  if (!callback) {
+  void* sb_event_callback = dlsym(target_library, "SbEventHandle");
+  if (!sb_event_callback) {
     printf("dlsym failure: %s", dlerror());
+    return 1;
   }
 
   auto result = SbRunStarboardMain(
-      argc, argv, reinterpret_cast<SbEventHandleCallback>(callback));
+      argc, argv, reinterpret_cast<SbEventHandleCallback>(sb_event_callback));
 
-  dlclose(handle1);
-  dlclose(handle2);
+  dlclose(target_library);
+  dlclose(starboard_library);
   return result;
 }

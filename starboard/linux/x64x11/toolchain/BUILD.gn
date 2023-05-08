@@ -13,22 +13,7 @@
 # limitations under the License.
 
 import("//build/config/clang/clang.gni")
-import("//starboard/evergreen/shared/toolchain/toolchain.gni")
 import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
-
-gcc_toolchain("cobalt") {
-  cc = evergreen_target_cc
-  cxx = evergreen_target_cxx
-  ld = evergreen_target_ld
-  ar = evergreen_target_ar
-  nm = evergreen_target_nm
-
-  extra_ldflags = string_join(" ", evergreen_target_extra_ldflags)
-
-  toolchain_args = {
-    is_clang = true
-  }
-}
 
 overridable_clang_toolchain("starboard") {
   clang_base_path = clang_base_path

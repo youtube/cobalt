@@ -88,9 +88,6 @@ if (is_mac) {
 # configuration.
 import("//starboard/build/platform_path.gni")
 
-import("//$starboard_path/platform_configuration/configuration.gni")
-import("//starboard/build/config/build_assertions.gni")
-
 # TODO(b/272790873): Set host_cpu to x86 for 32 bit builds.
 if (target_cpu == "x86" || target_cpu == "arm") {
   _host_toolchain_cpu = "x86"
@@ -103,7 +100,8 @@ if (build_with_separate_cobalt_toolchain) {
   cobalt_toolchain = "//starboard/build/toolchain/linux:clang_lld"
   starboard_toolchain = "//$starboard_path/toolchain:starboard"
 } else {
-  if (sb_is_evergreen) {
+  target_platform_parts = string_split(target_platform, "-")
+  if (target_platform_parts[0] == "evergreen") {
     cobalt_toolchain = "//starboard/build/toolchain/linux:clang_lld"
   } else {
     cobalt_toolchain = "//$starboard_path/toolchain:target"
@@ -391,7 +389,6 @@ template("shared_library") {
         sources = [ "//$starboard_path/starboard_loader.cc" ]
 
         out_dir = rebase_path(root_build_dir)
-        libs = [ "$root_build_dir/lib${original_target_name}.so" ]
         defines = [
           "SB_LOADER_MODULE=\"$original_target_name\"",
           "OUT_DIRECTORY=\"${out_dir}\"",
