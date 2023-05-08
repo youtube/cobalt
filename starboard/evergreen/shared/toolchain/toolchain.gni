@@ -20,22 +20,3 @@ evergreen_target_cxx = "$prefix/clang++"
 evergreen_target_ld = "$prefix/ld.lld"
 evergreen_target_ar = "${prefix}/llvm-ar"
 evergreen_target_nm = "nm"
-
-# TODO(b/206642994): see if any of these flags, migrated from
-# starboard/tools/toolchain/evergreen_linker.py, can be removed.
-evergreen_target_extra_ldflags = [
-  "--build-id",
-  "--gc-sections",
-  "-X",
-  "-v",
-  "-eh-frame-hdr",
-  "--fini=__cxa_finalize",
-  "-shared",
-  "-L$clang_base_path",
-  "-L/usr/lib",
-  "-L/lib",
-  "-nostdlib",
-  "--whole-archive",
-  "--no-whole-archive",
-  "-u GetEvergreenSabiString",
-]
