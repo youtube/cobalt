@@ -23,9 +23,6 @@ volumes:
 
 x-common-definitions: &common-definitions
   stdin_open: true
-  environment:
-    - SCCACHE_DIR=c:/root/sccache
-    - SCCACHE_CACHE_SIZE="30G"
   tty: true
   volumes:
     - ${COBALT_SRC:-.}:c:/code/
@@ -40,6 +37,9 @@ x-shared-build-env: &shared-build-env
   CONFIG: ${CONFIG:-devel}
   TARGET: ${TARGET:-cobalt_install}
   NINJA_FLAGS: ${NINJA_FLAGS}
+  SCCACHE: 1
+  SCCACHE_DIR: c:/root/sccache
+  SCCACHE_CACHE_SIZE: "30G"
 
 services:
   cobalt-build-win-internal:
