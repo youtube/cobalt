@@ -17,7 +17,6 @@
 
 #include <queue>
 
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
