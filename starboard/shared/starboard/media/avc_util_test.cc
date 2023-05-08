@@ -16,7 +16,6 @@
 
 #include <vector>
 
-#include "starboard/common/optional.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
