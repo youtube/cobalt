@@ -58,7 +58,7 @@ x-shared-unittest-definitions: &shared-unittest-definitions
   build:
     context: ./docker/linux
     dockerfile: unittest/Dockerfile
-  image: cobalt-unittest
+  image: cobalt-linux-x64x11-unittest
   environment:
     - PLATFORM=${PLATFORM:-linux-x64x11}
     - CONFIG=${CONFIG:-devel}
