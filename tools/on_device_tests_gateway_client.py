@@ -235,7 +235,9 @@ def main():
       type=str,
       default='ERROR',
       required=False,
-      help='The retry level of Mobile harness job. Either ERROR or FAIL.')
+      help='The retry level of Mobile harness job. Either ERROR (to retry for '
+      'MH errors) or FAIL (to retry for failing tests). Setting retry_level to '
+      'FAIL will also retry for MH errors.')
 
   watch_parser = subparsers.add_parser('watch', help='Trigger On-Device tests')
   watch_parser.add_argument(
