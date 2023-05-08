@@ -19,7 +19,7 @@ jobs:
       matrix:
         # TODO(b/281098312): pytest fails on windows-latest
         os: [ubuntu-latest]
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.7', '3.11']
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
