@@ -13,7 +13,22 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  ldflags = []
+  ldflags = [
+    "--build-id",
+    "--gc-sections",
+    "-X",
+    "-v",
+    "-eh-frame-hdr",
+    "--fini=__cxa_finalize",
+    "-shared",
+    "-L$clang_base_path",
+    "-L/usr/lib",
+    "-L/lib",
+    "-nostdlib",
+    "--whole-archive",
+    "--no-whole-archive",
+    "-u GetEvergreenSabiString",
+  ]
 
   cflags = [
     "-ffunction-sections",
