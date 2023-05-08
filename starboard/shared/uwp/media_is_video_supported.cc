@@ -206,7 +206,7 @@ class XboxVideoCapabilities {
     bool is_supported = hw_decoder_capabilities_.IsSupported(
         codec, transfer_id, width, height, fps);
 
-    if (ExtendedResourcesManager::GetInstance()->IsGpuDecoderReady() &&
+    if (ExtendedResourcesManager::GetInstance()->WaitGpuDecoderReady() &&
         !is_supported) {
       is_supported = gpu_decoder_capabilities_.IsSupported(codec, transfer_id,
                                                            width, height, fps);

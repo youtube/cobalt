@@ -64,7 +64,8 @@ bool IsExtendedResourceModeRequired() {
 ExtendedResourcesManager* ExtendedResourcesManager::s_instance_;
 
 ExtendedResourcesManager::ExtendedResourcesManager()
-    : acquisition_condition_(mutex_) {
+    : acquisition_condition_(mutex_),
+      shaders_compilation_condition_(shaders_compilation_mutex_) {
   SB_DCHECK(!s_instance_);
   s_instance_ = this;
 }
@@ -197,6 +198,16 @@ bool ExtendedResourcesManager::GetD3D12Objects(
   *device = d3d12device_;
   *command_queue = d3d12queue_.Get();
   return true;
+}
+
+bool ExtendedResourcesManager::WaitGpuDecoderReady() const {
+  ScopedLock scoped_lock(shaders_compilation_mutex_);
+  if (is_av1_shader_compiled_ && is_vp9_shader_compiled_)
+    return true;
+  // AcquireExtendedResourcesInternal() waits up to 10 sec for complete,
+  // so we wait the same time
+  bool ret = shaders_compilation_condition_.WaitTimed(10 * kSbTimeSecond);
+  return ret && is_av1_shader_compiled_ && is_vp9_shader_compiled_;
 }
 
 bool ExtendedResourcesManager::GetD3D12ObjectsInternal() {
@@ -366,6 +377,7 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
 
     if (is_av1_shader_compiled_ && is_vp9_shader_compiled_) {
       MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
+      shaders_compilation_condition_.Signal();
     }
   });
 }
