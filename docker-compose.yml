@@ -58,7 +58,7 @@ x-shared-unittest-definitions: &shared-unittest-definitions
   build:
     context: ./docker/linux
     dockerfile: unittest/Dockerfile
-  image: cobalt-unittest
+  image: cobalt-linux-x64x11-unittest
   environment:
     - PLATFORM=${PLATFORM:-linux-x64x11}
     - CONFIG=${CONFIG:-devel}
@@ -435,13 +435,8 @@ services:
 
   linux-x64x11-sbversion12-evergreen:
     <<: *build-common-definitions
-    build:
-      context: ./docker/linux
-      dockerfile: linux-x64x11/Dockerfile
-      args:
-        - FROM_IMAGE=cobalt-build-evergreen
     image: cobalt-build-linux-x64x11-evergreen
-    depends_on: [ build-evergreen ]
+    depends_on: [ build-linux-evergreen ]
     environment:
       <<: *shared-build-env
       PLATFORM: linux-x64x11-sbversion-12
@@ -455,32 +450,32 @@ services:
   # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run linux-x64x11
   # 3. Run the unittests for that target.
   # PLATFORM=linux-x64x11 CONFIG=devel TARGET=all docker-compose run unittest
-  unittest:
+  linux-x64x11-unittest:
     <<: *shared-unittest-definitions
 
   # Stub container that launches all shard containers in parallel.
-  unittest-parallel:
+  linux-x64x11-unittest-parallel:
     image: cobalt-base
     entrypoint: ["/bin/sh", "-c", "echo", "done"]
     depends_on:
-      - unittest-parallel-0
-      - unittest-parallel-1
-      - unittest-parallel-2
-      - unittest-parallel-3
+      - linux-x64x11-unittest-parallel-0
+      - linux-x64x11-unittest-parallel-1
+      - linux-x64x11-unittest-parallel-2
+      - linux-x64x11-unittest-parallel-3
 
-  unittest-parallel-0:
+  linux-x64x11-unittest-parallel-0:
     <<: *shared-unittest-definitions
     entrypoint: ["python3", "/unittest_docker_launcher.py", "0"]
 
-  unittest-parallel-1:
+  linux-x64x11-unittest-parallel-1:
     <<: *shared-unittest-definitions
     entrypoint: ["python3", "/unittest_docker_launcher.py", "1"]
 
-  unittest-parallel-2:
+  linux-x64x11-unittest-parallel-2:
     <<: *shared-unittest-definitions
     entrypoint: ["python3", "/unittest_docker_launcher.py", "2"]
 
-  unittest-parallel-3:
+  linux-x64x11-unittest-parallel-3:
     <<: *shared-unittest-definitions
     entrypoint: ["python3", "/unittest_docker_launcher.py", "3"]
 
@@ -491,15 +486,15 @@ services:
     image: cobalt-xvfb
     build:
       context: ./docker/linux/
-      dockerfile: integrationtest/Dockerfile.xvfb
-    depends_on: [ unittest ]
+      dockerfile: xvfb/Dockerfile
+    depends_on: [ linux-x64x11-unittest ]
 
-  integration_test:
+  linux-x64x11-integration-test:
     <<: *build-common-definitions
-    image: cobalt-integrationtest
+    image: cobalt-integration-test
     build:
       context: ./docker/linux/
-      dockerfile: integrationtest/Dockerfile
+      dockerfile: integration_test/Dockerfile
     depends_on: [ xvfb ]
     working_dir: /code
     environment:

@@ -160,8 +160,8 @@ jobs:
         id: build-docker-image
         uses: ./.github/actions/docker
         with:
-          docker_service: unittest
-          docker_image: cobalt-unittest
+          docker_service: linux-x64x11-unittest
+          docker_image: cobalt-linux-x64x11-unittest
       - name: Set Docker Tag Output
         id: set-docker-unittest-tag-output
         run: |
