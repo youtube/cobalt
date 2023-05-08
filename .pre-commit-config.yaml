@@ -28,6 +28,8 @@ exclude: |
         )/
         |
         components/update_client/((?!cobalt).)*$
+        |
+        .*\.sig$
     )
 
 repos:
