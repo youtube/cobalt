@@ -187,9 +187,10 @@ scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
 }
 
 // static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
+bool PlayerComponents::Factory::OutputModeSupported(
+    SbPlayerOutputMode output_mode,
+    SbMediaVideoCodec codec,
+    SbDrmSystem drm_system) {
   bool has_gles_support = SbGetGlesInterface();
 
   if (!has_gles_support) {

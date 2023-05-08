@@ -108,9 +108,10 @@ scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
 }
 
 // static
-bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
-                                       SbMediaVideoCodec codec,
-                                       SbDrmSystem drm_system) {
+bool PlayerComponents::Factory::OutputModeSupported(
+    SbPlayerOutputMode output_mode,
+    SbMediaVideoCodec codec,
+    SbDrmSystem drm_system) {
   return output_mode == kSbPlayerOutputModePunchOut;
 }
 

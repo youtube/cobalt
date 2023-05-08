@@ -29,6 +29,7 @@
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/filter/testing/video_decoder_test_fixture.h"
@@ -115,8 +116,8 @@ TEST_P(VideoDecoderTest, OutputModeSupported) {
       kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
-      VideoDecoder::OutputModeSupported(output_mode, video_codec,
-                                        kSbDrmSystemInvalid);
+      PlayerComponents::Factory::OutputModeSupported(output_mode, video_codec,
+                                                     kSbDrmSystemInvalid);
     }
   }
 }
@@ -145,8 +146,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
 
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
-      if (VideoDecoder::OutputModeSupported(output_mode, video_codec,
-                                            kSbDrmSystemInvalid)) {
+      if (PlayerComponents::Factory::OutputModeSupported(
+              output_mode, video_codec, kSbDrmSystemInvalid)) {
         SbPlayerPrivate players[kDecodersToCreate];
         scoped_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
         scoped_ptr<VideoRenderAlgorithm>
