@@ -5436,7 +5436,10 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
         .Check();
   }
   MicrotaskQueue* microtask_queue = then_context->microtask_queue();
-  if (microtask_queue) microtask_queue->EnqueueMicrotask(*task);
+  if (microtask_queue) {
+    microtask_queue->EnqueueMicrotask(*task);
+    microtask_queue->PerformCheckpoint(reinterpret_cast<v8::Isolate*>(isolate));
+  }
 
   // 15. Return undefined.
   return isolate->factory()->undefined_value();
@@ -5546,6 +5549,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
     if (microtask_queue) {
       microtask_queue->EnqueueMicrotask(
           *Handle<PromiseReactionJobTask>::cast(task));
+      microtask_queue->PerformCheckpoint(reinterpret_cast<v8::Isolate*>(isolate));
     }
   }
 
