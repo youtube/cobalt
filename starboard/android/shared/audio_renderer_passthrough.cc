@@ -591,6 +591,7 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   auto decoded_audio = decoder_->Read(&decoded_audio_sample_rate);
   SB_DCHECK(decoded_audio);
 
+<<<<<<< HEAD
   // We set |frames_per_input_buffer_| before adding first |decoded_audio| into
   // |decoded_audios_|. The usage of |frames_per_input_buffer_| in
   // UpdateStatusAndWriteData() from another thread only happens when there is
@@ -606,6 +607,27 @@ void AudioRendererPassthrough::OnDecoderOutput() {
             ParseAc3SyncframeAudioSampleCount(decoded_audio->buffer(),
                                               decoded_audio->size()));
 
+=======
+  if (!decoded_audio->is_end_of_stream()) {
+    SB_DCHECK(decoded_audio->size_in_bytes() > 0);
+    // We set |frames_per_input_buffer_| before adding first |decoded_audio|
+    // into |decoded_audios_|. The usage of |frames_per_input_buffer_| in
+    // UpdateStatusAndWriteData() from another thread only happens when there is
+    // audio decoded, so it's thread-safe even if the code is not synchronized
+    // using a lock.
+    if (frames_per_input_buffer_ == 0) {
+      frames_per_input_buffer_ = ParseAc3SyncframeAudioSampleCount(
+          decoded_audio->data(), decoded_audio->size_in_bytes());
+      SB_LOG(INFO) << "Got frames per input buffer "
+                   << frames_per_input_buffer_;
+    } else {
+      SB_DCHECK(frames_per_input_buffer_ ==
+                ParseAc3SyncframeAudioSampleCount(
+                    decoded_audio->data(), decoded_audio->size_in_bytes()));
+    }
+  }
+
+>>>>>>> 1692852f0e ([android] Skip e/ac3 au parsing for end of stream (#293))
   ScopedLock scoped_lock(mutex_);
   decoded_audios_.push(decoded_audio);
 }
