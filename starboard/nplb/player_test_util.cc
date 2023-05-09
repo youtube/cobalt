@@ -147,12 +147,11 @@ SbPlayer CallSbPlayerCreate(
   }
 
   PlayerCreationParam creation_param =
-      CreatePlayerCreationParam(audio_codec, video_codec);
+      CreatePlayerCreationParam(audio_codec, video_codec, output_mode);
   if (audio_stream_info) {
     creation_param.audio_stream_info = *audio_stream_info;
   }
   creation_param.drm_system = drm_system;
-  creation_param.output_mode = output_mode;
   creation_param.video_stream_info.max_video_capabilities =
       max_video_capabilities;
 
@@ -239,8 +238,7 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec) {
   PlayerCreationParam creation_param =
-      CreatePlayerCreationParam(audio_codec, video_codec);
-  creation_param.output_mode = output_mode;
+      CreatePlayerCreationParam(audio_codec, video_codec, output_mode);
 
   SbPlayerCreationParam param = {};
   creation_param.ConvertTo(&param);

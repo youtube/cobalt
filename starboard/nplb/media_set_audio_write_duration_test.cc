@@ -112,10 +112,9 @@ class SbMediaSetAudioWriteDurationTest
     first_input_timestamp_ = last_input_timestamp_;
 
     SbPlayerCreationParam creation_param = CreatePlayerCreationParam(
-        audio_sample_info.codec, kSbMediaVideoCodecNone);
+        audio_sample_info.codec, kSbMediaVideoCodecNone,
+        SbPlayerGetPreferredOutputMode(&creation_param));
     creation_param.audio_sample_info = audio_sample_info;
-    creation_param.output_mode =
-        SbPlayerGetPreferredOutputMode(&creation_param);
     EXPECT_NE(creation_param.output_mode, kSbPlayerOutputModeInvalid);
 
     SbPlayer player = SbPlayerCreate(
