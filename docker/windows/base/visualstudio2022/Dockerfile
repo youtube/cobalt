@@ -41,6 +41,5 @@ RUN Write-Host ('Installing vs_buildtools.exe');`
     Remove-Item C:\TEMP\vs_buildtools.exe
 
 ENV VSINSTALLDIR "C:\BuildTools"
-ENV VS_INSTALL_DIR "C:\BuildTools"
 
 ENV VISUAL_STUDIO_VERSION "2022"
