@@ -222,7 +222,7 @@ static_library("browser") {
   if (sb_is_evergreen) {
     deps += [ "//cobalt/updater" ]
   } else {
-    deps += cobalt_platform_dependencies
+    # deps += cobalt_platform_dependencies
   }
 }
 

@@ -39,7 +39,7 @@ target(final_executable_type, "speech_sandbox") {
     "//url",
   ]
 
-  deps += cobalt_platform_dependencies
+  # deps += cobalt_platform_dependencies
 
   data_deps = [ "//cobalt/speech:speech_testdata" ]
 }

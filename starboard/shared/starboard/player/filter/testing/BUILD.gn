@@ -40,7 +40,7 @@ target(gtest_target_type, "player_filter_tests") {
     "//testing/gmock",
   ]
 
-  deps = cobalt_platform_dependencies
+  # deps = cobalt_platform_dependencies
 
   data_deps =
       [ "//starboard/shared/starboard/player:player_download_test_data" ]
@@ -60,7 +60,7 @@ if (host_os != "win") {
       "//third_party/google_benchmark",
     ]
 
-    deps = cobalt_platform_dependencies
+    # deps = cobalt_platform_dependencies
   }
 }
 

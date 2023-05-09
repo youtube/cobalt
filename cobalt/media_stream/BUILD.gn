@@ -73,7 +73,7 @@ target(gtest_target_type, "media_stream_test") {
     "//testing/gtest",
   ]
 
-  deps += cobalt_platform_dependencies
+  # deps += cobalt_platform_dependencies
 }
 
 source_set("media_stream_test_headers") {

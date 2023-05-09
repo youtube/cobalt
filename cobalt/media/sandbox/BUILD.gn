@@ -59,6 +59,6 @@ target(final_executable_type, "web_media_player_sandbox") {
   ]
 
   if (!sb_is_evergreen) {
-    deps += cobalt_platform_dependencies
+    # deps += cobalt_platform_dependencies
   }
 }

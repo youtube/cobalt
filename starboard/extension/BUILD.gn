@@ -27,6 +27,6 @@ target(gtest_target_type, "extension_test") {
     "//testing/gtest",
   ]
   if (sb_is_evergreen) {
-    deps += cobalt_platform_dependencies
+    # deps += cobalt_platform_dependencies
   }
 }
