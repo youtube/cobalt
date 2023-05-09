@@ -86,6 +86,8 @@ class OnDeviceTestsGatewayClient():
             dry_run=args.dry_run,
             dimension=args.dimension or [],
             unittest_shard_index=args.unittest_shard_index,
+            test_attempts=args.test_attempts,
+            retry_level=args.retry_level,
         )):
 
       print(response_line.response)
@@ -222,6 +224,20 @@ def main():
       help='Optional argument to specify which unit testing shard to run in '
       'the On-Device Tests Job. Defaults behavior is to run all tests without '
       'sharding enabled.')
+  trigger_parser.add_argument(
+      '--test_attempts',
+      type=str,
+      default='1',
+      required=False,
+      help='The maximum number of times a test could retry.')
+  trigger_parser.add_argument(
+      '--retry_level',
+      type=str,
+      default='ERROR',
+      required=False,
+      help='The retry level of Mobile harness job. Either ERROR (to retry for '
+      'MH errors) or FAIL (to retry for failing tests). Setting retry_level to '
+      'FAIL will also retry for MH errors.')
 
   watch_parser = subparsers.add_parser('watch', help='Trigger On-Device tests')
   watch_parser.add_argument(

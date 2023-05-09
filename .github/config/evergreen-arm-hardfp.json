@@ -9,7 +9,8 @@
       "1",
       "2",
       "3"
-    ]
+    ],
+    "test_attempts": 2
   },
   "platforms": [
     "evergreen-arm-hardfp",

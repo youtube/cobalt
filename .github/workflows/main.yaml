@@ -88,6 +88,8 @@ jobs:
         run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
       - id: set-on-device-test
         run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')" >> $GITHUB_ENV
+      - id: set-on-device-test-attempts
+        run: echo "on_device_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.test_attempts // empty')" >> $GITHUB_ENV
       - id: set-on-host-test
         run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
       - id: set-on-host-test-shards
@@ -102,6 +104,7 @@ jobs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
       on_device_test: ${{ env.on_device_test }}
+      on_device_test_attempts: ${{ env.on_device_test_attempts }}
       on_host_test: ${{ env.on_host_test }}
       on_host_test_shards: ${{ env.on_host_test_shards }}
       bootloader: ${{ env.bootloader }}
@@ -267,7 +270,8 @@ jobs:
         shard: ${{ fromJson(needs.initialize.outputs.on_device_test).tests }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     env:
-      COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
+      COBALT_BOOTLOADER: ${{ needs.initialize.outputs.bootloader }}
+      ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
