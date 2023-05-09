@@ -895,6 +895,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'asyncBreak',
             'promiseThen',
+            'promiseTimeout',
         ],
         [
             'waitPromise',
@@ -908,6 +909,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'asyncBreak',
             'asyncAwait',
+            'promiseTimeout',
         ],
         [
             'asyncAwait',
