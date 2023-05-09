@@ -56,3 +56,11 @@ jobs:
       platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
       modular: true
+  linux-coverage:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: linux-coverage
+      nightly: ${{ github.event.inputs.nightly }}
