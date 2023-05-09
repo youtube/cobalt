@@ -17,12 +17,15 @@
 
 #include <atomic>
 #include <deque>
+#include <memory>
 #include <set>
+#include <vector>
 
 #include "starboard/common/queue.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/player/dmp_demuxer.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -99,10 +102,14 @@ class SbPlayerTestFixture {
   void Write(const VideoSamples& video_samples);
   void Write(const AudioSamples& audio_samples,
              const VideoSamples& video_samples);
+  void WritePeriodAndEOS(SbTime start, SbTime end);
+
   // Wait until kSbPlayerStateEndOfStream received.
   void WaitForPlayerEndOfStream();
 
   SbPlayer GetPlayer() { return player_; }
+
+  SbTime GetDuration() const { return dmp_demuxer_->GetDuration(); }
 
  private:
   static constexpr SbTime kDefaultWaitForDecoderStateNeedsDataTimeout =
@@ -112,6 +119,7 @@ class SbPlayerTestFixture {
       15 * kSbTimeMillisecond;
 
   typedef shared::starboard::player::video_dmp::VideoDmpReader VideoDmpReader;
+  typedef shared::starboard::player::video_dmp::DmpDemuxer DmpDemuxer;
 
   typedef enum CallbackEventType {
     kEmptyEvent,
@@ -164,6 +172,8 @@ class SbPlayerTestFixture {
   void TearDownPlayer();
 
   void WriteSamples(SbMediaType media_type,
+                    const std::vector<SbPlayerSampleInfo>& sample_infos);
+  void WriteSamples(SbMediaType media_type,
                     int start_index,
                     int samples_to_write);
   void WriteEndOfStream(SbMediaType media_type);
@@ -201,6 +211,8 @@ class SbPlayerTestFixture {
   const SbPlayerOutputMode output_mode_;
   scoped_ptr<VideoDmpReader> audio_dmp_reader_;
   scoped_ptr<VideoDmpReader> video_dmp_reader_;
+  std::unique_ptr<DmpDemuxer> dmp_demuxer_;
+
   testing::FakeGraphicsContextProvider fake_graphics_context_provider_;
 
   SbPlayer player_ = kSbPlayerInvalid;

@@ -111,6 +111,20 @@ TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
   ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
 }
 
+TEST_P(SbPlayerWriteSampleTest, WriteSamplesWithinDuration) {
+  SbTime duration = player_fixture_->GetDuration();
+  SbTime start_time = 100 * kSbTimeMillisecond;
+  SbTime end_time = 1279 * kSbTimeMillisecond;
+
+  end_time = std::min(duration, end_time);
+  if (start_time > end_time) {
+    start_time = 0;
+  }
+  ASSERT_NO_FATAL_FAILURE(
+      player_fixture_->WritePeriodAndEOS(start_time, end_time));
+  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+}
+
 std::string GetSbPlayerTestConfigName(
     ::testing::TestParamInfo<SbPlayerTestConfig> info) {
   const char* audio_filename = std::get<0>(info.param);

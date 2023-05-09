@@ -15,6 +15,7 @@
 #include "starboard/nplb/player_test_fixture.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,6 +23,7 @@
 namespace starboard {
 namespace nplb {
 
+using shared::starboard::player::video_dmp::DmpDemuxer;
 using shared::starboard::player::video_dmp::VideoDmpReader;
 using testing::FakeGraphicsContextProvider;
 
@@ -52,12 +54,16 @@ SbPlayerTestFixture::SbPlayerTestFixture(const SbPlayerTestConfig& config)
   const char* audio_dmp_filename = std::get<0>(config);
   const char* video_dmp_filename = std::get<1>(config);
 
+  DmpDemuxer::MediaTypeToDmpReaderMap dmp_readers;
   if (audio_dmp_filename && strlen(audio_dmp_filename) > 0) {
     audio_dmp_reader_.reset(new VideoDmpReader(audio_dmp_filename));
+    dmp_readers[kSbMediaTypeAudio] = audio_dmp_reader_.get();
   }
   if (video_dmp_filename && strlen(video_dmp_filename) > 0) {
     video_dmp_reader_.reset(new VideoDmpReader(video_dmp_filename));
+    dmp_readers[kSbMediaTypeVideo] = video_dmp_reader_.get();
   }
+  dmp_demuxer_.reset(new DmpDemuxer(dmp_readers));
 
   InitializePlayer();
 }
@@ -178,6 +184,62 @@ void SbPlayerTestFixture::Write(const AudioSamples& audio_samples,
   }
 }
 
+void SbPlayerTestFixture::WritePeriodAndEOS(SbTime start, SbTime end) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(SbPlayerIsValid(player_));
+  SB_DCHECK(!audio_end_of_stream_written_);
+  SB_DCHECK(!video_end_of_stream_written_);
+
+  ASSERT_FALSE(error_occurred_);
+  ASSERT_TRUE(dmp_demuxer_->SetReadRange(start, end));
+
+  bool has_more_audio = dmp_demuxer_->HasMediaTrack(kSbMediaTypeAudio);
+  bool has_more_video = dmp_demuxer_->HasMediaTrack(kSbMediaTypeVideo);
+
+  int max_audio_samples_per_write =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeAudio);
+  int max_video_samples_per_write =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeVideo);
+
+  while (has_more_audio || has_more_video) {
+    ASSERT_NO_FATAL_FAILURE(WaitForDecoderStateNeedsData());
+    if (can_accept_more_audio_data_) {
+      SbPlayerSampleInfo sample_info;
+      std::vector<SbPlayerSampleInfo> sample_infos;
+      while (dmp_demuxer_->ReadSample(kSbMediaTypeAudio, &sample_info)) {
+        sample_infos.emplace_back(sample_info);
+        if (sample_infos.size() == max_audio_samples_per_write) {
+          break;
+        }
+      }
+      if (!sample_infos.empty()) {
+        ASSERT_NO_FATAL_FAILURE(WriteSamples(kSbMediaTypeAudio, sample_infos));
+      } else if (!audio_end_of_stream_written_) {
+        ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeAudio));
+      }
+
+      has_more_audio = !audio_end_of_stream_written_;
+    }
+
+    if (can_accept_more_video_data_) {
+      SbPlayerSampleInfo sample_info;
+      std::vector<SbPlayerSampleInfo> sample_infos;
+      while (dmp_demuxer_->ReadSample(kSbMediaTypeVideo, &sample_info)) {
+        sample_infos.emplace_back(sample_info);
+        if (sample_infos.size() == max_video_samples_per_write) {
+          break;
+        }
+      }
+      if (!sample_infos.empty()) {
+        ASSERT_NO_FATAL_FAILURE(WriteSamples(kSbMediaTypeVideo, sample_infos));
+      } else if (!video_end_of_stream_written_) {
+        ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeVideo));
+      }
+      has_more_video = !video_end_of_stream_written_;
+    }
+  }
+}
+
 void SbPlayerTestFixture::WaitForPlayerEndOfStream() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -290,6 +352,23 @@ void SbPlayerTestFixture::TearDownPlayer() {
   audio_end_of_stream_written_ = false;
   video_end_of_stream_written_ = false;
   error_occurred_ = false;
+}
+
+void SbPlayerTestFixture::WriteSamples(
+    SbMediaType media_type,
+    const std::vector<SbPlayerSampleInfo>& sample_infos) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(!sample_infos.empty());
+  SB_DCHECK(SbPlayerIsValid(player_));
+
+  if (media_type == kSbMediaTypeAudio) {
+    CallSbPlayerWriteSamples(player_, kSbMediaTypeAudio, sample_infos);
+    can_accept_more_audio_data_ = false;
+  } else {
+    SB_DCHECK(media_type == kSbMediaTypeVideo);
+    CallSbPlayerWriteSamples(player_, kSbMediaTypeVideo, sample_infos);
+    can_accept_more_video_data_ = false;
+  }
 }
 
 void SbPlayerTestFixture::WriteSamples(SbMediaType media_type,

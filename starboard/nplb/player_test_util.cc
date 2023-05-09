@@ -166,11 +166,8 @@ SbPlayer CallSbPlayerCreate(
 void CallSbPlayerWriteSamples(
     SbPlayer player,
     SbMediaType sample_type,
-    shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
-    int start_index,
-    int number_of_samples_to_write) {
-  SB_DCHECK(start_index >= 0);
-  SB_DCHECK(number_of_samples_to_write > 0);
+    const std::vector<SbPlayerSampleInfo>& sample_infos) {
+  SB_DCHECK(!sample_infos.empty());
 
   static auto const* enhanced_audio_extension =
       static_cast<const CobaltExtensionEnhancedAudioApi*>(
@@ -184,55 +181,65 @@ void CallSbPlayerWriteSamples(
                  kCobaltExtensionEnhancedAudioName);
     ASSERT_EQ(enhanced_audio_extension->version, 1u);
 
-    std::vector<CobaltExtensionEnhancedAudioPlayerSampleInfo> sample_infos;
+    std::vector<CobaltExtensionEnhancedAudioPlayerSampleInfo> ext_sample_infos;
     // We have to hold all intermediate sample infos to ensure that their member
     // variables with allocated memory (like `std::string mime`) won't go out of
     // scope before the call to `enhanced_audio_extension->PlayerWriteSamples`.
     std::vector<AudioSampleInfo> audio_sample_infos;
     std::vector<VideoSampleInfo> video_sample_infos;
 
-    for (int i = 0; i < number_of_samples_to_write; ++i) {
-      SbPlayerSampleInfo source =
-          dmp_reader->GetPlayerSampleInfo(sample_type, start_index++);
-      sample_infos.resize(sample_infos.size() + 1);
-      sample_infos.back().type = source.type;
-      sample_infos.back().buffer = source.buffer;
-      sample_infos.back().buffer_size = source.buffer_size;
-      sample_infos.back().timestamp = source.timestamp;
-      sample_infos.back().side_data = source.side_data;
-      sample_infos.back().side_data_count = source.side_data_count;
-      sample_infos.back().drm_info = source.drm_info;
+    for (int i = 0; i < sample_infos.size(); ++i) {
+      const auto& source = sample_infos[i];
+      ext_sample_infos.resize(ext_sample_infos.size() + 1);
+      ext_sample_infos.back().type = source.type;
+      ext_sample_infos.back().buffer = source.buffer;
+      ext_sample_infos.back().buffer_size = source.buffer_size;
+      ext_sample_infos.back().timestamp = source.timestamp;
+      ext_sample_infos.back().side_data = source.side_data;
+      ext_sample_infos.back().side_data_count = source.side_data_count;
+      ext_sample_infos.back().drm_info = source.drm_info;
 
       if (sample_type == kSbMediaTypeAudio) {
         audio_sample_infos.emplace_back(source.audio_sample_info);
         audio_sample_infos.back().ConvertTo(
-            &sample_infos.back().audio_sample_info);
+            &ext_sample_infos.back().audio_sample_info);
       } else {
         SB_DCHECK(sample_type == kSbMediaTypeVideo);
         video_sample_infos.emplace_back(source.video_sample_info);
         video_sample_infos.back().ConvertTo(
-            &sample_infos.back().video_sample_info);
+            &ext_sample_infos.back().video_sample_info);
       }
     }
-
     enhanced_audio_extension->PlayerWriteSamples(
-        player, sample_type, sample_infos.data(), number_of_samples_to_write);
+        player, sample_type, ext_sample_infos.data(), sample_infos.size());
 
     return;
   }
+
+#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerWriteSamples(player, sample_type, sample_infos.data(),
+                       sample_infos.size());
+#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  SbPlayerWriteSample2(player, sample_type, sample_infos.data(),
+                       sample_infos.size());
+#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+}
+
+void CallSbPlayerWriteSamples(
+    SbPlayer player,
+    SbMediaType sample_type,
+    shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
+    int start_index,
+    int number_of_samples_to_write) {
+  SB_DCHECK(start_index >= 0);
+  SB_DCHECK(number_of_samples_to_write > 0);
 
   std::vector<SbPlayerSampleInfo> sample_infos;
   for (int i = 0; i < number_of_samples_to_write; ++i) {
     sample_infos.push_back(
         dmp_reader->GetPlayerSampleInfo(sample_type, start_index++));
   }
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
-  SbPlayerWriteSamples(player, sample_type, sample_infos.data(),
-                       number_of_samples_to_write);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
-  SbPlayerWriteSample2(player, sample_type, sample_infos.data(),
-                       number_of_samples_to_write);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+  CallSbPlayerWriteSamples(player, sample_type, sample_infos);
 }
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,

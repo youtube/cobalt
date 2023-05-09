@@ -72,6 +72,11 @@ SbPlayer CallSbPlayerCreate(
 void CallSbPlayerWriteSamples(
     SbPlayer player,
     SbMediaType sample_type,
+    const std::vector<SbPlayerSampleInfo>& sample_infos);
+
+void CallSbPlayerWriteSamples(
+    SbPlayer player,
+    SbMediaType sample_type,
     shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
     int start_index,
     int number_of_samples_to_write);
