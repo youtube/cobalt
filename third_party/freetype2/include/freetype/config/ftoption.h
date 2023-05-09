@@ -15,9 +15,6 @@
  *
  */
 
-// This file should not be included, as we override ftoption.h by defining
-// FT_CONFIG_OPTIONS_H via GYP, and changing the include order.
-#error "Do not include this file in Cobalt."
 
 #ifndef FTOPTION_H_
 #define FTOPTION_H_

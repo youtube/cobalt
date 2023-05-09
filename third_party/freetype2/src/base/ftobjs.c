@@ -1350,7 +1350,7 @@
   open_face( FT_Driver      driver,
              FT_Stream      *astream,
              FT_Bool        external_stream,
-             FT_Long        *face_index,
+             FT_Long        face_index,
              FT_Int         num_params,
              FT_Parameter*  params,
              FT_Face       *aface )
@@ -1399,18 +1399,12 @@
 
     face->internal->random_seed = -1;
 
-    if ( clazz->init_face ) {
-      FT_Stream_Seek(*astream, 0);
-      FT_ULong tag = FT_Stream_ReadULong( *astream, &error);
+    if ( clazz->init_face )
       error = clazz->init_face( *astream,
                                 face,
-                                (FT_Int)*face_index,
+                                (FT_Int)face_index,
                                 num_params,
                                 params );
-      if ( tag == TTAG_wOF2 ) {
-       *face_index = face->face_index;
-      }
-    }
     *astream = face->stream; /* Stream may have been changed. */
     if ( error )
       goto Fail;
@@ -1428,6 +1422,8 @@
       goto Fail;
     }
 
+    *aface = face;
+
   Fail:
     if ( error )
     {
@@ -1435,9 +1431,10 @@
       if ( clazz->done_face )
         clazz->done_face( face );
       FT_FREE( internal );
+      FT_FREE( face );
+      *aface = NULL;
     }
 
-    *aface = face;
     return error;
   }
 
@@ -2439,7 +2436,7 @@
           params     = args->params;
         }
 
-        error = open_face( driver, &stream, external_stream, &face_index,
+        error = open_face( driver, &stream, external_stream, face_index,
                            num_params, params, &face );
         if ( !error )
           goto Success;
@@ -2475,14 +2472,10 @@
             params     = args->params;
           }
 
-          error = open_face( driver, &stream, external_stream, &face_index,
+          error = open_face( driver, &stream, external_stream, face_index,
                              num_params, params, &face );
           if ( !error )
             goto Success;
-
-          external_stream = (face->face_flags & FT_FACE_FLAG_EXTERNAL_STREAM) != 0;
-          FT_FREE(face);
-          face = NULL;
 
 #ifdef FT_CONFIG_OPTION_MAC_FONTS
           if ( test_mac_fonts                                           &&

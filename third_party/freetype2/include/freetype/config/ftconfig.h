@@ -37,10 +37,6 @@
 #ifndef FTCONFIG_H_
 #define FTCONFIG_H_
 
-// This file should not be included, as we override ftconfig.h by defining
-// FT_CONFIG_OPTIONS_H via GYP, and changing the include order.
-#error "Do not include this file in Cobalt."
-
 #include <ft2build.h>
 #include FT_CONFIG_OPTIONS_H
 #include FT_CONFIG_STANDARD_LIBRARY_H
@@ -123,9 +119,7 @@ FT_BEGIN_HEADER
    *   This is the only necessary change, so it is defined here instead
    *   providing a new configuration file.
    */
-#if defined(STARBOARD)
-  /* Nothing. */
-#elif defined( __APPLE__ ) || ( defined( __MWERKS__ ) && defined( macintosh ) )
+#if defined( __APPLE__ ) || ( defined( __MWERKS__ ) && defined( macintosh ) )
   /* No Carbon frameworks for 64bit 10.4.x.                         */
   /* `AvailabilityMacros.h` is available since Mac OS X 10.2,       */
   /* so guess the system version by maximum errno before inclusion. */
