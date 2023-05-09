@@ -22,7 +22,6 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
-#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
@@ -174,7 +173,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
 
     for (auto output_mode : kOutputModes) {
-      if (!VideoDecoder::OutputModeSupported(
+      if (!PlayerComponents::Factory::OutputModeSupported(
               output_mode, dmp_reader.video_codec(), kSbDrmSystemInvalid)) {
         continue;
       }

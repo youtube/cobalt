@@ -24,7 +24,6 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
-#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -716,15 +715,15 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
       << " tests added. It may take too long time to run and result in timeout";
 
   for (size_t i = 0; i < audio_files.size(); i++) {
-    if (VideoDecoder::OutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
-                                          kSbMediaVideoCodecNone,
-                                          kSbDrmSystemInvalid)) {
+    if (PlayerComponents::Factory::OutputModeSupported(
+            kSbPlayerOutputModeDecodeToTexture, kSbMediaVideoCodecNone,
+            kSbDrmSystemInvalid)) {
       supported_parameters.push_back(std::make_tuple(
           audio_files[i], "", kSbPlayerOutputModeDecodeToTexture));
     }
-    if (VideoDecoder::OutputModeSupported(kSbPlayerOutputModePunchOut,
-                                          kSbMediaVideoCodecNone,
-                                          kSbDrmSystemInvalid)) {
+    if (PlayerComponents::Factory::OutputModeSupported(
+            kSbPlayerOutputModePunchOut, kSbMediaVideoCodecNone,
+            kSbDrmSystemInvalid)) {
       supported_parameters.push_back(
           std::make_tuple(audio_files[i], "", kSbPlayerOutputModePunchOut));
     }

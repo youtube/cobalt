@@ -152,6 +152,12 @@ class PlayerComponents {
     // of a Factory instance.
     static scoped_ptr<Factory> Create();
 
+    // Individual implementations must implement this function to indicate which
+    // output modes they support.
+    static bool OutputModeSupported(SbPlayerOutputMode output_mode,
+                                    SbMediaVideoCodec codec,
+                                    SbDrmSystem drm_system);
+
     virtual scoped_ptr<PlayerComponents> CreateComponents(
         const CreationParameters& creation_parameters,
         std::string* error_message);

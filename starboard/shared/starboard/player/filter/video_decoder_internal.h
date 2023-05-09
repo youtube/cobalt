@@ -109,12 +109,6 @@ class VideoDecoder {
   // unless Reset() is called.
   // May be called from an arbitrary thread (e.g. a renderer thread).
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
-
-  // Individual implementations must implement this function to indicate which
-  // output modes they support.
-  static bool OutputModeSupported(SbPlayerOutputMode output_mode,
-                                  SbMediaVideoCodec codec,
-                                  SbDrmSystem drm_system);
 };
 
 }  // namespace filter
