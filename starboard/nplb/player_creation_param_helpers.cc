@@ -123,11 +123,13 @@ VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
 }
 
 PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
-                                              SbMediaVideoCodec video_codec) {
+                                              SbMediaVideoCodec video_codec,
+                                              SbPlayerOutputMode output_mode) {
   PlayerCreationParam creation_param;
 
   creation_param.audio_stream_info = CreateAudioStreamInfo(audio_codec);
   creation_param.video_stream_info = CreateVideoStreamInfo(video_codec);
+  creation_param.output_mode = output_mode;
 
   return creation_param;
 }

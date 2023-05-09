@@ -15,16 +15,22 @@ permissions: {}
 
 jobs:
   python-test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # TODO(b/281098312): pytest fails on windows-latest
+        os: [ubuntu-latest]
+        python-version: ['3.7', '3.11']
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
+          python-version: ${{ matrix.python-version }}
       - name: Install Pip Packages
-        run: pip install -r ${GITHUB_WORKSPACE}/docker/pytest/requirements.txt
+        run: pip install --require-hashes --no-deps -r ${{ github.workspace }}/docker/pytest/requirements.txt
       - name: Run Tests
         run: coverage run -m pytest
       - name: Coverage Report

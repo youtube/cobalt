@@ -66,7 +66,8 @@ shared::starboard::media::AudioStreamInfo CreateAudioStreamInfo(
 shared::starboard::media::VideoStreamInfo CreateVideoStreamInfo(
     SbMediaVideoCodec codec);
 PlayerCreationParam CreatePlayerCreationParam(SbMediaAudioCodec audio_codec,
-                                              SbMediaVideoCodec video_codec);
+                                              SbMediaVideoCodec video_codec,
+                                              SbPlayerOutputMode output_mode);
 
 }  // namespace nplb
 }  // namespace starboard
