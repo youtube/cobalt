@@ -17,6 +17,8 @@ import("//starboard/shared/starboard/player/testdata/sha1_files.gni")
 static_library("video_dmp") {
   check_includes = false
   sources = [
+    "//starboard/shared/starboard/player/dmp_demuxer.cc",
+    "//starboard/shared/starboard/player/dmp_demuxer.h",
     "//starboard/shared/starboard/player/file_cache_reader.cc",
     "//starboard/shared/starboard/player/file_cache_reader.h",
     "//starboard/shared/starboard/player/video_dmp_common.cc",

@@ -22,6 +22,7 @@
 namespace starboard {
 namespace nplb {
 
+using shared::starboard::player::video_dmp::DmpDemuxer;
 using shared::starboard::player::video_dmp::VideoDmpReader;
 using testing::FakeGraphicsContextProvider;
 
@@ -52,12 +53,16 @@ SbPlayerTestFixture::SbPlayerTestFixture(const SbPlayerTestConfig& config)
   const char* audio_dmp_filename = std::get<0>(config);
   const char* video_dmp_filename = std::get<1>(config);
 
+  DmpDemuxer::MediaTypeToDmpReaderMap dmp_readers;
   if (audio_dmp_filename && strlen(audio_dmp_filename) > 0) {
     audio_dmp_reader_.reset(new VideoDmpReader(audio_dmp_filename));
+    dmp_readers[kSbMediaTypeAudio] = audio_dmp_reader_.get();
   }
   if (video_dmp_filename && strlen(video_dmp_filename) > 0) {
     video_dmp_reader_.reset(new VideoDmpReader(video_dmp_filename));
+    dmp_readers[kSbMediaTypeVideo] = video_dmp_reader_.get();
   }
+  dmp_demuxer_.reset(new DmpDemuxer(dmp_readers));
 
   InitializePlayer();
 }
@@ -174,6 +179,66 @@ void SbPlayerTestFixture::Write(const AudioSamples& audio_samples,
       }
       has_more_video = video_samples_to_write > 0 ||
                        (!video_end_of_stream_written_ && write_video_eos);
+    }
+  }
+}
+
+void SbPlayerTestFixture::Write(SbTime start, SbTime end) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(SbPlayerIsValid(player_));
+  SB_DCHECK(!audio_end_of_stream_written_);
+  SB_DCHECK(!video_end_of_stream_written_);
+
+  ASSERT_FALSE(error_occurred_);
+  ASSERT_TRUE(dmp_demuxer_->SetReadRange(start, end));
+
+  bool has_more_audio = dmp_demuxer_->HasMediaTrack(kSbMediaTypeAudio);
+  bool has_more_video = dmp_demuxer_->HasMediaTrack(kSbMediaTypeVideo);
+
+  int max_audio_samples_per_write =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeAudio);
+  int max_video_samples_per_write =
+      SbPlayerGetMaximumNumberOfSamplesPerWrite(player_, kSbMediaTypeVideo);
+
+  while (has_more_audio || has_more_video) {
+    ASSERT_NO_FATAL_FAILURE(WaitForDecoderStateNeedsData());
+    if (can_accept_more_audio_data_) {
+      int start_index = dmp_demuxer_->GetCurrentIndex(kSbMediaTypeAudio);
+      int audio_samples_to_write = 0;
+      SbPlayerSampleInfo sample_info;
+      while (dmp_demuxer_->ReadSample(kSbMediaTypeAudio, sample_info)) {
+        ++audio_samples_to_write;
+        if (audio_samples_to_write == max_audio_samples_per_write) {
+          break;
+        }
+      }
+      if (audio_samples_to_write > 0) {
+        ASSERT_NO_FATAL_FAILURE(WriteSamples(kSbMediaTypeAudio, start_index,
+                                             audio_samples_to_write));
+      } else if (!audio_end_of_stream_written_) {
+        ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeAudio));
+      }
+
+      has_more_audio = !audio_end_of_stream_written_;
+    }
+
+    if (can_accept_more_video_data_) {
+      int start_index = dmp_demuxer_->GetCurrentIndex(kSbMediaTypeVideo);
+      int video_samples_to_write = 0;
+      SbPlayerSampleInfo sample_info;
+      while (dmp_demuxer_->ReadSample(kSbMediaTypeVideo, sample_info)) {
+        ++video_samples_to_write;
+        if (video_samples_to_write == max_video_samples_per_write) {
+          break;
+        }
+      }
+      if (video_samples_to_write > 0) {
+        ASSERT_NO_FATAL_FAILURE(WriteSamples(kSbMediaTypeVideo, start_index,
+                                             video_samples_to_write));
+      } else if (!video_end_of_stream_written_) {
+        ASSERT_NO_FATAL_FAILURE(WriteEndOfStream(kSbMediaTypeVideo));
+      }
+      has_more_video = !video_end_of_stream_written_;
     }
   }
 }

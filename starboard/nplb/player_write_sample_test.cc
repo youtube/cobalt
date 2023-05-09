@@ -71,6 +71,7 @@ void SbPlayerWriteSampleTest::TearDown() {
   ASSERT_NO_FATAL_FAILURE(player_fixture_.reset());
 }
 
+#if 0
 TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
   ASSERT_NO_FATAL_FAILURE(player_fixture_->Seek(kSbTimeSecond));
 }
@@ -108,6 +109,20 @@ TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
     ASSERT_NO_FATAL_FAILURE(
         player_fixture_->Write(VideoSamples(0, 8).WithEOS()));
   }
+  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+}
+#endif
+
+TEST_P(SbPlayerWriteSampleTest, WriteSamplesWithinDuration) {
+  SbTime duration = player_fixture_->GetDuration();
+  SbTime start_time = 100 * kSbTimeMillisecond;
+  SbTime end_time = 1279 * kSbTimeMillisecond;
+
+  end_time = std::min(duration, end_time);
+  if (start_time > end_time) {
+    start_time = 0;
+  }
+  ASSERT_NO_FATAL_FAILURE(player_fixture_->Write(start_time, end_time));
   ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
 }
 

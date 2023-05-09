@@ -15,6 +15,7 @@
 player_tests_sources = [
   "//starboard/shared/starboard/player/buffer_test_internal.cc",
   "//starboard/shared/starboard/player/decoded_audio_test_internal.cc",
+  "//starboard/shared/starboard/player/dmp_demuxer_test.cc",
   "//starboard/shared/starboard/player/job_queue_test.cc",
   "//starboard/shared/starboard/player/job_thread_test.cc",
 ]
