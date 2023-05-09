@@ -49,9 +49,13 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
     scoped_refptr<DecodedAudio>* decoded_audio) {
   SB_DCHECK(decoded_audio);
   SB_DCHECK(*decoded_audio);
-  SB_DCHECK(!input_buffer_infos_.empty());
+  // TODO: Comment out the SB_DCHECK due to b/274021285. We can re-enable it
+  // after b/274021285 is resolved.
+  // SB_DCHECK(!input_buffer_infos_.empty());
 
   if (input_buffer_infos_.empty()) {
+    SB_LOG(WARNING) << "Inconsistent number of audio decoder outputs. Received "
+                       "outputs when input buffer list is empty.";
     return;
   }
 
