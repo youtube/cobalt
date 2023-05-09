@@ -28,14 +28,12 @@ speed_config_path = "//starboard/android/shared/platform_configuration:speed"
 pedantic_warnings_config_path =
     "//starboard/android/shared/platform_configuration:pedantic_warnings"
 
-if (current_toolchain == default_toolchain) {
-  executable_configs +=
-      [ "//starboard/android/shared/platform_configuration:executable_config" ]
-  shared_library_configs +=
-      [ "//starboard/android/shared/platform_configuration:library_config" ]
-  static_library_configs +=
-      [ "//starboard/android/shared/platform_configuration:library_config" ]
-}
+executable_configs +=
+    [ "//starboard/android/shared/platform_configuration:executable_config" ]
+shared_library_configs +=
+    [ "//starboard/android/shared/platform_configuration:library_config" ]
+static_library_configs +=
+    [ "//starboard/android/shared/platform_configuration:library_config" ]
 
 install_target_path = "//starboard/android/shared/install_target.gni"
 
@@ -52,7 +50,5 @@ cobalt_platform_dependencies =
 cobalt_font_package = "android_system"
 
 separate_install_targets_for_bundling = true
-
-is_clang_16 = current_toolchain == host_toolchain
 
 v8_enable_webassembly = true
