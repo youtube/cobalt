@@ -146,7 +146,7 @@ class DebuggerConnection(object):
     # "Debugger.scriptParsed" events get sent as artifacts of the debugger
     # backend implementation running its own injected code, so they are ignored
     # unless that's what we're waiting for.
-    allow_script_parsed = (method == 'Debugger.scriptParsed')
+    allow_script_parsed = method == 'Debugger.scriptParsed'
 
     # Pop already-received events from the event queue.
     def _next_event():
