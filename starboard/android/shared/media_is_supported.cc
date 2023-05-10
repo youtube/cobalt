@@ -26,6 +26,7 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
                         const char* key_system) {
   using starboard::android::shared::IsWidevineL1;
+  using starboard::android::shared::IsWidevineL3;
   using starboard::android::shared::MediaCapabilitiesCache;
   using starboard::shared::starboard::media::MimeType;
 
@@ -48,7 +49,7 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
     return false;
   }
   const char* key_system_type = mime_type.subtype().c_str();
-  if (!IsWidevineL1(key_system_type)) {
+  if (!IsWidevineL1(key_system_type) && !IsWidevineL3(key_system_type)) {
     return false;
   }
 

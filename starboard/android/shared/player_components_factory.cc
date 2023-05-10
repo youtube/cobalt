@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/player_components_factory.h"
 
+#include "starboard/android/shared/drm_system.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -31,12 +33,18 @@ bool PlayerComponents::Factory::OutputModeSupported(
     SbPlayerOutputMode output_mode,
     SbMediaVideoCodec codec,
     SbDrmSystem drm_system) {
+  using ::starboard::android::shared::DrmSystem;
+
   if (output_mode == kSbPlayerOutputModePunchOut) {
     return true;
   }
 
   if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    return !SbDrmSystemIsValid(drm_system);
+    if (!SbDrmSystemIsValid(drm_system)) {
+      return true;
+    }
+    DrmSystem* android_drm_system = static_cast<DrmSystem*>(drm_system);
+    return !android_drm_system->require_secured_decoder();
   }
 
   return false;

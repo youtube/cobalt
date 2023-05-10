@@ -194,10 +194,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   const int kDefaultAudioSinkMaxCachedFrames =
       8 * kDefaultAudioSinkMinFramesPerAppend;
 
-  virtual SbDrmSystem GetExtendedDrmSystem(SbDrmSystem drm_system) {
-    return drm_system;
-  }
-
   static int AlignUp(int value, int alignment) {
     return (value + alignment - 1) / alignment * alignment;
   }
@@ -241,8 +237,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     scoped_ptr<AudioRendererPassthrough> audio_renderer;
     audio_renderer.reset(new AudioRendererPassthrough(
         creation_parameters.audio_stream_info(),
-        GetExtendedDrmSystem(creation_parameters.drm_system()),
-        enable_audio_device_callback));
+        creation_parameters.drm_system(), enable_audio_device_callback));
     if (!audio_renderer->is_valid()) {
       return scoped_ptr<PlayerComponents>();
     }
@@ -421,8 +416,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
           creation_parameters.audio_stream_info(),
-          GetExtendedDrmSystem(creation_parameters.drm_system()),
-          decoder_creator));
+          creation_parameters.drm_system(), decoder_creator));
 
       bool enable_audio_device_callback =
           audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
@@ -521,8 +515,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
 
     scoped_ptr<VideoDecoder> video_decoder(new VideoDecoder(
-        creation_parameters.video_codec(),
-        GetExtendedDrmSystem(creation_parameters.drm_system()),
+        creation_parameters.video_codec(), creation_parameters.drm_system(),
         creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
