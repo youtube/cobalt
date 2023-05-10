@@ -18,9 +18,6 @@ service-worker/uncontrolled-page.https.html, PASS
 service-worker/unregister.https.html, PASS
 service-worker/update-no-cache-request-headers.https.html, PASS
 
-# b/278652803 flaky test.
-service-worker/import-scripts-cross-origin.https.html, DISABLE
-
 # b/274011216 flaky test
 service-worker/update-result.https.html, DISABLE
 
@@ -30,21 +27,18 @@ service-worker/update-missing-import-scripts.https.html, DISABLE
 # b/275643772 MIME type check is flaky
 service-worker/import-scripts-mime-types.https.html, DISABLE
 
-# TODO(b/279915935): Another service worker flaky test
-service-worker/serviceworkerobject-scripturl.https.html, DISABLE
-
-# TODO(b/240174245): This somettimes flakes with "unimplemented"
-service-worker/service-worker-header.https.html, DISABLE
-
 # b/234788479 Implement waiting for update worker state tasks in Install algorithm.
 service-worker/activation-after-registration.https.html, DISABLE
 service-worker/activate-event-after-install-state-change.https.html, DISABLE
+service-worker/import-scripts-cross-origin.https.html, DISABLE
 service-worker/import-scripts-redirect.https.html, DISABLE
 service-worker/multiple-update.https.html, DISABLE
 service-worker/register-wait-forever-in-install-worker.https.html, DISABLE
 service-worker/registration-service-worker-attributes.https.html, DISABLE
+service-worker/service-worker-header.https.html, DISABLE
 service-worker/state.https.html, DISABLE
 service-worker/synced-state.https.html, DISABLE
+service-worker/serviceworkerobject-scripturl.https.html, DISABLE
 
 # "Module" type of dedicated worker is supported in Cobalt
 service-worker/dedicated-worker-service-worker-interception.https.html, DISABLE
