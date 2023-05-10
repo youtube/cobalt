@@ -28,6 +28,7 @@ import sys
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
+from starboard.tools import config
 
 sys.path.append(
     os.path.join(
@@ -220,8 +221,8 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     return val
 
   def setUp(self):
-    cobalt_vars = self.cobalt_config.GetVariables(self.launcher_params.config)
-    if not cobalt_vars['enable_debugger']:
+    is_gold_config = self.launcher_params.config == config.Config.GOLD
+    if is_gold_config:
       self.skipTest('DevTools is disabled on this platform')
 
     self.server = self.set_up_with(

@@ -13,10 +13,7 @@
 # limitations under the License.
 """Base cobalt configuration for GYP."""
 
-import os
-
 from starboard.build import application_configuration
-from starboard.tools.config import Config
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
@@ -27,34 +24,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   Cobalt per-platform configurations, if defined, must subclass from this class.
   """
-
-  def GetVariables(self, config_name):
-
-    # Use env var to optimize build speed on CI
-    try:
-      # Force to int, so it's easy to pass in an override.
-      use_fastbuild = int(os.environ.get('IS_CI', 0))
-    except (ValueError, TypeError):
-      use_fastbuild = 0
-
-    try:
-      build_in_docker = int(os.environ.get('IS_DOCKER', 0))
-    except (ValueError, TypeError):
-      build_in_docker = 0
-
-    variables = {
-        # This is used to omit large debuginfo in files on CI environment
-        'cobalt_fastbuild': use_fastbuild,
-        'cobalt_docker_build': build_in_docker,
-
-        # This is here rather than cobalt_configuration.gypi so that it's
-        # available for browser_bindings_gen.gyp.
-        'enable_debugger': 0 if config_name == Config.GOLD else 1,
-
-        # Cobalt uses OpenSSL on all platforms.
-        'use_openssl': 1,
-    }
-    return variables
 
   def GetWebPlatformTestFilters(self):
     """Gets all tests to be excluded from a black box test run."""
