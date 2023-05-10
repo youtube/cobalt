@@ -13,10 +13,6 @@
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 
-#if V8_OS_STARBOARD
-#include "src/poems.h"
-#endif
-
 #ifdef V8_USE_PERFETTO
 #include "perfetto/ext/trace_processor/export_json.h"
 #include "perfetto/trace_processor/trace_processor.h"
@@ -87,7 +83,7 @@ TracingController::~TracingController() {
     for (size_t i = g_category_index - 1; i >= g_num_builtin_categories; --i) {
       const char* group = g_category_groups[i];
       g_category_groups[i] = nullptr;
-      free(const_cast<char*>(group));
+      base::Free(const_cast<char*>(group));
     }
     g_category_index = g_num_builtin_categories;
   }
