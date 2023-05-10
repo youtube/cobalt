@@ -13,12 +13,9 @@
 # limitations under the License.
 """Generate a Cobalt build ID header."""
 
-import datetime
-import os
 import sys
-import time
 
-template = """
+BUILD_ID_HEADER_TEMPLATE = """
 #ifndef _COBALT_BUILD_ID_H_
 #define _COBALT_BUILD_ID_H_
 
@@ -32,7 +29,7 @@ template = """
 
 
 def BuildId(output_path, version_number):
-  """Write a Cobalt build_id header file with time and version info.
+  """Write a Cobalt build_id header file version info.
 
   Args:
     output_path: Location of the build id header to write.
@@ -40,21 +37,9 @@ def BuildId(output_path, version_number):
   Returns:
     0 on success.
   """
-  username = os.environ.get('USERNAME', os.environ.get('USER'))
-  if not username:
-    username = 'unknown'
-  timestamp = time.time()
-  date_rep = datetime.datetime.fromtimestamp(timestamp).strftime('%c')
-
   with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(
-        template.format(
-            date_rep=date_rep,
-            timestamp=int(timestamp),
-            version_number=version_number,
-            username=username))
-  return 0
+    f.write(BUILD_ID_HEADER_TEMPLATE.format(version_number=version_number))
 
 
 if __name__ == '__main__':
-  sys.exit(BuildId(sys.argv[1], sys.argv[2]))
+  BuildId(sys.argv[1], sys.argv[2])
