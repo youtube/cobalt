@@ -378,18 +378,18 @@ const void* GetPleasantryApi() {
 
 <details>
     <summary style="display:list-item">`git diff
-    starboard/linux/shared/starboard_platform.gypi`</summary>
+    starboard/linux/shared/BUILD.gn`</summary>
 
 ```
-@@ -38,6 +38,8 @@
-       '<(DEPTH)/starboard/linux/shared/netlink.cc',
-       '<(DEPTH)/starboard/linux/shared/netlink.h',
-       '<(DEPTH)/starboard/linux/shared/player_components_factory.cc',
-+      '<(DEPTH)/starboard/linux/shared/pleasantry.cc',
-+      '<(DEPTH)/starboard/linux/shared/pleasantry.h',
-       '<(DEPTH)/starboard/linux/shared/routes.cc',
-       '<(DEPTH)/starboard/linux/shared/routes.h',
-       '<(DEPTH)/starboard/linux/shared/system_get_connection_type.cc',
+@@ -71,6 +71,8 @@ static_library("starboard_platform_sources") {
+     "//starboard/linux/shared/netlink.cc",
+     "//starboard/linux/shared/netlink.h",
+     "//starboard/linux/shared/player_components_factory.cc",
++    "//starboard/linux/shared/pleasantry.cc",
++    "//starboard/linux/shared/pleasantry.h",
+     "//starboard/linux/shared/routes.cc",
+     "//starboard/linux/shared/routes.h",
+     "//starboard/linux/shared/soft_mic_platform_service.cc",
 ```
 
 </details>
@@ -399,14 +399,15 @@ const void* GetPleasantryApi() {
     starboard/linux/shared/system_get_extensions.cc`</summary>
 
 ```
-@@ -16,12 +16,14 @@
-
- #include "starboard/extension/configuration.h"
- #include "starboard/extension/crash_handler.h"
+@@ -22,6 +22,7 @@
+ #include "starboard/extension/free_space.h"
+ #include "starboard/extension/memory_mapped_file.h"
+ #include "starboard/extension/platform_service.h"
 +#include "starboard/extension/pleasantry.h"
- #include "starboard/common/string.h"
- #include "starboard/shared/starboard/crash_handler.h"
- #if SB_IS(EVERGREEN_COMPATIBLE)
+ #include "starboard/linux/shared/soft_mic_platform_service.h"
+ #include "starboard/shared/enhanced_audio/enhanced_audio.h"
+ #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
+@@ -33,6 +34,7 @@
  #include "starboard/elf_loader/evergreen_config.h"
  #endif
  #include "starboard/linux/shared/configuration.h"
@@ -414,15 +415,16 @@ const void* GetPleasantryApi() {
 
  const void* SbSystemGetExtension(const char* name) {
  #if SB_IS(EVERGREEN_COMPATIBLE)
-@@ -41,5 +43,8 @@ const void* SbSystemGetExtension(const char* name) {
-   if (strcmp(name, kStarboardExtensionCrashHandlerName) == 0) {
-     return starboard::common::GetCrashHandlerApi();
+@@ -74,5 +76,8 @@ const void* SbSystemGetExtension(const char* name) {
+     return use_ffmpeg_demuxer ? starboard::shared::ffmpeg::GetFFmpegDemuxerApi()
+                               : NULL;
    }
 +  if (strcmp(name, kStarboardExtensionPleasantryName) == 0) {
 +    return starboard::shared::GetPleasantryApi();
 +  }
    return NULL;
  }
+
 ```
 
 </details>
@@ -432,12 +434,11 @@ const void* GetPleasantryApi() {
     </summary>
 
 ```
-@@ -18,7 +18,9 @@
- #include "cobalt/base/wrap_main.h"
+@@ -19,6 +19,8 @@
  #include "cobalt/browser/application.h"
  #include "cobalt/browser/switches.h"
-+#include "starboard/extension/pleasantry.h"
  #include "cobalt/version.h"
++#include "starboard/extension/pleasantry.h"
 +#include "starboard/system.h"
 
  namespace {
@@ -452,7 +453,7 @@ const void* GetPleasantryApi() {
 +  if (pleasantry_extension &&
 +      strcmp(pleasantry_extension->name, kStarboardExtensionPleasantryName) == 0 &&
 +      pleasantry_extension->version >= 1) {
-+    LOG(INFO) << pleasantry_extension->greeting;
++        LOG(INFO) << pleasantry_extension->greeting;
 +  }
  #if SB_API_VERSION >= 13
    DCHECK(!g_application);
@@ -605,12 +606,11 @@ const void* GetPleasantryApi() {
     </summary>
 
 ```
-@@ -18,7 +18,9 @@
- #include "cobalt/base/wrap_main.h"
+@@ -19,6 +19,8 @@
  #include "cobalt/browser/application.h"
  #include "cobalt/browser/switches.h"
-+#include "starboard/extension/pleasantry.h"
  #include "cobalt/version.h"
++#include "starboard/extension/pleasantry.h"
 +#include "starboard/system.h"
 
  namespace {
@@ -630,20 +630,22 @@ const void* GetPleasantryApi() {
  void PreloadApplication(int argc, char** argv, const char* link,
                          const base::Closure& quit_closure,
                          SbTimeMonotonic timestamp) {
-@@ -77,6 +87,12 @@ void StartApplication(int argc, char** argv, const char* link,
+@@ -77,6 +87,14 @@ void StartApplication(int argc, char** argv, const char* link,
      return;
    }
    LOG(INFO) << "Starting application.";
-+  const StarboardExtensionPleasantryApi* pleasantry_extension = GetPleasantryApi();
++  const StarboardExtensionPleasantryApi* pleasantry_extension =
++      static_cast<const StarboardExtensionPleasantryApi*>(
++          SbSystemGetExtension(kStarboardExtensionPleasantryName));
 +  if (pleasantry_extension &&
 +      strcmp(pleasantry_extension->name, kStarboardExtensionPleasantryName) == 0 &&
 +      pleasantry_extension->version >= 1) {
-+    LOG(INFO) << pleasantry_extension->greeting;
++        LOG(INFO) << pleasantry_extension->greeting;
 +  }
  #if SB_API_VERSION >= 13
    DCHECK(!g_application);
    g_application = new cobalt::browser::Application(quit_closure,
-@@ -96,7 +112,14 @@ void StartApplication(int argc, char** argv, const char* link,
+@@ -96,7 +114,14 @@ void StartApplication(int argc, char** argv, const char* link,
  }
 
  void StopApplication() {
@@ -664,7 +666,7 @@ const void* GetPleasantryApi() {
 </details>
 
 `starboard/linux/shared/pleasantry.h`,
-`starboard/linux/shared/starboard_platform.gypi`, and
+`starboard/linux/shared/BUILD.gn`, and
 `starboard/linux/shared/system_get_extensions.cc` should be unchanged from the
 Exercise 1 solution.
 
@@ -710,8 +712,8 @@ You guessed it! Add a test for your new extension to
 `starboard/extension/extension_test.cc`.
 
 Once you've written your test you can execute it to confirm that it passes.
-`starboard/extension/extension.gyp` configures an `extension_test` target to be
-built from our `extension_test.cc` source file. We can build that target for our
+`starboard/extension/BUILD.gn` configures an `extension_test` target to be built
+from our `extension_test.cc` source file. We can build that target for our
 platform and then run the executable to run the tests.
 
 ```
