@@ -34,6 +34,10 @@ inline bool IsWidevineL1(const char* key_system) {
          strcmp(key_system, "com.widevine.alpha") == 0;
 }
 
+inline bool IsWidevineL3(const char* key_system) {
+  return strcmp(key_system, "com.youtube.widevine.l3") == 0;
+}
+
 // Map a supported |SbMediaAudioCodec| into its corresponding mime type
 // string.  Returns |nullptr| if |audio_codec| is not supported.
 // On return, |is_passthrough| will be set to true if the codec should be played

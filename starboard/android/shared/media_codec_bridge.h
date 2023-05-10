@@ -113,6 +113,7 @@ class MediaCodecBridge {
       jobject j_surface,
       jobject j_media_crypto,
       const SbMediaColorMetadata* color_metadata,
+      bool require_secured_decoder,
       bool require_software_codec,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,

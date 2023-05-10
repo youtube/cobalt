@@ -253,8 +253,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
     SB_DCHECK(tunnel_mode_audio_session_id != -1);
     SB_DCHECK(!drm_system_);
     drm_system_to_enforce_tunnel_mode_.reset(new DrmSystem(
-        nullptr, StubDrmSessionUpdateRequestFunc, StubDrmSessionUpdatedFunc,
-        StubDrmSessionKeyStatusesChangedFunc));
+        "com.youtube.widevine.l3", nullptr, StubDrmSessionUpdateRequestFunc,
+        StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc));
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
 

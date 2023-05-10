@@ -124,12 +124,14 @@ MediaDecoder::MediaDecoder(Host* host,
   SB_DCHECK(frame_rendered_cb_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
+  const bool require_secured_decoder =
+      drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
       video_codec, width, height, fps, this, j_output_surface, j_media_crypto,
-      color_metadata, require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, force_improved_support_check,
-      error_message);
+      color_metadata, require_secured_decoder, require_software_codec,
+      tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
+      force_improved_support_check, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;

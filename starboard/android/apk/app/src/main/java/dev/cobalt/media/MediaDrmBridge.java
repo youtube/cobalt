@@ -136,7 +136,7 @@ public class MediaDrmBridge {
    * @param nativeMediaDrmBridge The native owner of this class.
    */
   @UsedByNative
-  static MediaDrmBridge create(long nativeMediaDrmBridge) {
+  static MediaDrmBridge create(String keySystem, long nativeMediaDrmBridge) {
     UUID cryptoScheme = WIDEVINE_UUID;
     if (!MediaDrm.isCryptoSchemeSupported(cryptoScheme)) {
       return null;
@@ -144,7 +144,7 @@ public class MediaDrmBridge {
 
     MediaDrmBridge mediaDrmBridge = null;
     try {
-      mediaDrmBridge = new MediaDrmBridge(cryptoScheme, nativeMediaDrmBridge);
+      mediaDrmBridge = new MediaDrmBridge(keySystem, cryptoScheme, nativeMediaDrmBridge);
       Log.d(TAG, "MediaDrmBridge successfully created.");
     } catch (UnsupportedSchemeException e) {
       Log.e(TAG, "Unsupported DRM scheme", e);
@@ -373,7 +373,7 @@ public class MediaDrmBridge {
     return mMediaCrypto;
   }
 
-  private MediaDrmBridge(UUID schemeUUID, long nativeMediaDrmBridge)
+  private MediaDrmBridge(String keySystem, UUID schemeUUID, long nativeMediaDrmBridge)
       throws android.media.UnsupportedSchemeException {
     mSchemeUUID = schemeUUID;
     mMediaDrm = new MediaDrm(schemeUUID);
@@ -450,6 +450,10 @@ public class MediaDrmBridge {
 
     mMediaDrm.setPropertyString("privacyMode", "enable");
     mMediaDrm.setPropertyString("sessionSharing", "enable");
+    if (keySystem.equals("com.youtube.widevine.l3")
+        && mMediaDrm.getPropertyString("securityLevel") != "L3") {
+      mMediaDrm.setPropertyString("securityLevel", "L3");
+    }
   }
 
   @RequiresApi(23)
