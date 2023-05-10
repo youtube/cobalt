@@ -164,12 +164,16 @@ config("speed") {
 }
 
 config("executable_config") {
-  cflags = [ "-fPIE" ]
-  ldflags = [ "-pie" ]
+  if (current_toolchain == default_toolchain) {
+    cflags = [ "-fPIE" ]
+    ldflags = [ "-pie" ]
+  }
 }
 
 config("library_config") {
-  cflags = [ "-fPIC" ]
+  if (current_toolchain == default_toolchain) {
+    cflags = [ "-fPIC" ]
+  }
 }
 
 config("pedantic_warnings") {
