@@ -17,7 +17,6 @@
 
 import argparse
 from starboard.build.platforms import PLATFORMS
-from starboard.tools import build
 from starboard.tools import params
 import starboard.tools.config
 
@@ -41,21 +40,18 @@ def AddLoggingArguments(arg_parser, default='info'):
 def AddPlatformConfigArguments(arg_parser):
   """Adds the platform configuration arguments required for building."""
   AddLoggingArguments(arg_parser)
-  default_config, default_platform = build.GetDefaultConfigAndPlatform()
   arg_parser.add_argument(
       '-p',
       '--platform',
       choices=list(PLATFORMS.keys()),
-      default=default_platform,
-      required=not default_platform,
+      required=True,
       help="Device platform, eg 'linux-x64x11'. Requires that you have "
       'already run gn.py for the desired platform.')
   arg_parser.add_argument(
       '-c',
       '--config',
       choices=starboard.tools.config.GetAll(),
-      default=default_config,
-      required=not default_config,
+      required=True,
       help="Build config (eg, 'qa' or 'devel')")
   arg_parser.add_argument(
       '-P',
