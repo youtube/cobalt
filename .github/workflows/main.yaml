@@ -251,7 +251,7 @@ jobs:
           type: ondevice
           os: linux
 
-  # Runs on-host integration and unit tests.
+  # Runs on-device integration and unit tests.
   on-device-test:
     needs: [initialize, build]
     # Run ODT when on_device label is applied on PR.
