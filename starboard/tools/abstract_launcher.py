@@ -113,7 +113,7 @@ class AbstractLauncher(object):
     if not out_directory:
       out_directory = paths.BuildOutputDirectory(platform_name, config)
     self.out_directory = out_directory
-    self.coverage_directory = kwargs.get("coverage_directory", out_directory)
+    self.coverage_file_path = kwargs.get("coverage_file_path", None)
 
     output_file = kwargs.get("output_file", None)
     if not output_file:

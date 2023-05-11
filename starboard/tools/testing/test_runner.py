@@ -440,6 +440,9 @@ class TestRunner(object):
     # For on-device testing, this is w.r.t on device storage.
     test_result_xml_path = None
 
+    # Path to coverage file to generate.
+    coverage_file_path = None
+
     def MakeLauncher():
       logging.info("MakeLauncher(): %s", test_result_xml_path)
       return abstract_launcher.LauncherFactory(
@@ -450,7 +453,7 @@ class TestRunner(object):
           target_params=test_params,
           output_file=write_pipe,
           out_directory=self.out_directory,
-          coverage_directory=self.coverage_directory,
+          coverage_file_path=coverage_file_path,
           env_variables=env,
           test_result_xml_path=test_result_xml_path,
           loader_platform=self.loader_platform,
@@ -486,6 +489,11 @@ class TestRunner(object):
                    test_result_xml_path)
       test_params.append(f"--gtest_output=xml:{test_result_xml_path}")
     logging.info("XML test result path: %s", test_result_xml_path)
+
+    if self.coverage_directory:
+      coverage_file_path = os.path.join(self.coverage_directory,
+                                        target_name + ".profraw")
+      logging.info("Coverage data will be saved to %s", coverage_file_path)
 
     # Turn off color codes from output to make it easy to parse
     test_params.append("--gtest_color=no")

@@ -79,14 +79,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # Ensure that if the binary has code coverage or profiling instrumentation,
     # the output will be written to a file in the coverage_directory named as
     # the target_name with '.profraw' postfixed.
-    if self.coverage_directory:
-      target_profraw = os.path.join(self.coverage_directory,
-                                    target_name + ".profraw")
-      env.update({"LLVM_PROFILE_FILE": target_profraw})
+    if self.coverage_file_path:
+      env.update({"LLVM_PROFILE_FILE": self.coverage_file_path})
 
       # Remove any stale profraw file that may already exist.
       try:
-        os.remove(target_profraw)
+        os.remove(self.coverage_file_path)
       except OSError as e:
         if e.errno != errno.ENOENT:
           raise
