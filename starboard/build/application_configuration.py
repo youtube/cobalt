@@ -52,23 +52,6 @@ class ApplicationConfiguration(object):
     """Gets the directory of the application configuration."""
     return self._application_directory
 
-  def GetVariables(self, config_name):
-    """Get a Mapping of GYP/GN variable overrides.
-
-    Get a Mapping of GYP/GN variable names to values. Any defined values will
-    override any values defined by default or by the platform. GYP or GN files
-    can then have conditionals that check the values of these variables.
-
-    Args:
-      config_name: The name of the starboard.tools.config build type.
-
-    Returns:
-      A Mapping of GYP/GN variables to be merged into the global Mapping
-      provided to GYP/GN.
-    """
-    del config_name
-    return {}
-
   def GetTestEnvVariables(self):
     """Gets a dict of environment variables needed by unit test binaries."""
     return {}
