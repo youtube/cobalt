@@ -34,7 +34,7 @@ from starboard.tools import paths
 from starboard.tools.testing import build_tests
 from starboard.tools.testing import test_filter
 from starboard.tools.testing.test_sharding import ShardingTestConfig
-from starboard.tools.testing.test_coverage_report import generate_report
+from starboard.tools.testing.test_coverage import create_report
 from starboard.tools.util import SetupDefaultLoggingConfig
 
 # pylint: disable=consider-using-f-string
@@ -972,8 +972,8 @@ def main():
     run_success = runner.RunAllTests()
 
   if args.coverage_report and coverage_directory:
-    generate_report(runner.out_directory, runner.test_targets.keys(),
-                    coverage_directory)
+    create_report(runner.out_directory, runner.test_targets.keys(),
+                  coverage_directory)
 
   # If either step has failed, count the whole test run as failed.
   if not build_success or not run_success:
