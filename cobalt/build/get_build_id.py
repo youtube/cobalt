@@ -20,6 +20,7 @@ import subprocess
 
 from cobalt.build.build_number import GetOrGenerateNewBuildNumber
 
+_FILE_DIR = os.path.dirname(__file__)
 COMMIT_COUNT_BUILD_NUMBER_OFFSET = 1000000
 
 # Matches numbers > 1000000. The pattern is basic so git log --grep is able to
@@ -34,7 +35,8 @@ BUILD_NUBER_PATTERN_WITH_CAPTURE = f'({GIT_BUILD_NUMBER_PATTERN})'
 def get_build_number_from_commits():
   full_pattern = BUILD_NUMBER_TAG_PATTERN.format(GIT_BUILD_NUMBER_PATTERN)
   output = subprocess.check_output(
-      ['git', 'log', '--grep', full_pattern, '-1', '--pretty=%b']).decode()
+      ['git', 'log', '--grep', full_pattern, '-1', '--pretty=%b'],
+      cwd=_FILE_DIR).decode()
 
   full_pattern_with_capture = re.compile(
       BUILD_NUMBER_TAG_PATTERN.format(BUILD_NUBER_PATTERN_WITH_CAPTURE),
@@ -56,7 +58,8 @@ def get_build_number_from_server():
 
 
 def get_build_number_from_commit_count():
-  output = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'])
+  output = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'],
+                                   cwd=_FILE_DIR)
   build_number = int(output.strip().decode('utf-8'))
   return build_number + COMMIT_COUNT_BUILD_NUMBER_OFFSET
 
