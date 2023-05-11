@@ -104,6 +104,23 @@ jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   return static_cast<jclass>(clazz_obj);
 }
 
+jclass JniEnvExt::SafeFindClassExt(const char* name) {
+  // Convert the JNI FindClass name with slashes to the "binary name" with dots
+  // for ClassLoader.loadClass().
+  ::std::string dot_name = name;
+  ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
+  jstring jname = NewStringUTF(dot_name.c_str());
+  SafeIgnoreException();
+  jobject clazz_obj =
+      CallObjectMethodOrAbort(g_application_class_loader, "loadClass",
+                              "(Ljava/lang/String;)Ljava/lang/Class;", jname);
+  DeleteLocalRef(jname);
+  if (clazz_obj == NULL) {
+    return NULL;
+  }
+  return static_cast<jclass>(clazz_obj);
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

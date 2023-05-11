@@ -92,11 +92,31 @@ struct JniEnvExt : public JNIEnv {
     return method_id;
   }
 
+  // Lookup the class of an object and find a method in it.
+  jmethodID SafeGetObjectMethodID(jobject obj,
+                                  const char* name,
+                                  const char* sig) {
+    jclass clazz = GetObjectClass(obj);
+    SafeIgnoreException();
+    jmethodID method_id = GetMethodID(clazz, name, sig);
+    SafeIgnoreException();
+    DeleteLocalRef(clazz);
+    return method_id;
+  }
+
   jmethodID GetStaticMethodIDOrAbort(jclass clazz,
                                      const char* name,
                                      const char* sig) {
     jmethodID method = GetStaticMethodID(clazz, name, sig);
     AbortOnException();
+    return method;
+  }
+
+  jmethodID SafeGetStaticMethodID(jclass clazz,
+                                  const char* name,
+                                  const char* sig) {
+    jmethodID method = GetStaticMethodID(clazz, name, sig);
+    SafeIgnoreException();
     return method;
   }
 
@@ -111,6 +131,8 @@ struct JniEnvExt : public JNIEnv {
   // stack frame (e.g. in a native thread that was attached the the JVM).
   // https://developer.android.com/training/articles/perf-jni.html#faq_FindClass
   jclass FindClassExtOrAbort(const char* name);
+
+  jclass SafeFindClassExt(const char* name);
 
   jclass FindClassOrAbort(const char* name) {
     jclass result = FindClass(name);
@@ -299,6 +321,23 @@ struct JniEnvExt : public JNIEnv {
     va_end(argp);
   }
 
+  void SafeCallStaticVoidMethod(const char* class_name,
+                                const char* method_name,
+                                const char* sig,
+                                ...) {
+    va_list argp;
+    va_start(argp, sig);
+    jclass clazz = SafeFindClassExt(class_name);
+    if (clazz != NULL) {
+      jmethodID mid = SafeGetStaticMethodID(clazz, method_name, sig);
+      if (mid != NULL) {
+        CallStaticVoidMethodV(clazz, mid, argp);
+      }
+      DeleteLocalRef(clazz);
+    }
+    va_end(argp);
+  }
+
   void CallStaticVoidMethod(const char* class_name,
                             const char* method_name,
                             const char* sig,
@@ -378,6 +417,13 @@ struct JniEnvExt : public JNIEnv {
     }
     ExceptionDescribe();
     SbSystemBreakIntoDebugger();
+  }
+
+  void SafeIgnoreException() {
+    if (!ExceptionCheck()) {
+      return;
+    }
+    ExceptionClear();
   }
 };
 

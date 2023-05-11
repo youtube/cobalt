@@ -28,12 +28,23 @@ bool OverrideCrashpadAnnotations(CrashpadAnnotations* crashpad_annotations) {
 }
 
 bool SetString(const char* key, const char* value) {
+  SB_LOG(ERROR) << "Colin test: crash_handler set string.";
+
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_key(env->NewStringStandardUTFOrAbort(key));
   ScopedLocalJavaRef<jstring> j_value(env->NewStringStandardUTFOrAbort(value));
-  env->CallStarboardVoidMethodOrAbort("setCrashContext",
-                                      "(Ljava/lang/String;Ljava/lang/String;)V",
-                                      j_key.Get(), j_value.Get());
+  // env->CallStarboardVoidMethodOrAbort("setCrashContext",
+  //                                     "(Ljava/lang/String;Ljava/lang/String;)V",
+  //                                     j_key.Get(), j_value.Get());
+
+  // env->CallStaticVoidMethod(
+  env->SafeCallStaticVoidMethod(
+      // "dev/cobalt/coat/CrashContextProvider",
+      "com/google/android/libraries/youtube/tv/util/contextprovider/"
+      "KimonoContextProvider",
+      "setContext", "(Ljava/lang/String;Ljava/lang/String;)V", j_key.Get(),
+      j_value.Get());
+
   return true;
 }
 

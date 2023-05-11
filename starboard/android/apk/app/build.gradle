@@ -116,11 +116,19 @@ android {
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=devel"
             }
+            packagingOptions {
+                doNotStrip '**/*.so'
+            }
             signingConfig signingConfigs.debugConfig
         }
         qa {
+            debuggable true
+            jniDebuggable true
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=qa"
+            }
+            packagingOptions {
+                doNotStrip '**/*.so'
             }
             signingConfig signingConfigs.debugConfig
         }
