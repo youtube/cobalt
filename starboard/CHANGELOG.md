@@ -97,6 +97,9 @@ added new system property `kSbSystemPropertyDeviceType` for device type as a str
 All the allowed device type values are now checked by nplb test:
 `starboard/nplb/system_get_property_test.cc`.
 
+### Deprecated kSbHasAc3Audio
+This constant is no longer used and has been deprecated.
+
 ## Version 14
 ### Add MP3, FLAC, and PCM values to SbMediaAudioCodec.
 This makes it possible to support these codecs in the future.

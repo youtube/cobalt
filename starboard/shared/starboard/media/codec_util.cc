@@ -73,10 +73,15 @@ bool VideoConfig::operator!=(const VideoConfig& that) const {
 }
 
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec) {
+#if SB_API_VERSION < 15
+  const bool kCheckAc3Audio = kSbHasAc3Audio;
+#else
+  const bool kCheckAc3Audio = true;
+#endif  // SB_API_VERSION < 15
   if (strncmp(codec, "mp4a.40.", 8) == 0) {
     return kSbMediaAudioCodecAac;
   }
-  if (kSbHasAc3Audio) {
+  if (kCheckAc3Audio) {
     if (strcmp(codec, "ac-3") == 0) {
       return kSbMediaAudioCodecAc3;
     }

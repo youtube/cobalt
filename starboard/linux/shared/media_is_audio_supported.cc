@@ -32,11 +32,14 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
 
-  if (kSbHasAc3Audio) {
-    if (audio_codec == kSbMediaAudioCodecAc3 ||
-        audio_codec == kSbMediaAudioCodecEac3) {
-      return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
+  if (audio_codec == kSbMediaAudioCodecAc3 ||
+      audio_codec == kSbMediaAudioCodecEac3) {
+#if SB_API_VERSION < 15
+    if (!kSbHasAc3Audio) {
+      return false;
     }
+#endif  // SB_API_VERSION < 15
+    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
 
   if (audio_codec == kSbMediaAudioCodecVorbis) {
