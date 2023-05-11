@@ -21,6 +21,7 @@
 
 #include "zlib.h"
 
+#if !defined( STARBOARD )
 #if defined(STDC) && !defined(Z_SOLO)
 #  if !(defined(_WIN32_WCE) && defined(_MSC_VER))
 #    include <stddef.h>
@@ -28,6 +29,7 @@
 #  include <string.h>
 #  include <stdlib.h>
 #endif
+#endif  /* !defined( STARBOARD ) */
 
 #ifndef local
 #  define local static
@@ -91,6 +93,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 
         /* target dependencies */
 
+#if !defined( STARBOARD )
 #if defined(MSDOS) || (defined(WINDOWS) && !defined(WIN32))
 #  define OS_CODE  0x00
 #  ifndef Z_SOLO
@@ -201,6 +204,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #endif
 
 #endif  /* !Z_FREETYPE */
+#endif  /* !defined( STARBOARD ) */
 
         /* common defaults */
 
