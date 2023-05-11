@@ -167,6 +167,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'poem_unittests',
         'render_tree_test',
         'renderer_test',
+        'scroll_engine_tests',
         'storage_test',
         'text_encoding_test',
         'web_test',

@@ -28,3 +28,15 @@ static_library("scroll_engine") {
     "//cobalt/ui_navigation",
   ]
 }
+
+target(gtest_target_type, "scroll_engine_tests") {
+  testonly = true
+  sources = [ "free_scrolling_nav_item_test.cc" ]
+  deps = [
+    ":scroll_engine",
+    "//cobalt/base",
+    "//cobalt/test:run_all_unittests",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
