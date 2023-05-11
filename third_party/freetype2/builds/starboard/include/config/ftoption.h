@@ -15,14 +15,8 @@
  *
  */
 
-#if defined( STARBOARD )
-// This file should not be included, as we override ftoption.h by defining
-// FT_CONFIG_OPTIONS_H via BUILD.gn, and changing the include order.
-#error "Do not include this file in Cobalt."
-#endif /* defined( STARBOARD ) */
-
-#ifndef FTOPTION_H_
-#define FTOPTION_H_
+#ifndef COBALT___FTOPTION_H_
+#define COBALT___FTOPTION_H_
 
 
 #include <ft2build.h>
@@ -278,7 +272,7 @@ FT_BEGIN_HEADER
    *   options set by those programs have precedence, overwriting the value
    *   here with the configured one.
    */
-/* #define FT_CONFIG_OPTION_USE_PNG */
+#define FT_CONFIG_OPTION_USE_PNG
 
 
   /**************************************************************************
@@ -311,7 +305,7 @@ FT_BEGIN_HEADER
    *   options set by those programs have precedence, overwriting the value
    *   here with the configured one.
    */
-/* #define FT_CONFIG_OPTION_USE_BROTLI */
+#define FT_CONFIG_OPTION_USE_BROTLI
 
 
   /**************************************************************************
@@ -398,7 +392,7 @@ FT_BEGIN_HEADER
    * incrementally as the document is parsed, such as the Ghostscript
    * interpreter for the PostScript language.
    */
-#define FT_CONFIG_OPTION_INCREMENTAL
+/* #define FT_CONFIG_OPTION_INCREMENTAL */
 
 
   /**************************************************************************
@@ -1046,7 +1040,6 @@ FT_BEGIN_HEADER
 
 FT_END_HEADER
 
-#endif /* FTOPTION_H_ */
-
+#endif /* COBALT___FTOPTION_H_ */
 
 /* END */

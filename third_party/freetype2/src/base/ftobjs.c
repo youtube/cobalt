@@ -1492,6 +1492,16 @@
    * @Description:
    *   This function does some work for FT_Open_Face().
    */
+#if defined( STARBOARD )
+  static FT_Error
+  open_face( FT_Driver     driver,
+             FT_Stream*    astream,
+             FT_Bool*      anexternal_stream,
+             FT_Long*      face_index,
+             FT_Int        num_params,
+             FT_Parameter* params,
+             FT_Face*      aface )
+#else
   static FT_Error
   open_face( FT_Driver      driver,
              FT_Stream      *astream,
@@ -1500,6 +1510,7 @@
              FT_Int         num_params,
              FT_Parameter*  params,
              FT_Face       *aface )
+#endif /* defined( STARBOARD ) */
   {
     FT_Memory         memory;
     FT_Driver_Class   clazz;
@@ -1545,12 +1556,29 @@
 
     face->internal->random_seed = -1;
 
+#if defined( STARBOARD )
+    if ( clazz->init_face )
+    {
+      FT_Stream_Seek( *astream, 0 );
+      FT_ULong tag = FT_Stream_ReadULong( *astream, &error );
+      error = clazz->init_face( *astream,
+                                face,
+                                (FT_Int)*face_index,
+                                num_params,
+                                params );
+      if ( tag == TTAG_wOF2 )
+      {
+        *face_index = face->face_index;
+      }
+    }
+#else
     if ( clazz->init_face )
       error = clazz->init_face( *astream,
                                 face,
                                 (FT_Int)face_index,
                                 num_params,
                                 params );
+#endif /* defined( STARBOARD ) */
     /* Stream may have been changed. */
     *astream = face->stream;
     *anexternal_stream =
@@ -1571,7 +1599,9 @@
       goto Fail;
     }
 
+#if !defined( STARBOARD )
     *aface = face;
+#endif /* !defined( STARBOARD ) */
 
   Fail:
     if ( error )
@@ -1580,10 +1610,15 @@
       if ( clazz->done_face )
         clazz->done_face( face );
       FT_FREE( internal );
+#if !defined( STARBOARD )
       FT_FREE( face );
       *aface = NULL;
+#endif /* !defined( STARBOARD ) */
     }
 
+#if defined( STARBOARD )
+    *aface = face;
+#endif /* defined( STARBOARD ) */
     return error;
   }
 
@@ -2598,8 +2633,13 @@
           params     = args->params;
         }
 
+#if defined( STARBOARD )
+        error = open_face( driver, &stream, &external_stream, &face_index,
+                           num_params, params, &face );
+#else
         error = open_face( driver, &stream, &external_stream, face_index,
                            num_params, params, &face );
+#endif /* defined( STARBOARD ) */
         if ( !error )
           goto Success;
       }
@@ -2634,11 +2674,22 @@
             params     = args->params;
           }
 
+#if defined( STARBOARD )
+          error = open_face( driver, &stream, &external_stream, &face_index,
+                             num_params, params, &face );
+#else
           error = open_face( driver, &stream, &external_stream, face_index,
                              num_params, params, &face );
+#endif /* defined( STARBOARD ) */
           if ( !error )
             goto Success;
 
+#if defined( STARBOARD )
+          external_stream =
+              ( face->face_flags & FT_FACE_FLAG_EXTERNAL_STREAM ) != 0;
+          FT_FREE( face );
+          face = NULL;
+#endif /* defined( STARBOARD ) */
 #ifdef FT_CONFIG_OPTION_MAC_FONTS
           if ( test_mac_fonts                                           &&
                ft_strcmp( cur[0]->clazz->module_name, "truetype" ) == 0 &&

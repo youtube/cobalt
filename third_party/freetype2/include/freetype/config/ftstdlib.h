@@ -108,7 +108,23 @@
    *
    */
 
+#if defined( STARBOARD )
+#include "starboard/string.h"
+#include "starboard/file.h"
 
+#ifndef SEEK_SET
+#define SEEK_SET    kSbFileFromBegin
+#define SEEK_CUR    kSbFileFromCurrent
+#define SEEK_END    kSbFileFromEnd
+#endif
+#define FT_FILE     SbFilePrivate
+#define ft_fclose   SbFileClose
+#define ft_fopen(p, m) SbFileOpen((p), SbFileModeStringToFlags(m), NULL, NULL)
+#define ft_fread(b, s, n, f) SbFileRead((f), (char *)(b), (s) * (n))
+#define ft_fseek(f, o, w) SbFileSeek((f), (w), (o))
+#define ft_ftell(f)    SbFileSeek((f), kSbFileFromCurrent, 0)
+#define ft_sprintf  SbStringFormatUnsafeF
+#else
 #include <stdio.h>
 
 #define FT_FILE     FILE
@@ -118,6 +134,7 @@
 #define ft_fseek    fseek
 #define ft_ftell    ftell
 #define ft_sprintf  sprintf
+#endif /* defined( STARBOARD ) */
 
 
   /**************************************************************************
@@ -138,11 +155,27 @@
    *
    */
 
+#if defined( STARBOARD )
+#include "starboard/memory.h"
+static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
+  size_t size = nelem * elsize;
+  void *memory = SbMemoryAllocate(size);
+  if (!memory) {
+    return NULL;
+  }
 
+  memset(memory, 0, size);
+  return memory;
+}
+#define ft_sfree     SbMemoryDeallocate
+#define ft_smalloc   SbMemoryAllocate
+#define ft_srealloc  SbMemoryReallocate
+#else
 #define ft_scalloc   calloc
 #define ft_sfree     free
 #define ft_smalloc   malloc
 #define ft_srealloc  realloc
+#endif /* defined( STARBOARD ) */
 
 
   /**************************************************************************
@@ -152,8 +185,18 @@
    */
 
 
+#include <stdlib.h>
 #define ft_strtol  strtol
+
+#if defined( STARBOARD )
+static SB_C_INLINE char*
+ft_getenv( const char* name )
+{
+  return NULL;
+}
+#else
 #define ft_getenv  getenv
+#endif /* defined( STARBOARD ) */
 
 
   /**************************************************************************

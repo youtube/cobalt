@@ -10,6 +10,12 @@
  *
  */
 
+#if defined( STARBOARD )
+// This file should not be included, as we override ftmodule.h by defining
+// FT_CONFIG_MODULES_H via BUILD.gn, and changing the include order.
+#error "Do not include this file in Cobalt."
+#endif /* defined( STARBOARD ) */
+
 FT_USE_MODULE( FT_Module_Class, autofit_module_class )
 FT_USE_MODULE( FT_Driver_ClassRec, tt_driver_class )
 FT_USE_MODULE( FT_Driver_ClassRec, t1_driver_class )

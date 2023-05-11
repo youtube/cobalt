@@ -24,6 +24,7 @@
    *   This is the only necessary change, so it is defined here instead
    *   providing a new configuration file.
    */
+#if !defined( STARBOARD)
 #if defined( __APPLE__ ) || ( defined( __MWERKS__ ) && defined( macintosh ) )
   /* No Carbon frameworks for 64bit 10.4.x.                         */
   /* `AvailabilityMacros.h` is available since Mac OS X 10.2,       */
@@ -45,5 +46,6 @@
 #endif
 
 #endif  /* Mac support */
+#endif /* !defined( STARBOARD) */
 
 #endif  /* FREETYPE_CONFIG_MAC_SUPPORT_H_ */
