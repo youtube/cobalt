@@ -15,16 +15,16 @@
 #ifndef COBALT_LOADER_FETCHER_TEST_H_
 #define COBALT_LOADER_FETCHER_TEST_H_
 
-#include "cobalt/loader/fetcher.h"
-
 #include <string>
 
 #include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "cobalt/loader/fetcher.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-using ::testing::Invoke;
 using ::testing::_;
+using ::testing::Invoke;
 
 namespace cobalt {
 namespace loader {
@@ -41,13 +41,13 @@ class FetcherHandlerForTest : public Fetcher::Handler {
   }
   void OnDone(Fetcher* fetcher) override {
     CheckFetcher(fetcher);
-    base::MessageLoop::current()->task_runner()->PostTask(
-        FROM_HERE, run_loop_->QuitClosure());
+    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                  run_loop_->QuitClosure());
   }
   void OnError(Fetcher* fetcher, const std::string& error) override {
     CheckFetcher(fetcher);
-    base::MessageLoop::current()->task_runner()->PostTask(
-        FROM_HERE, run_loop_->QuitClosure());
+    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                  run_loop_->QuitClosure());
   }
 
   const std::string& data() const { return data_; }

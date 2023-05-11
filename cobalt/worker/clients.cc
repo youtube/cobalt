@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
 #include "base/task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/environment_settings.h"
@@ -139,7 +140,7 @@ script::HandlePromiseVoid Clients::Claim() {
            service_worker->state() != kServiceWorkerStateActivating);
     // Perform the rest of the steps in a task, because the promise has to be
     // returned before we can safely reject it.
-    base::MessageLoop::current()->task_runner()->PostTask(
+    base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE,
         base::BindOnce(
             [](std::unique_ptr<script::ValuePromiseVoid::Reference>

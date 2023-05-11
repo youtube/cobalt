@@ -22,6 +22,7 @@
 #include "base/location.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -48,12 +49,12 @@ class H5vccEventListenerContainer {
   struct Listener {
     Listener(script::Wrappable* owner, const CallbackHolderType& cb)
         : callback(owner, cb),
-          task_runner(base::MessageLoop::current()->task_runner()) {}
+          task_runner(base::ThreadTaskRunnerHandle::Get()) {}
 
     // Notifies listener. Must be called on the same message loop the
     // listener registered its callback from.
     void Notify(GetArgumentCallback on_notify) {
-      DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner);
+      DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner);
       CallbackArgType arg = on_notify.Run();
       callback.value().Run(arg);
     }
@@ -128,10 +129,10 @@ class H5vccEventListenerContainer {
 // Explicit template specialization for the no callback argument case, where
 // we don't need to call the |GetArgumentCallback| callback.
 template <>
-inline void
-    H5vccEventListenerContainer<void, script::CallbackFunction<void()> >::
-        Listener::Notify(GetArgumentCallback) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner);
+inline void H5vccEventListenerContainer<
+    void,
+    script::CallbackFunction<void()> >::Listener::Notify(GetArgumentCallback) {
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner);
   callback.value().Run();
 }
 

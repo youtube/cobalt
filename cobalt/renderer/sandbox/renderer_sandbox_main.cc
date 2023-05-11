@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/math/size.h"
@@ -88,7 +89,7 @@ void StartApplication(int argc, char** argv, const char* link,
   g_renderer_sandbox = new RendererSandbox();
   DCHECK(g_renderer_sandbox);
 
-  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE, quit_closure, base::TimeDelta::FromSeconds(30));
 }
 

@@ -24,6 +24,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/task_runner_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/data_source.h"
@@ -409,7 +410,7 @@ void ProgressiveDemuxer::AllocateBuffer() {
 }
 
 void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
-  DCHECK(blocking_thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(base::ThreadTaskRunnerHandle::Get()->BelongsToCurrentThread());
   // We need a requested_au_ or to have canceled this request and
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
@@ -464,7 +465,7 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // Notify host of each disjoint range.
   host_->OnBufferedTimeRangesChanged(buffered);
 
-  blocking_thread_.task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind(&ProgressiveDemuxer::IssueNextRequest,
                             base::Unretained(this)));
 }
@@ -516,7 +517,7 @@ void ProgressiveDemuxer::IssueNextRequest() {
   // We cannot call Request() directly even if this function is also run on
   // |blocking_thread_| as otherwise it is possible that this function is
   // running in a tight loop and seek or stop request has no chance to kick in.
-  blocking_thread_.task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::Bind(&ProgressiveDemuxer::Request, base::Unretained(this), type));
 }
