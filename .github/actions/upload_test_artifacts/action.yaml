@@ -1,4 +1,5 @@
 name: Test Artifact Upload
+
 description: Uploads test archives to GCS and runs on-device tests.
 inputs:
   type:
