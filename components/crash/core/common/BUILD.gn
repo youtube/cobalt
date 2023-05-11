@@ -69,7 +69,7 @@ target(crash_key_target_type, "crash_key") {
     "//base",
   ]
 
-  if (use_crash_key_stubs) {
+  if (use_crash_key_stubs || use_cobalt_customizations) {
     sources += [ "crash_key_stubs.cc" ]
   } else if (use_crashpad_annotation) {
     sources += [ "crash_key_crashpad.cc" ]
