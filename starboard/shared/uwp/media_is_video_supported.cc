@@ -17,6 +17,7 @@
 #include "starboard/shared/starboard/media/video_capabilities.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/extended_resources_manager.h"
+#include "starboard/shared/uwp/xb1_get_type.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/window.h"
 
@@ -25,43 +26,6 @@ using ::starboard::shared::starboard::media::MimeType;
 namespace {
 using ::starboard::shared::uwp::ApplicationUwp;
 using ::starboard::shared::uwp::ExtendedResourcesManager;
-
-typedef enum {
-  kXboxUndefined,
-  kXboxOneBase,
-  kXboxOneS,
-  kXboxOneX,
-  kXboxSeriesS,
-  kXboxSeriesX,
-} XboxType;
-
-XboxType GetXboxType() {
-  // The value kXboxUndefined means that the model name needs to be clarified at
-  // the first time and cached for further calls.
-  static XboxType xbox_type = kXboxUndefined;
-  constexpr size_t kNameLength = 1024;
-  char name[kNameLength] = {};
-
-  if (xbox_type == kXboxUndefined) {
-    // Provide a base functionality even for unknown models.
-    xbox_type = kXboxOneBase;
-
-    // Detect from system properties which model runs the application.
-    if (SbSystemGetProperty(kSbSystemPropertyModelName, name, kNameLength)) {
-      const std::string friendly_name(name);
-      if (friendly_name == "XboxOne S") {
-        xbox_type = kXboxOneS;
-      } else if (friendly_name == "XboxOne X") {
-        xbox_type = kXboxOneX;
-      } else if (friendly_name == "XboxScarlett Series S") {
-        xbox_type = kXboxSeriesS;
-      } else if (friendly_name == "XboxScarlett Series X") {
-        xbox_type = kXboxSeriesX;
-      }
-    }
-  }
-  return xbox_type;
-}
 
 class XboxVideoCapabilities {
  public:
@@ -88,8 +52,8 @@ class XboxVideoCapabilities {
     hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecH264, 1920, 1088, 60);
 #endif  // ENABLE_H264_4K_SUPPORT
 
-    switch (GetXboxType()) {
-      case kXboxOneBase:
+    switch (starboard::shared::uwp::GetXboxType()) {
+      case starboard::shared::uwp::kXboxOneBase:
         // Horizontal video resolutions
         gpu_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 2560, 1440,
                                              30);
@@ -109,7 +73,7 @@ class XboxVideoCapabilities {
         gpu_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecAv1, 1080, 1920,
                                              60);
         break;
-      case kXboxOneS:
+      case starboard::shared::uwp::kXboxOneS:
         if (!limit_to_2k) {
           // Horizontal video resolution
           gpu_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 3840,
@@ -145,7 +109,7 @@ class XboxVideoCapabilities {
         gpu_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecAv1, 1080, 1920,
                                              60);
         break;
-      case kXboxOneX:
+      case starboard::shared::uwp::kXboxOneX:
         // Horizontal video resolutions
         hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 3840, 2160,
                                             30);
@@ -167,7 +131,7 @@ class XboxVideoCapabilities {
         hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecVp9, 1440, 2560,
                                             60);
         break;
-      case kXboxSeriesS:
+      case starboard::shared::uwp::kXboxSeriesS:
         // Horizontal video resolutions
         hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 3840, 2160,
                                             60);
@@ -196,7 +160,7 @@ class XboxVideoCapabilities {
         hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecAv1, 1080, 1920,
                                             60);
         break;
-      case kXboxSeriesX:
+      case starboard::shared::uwp::kXboxSeriesX:
         // Horizontal video resolutions
         hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecVp9, 3840, 2160,
                                             60);
