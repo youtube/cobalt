@@ -737,10 +737,6 @@ void UnitTestImpl::SetGlobalTestPartResultReporter(
 // Returns the test part result reporter for the current thread.
 TestPartResultReporterInterface*
 UnitTestImpl::GetTestPartResultReporterForCurrentThread() {
-  if (!per_thread_test_part_result_reporter_.get()) {
-    per_thread_test_part_result_reporter_.set(
-        &default_per_thread_test_part_result_reporter_);
-  }
   return per_thread_test_part_result_reporter_.get();
 }
 
