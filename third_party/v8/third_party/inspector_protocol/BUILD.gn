@@ -8,6 +8,9 @@ config("crdtp_config") {
   visibility = [ "../../src/inspector:*", ":*" ]
   configs = [ "../../:internal_config" ]
   include_dirs = [ "../../include" ]
+  if (is_clang_16 && use_cobalt_customizations) {
+    cflags = [ "-Wno-implicit-const-int-float-conversion" ]
+  }
 }
 
 v8_source_set("crdtp") {
