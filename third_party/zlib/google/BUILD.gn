@@ -4,7 +4,7 @@
 
 import("//build_overrides/build.gni")
 
-if (build_with_chromium) {
+if (build_with_chromium || use_cobalt_customizations) {
   static_library("zip") {
     sources = [
       "zip.cc",
