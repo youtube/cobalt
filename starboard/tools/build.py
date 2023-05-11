@@ -21,7 +21,6 @@ import os
 import sys
 
 from starboard.build.platforms import PLATFORMS
-from starboard.tools import paths
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
 _STARBOARD_TOOLCHAINS_DIR_NAME = 'starboard-toolchains'
