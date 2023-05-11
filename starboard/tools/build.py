@@ -23,8 +23,8 @@ import sys
 
 from starboard.build.platforms import PLATFORMS
 from starboard.tools import config
-from starboard.tools import paths
 from starboard.tools import download_clang
+from starboard.tools import paths
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
 _STARBOARD_TOOLCHAINS_DIR_NAME = 'starboard-toolchains'
@@ -109,25 +109,6 @@ def GetDefaultConfigAndPlatform():
       default_platform_name = platform_name
 
   return default_config_name, default_platform_name
-
-
-def GetGyp():
-  """Gets the GYP module, loading it, if necessary."""
-  if 'gyp' not in sys.modules:
-    sys.path.insert(
-        0, os.path.join(paths.REPOSITORY_ROOT, 'tools', 'gyp', 'pylib'))
-    importlib.import_module('gyp')
-  return sys.modules['gyp']
-
-
-def GypDebugOptions():
-  """Returns all valid GYP debug options."""
-  debug_modes = []
-  gyp = GetGyp()
-  for name in dir(gyp):
-    if name.startswith('DEBUG_'):
-      debug_modes.append(getattr(gyp, name))
-  return debug_modes
 
 
 def GetToolchainsDir():
