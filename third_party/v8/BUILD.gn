@@ -2314,6 +2314,10 @@ v8_source_set("v8_compiler_opt") {
 
   sources = v8_compiler_sources
 
+  if (is_clang_16 && use_cobalt_customizations) {
+    cflags = ["-Wno-implicit-const-int-float-conversion",]
+  }
+
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
@@ -2338,6 +2342,10 @@ v8_source_set("v8_compiler") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = v8_compiler_sources
+
+  if (is_clang_16 && use_cobalt_customizations) {
+    cflags = ["-Wno-implicit-const-int-float-conversion",]
+  }
 
   public_deps = [
     ":generate_bytecode_builtins_list",
@@ -3929,6 +3937,10 @@ v8_source_set("v8_base_without_compiler") {
     }
   }
 
+  if (is_clang_16 && use_cobalt_customizations) {
+    cflags = [ "-Wno-implicit-const-int-float-conversion"]
+  }
+
   configs = [
     ":internal_config",
     ":cppgc_base_config",
@@ -4079,6 +4091,9 @@ if (is_starboard && current_toolchain == host_toolchain) {
   static_library("v8_zlib") {
     check_includes = false
 
+    if (is_clang_16 && use_cobalt_customizations) {
+      cflags_c = [ "-Wno-deprecated-non-prototype"]
+    }
     sources = [
       "//third_party/zlib/adler32.c",
       "//third_party/zlib/chromeconf.h",
