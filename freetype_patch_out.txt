@@ -1,0 +1,72 @@
+$ patch -p1 <~/freetype_customizations.patch
+patching file BUILD.gn
+can't find file to patch at input line 100
+Perhaps you used the wrong -p or --strip option?
+The text leading up to this was:
+--------------------------
+|diff '--color=auto' -Nur '--exclude=.git' /usr/local/google/home/jfoks/src/freetype2/ChangeLog ./ChangeLog
+|--- /usr/local/google/home/jfoks/src/freetype2/ChangeLog	2023-05-09 15:31:40.466322838 -0700
+|+++ ./ChangeLog	2023-05-09 15:31:03.018494755 -0700
+--------------------------
+File to patch: docs/oldlogs/ChangeLog.210
+patching file docs/oldlogs/ChangeLog.210
+Hunk #1 FAILED at 1.
+1 out of 1 hunk FAILED -- saving rejects to file docs/oldlogs/ChangeLog.210.rej
+patching file docs/reference/.gitignore
+patching file docs/reference/markdown/javascripts/extra.js
+patching file docs/reference/markdown/stylesheets/extra.css
+patching file docs/reference/README
+patching file include/freetype/config/ftconfig.h
+Hunk #2 FAILED at 123.
+1 out of 2 hunks FAILED -- saving rejects to file include/freetype/config/ftconfig.h.rej
+patching file include/freetype/config/ftmodule.h
+patching file include/freetype/config/ftoption.h
+patching file include/freetype/config/ftstdlib.h
+Hunk #1 succeeded at 83 (offset 10 lines).
+Hunk #2 succeeded at 99 (offset 10 lines).
+Hunk #3 succeeded at 131 (offset 10 lines).
+Hunk #4 succeeded at 140 (offset 10 lines).
+Hunk #5 succeeded at 177 (offset 10 lines).
+patching file include_cobalt/ftconfig.h
+patching file include_cobalt/ftmodule.h
+patching file include_cobalt/ftoption.h
+patching file METADATA
+patching file README.cobalt
+patching file src/base/ftobjs.c
+Hunk #1 FAILED at 1350.
+Hunk #2 FAILED at 1399.
+Hunk #3 succeeded at 1571 (offset 149 lines).
+Hunk #4 succeeded at 1578 (offset 149 lines).
+Hunk #5 FAILED at 2433.
+Hunk #6 FAILED at 2469.
+4 out of 6 hunks FAILED -- saving rejects to file src/base/ftobjs.c.rej
+patching file src/gzip/zutil.h
+Hunk #1 FAILED at 15.
+Hunk #2 succeeded at 28 with fuzz 2 (offset 3 lines).
+Hunk #3 FAILED at 70.
+Hunk #4 FAILED at 133.
+Hunk #5 FAILED at 183.
+4 out of 5 hunks FAILED -- saving rejects to file src/gzip/zutil.h.rej
+patching file src/sfnt/pngshim.c
+Reversed (or previously applied) patch detected!  Assume -R? [n] n
+Apply anyway? [n] y
+Hunk #1 FAILED at 328.
+Hunk #2 FAILED at 336.
+2 out of 2 hunks FAILED -- saving rejects to file src/sfnt/pngshim.c.rej
+patching file src/sfnt/sfwoff2.c
+Hunk #1 FAILED at 318.
+1 out of 1 hunk FAILED -- saving rejects to file src/sfnt/sfwoff2.c.rej
+(cobalt_dev) helium:~/src/cobalt/third_party/freetype2(main)$ find . -name '*.rej' -or -name '*.orig'
+./include/freetype/config/ftconfig.h.rej
+./include/freetype/config/ftconfig.h.orig
+./include/freetype/config/ftstdlib.h.orig
+./docs/oldlogs/ChangeLog.210.rej
+./docs/oldlogs/ChangeLog.210.orig
+./src/sfnt/sfwoff2.c.rej
+./src/sfnt/pngshim.c.rej
+./src/sfnt/sfwoff2.c.orig
+./src/sfnt/pngshim.c.orig
+./src/base/ftobjs.c.orig
+./src/base/ftobjs.c.rej
+./src/gzip/zutil.h.rej
+./src/gzip/zutil.h.orig
