@@ -493,7 +493,8 @@ class TestRunner(object):
     if self.coverage_directory:
       coverage_file_path = os.path.join(self.coverage_directory,
                                         target_name + ".profraw")
-      logging.info("Coverage data will be saved to %s", coverage_file_path)
+      logging.info("Coverage data will be saved to %s",
+                   os.path.relpath(coverage_file_path))
 
     # Turn off color codes from output to make it easy to parse
     test_params.append("--gtest_color=no")
