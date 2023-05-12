@@ -105,8 +105,14 @@ runs:
       with:
         name: unit-test-reports
         path: ${{env.TEST_REPORT_FILE}}
+    - name: Upload coverage report
+      if: ${{matrix.shard}} == 'coverage'
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: ${{env.COVERAGE_DIR}}
     - name: Upload to Codecov
-      if: endsWith(${{matrix.target_platform}}, 'coverage')
+      if: ${{matrix.shard}} == 'coverage'
       uses: codecov/codecov-action@v3
       with:
         files: ${{env.COVERAGE_DIR}}/report.txt
