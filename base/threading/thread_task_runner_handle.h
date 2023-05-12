@@ -22,7 +22,7 @@ namespace base {
 class BASE_EXPORT ThreadTaskRunnerHandle {
  public:
   // Gets the SingleThreadTaskRunner for the current thread.
-  static scoped_refptr<SingleThreadTaskRunner> Get();
+  static const scoped_refptr<SingleThreadTaskRunner>& Get();
 
   // Returns true if the SingleThreadTaskRunner is already created for
   // the current thread.

@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/json_object.h"
 
@@ -49,7 +50,7 @@ class Command {
         domain_(method_, 0, method_.find('.')),
         json_params_(json_params),
         callback_(response_callback),
-        task_runner_(base::MessageLoop::current()->task_runner()),
+        task_runner_(base::ThreadTaskRunnerHandle::Get()),
         response_sent_(false) {
     DCHECK(!method_.empty());
     DCHECK(!domain_.empty());

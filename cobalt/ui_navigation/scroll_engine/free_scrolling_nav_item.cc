@@ -31,7 +31,7 @@ FreeScrollingNavItem::FreeScrollingNavItem(scoped_refptr<NavItem> nav_item,
       initial_offset_(initial_offset),
       target_offset_(target_offset),
       animation_duration_(animation_duration) {
-  initial_change_ = base::Time::Now();
+  initial_change_ = clock_->Now();
 
   // Constants are derived from the ease-in-out curve definition here:
   // https://www.w3.org/TR/2023/CRD-css-easing-1-20230213/#typedef-cubic-bezier-easing-function
@@ -45,7 +45,7 @@ float FreeScrollingNavItem::GetFractionOfCurrentProgress() {
     return 1.f;
   }
 
-  auto now = base::Time::Now();
+  auto now = clock_->Now();
   auto time_delta = now - initial_change_;
   auto fraction_of_progress =
       time_delta.InMillisecondsF() / animation_duration_.InMillisecondsF();

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/loader/loader.h"
+
+#include <memory>
 
 #include "base/bind.h"
 #include "base/files/file_util.h"
@@ -22,15 +22,16 @@
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/text_decoder.h"
 #include "cobalt/web/url_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Invoke;
-using ::testing::_;
 
 namespace cobalt {
 namespace loader {
@@ -46,8 +47,8 @@ class TextDecoderCallback {
 
   void OnDone(const Origin&, std::unique_ptr<std::string> text) {
     text_ = *text;
-    base::MessageLoop::current()->task_runner()->PostTask(
-        FROM_HERE, run_loop_->QuitClosure());
+    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                  run_loop_->QuitClosure());
   }
 
   std::string text() { return text_; }
@@ -67,8 +68,8 @@ class LoaderCallback {
 
     DLOG(ERROR) << *text;
     if (run_loop_)
-      base::MessageLoop::current()->task_runner()->PostTask(
-          FROM_HERE, run_loop_->QuitClosure());
+      base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                    run_loop_->QuitClosure());
   }
 
  private:

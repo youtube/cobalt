@@ -15,6 +15,9 @@
 #ifndef COBALT_UI_NAVIGATION_SCROLL_ENGINE_FREE_SCROLLING_NAV_ITEM_H_
 #define COBALT_UI_NAVIGATION_SCROLL_ENGINE_FREE_SCROLLING_NAV_ITEM_H_
 
+#include "base/time/clock.h"
+#include "base/time/default_clock.h"
+#include "base/time/time.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/math/vector2d_f.h"
 #include "cobalt/ui_navigation/nav_item.h"
@@ -37,6 +40,11 @@ class FreeScrollingNavItem {
   bool AnimationIsComplete();
   math::Vector2dF GetCurrentOffset();
 
+  void set_clock_for_testing(const base::Clock* clock) { clock_ = clock; }
+  void set_initial_change_for_testing(const base::Time initial_change) {
+    initial_change_ = initial_change;
+  }
+
  private:
   scoped_refptr<NavItem> nav_item_;
   math::Vector2dF initial_offset_;
@@ -44,6 +52,7 @@ class FreeScrollingNavItem {
   scoped_refptr<cssom::CubicBezierTimingFunction> animation_function_;
   base::TimeDelta animation_duration_;
   base::Time initial_change_;
+  const base::Clock* clock_ = base::DefaultClock::GetInstance();
 };
 
 }  // namespace scroll_engine

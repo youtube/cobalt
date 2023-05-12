@@ -21,6 +21,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/instance_counter.h"
 
 namespace cobalt {
@@ -85,7 +86,7 @@ DrmSystem::DrmSystem(const char* key_system)
           key_system, this, OnSessionUpdateRequestGeneratedFunc,
           OnSessionUpdatedFunc, OnSessionKeyStatusesChangedFunc,
           OnServerCertificateUpdatedFunc, OnSessionClosedFunc)),
-      message_loop_(base::MessageLoop::current()->task_runner()),
+      message_loop_(base::ThreadTaskRunnerHandle::Get()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
   ON_INSTANCE_CREATED(DrmSystem);

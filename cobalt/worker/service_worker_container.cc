@@ -21,6 +21,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/promise.h"
@@ -152,7 +153,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
   }
   // 6. Invoke Start Register with scopeURL, scriptURL, p, client, client’s
   //    creation URL, options["type"], and options["updateViaCache"].
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerJobs::StartRegister,
                      base::Unretained(client->service_worker_jobs()), scope_url,
@@ -182,7 +183,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::GetRegistration(
       new script::ValuePromiseWrappable::Reference(
           environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
           promise));
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::BindOnce(&ServiceWorkerContainer::GetRegistrationTask,
                                 base::Unretained(this), url,
                                 std::move(promise_reference)));
@@ -255,7 +256,7 @@ ServiceWorkerContainer::GetRegistrations() {
       promise_reference(new script::ValuePromiseSequenceWrappable::Reference(
           environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
           promise));
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContainer::GetRegistrationsTask,
                      base::Unretained(this), std::move(promise_reference)));

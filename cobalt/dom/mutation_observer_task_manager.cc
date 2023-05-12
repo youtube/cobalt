@@ -16,6 +16,7 @@
 
 #include "base/callback.h"
 #include "base/message_loop/message_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/mutation_observer.h"
 
@@ -55,7 +56,7 @@ void MutationObserverTaskManager::QueueMutationObserverMicrotask() {
   // 2. Set mutation observer compound microtask queued flag.
   task_posted_ = true;
   // 3. Queue a compound microtask to notify mutation observers.
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::Bind(&MutationObserverTaskManager::NotifyMutationObservers,
                  base::Unretained(this)));

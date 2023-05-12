@@ -24,7 +24,6 @@ import sys
 from starboard.build.platforms import PLATFORMS
 from starboard.tools import config
 from starboard.tools import paths
-from starboard.tools import download_clang
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
 _STARBOARD_TOOLCHAINS_DIR_NAME = 'starboard-toolchains'
@@ -111,25 +110,6 @@ def GetDefaultConfigAndPlatform():
   return default_config_name, default_platform_name
 
 
-def GetGyp():
-  """Gets the GYP module, loading it, if necessary."""
-  if 'gyp' not in sys.modules:
-    sys.path.insert(
-        0, os.path.join(paths.REPOSITORY_ROOT, 'tools', 'gyp', 'pylib'))
-    importlib.import_module('gyp')
-  return sys.modules['gyp']
-
-
-def GypDebugOptions():
-  """Returns all valid GYP debug options."""
-  debug_modes = []
-  gyp = GetGyp()
-  for name in dir(gyp):
-    if name.startswith('DEBUG_'):
-      debug_modes.append(getattr(gyp, name))
-  return debug_modes
-
-
 def GetToolchainsDir():
   """Gets the directory that contains all downloaded toolchains."""
   home_dir = os.environ.get('HOME')
@@ -151,40 +131,6 @@ def _GetClangBasePath(clang_spec):
 
 def GetClangBinPath(clang_spec):
   return os.path.join(_GetClangBasePath(clang_spec), 'bin')
-
-
-def EnsureClangAvailable(clang_spec):
-  """Ensure the expected version of Clang is available."""
-
-  # Run the Clang update tool to ensure correct version of Clang,
-  # then check that Clang is in the path.
-  base_dir = _GetClangBasePath(clang_spec)
-  download_clang.UpdateClang(target_dir=base_dir, revision=clang_spec.revision)
-
-  # update.sh downloads Clang to this path.
-  clang_bin = os.path.join(GetClangBinPath(clang_spec), 'clang')
-
-  if not os.path.exists(clang_bin):
-    raise RuntimeError('Clang not found.')
-
-  return _GetClangBasePath(clang_spec)
-
-
-def GetHostCompilerEnvironment(clang_spec, build_accelerator):
-  """Return the host compiler toolchain environment."""
-  toolchain_dir = EnsureClangAvailable(clang_spec)
-  toolchain_bin_dir = os.path.join(toolchain_dir, 'bin')
-
-  cc_clang = os.path.join(toolchain_bin_dir, 'clang')
-  cxx_clang = os.path.join(toolchain_bin_dir, 'clang++')
-  host_clang_environment = {
-      'CC_host': build_accelerator + ' ' + cc_clang,
-      'CXX_host': build_accelerator + ' ' + cxx_clang,
-      'LD_host': cxx_clang,
-      'ARFLAGS_host': 'rcs',
-      'ARTHINFLAGS_host': 'rcsT',
-  }
-  return host_clang_environment
 
 
 def _ModuleLoaded(module_name, module_path):

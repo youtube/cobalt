@@ -28,6 +28,7 @@ import sys
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
+from starboard.tools import config
 
 sys.path.append(
     os.path.join(
@@ -146,7 +147,7 @@ class DebuggerConnection(object):
     # "Debugger.scriptParsed" events get sent as artifacts of the debugger
     # backend implementation running its own injected code, so they are ignored
     # unless that's what we're waiting for.
-    allow_script_parsed = (method == 'Debugger.scriptParsed')
+    allow_script_parsed = method == 'Debugger.scriptParsed'
 
     # Pop already-received events from the event queue.
     def _next_event():
@@ -220,8 +221,8 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
     return val
 
   def setUp(self):
-    cobalt_vars = self.cobalt_config.GetVariables(self.launcher_params.config)
-    if not cobalt_vars['enable_debugger']:
+    is_gold_config = self.launcher_params.config == config.Config.GOLD
+    if is_gold_config:
       self.skipTest('DevTools is disabled on this platform')
 
     self.server = self.set_up_with(
@@ -895,6 +896,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'asyncBreak',
             'promiseThen',
+            'promiseTimeout',
         ],
         [
             'waitPromise',
@@ -908,6 +910,7 @@ class WebDebuggerTest(black_box_tests.BlackBoxTestCase):
         [
             'asyncBreak',
             'asyncAwait',
+            'promiseTimeout',
         ],
         [
             'asyncAwait',
