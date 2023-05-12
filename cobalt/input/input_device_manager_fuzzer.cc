@@ -18,6 +18,7 @@
 #include "base/bind.h"
 #include "base/message_loop/message_loop.h"
 #include "base/rand_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keycode.h"
@@ -121,7 +122,7 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   keyboard_event_callback_.Run(base::Tokens::keydown(), event_init);
   keyboard_event_callback_.Run(base::Tokens::keyup(), event_init);
 
-  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
                  base::Unretained(this)),

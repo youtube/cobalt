@@ -154,7 +154,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
     if (!SbAtomicNoBarrier_Increment(&number_of_loads_, -1)) {
       // Clear the loader factory after this callback
       // completes.
-      base::MessageLoop::current()->task_runner()->PostTask(
+      base::ThreadTaskRunnerHandle::Get()->PostTask(
           FROM_HERE, base::BindOnce(
                          [](base::WaitableEvent* load_finished_) {
                            load_finished_->Signal();

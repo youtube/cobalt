@@ -20,6 +20,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/test/scoped_task_environment.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/layout_tests/layout_snapshot.h"
@@ -137,8 +138,7 @@ void RunTest(const TestInfo& test_info,
 
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
       test_info.url, viewport_size, pixel_tester.GetResourceProvider(),
-      base::Bind(&ScreenshotFunction,
-                 base::MessageLoop::current()->task_runner(),
+      base::Bind(&ScreenshotFunction, base::ThreadTaskRunnerHandle::Get(),
                  base::Unretained(&pixel_tester)));
 
   scoped_refptr<render_tree::animations::AnimateNode> animate_node =

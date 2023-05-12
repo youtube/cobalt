@@ -22,6 +22,7 @@
 #include "base/lazy_instance.h"
 #include "base/message_loop/message_loop_task_runner.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/console_log.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/absolute_url_value.h"
@@ -2220,13 +2221,13 @@ void HTMLElement::UpdateUiNavigation() {
     ui_nav_item_ = new ui_navigation::NavItem(
         *ui_nav_item_type,
         base::Bind(
-            &UiNavCallbackHelper, base::MessageLoop::current()->task_runner(),
+            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
             base::Bind(&HTMLElement::OnUiNavBlur, base::AsWeakPtr(this))),
         base::Bind(
-            &UiNavCallbackHelper, base::MessageLoop::current()->task_runner(),
+            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
             base::Bind(&HTMLElement::OnUiNavFocus, base::AsWeakPtr(this))),
         base::Bind(
-            &UiNavCallbackHelper, base::MessageLoop::current()->task_runner(),
+            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
     if (ui_nav_focus_duration_) {

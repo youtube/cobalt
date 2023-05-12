@@ -27,8 +27,8 @@
 #include "base/files/platform_file.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/loader/fetcher.h"
 
 namespace cobalt {
@@ -45,7 +45,7 @@ class FileFetcher : public Fetcher {
         : buffer_size(kDefaultBufferSize),
           start_offset(0),
           bytes_to_read(std::numeric_limits<int64>::max()),
-          message_loop_proxy(base::MessageLoop::current()->task_runner()) {}
+          message_loop_proxy(base::ThreadTaskRunnerHandle::Get()) {}
 
     int32 buffer_size;
     int64 start_offset;

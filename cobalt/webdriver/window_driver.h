@@ -29,6 +29,7 @@
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/pointer_event_init.h"
@@ -117,7 +118,7 @@ class WindowDriver : private ElementMapping {
       const protocol::ElementId& id) override;
 
   dom::Window* GetWeak() {
-    DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+    DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
     return window_.get();
   }
 

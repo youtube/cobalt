@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/loader/loader.h"
+
+#include <memory>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
 namespace loader {
@@ -161,8 +163,8 @@ void Loader::Start() {
   fetcher_ = fetcher_creator_.Run(fetcher_handler_to_decoder_adaptor_.get());
 
   if (fetcher_) {
-    fetcher_->SetLoadTimingInfoCallback(base::Bind(&Loader::set_load_timing_info,
-                                                   base::Unretained(this)));
+    fetcher_->SetLoadTimingInfoCallback(
+        base::Bind(&Loader::set_load_timing_info, base::Unretained(this)));
   }
 
   // Post the error callback on the current message loop in case the loader is
@@ -171,7 +173,7 @@ void Loader::Start() {
     fetcher_creator_error_closure_.Reset(
         base::Bind(base::Bind(&Loader::LoadComplete, base::Unretained(this)),
                    std::string("Fetcher was not created.")));
-    base::MessageLoop::current()->task_runner()->PostTask(
+    base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE, fetcher_creator_error_closure_.callback());
   }
 }
@@ -180,9 +182,7 @@ void Loader::set_load_timing_info(const net::LoadTimingInfo& timing_info) {
   load_timing_info_ = timing_info;
 }
 
-net::LoadTimingInfo Loader::get_load_timing_info() {
-  return load_timing_info_;
-}
+net::LoadTimingInfo Loader::get_load_timing_info() { return load_timing_info_; }
 
 }  // namespace loader
 }  // namespace cobalt

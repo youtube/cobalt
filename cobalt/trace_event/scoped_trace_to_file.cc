@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/trace_event/scoped_trace_to_file.h"
+
+#include <memory>
 
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/trace_event/json_file_outputter.h"
@@ -71,7 +72,7 @@ void EndTimedTrace(std::unique_ptr<ScopedTraceToFile> trace) {
 
 void TraceToFileForDuration(const base::FilePath& output_path_relative_to_logs,
                             const base::TimeDelta& duration) {
-  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&EndTimedTrace,
                  base::Passed(base::WrapUnique(
