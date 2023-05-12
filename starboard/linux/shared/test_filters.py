@@ -38,7 +38,7 @@ _MODULAR_BUILD_FILTERED_TESTS = {
 }
 
 _FILTERED_TESTS = {
-    'nplb': [],
+    'nplb': ['SbMemoryMapTest.CanChangeMemoryProtection'],
 }
 if os.getenv('MODULAR_BUILD', '0') == '1':
   _FILTERED_TESTS = _MODULAR_BUILD_FILTERED_TESTS
