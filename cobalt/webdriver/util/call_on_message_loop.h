@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -37,7 +38,7 @@ class CallOnMessageLoopHelper {
       : completed_event_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
         success_(false) {
-    DCHECK_NE(base::MessageLoop::current()->task_runner(), task_runner);
+    DCHECK_NE(base::ThreadTaskRunnerHandle::Get(), task_runner);
     std::unique_ptr<DeletionSignaler> dt(
         new DeletionSignaler(&completed_event_));
     // Note that while base::MessageLoopProxy::PostTask returns false

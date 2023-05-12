@@ -25,6 +25,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util_starboard.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/media_capture/blob_event.h"
@@ -232,7 +233,7 @@ MediaRecorder::MediaRecorder(
     : web::EventTarget(settings),
       settings_(settings),
       stream_(stream),
-      javascript_message_loop_(base::MessageLoop::current()->task_runner()),
+      javascript_message_loop_(base::ThreadTaskRunnerHandle::Get()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
   DCHECK(settings);

@@ -24,6 +24,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/test/scoped_task_environment.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "cobalt/browser/service_worker_registry.h"
 #include "cobalt/browser/user_agent_platform_info.h"
@@ -150,8 +151,8 @@ const char* kLogSuppressions[] = {
 };
 
 void Quit(base::RunLoop* run_loop) {
-  base::MessageLoop::current()->task_runner()->PostTask(
-      FROM_HERE, run_loop->QuitClosure());
+  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                run_loop->QuitClosure());
 }
 
 // Called upon window.close(), which indicates that the test has finished.

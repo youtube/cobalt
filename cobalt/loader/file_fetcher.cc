@@ -18,6 +18,7 @@
 #include "base/files/file_util.h"
 #include "base/location.h"
 #include "base/path_service.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/cobalt_paths.h"
 
 namespace cobalt {
@@ -105,7 +106,7 @@ FileFetcher::FileFetcher(const base::FilePath& file_path, Handler* handler,
 FileFetcher::~FileFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     // In case we are currently in the middle of a fetch (in which case it will
     // be aborted), invalidate the weak pointers to this FileFetcher object to
     // ensure that we do not process any responses from pending file I/O, which

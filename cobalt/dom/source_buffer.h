@@ -55,6 +55,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/audio_track_list.h"
@@ -163,7 +164,7 @@ class SourceBuffer : public web::EventTarget {
 
    private:
     scoped_refptr<base::SingleThreadTaskRunner> task_runner_ =
-        base::MessageLoop::current()->task_runner();
+        base::ThreadTaskRunnerHandle::Get();
     // The access to |source_buffer_| always happens on |task_runner_|, and
     // needn't be explicitly synchronized by a mutex.
     SourceBuffer* source_buffer_;
