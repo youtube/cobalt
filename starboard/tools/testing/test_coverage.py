@@ -86,8 +86,8 @@ def _generate_reports(target_paths, profdata_path, report_dir, report_type):
 
   if report_type in ['text', 'both']:
     report_cmd_list = [
-        llvm_cov, 'report', *exclude_opts, '-instr-profile=' + profdata_path,
-        *test_binary_opts
+        llvm_cov, 'show', *exclude_opts, '-instr-profile=' + profdata_path,
+        '-format=text', *test_binary_opts
     ]
     logging.info('Creating text coverage report')
     with open(os.path.join(report_dir, 'report.txt'), 'wb') as out:
