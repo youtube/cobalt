@@ -4,7 +4,7 @@
  *
  *   FreeType PFR glyph loader (body).
  *
- * Copyright (C) 2002-2020 by
+ * Copyright (C) 2002-2023 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -19,7 +19,7 @@
 #include "pfrgload.h"
 #include "pfrsbit.h"
 #include "pfrload.h"            /* for macro definitions */
-#include FT_INTERNAL_DEBUG_H
+#include <freetype/internal/ftdebug.h>
 
 #include "pfrerror.h"
 
@@ -42,8 +42,7 @@
   {
     FT_ZERO( glyph );
 
-    glyph->loader     = loader;
-    glyph->path_begun = 0;
+    glyph->loader = loader;
 
     FT_GlyphLoader_Rewind( loader );
   }
@@ -409,7 +408,7 @@
           break;
 
         case 6:                            /* horizontal to vertical curve */
-          FT_TRACE6(( "- hv curve " ));
+          FT_TRACE6(( "- hv curve" ));
           args_format = 0xB8E;
           args_count  = 3;
           break;
@@ -451,7 +450,7 @@
           case 1:                           /* 16-bit absolute value */
             PFR_CHECK( 2 );
             cur->x = PFR_NEXT_SHORT( p );
-            FT_TRACE7(( " x.%d", cur->x ));
+            FT_TRACE7(( " x.%ld", cur->x ));
             break;
 
           case 2:                           /* 8-bit delta */
@@ -481,7 +480,7 @@
           case 1:                           /* 16-bit absolute value */
             PFR_CHECK( 2 );
             cur->y = PFR_NEXT_SHORT( p );
-            FT_TRACE7(( " y.%d", cur->y ));
+            FT_TRACE7(( " y.%ld", cur->y ));
             break;
 
           case 2:                           /* 8-bit delta */
