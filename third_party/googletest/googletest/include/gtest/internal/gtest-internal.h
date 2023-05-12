@@ -50,9 +50,12 @@
 # include <stdexcept>
 #endif
 
+#if !GTEST_OS_STARBOARD
 #include <ctype.h>
 #include <float.h>
 #include <string.h>
+#endif  // !GTEST_OS_STARBOARD
+
 #include <cstdint>
 #include <iomanip>
 #include <limits>

@@ -53,7 +53,7 @@ TEST(MediaCValStatsTest, InitiallyEmpty) {
   EXPECT_TRUE(cvm);
   std::set<std::string> cval_names = cvm->GetOrderedCValNames();
   std::set<std::string>::size_type size = cval_names.size();
-  EXPECT_EQ(size, 0);
+  EXPECT_EQ(size, 0U);
 }
 
 TEST(MediaCValStatsTest, CValStatsCreation) {
@@ -62,7 +62,7 @@ TEST(MediaCValStatsTest, CValStatsCreation) {
   CValStats cval_stats_;
   std::set<std::string> cval_names = cvm->GetOrderedCValNames();
   std::set<std::string>::size_type size = cval_names.size();
-  EXPECT_EQ(size, 15);
+  EXPECT_EQ(size, 15U);
 }
 
 TEST(MediaCValStatsTest, NothingRecorded) {

@@ -80,7 +80,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsCached) {
 TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   scoped_refptr<CSSRuleList> rule_list =
       css_style_sheet_->css_rules_same_origin();
-  ASSERT_EQ(0, rule_list->length());
+  ASSERT_EQ(0UL, rule_list->length());
   ASSERT_FALSE(rule_list->Item(0).get());
 
   scoped_refptr<CSSStyleRule> rule =
@@ -89,7 +89,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   rule_list->AppendCSSRule(rule);
   css_style_sheet_->set_css_rules(rule_list);
-  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(1UL, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_FALSE(rule_list->Item(1).get());
   ASSERT_EQ(rule_list, css_style_sheet_->css_rules_same_origin());

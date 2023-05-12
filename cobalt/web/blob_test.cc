@@ -47,7 +47,7 @@ TEST(BlobTest, Constructors) {
       script::ArrayBuffer::New(global_environment, 5);
   scoped_refptr<Blob> blob_default_buffer = new Blob(environment_settings);
 
-  EXPECT_EQ(0, blob_default_buffer->size());
+  EXPECT_EQ(0U, blob_default_buffer->size());
 
   script::Handle<script::DataView> data_view = script::DataView::New(
       global_environment, array_buffer, 0, array_buffer->ByteLength());
@@ -56,7 +56,7 @@ TEST(BlobTest, Constructors) {
   scoped_refptr<Blob> blob_with_buffer =
       new Blob(environment_settings, array_buffer);
 
-  ASSERT_EQ(5, blob_with_buffer->size());
+  ASSERT_EQ(5U, blob_with_buffer->size());
   ASSERT_TRUE(blob_with_buffer->data());
 
   EXPECT_EQ(0x6, blob_with_buffer->data()[0]);
@@ -111,7 +111,7 @@ TEST(BlobTest, HasOwnBuffer) {
   scoped_refptr<Blob> blob_with_buffer =
       new Blob(environment_settings, array_buffer);
 
-  ASSERT_EQ(2, blob_with_buffer->size());
+  ASSERT_EQ(2U, blob_with_buffer->size());
   ASSERT_TRUE(blob_with_buffer->data());
   EXPECT_NE(array_buffer->Data(), blob_with_buffer->data());
 

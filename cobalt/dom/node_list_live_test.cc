@@ -46,7 +46,7 @@ TEST_F(NodeListLiveTest, NodeListLiveTest) {
   scoped_refptr<Element> root = document_->CreateElement("div");
   scoped_refptr<NodeListLive> node_list_live =
       NodeListLive::CreateWithChildren(root);
-  EXPECT_EQ(0, node_list_live->length());
+  EXPECT_EQ(0U, node_list_live->length());
 
   scoped_refptr<Element> child1 = document_->CreateElement("div");
   scoped_refptr<Element> child2 = document_->CreateElement("div");
@@ -54,14 +54,14 @@ TEST_F(NodeListLiveTest, NodeListLiveTest) {
   root->AppendChild(child1);
   root->AppendChild(child2);
   root->AppendChild(child3);
-  EXPECT_EQ(3, node_list_live->length());
+  EXPECT_EQ(3U, node_list_live->length());
   EXPECT_EQ(child1, node_list_live->Item(0));
   EXPECT_EQ(child2, node_list_live->Item(1));
   EXPECT_EQ(child3, node_list_live->Item(2));
   EXPECT_FALSE(node_list_live->Item(3));
 
   root->RemoveChild(child2);
-  EXPECT_EQ(2, node_list_live->length());
+  EXPECT_EQ(2U, node_list_live->length());
   EXPECT_EQ(child1, node_list_live->Item(0));
   EXPECT_EQ(child3, node_list_live->Item(1));
   EXPECT_FALSE(node_list_live->Item(2));

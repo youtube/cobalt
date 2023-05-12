@@ -77,7 +77,7 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
       node->GetElementsByClassName("class");
 
   // Start with an empty class.
-  EXPECT_EQ(0, collection->length());
+  EXPECT_EQ(0U, collection->length());
 
   // Set the matching class on all elements.
   a1->AsElement()->set_class_name("class");
@@ -87,7 +87,7 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   d1->AsElement()->set_class_name("class");
   d2->AsElement()->set_class_name("class");
 
-  EXPECT_EQ(6, collection->length());
+  EXPECT_EQ(6U, collection->length());
   EXPECT_EQ(a1, collection->Item(0));
   EXPECT_EQ(b1, collection->Item(1));
   EXPECT_EQ(c1, collection->Item(2));
@@ -103,7 +103,7 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   b1->AsElement()->set_class_name("other_class");
   d1->AsElement()->set_class_name("other_class");
 
-  EXPECT_EQ(2, collection->length());
+  EXPECT_EQ(2U, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(d2, collection->Item(1));
   EXPECT_EQ(kNullNode, collection->Item(2));
@@ -121,20 +121,20 @@ void TestGetElementsByClassName(const scoped_refptr<T>& node) {
   // Removing a2 should also remove its children from the collection, including
   // d2.
   node->RemoveChild(a2);
-  EXPECT_EQ(1, collection->length());
+  EXPECT_EQ(1U, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(kNullNode, collection->Item(1));
   EXPECT_EQ(kNullNode, collection->NamedItem("id"));
 
   c1->AsElement()->set_class_name("other_class");
-  EXPECT_EQ(0, collection->length());
+  EXPECT_EQ(0U, collection->length());
   EXPECT_EQ(kNullNode, collection->Item(0));
 
   // Test elements with multiple classes
   a1->AsElement()->set_class_name("class other_class");
   b1->AsElement()->set_class_name("class yet_another_class");
   c1->AsElement()->set_class_name("other_class yet_another_class");
-  EXPECT_EQ(2, collection->length());
+  EXPECT_EQ(2U, collection->length());
   EXPECT_EQ(a1, collection->Item(0));
   EXPECT_EQ(b1, collection->Item(1));
 }
@@ -175,7 +175,7 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   // GetElementsByTagName should return all elements when provided with
   // parameter "*".
   scoped_refptr<HTMLCollection> collection = node->GetElementsByTagName("*");
-  EXPECT_EQ(5, collection->length());
+  EXPECT_EQ(5U, collection->length());
   EXPECT_EQ(a1, collection->Item(0));
   EXPECT_EQ(b1, collection->Item(1));
   EXPECT_EQ(c1, collection->Item(2));
@@ -186,7 +186,7 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   // GetElementsByTagName should only return elements with the specific local
   // name when that is provided.
   collection = node->GetElementsByTagName("element");
-  EXPECT_EQ(2, collection->length());
+  EXPECT_EQ(2U, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(d1, collection->Item(1));
   EXPECT_EQ(kNullNode, collection->Item(2));
@@ -204,7 +204,7 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
   scoped_refptr<Node> a2 = node->InsertBefore(
       html_element_factory.CreateHTMLElement(document, base::Token("element")),
       a3);
-  EXPECT_EQ(3, collection->length());
+  EXPECT_EQ(3U, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(a2, collection->Item(1));
   EXPECT_EQ(d1, collection->Item(2));
@@ -212,7 +212,7 @@ void TestGetElementsByTagName(const scoped_refptr<T>& node) {
 
   // Removing a3 should also remove its children from the collection.
   node->RemoveChild(a3);
-  EXPECT_EQ(2, collection->length());
+  EXPECT_EQ(2U, collection->length());
   EXPECT_EQ(c1, collection->Item(0));
   EXPECT_EQ(a2, collection->Item(1));
   EXPECT_EQ(kNullNode, collection->Item(2));

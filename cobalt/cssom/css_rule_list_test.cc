@@ -26,13 +26,13 @@ namespace cssom {
 
 TEST(CSSRuleListTest, ItemAccess) {
   scoped_refptr<CSSRuleList> rule_list = new CSSRuleList();
-  ASSERT_EQ(0, rule_list->length());
+  ASSERT_EQ(0UL, rule_list->length());
   ASSERT_FALSE(rule_list->Item(0));
 
   scoped_refptr<CSSStyleRule> rule =
       new CSSStyleRule(Selectors(), new CSSRuleStyleDeclaration(NULL));
   rule_list->AppendCSSRule(rule);
-  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(1UL, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_FALSE(rule_list->Item(1));
 }
@@ -42,7 +42,7 @@ TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSStyleRule) {
   scoped_refptr<CSSStyleRule> rule = new CSSStyleRule();
   rule_list->AppendCSSRule(rule);
 
-  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(1UL, rule_list->length());
   ASSERT_EQ(CSSRule::kStyleRule, rule_list->Item(0)->type());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_FALSE(rule_list->Item(1).get());
@@ -53,7 +53,7 @@ TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSFontFaceRule) {
   scoped_refptr<CSSFontFaceRule> rule = new CSSFontFaceRule();
   rule_list->AppendCSSRule(rule);
 
-  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(1UL, rule_list->length());
   ASSERT_EQ(CSSRule::kFontFaceRule, rule_list->Item(0)->type());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_FALSE(rule_list->Item(1).get());
@@ -65,7 +65,7 @@ TEST(CSSRuleListTest, AppendCSSRuleShouldTakeCSSMediaRule) {
       new CSSMediaRule(new MediaList(), new CSSRuleList());
   rule_list->AppendCSSRule(rule);
 
-  ASSERT_EQ(1, rule_list->length());
+  ASSERT_EQ(1UL, rule_list->length());
   ASSERT_EQ(CSSRule::kMediaRule, rule_list->Item(0)->type());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_FALSE(rule_list->Item(1).get());

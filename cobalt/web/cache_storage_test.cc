@@ -118,7 +118,7 @@ TEST_F(CacheStorageTest, Work) {
   EXPECT_EQ(200, cache_utils::Get(match_result_options, "status")->GetInt());
   EXPECT_EQ("OK",
             cache_utils::Get(match_result_options, "statusText")->GetString());
-  EXPECT_EQ(1, match_result_options.FindKey("headers")->GetList().size());
+  EXPECT_EQ(1U, match_result_options.FindKey("headers")->GetList().size());
   EXPECT_EQ("a",
             cache_utils::Get(match_result_options, "headers.0.0")->GetString());
   EXPECT_EQ("1",
@@ -130,7 +130,7 @@ TEST_F(CacheStorageTest, Work) {
   auto v8_keys_result = Await(cache_utils::Call(v8_cache, "keys"));
   EXPECT_TRUE(v8_keys_result->IsArray());
   auto keys = v8_keys_result.As<v8::Array>();
-  EXPECT_EQ(1, keys->Length());
+  EXPECT_EQ(1U, keys->Length());
   EXPECT_EQ(url, cache_utils::GetString(keys, "0.url"));
 }
 

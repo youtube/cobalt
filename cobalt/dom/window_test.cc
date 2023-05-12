@@ -47,7 +47,7 @@ TEST_F(WindowTest, WindowShouldNotHaveChildren) {
   EXPECT_EQ(window(), window()->window());
   EXPECT_EQ(window(), window()->self());
   EXPECT_EQ(window(), window()->frames());
-  EXPECT_EQ(0, window()->length());
+  EXPECT_EQ(0U, window()->length());
   EXPECT_EQ(window(), window()->top());
   EXPECT_EQ(window(), window()->opener());
   EXPECT_EQ(window(), window()->parent());

@@ -137,7 +137,7 @@ TEST(AESImplTest, Long) {
   for (auto& size : sizes) {
     ByteVector data(size, 1);
     auto out = CalculateAES_CTR(data, key_128, iv_128);
-    EXPECT_EQ(out.size(), size);
+    EXPECT_EQ(out.size(), size_t(size));
   }
 }
 

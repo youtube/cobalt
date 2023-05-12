@@ -242,7 +242,7 @@ TEST_F(HTMLDecoderTest, CanParseAttributesWithAndWithoutValue) {
   ASSERT_TRUE(element);
   EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
-  EXPECT_EQ(4, element->attributes()->length());
+  EXPECT_EQ(4U, element->attributes()->length());
   ASSERT_NE(nullptr, element->attributes()->GetNamedItem("a"));
   EXPECT_EQ("a", element->attributes()->GetNamedItem("a")->name());
   EXPECT_EQ("", element->attributes()->GetNamedItem("a")->value());
@@ -271,7 +271,7 @@ TEST_F(HTMLDecoderTest, CanParseIncompleteAttributesAssignment) {
   ASSERT_TRUE(element);
   EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
-  EXPECT_EQ(2, element->attributes()->length());
+  EXPECT_EQ(2U, element->attributes()->length());
   ASSERT_NE(nullptr, element->attributes()->GetNamedItem("a"));
   EXPECT_EQ("a", element->attributes()->GetNamedItem("a")->name());
   EXPECT_EQ("b=2", element->attributes()->GetNamedItem("a")->value());
@@ -507,7 +507,7 @@ TEST_F(HTMLDecoderTest, AttributesShouldBeCaseInsensitive) {
   ASSERT_TRUE(element);
   EXPECT_EQ("div", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
-  EXPECT_EQ(1, element->attributes()->length());
+  EXPECT_EQ(1U, element->attributes()->length());
   EXPECT_EQ("a", element->attributes()->Item(0)->name());
 }
 

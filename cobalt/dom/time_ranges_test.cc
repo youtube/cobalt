@@ -41,10 +41,10 @@ TEST(TimeRangesTest, Constructors) {
   scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
   FakeExceptionState exception_state;
 
-  EXPECT_EQ(0, time_ranges->length());
+  EXPECT_EQ(0U, time_ranges->length());
 
   time_ranges = new TimeRanges(0.0, 1.0);
-  EXPECT_EQ(1, time_ranges->length());
+  EXPECT_EQ(1U, time_ranges->length());
   EXPECT_EQ(0.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(1.0, time_ranges->End(0, &exception_state));
 }
@@ -56,7 +56,7 @@ TEST(TimeRangesTest, IncrementalNonOverlappedAdd) {
   time_ranges->Add(0.0, 1.0);
   time_ranges->Add(2.0, 3.0);
 
-  EXPECT_EQ(2, time_ranges->length());
+  EXPECT_EQ(2U, time_ranges->length());
   EXPECT_EQ(0.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(1.0, time_ranges->End(0, &exception_state));
   EXPECT_EQ(2.0, time_ranges->Start(1, &exception_state));
@@ -95,35 +95,35 @@ TEST(TimeRangesTest, MergeableAdd) {
   // Connected at the start.
   time_ranges->Add(9.0, 10.0);
 
-  EXPECT_EQ(1, time_ranges->length());
+  EXPECT_EQ(1U, time_ranges->length());
   EXPECT_EQ(9.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(11.0, time_ranges->End(0, &exception_state));
 
   // Connected at the end.
   time_ranges->Add(11.0, 12.0);
 
-  EXPECT_EQ(1, time_ranges->length());
+  EXPECT_EQ(1U, time_ranges->length());
   EXPECT_EQ(9.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(12.0, time_ranges->End(0, &exception_state));
 
   // Overlapped at the start.
   time_ranges->Add(8.0, 10.0);
 
-  EXPECT_EQ(1, time_ranges->length());
+  EXPECT_EQ(1U, time_ranges->length());
   EXPECT_EQ(8.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(12.0, time_ranges->End(0, &exception_state));
 
   // Overlapped at the end.
   time_ranges->Add(11.0, 13.0);
 
-  EXPECT_EQ(1, time_ranges->length());
+  EXPECT_EQ(1U, time_ranges->length());
   EXPECT_EQ(8.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(13.0, time_ranges->End(0, &exception_state));
 
   // Cover the whole range.
   time_ranges->Add(7.0, 14.0);
 
-  EXPECT_EQ(1, time_ranges->length());
+  EXPECT_EQ(1U, time_ranges->length());
   EXPECT_EQ(7.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(14.0, time_ranges->End(0, &exception_state));
 }
@@ -138,7 +138,7 @@ TEST(TimeRangesTest, UnorderedAdd) {
   time_ranges->Add(70.0, 80.0);
   time_ranges->Add(30.0, 40.0);
 
-  EXPECT_EQ(5, time_ranges->length());
+  EXPECT_EQ(5U, time_ranges->length());
   EXPECT_EQ(10.0, time_ranges->Start(0, &exception_state));
   EXPECT_EQ(30.0, time_ranges->Start(1, &exception_state));
   EXPECT_EQ(50.0, time_ranges->Start(2, &exception_state));
@@ -176,7 +176,7 @@ TEST(TimeRangesTest, IndexOutOfRangeException) {
   time_ranges->Add(0.0, 1.0);
   time_ranges->Add(2.0, 3.0);
 
-  EXPECT_EQ(2, time_ranges->length());
+  EXPECT_EQ(2U, time_ranges->length());
   {
     FakeExceptionState exception_state;
     time_ranges->Start(2, &exception_state);
@@ -242,7 +242,7 @@ TEST(TimeRangesTest, UnionWith) {
   CheckEqual(cloned_time_ranges1, time_ranges1);
   CheckEqual(cloned_time_ranges2, time_ranges2);
 
-  EXPECT_EQ(4, unioned->length());
+  EXPECT_EQ(4U, unioned->length());
 
   EXPECT_EQ(-kInfinity, unioned->Start(0, NULL));
   EXPECT_EQ(1, unioned->End(0, NULL));
@@ -298,7 +298,7 @@ TEST(TimeRangesTest, IntersectWith) {
   CheckEqual(cloned_time_ranges1, time_ranges1);
   CheckEqual(cloned_time_ranges2, time_ranges2);
 
-  EXPECT_EQ(2, intersection->length());
+  EXPECT_EQ(2U, intersection->length());
 
   EXPECT_EQ(5, intersection->Start(0, NULL));
   EXPECT_EQ(6, intersection->End(0, NULL));

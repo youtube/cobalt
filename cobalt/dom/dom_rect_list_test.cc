@@ -21,12 +21,12 @@ namespace dom {
 
 TEST(DOMRectListTest, ItemAccess) {
   scoped_refptr<DOMRectList> dom_rect_list = new DOMRectList();
-  ASSERT_EQ(0, dom_rect_list->length());
+  ASSERT_EQ(0UL, dom_rect_list->length());
   ASSERT_FALSE(dom_rect_list->Item(0));
 
   scoped_refptr<DOMRect> dom_rect(new DOMRect());
   dom_rect_list->AppendDOMRect(dom_rect);
-  ASSERT_EQ(1, dom_rect_list->length());
+  ASSERT_EQ(1UL, dom_rect_list->length());
   ASSERT_EQ(dom_rect, dom_rect_list->Item(0));
   ASSERT_FALSE(dom_rect_list->Item(1));
 }
@@ -36,7 +36,7 @@ TEST(DOMRectListTest, AppendDOMRectShouldTakeDOMRect) {
   scoped_refptr<DOMRect> dom_rect = new DOMRect();
   dom_rect_list->AppendDOMRect(dom_rect);
 
-  ASSERT_EQ(1, dom_rect_list->length());
+  ASSERT_EQ(1UL, dom_rect_list->length());
   ASSERT_EQ(dom_rect, dom_rect_list->Item(0));
   ASSERT_FALSE(dom_rect_list->Item(1).get());
 }

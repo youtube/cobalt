@@ -62,8 +62,8 @@ TEST(MemoryTrackerToolTest, AllocationSizeBinner) {
   size_t min_value = 0;
   size_t max_value = 0;
   binner.GetLargestSizeRange(&min_value, &max_value);
-  EXPECT_EQ(min_value, static_cast<int>(8));
-  EXPECT_EQ(max_value, static_cast<int>(15));
+  EXPECT_EQ(min_value, static_cast<unsigned int>(8));
+  EXPECT_EQ(max_value, static_cast<unsigned int>(15));
 
   std::string csv_string = binner.ToCSVString();
 
@@ -100,13 +100,13 @@ TEST(MemoryTrackerToolTest, FindTopSizes) {
       top_sizes_visitor.GetTopAllocations();
 
   // Expect element 24 to be filtered out, leaving only 22 and 24.
-  EXPECT_EQ(top_allocations.size(), 2);
+  EXPECT_EQ(top_allocations.size(), 2UL);
   // Expect that allocation size 22 is the top allocation.
-  EXPECT_EQ(top_allocations[0].allocation_size, 22);
-  EXPECT_EQ(top_allocations[0].allocation_count, 2);
+  EXPECT_EQ(top_allocations[0].allocation_size, 22U);
+  EXPECT_EQ(top_allocations[0].allocation_count, 2U);
   // And then the 21 byte allocation.
-  EXPECT_EQ(top_allocations[1].allocation_size, 21);
-  EXPECT_EQ(top_allocations[1].allocation_count, 1);
+  EXPECT_EQ(top_allocations[1].allocation_size, 21U);
+  EXPECT_EQ(top_allocations[1].allocation_count, 1U);
 }
 
 }  // namespace memory_tracker

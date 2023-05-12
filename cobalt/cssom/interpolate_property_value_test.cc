@@ -115,7 +115,7 @@ TEST(InterpolatePropertyValueTest, TransformSingleRotateValuesInterpolate) {
           0.5f, MakeSingleRotateTransform::Start(),
           MakeSingleRotateTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1UL, interpolated->value().size());
 
   const RotateFunction* single_function =
       dynamic_cast<const RotateFunction*>(interpolated->value()[0].get());
@@ -143,7 +143,7 @@ TEST(InterpolatePropertyValueTest,
           0.75f, MakeSingleFocusTransform::Start(),
           MakeSingleFocusTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
 
   const CobaltUiNavFocusTransformFunction* focus_function =
       dynamic_cast<const CobaltUiNavFocusTransformFunction*>(
@@ -182,7 +182,7 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeSingleFocusTransform::Start(),
           MakeSingleFocusTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
 
   const CobaltUiNavFocusTransformFunction* focus_function =
       dynamic_cast<const CobaltUiNavFocusTransformFunction*>(
@@ -217,7 +217,7 @@ TEST(InterpolatePropertyValueTest,
           0.25f, MakeSingleSpotlightTransform::Start(),
           MakeSingleSpotlightTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1UL, interpolated->value().size());
 
   const CobaltUiNavSpotlightTransformFunction* spotlight_function =
       dynamic_cast<const CobaltUiNavSpotlightTransformFunction*>(
@@ -252,7 +252,7 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeSingleSpotlightTransform::Start(),
           MakeSingleSpotlightTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1U, interpolated->value().size());
 
   const CobaltUiNavSpotlightTransformFunction* spotlight_function =
       dynamic_cast<const CobaltUiNavSpotlightTransformFunction*>(
@@ -286,7 +286,7 @@ TEST(InterpolatePropertyValueTest, TransformSingleScaleValuesInterpolate) {
           0.5f, MakeSingleScaleTransform::Start(),
           MakeSingleScaleTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1U, interpolated->value().size());
 
   const ScaleFunction* single_function =
       dynamic_cast<const ScaleFunction*>(interpolated->value()[0].get());
@@ -313,7 +313,7 @@ TEST(InterpolatePropertyValueTest, TransformFromNoneToScaleValuesInterpolate) {
           0.25f, MakeSingleScaleTransform::Start(),
           MakeSingleScaleTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1U, interpolated->value().size());
 
   const ScaleFunction* single_function =
       dynamic_cast<const ScaleFunction*>(interpolated->value()[0].get());
@@ -340,7 +340,7 @@ TEST(InterpolatePropertyValueTest, TransformFromScaleToNoneValuesInterpolate) {
           0.25f, MakeSingleScaleTransform::Start(),
           MakeSingleScaleTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1U, interpolated->value().size());
 
   const ScaleFunction* single_function =
       dynamic_cast<const ScaleFunction*>(interpolated->value()[0].get());
@@ -371,7 +371,7 @@ void TestTransformSingleTranslateValuesAnimate(TranslateFunction::Axis axis) {
           0.5f, MakeSingleTranslateTransform::Start(axis),
           MakeSingleTranslateTransform::End(axis));
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
   const TranslateFunction* single_function =
       dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
@@ -414,7 +414,7 @@ void TestTransformTranslateFromLengthToPercentageValuesAnimate(
           0.5f, MakeSingleTranslateTransform::Start(axis),
           MakeSingleTranslateTransform::End(axis));
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
   const TranslateFunction* single_function =
       dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
@@ -469,7 +469,7 @@ void TestTransformTranslateCalcValuesAnimate(TranslateFunction::Axis axis) {
           0.5f, MakeSingleTranslateTransform::Start(axis),
           MakeSingleTranslateTransform::End(axis));
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
   const TranslateFunction* single_function =
       dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
@@ -514,7 +514,7 @@ void TestTransformFromTranslateToNoneValuesAnimate(
           0.5f, MakeSingleTranslateTransform::Start(axis),
           MakeSingleTranslateTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
   const TranslateFunction* single_function =
       dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);
@@ -572,7 +572,7 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeSingleScaleTransform::Start(),
           MakeSingleScaleTransform::End());
 
-  ASSERT_EQ(5, interpolated->value().size());
+  ASSERT_EQ(5u, interpolated->value().size());
 
   const RotateFunction* first_function =
       dynamic_cast<const RotateFunction*>(interpolated->value()[0].get());
@@ -627,7 +627,7 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeSingleMatrixTransform::Start(),
           MakeSingleMatrixTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
 
   const MatrixFunction* single_function =
       dynamic_cast<const MatrixFunction*>(interpolated->value()[0].get());
@@ -657,7 +657,7 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeSingleMatrixTransform::Start(),
           MakeSingleMatrixTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
 
   const MatrixFunction* single_function =
       dynamic_cast<const MatrixFunction*>(interpolated->value()[0].get());
@@ -689,7 +689,7 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeSingleMatrixTransform::Start(),
           MakeSingleMatrixTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
 
   const MatrixFunction* single_function =
       dynamic_cast<const MatrixFunction*>(interpolated->value()[0].get());
@@ -791,7 +791,7 @@ TEST(InterpolatePropertyValueTest,
           0.5f, MakeMultipleMismatchedTransform::Start(),
           MakeMultipleMismatchedTransform::End());
 
-  ASSERT_EQ(1, interpolated->value().size());
+  ASSERT_EQ(1u, interpolated->value().size());
   const TranslateFunction* single_function =
       dynamic_cast<const TranslateFunction*>(interpolated->value()[0].get());
   ASSERT_TRUE(single_function);

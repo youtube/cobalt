@@ -86,17 +86,17 @@ TEST_F(PerformanceObserverTest, Observe) {
 
 TEST_F(PerformanceObserverTest, Disconnect) {
   DCHECK(observer_);
-  EXPECT_EQ(0, observer_->NumOfPerformanceEntries());
+  EXPECT_EQ(0U, observer_->NumOfPerformanceEntries());
 
   scoped_refptr<PerformanceResourceTiming> entry(new PerformanceResourceTiming(
       "resource", observer_->Now(), observer_->Now()));
 
   observer_->EnqueuePerformanceEntry(entry);
-  EXPECT_EQ(1, observer_->NumOfPerformanceEntries());
+  EXPECT_EQ(1U, observer_->NumOfPerformanceEntries());
 
   observer_->Disconnect();
   EXPECT_FALSE(observer_->IsRegistered());
-  EXPECT_EQ(0, observer_->NumOfPerformanceEntries());
+  EXPECT_EQ(0U, observer_->NumOfPerformanceEntries());
 }
 
 }  // namespace dom

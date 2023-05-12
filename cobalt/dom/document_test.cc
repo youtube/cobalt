@@ -394,7 +394,7 @@ TEST_F(DocumentTest, StyleSheets) {
   document->AppendChild(element3);
 
   EXPECT_TRUE(document->style_sheets());
-  EXPECT_EQ(3, document->style_sheets()->length());
+  EXPECT_EQ(3U, document->style_sheets()->length());
   EXPECT_TRUE(document->style_sheets()->Item(0));
   EXPECT_TRUE(document->style_sheets()->Item(1));
   EXPECT_TRUE(document->style_sheets()->Item(2));
@@ -440,7 +440,7 @@ TEST_F(DocumentTest, StyleSheetsAddedToFront) {
   document->InsertBefore(element3, element2);
 
   EXPECT_TRUE(document->style_sheets());
-  EXPECT_EQ(3, document->style_sheets()->length());
+  EXPECT_EQ(3U, document->style_sheets()->length());
   EXPECT_TRUE(document->style_sheets()->Item(0));
   EXPECT_TRUE(document->style_sheets()->Item(1));
   EXPECT_TRUE(document->style_sheets()->Item(2));

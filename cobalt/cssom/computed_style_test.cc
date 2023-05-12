@@ -214,7 +214,7 @@ TEST(PromoteToComputedStyle, LengthValueInEmShouldBeRelativeToParentFontSize) {
 
   LengthValue* computed_font_size = base::polymorphic_downcast<LengthValue*>(
       computed_style->font_size().get());
-  EXPECT_EQ(150, computed_font_size->value());
+  EXPECT_EQ(150U, computed_font_size->value());
   EXPECT_EQ(kPixelsUnit, computed_font_size->unit());
 }
 
@@ -239,7 +239,7 @@ TEST(PromoteToComputedStyle, LengthValueInRemShouldBeRelativeToRootFontSize) {
 
   LengthValue* computed_font_size = base::polymorphic_downcast<LengthValue*>(
       computed_style->font_size().get());
-  EXPECT_EQ(300, computed_font_size->value());
+  EXPECT_EQ(300U, computed_font_size->value());
   EXPECT_EQ(kPixelsUnit, computed_font_size->unit());
 }
 
@@ -285,7 +285,7 @@ TEST(PromoteToComputedStyle, LengthValueInPixelsShouldBeLeftAsSpecified) {
 
   LengthValue* computed_font_size = base::polymorphic_downcast<LengthValue*>(
       computed_style->font_size().get());
-  EXPECT_EQ(50, computed_font_size->value());
+  EXPECT_EQ(50U, computed_font_size->value());
   EXPECT_EQ(kPixelsUnit, computed_font_size->unit());
 }
 
@@ -375,7 +375,7 @@ TEST(PromoteToComputedStyle, BackgroundImageRelativeURL) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_image().get());
   ASSERT_TRUE(background_image_list);
-  ASSERT_EQ(1, background_image_list->value().size());
+  ASSERT_EQ(1UL, background_image_list->value().size());
 
   GURL value = base::polymorphic_downcast<AbsoluteURLValue*>(
                    background_image_list->value()[0].get())
@@ -412,7 +412,7 @@ TEST(PromoteToComputedStyle, BackgroundImageNone) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_image().get());
   ASSERT_TRUE(background_image_list);
-  ASSERT_EQ(1, background_image_list->value().size());
+  ASSERT_EQ(1UL, background_image_list->value().size());
 
   EXPECT_EQ(KeywordValue::GetNone(), background_image_list->value()[0]);
 }
@@ -437,7 +437,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithInitialValue) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -479,7 +479,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneValueWithoutKeywordValue) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -520,7 +520,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionOneKeywordValue) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -563,7 +563,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithoutKeywordValue) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -605,7 +605,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithOneKeyword) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -647,7 +647,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoKeywords) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -689,7 +689,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionTwoValuesWithTwoCenterKeywords) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -732,7 +732,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValues) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -775,7 +775,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithThreeValuesHaveCenter) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -819,7 +819,7 @@ TEST(PromoteToComputedStyle, BackgroundPositionWithFourValues) {
       dynamic_cast<PropertyListValue*>(
           computed_style->background_position().get());
   ASSERT_TRUE(background_position_list);
-  ASSERT_EQ(2, background_position_list->value().size());
+  ASSERT_EQ(2u, background_position_list->value().size());
 
   CalcValue* left_value = base::polymorphic_downcast<CalcValue*>(
       background_position_list->value()[0].get());
@@ -859,7 +859,7 @@ TEST(PromoteToComputedStyle, BackgroundSizeEmToPixel) {
   scoped_refptr<PropertyListValue> background_size_list =
       dynamic_cast<PropertyListValue*>(computed_style->background_size().get());
   ASSERT_TRUE(background_size_list);
-  ASSERT_EQ(2, background_size_list->value().size());
+  ASSERT_EQ(2u, background_size_list->value().size());
 
   LengthValue* first_value = base::polymorphic_downcast<LengthValue*>(
       background_size_list->value()[0].get());
@@ -928,7 +928,7 @@ TEST(PromoteToComputedStyle, BorderColorWithInitialValue) {
       dynamic_cast<RGBAColorValue*>(
           computed_style->border_bottom_color().get());
   ASSERT_TRUE(border_bottom_color);
-  EXPECT_EQ(0x00FFFFFF, border_bottom_color->value());
+  EXPECT_EQ(0x00FFFFFFU, border_bottom_color->value());
 }
 
 TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
@@ -948,7 +948,7 @@ TEST(PromoteToComputedStyle, BorderColorWithCurrentColorValue) {
   scoped_refptr<RGBAColorValue> border_color =
       dynamic_cast<RGBAColorValue*>(computed_style->border_left_color().get());
   ASSERT_TRUE(border_color);
-  EXPECT_EQ(0x00FFFFFF, border_color->value());
+  EXPECT_EQ(0x00FFFFFFU, border_color->value());
 }
 
 TEST(PromoteToComputedStyle, BorderWidthWithBorderStyleNone) {
@@ -1037,7 +1037,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithEmLengthAndColor) {
   scoped_refptr<RGBAColorValue> color =
       dynamic_cast<RGBAColorValue*>(box_shadow->color().get());
   ASSERT_TRUE(color);
-  EXPECT_EQ(0x00FFFFFF, color->value());
+  EXPECT_EQ(0x00FFFFFFU, color->value());
 
   EXPECT_FALSE(box_shadow->has_inset());
 }
@@ -1083,7 +1083,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithInset) {
   scoped_refptr<RGBAColorValue> color =
       dynamic_cast<RGBAColorValue*>(box_shadow->color().get());
   ASSERT_TRUE(color);
-  EXPECT_EQ(0x00FFFFFF, color->value());
+  EXPECT_EQ(0x00FFFFFFU, color->value());
 
   EXPECT_TRUE(box_shadow->has_inset());
 }
@@ -1127,7 +1127,7 @@ TEST(PromoteToComputedStyle, BoxShadowWithoutColor) {
   EXPECT_EQ(kPixelsUnit, box_shadow->offset_y()->unit());
 
   ASSERT_TRUE(box_shadow->color());
-  EXPECT_EQ(0x0047abff, box_shadow->color()->value());
+  EXPECT_EQ(0x0047abffU, box_shadow->color()->value());
 
   EXPECT_FALSE(box_shadow->has_inset());
 }
@@ -1634,7 +1634,7 @@ TEST(PromoteToComputedStyle, OutlineColorWithCurrentColorValue) {
   scoped_refptr<RGBAColorValue> outline_color =
       dynamic_cast<RGBAColorValue*>(computed_style->outline_color().get());
   ASSERT_TRUE(outline_color);
-  EXPECT_EQ(0x00FFFFFF, outline_color->value());
+  EXPECT_EQ(0x00FFFFFFU, outline_color->value());
 }
 
 TEST(PromoteToComputedStyle, OutlineWidthWithOutlineStyleNone) {
@@ -1698,7 +1698,7 @@ TEST(PromoteToComputedStyle, TextDecorationWithCurrentColor) {
       dynamic_cast<RGBAColorValue*>(
           computed_style->text_decoration_color().get());
   ASSERT_TRUE(text_decoration_color);
-  EXPECT_EQ(0x00FFFFFF, text_decoration_color->value());
+  EXPECT_EQ(0x00FFFFFFU, text_decoration_color->value());
 }
 
 TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
@@ -1741,7 +1741,7 @@ TEST(PromoteToComputedStyle, TextShadowWithEmLengthAndColor) {
   EXPECT_EQ(kPixelsUnit, text_shadow->offset_y()->unit());
 
   ASSERT_TRUE(text_shadow->color());
-  EXPECT_EQ(0x00FFFFFF, text_shadow->color()->value());
+  EXPECT_EQ(0x00FFFFFFU, text_shadow->color()->value());
 
   EXPECT_FALSE(text_shadow->has_inset());
 }
@@ -1785,7 +1785,7 @@ TEST(PromoteToComputedStyle, TextShadowWithoutColor) {
   EXPECT_EQ(kPixelsUnit, text_shadow->offset_y()->unit());
 
   ASSERT_TRUE(text_shadow->color());
-  EXPECT_EQ(0x0047abff, text_shadow->color()->value());
+  EXPECT_EQ(0x0047abffU, text_shadow->color()->value());
 
   EXPECT_FALSE(text_shadow->has_inset());
 }
@@ -2060,7 +2060,7 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithKeyword) {
       dynamic_cast<PropertyListValue*>(
           computed_style->transform_origin().get());
   ASSERT_TRUE(transform_origin_list);
-  ASSERT_EQ(3, transform_origin_list->value().size());
+  ASSERT_EQ(3u, transform_origin_list->value().size());
 
   CalcValue* first_value = base::polymorphic_downcast<CalcValue*>(
       transform_origin_list->value()[0].get());
@@ -2106,7 +2106,7 @@ TEST(PromoteToComputedStyle, TransformOriginOneValueWithoutKeyword) {
       dynamic_cast<PropertyListValue*>(
           computed_style->transform_origin().get());
   ASSERT_TRUE(transform_origin_list);
-  ASSERT_EQ(3, transform_origin_list->value().size());
+  ASSERT_EQ(3u, transform_origin_list->value().size());
 
   CalcValue* first_value = base::polymorphic_downcast<CalcValue*>(
       transform_origin_list->value()[0].get());
@@ -2153,7 +2153,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeywordValue) {
       dynamic_cast<PropertyListValue*>(
           computed_style->transform_origin().get());
   ASSERT_TRUE(transform_origin_list);
-  ASSERT_EQ(3, transform_origin_list->value().size());
+  ASSERT_EQ(3u, transform_origin_list->value().size());
 
   CalcValue* first_value = base::polymorphic_downcast<CalcValue*>(
       transform_origin_list->value()[0].get());
@@ -2200,7 +2200,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithOneKeyword) {
       dynamic_cast<PropertyListValue*>(
           computed_style->transform_origin().get());
   ASSERT_TRUE(transform_origin_list);
-  ASSERT_EQ(3, transform_origin_list->value().size());
+  ASSERT_EQ(3u, transform_origin_list->value().size());
 
   CalcValue* first_value = base::polymorphic_downcast<CalcValue*>(
       transform_origin_list->value()[0].get());
@@ -2247,7 +2247,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoValuesWithoutKeyword) {
       dynamic_cast<PropertyListValue*>(
           computed_style->transform_origin().get());
   ASSERT_TRUE(transform_origin_list);
-  ASSERT_EQ(3, transform_origin_list->value().size());
+  ASSERT_EQ(3u, transform_origin_list->value().size());
 
   CalcValue* first_value = base::polymorphic_downcast<CalcValue*>(
       transform_origin_list->value()[0].get());
@@ -2294,7 +2294,7 @@ TEST(PromoteToComputedStyle, TransformOriginTwoKeywordValues) {
       dynamic_cast<PropertyListValue*>(
           computed_style->transform_origin().get());
   ASSERT_TRUE(transform_origin_list);
-  ASSERT_EQ(3, transform_origin_list->value().size());
+  ASSERT_EQ(3u, transform_origin_list->value().size());
 
   CalcValue* first_value = base::polymorphic_downcast<CalcValue*>(
       transform_origin_list->value()[0].get());
@@ -2342,7 +2342,7 @@ TEST(PromoteToComputedStyle, TransformOriginThreeValues) {
       dynamic_cast<PropertyListValue*>(
           computed_style->transform_origin().get());
   ASSERT_TRUE(transform_origin_list);
-  ASSERT_EQ(3, transform_origin_list->value().size());
+  ASSERT_EQ(3u, transform_origin_list->value().size());
 
   CalcValue* first_value = base::polymorphic_downcast<CalcValue*>(
       transform_origin_list->value()[0].get());
@@ -2389,7 +2389,7 @@ TEST(PromoteToComputedStyle, TransformRelativeUnitShouldBeConvertedToAbsolute) {
       dynamic_cast<TransformFunctionListValue*>(
           computed_style->transform().get());
   ASSERT_TRUE(computed_transform);
-  ASSERT_EQ(1, computed_transform->value().size());
+  ASSERT_EQ(1u, computed_transform->value().size());
 
   const TranslateFunction* computed_function =
       base::polymorphic_downcast<const TranslateFunction*>(

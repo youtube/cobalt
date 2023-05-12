@@ -107,7 +107,7 @@ TEST_F(WebSocketHandshakeHelperTest, HandshakeInfo) {
       RequestHeadersToVector(headers);
 
   typedef net::HttpRequestHeaders::HeaderKeyValuePair HeaderKeyValuePair;
-  ASSERT_EQ(10u, request_headers.size());
+  ASSERT_EQ(10UL, request_headers.size());
   EXPECT_EQ(HeaderKeyValuePair("Host", "localhost"), request_headers[0]);
   EXPECT_EQ(HeaderKeyValuePair("Connection", "Upgrade"), request_headers[1]);
   EXPECT_EQ(HeaderKeyValuePair("Pragma", "no-cache"), request_headers[2]);

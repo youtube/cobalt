@@ -62,7 +62,7 @@ TEST_F(ArrayBufferTest, ArrayBufferTest) {
 
   {
     script::PreallocatedArrayBufferData preallocated_data(256);
-    EXPECT_EQ(256, preallocated_data.byte_length());
+    EXPECT_EQ(256U, preallocated_data.byte_length());
     for (int i = 0; i < preallocated_data.byte_length(); i++) {
       preallocated_data.data()[i] = i;
     }

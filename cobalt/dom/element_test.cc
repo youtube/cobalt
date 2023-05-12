@@ -115,7 +115,7 @@ TEST_F(ElementTest, Duplicate) {
   element->SetAttribute("b", "2");
   scoped_refptr<Element> new_element = element->Duplicate()->AsElement();
   ASSERT_TRUE(new_element);
-  EXPECT_EQ(2, new_element->attributes()->length());
+  EXPECT_EQ(2U, new_element->attributes()->length());
   EXPECT_EQ("1", new_element->GetAttribute("a").value());
   EXPECT_EQ("2", new_element->GetAttribute("b").value());
 }
@@ -170,12 +170,12 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
   scoped_refptr<NamedNodeMap> attributes = element->attributes();
 
   // Start with nothing.
-  EXPECT_EQ(0, attributes->length());
+  EXPECT_EQ(0U, attributes->length());
 
   // Make sure that setting an attribute through the element affects
   // the NamedNodeMap.
   element->SetAttribute("a", "1");
-  EXPECT_EQ(1, attributes->length());
+  EXPECT_EQ(1U, attributes->length());
   EXPECT_EQ("a", attributes->GetNamedItem("a")->name());
   EXPECT_EQ("1", attributes->GetNamedItem("a")->value());
   EXPECT_EQ("a", attributes->Item(0)->name());
@@ -189,7 +189,7 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
   // Make sure that adding another attribute through the element affects
   // the NamedNodeMap. Note that NamedNodeMap does not guarantee order of items.
   element->SetAttribute("b", "2");
-  EXPECT_EQ(2, attributes->length());
+  EXPECT_EQ(2U, attributes->length());
   EXPECT_EQ("b", attributes->GetNamedItem("b")->name());
   EXPECT_EQ("2", attributes->GetNamedItem("b")->value());
   if ("b" == attributes->Item(1)->name()) {
@@ -202,7 +202,7 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
   // Make sure that removing an attribute through the element affects
   // the NamedNodeMap.
   element->RemoveAttribute("a");
-  EXPECT_EQ(1, attributes->length());
+  EXPECT_EQ(1U, attributes->length());
   EXPECT_EQ("b", attributes->GetNamedItem("b")->name());
   EXPECT_EQ("2", attributes->GetNamedItem("b")->value());
   EXPECT_EQ("b", attributes->Item(0)->name());
@@ -225,11 +225,11 @@ TEST_F(ElementTest, AttributesPropertyGetAndRemove) {
 
   // Removing an invalid attribute shouldn't change anything.
   EXPECT_EQ(NULL, attributes->RemoveNamedItem("a").get());
-  EXPECT_EQ(1, attributes->length());
+  EXPECT_EQ(1U, attributes->length());
 
   // Test that removing an attribute through NamedNodeMap works.
   EXPECT_EQ(attribute, attributes->RemoveNamedItem("b"));
-  EXPECT_EQ(0, attributes->length());
+  EXPECT_EQ(0U, attributes->length());
   EXPECT_FALSE(element->HasAttributes());
 }
 
@@ -263,8 +263,8 @@ TEST_F(ElementTest, AttributesPropertyTransfer) {
   element1->SetAttribute("a", "1");
   element2->SetAttribute("a", "2");
 
-  EXPECT_EQ(1, attributes1->length());
-  EXPECT_EQ(1, attributes2->length());
+  EXPECT_EQ(1U, attributes1->length());
+  EXPECT_EQ(1U, attributes2->length());
 
   scoped_refptr<Attr> attribute = attributes1->Item(0);
 
@@ -293,7 +293,7 @@ TEST_F(ElementTest, ClassList) {
   scoped_refptr<Element> element = new Element(document_, base::Token("root"));
   scoped_refptr<DOMTokenList> class_list = element->class_list();
   element->set_class_name("  a             a b d");
-  EXPECT_EQ(4, class_list->length());
+  EXPECT_EQ(4U, class_list->length());
   EXPECT_TRUE(class_list->Contains("a"));
   EXPECT_TRUE(class_list->Contains("b"));
   EXPECT_FALSE(class_list->Contains("c"));
@@ -304,7 +304,7 @@ TEST_F(ElementTest, ClassList) {
   token_list.clear();
   token_list.push_back("c");
   class_list->Add(token_list);
-  EXPECT_EQ(5, class_list->length());
+  EXPECT_EQ(5U, class_list->length());
   EXPECT_TRUE(class_list->Contains("c"));
 
   // Invalid token, should throw JS Exceptions.
@@ -313,14 +313,14 @@ TEST_F(ElementTest, ClassList) {
   token_list.push_back(" z");
   token_list.push_back("\tz");
   class_list->Add(token_list);
-  EXPECT_EQ(5, class_list->length());
+  EXPECT_EQ(5U, class_list->length());
   EXPECT_FALSE(class_list->Contains("z"));
 
   // Remove class
   token_list.clear();
   token_list.push_back("a");
   class_list->Remove(token_list);
-  EXPECT_EQ(3, class_list->length());
+  EXPECT_EQ(3U, class_list->length());
   EXPECT_FALSE(class_list->Contains("a"));
 
   EXPECT_EQ("b d c", element->class_name());
@@ -439,8 +439,8 @@ TEST_F(ElementTest, SetInnerHTML) {
       "  <!--Comment-->\n"
       "</div>";
   root->set_inner_html(kAnotherHTML);
-  EXPECT_EQ(2, root->child_element_count());
-  EXPECT_EQ(3, root->child_nodes()->length());
+  EXPECT_EQ(2U, root->child_element_count());
+  EXPECT_EQ(3U, root->child_nodes()->length());
   ASSERT_TRUE(root->first_child());
   EXPECT_TRUE(root->first_child()->IsElement());
 
@@ -630,8 +630,8 @@ TEST_F(ElementTest, OuterHTML) {
       "  <!--Comment-->\n"
       "</div>";
   root->first_element_child()->set_outer_html(kAnotherHTML, NULL);
-  EXPECT_EQ(2, root->child_element_count());
-  EXPECT_EQ(3, root->child_nodes()->length());
+  EXPECT_EQ(2U, root->child_element_count());
+  EXPECT_EQ(3U, root->child_nodes()->length());
   ASSERT_TRUE(root->first_child());
   EXPECT_TRUE(root->first_child()->IsElement());
 

@@ -60,8 +60,8 @@ TEST(ErrorEventTest, ConstructorWithEventTypeString) {
   EXPECT_FALSE(event->immediate_propagation_stopped());
   EXPECT_EQ("", event->message());
   EXPECT_EQ("", event->filename());
-  EXPECT_EQ(0, event->lineno());
-  EXPECT_EQ(0, event->colno());
+  EXPECT_EQ(0U, event->lineno());
+  EXPECT_EQ(0U, event->colno());
   EXPECT_EQ(NULL, event->error());
 }
 
@@ -82,8 +82,8 @@ TEST(ErrorEventTest, ConstructorWithEventTypeAndDefaultInitDict) {
   EXPECT_FALSE(event->immediate_propagation_stopped());
   EXPECT_EQ("", event->message());
   EXPECT_EQ("", event->filename());
-  EXPECT_EQ(0, event->lineno());
-  EXPECT_EQ(0, event->colno());
+  EXPECT_EQ(0U, event->lineno());
+  EXPECT_EQ(0U, event->colno());
   EXPECT_EQ(NULL, event->error());
 }
 

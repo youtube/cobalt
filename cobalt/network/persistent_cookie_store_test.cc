@@ -151,7 +151,7 @@ TEST_F(PersistentCookieStoreTest, LoadGetsAddedCookies) {
       net::NetLogWithSource());
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(loader.TimedWait());
-  ASSERT_EQ(1, loader.cookies.size());
+  ASSERT_EQ(1U, loader.cookies.size());
   EXPECT_TRUE(test_cookie->IsEquivalent(*loader.cookies[0]));
 }
 }  // namespace network

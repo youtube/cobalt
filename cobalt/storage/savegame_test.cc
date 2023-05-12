@@ -66,7 +66,7 @@ TEST(Savegame, MaxReadExceeded) {
 
   Savegame::ByteVector buf2;
   EXPECT_FALSE(savegame->Read(&buf2, 1023));
-  EXPECT_EQ(0, buf2.size());
+  EXPECT_EQ(0U, buf2.size());
 
   EXPECT_TRUE(savegame->Delete());
 }

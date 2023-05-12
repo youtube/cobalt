@@ -81,7 +81,7 @@ TEST_F(SimpleExampleTest, MultiplyAndAddDataFromFile) {
   const char* kCaseFiles[] = {
       "case1.txt", "case2.txt", "case3.txt",
   };
-  const int kNumInputArgs = 3;
+  const unsigned int kNumInputArgs = 3;
 
   for (int i = 0; i < arraysize(kCaseFiles); ++i) {
     // Read test input.

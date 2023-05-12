@@ -132,7 +132,7 @@ TEST_F(CacheUtilsTest, ResponseHeaders) {
 
   EXPECT_DOUBLE_EQ(200, cache_utils::Get(options, "status")->GetDouble());
   EXPECT_EQ("OK", cache_utils::Get(options, "statusText")->GetString());
-  EXPECT_EQ(2, cache_utils::Get(options, "headers")->GetList().size());
+  EXPECT_EQ(2U, cache_utils::Get(options, "headers")->GetList().size());
   EXPECT_EQ("a", cache_utils::Get(options, "headers.0.0")->GetString());
   EXPECT_EQ("1", cache_utils::Get(options, "headers.0.1")->GetString());
   EXPECT_EQ("b", cache_utils::Get(options, "headers.1.0")->GetString());

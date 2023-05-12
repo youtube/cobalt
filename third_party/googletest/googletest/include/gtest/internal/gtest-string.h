@@ -46,7 +46,9 @@
 # include <mem.h>
 #endif
 
+#if !defined(STARBOARD)
 #include <string.h>
+#endif
 #include <cstdint>
 #include <string>
 

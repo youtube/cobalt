@@ -182,7 +182,7 @@ TEST_F(WatchdogTest, ViolationsJsonShouldPersistAndBeValid) {
   ASSERT_EQ(description->GetString(), "test-desc");
   base::Value* violations = violation_dict->FindKey("violations");
   ASSERT_NE(violations, nullptr);
-  ASSERT_EQ(violations->GetList().size(), 1);
+  ASSERT_EQ(violations->GetList().size(), 1U);
   base::Value* monitor_state = violations->GetList()[0].FindKey("monitorState");
   ASSERT_NE(monitor_state, nullptr);
   ASSERT_EQ(
@@ -190,7 +190,7 @@ TEST_F(WatchdogTest, ViolationsJsonShouldPersistAndBeValid) {
       std::string(GetApplicationStateString(base::kApplicationStateStarted)));
   base::Value* ping_infos = violations->GetList()[0].FindKey("pingInfos");
   ASSERT_NE(ping_infos, nullptr);
-  ASSERT_EQ(ping_infos->GetList().size(), 1);
+  ASSERT_EQ(ping_infos->GetList().size(), 1U);
   base::Value* info = ping_infos->GetList()[0].FindKey("info");
   ASSERT_NE(info, nullptr);
   ASSERT_EQ(info->GetString(), "test-ping");
@@ -201,7 +201,7 @@ TEST_F(WatchdogTest, ViolationsJsonShouldPersistAndBeValid) {
   base::Value* registered_clients =
       violations->GetList()[0].FindKey("registeredClients");
   ASSERT_NE(registered_clients, nullptr);
-  ASSERT_EQ(registered_clients->GetList().size(), 1);
+  ASSERT_EQ(registered_clients->GetList().size(), 1U);
   ASSERT_EQ(registered_clients->GetList()[0].GetString(), "test-name");
   base::Value* time_interval_milliseconds =
       violations->GetList()[0].FindKey("timeIntervalMilliseconds");
@@ -241,7 +241,7 @@ TEST_F(WatchdogTest, RedundantViolationsShouldStack) {
   ASSERT_NE(uncleared_violations_map, nullptr);
   base::Value* violation_dict = uncleared_violations_map->FindKey("test-name");
   base::Value* violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  ASSERT_EQ(violations->GetList().size(), 1U);
   std::string uncleared_timestamp =
       violations->GetList()[0]
           .FindKey("timestampLastPingedMilliseconds")
@@ -257,7 +257,7 @@ TEST_F(WatchdogTest, RedundantViolationsShouldStack) {
   ASSERT_NE(violations_map, nullptr);
   violation_dict = violations_map->FindKey("test-name");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  ASSERT_EQ(violations->GetList().size(), 1U);
   std::string timestamp = violations->GetList()[0]
                               .FindKey("timestampLastPingedMilliseconds")
                               ->GetString();
@@ -304,7 +304,7 @@ TEST_F(WatchdogTest, PingInfosAreEvictedAfterMax) {
   base::Value* violation_dict = violations_map->FindKey("test-name");
   base::Value* violations = violation_dict->FindKey("violations");
   base::Value* pingInfos = violations->GetList()[0].FindKey("pingInfos");
-  ASSERT_EQ(pingInfos->GetList().size(), 20);
+  ASSERT_EQ(pingInfos->GetList().size(), 20U);
   ASSERT_EQ(pingInfos->GetList()[0].FindKey("info")->GetString(), "1");
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
 }
@@ -339,20 +339,20 @@ TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
   base::Value* violation_dict =
       uncleared_violations_map->FindKey("test-name-1");
   base::Value* violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 99);
+  ASSERT_EQ(violations->GetList().size(), 99U);
   violation_dict = uncleared_violations_map->FindKey("test-name-2");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 99);
+  ASSERT_EQ(violations->GetList().size(), 99U);
   ASSERT_EQ(violations->GetList()[0]
                 .FindKey("timestampViolationMilliseconds")
                 ->GetString(),
             "3");
   violation_dict = uncleared_violations_map->FindKey("test-name-3");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  ASSERT_EQ(violations->GetList().size(), 1U);
   violation_dict = uncleared_violations_map->FindKey("test-name-4");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  ASSERT_EQ(violations->GetList().size(), 1U);
 
   ASSERT_TRUE(watchdog_->Ping("test-name-3"));
   SbThreadSleep(kWatchdogMonitorFrequency * 2);
@@ -363,20 +363,20 @@ TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
   ASSERT_NE(violations_map, nullptr);
   violation_dict = violations_map->FindKey("test-name-1");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 98);
+  ASSERT_EQ(violations->GetList().size(), 98U);
   ASSERT_EQ(violations->GetList()[0]
                 .FindKey("timestampViolationMilliseconds")
                 ->GetString(),
             "1");
   violation_dict = violations_map->FindKey("test-name-2");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 99);
+  ASSERT_EQ(violations->GetList().size(), 99U);
   violation_dict = violations_map->FindKey("test-name-3");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 2);
+  ASSERT_EQ(violations->GetList().size(), 2U);
   violation_dict = violations_map->FindKey("test-name-4");
   violations = violation_dict->FindKey("violations");
-  ASSERT_EQ(violations->GetList().size(), 1);
+  ASSERT_EQ(violations->GetList().size(), 1U);
 
   ASSERT_TRUE(watchdog_->Unregister("test-name-3"));
   ASSERT_TRUE(watchdog_->Unregister("test-name-4"));

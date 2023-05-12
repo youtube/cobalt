@@ -65,13 +65,13 @@ StorageAreaTest::~StorageAreaTest() {
 
 TEST_F(StorageAreaTest, InitialState) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
-  EXPECT_EQ(0, mock_storage->length());
+  EXPECT_EQ(0U, mock_storage->length());
   EXPECT_EQ(0, mock_storage->area_->size_bytes());
 }
 
 TEST_F(StorageAreaTest, Identifier) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
-  EXPECT_EQ(0, mock_storage->length());
+  EXPECT_EQ(0U, mock_storage->length());
   loader::Origin origin(GURL("https://www.example.com"));
   EXPECT_EQ(origin, mock_storage->area_->origin());
 }

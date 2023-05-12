@@ -77,7 +77,7 @@ TEST(FindNextNewlineSequenceTest, NoNewlineSequences) {
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 TEST(FindNextNewlineSequenceTest, CarriageReturnSequence) {
@@ -89,15 +89,15 @@ TEST(FindNextNewlineSequenceTest, CarriageReturnSequence) {
   bool foundSequence = FindNextNewlineSequence(
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 6);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 6U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 TEST(FindNextNewlineSequenceTest, CRLFSequence) {
@@ -109,15 +109,15 @@ TEST(FindNextNewlineSequenceTest, CRLFSequence) {
   bool foundSequence = FindNextNewlineSequence(
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 6);
-  EXPECT_EQ(sequence_length, 2);
+  EXPECT_EQ(sequence_index, 6U);
+  EXPECT_EQ(sequence_length, 2U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 TEST(FindNextNewlineSequenceTest, LineFeedSequence) {
@@ -129,15 +129,15 @@ TEST(FindNextNewlineSequenceTest, LineFeedSequence) {
   bool foundSequence = FindNextNewlineSequence(
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 6);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 6U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 TEST(FindNextNewlineSequenceTest, NewLineSequenceAtStart) {
@@ -149,15 +149,15 @@ TEST(FindNextNewlineSequenceTest, NewLineSequenceAtStart) {
   bool foundSequence = FindNextNewlineSequence(
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 0);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 0U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 TEST(FindNextNewlineSequenceTest, ConsecutiveNewLineSequences) {
@@ -169,22 +169,22 @@ TEST(FindNextNewlineSequenceTest, ConsecutiveNewLineSequences) {
   bool foundSequence = FindNextNewlineSequence(
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 6);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 6U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 7);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 7U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 TEST(FindNextNewlineSequenceTest, NewLineAtEnd) {
@@ -196,15 +196,15 @@ TEST(FindNextNewlineSequenceTest, NewLineAtEnd) {
   bool foundSequence = FindNextNewlineSequence(
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 13);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 13U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 TEST(FindNextNewlineSequenceTest, MultipleNewLineSequences) {
@@ -216,36 +216,36 @@ TEST(FindNextNewlineSequenceTest, MultipleNewLineSequences) {
   bool foundSequence = FindNextNewlineSequence(
       text, start_index, &sequence_index, &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 0);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 0U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 7);
-  EXPECT_EQ(sequence_length, 2);
+  EXPECT_EQ(sequence_index, 7U);
+  EXPECT_EQ(sequence_length, 2U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 10);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 10U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_TRUE(foundSequence);
-  EXPECT_EQ(sequence_index, 17);
-  EXPECT_EQ(sequence_length, 1);
+  EXPECT_EQ(sequence_index, 17U);
+  EXPECT_EQ(sequence_length, 1U);
 
   start_index = sequence_index + sequence_length;
   foundSequence = FindNextNewlineSequence(text, start_index, &sequence_index,
                                           &sequence_length);
   EXPECT_FALSE(foundSequence);
   EXPECT_EQ(sequence_index, text.size());
-  EXPECT_EQ(sequence_length, 0);
+  EXPECT_EQ(sequence_length, 0U);
 }
 
 }  // namespace layout

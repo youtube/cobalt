@@ -557,7 +557,7 @@ TEST(MediaSessionTest, Metadata) {
   EXPECT_EQ("title", state_metadata->title());
   EXPECT_EQ("artist", state_metadata->artist());
   EXPECT_EQ("album", state_metadata->album());
-  EXPECT_EQ(1, state_metadata->artwork().size());
+  EXPECT_EQ(1U, state_metadata->artwork().size());
   EXPECT_EQ("http://art.image", state_metadata->artwork().at(0).src());
 
   EXPECT_GE(session->mock_session_client()->GetMediaSessionChangeCount(), 2);

@@ -46,7 +46,7 @@ TEST_F(VariadicArgumentsBindingsTest, SetVariadicPrimitiveArguments) {
       .WillOnce(SaveArg<0>(&long_args));
   EXPECT_TRUE(
       EvaluateScript("test.variadicPrimitiveArguments(2, 5, 3);", NULL));
-  ASSERT_EQ(3, long_args.size());
+  ASSERT_EQ(3U, long_args.size());
   EXPECT_EQ(2, long_args[0]);
   EXPECT_EQ(5, long_args[1]);
   EXPECT_EQ(3, long_args[2]);
@@ -65,7 +65,7 @@ TEST_F(VariadicArgumentsBindingsTest,
                                true, _)).WillOnce(SaveArg<1>(&string_args));
   EXPECT_TRUE(EvaluateScript(
       "test.variadicStringArgumentsAfterOptionalArgument(true);", NULL));
-  EXPECT_EQ(0, string_args.size());
+  EXPECT_EQ(0U, string_args.size());
 
   EXPECT_CALL(test_mock(), VariadicStringArgumentsAfterOptionalArgument(
                                false, _)).WillOnce(SaveArg<1>(&string_args));
@@ -73,7 +73,7 @@ TEST_F(VariadicArgumentsBindingsTest,
       "test.variadicStringArgumentsAfterOptionalArgument(false, \"zero\", "
       "\"one\");",
       NULL));
-  ASSERT_EQ(2, string_args.size());
+  ASSERT_EQ(2U, string_args.size());
   EXPECT_STREQ("zero", string_args[0].c_str());
   EXPECT_STREQ("one", string_args[1].c_str());
 }

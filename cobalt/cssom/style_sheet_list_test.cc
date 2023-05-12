@@ -23,7 +23,7 @@ namespace cssom {
 
 TEST(StyleSheetListTest, ItemAccess) {
   scoped_refptr<StyleSheetList> style_sheet_list = new StyleSheetList();
-  ASSERT_EQ(0, style_sheet_list->length());
+  ASSERT_EQ(0UL, style_sheet_list->length());
   ASSERT_FALSE(style_sheet_list->Item(0).get());
 
   scoped_refptr<CSSStyleSheet> style_sheet = new CSSStyleSheet();
@@ -31,7 +31,7 @@ TEST(StyleSheetListTest, ItemAccess) {
   StyleSheetVector style_sheet_vector;
   style_sheet_vector.push_back(style_sheet);
   style_sheet_list = new StyleSheetList(style_sheet_vector, NULL);
-  ASSERT_EQ(1, style_sheet_list->length());
+  ASSERT_EQ(1UL, style_sheet_list->length());
   ASSERT_EQ(style_sheet, style_sheet_list->Item(0));
   ASSERT_FALSE(style_sheet_list->Item(1).get());
   ASSERT_EQ(style_sheet->ParentStyleSheetList(), style_sheet_list);

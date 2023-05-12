@@ -113,7 +113,7 @@ TEST_F(NodeTest, CloneNode) {
   scoped_refptr<Node> deep_clone = root->CloneNode(true);
   ASSERT_TRUE(deep_clone->IsElement());
   EXPECT_EQ("root", deep_clone->AsElement()->GetAttribute("id").value());
-  ASSERT_EQ(2, deep_clone->child_nodes()->length());
+  ASSERT_EQ(2UL, deep_clone->child_nodes()->length());
   EXPECT_TRUE(deep_clone->first_child()->IsText());
   EXPECT_EQ("text", deep_clone->first_child()->AsText()->data());
   EXPECT_TRUE(deep_clone->last_child()->IsElement());
@@ -254,19 +254,19 @@ TEST_F(NodeTest, RemoveChild) {
 TEST_F(NodeTest, ChildNodes) {
   scoped_refptr<Node> root = new Element(document_);
   EXPECT_FALSE(root->HasChildNodes());
-  EXPECT_EQ(0, root->child_nodes()->length());
+  EXPECT_EQ(0U, root->child_nodes()->length());
   EXPECT_EQ(kNullNode, root->child_nodes()->Item(0));
 
   scoped_refptr<Node> child = new Element(document_);
   root->AppendChild(child);
   EXPECT_TRUE(root->HasChildNodes());
-  EXPECT_EQ(1, root->child_nodes()->length());
+  EXPECT_EQ(1U, root->child_nodes()->length());
   EXPECT_EQ(child, root->child_nodes()->Item(0));
   EXPECT_EQ(kNullNode, root->child_nodes()->Item(1));
 
   root->RemoveChild(child);
   EXPECT_FALSE(root->HasChildNodes());
-  EXPECT_EQ(0, root->child_nodes()->length());
+  EXPECT_EQ(0U, root->child_nodes()->length());
   EXPECT_EQ(kNullNode, root->child_nodes()->Item(0));
 }
 
@@ -301,11 +301,11 @@ TEST_F(NodeTest, ParentNode) {
   scoped_refptr<HTMLCollection> children = node->children();
 
   // Check the result of the methods on ParentNode.
-  EXPECT_EQ(2, node->child_element_count());
+  EXPECT_EQ(2U, node->child_element_count());
   EXPECT_EQ(child1, node->first_element_child());
   EXPECT_EQ(child2, node->last_element_child());
   ASSERT_TRUE(children);
-  EXPECT_EQ(2, children->length());
+  EXPECT_EQ(2U, children->length());
   EXPECT_EQ(child1, children->Item(0));
   EXPECT_EQ(child2, children->Item(1));
   EXPECT_EQ(kNullNode, children->Item(2));
@@ -316,7 +316,7 @@ TEST_F(NodeTest, ParentNode) {
   // Remove a child and make sure that the children collection was updated
   // accordingly.
   node->RemoveChild(child2);
-  EXPECT_EQ(1, children->length());
+  EXPECT_EQ(1U, children->length());
   EXPECT_EQ(child1, children->Item(0));
   EXPECT_EQ(kNullNode, children->Item(1));
   EXPECT_EQ(child1, children->NamedItem("1"));

@@ -308,7 +308,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
          base::WaitableEvent* test_done) {
         auto test_list = persistent_settings->GetPersistentSettingAsList("key");
         ASSERT_FALSE(test_list.empty());
-        ASSERT_EQ(1, test_list.size());
+        ASSERT_EQ(1U, test_list.size());
         ASSERT_TRUE(test_list[0].is_string());
         ASSERT_EQ("hello", test_list[0].GetString());
         test_done->Signal();
@@ -327,7 +327,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
          base::WaitableEvent* test_done) {
         auto test_list = persistent_settings->GetPersistentSettingAsList("key");
         ASSERT_FALSE(test_list.empty());
-        ASSERT_EQ(2, test_list.size());
+        ASSERT_EQ(2U, test_list.size());
         ASSERT_TRUE(test_list[0].is_string());
         ASSERT_EQ("hello", test_list[0].GetString());
         ASSERT_TRUE(test_list[1].is_string());
@@ -347,7 +347,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
          base::WaitableEvent* test_done) {
         auto test_list = persistent_settings->GetPersistentSettingAsList("key");
         ASSERT_FALSE(test_list.empty());
-        ASSERT_EQ(3, test_list.size());
+        ASSERT_EQ(3U, test_list.size());
         ASSERT_TRUE(test_list[0].is_string());
         ASSERT_EQ("hello", test_list[0].GetString());
         ASSERT_TRUE(test_list[1].is_string());
@@ -376,7 +376,7 @@ TEST_F(PersistentSettingTest, GetSetDictionary) {
         auto test_dict =
             persistent_settings->GetPersistentSettingAsDictionary("key");
         ASSERT_FALSE(test_dict.empty());
-        ASSERT_EQ(1, test_dict.size());
+        ASSERT_EQ(1U, test_dict.size());
         ASSERT_TRUE(test_dict["key_string"]->is_string());
         ASSERT_EQ("hello", test_dict["key_string"]->GetString());
         test_done->Signal();
@@ -396,7 +396,7 @@ TEST_F(PersistentSettingTest, GetSetDictionary) {
         auto test_dict =
             persistent_settings->GetPersistentSettingAsDictionary("key");
         ASSERT_FALSE(test_dict.empty());
-        ASSERT_EQ(2, test_dict.size());
+        ASSERT_EQ(2U, test_dict.size());
         ASSERT_TRUE(test_dict["key_string"]->is_string());
         ASSERT_EQ("hello", test_dict["key_string"]->GetString());
         ASSERT_TRUE(test_dict["key_int"]->is_int());
@@ -426,7 +426,7 @@ TEST_F(PersistentSettingTest, URLAsKey) {
         auto test_dict = persistent_settings->GetPersistentSettingAsDictionary(
             "http://127.0.0.1:45019/");
         ASSERT_FALSE(test_dict.empty());
-        ASSERT_EQ(1, test_dict.size());
+        ASSERT_EQ(1U, test_dict.size());
         ASSERT_TRUE(test_dict["http://127.0.0.1:45019/"]->is_string());
         ASSERT_EQ("Dictionary URL Key Works!",
                   test_dict["http://127.0.0.1:45019/"]->GetString());

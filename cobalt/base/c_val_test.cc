@@ -39,7 +39,7 @@ TEST(CValTest, InitiallyEmpty) {
   EXPECT_TRUE(cvm);
   std::set<std::string> cval_names = cvm->GetOrderedCValNames();
   std::set<std::string>::size_type size = cval_names.size();
-  EXPECT_EQ(size, 0);
+  EXPECT_EQ(size, 0U);
 }
 
 TEST(CValTest, RegisterAndUnregisterCVal) {
@@ -47,16 +47,16 @@ TEST(CValTest, RegisterAndUnregisterCVal) {
   EXPECT_TRUE(cvm);
   std::set<std::string> cval_names = cvm->GetOrderedCValNames();
   std::set<std::string>::size_type size = cval_names.size();
-  EXPECT_EQ(size, 0);
+  EXPECT_EQ(size, 0U);
   {
     base::CVal<int32_t> cval("S32", 0, "Test.");
     cval_names = cvm->GetOrderedCValNames();
     size = cval_names.size();
-    EXPECT_EQ(size, 1);
+    EXPECT_EQ(size, 1U);
   }
   cval_names = cvm->GetOrderedCValNames();
   size = cval_names.size();
-  EXPECT_EQ(size, 0);
+  EXPECT_EQ(size, 0U);
 }
 
 TEST(CValTest, RegisterAndPrintBoolTrue) {
@@ -433,7 +433,7 @@ TEST(CValTest, GetOrderedCValNames) {
   base::CValManager* cvm = base::CValManager::GetInstance();
   std::set<std::string> cval_names = cvm->GetOrderedCValNames();
   std::set<std::string>::size_type size = cval_names.size();
-  EXPECT_EQ(size, 0);
+  EXPECT_EQ(size, 0U);
 
   const int num_cvals = 4;
   std::string names[num_cvals] = {"a", "aa", "b", "c"};

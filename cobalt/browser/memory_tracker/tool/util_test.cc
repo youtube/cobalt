@@ -83,7 +83,7 @@ TEST(UtilTest, RemoveOddElements) {
 
   RemoveOddElements(&values);
 
-  ASSERT_EQ(2, values.size());
+  ASSERT_EQ(2U, values.size());
   EXPECT_EQ(0, values[0]);
   EXPECT_EQ(2, values[1]);
 
@@ -97,7 +97,7 @@ TEST(UtilTest, RemoveOddElements) {
   values.push_back(4);
   RemoveOddElements(&values);
 
-  ASSERT_EQ(3, values.size());
+  ASSERT_EQ(3UL, values.size());
   EXPECT_EQ(0, values[0]);
   EXPECT_EQ(2, values[1]);
   EXPECT_EQ(4, values[2]);
@@ -163,7 +163,7 @@ TEST(Segment, SplitAcrossPageBoundaries_Simple) {
 
   std::vector<Segment> segments;
   memory_segment.SplitAcrossPageBoundaries(kPageSize, &segments);
-  ASSERT_EQ(1, segments.size());
+  ASSERT_EQ(1UL, segments.size());
 
   ASSERT_EQ(memory_segment, segments[0]);
 }
@@ -177,7 +177,7 @@ TEST(Segment, SplitAcrossPageBoundaries_WholePage) {
 
   std::vector<Segment> segments;
   memory_segment.SplitAcrossPageBoundaries(kPageSize, &segments);
-  ASSERT_EQ(1, segments.size());
+  ASSERT_EQ(1UL, segments.size());
 
   ASSERT_EQ(memory_segment, segments[0]);
 }
@@ -193,7 +193,7 @@ TEST(Segment, SplitAcrossPageBoundaries_Across) {
   std::vector<Segment> segments;
   memory_segment.SplitAcrossPageBoundaries(kPageSize, &segments);
 
-  ASSERT_EQ(2, segments.size());
+  ASSERT_EQ(2U, segments.size());
 
   Segment s1(&name, start_addr, mid_addr);
   Segment s2(&name, mid_addr, end_addr);
@@ -213,7 +213,7 @@ TEST(Segment, SplitAcrossPageBoundaries_Many) {
 
   std::vector<Segment> segments;
   memory_segment.SplitAcrossPageBoundaries(4096, &segments);
-  ASSERT_EQ(3, segments.size());
+  ASSERT_EQ(3U, segments.size());
 
   Segment s1(&name, start_addr, mid_0_addr);
   Segment s2(&name, mid_0_addr, mid_1_addr);

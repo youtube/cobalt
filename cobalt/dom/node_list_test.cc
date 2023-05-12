@@ -46,12 +46,12 @@ class NodeListTest : public ::testing::Test {
 
 TEST_F(NodeListTest, NodeListTest) {
   scoped_refptr<NodeList> node_list = new NodeList();
-  EXPECT_EQ(0, node_list->length());
+  EXPECT_EQ(0U, node_list->length());
 
   node_list->AppendNode(document_->CreateElement("div"));
   node_list->AppendNode(document_->CreateElement("div"));
   node_list->AppendNode(document_->CreateElement("div"));
-  EXPECT_EQ(3, node_list->length());
+  EXPECT_EQ(3U, node_list->length());
   EXPECT_TRUE(node_list->Item(0));
   EXPECT_TRUE(node_list->Item(1));
   EXPECT_TRUE(node_list->Item(2));

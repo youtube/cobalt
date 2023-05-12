@@ -139,7 +139,7 @@ TEST(CSSComputedStyleDeclarationTest, LengthAttributeGetterEmpty) {
   scoped_refptr<CSSComputedStyleDeclaration> style =
       new CSSComputedStyleDeclaration();
 
-  EXPECT_EQ(style->length(), kMaxLonghandPropertyKey + 1);
+  EXPECT_EQ(style->length(), unsigned(kMaxLonghandPropertyKey + 1));
 }
 
 TEST(CSSComputedStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
@@ -152,7 +152,7 @@ TEST(CSSComputedStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
       new CSSComputedStyleDeclaration();
   style->SetData(initial_style);
 
-  EXPECT_EQ(style->length(), kMaxLonghandPropertyKey + 1);
+  EXPECT_EQ(style->length(), unsigned(kMaxLonghandPropertyKey + 1));
 }
 
 TEST(CSSComputedStyleDeclarationTest, ItemGetterEmpty) {

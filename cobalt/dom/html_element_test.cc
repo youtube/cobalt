@@ -715,7 +715,7 @@ TEST_F(HTMLElementTest, SetAttributeMatchesGetAttribute) {
   scoped_refptr<HTMLElement> html_element =
       document()->CreateElement("div")->AsHTMLElement();
   html_element->SetAttribute("foo", "bar");
-  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ(1U, html_element->attributes()->length());
   EXPECT_EQ("bar", html_element->GetAttribute("foo").value());
 }
 
@@ -751,7 +751,7 @@ TEST_F(HTMLElementTest, SetAttributeStyleReplacesExistingElementStyle) {
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(new_style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
-  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ(1U, html_element->attributes()->length());
   EXPECT_EQ(new_style, html_element->style()->data());
   EXPECT_EQ(kFooBarDeclarationString,
             html_element->GetAttribute("style").value());
@@ -766,7 +766,7 @@ TEST_F(HTMLElementTest, GetAttributeStyleMatchesSetAttributeStyle) {
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
-  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ(1U, html_element->attributes()->length());
   EXPECT_EQ(kFooBarDeclarationString,
             html_element->GetAttribute("style").value());
 }
@@ -781,7 +781,7 @@ TEST_F(HTMLElementTest,
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
-  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ(1U, html_element->attributes()->length());
   EXPECT_CALL(css_parser(), ParsePropertyIntoDeclarationData(
                                 "display", "inline", _, style.get()))
       .WillOnce(InvokeCallback0(base::Bind(
@@ -804,7 +804,7 @@ TEST_F(HTMLElementTest,
               ParseStyleDeclarationList(kFooBarDeclarationString, _))
       .WillOnce(Return(style));
   html_element->SetAttribute("style", kFooBarDeclarationString);
-  EXPECT_EQ(1, html_element->attributes()->length());
+  EXPECT_EQ(1U, html_element->attributes()->length());
   EXPECT_CALL(css_parser(), ParsePropertyIntoDeclarationData(
                                 "display", "inline", _, style.get()))
       .WillOnce(InvokeCallback0(base::Bind(
@@ -826,7 +826,7 @@ TEST_F(HTMLElementTest, Duplicate) {
       html_element->Duplicate()->AsElement()->AsHTMLElement();
   ASSERT_TRUE(new_html_element);
   EXPECT_TRUE(new_html_element->AsHTMLDivElement());
-  EXPECT_EQ(2, new_html_element->attributes()->length());
+  EXPECT_EQ(2U, new_html_element->attributes()->length());
   EXPECT_EQ("1", new_html_element->GetAttribute("a").value());
   EXPECT_EQ("2", new_html_element->GetAttribute("b").value());
 }

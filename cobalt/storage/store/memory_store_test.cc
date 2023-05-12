@@ -101,7 +101,7 @@ TEST_F(MemoryStoreTest, GetAllCookies) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
 
-  EXPECT_EQ(cookies.size(), 1);
+  EXPECT_EQ(cookies.size(), 1U);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
 }
 
@@ -109,14 +109,14 @@ TEST_F(MemoryStoreTest, AddCookie) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
 
-  EXPECT_EQ(cookies.size(), 1);
+  EXPECT_EQ(cookies.size(), 1U);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
   cookies.clear();
 
   memory_store_.AddCookie(*new_cookie_, expiration_time_.ToInternalValue());
 
   memory_store_.GetAllCookies(&cookies);
-  EXPECT_EQ(cookies.size(), 2);
+  EXPECT_EQ(cookies.size(), 2U);
   EXPECT_TRUE(cookies[0]->IsEquivalent(*cookie_));
   EXPECT_TRUE(cookies[1]->IsEquivalent(*new_cookie_));
   cookies.clear();
@@ -128,7 +128,7 @@ TEST_F(MemoryStoreTest, UpdateCookieAccessTime) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
 
-  EXPECT_EQ(cookies.size(), 1);
+  EXPECT_EQ(cookies.size(), 1U);
 
   EXPECT_TRUE(cookies[0]->IsEquivalent(*updated_cookie_));
 }
@@ -136,7 +136,7 @@ TEST_F(MemoryStoreTest, UpdateCookieAccessTime) {
 TEST_F(MemoryStoreTest, DeleteCookie) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   memory_store_.GetAllCookies(&cookies);
-  EXPECT_EQ(cookies.size(), 1);
+  EXPECT_EQ(cookies.size(), 1U);
   cookies.clear();
 
   memory_store_.DeleteCookie(*cookie_);

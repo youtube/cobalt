@@ -98,7 +98,7 @@ TEST(BlobFetcherTest, EmptyBlob) {
 
   run_loop.Run();
 
-  EXPECT_EQ(0, fetcher_handler_mock.data().size());
+  EXPECT_EQ(0U, fetcher_handler_mock.data().size());
 
   EXPECT_EQ(blob_fetcher.get(), fetcher_handler_mock.fetcher());
 }
@@ -127,7 +127,7 @@ TEST(BlobFetcherTest, ValidBlob) {
   run_loop.Run();
 
   const std::string& data = fetcher_handler_mock.data();
-  ASSERT_EQ(3, data.size());
+  ASSERT_EQ(3U, data.size());
   EXPECT_EQ('a', data[0]);
   EXPECT_EQ(0, data[1]);
   EXPECT_EQ(7, data[2]);

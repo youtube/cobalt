@@ -113,7 +113,7 @@ TEST_F(WindowTimersTest, TimeoutIsNotCalledDirectly) {
   mock_timer_callback_.ExpectRunCall(0);
   timers_->SetTimeout(callback_, 0);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(0));
 }
@@ -127,12 +127,12 @@ TEST_F(WindowTimersTest, TimeoutZeroIsCalledImmediatelyFromTask) {
   mock_timer_callback_.ExpectRunCall(1);
   timers_->SetTimeout(callback_, 0);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(0));
 
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0U);
 }
 
 TEST_F(WindowTimersTest, TimeoutIsNotCalledBeforeDelay) {
@@ -144,14 +144,14 @@ TEST_F(WindowTimersTest, TimeoutIsNotCalledBeforeDelay) {
   mock_timer_callback_.ExpectRunCall(0);
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(
       base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds - 1));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
 }
 
 TEST_F(WindowTimersTest, TimeoutIsCalledAfterDelay) {
@@ -163,13 +163,13 @@ TEST_F(WindowTimersTest, TimeoutIsCalledAfterDelay) {
   mock_timer_callback_.ExpectRunCall(1);
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0U);
 }
 
 TEST_F(WindowTimersTest, TimeoutIsNotCalledRepeatedly) {
@@ -181,7 +181,7 @@ TEST_F(WindowTimersTest, TimeoutIsNotCalledRepeatedly) {
   mock_timer_callback_.ExpectRunCall(1);
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
@@ -189,7 +189,7 @@ TEST_F(WindowTimersTest, TimeoutIsNotCalledRepeatedly) {
       base::TimeDelta::FromMilliseconds(10 * kTimerDelayInMilliseconds));
   FastForwardUntilNoTasksRemain();
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0U);
 }
 
 TEST_F(WindowTimersTest, TimeoutIsCalledWhenDelayed) {
@@ -201,14 +201,14 @@ TEST_F(WindowTimersTest, TimeoutIsCalledWhenDelayed) {
   mock_timer_callback_.ExpectRunCall(1);
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   AdvanceMockTickClock(
       base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds + 1000));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0U);
 }
 
 TEST_F(WindowTimersTest, MultipleTimeouts) {
@@ -221,13 +221,13 @@ TEST_F(WindowTimersTest, MultipleTimeouts) {
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds);
   timers_->SetTimeout(callback_, kTimerDelayInMilliseconds * 3);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(
       base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0U);
 }
 
 TEST_F(WindowTimersTest, ActiveTimeoutsAreCounted) {
@@ -250,13 +250,13 @@ TEST_F(WindowTimersTest, ActiveTimeoutsAreCounted) {
                          "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(
       base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 0U);
 
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("0", base::CValManager::GetInstance()
@@ -275,7 +275,7 @@ TEST_F(WindowTimersTest, IntervalZeroTaskIsScheduledImmediately) {
 
   timers_->SetInterval(callback_, 0);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(0));
 
@@ -292,14 +292,14 @@ TEST_F(WindowTimersTest, IntervalIsNotCalledBeforeDelay) {
   mock_timer_callback_.ExpectRunCall(0);
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(
       base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds - 1));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
 }
 
 TEST_F(WindowTimersTest, IntervalIsCalledAfterDelay) {
@@ -311,13 +311,13 @@ TEST_F(WindowTimersTest, IntervalIsCalledAfterDelay) {
   mock_timer_callback_.ExpectRunCall(1);
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
 }
 
 TEST_F(WindowTimersTest, IntervalIsCalledRepeatedly) {
@@ -331,14 +331,14 @@ TEST_F(WindowTimersTest, IntervalIsCalledRepeatedly) {
   mock_timer_callback_.ExpectRunCall(interval_count);
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(base::TimeDelta::FromMilliseconds(interval_count *
                                                   kTimerDelayInMilliseconds));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
 }
 
 TEST_F(WindowTimersTest, IntervalDrifts) {
@@ -352,7 +352,7 @@ TEST_F(WindowTimersTest, IntervalDrifts) {
   mock_timer_callback_.ExpectRunCall(interval_count);
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
@@ -361,7 +361,7 @@ TEST_F(WindowTimersTest, IntervalDrifts) {
         base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds + 1000));
     RunUntilIdle();
   }
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 1U);
 }
 
 TEST_F(WindowTimersTest, MultipleIntervals) {
@@ -374,14 +374,14 @@ TEST_F(WindowTimersTest, MultipleIntervals) {
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds);
   timers_->SetInterval(callback_, kTimerDelayInMilliseconds * 3);
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(
       base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2U);
 }
 
 TEST_F(WindowTimersTest, ActiveIntervalsAreCounted) {
@@ -404,14 +404,14 @@ TEST_F(WindowTimersTest, ActiveIntervalsAreCounted) {
                          "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(
       base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2U);
 
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()
@@ -446,14 +446,14 @@ TEST_F(WindowTimersTest, ActiveIntervalsAndTimeoutsAreCounted) {
                          "Count.WindowTimersTest.Test.WindowTimers.Timeout")
                      .value_or("Foo"));
 
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 4);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 4U);
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   FastForwardBy(
       base::TimeDelta::FromMilliseconds(3 * kTimerDelayInMilliseconds));
   RunUntilIdle();
-  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2);
+  EXPECT_EQ(GetPendingMainThreadTaskCount(), 2U);
 
   stat_tracker_.FlushPeriodicTracking();
   EXPECT_EQ("2", base::CValManager::GetInstance()

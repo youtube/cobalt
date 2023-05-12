@@ -424,7 +424,7 @@ TEST(AnimateNodeTest, AnimationBoundsExpiration) {
   results = with_animations->Apply(base::TimeDelta::FromSeconds(4));
   animation_bounds =
       results.get_animation_bounds_since.Run(base::TimeDelta::FromSeconds(3));
-  EXPECT_EQ(0, animation_bounds.size().GetArea());
+  EXPECT_EQ(0U, animation_bounds.size().GetArea());
 }
 
 void BoundsAnimateRect2(RectNode::Builder* rect_node,

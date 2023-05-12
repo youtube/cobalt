@@ -34,7 +34,7 @@ TEST(LetterboxedImageTest, ZeroAreaImage) {
 
   LetterboxDimensions dimensions =
       GetLetterboxDimensions(Size(0, 1), kDestinationSize);
-  ASSERT_EQ(1, dimensions.fill_rects.size());
+  ASSERT_EQ(1u, dimensions.fill_rects.size());
   EXPECT_FALSE(dimensions.image_rect);
 
   EXPECT_EQ(PointF(0, 0), dimensions.fill_rects[0].origin());
@@ -67,7 +67,7 @@ TEST(LetterboxedImageTest, WiderImage) {
     LetterboxDimensions dimensions = GetLetterboxDimensions(
         Size(5 * (1 << i), 3 * (1 << i)), kDestinationSize);
 
-    ASSERT_EQ(2, dimensions.fill_rects.size());
+    ASSERT_EQ(2u, dimensions.fill_rects.size());
     ASSERT_TRUE(dimensions.image_rect);
 
     EXPECT_EQ(PointF(0, 10), dimensions.image_rect->origin());
@@ -93,7 +93,7 @@ TEST(LetterboxedImageTest, HigherImage) {
     LetterboxDimensions dimensions = GetLetterboxDimensions(
         Size(4 * (1 << i), 5 * (1 << i)), kDestinationSize);
 
-    ASSERT_EQ(2, dimensions.fill_rects.size());
+    ASSERT_EQ(2u, dimensions.fill_rects.size());
     ASSERT_TRUE(dimensions.image_rect);
 
     EXPECT_EQ(PointF(70, 0), dimensions.image_rect->origin());

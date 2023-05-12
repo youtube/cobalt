@@ -33,24 +33,6 @@
 #else
 // DCHECK_IS_ON() && defined(GTEST_HAS_DEATH_TEST) && !defined(OS_ANDROID)
 
-// Macro copied from gtest-death-test-internal.h as it's (1) internal for now
-// and (2) only defined if !GTEST_HAS_DEATH_TEST which is only a subset of the
-// conditions in which it's needed here.
-// TODO(gab): Expose macro in upstream gtest repo for consumers like us that
-// want more specific death tests and remove this hack.
-#define GTEST_UNSUPPORTED_DEATH_TEST(statement, regex, terminator)  \
-  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                     \
-  if (::testing::internal::AlwaysTrue()) {                          \
-    GTEST_LOG_(WARNING)                                             \
-        << "Death tests are not supported in this configuration.\n" \
-        << "Statement '" #statement "' cannot be verified.";        \
-  } else if (::testing::internal::AlwaysFalse()) {                  \
-    ::testing::internal::RE::PartialMatch(".*", (regex));           \
-    GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);      \
-    terminator;                                                     \
-  } else                                                            \
-    ::testing::Message()
-
 #define EXPECT_DCHECK_DEATH(statement) \
     GTEST_UNSUPPORTED_DEATH_TEST(statement, "Check failed", )
 #define ASSERT_DCHECK_DEATH(statement) \

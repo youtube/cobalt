@@ -75,7 +75,7 @@ TEST_F(CSSGroupingRuleTest, CSSRulesGetter) {
   scoped_refptr<CSSRuleList> rule_list = css_grouping_rule_->css_rules();
 
   ASSERT_TRUE(rule_list);
-  ASSERT_EQ(0, rule_list->length());
+  ASSERT_EQ(0UL, rule_list->length());
   ASSERT_FALSE(rule_list->Item(0).get());
 }
 

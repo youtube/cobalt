@@ -211,7 +211,7 @@ TEST_F(ScannerTest, ScansPropertyName) {
       SB_ARRAY_SIZE(property_tokens) == 1 + cssom::kMaxEveryPropertyKey,
       "property_tokens[] should have a value for each cssom::PropertyKey");
   // Test that all property names are scanned into tokens correctly.
-  ASSERT_EQ(SB_ARRAY_SIZE(property_tokens), 1 + cssom::kMaxEveryPropertyKey);
+  ASSERT_EQ(SB_ARRAY_SIZE(property_tokens), unsigned(1 + cssom::kMaxEveryPropertyKey));
   for (int i = 0; i < 1 + cssom::kMaxEveryPropertyKey; i++) {
     cssom::PropertyKey property_key = static_cast<cssom::PropertyKey>(i);
     Scanner scanner(cssom::GetPropertyName(property_key), &string_pool_);
@@ -306,7 +306,7 @@ TEST_F(ScannerTest, ScansKeywordValue) {
                 "cssom::KeywordValue::Value");
   // Test that all keyword values are scanned into tokens correctly.
   ASSERT_EQ(SB_ARRAY_SIZE(keyword_tokens),
-            1 + cssom::KeywordValue::kMaxKeywordValue);
+            unsigned(1 + cssom::KeywordValue::kMaxKeywordValue));
   for (int i = 0; i < 1 + cssom::KeywordValue::kMaxKeywordValue; i++) {
     cssom::KeywordValue::Value keyword_value =
         static_cast<cssom::KeywordValue::Value>(i);

@@ -1631,7 +1631,7 @@ TEST(CSSDeclaredStyleDeclarationTest, LengthAttributeGetterEmpty) {
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(&css_parser);
 
-  EXPECT_EQ(style->length(), 0);
+  EXPECT_EQ(style->length(), 0UL);
 }
 
 TEST(CSSDeclaredStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
@@ -1645,7 +1645,7 @@ TEST(CSSDeclaredStyleDeclarationTest, LengthAttributeGetterNotEmpty) {
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
       new CSSDeclaredStyleDeclaration(initial_style, &css_parser);
 
-  EXPECT_EQ(style->length(), 2);
+  EXPECT_EQ(style->length(), 2U);
 }
 
 TEST(CSSDeclaredStyleDeclarationTest, ItemGetterEmpty) {

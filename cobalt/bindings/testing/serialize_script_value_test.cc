@@ -39,7 +39,7 @@ TEST_F(SerializeScriptValueTest, Serialize) {
       test.serializeTest({a: ['something'], b: new Uint8Array([42])});
     )");
   // Sanity check the serialized size.
-  EXPECT_EQ(32, test_mock().serialized_size());
+  EXPECT_EQ(32U, test_mock().serialized_size());
   ExpectTrue("!(test.deserializeTest() instanceof Array)");
   ExpectTrue("test.deserializeTest() instanceof Object");
   ExpectTrue("test.deserializeTest().a instanceof Array");

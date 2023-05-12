@@ -30,8 +30,8 @@ TEST(ScreenTest, Size) {
   EXPECT_FLOAT_EQ(screen->height(), 720.0f);
   EXPECT_FLOAT_EQ(screen->avail_width(), 1280.0f);
   EXPECT_FLOAT_EQ(screen->avail_height(), 720.0f);
-  EXPECT_EQ(screen->color_depth(), 24);
-  EXPECT_EQ(screen->pixel_depth(), 24);
+  EXPECT_EQ(screen->color_depth(), 24U);
+  EXPECT_EQ(screen->pixel_depth(), 24U);
   EXPECT_EQ(screen->diagonal_inches(), 55.f);
   EXPECT_EQ(screen->device_pixel_ratio(), 2.f);
 }

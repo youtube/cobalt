@@ -40,8 +40,11 @@
 #ifndef GOOGLEMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_PORT_H_
 #define GOOGLEMOCK_INCLUDE_GMOCK_INTERNAL_GMOCK_PORT_H_
 
+#if !defined(STARBOARD)
 #include <assert.h>
 #include <stdlib.h>
+#endif
+
 #include <cstdint>
 #include <iostream>
 

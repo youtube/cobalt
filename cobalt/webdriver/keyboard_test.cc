@@ -121,7 +121,7 @@ TEST_F(KeyboardTest, LowerCaseCharacter) {
   std::string keys = "r";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
-  ASSERT_EQ(events_.size(), 3);
+  ASSERT_EQ(events_.size(), 3U);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keypress", "keyup"));
   EXPECT_THAT(GetKeyCodes(), ElementsAre('R', 0, 'R'));
   EXPECT_THAT(GetCharCodes(), ElementsAre(0, 'r', 0));
@@ -136,7 +136,7 @@ TEST_F(KeyboardTest, UpperCaseCharacter) {
   // keydown(shift)
   //   keydown(R), keypress(R), keyup(R)
   // keyup(shift)
-  ASSERT_EQ(events_.size(), 5);
+  ASSERT_EQ(events_.size(), 5U);
   EXPECT_THAT(GetTypes(),
               ElementsAre("keydown", "keydown", "keypress", "keyup", "keyup"));
   EXPECT_THAT(GetKeyCodes(),
@@ -157,7 +157,7 @@ TEST_F(KeyboardTest, ShiftedCharacter) {
   // keydown(shift)
   //   keydown(7), keypress(&), keyup(7)
   // keyup(shift)
-  ASSERT_EQ(events_.size(), 5);
+  ASSERT_EQ(events_.size(), 5U);
   EXPECT_THAT(GetTypes(),
               ElementsAre("keydown", "keydown", "keypress", "keyup", "keyup"));
   EXPECT_THAT(GetKeyCodes(),
@@ -176,7 +176,7 @@ TEST_F(KeyboardTest, Modifier) {
   std::string keys = u8"\uE00A";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
-  ASSERT_EQ(events_.size(), 1);
+  ASSERT_EQ(events_.size(), 1U);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown"));
   EXPECT_THAT(GetKeyCodes(),
               ElementsAre(static_cast<int>(dom::keycode::kMenu)));
@@ -191,7 +191,7 @@ TEST_F(KeyboardTest, ModifiersAreKept) {
   std::string keys = u8"\uE00A\uE008";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
-  ASSERT_EQ(events_.size(), 2);
+  ASSERT_EQ(events_.size(), 2U);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown"));
   EXPECT_THAT(GetKeyCodes(),
               ElementsAre(static_cast<int>(dom::keycode::kMenu),
@@ -207,7 +207,7 @@ TEST_F(KeyboardTest, ModifiersAreReleased) {
   std::string keys = u8"\uE00A\uE008";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kReleaseModifiers, &events_);
 
-  ASSERT_EQ(events_.size(), 4);
+  ASSERT_EQ(events_.size(), 4U);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown", "keyup", "keyup"));
   EXPECT_THAT(GetKeyCodes(),
               ElementsAre(static_cast<int>(dom::keycode::kMenu),
@@ -225,7 +225,7 @@ TEST_F(KeyboardTest, SpecialCharacter) {
   std::string keys = u8"\uE012";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
-  ASSERT_EQ(events_.size(), 2);
+  ASSERT_EQ(events_.size(), 2U);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keyup"));
   EXPECT_THAT(GetKeyCodes(), Each(Eq(static_cast<int>(dom::keycode::kLeft))));
   EXPECT_THAT(GetCharCodes(), Each(Eq(0)));
@@ -243,7 +243,7 @@ TEST_F(KeyboardTest, ModifierIsSticky) {
   //   keydown(shift)
   //     keydown(B), keypress(B), keyup(B)
   //   keyup(shift)
-  ASSERT_EQ(events_.size(), 9);
+  ASSERT_EQ(events_.size(), 9U);
   EXPECT_THAT(GetTypes(),
               ElementsAre("keydown", "keydown", "keypress", "keyup", "keydown",
                           "keydown", "keypress", "keyup", "keyup"));
@@ -270,7 +270,7 @@ TEST_F(KeyboardTest, ToggleModifier) {
   //   keydown(A), keypress(A), keyup(A)
   // keyup(shift)
   // keydown(A), keypress(a), keyup(A)
-  ASSERT_EQ(events_.size(), 8);
+  ASSERT_EQ(events_.size(), 8U);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown", "keypress", "keyup",
                                       "keyup", "keydown", "keypress", "keyup"));
   EXPECT_THAT(GetKeyCodes(),
@@ -296,7 +296,7 @@ TEST_F(KeyboardTest, NullClearsModifiers) {
   //   keyup(alt)
   // keyup(shift)
   // keydown(A), keypress(a), keyup(A)
-  ASSERT_EQ(events_.size(), 7);
+  ASSERT_EQ(events_.size(), 7U);
   EXPECT_THAT(GetTypes(), ElementsAre("keydown", "keydown", "keyup", "keyup",
                                       "keydown", "keypress", "keyup"));
   EXPECT_THAT(GetKeyCodes(),

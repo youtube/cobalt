@@ -21,7 +21,7 @@ namespace css_parser {
 
 TEST(TrivialStringPieceTest, CreateFromEmptyCString) {
   TrivialStringPiece string_piece = TrivialStringPiece::FromCString("");
-  EXPECT_EQ(0, string_piece.size());
+  EXPECT_EQ(0U, string_piece.size());
   EXPECT_EQ('\0', *string_piece.begin);
   EXPECT_EQ('\0', *string_piece.end);
   EXPECT_EQ("", string_piece.ToString());
@@ -29,7 +29,7 @@ TEST(TrivialStringPieceTest, CreateFromEmptyCString) {
 
 TEST(TrivialStringPieceTest, CreateFromNonEmptyCString) {
   TrivialStringPiece string_piece = TrivialStringPiece::FromCString("initial");
-  EXPECT_EQ(7, string_piece.size());
+  EXPECT_EQ(7U, string_piece.size());
   EXPECT_EQ('i', *string_piece.begin);
   EXPECT_EQ('\0', *string_piece.end);
   EXPECT_EQ("initial", string_piece.ToString());

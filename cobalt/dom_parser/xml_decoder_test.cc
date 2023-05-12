@@ -115,7 +115,7 @@ TEST_F(XMLDecoderTest, CanParseAttributesWithValue) {
   ASSERT_TRUE(element);
   EXPECT_EQ("ELEMENT", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
-  EXPECT_EQ(2, element->attributes()->length());
+  EXPECT_EQ(2U, element->attributes()->length());
   ASSERT_NE(nullptr, element->attributes()->GetNamedItem("a"));
   EXPECT_EQ("a", element->attributes()->GetNamedItem("a")->name());
   EXPECT_EQ("1", element->attributes()->GetNamedItem("a")->value());
@@ -155,7 +155,7 @@ TEST_F(XMLDecoderTest, AttributesShouldBeCaseSensitive) {
   ASSERT_TRUE(element);
   EXPECT_EQ("ELEMENT", element->local_name());
   EXPECT_TRUE(element->HasAttributes());
-  EXPECT_EQ(2, element->attributes()->length());
+  EXPECT_EQ(2U, element->attributes()->length());
   ASSERT_NE(nullptr, element->attributes()->GetNamedItem("A"));
   EXPECT_EQ("A", element->attributes()->GetNamedItem("A")->name());
   EXPECT_EQ("1", element->attributes()->GetNamedItem("A")->value());

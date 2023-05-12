@@ -119,9 +119,9 @@ TEST_F(MutationObserverTest, CreateAttributeMutationRecord) {
 
   // Unrelated attributes are not set.
   ASSERT_TRUE(record->added_nodes());
-  EXPECT_EQ(record->added_nodes()->length(), 0);
+  EXPECT_EQ(record->added_nodes()->length(), 0U);
   ASSERT_TRUE(record->removed_nodes());
-  EXPECT_EQ(record->removed_nodes()->length(), 0);
+  EXPECT_EQ(record->removed_nodes()->length(), 0U);
   EXPECT_FALSE(record->previous_sibling());
   EXPECT_FALSE(record->next_sibling());
 }
@@ -145,9 +145,9 @@ TEST_F(MutationObserverTest, CreateCharacterDataMutationRecord) {
   EXPECT_FALSE(record->attribute_name());
   EXPECT_FALSE(record->attribute_namespace());
   ASSERT_TRUE(record->added_nodes());
-  EXPECT_EQ(record->added_nodes()->length(), 0);
+  EXPECT_EQ(record->added_nodes()->length(), 0U);
   ASSERT_TRUE(record->removed_nodes());
-  EXPECT_EQ(record->removed_nodes()->length(), 0);
+  EXPECT_EQ(record->removed_nodes()->length(), 0U);
   EXPECT_FALSE(record->previous_sibling());
   EXPECT_FALSE(record->next_sibling());
 }
@@ -236,7 +236,7 @@ TEST_F(MutationObserverTest, TakeRecords) {
   // The queued record can be taken once.
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   records = observer->TakeRecords();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   ASSERT_EQ(records.at(0), record);
   records = observer->TakeRecords();
   EXPECT_TRUE(records.empty());
@@ -264,7 +264,7 @@ TEST_F(MutationObserverTest, Notify) {
       .WillOnce(SaveArg<0>(&records));
   EXPECT_CALL(*debugger_hooks(), AsyncTaskFinished(async_task));
   observer->Notify();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   EXPECT_EQ(record, records.at(0));
 
   // There should be no more records queued up after the callback has been
@@ -285,7 +285,7 @@ TEST_F(MutationObserverTest, Notify) {
       .WillOnce(SaveArg<0>(&records));
   EXPECT_CALL(*debugger_hooks(), AsyncTaskFinished(async_task));
   observer->Notify();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   EXPECT_EQ(record, records.at(0));
 
   // No more records after notifying.
@@ -329,7 +329,7 @@ TEST_F(MutationObserverTest, ReportMutation) {
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_1));
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_2));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(2, records.size());
+  ASSERT_EQ(2U, records.size());
   EXPECT_EQ(records.at(0)->type(), "attributes");
   EXPECT_EQ(records.at(1)->type(), "characterData");
 }
@@ -367,7 +367,7 @@ TEST_F(MutationObserverTest, AttributeFilter) {
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_1));
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_2));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(2, records.size());
+  ASSERT_EQ(2U, records.size());
   EXPECT_STREQ(records.at(0)->attribute_name()->c_str(), "banana");
   EXPECT_STREQ(records.at(1)->attribute_name()->c_str(), "potato");
 }
@@ -382,7 +382,7 @@ TEST_F(MutationObserverTest, RegisteredObserverList) {
   MutationObserverInit options;
   options.set_attributes(true);
   EXPECT_TRUE(observer_list.AddMutationObserver(observer, options));
-  EXPECT_EQ(1, observer_list.registered_observers().size());
+  EXPECT_EQ(1U, observer_list.registered_observers().size());
   EXPECT_EQ(observer, observer_list.registered_observers()[0].observer());
   EXPECT_TRUE(observer_list.registered_observers()[0].options().attributes());
   EXPECT_FALSE(
@@ -393,7 +393,7 @@ TEST_F(MutationObserverTest, RegisteredObserverList) {
   options = MutationObserverInit();
   options.set_child_list(true);
   EXPECT_TRUE(observer_list.AddMutationObserver(observer, options));
-  EXPECT_EQ(1, observer_list.registered_observers().size());
+  EXPECT_EQ(1U, observer_list.registered_observers().size());
   EXPECT_EQ(observer, observer_list.registered_observers()[0].observer());
   EXPECT_FALSE(
       observer_list.registered_observers()[0].options().has_attributes());
@@ -403,7 +403,7 @@ TEST_F(MutationObserverTest, RegisteredObserverList) {
 
   // Remove the observer.
   observer_list.RemoveMutationObserver(observer);
-  EXPECT_EQ(0, observer_list.registered_observers().size());
+  EXPECT_EQ(0U, observer_list.registered_observers().size());
 }
 
 TEST_F(MutationObserverTest, LazilySetOptions) {
@@ -416,14 +416,14 @@ TEST_F(MutationObserverTest, LazilySetOptions) {
   MutationObserverInit options;
   options.set_attribute_old_value(true);
   EXPECT_TRUE(observer_list.AddMutationObserver(observer, options));
-  EXPECT_EQ(1, observer_list.registered_observers().size());
+  EXPECT_EQ(1U, observer_list.registered_observers().size());
   EXPECT_TRUE(observer_list.registered_observers()[0].options().attributes());
 
   // |character_data| gets set if an attribute-related option is set.
   options = MutationObserverInit();
   options.set_character_data_old_value(true);
   EXPECT_TRUE(observer_list.AddMutationObserver(observer, options));
-  EXPECT_EQ(1, observer_list.registered_observers().size());
+  EXPECT_EQ(1U, observer_list.registered_observers().size());
   EXPECT_TRUE(
       observer_list.registered_observers()[0].options().character_data());
 }
@@ -437,20 +437,20 @@ TEST_F(MutationObserverTest, InvalidOptions) {
   // No type of mutation is set.
   MutationObserverInit options;
   EXPECT_FALSE(observer_list.AddMutationObserver(observer, options));
-  EXPECT_EQ(0, observer_list.registered_observers().size());
+  EXPECT_EQ(0U, observer_list.registered_observers().size());
 
   // |attributes| is set as false, but attribute old data is set.
   options.set_attributes(false);
   options.set_attribute_old_value(true);
   EXPECT_FALSE(observer_list.AddMutationObserver(observer, options));
-  EXPECT_EQ(0, observer_list.registered_observers().size());
+  EXPECT_EQ(0U, observer_list.registered_observers().size());
 
   // |character_data| is set as false, but attribute old data is set.
   options = MutationObserverInit();
   options.set_character_data(false);
   options.set_character_data_old_value(true);
   EXPECT_FALSE(observer_list.AddMutationObserver(observer, options));
-  EXPECT_EQ(0, observer_list.registered_observers().size());
+  EXPECT_EQ(0U, observer_list.registered_observers().size());
 }
 
 TEST_F(MutationObserverTest, InvalidOptionsRaisesException) {
@@ -488,21 +488,21 @@ TEST_F(MutationObserverTest, AddChildNodes) {
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_1));
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task_2));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(2, records.size());
+  ASSERT_EQ(2U, records.size());
   EXPECT_EQ("childList", records.at(0)->type());
   EXPECT_EQ(root, records.at(0)->target());
   ASSERT_TRUE(records.at(0)->removed_nodes());
-  ASSERT_EQ(0, records.at(0)->removed_nodes()->length());
+  ASSERT_EQ(0UL, records.at(0)->removed_nodes()->length());
   ASSERT_TRUE(records.at(0)->added_nodes());
-  ASSERT_EQ(1, records.at(0)->added_nodes()->length());
+  ASSERT_EQ(1UL, records.at(0)->added_nodes()->length());
   EXPECT_EQ(child1, records.at(0)->added_nodes()->Item(0));
 
   EXPECT_EQ("childList", records.at(1)->type());
   EXPECT_EQ(child1, records.at(1)->target());
   ASSERT_TRUE(records.at(1)->removed_nodes());
-  ASSERT_EQ(0, records.at(1)->removed_nodes()->length());
+  ASSERT_EQ(0UL, records.at(1)->removed_nodes()->length());
   ASSERT_TRUE(records.at(1)->added_nodes());
-  ASSERT_EQ(1, records.at(1)->added_nodes()->length());
+  ASSERT_EQ(1UL, records.at(1)->added_nodes()->length());
   EXPECT_EQ(child2, records.at(1)->added_nodes()->Item(0));
 }
 
@@ -530,11 +530,11 @@ TEST_F(MutationObserverTest, RemoveChildNode) {
 
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   EXPECT_EQ("childList", records.at(0)->type());
   EXPECT_EQ(child1, records.at(0)->target());
   ASSERT_TRUE(records.at(0)->removed_nodes());
-  ASSERT_EQ(1, records.at(0)->removed_nodes()->length());
+  ASSERT_EQ(1UL, records.at(0)->removed_nodes()->length());
   EXPECT_EQ(child2, records.at(0)->removed_nodes()->Item(0));
 }
 
@@ -559,7 +559,7 @@ TEST_F(MutationObserverTest, MutateCharacterData) {
 
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   EXPECT_EQ("characterData", records.at(0)->type());
   EXPECT_EQ(text, records.at(0)->target());
   EXPECT_FALSE(records.at(0)->old_value());
@@ -586,7 +586,7 @@ TEST_F(MutationObserverTest, MutateCharacterDataWithOldValue) {
 
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   EXPECT_EQ("characterData", records.at(0)->type());
   EXPECT_EQ(text, records.at(0)->target());
   ASSERT_TRUE(records.at(0)->old_value());
@@ -615,7 +615,7 @@ TEST_F(MutationObserverTest, MutateAttribute) {
 
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   EXPECT_EQ("attributes", records.at(0)->type());
   EXPECT_EQ(root, records.at(0)->target());
   EXPECT_FALSE(records.at(0)->old_value());
@@ -640,7 +640,7 @@ TEST_F(MutationObserverTest, MutateAttributeWithOldValue) {
 
   EXPECT_CALL(*debugger_hooks(), AsyncTaskCanceled(async_task));
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
-  ASSERT_EQ(1, records.size());
+  ASSERT_EQ(1U, records.size());
   EXPECT_EQ("attributes", records.at(0)->type());
   EXPECT_EQ(root, records.at(0)->target());
   ASSERT_TRUE(records.at(0)->old_value());
@@ -673,12 +673,12 @@ TEST_F(MutationObserverTest, Disconnect) {
   observer->Disconnect();
   MutationObserver::MutationRecordSequence records = observer->TakeRecords();
   // MutationObserver.disconnect() should clear any queued records.
-  EXPECT_EQ(0, records.size());
+  EXPECT_EQ(0U, records.size());
 
   // This should not queue a mutation record.
   text->set_data("more-new-data");
   records = observer->TakeRecords();
-  EXPECT_EQ(0, records.size());
+  EXPECT_EQ(0U, records.size());
 }
 
 }  // namespace dom

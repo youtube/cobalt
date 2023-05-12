@@ -94,7 +94,7 @@ TEST(FetchBufferPoolTest, Clear) {
 
   fetch_buffer_pool.Write(source_buffer.data(),
                           static_cast<int>(source_buffer.size()));
-  EXPECT_EQ(fetch_buffer_pool.GetSize(), source_buffer.size());
+  EXPECT_EQ(fetch_buffer_pool.GetSize(), static_cast<int>(source_buffer.size()));
 
   fetch_buffer_pool.Clear();
 

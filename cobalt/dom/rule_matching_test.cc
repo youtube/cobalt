@@ -146,7 +146,7 @@ TEST_F(RuleMatchingTest, UniversalSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules, 1);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -160,7 +160,7 @@ TEST_F(RuleMatchingTest, TypeSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -174,7 +174,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchNoValue) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -188,7 +188,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchEquals) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -202,7 +202,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchesFirstOne) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -217,7 +217,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchesSecondOne) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(1),
             (*matching_rules)[0].first);
 }
@@ -232,7 +232,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchesLastOne) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(2),
             (*matching_rules)[0].first);
 }
@@ -246,7 +246,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchEqualsWithQuote) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -260,7 +260,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorNoMatchEquals) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // .my-class should match <div class="my-class"/>.
@@ -272,7 +272,7 @@ TEST_F(RuleMatchingTest, ClassSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -286,7 +286,7 @@ TEST_F(RuleMatchingTest, IdSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -300,7 +300,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -314,7 +314,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchCommentOnly) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -328,7 +328,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchTextOnly) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
 }
 
 // div:focus should match focused div.
@@ -348,7 +348,7 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -366,7 +366,7 @@ TEST_F(RuleMatchingTest, FocusPseudoClassNoMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
 }
 
 // :not(.my-class) should match <div/>.
@@ -378,7 +378,7 @@ TEST_F(RuleMatchingTest, NotPseudoClassMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -392,7 +392,7 @@ TEST_F(RuleMatchingTest, NotPseudoClassNoMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
 }
 
 // Neither :not(.my-class) and div:not(.my-class) should match
@@ -403,11 +403,11 @@ TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementNeitherMatch) {
   body_->set_inner_html("<div class=\"my-class\"/>");
   UpdateAllMatchingRules();
 
-  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  ASSERT_EQ(2UL, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // div:not(.other-class) should match <div class=\"my-class\"/>.
@@ -417,11 +417,11 @@ TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementFirstMatch) {
   body_->set_inner_html("<div class=\"my-class\"/>");
   UpdateAllMatchingRules();
 
-  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  ASSERT_EQ(2UL, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -433,11 +433,11 @@ TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementSecondMatch) {
   body_->set_inner_html("<div class=\"my-class\"/>");
   UpdateAllMatchingRules();
 
-  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  ASSERT_EQ(2UL, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(1),
             (*matching_rules)[0].first);
 }
@@ -450,11 +450,11 @@ TEST_F(RuleMatchingTest, TwoNotPseudoClassForSameElementBothMatch) {
   body_->set_inner_html("<div class=\"neither-class\"/>");
   UpdateAllMatchingRules();
 
-  ASSERT_EQ(2, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
+  ASSERT_EQ(2UL, GetDocumentStyleSheet(0)->css_rules_same_origin()->length());
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(2, matching_rules->size());
+  ASSERT_EQ(2U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(1),
@@ -471,21 +471,21 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchGlobal) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
   html_element = body_->last_element_child()->AsHTMLElement();
   matching_rules = html_element->matching_rules();
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -500,11 +500,11 @@ TEST_F(RuleMatchingTest, AfterPseudoElementSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -518,7 +518,7 @@ TEST_F(RuleMatchingTest, AfterPseudoElementSelectorNoMatch) {
   HTMLElement* html_element = body_->first_element_child()->AsHTMLElement();
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   EXPECT_FALSE(html_element->pseudo_element(kAfterPseudoElementType));
 }
 
@@ -532,21 +532,21 @@ TEST_F(RuleMatchingTest, BeforePseudoElementMatchGlobal) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kBeforePseudoElementType));
   matching_rules =
       html_element->pseudo_element(kBeforePseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
   html_element = body_->last_element_child()->AsHTMLElement();
   matching_rules = html_element->matching_rules();
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kBeforePseudoElementType));
   matching_rules =
       html_element->pseudo_element(kBeforePseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -561,11 +561,11 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kBeforePseudoElementType));
   matching_rules =
       html_element->pseudo_element(kBeforePseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -579,7 +579,7 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorNoMatch) {
   HTMLElement* html_element = body_->first_element_child()->AsHTMLElement();
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   EXPECT_FALSE(html_element->pseudo_element(kBeforePseudoElementType));
 }
 
@@ -592,7 +592,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassNotMatchElement) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
 }
 
 // div.my-class should match <div class="my-class"/>.
@@ -604,7 +604,7 @@ TEST_F(RuleMatchingTest, CompoundSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -618,10 +618,10 @@ TEST_F(RuleMatchingTest, CompoundSelectorNoMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   matching_rules =
       body_->last_element_child()->AsHTMLElement()->matching_rules();
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
 }
 
 // "div span" should match inner span in <div><span><span></span></span></div>.
@@ -636,7 +636,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorMatch) {
           ->first_element_child()
           ->AsHTMLElement()
           ->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -652,7 +652,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorNoMatch) {
           ->first_element_child()
           ->AsHTMLElement()
           ->matching_rules();
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // "div > span" should match span in <div><span></span></div>.
@@ -666,7 +666,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorMatch) {
           ->first_element_child()
           ->AsHTMLElement()
           ->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -684,7 +684,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorNoMatch) {
           ->first_element_child()
           ->AsHTMLElement()
           ->matching_rules();
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // "span + span" should match second span in <span/><span/>.
@@ -695,7 +695,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorMatch) {
 
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->last_element_child()->AsHTMLElement()->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -708,7 +708,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorNoMatch) {
 
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // "div ~ span" should match second span in <div/><span/><span/>.
@@ -719,7 +719,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorMatch) {
 
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->last_element_child()->AsHTMLElement()->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -732,7 +732,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorNoMatch) {
 
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->last_element_child()->AsHTMLElement()->matching_rules();
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 TEST_F(RuleMatchingTest, SelectorListMatchShouldContainAllMatches) {
@@ -745,7 +745,7 @@ TEST_F(RuleMatchingTest, SelectorListMatchShouldContainAllMatches) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(3, matching_rules->size());
+  ASSERT_EQ(3U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
@@ -778,7 +778,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorCombinedMatch) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -869,13 +869,13 @@ TEST_F(RuleMatchingTest, QuerySelectorAllShouldReturnAllMatches) {
 
   scoped_refptr<NodeList> node_list;
   node_list = QuerySelectorAll(document(), "div", css_parser());
-  ASSERT_EQ(3, node_list->length());
+  ASSERT_EQ(3UL, node_list->length());
   EXPECT_EQ("div1", node_list->Item(0)->AsElement()->id());
   EXPECT_EQ("div2", node_list->Item(1)->AsElement()->id());
   EXPECT_EQ("div3", node_list->Item(2)->AsElement()->id());
 
   node_list = QuerySelectorAll(document(), "span", css_parser());
-  EXPECT_EQ(0, node_list->length());
+  EXPECT_EQ(0U, node_list->length());
 }
 
 TEST_F(RuleMatchingTest, ElementMatches) {
@@ -895,7 +895,7 @@ TEST_F(RuleMatchingTest, StyleElementRemoval) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 TEST_F(RuleMatchingTest, StyleElementAddition) {
@@ -908,7 +908,7 @@ TEST_F(RuleMatchingTest, StyleElementAddition) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules, 1);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
 }
 
 TEST_F(RuleMatchingTest, StyleElementReorderingOneMatching) {
@@ -929,7 +929,7 @@ TEST_F(RuleMatchingTest, StyleElementReorderingOneMatching) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules, 1);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_NE(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
   EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
@@ -943,7 +943,7 @@ TEST_F(RuleMatchingTest, StyleElementReorderingOneMatching) {
   matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules, 1);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
   EXPECT_NE(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
@@ -968,7 +968,7 @@ TEST_F(RuleMatchingTest, StyleElementReorderingTwoMatching) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules, 2);
-  ASSERT_EQ(2, matching_rules->size());
+  ASSERT_EQ(2U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
   EXPECT_NE(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
@@ -982,7 +982,7 @@ TEST_F(RuleMatchingTest, StyleElementReorderingTwoMatching) {
   matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules, 2);
-  ASSERT_EQ(2, matching_rules->size());
+  ASSERT_EQ(2U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
   EXPECT_NE(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
@@ -1002,7 +1002,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorAddHoverToElement) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1011,7 +1011,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorAddHoverToElement) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // div:hover should not match after hover removed from element.
@@ -1024,7 +1024,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorRemoveHoverFromElement) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 
   document()->SetIndicatedElement(
       body_->first_element_child()->AsHTMLElement());
@@ -1032,7 +1032,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorRemoveHoverFromElement) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1050,7 +1050,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorAddHoverToDescendant) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1059,7 +1059,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorAddHoverToDescendant) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // div:hover should not match after hover removed from element's descendant.
@@ -1072,7 +1072,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorRemoveHoverFromDescendant) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 
   document()->SetIndicatedElement(
       body_->first_element_child()->first_element_child()->AsHTMLElement());
@@ -1080,7 +1080,7 @@ TEST_F(RuleMatchingTest, HoverPseudoClassSelectorRemoveHoverFromDescendant) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1095,14 +1095,14 @@ TEST_F(RuleMatchingTest, ClassSelectorSetClassOnElement) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 
   body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
 
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1117,7 +1117,7 @@ TEST_F(RuleMatchingTest, ClassSelectorRemoveClassOnElement) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1126,7 +1126,7 @@ TEST_F(RuleMatchingTest, ClassSelectorRemoveClassOnElement) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // Child should add matching rule from newly added matching node.
@@ -1142,14 +1142,14 @@ TEST_F(RuleMatchingTest, ChildMatchingNodeAdded) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 
   body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
 
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1167,7 +1167,7 @@ TEST_F(RuleMatchingTest, ChildMatchingNodeRemoved) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules, 1);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1176,7 +1176,7 @@ TEST_F(RuleMatchingTest, ChildMatchingNodeRemoved) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // Descendant should add matching rule from newly added matching node.
@@ -1192,14 +1192,14 @@ TEST_F(RuleMatchingTest, DescendantMatchingNodeAdded) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 
   body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
 
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1217,7 +1217,7 @@ TEST_F(RuleMatchingTest, DescendantMatchingNodeRemoved) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1226,7 +1226,7 @@ TEST_F(RuleMatchingTest, DescendantMatchingNodeRemoved) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // Next sibling should add matching rule from newly added matching node.
@@ -1242,14 +1242,14 @@ TEST_F(RuleMatchingTest, NextSiblingMatchingNodeAdded) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 
   body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
 
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1267,7 +1267,7 @@ TEST_F(RuleMatchingTest, NextSiblingMatchingNodeRemoved) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1276,7 +1276,7 @@ TEST_F(RuleMatchingTest, NextSiblingMatchingNodeRemoved) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // Following sibling should add matching rule from newly added matching node.
@@ -1292,14 +1292,14 @@ TEST_F(RuleMatchingTest, FollowingSiblingMatchingNodeAdded) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 
   body_->first_element_child()->AsHTMLElement()->set_class_name("my-class");
 
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1318,7 +1318,7 @@ TEST_F(RuleMatchingTest, FollowingSiblingMatchingNodeRemoved) {
           ->AsHTMLElement()
           ->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1327,7 +1327,7 @@ TEST_F(RuleMatchingTest, FollowingSiblingMatchingNodeRemoved) {
   UpdateAllMatchingRules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
 
-  ASSERT_EQ(0, matching_rules->size());
+  ASSERT_EQ(0U, matching_rules->size());
 }
 
 // After pseudo element should add matching rule from newly added matching node.
@@ -1343,11 +1343,11 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchingNodeRemoved) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
-  ASSERT_EQ(2, matching_rules->size());
+  ASSERT_EQ(2U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1357,11 +1357,11 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchingNodeRemoved) {
 
   matching_rules = html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -1380,11 +1380,11 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchingNodeAdded) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
-  ASSERT_EQ(1, matching_rules->size());
+  ASSERT_EQ(1U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
@@ -1394,11 +1394,11 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchingNodeAdded) {
 
   matching_rules = html_element->matching_rules();
   ExpectAndRemoveUserAgentStyleSheetRule(matching_rules);
-  EXPECT_EQ(0, matching_rules->size());
+  EXPECT_EQ(0U, matching_rules->size());
   ASSERT_TRUE(html_element->pseudo_element(kAfterPseudoElementType));
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
-  ASSERT_EQ(2, matching_rules->size());
+  ASSERT_EQ(2U, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }

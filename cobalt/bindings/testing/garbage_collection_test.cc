@@ -31,31 +31,31 @@ class ScriptValueGarbageCollectionTest
 }  // namespace
 
 TEST_F(GarbageCollectionTest, JSObjectHoldsReferenceToPlatformObject) {
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0U);
   EXPECT_TRUE(
       EvaluateScript("var obj = new GarbageCollectionTestInterface();", NULL));
 
   // Ensure that this is kept alive after GC is run.
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1U);
   CollectGarbage();
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1U);
 
   // Ensure that this is destroyed when there are no more references to it from
   // JavaScript.
   EXPECT_TRUE(EvaluateScript("var obj = undefined;", NULL));
   CollectGarbage();
 #if !defined(ENGINE_USES_CONSERVATIVE_ROOTING)
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0U);
 #endif
 }
 
 TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0U);
   EXPECT_TRUE(
       EvaluateScript("var obj = new GarbageCollectionTestInterface();", NULL));
 
   // Keep this instance alive using PreventGarbageCollection
-  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1U);
   {
     script::GlobalEnvironment::ScopedPreventGarbageCollection
         scoped_prevent_garbage_collection(
@@ -66,7 +66,7 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
 
     // Ensure that the object is kept alive.
     CollectGarbage();
-    ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+    ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 1U);
 
     // Allow this object to be garbage collected once more.
   }
@@ -74,19 +74,19 @@ TEST_F(GarbageCollectionTest, PreventGarbageCollection) {
   // Ensure that the object is destroyed by garbage collection.
   CollectGarbage();
 #if !defined(ENGINE_USES_CONSERVATIVE_ROOTING)
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0U);
 #endif
 }
 
 TEST_F(GarbageCollectionTest, ReachableObjectsKeptAlive) {
   // Build a linked-list structure.
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0U);
   EXPECT_TRUE(EvaluateScript(
       "var head = new GarbageCollectionTestInterface();"
       "head.next = new GarbageCollectionTestInterface();"
       "head.next.next = new GarbageCollectionTestInterface();"
       "head.next.next.next = new GarbageCollectionTestInterface();"));
-  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4);
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4U);
 
   // A reference to anything in the list should keep the rest of the structure
   // alive.
@@ -94,7 +94,7 @@ TEST_F(GarbageCollectionTest, ReachableObjectsKeptAlive) {
       EvaluateScript("var tail = head.next.next.next;"
                      "var head = undefined;"));
   CollectGarbage();
-  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4);
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4U);
 
   // The old tail is not reachable, so the nodes should get garbage collected.
   EXPECT_TRUE(
@@ -102,14 +102,14 @@ TEST_F(GarbageCollectionTest, ReachableObjectsKeptAlive) {
                      "tail.next = null;"));
   CollectGarbage();
 #if !defined(ENGINE_USES_CONSERVATIVE_ROOTING)
-  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 2);
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 2U);
 #endif
 }
 
 TEST_F(GarbageCollectionTest, ReachableScriptValuesKeptAlive) {
   // Ensure that platform objects attached to |Wrappable|s as script values
   // survive GC.
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0U);
 
   const char script[] = R"(
       const root = new InterfaceWithAny();
@@ -121,25 +121,25 @@ TEST_F(GarbageCollectionTest, ReachableScriptValuesKeptAlive) {
   )";
   EXPECT_TRUE(EvaluateScript(script));
 
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1U);
 
   CollectGarbage();
 
   std::string result;
   EXPECT_TRUE(EvaluateScript("root.getAny().bicycle;", &result));
   EXPECT_STREQ("7", result.c_str());
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 1U);
 }
 
 TEST_F(GarbageCollectionTest, JSObjectRetainsCustomProperty) {
   // Build a linked-list structure.
-  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0);
+  EXPECT_EQ(GarbageCollectionTestInterface::instances().size(), 0U);
   EXPECT_TRUE(EvaluateScript(
       "var head = new GarbageCollectionTestInterface();"
       "head.next = new GarbageCollectionTestInterface();"
       "head.next.next = new GarbageCollectionTestInterface();"
       "head.next.next.next = new GarbageCollectionTestInterface();"));
-  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4);
+  ASSERT_EQ(GarbageCollectionTestInterface::instances().size(), 4U);
 
   // Add a custom property to an object that is not directly reachable from JS.
   EXPECT_TRUE(EvaluateScript("head.next.bicycle = 7;"));

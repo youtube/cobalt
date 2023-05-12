@@ -751,8 +751,8 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
 }
 
 TEST_F(AudioNodeInputOutputTest, CreateBufferLayoutTest) {
-  constexpr size_t kNumOfChannels = 2;
-  constexpr size_t kNumOfFrames = 25;
+  constexpr int kNumOfChannels = 2;
+  constexpr int kNumOfFrames = 25;
 
   scoped_refptr<AudioContext> audio_context(
       new AudioContext(environment_settings()));

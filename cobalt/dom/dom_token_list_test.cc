@@ -51,10 +51,10 @@ TEST_F(DOMTokenListTest, DOMTokenListShouldBeAlive) {
       new Element(document_, base::Token("element"));
   scoped_refptr<DOMTokenList> dom_token_list =
       new DOMTokenList(element, "class");
-  EXPECT_EQ(0, dom_token_list->length());
+  EXPECT_EQ(0U, dom_token_list->length());
 
   element->SetAttribute("class", "a b c");
-  ASSERT_EQ(3, dom_token_list->length());
+  ASSERT_EQ(3UL, dom_token_list->length());
   EXPECT_EQ("a", dom_token_list->Item(0).value());
   EXPECT_EQ("b", dom_token_list->Item(1).value());
   EXPECT_EQ("c", dom_token_list->Item(2).value());

@@ -77,7 +77,7 @@ TEST(OverlayInfoRegistryTest, RegisterSingleStringAndRetrieve) {
     OverlayInfoRegistry::RetrieveAndClear(&infos);
     std::vector<ValuePair> parsed_infos;
     ASSERT_TRUE(ParseOverlayInfo(infos, &parsed_infos));
-    EXPECT_EQ(parsed_infos.size(), 1);
+    EXPECT_EQ(parsed_infos.size(), size_t(1));
     EXPECT_EQ(parsed_infos[0].first, kCategory);
     EXPECT_EQ(parsed_infos[0].second, value);
 

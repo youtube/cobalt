@@ -43,11 +43,13 @@
 
 #include "gtest/gtest-printers.h"
 
+#if !defined(STARBOARD)
 #include <stdio.h>
 
 #include <cctype>
 #include <cstdint>
 #include <cwchar>
+#endif  // !defined(STARBOARD)
 #include <ostream>  // NOLINT
 #include <string>
 #include <type_traits>

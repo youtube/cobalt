@@ -29,7 +29,7 @@ class CacheTest : public ::testing::Test {
 };
 
 TEST_F(CacheTest, Create) {
-  EXPECT_EQ(cache.size(), 0);
+  EXPECT_EQ(cache.size(), 0U);
   EXPECT_TRUE(cache.empty());
 }
 
