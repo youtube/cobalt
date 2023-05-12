@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "net/base/net_errors.h"
 #include "net/server/http_server_request_info.h"
@@ -141,7 +142,7 @@ DialServiceProxy::DialServiceProxy(
   host_address_ = dial_service_->http_host_address();
   // Remember the message loop we were constructed on. We'll post all our tasks
   // there, to ensure thread safety when accessing dial_service_.
-  task_runner_ = base::MessageLoop::current()->task_runner();
+  task_runner_ = base::ThreadTaskRunnerHandle::Get();
 }
 
 DialServiceProxy::~DialServiceProxy() {}

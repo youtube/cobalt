@@ -20,6 +20,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -37,8 +38,8 @@ namespace layout_tests {
 
 namespace {
 void Quit(base::RunLoop* run_loop) {
-  base::MessageLoop::current()->task_runner()->PostTask(
-      FROM_HERE, run_loop->QuitClosure());
+  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                run_loop->QuitClosure());
 }
 
 // Called when layout completes and results have been produced.  We use this

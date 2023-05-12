@@ -17,9 +17,11 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
@@ -45,14 +47,16 @@ struct ProtocolTypeTraits<
     span<uint8_t> env = state->tokenizer()->GetEnvelope();
     auto res = T::fromBinary(env.data(), env.size());
     if (!res) {
-      // TODO(caseq): properly plumb an error rather than returning a bogus code.
+      // TODO(caseq): properly plumb an error rather than returning a bogus
+      // code.
       state->RegisterError(Error::MESSAGE_MUST_BE_AN_OBJECT);
       return false;
     }
     *value = std::move(res);
     return true;
   }
-  static void Serialize(const std::unique_ptr<T>& value, std::vector<uint8_t>* bytes) {
+  static void Serialize(const std::unique_ptr<T>& value,
+                        std::vector<uint8_t>* bytes) {
     // Use virtual method, so that outgoing protocol objects could be retained
     // by a pointer to ProtocolObject.
     value->AppendSerialized(bytes);
@@ -61,16 +65,15 @@ struct ProtocolTypeTraits<
 
 template <typename T>
 struct ProtocolTypeTraits<
-    T,
-    typename std::enable_if<
-        std::is_base_of<v8_inspector::protocol::Exported, T>::value>::type> {
+    T, typename std::enable_if<
+           std::is_base_of<v8_inspector::protocol::Exported, T>::value>::type> {
   static void Serialize(const T& value, std::vector<uint8_t>* bytes) {
     // Use virtual method, so that outgoing protocol objects could be retained
     // by a pointer to ProtocolObject.
     value.AppendSerialized(bytes);
   }
 };
-}
+}  // namespace v8_crdtp
 
 namespace cobalt {
 namespace script {
@@ -78,7 +81,9 @@ namespace v8c {
 
 namespace {
 constexpr const char* kInspectorDomains[] = {
-    "Runtime", "Debugger", "Profiler",
+    "Runtime",
+    "Debugger",
+    "Profiler",
 };
 
 constexpr int kContextGroupId = 1;
@@ -160,8 +165,7 @@ std::string V8cScriptDebugger::Detach() {
   // TODO: there might be an opportunity to utilize the already encoded json to
   // reduce network traffic size on the wire.
   v8_crdtp::Status status = v8_crdtp::json::ConvertCBORToJSON(
-      v8_crdtp::span<uint8_t>(state.data(), state.size()),
-      &state_str);
+      v8_crdtp::span<uint8_t>(state.data(), state.size()), &state_str);
   CHECK(status.ok()) << status.Message();
   return state_str;
 }
@@ -246,8 +250,7 @@ std::string V8cScriptDebugger::CreateRemoteObject(
   remote_object->AppendSerialized(&out);
   std::string remote_object_str;
   v8_crdtp::Status status = v8_crdtp::json::ConvertCBORToJSON(
-      v8_crdtp::span<uint8_t>(out.data(), out.size()),
-      &remote_object_str);
+      v8_crdtp::span<uint8_t>(out.data(), out.size()), &remote_object_str);
   CHECK(status.ok()) << status.Message();
   return remote_object_str;
 }
@@ -278,7 +281,7 @@ const script::ValueHandleHolder* V8cScriptDebugger::LookupRemoteObjectId(
   V8cValueHandleHolder* retval = holder.get();
   // Keep the scoped_ptr alive in a no-op task so the holder stays valid until
   // the bindings code gets the v8::Value out of it through the raw pointer.
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind([](std::unique_ptr<V8cValueHandleHolder>) {},
                             base::Passed(&holder)));
   return retval;

@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
@@ -66,7 +67,7 @@ H5vccPlatformService::H5vccPlatformService(
     : environment_(environment),
       platform_service_api_(platform_service_api),
       receive_callback_(this, receive_callback),
-      main_message_loop_(base::MessageLoop::current()->task_runner()),
+      main_message_loop_(base::ThreadTaskRunnerHandle::Get()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())) {

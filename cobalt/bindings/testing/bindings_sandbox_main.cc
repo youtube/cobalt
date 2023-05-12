@@ -15,6 +15,7 @@
 #include <iostream>
 #include <string>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/javascript_engine.h"
@@ -35,7 +36,7 @@ void StartApplication(int argc, char** argv, const char* link,
 
   DCHECK(!g_javascript_runner);
   g_javascript_runner = new cobalt::script::StandaloneJavascriptRunner(
-      base::MessageLoop::current()->task_runner(), javascript_engine_options,
+      base::ThreadTaskRunnerHandle::Get(), javascript_engine_options,
       test_window);
   DCHECK(g_javascript_runner);
   g_javascript_runner->RunUntilDone(quit_closure);

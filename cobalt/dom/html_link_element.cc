@@ -21,6 +21,7 @@
 
 #include "base/bind.h"
 #include "base/strings/string_tokenizer.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_sheet.h"
@@ -268,7 +269,7 @@ void HTMLLinkElement::OnLoadingComplete(
   // GetLoadTimingInfo and create resource timing before loader released.
   GetLoadTimingInfoAndCreateResourceTiming();
 
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
 
   if (!error) return;

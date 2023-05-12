@@ -15,10 +15,12 @@
 #include "cobalt/debug/backend/debug_dispatcher.h"
 
 #include <string>
+#include <utility>
 
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "cobalt/debug/debug_client.h"
 
@@ -30,7 +32,7 @@ DebugDispatcher::DebugDispatcher(script::ScriptDebugger* script_debugger,
                                  DebugScriptRunner* script_runner)
     : script_debugger_(script_debugger),
       script_runner_(script_runner),
-      task_runner_(base::MessageLoop::current()->task_runner()),
+      task_runner_(base::ThreadTaskRunnerHandle::Get()),
       is_paused_(false),
       // No manual reset, not initially signaled.
       command_added_while_paused_(

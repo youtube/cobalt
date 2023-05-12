@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -60,7 +61,7 @@ HardwareResourceProvider::HardwareResourceProvider(
           purge_skia_font_caches_on_destruction),
       max_texture_size_(gr_context->maxTextureSize()) {
   if (base::MessageLoop::current()) {
-    rasterizer_task_runner_ = base::MessageLoop::current()->task_runner();
+    rasterizer_task_runner_ = base::ThreadTaskRunnerHandle::Get();
   }
 
   // Initialize the font manager now to ensure that it doesn't get initialized
@@ -239,7 +240,9 @@ DecodeTargetFormatToRenderTreeMultiPlaneFormat(SbDecodeTargetFormat format) {
       return render_tree::kMultiPlaneImageFormatYUV3Plane10BitCompactedBT2020;
     }
 #endif  // SB_API_VERSION >= 14
-    default: { NOTREACHED(); }
+    default: {
+      NOTREACHED();
+    }
   }
   return render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;
 }

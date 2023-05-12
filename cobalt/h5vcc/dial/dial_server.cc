@@ -14,6 +14,8 @@
 
 #include "cobalt/h5vcc/dial/dial_server.h"
 
+#include "base/threading/thread_task_runner_handle.h"
+
 #if defined(DIAL_SERVER)
 
 #include <memory>
@@ -162,7 +164,7 @@ DialServer::ServiceHandler::ServiceHandler(
     const base::WeakPtr<DialServer>& dial_server,
     const std::string& service_name)
     : dial_server_(dial_server), service_name_(service_name) {
-  task_runner_ = base::MessageLoop::current()->task_runner();
+  task_runner_ = base::ThreadTaskRunnerHandle::Get();
 }
 
 DialServer::ServiceHandler::~ServiceHandler() {}
@@ -172,7 +174,7 @@ void DialServer::ServiceHandler::HandleRequest(
     const CompletionCB& completion_cb) {
   // This gets called on the DialService/Network thread.
   // Post it to the WebModule thread.
-  DCHECK_NE(base::MessageLoop::current()->task_runner(), task_runner_);
+  DCHECK_NE(base::ThreadTaskRunnerHandle::Get(), task_runner_);
   task_runner_->PostTask(
       FROM_HERE, base::Bind(&ServiceHandler::OnHandleRequest, this, path,
                             request, completion_cb));
@@ -181,7 +183,7 @@ void DialServer::ServiceHandler::HandleRequest(
 void DialServer::ServiceHandler::OnHandleRequest(
     const std::string& path, const net::HttpServerRequestInfo& request,
     const CompletionCB& completion_cb) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner_);
   if (!dial_server_) {
     completion_cb.Run(std::unique_ptr<net::HttpServerResponseInfo>());
     return;

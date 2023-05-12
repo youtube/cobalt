@@ -23,6 +23,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/source_location.h"
@@ -372,7 +373,7 @@ XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
       sent_(false),
       settings_(xhr->environment_settings()),
       stop_timeout_(false),
-      task_runner_(base::MessageLoop::current()->task_runner()),
+      task_runner_(base::ThreadTaskRunnerHandle::Get()),
       timeout_ms_(0),
       upload_complete_(false) {
   DCHECK(environment_settings());
@@ -540,7 +541,7 @@ void XMLHttpRequestImpl::SendIntercepted(
   if (will_destroy_current_message_loop_.load()) {
     return;
   }
-  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     task_runner_->PostTask(FROM_HERE,
                            base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
                                           AsWeakPtr(), std::move(response)));
@@ -608,7 +609,7 @@ void XMLHttpRequestImpl::SendFallback(
   if (will_destroy_current_message_loop_.load()) {
     return;
   }
-  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&XMLHttpRequestImpl::SendFallback,
@@ -1533,7 +1534,7 @@ void XMLHttpRequestImpl::PrepareForNewRequest() {
 void XMLHttpRequestImpl::StartURLFetcher(const SbTime max_artificial_delay,
                                          const int url_fetcher_generation) {
   if (max_artificial_delay > 0) {
-    base::MessageLoop::current()->task_runner()->PostDelayedTask(
+    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&XMLHttpRequestImpl::StartURLFetcher, base::Unretained(this),
                    0, url_fetcher_generation_),

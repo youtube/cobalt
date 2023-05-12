@@ -18,6 +18,7 @@
 #include <string>
 #include <utility>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/media_capture/media_device_info.h"
 #include "cobalt/media_stream/media_stream.h"
@@ -175,7 +176,7 @@ void MediaDevices::OnMicrophoneError(
 
 void MediaDevices::OnMicrophoneStopped() {
   if (javascript_message_loop_->task_runner() !=
-      base::MessageLoop::current()->task_runner()) {
+      base::ThreadTaskRunnerHandle::Get()) {
     javascript_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneStopped, weak_this_));
     return;
@@ -195,7 +196,7 @@ void MediaDevices::OnMicrophoneStopped() {
 
 void MediaDevices::OnMicrophoneSuccess() {
   if (javascript_message_loop_->task_runner() !=
-      base::MessageLoop::current()->task_runner()) {
+      base::ThreadTaskRunnerHandle::Get()) {
     javascript_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&MediaDevices::OnMicrophoneSuccess, this));
     return;

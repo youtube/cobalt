@@ -23,15 +23,16 @@
 //
 // Talk with your Google representative about how to get speech-api quota.
 
-#include <memory>
-
 #include "cobalt/speech/google_speech_service.h"
+
+#include <memory>
 
 #include "base/bind.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
@@ -193,7 +194,7 @@ GoogleSpeechService::GoogleSpeechService(
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
-      wrappables_task_runner_(base::MessageLoop::current()->task_runner()) {
+      wrappables_task_runner_(base::ThreadTaskRunnerHandle::Get()) {
   thread_.StartWithOptions(
       base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
 }

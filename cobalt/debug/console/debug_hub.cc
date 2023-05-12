@@ -16,11 +16,13 @@
 
 #include <memory>
 #include <set>
+#include <utility>
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/json/json_writer.h"
 #include "base/path_service.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -164,8 +166,7 @@ void DebugHub::OnDebugClientDetach(const std::string& reason) {
 void DebugHub::RunResponseCallback(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
     base::Optional<std::string> response) const {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
-            callback_info->task_runner);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), callback_info->task_runner);
   callback_info->callback.value().Run(std::move(response));
 }
 

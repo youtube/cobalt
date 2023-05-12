@@ -19,6 +19,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
@@ -196,7 +197,7 @@ Window::Window(
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
   // loading begins.
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
                             fetcher_factory, settings->creation_url(),
                             dom_parser, load_complete_callback));

@@ -14,6 +14,7 @@
 
 #include "cobalt/media_session/media_session.h"
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media_session/media_session_client.h"
 
 namespace cobalt {
@@ -21,7 +22,7 @@ namespace media_session {
 
 MediaSession::MediaSession()
     : playback_state_(kMediaSessionPlaybackStateNone),
-      task_runner_(base::MessageLoop::current()->task_runner()),
+      task_runner_(base::ThreadTaskRunnerHandle::Get()),
       is_change_task_queued_(false),
       last_position_updated_time_(0) {}
 
@@ -40,7 +41,7 @@ MediaSession::~MediaSession() {
 MediaSession::MediaSession(MediaSessionClient* client)
     : media_session_client_(client),
       playback_state_(kMediaSessionPlaybackStateNone),
-      task_runner_(base::MessageLoop::current()->task_runner()),
+      task_runner_(base::ThreadTaskRunnerHandle::Get()),
       is_change_task_queued_(false),
       last_position_updated_time_(0) {}
 
