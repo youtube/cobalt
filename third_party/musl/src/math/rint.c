@@ -1,7 +1,6 @@
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
-#include "libc.h"
 
 #if FLT_EVAL_METHOD==0 || FLT_EVAL_METHOD==1
 #define EPS DBL_EPSILON
@@ -10,12 +9,7 @@
 #endif
 static const double_t toint = 1/EPS;
 
-#ifdef COBALT_MUSL_W_GLIBC_HEADERS
-double rint(double x);
-double rint_internal(double x)
-#else  // COBALT_MUSL_W_GLIBC_HEADERS
 double rint(double x)
-#endif  // COBALT_MUSL_W_GLIBC_HEADERS
 {
 	union {double f; uint64_t i;} u = {x};
 	int e = u.i>>52 & 0x7ff;
@@ -32,7 +26,3 @@ double rint(double x)
 		return s ? -0.0 : 0;
 	return y;
 }
-
-#ifdef COBALT_MUSL_W_GLIBC_HEADERS
-weak_alias(rint_internal, rint);
-#endif  // COBALT_MUSL_W_GLIBC_HEADERS
