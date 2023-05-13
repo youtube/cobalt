@@ -58,6 +58,10 @@ jobs:
         )
       )
     steps:
+      - name: Prepare Workspace
+        shell: bash
+        run: |
+          git checkout -f $(git -c user.name=x -c user.email=x@x commit-tree $(git hash-object -t tree /dev/null) < /dev/null) || :
       - id: Checkout
         uses: actions/checkout@v3
         with:
@@ -102,6 +106,10 @@ jobs:
       packages: write
     runs-on: windows-2019
     steps:
+      - name: Prepare Workspace
+        shell: bash
+        run: |
+          git checkout -f $(git -c user.name=x -c user.email=x@x commit-tree $(git hash-object -t tree /dev/null) < /dev/null) || :
       - name: Checkout files
         uses: actions/checkout@v3
         with:
@@ -135,6 +143,10 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel, debug, qa, gold]
     steps:
+      - name: Prepare Workspace
+        shell: bash
+        run: |
+          git checkout -f $(git -c user.name=x -c user.email=x@x commit-tree $(git hash-object -t tree /dev/null) < /dev/null) || :
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -169,6 +181,10 @@ jobs:
         config: [devel]
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
+      - name: Prepare Workspace
+        shell: bash
+        run: |
+          git checkout -f $(git -c user.name=x -c user.email=x@x commit-tree $(git hash-object -t tree /dev/null) < /dev/null) || :
       - name: Checkout
         uses: actions/checkout@v3
         with:
