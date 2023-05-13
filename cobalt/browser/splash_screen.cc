@@ -20,6 +20,7 @@
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/dom/window.h"
@@ -132,7 +133,7 @@ void SplashScreen::Shutdown() {
   DCHECK(!ShutdownSignaled()) << "Shutdown() should be called at most once.";
 
   if (!on_splash_screen_shutdown_complete_.callback().is_null()) {
-    base::MessageLoop::current()->task_runner()->PostDelayedTask(
+    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
         FROM_HERE,
         base::Bind(on_splash_screen_shutdown_complete_.callback(),
                    base::TimeDelta()),

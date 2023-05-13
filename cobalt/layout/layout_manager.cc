@@ -21,6 +21,7 @@
 
 #include "base/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/cssom/cascade_precedence.h"
@@ -231,7 +232,7 @@ void LayoutManager::Impl::OnLoad() {
     DirtyLayout();
 
     // Run the |DoLayoutAndProduceRenderTree| task after onload event finished.
-    base::MessageLoop::current()->task_runner()->PostTask(
+    base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE,
         base::Bind(&LayoutManager::Impl::DoLayoutAndProduceRenderTree,
                    base::Unretained(this)));

@@ -15,6 +15,7 @@
 #include "cobalt/speech/speech_recognition_manager.h"
 
 #include "base/bind.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
 #include "cobalt/web/dom_exception.h"
@@ -31,8 +32,7 @@ SpeechRecognitionManager::SpeechRecognitionManager(
     const Microphone::Options& microphone_options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
-      main_message_loop_task_runner_(
-          base::MessageLoop::current()->task_runner()),
+      main_message_loop_task_runner_(base::ThreadTaskRunnerHandle::Get()),
       event_callback_(event_callback),
       state_(kStopped) {
 #if defined(SB_USE_SB_SPEECH_RECOGNIZER)

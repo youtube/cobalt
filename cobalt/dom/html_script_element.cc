@@ -21,6 +21,7 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/strings/string_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/console_log.h"
 #include "cobalt/base/tokens.h"
@@ -607,7 +608,7 @@ void HTMLScriptElement::OnReadyToExecute() {
   }
 
   // Post a task to release the loader.
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind(&HTMLScriptElement::ReleaseLoader, this));
 }
 

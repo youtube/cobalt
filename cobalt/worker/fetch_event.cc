@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/web/cache_utils.h"
@@ -29,8 +30,8 @@ FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type,
                        const FetchEventInit& event_init_dict)
     : FetchEvent(environment_settings, base::Token(type), event_init_dict,
-                 base::MessageLoop::current()->task_runner(),
-                 RespondWithCallback(), ReportLoadTimingInfo()) {}
+                 base::ThreadTaskRunnerHandle::Get(), RespondWithCallback(),
+                 ReportLoadTimingInfo()) {}
 
 FetchEvent::FetchEvent(
     script::EnvironmentSettings* environment_settings, base::Token type,

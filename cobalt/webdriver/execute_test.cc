@@ -18,6 +18,7 @@
 
 #include "base/json/json_reader.h"
 #include "base/run_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/script/global_environment.h"
@@ -147,7 +148,7 @@ TEST_F(ScriptExecutorTest, FLAKY_ExecuteAsync) {
   // Let the message loop run for 200ms to allow enough time for the async
   // script to fire the callback.
   base::RunLoop run_loop;
-  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(),
       base::TimeDelta::FromMilliseconds(200));
   run_loop.Run();
@@ -172,7 +173,7 @@ TEST_F(ScriptExecutorTest, AsyncTimeout) {
   // Let the message loop run for 200ms to allow enough time for the async
   // timeout to fire.
   base::RunLoop run_loop;
-  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(),
       base::TimeDelta::FromMilliseconds(200));
   run_loop.Run();

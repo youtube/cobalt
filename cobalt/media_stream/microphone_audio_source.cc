@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media_stream/audio_parameters.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_fake.h"
@@ -81,8 +82,7 @@ MicrophoneAudioSource::MicrophoneAudioSource(
     // Furthermore, it is an error to destruct the microphone manager
     // without stopping it, so these callbacks are not to be called
     // during the destruction of the object.
-    : javascript_thread_task_runner_(
-          base::MessageLoop::current()->task_runner()),
+    : javascript_thread_task_runner_(base::ThreadTaskRunnerHandle::Get()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       successful_open_callback_(successful_open),
       completion_callback_(completion),
@@ -106,8 +106,7 @@ void MicrophoneAudioSource::OnDataReceived(
 }
 
 void MicrophoneAudioSource::OnDataCompletion() {
-  if (javascript_thread_task_runner_ !=
-      base::MessageLoop::current()->task_runner()) {
+  if (javascript_thread_task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     javascript_thread_task_runner_->PostTask(
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnDataCompletion,
                               weak_ptr_factory_.GetWeakPtr()));
@@ -123,8 +122,7 @@ void MicrophoneAudioSource::OnDataCompletion() {
 }
 
 void MicrophoneAudioSource::OnMicrophoneOpen() {
-  if (javascript_thread_task_runner_ !=
-      base::MessageLoop::current()->task_runner()) {
+  if (javascript_thread_task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     javascript_thread_task_runner_->PostTask(
         FROM_HERE, base::Bind(&MicrophoneAudioSource::OnMicrophoneOpen,
                               weak_ptr_factory_.GetWeakPtr()));
@@ -139,8 +137,7 @@ void MicrophoneAudioSource::OnMicrophoneOpen() {
 void MicrophoneAudioSource::OnMicrophoneError(
     speech::MicrophoneManager::MicrophoneError error,
     std::string error_message) {
-  if (javascript_thread_task_runner_ !=
-      base::MessageLoop::current()->task_runner()) {
+  if (javascript_thread_task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     javascript_thread_task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&MicrophoneAudioSource::OnMicrophoneError,

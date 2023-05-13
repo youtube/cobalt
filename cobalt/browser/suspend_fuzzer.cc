@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/suspend_fuzzer.h"
 
+#include "base/threading/thread_task_runner_handle.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -74,7 +76,7 @@ void SuspendFuzzer::DoStep() {
   }
 #endif  // SB_API_VERSION >= 13
 
-  base::MessageLoop::current()->task_runner()->PostDelayedTask(
+  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
       FROM_HERE, base::Bind(&SuspendFuzzer::DoStep, base::Unretained(this)),
       kInterval);
 }

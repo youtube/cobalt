@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "starboard/configuration.h"
 
 namespace cobalt {
@@ -42,7 +43,7 @@ uint32 HardwareMesh::GetEstimatedSizeInBytes() const {
 const VertexBufferObject* HardwareMesh::GetVBO() const {
   if (!vbo_) {
     if (base::MessageLoop::current()) {
-      rasterizer_task_runner_ = base::MessageLoop::current()->task_runner();
+      rasterizer_task_runner_ = base::ThreadTaskRunnerHandle::Get();
     }
     vbo_.reset(new VertexBufferObject(std::move(vertices_), draw_mode_));
   }

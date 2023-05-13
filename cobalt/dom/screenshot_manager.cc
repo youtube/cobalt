@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/dom/screenshot.h"
 #include "cobalt/render_tree/node.h"
@@ -45,10 +46,9 @@ void ScreenshotManager::Screenshot(
 
   // We want to ScreenshotManager::FillScreenshot, on this thread.
   base::Callback<void(std::unique_ptr<uint8[]>, const math::Size&)>
-      fill_screenshot = base::Bind(&ScreenshotManager::FillScreenshot,
-                                   base::Unretained(this), next_ticket_id_,
-                                   base::MessageLoop::current()->task_runner(),
-                                   desired_format);
+      fill_screenshot = base::Bind(
+          &ScreenshotManager::FillScreenshot, base::Unretained(this),
+          next_ticket_id_, base::ThreadTaskRunnerHandle::Get(), desired_format);
   bool was_emplaced =
       ticket_to_screenshot_promise_map_
           .emplace(next_ticket_id_, std::move(promise_reference))

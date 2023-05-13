@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/bind_helpers.h"
@@ -24,6 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/websocket/web_socket.h"
 #include "net/http/http_util.h"
@@ -36,7 +38,7 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
                              WebSocket *delegate)
     : network_module_(network_module), delegate_(delegate) {
   DCHECK(base::MessageLoop::current());
-  owner_task_runner_ = base::MessageLoop::current()->task_runner();
+  owner_task_runner_ = base::ThreadTaskRunnerHandle::Get();
 }
 
 void WebSocketImpl::ResetWebSocketEventDelegate() {
@@ -281,8 +283,8 @@ void WebSocketImpl::ProcessSendQueue() {
       scoped_refptr<net::IOBuffer> new_io_buffer(
           new net::IOBuffer(static_cast<size_t>(current_quota_)));
       memcpy(new_io_buffer->data(),
-                   message.io_buffer->data() + sent_size_of_top_message_,
-                   current_quota_);
+             message.io_buffer->data() + sent_size_of_top_message_,
+             current_quota_);
       sent_size_of_top_message_ += current_quota_;
       message.io_buffer = new_io_buffer;
       current_message_length = current_quota_;

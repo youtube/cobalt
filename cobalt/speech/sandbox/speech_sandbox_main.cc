@@ -15,6 +15,7 @@
 #include "base/files/file_path.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/speech/sandbox/speech_sandbox.h"
 #include "url/gurl.h"
@@ -48,7 +49,7 @@ void StartApplication(int argc, char** argv, const char* link,
       base::FilePath(FILE_PATH_LITERAL("speech_sandbox_trace.json")));
 
   if (timeout != 0) {
-    base::MessageLoop::current()->task_runner()->PostDelayedTask(
+    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
         FROM_HERE, quit_closure, base::TimeDelta::FromSeconds(timeout));
   }
 }

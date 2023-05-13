@@ -53,6 +53,7 @@
 #include "base/guid.h"
 #include "base/logging.h"
 #include "base/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
@@ -423,7 +424,7 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
     offload_algorithm_runner_.reset(
         new OffloadAlgorithmRunner<SourceBufferAlgorithm>(
             algorithm_process_thread_->message_loop()->task_runner(),
-            base::MessageLoop::current()->task_runner()));
+            base::ThreadTaskRunnerHandle::Get()));
   } else {
     LOG(INFO) << "Algorithm offloading disabled.";
   }

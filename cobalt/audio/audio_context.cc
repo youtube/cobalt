@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "base/callback.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
@@ -42,7 +43,7 @@ AudioContext::AudioContext(script::EnvironmentSettings* settings)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           destination_(new AudioDestinationNode(settings, this))),
       next_callback_id_(0),
-      main_message_loop_(base::MessageLoop::current()->task_runner()) {
+      main_message_loop_(base::ThreadTaskRunnerHandle::Get()) {
   DCHECK(main_message_loop_);
 }
 
