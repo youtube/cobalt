@@ -1,9 +1,8 @@
 //===- unittest/Tooling/RecursiveASTVisitorTestTypeLocVisitor.cpp ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -46,7 +45,7 @@ TEST(RecursiveASTVisitor, VisitsCXXBaseSpecifiersWithIncompleteInnerClass) {
 
 TEST(RecursiveASTVisitor, VisitsCXXBaseSpecifiersOfSelfReferentialType) {
   TypeLocVisitor Visitor;
-  Visitor.ExpectMatch("X<class Y>", 2, 18);
+  Visitor.ExpectMatch("X<Y>", 2, 18, 2);
   EXPECT_TRUE(Visitor.runOver(
     "template<typename T> class X {};\n"
     "class Y : public X<Y> {};"));
@@ -87,6 +86,14 @@ TEST(RecursiveASTVisitor, VisitInvalidType) {
   EXPECT_FALSE(Visitor.runOver(
       "__typeof__(struct F*) var[invalid];\n",
       TypeLocVisitor::Lang_C));
+}
+
+TEST(RecursiveASTVisitor, VisitsUsingEnumType) {
+  TypeLocVisitor Visitor;
+  Visitor.ExpectMatch("::A", 2, 12);
+  EXPECT_TRUE(Visitor.runOver("enum class A {}; \n"
+                              "using enum ::A;\n",
+                              TypeLocVisitor::Lang_CXX2a));
 }
 
 } // end anonymous namespace

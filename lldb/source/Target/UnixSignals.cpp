@@ -1,32 +1,31 @@
-//===-- UnixSignals.cpp -----------------------------------------*- C++ -*-===//
+//===-- UnixSignals.cpp ---------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/UnixSignals.h"
 #include "Plugins/Process/Utility/FreeBSDSignals.h"
 #include "Plugins/Process/Utility/LinuxSignals.h"
 #include "Plugins/Process/Utility/MipsLinuxSignals.h"
 #include "Plugins/Process/Utility/NetBSDSignals.h"
-#include "lldb/Host/StringConvert.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Utility/ArchSpec.h"
+#include <optional>
 
 using namespace lldb_private;
+using namespace llvm;
 
 UnixSignals::Signal::Signal(const char *name, bool default_suppress,
                             bool default_stop, bool default_notify,
                             const char *description, const char *alias)
     : m_name(name), m_alias(alias), m_description(),
       m_suppress(default_suppress), m_stop(default_stop),
-      m_notify(default_notify) {
+      m_notify(default_notify),
+      m_default_suppress(default_suppress), m_default_stop(default_stop),
+      m_default_notify(default_notify) {
   if (description)
     m_description.assign(description);
 }
@@ -55,9 +54,13 @@ lldb::UnixSignalsSP UnixSignals::Create(const ArchSpec &arch) {
   }
 }
 
-//----------------------------------------------------------------------
+lldb::UnixSignalsSP UnixSignals::CreateForHost() {
+  static lldb::UnixSignalsSP s_unix_signals_sp =
+      Create(HostInfo::GetArchitecture());
+  return s_unix_signals_sp;
+}
+
 // UnixSignals constructor
-//----------------------------------------------------------------------
 UnixSignals::UnixSignals() { Reset(); }
 
 UnixSignals::UnixSignals(const UnixSignals &rhs) : m_signals(rhs.m_signals) {}
@@ -65,55 +68,49 @@ UnixSignals::UnixSignals(const UnixSignals &rhs) : m_signals(rhs.m_signals) {}
 UnixSignals::~UnixSignals() = default;
 
 void UnixSignals::Reset() {
-  // This builds one standard set of Unix Signals.  If yours aren't quite in
+  // This builds one standard set of Unix Signals. If yours aren't quite in
   // this order, you can either subclass this class, and use Add & Remove to
-  // change them
-  // or you can subclass and build them afresh in your constructor;
+  // change them or you can subclass and build them afresh in your constructor.
   //
-  // Note: the signals below are the Darwin signals.  Do not change these!
+  // Note: the signals below are the Darwin signals. Do not change these!
+
   m_signals.clear();
-  //        SIGNO  NAME          SUPPRESS STOP   NOTIFY DESCRIPTION
-  //        ====== ============  ======== ====== ======
-  //        ===================================================
-  AddSignal(1, "SIGHUP", false, true, true, "hangup");
-  AddSignal(2, "SIGINT", true, true, true, "interrupt");
-  AddSignal(3, "SIGQUIT", false, true, true, "quit");
-  AddSignal(4, "SIGILL", false, true, true, "illegal instruction");
-  AddSignal(5, "SIGTRAP", true, true, true,
-            "trace trap (not reset when caught)");
-  AddSignal(6, "SIGABRT", false, true, true, "abort()");
-  AddSignal(7, "SIGEMT", false, true, true, "pollable event");
-  AddSignal(8, "SIGFPE", false, true, true, "floating point exception");
-  AddSignal(9, "SIGKILL", false, true, true, "kill");
-  AddSignal(10, "SIGBUS", false, true, true, "bus error");
-  AddSignal(11, "SIGSEGV", false, true, true, "segmentation violation");
-  AddSignal(12, "SIGSYS", false, true, true, "bad argument to system call");
-  AddSignal(13, "SIGPIPE", false, true, true,
-            "write on a pipe with no one to read it");
-  AddSignal(14, "SIGALRM", false, false, false, "alarm clock");
-  AddSignal(15, "SIGTERM", false, true, true,
-            "software termination signal from kill");
-  AddSignal(16, "SIGURG", false, false, false,
-            "urgent condition on IO channel");
-  AddSignal(17, "SIGSTOP", true, true, true,
-            "sendable stop signal not from tty");
-  AddSignal(18, "SIGTSTP", false, true, true, "stop signal from tty");
-  AddSignal(19, "SIGCONT", false, true, true, "continue a stopped process");
-  AddSignal(20, "SIGCHLD", false, false, false,
-            "to parent on child stop or exit");
-  AddSignal(21, "SIGTTIN", false, true, true,
-            "to readers process group upon background tty read");
-  AddSignal(22, "SIGTTOU", false, true, true,
-            "to readers process group upon background tty write");
-  AddSignal(23, "SIGIO", false, false, false, "input/output possible signal");
-  AddSignal(24, "SIGXCPU", false, true, true, "exceeded CPU time limit");
-  AddSignal(25, "SIGXFSZ", false, true, true, "exceeded file size limit");
-  AddSignal(26, "SIGVTALRM", false, false, false, "virtual time alarm");
-  AddSignal(27, "SIGPROF", false, false, false, "profiling time alarm");
-  AddSignal(28, "SIGWINCH", false, false, false, "window size changes");
-  AddSignal(29, "SIGINFO", false, true, true, "information request");
-  AddSignal(30, "SIGUSR1", false, true, true, "user defined signal 1");
-  AddSignal(31, "SIGUSR2", false, true, true, "user defined signal 2");
+
+  // clang-format off
+  //        SIGNO   NAME            SUPPRESS  STOP    NOTIFY  DESCRIPTION
+  //        ======  ==============  ========  ======  ======  ===================================================
+  AddSignal(1,      "SIGHUP",       false,    true,   true,   "hangup");
+  AddSignal(2,      "SIGINT",       true,     true,   true,   "interrupt");
+  AddSignal(3,      "SIGQUIT",      false,    true,   true,   "quit");
+  AddSignal(4,      "SIGILL",       false,    true,   true,   "illegal instruction");
+  AddSignal(5,      "SIGTRAP",      true,     true,   true,   "trace trap (not reset when caught)");
+  AddSignal(6,      "SIGABRT",      false,    true,   true,   "abort()");
+  AddSignal(7,      "SIGEMT",       false,    true,   true,   "pollable event");
+  AddSignal(8,      "SIGFPE",       false,    true,   true,   "floating point exception");
+  AddSignal(9,      "SIGKILL",      false,    true,   true,   "kill");
+  AddSignal(10,     "SIGBUS",       false,    true,   true,   "bus error");
+  AddSignal(11,     "SIGSEGV",      false,    true,   true,   "segmentation violation");
+  AddSignal(12,     "SIGSYS",       false,    true,   true,   "bad argument to system call");
+  AddSignal(13,     "SIGPIPE",      false,    false,  false,  "write on a pipe with no one to read it");
+  AddSignal(14,     "SIGALRM",      false,    false,  false,  "alarm clock");
+  AddSignal(15,     "SIGTERM",      false,    true,   true,   "software termination signal from kill");
+  AddSignal(16,     "SIGURG",       false,    false,  false,  "urgent condition on IO channel");
+  AddSignal(17,     "SIGSTOP",      true,     true,   true,   "sendable stop signal not from tty");
+  AddSignal(18,     "SIGTSTP",      false,    true,   true,   "stop signal from tty");
+  AddSignal(19,     "SIGCONT",      false,    false,  true,   "continue a stopped process");
+  AddSignal(20,     "SIGCHLD",      false,    false,  false,  "to parent on child stop or exit");
+  AddSignal(21,     "SIGTTIN",      false,    true,   true,   "to readers process group upon background tty read");
+  AddSignal(22,     "SIGTTOU",      false,    true,   true,   "to readers process group upon background tty write");
+  AddSignal(23,     "SIGIO",        false,    false,  false,  "input/output possible signal");
+  AddSignal(24,     "SIGXCPU",      false,    true,   true,   "exceeded CPU time limit");
+  AddSignal(25,     "SIGXFSZ",      false,    true,   true,   "exceeded file size limit");
+  AddSignal(26,     "SIGVTALRM",    false,    false,  false,  "virtual time alarm");
+  AddSignal(27,     "SIGPROF",      false,    false,  false,  "profiling time alarm");
+  AddSignal(28,     "SIGWINCH",     false,    false,  false,  "window size changes");
+  AddSignal(29,     "SIGINFO",      false,    true,   true,   "information request");
+  AddSignal(30,     "SIGUSR1",      false,    true,   true,   "user defined signal 1");
+  AddSignal(31,     "SIGUSR2",      false,    true,   true,   "user defined signal 2");
+  // clang-format on
 }
 
 void UnixSignals::AddSignal(int signo, const char *name, bool default_suppress,
@@ -145,10 +142,8 @@ bool UnixSignals::SignalIsValid(int32_t signo) const {
 }
 
 ConstString UnixSignals::GetShortName(ConstString name) const {
-  if (name) {
-    const char *signame = name.AsCString();
-    return ConstString(signame + 3); // Remove "SIG" from name
-  }
+  if (name)
+    return ConstString(name.GetStringRef().substr(3)); // Remove "SIG" from name
   return name;
 }
 
@@ -164,9 +159,8 @@ int32_t UnixSignals::GetSignalNumberFromName(const char *name) const {
       return pos->first;
   }
 
-  const int32_t signo =
-      StringConvert::ToSInt32(name, LLDB_INVALID_SIGNAL_NUMBER, 0);
-  if (signo != LLDB_INVALID_SIGNAL_NUMBER)
+  int32_t signo;
+  if (llvm::to_integer(name, signo))
     return signo;
   return LLDB_INVALID_SIGNAL_NUMBER;
 }
@@ -292,9 +286,9 @@ int32_t UnixSignals::GetSignalAtIndex(int32_t index) const {
 uint64_t UnixSignals::GetVersion() const { return m_version; }
 
 std::vector<int32_t>
-UnixSignals::GetFilteredSignals(llvm::Optional<bool> should_suppress,
-                                llvm::Optional<bool> should_stop,
-                                llvm::Optional<bool> should_notify) {
+UnixSignals::GetFilteredSignals(std::optional<bool> should_suppress,
+                                std::optional<bool> should_stop,
+                                std::optional<bool> should_notify) {
   std::vector<int32_t> result;
   for (int32_t signo = GetFirstSignalNumber();
        signo != LLDB_INVALID_SIGNAL_NUMBER;
@@ -307,14 +301,13 @@ UnixSignals::GetFilteredSignals(llvm::Optional<bool> should_suppress,
 
     // If any of filtering conditions are not met, we move on to the next
     // signal.
-    if (should_suppress.hasValue() &&
-        signal_suppress != should_suppress.getValue())
+    if (should_suppress && signal_suppress != *should_suppress)
       continue;
 
-    if (should_stop.hasValue() && signal_stop != should_stop.getValue())
+    if (should_stop && signal_stop != *should_stop)
       continue;
 
-    if (should_notify.hasValue() && signal_notify != should_notify.getValue())
+    if (should_notify && signal_notify != *should_notify)
       continue;
 
     result.push_back(signo);
@@ -322,3 +315,40 @@ UnixSignals::GetFilteredSignals(llvm::Optional<bool> should_suppress,
 
   return result;
 }
+
+void UnixSignals::IncrementSignalHitCount(int signo) {
+  collection::iterator pos = m_signals.find(signo);
+  if (pos != m_signals.end())
+    pos->second.m_hit_count += 1;
+}
+
+json::Value UnixSignals::GetHitCountStatistics() const {
+  json::Array json_signals;
+  for (const auto &pair: m_signals) {
+    if (pair.second.m_hit_count > 0)
+      json_signals.emplace_back(json::Object{
+        { pair.second.m_name.GetCString(), pair.second.m_hit_count }
+      });
+  }
+  return std::move(json_signals);
+}
+
+void UnixSignals::Signal::Reset(bool reset_stop, bool reset_notify, 
+                                bool reset_suppress) {
+  if (reset_stop)
+    m_stop = m_default_stop;
+  if (reset_notify)
+    m_notify = m_default_notify;
+  if (reset_suppress)
+    m_suppress = m_default_suppress;
+}
+
+bool UnixSignals::ResetSignal(int32_t signo, bool reset_stop, 
+                                 bool reset_notify, bool reset_suppress) {
+    auto elem = m_signals.find(signo);
+    if (elem == m_signals.end())
+      return false;
+    (*elem).second.Reset(reset_stop, reset_notify, reset_suppress);
+    return true;
+}
+

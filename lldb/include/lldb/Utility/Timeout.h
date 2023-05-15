@@ -1,32 +1,31 @@
 //===-- Timeout.h -----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Timeout_h_
-#define liblldb_Timeout_h_
+#ifndef LLDB_UTILITY_TIMEOUT_H
+#define LLDB_UTILITY_TIMEOUT_H
 
-#include "llvm/ADT/Optional.h"
 #include "llvm/Support/Chrono.h"
 #include "llvm/Support/FormatProviders.h"
+#include <optional>
 
 namespace lldb_private {
 
 // A general purpose class for representing timeouts for various APIs. It's
-// basically an llvm::Optional<std::chrono::duration<int64_t, Ratio>>, but we
+// basically an std::optional<std::chrono::duration<int64_t, Ratio>>, but we
 // customize it a bit to enable the standard chrono implicit conversions (e.g.
 // from Timeout<std::milli> to Timeout<std::micro>.
 //
 // The intended meaning of the values is:
-// - llvm::None - no timeout, the call should wait forever - 0 - poll, only
+// - std::nullopt - no timeout, the call should wait forever - 0 - poll, only
 // complete the call if it will not block - >0 - wait for a given number of
 // units for the result
 template <typename Ratio>
-class Timeout : public llvm::Optional<std::chrono::duration<int64_t, Ratio>> {
+class Timeout : public std::optional<std::chrono::duration<int64_t, Ratio>> {
 private:
   template <typename Ratio2> using Dur = std::chrono::duration<int64_t, Ratio2>;
   template <typename Rep2, typename Ratio2>
@@ -34,16 +33,15 @@ private:
       std::is_convertible<std::chrono::duration<Rep2, Ratio2>,
                           std::chrono::duration<int64_t, Ratio>>::value>;
 
-  using Base = llvm::Optional<Dur<Ratio>>;
+  using Base = std::optional<Dur<Ratio>>;
 
 public:
-  Timeout(llvm::NoneType none) : Base(none) {}
-  Timeout(const Timeout &other) = default;
+  Timeout(std::nullopt_t none) : Base(none) {}
 
   template <typename Ratio2,
             typename = typename EnableIf<int64_t, Ratio2>::type>
   Timeout(const Timeout<Ratio2> &other)
-      : Base(other ? Base(Dur<Ratio>(*other)) : llvm::None) {}
+      : Base(other ? Base(Dur<Ratio>(*other)) : std::nullopt) {}
 
   template <typename Rep2, typename Ratio2,
             typename = typename EnableIf<Rep2, Ratio2>::type>
@@ -68,4 +66,4 @@ struct format_provider<lldb_private::Timeout<Ratio>, void> {
 };
 }
 
-#endif // liblldb_Timeout_h_
+#endif // LLDB_UTILITY_TIMEOUT_H

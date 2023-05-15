@@ -1,9 +1,8 @@
 //===- DiagnosticHandler.h - DiagnosticHandler class for LLVM -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,7 +30,7 @@ struct PassRemarksOpt {
       Pattern = std::make_shared<Regex>(Val);
       std::string RegexError;
       if (!Pattern->isValid(RegexError))
-        report_fatal_error("Invalid regular expression '" + Val +
+        report_fatal_error(Twine("Invalid regular expression '") + Val +
                                "' in -pass-remarks: " + RegexError,
                            false);
     }
@@ -48,8 +47,7 @@ static cl::opt<PassRemarksOpt, true, cl::parser<std::string>> PassRemarks(
     "pass-remarks", cl::value_desc("pattern"),
     cl::desc("Enable optimization remarks from passes whose name match "
              "the given regular expression"),
-    cl::Hidden, cl::location(PassRemarksPassedOptLoc), cl::ValueRequired,
-    cl::ZeroOrMore);
+    cl::Hidden, cl::location(PassRemarksPassedOptLoc), cl::ValueRequired);
 
 // -pass-remarks-missed
 //    Command line flag to enable emitOptimizationRemarkMissed()
@@ -57,8 +55,7 @@ static cl::opt<PassRemarksOpt, true, cl::parser<std::string>> PassRemarksMissed(
     "pass-remarks-missed", cl::value_desc("pattern"),
     cl::desc("Enable missed optimization remarks from passes whose name match "
              "the given regular expression"),
-    cl::Hidden, cl::location(PassRemarksMissedOptLoc), cl::ValueRequired,
-    cl::ZeroOrMore);
+    cl::Hidden, cl::location(PassRemarksMissedOptLoc), cl::ValueRequired);
 
 // -pass-remarks-analysis
 //    Command line flag to enable emitOptimizationRemarkAnalysis()
@@ -68,8 +65,7 @@ static cl::opt<PassRemarksOpt, true, cl::parser<std::string>>
         cl::desc(
             "Enable optimization analysis remarks from passes whose name match "
             "the given regular expression"),
-        cl::Hidden, cl::location(PassRemarksAnalysisOptLoc), cl::ValueRequired,
-        cl::ZeroOrMore);
+        cl::Hidden, cl::location(PassRemarksAnalysisOptLoc), cl::ValueRequired);
 }
 
 bool DiagnosticHandler::isAnalysisRemarkEnabled(StringRef PassName) const {

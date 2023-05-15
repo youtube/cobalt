@@ -1,19 +1,14 @@
 //===-- ThreadPlanStepInstruction.h -----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ThreadPlanStepInstruction_h_
-#define liblldb_ThreadPlanStepInstruction_h_
+#ifndef LLDB_TARGET_THREADPLANSTEPINSTRUCTION_H
+#define LLDB_TARGET_THREADPLANSTEPINSTRUCTION_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/lldb-private.h"
@@ -23,7 +18,7 @@ namespace lldb_private {
 class ThreadPlanStepInstruction : public ThreadPlan {
 public:
   ThreadPlanStepInstruction(Thread &thread, bool step_over, bool stop_others,
-                            Vote stop_vote, Vote run_vote);
+                            Vote report_stop_vote, Vote report_run_vote);
 
   ~ThreadPlanStepInstruction() override;
 
@@ -43,7 +38,8 @@ protected:
 
 private:
   friend lldb::ThreadPlanSP Thread::QueueThreadPlanForStepSingleInstruction(
-      bool step_over, bool abort_other_plans, bool stop_other_threads);
+      bool step_over, bool abort_other_plans, bool stop_other_threads,
+      Status &status);
 
   lldb::addr_t m_instruction_addr;
   bool m_stop_other_threads;
@@ -53,9 +49,11 @@ private:
   StackID m_stack_id;
   StackID m_parent_frame_id;
 
-  DISALLOW_COPY_AND_ASSIGN(ThreadPlanStepInstruction);
+  ThreadPlanStepInstruction(const ThreadPlanStepInstruction &) = delete;
+  const ThreadPlanStepInstruction &
+  operator=(const ThreadPlanStepInstruction &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ThreadPlanStepInstruction_h_
+#endif // LLDB_TARGET_THREADPLANSTEPINSTRUCTION_H

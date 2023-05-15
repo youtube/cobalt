@@ -1,19 +1,22 @@
 ; RUN: llc %s -enable-machine-outliner -mtriple=aarch64-unknown-unknown -pass-remarks=machine-outliner -pass-remarks-missed=machine-outliner -o /dev/null 2>&1 | FileCheck %s
 ; CHECK: <unknown>:0:0:
 ; CHECK-SAME: Did not outline 2 instructions from 2 locations.
-; CHECK-SAME: Bytes from outlining all occurrences (36) >=
+; CHECK-SAME: Bytes from outlining all occurrences (16) >=
 ; CHECK-SAME: Unoutlined instruction bytes (16)
 ; CHECK-SAME: (Also found at: <UNKNOWN LOCATION>)
-; CHECK: remark: <unknown>:0:0: Saved 20 bytes by outlining 12 instructions
+; CHECK: remark: <unknown>:0:0: Saved 40 bytes by outlining 13 instructions
 ; CHECK-SAME: from 2 locations. (Found at: <UNKNOWN LOCATION>,
 ; CHECK-SAME: <UNKNOWN LOCATION>)
 ; RUN: llc %s -enable-machine-outliner -mtriple=aarch64-unknown-unknown -o /dev/null -pass-remarks-missed=machine-outliner -pass-remarks-output=%t.yaml
 ; RUN: cat %t.yaml | FileCheck %s -check-prefix=YAML
+
+; For the YAML case, the function we pick depends on the order of the candidate
+; list.
 ; YAML: --- !Missed
 ; YAML-NEXT: Pass:            machine-outliner
 ; YAML-NEXT: Name:            NotOutliningCheaper
-; YAML-NEXT: Function:        dog
-; YAML-NEXT: Args:            
+; YAML-NEXT: Function:
+; YAML-NEXT: Args:
 ; YAML-NEXT:   - String:          'Did not outline '
 ; YAML-NEXT:   - Length:          '2'
 ; YAML-NEXT:   - String:          ' instructions'
@@ -21,7 +24,7 @@
 ; YAML-NEXT:   - NumOccurrences:  '2'
 ; YAML-NEXT:   - String:          ' locations.'
 ; YAML-NEXT:   - String:          ' Bytes from outlining all occurrences ('
-; YAML-NEXT:   - OutliningCost:   '36'
+; YAML-NEXT:   - OutliningCost:   '16'
 ; YAML-NEXT:   - String:          ')'
 ; YAML-NEXT:   - String:          ' >= Unoutlined instruction bytes ('
 ; YAML-NEXT:   - NotOutliningCost: '16'
@@ -33,12 +36,12 @@
 ; YAML-NEXT: Pass:            machine-outliner
 ; YAML-NEXT: Name:            OutlinedFunction
 ; YAML-NEXT: Function:        OUTLINED_FUNCTION_0
-; YAML-NEXT: Args:            
+; YAML-NEXT: Args:
 ; YAML-NEXT:   - String:          'Saved '
-; YAML-NEXT:   - OutliningBenefit: '20'
+; YAML-NEXT:   - OutliningBenefit: '40'
 ; YAML-NEXT:   - String:          ' bytes by '
 ; YAML-NEXT:   - String:          'outlining '
-; YAML-NEXT:   - Length:          '12'
+; YAML-NEXT:   - Length:          '13'
 ; YAML-NEXT:   - String:          ' instructions '
 ; YAML-NEXT:   - String:          'from '
 ; YAML-NEXT:   - NumOccurrences:  '2'
@@ -53,8 +56,8 @@ define void @dog() #0 !dbg !8 {
 entry:
   %x = alloca i32, align 4
   %y = alloca i32, align 4
-  store i32 0, i32* %x, align 4
-  store i32 1, i32* %y, align 4, !dbg !12
+  store i32 0, ptr %x, align 4
+  store i32 1, ptr %y, align 4, !dbg !12
   ret void
 }
 
@@ -62,8 +65,8 @@ define void @cat() #0 !dbg !14 {
 entry:
   %x = alloca i32, align 4
   %y = alloca i32, align 4
-  store i32 0, i32* %x, align 4
-  store i32 1, i32* %y, align 4, !dbg !16
+  store i32 0, ptr %x, align 4
+  store i32 1, ptr %y, align 4, !dbg !16
   ret void
 }
 
@@ -74,12 +77,12 @@ define void @foo() #0 !dbg !18 {
   %4 = alloca i32, align 4
   %5 = alloca i32, align 4
   %6 = alloca i32, align 4
-  store i32 1, i32* %1, align 4, !dbg !24
-  store i32 2, i32* %2, align 4
-  store i32 3, i32* %3, align 4
-  store i32 4, i32* %4, align 4
-  store i32 5, i32* %5, align 4
-  store i32 6, i32* %6, align 4, !dbg !26
+  store i32 1, ptr %1, align 4, !dbg !24
+  store i32 2, ptr %2, align 4
+  store i32 3, ptr %3, align 4
+  store i32 4, ptr %4, align 4
+  store i32 5, ptr %5, align 4
+  store i32 6, ptr %6, align 4, !dbg !26
   ret void
 }
 
@@ -90,16 +93,16 @@ define void @bar() #0 !dbg !27 {
   %4 = alloca i32, align 4
   %5 = alloca i32, align 4
   %6 = alloca i32, align 4
-  store i32 1, i32* %1, align 4, !dbg !33
-  store i32 2, i32* %2, align 4
-  store i32 3, i32* %3, align 4
-  store i32 4, i32* %4, align 4
-  store i32 5, i32* %5, align 4
-  store i32 6, i32* %6, align 4, !dbg !35
+  store i32 1, ptr %1, align 4, !dbg !33
+  store i32 2, ptr %2, align 4
+  store i32 3, ptr %3, align 4
+  store i32 4, ptr %4, align 4
+  store i32 5, ptr %5, align 4
+  store i32 6, ptr %6, align 4, !dbg !35
   ret void
 }
 
-attributes #0 = { noredzone nounwind ssp uwtable "no-frame-pointer-elim"="false" "target-cpu"="cyclone" }
+attributes #0 = { noredzone nounwind ssp uwtable minsize "frame-pointer"="none" "target-cpu"="cyclone" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!3, !4, !5, !6}

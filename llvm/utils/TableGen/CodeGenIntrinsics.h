@@ -1,9 +1,8 @@
 //===- CodeGenIntrinsic.h - Intrinsic Class Wrapper ------------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,20 +14,21 @@
 #define LLVM_UTILS_TABLEGEN_CODEGENINTRINSICS_H
 
 #include "SDNodeProperties.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/MachineValueType.h"
+#include "llvm/Support/ModRef.h"
 #include <string>
 #include <vector>
 
 namespace llvm {
 class Record;
 class RecordKeeper;
-class CodeGenTarget;
 
 struct CodeGenIntrinsic {
   Record *TheDef;             // The actual record defining this intrinsic.
   std::string Name;           // The name of the LLVM function "llvm.bswap.i32"
   std::string EnumName;       // The name of the enum "bswap_i32"
-  std::string GCCBuiltinName; // Name of the corresponding GCC builtin, or "".
+  std::string ClangBuiltinName; // Name of the corresponding GCC builtin, or "".
   std::string MSBuiltinName;  // Name of the corresponding MS builtin, or "".
   std::string TargetPrefix;   // Target prefix, e.g. "ppc" for t-s intrinsics.
 
@@ -59,51 +59,8 @@ struct CodeGenIntrinsic {
 
   IntrinsicSignature IS;
 
-  /// Bit flags describing the type (ref/mod) and location of memory
-  /// accesses that may be performed by the intrinsics. Analogous to
-  /// \c FunctionModRefBehaviour.
-  enum ModRefBits {
-    /// The intrinsic may access memory that is otherwise inaccessible via
-    /// LLVM IR.
-    MR_InaccessibleMem = 1,
-
-    /// The intrinsic may access memory through pointer arguments.
-    /// LLVM IR.
-    MR_ArgMem = 2,
-
-    /// The intrinsic may access memory anywhere, i.e. it is not restricted
-    /// to access through pointer arguments.
-    MR_Anywhere = 4 | MR_ArgMem | MR_InaccessibleMem,
-
-    /// The intrinsic may read memory.
-    MR_Ref = 8,
-
-    /// The intrinsic may write memory.
-    MR_Mod = 16,
-
-    /// The intrinsic may both read and write memory.
-    MR_ModRef = MR_Ref | MR_Mod,
-  };
-
-  /// Memory mod/ref behavior of this intrinsic, corresponding to intrinsic
-  /// properties (IntrReadMem, IntrArgMemOnly, etc.).
-  enum ModRefBehavior {
-    NoMem = 0,
-    ReadArgMem = MR_Ref | MR_ArgMem,
-    ReadInaccessibleMem = MR_Ref | MR_InaccessibleMem,
-    ReadInaccessibleMemOrArgMem = MR_Ref | MR_ArgMem | MR_InaccessibleMem,
-    ReadMem = MR_Ref | MR_Anywhere,
-    WriteArgMem = MR_Mod | MR_ArgMem,
-    WriteInaccessibleMem = MR_Mod | MR_InaccessibleMem,
-    WriteInaccessibleMemOrArgMem = MR_Mod | MR_ArgMem | MR_InaccessibleMem,
-    WriteMem = MR_Mod | MR_Anywhere,
-    ReadWriteArgMem = MR_ModRef | MR_ArgMem,
-    ReadWriteInaccessibleMem = MR_ModRef | MR_InaccessibleMem,
-    ReadWriteInaccessibleMemOrArgMem = MR_ModRef | MR_ArgMem |
-                                       MR_InaccessibleMem,
-    ReadWriteMem = MR_ModRef | MR_Anywhere,
-  };
-  ModRefBehavior ModRef;
+  /// Memory effects of the intrinsic.
+  MemoryEffects ME = MemoryEffects::unknown();
 
   /// SDPatternOperator Properties applied to the intrinsic.
   unsigned Properties;
@@ -121,8 +78,26 @@ struct CodeGenIntrinsic {
   /// True if the intrinsic is marked as noduplicate.
   bool isNoDuplicate;
 
+  /// True if the intrinsic is marked as nomerge.
+  bool isNoMerge;
+
   /// True if the intrinsic is no-return.
   bool isNoReturn;
+
+  /// True if the intrinsic is no-callback.
+  bool isNoCallback;
+
+  /// True if the intrinsic is no-sync.
+  bool isNoSync;
+
+  /// True if the intrinsic is no-free.
+  bool isNoFree;
+
+  /// True if the intrinsic is will-return.
+  bool isWillReturn;
+
+  /// True if the intrinsic is cold.
+  bool isCold;
 
   /// True if the intrinsic is marked as convergent.
   bool isConvergent;
@@ -134,14 +109,56 @@ struct CodeGenIntrinsic {
   // True if the intrinsic is marked as speculatable.
   bool isSpeculatable;
 
-  enum ArgAttribute { NoCapture, Returned, ReadOnly, WriteOnly, ReadNone };
-  std::vector<std::pair<unsigned, ArgAttribute>> ArgumentAttributes;
+  enum ArgAttrKind {
+    NoCapture,
+    NoAlias,
+    NoUndef,
+    NonNull,
+    Returned,
+    ReadOnly,
+    WriteOnly,
+    ReadNone,
+    ImmArg,
+    Alignment
+  };
+
+  struct ArgAttribute {
+    ArgAttrKind Kind;
+    uint64_t Value;
+
+    ArgAttribute(ArgAttrKind K, uint64_t V) : Kind(K), Value(V) {}
+
+    bool operator<(const ArgAttribute &Other) const {
+      return std::tie(Kind, Value) < std::tie(Other.Kind, Other.Value);
+    }
+  };
+
+  /// Vector of attributes for each argument.
+  SmallVector<SmallVector<ArgAttribute, 0>> ArgumentAttributes;
+
+  void addArgAttribute(unsigned Idx, ArgAttrKind AK, uint64_t V = 0);
 
   bool hasProperty(enum SDNP Prop) const {
     return Properties & (1 << Prop);
   }
 
-  CodeGenIntrinsic(Record *R);
+  /// Goes through all IntrProperties that have IsDefault
+  /// value set and sets the property.
+  void setDefaultProperties(Record *R, std::vector<Record *> DefaultProperties);
+
+  /// Helper function to set property \p Name to true;
+  void setProperty(Record *R);
+
+  /// Returns true if the parameter at \p ParamIdx is a pointer type. Returns
+  /// false if the parameter is not a pointer, or \p ParamIdx is greater than
+  /// the size of \p IS.ParamVTs.
+  ///
+  /// Note that this requires that \p IS.ParamVTs is available.
+  bool isParamAPointer(unsigned ParamIdx) const;
+
+  bool isParamImmArg(unsigned ParamIdx) const;
+
+  CodeGenIntrinsic(Record *R, std::vector<Record *> DefaultProperties);
 };
 
 class CodeGenIntrinsicTable {
@@ -155,11 +172,13 @@ public:
   };
   std::vector<TargetSet> Targets;
 
-  explicit CodeGenIntrinsicTable(const RecordKeeper &RC, bool TargetOnly);
+  explicit CodeGenIntrinsicTable(const RecordKeeper &RC);
   CodeGenIntrinsicTable() = default;
 
   bool empty() const { return Intrinsics.empty(); }
   size_t size() const { return Intrinsics.size(); }
+  auto begin() const { return Intrinsics.begin(); }
+  auto end() const { return Intrinsics.end(); }
   CodeGenIntrinsic &operator[](size_t Pos) { return Intrinsics[Pos]; }
   const CodeGenIntrinsic &operator[](size_t Pos) const {
     return Intrinsics[Pos];

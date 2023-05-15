@@ -1,17 +1,16 @@
-//===-- TestClient.cpp ------------------------------------------*- C++ -*-===//
+//===-- TestClient.cpp ----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "TestClient.h"
+#include "TestingSupport/Host/SocketTestUtilities.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/common/TCPSocket.h"
 #include "lldb/Host/posix/ConnectionFileDescriptorPosix.h"
-#include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Utility/Args.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Path.h"
@@ -27,8 +26,12 @@ using namespace lldb_private;
 using namespace llvm;
 using namespace llgs_tests;
 
+#ifdef SendMessage
+#undef SendMessage
+#endif
+
 TestClient::TestClient(std::unique_ptr<Connection> Conn) {
-  SetConnection(Conn.release());
+  SetConnection(std::move(Conn));
   SetPacketTimeout(std::chrono::seconds(10));
 }
 
@@ -75,14 +78,20 @@ Expected<std::unique_ptr<TestClient>> TestClient::launchCustom(StringRef Log, Ar
       args.AppendArgument("--log-flags=0x800000");
   }
 
+  auto LocalhostIPOrErr = GetLocalhostIP();
+  if (!LocalhostIPOrErr)
+    return LocalhostIPOrErr.takeError();
+  const std::string &LocalhostIP = *LocalhostIPOrErr;
+
   Status status;
   TCPSocket listen_socket(true, false);
-  status = listen_socket.Listen("127.0.0.1:0", 5);
+  status = listen_socket.Listen(LocalhostIP + ":0", 5);
   if (status.Fail())
     return status.ToError();
 
   args.AppendArgument(
-      ("localhost:" + Twine(listen_socket.GetLocalPortNumber())).str());
+      formatv("{0}:{1}", LocalhostIP, listen_socket.GetLocalPortNumber())
+          .str());
 
   for (StringRef arg : ServerArgs)
     args.AppendArgument(arg);
@@ -100,8 +109,7 @@ Expected<std::unique_ptr<TestClient>> TestClient::launchCustom(StringRef Log, Ar
   // TODO: Use this callback to detect botched launches. If lldb-server does not
   // start, we can print a nice error message here instead of hanging in
   // Accept().
-  Info.SetMonitorProcessCallback(&ProcessLaunchInfo::NoOpMonitorCallback,
-                                 false);
+  Info.SetMonitorProcessCallback(&ProcessLaunchInfo::NoOpMonitorCallback);
 
   status = Host::LaunchProcess(Info);
   if (status.Fail())
@@ -109,7 +117,7 @@ Expected<std::unique_ptr<TestClient>> TestClient::launchCustom(StringRef Log, Ar
 
   Socket *accept_socket;
   listen_socket.Accept(accept_socket);
-  auto Conn = llvm::make_unique<ConnectionFileDescriptor>(accept_socket);
+  auto Conn = std::make_unique<ConnectionFileDescriptor>(accept_socket);
   auto Client = std::unique_ptr<TestClient>(new TestClient(std::move(Conn)));
 
   if (Error E = Client->initializeConnection())
@@ -191,7 +199,7 @@ Error TestClient::SendMessage(StringRef message, std::string &response_string,
                               PacketResult expected_result) {
   StringExtractorGDBRemote response;
   GTEST_LOG_(INFO) << "Send Packet: " << message.str();
-  PacketResult result = SendPacketAndWaitForResponse(message, response, false);
+  PacketResult result = SendPacketAndWaitForResponse(message, response);
   response.GetEscapedBinaryData(response_string);
   GTEST_LOG_(INFO) << "Read Packet: " << response_string;
   if (result != expected_result)
@@ -208,7 +216,7 @@ unsigned int TestClient::GetPcRegisterId() {
 }
 
 Error TestClient::qProcessInfo() {
-  m_process_info = None;
+  m_process_info = std::nullopt;
   auto InfoOr = SendMessage<ProcessInfo>("qProcessInfo");
   if (!InfoOr)
     return InfoOr.takeError();
@@ -217,6 +225,7 @@ Error TestClient::qProcessInfo() {
 }
 
 Error TestClient::qRegisterInfos() {
+  uint32_t reg_offset = 0;
   for (unsigned int Reg = 0;; ++Reg) {
     std::string Message = formatv("qRegisterInfo{0:x-}", Reg).str();
     Expected<RegisterInfo> InfoOr = SendMessage<RegisterInfoParser>(Message);
@@ -225,6 +234,12 @@ Error TestClient::qRegisterInfos() {
       break;
     }
     m_register_infos.emplace_back(std::move(*InfoOr));
+
+    if (m_register_infos[Reg].byte_offset == LLDB_INVALID_INDEX32)
+      m_register_infos[Reg].byte_offset = reg_offset;
+
+    reg_offset =
+        m_register_infos[Reg].byte_offset + m_register_infos[Reg].byte_size;
     if (m_register_infos[Reg].kinds[eRegisterKindGeneric] ==
         LLDB_REGNUM_GENERIC_PC)
       m_pc_register = Reg;
@@ -243,7 +258,7 @@ Error TestClient::queryProcess() {
 }
 
 Error TestClient::Continue(StringRef message) {
-  assert(m_process_info.hasValue());
+  assert(m_process_info);
 
   auto StopReplyOr = SendMessage<StopReply>(
       message, m_process_info->GetEndian(), m_register_infos);

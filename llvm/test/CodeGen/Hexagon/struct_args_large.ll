@@ -10,8 +10,8 @@
 
 define void @foo() nounwind {
 entry:
-  call void @bar(%struct.large* byval @s2)
+  call void @bar(ptr byval(%struct.large) @s2)
   ret void
 }
 
-declare void @bar(%struct.large* byval)
+declare void @bar(ptr byval(%struct.large))

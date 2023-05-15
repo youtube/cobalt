@@ -1,17 +1,17 @@
 //===- TypeTableCollection.cpp -------------------------------- *- C++ --*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/CodeView/TypeTableCollection.h"
 
-#include "llvm/DebugInfo/CodeView/CVTypeVisitor.h"
+#include "llvm/DebugInfo/CodeView/CodeView.h"
 #include "llvm/DebugInfo/CodeView/RecordName.h"
-#include "llvm/Support/BinaryStreamReader.h"
+#include "llvm/DebugInfo/CodeView/TypeIndex.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -21,27 +21,23 @@ TypeTableCollection::TypeTableCollection(ArrayRef<ArrayRef<uint8_t>> Records)
   Names.resize(Records.size());
 }
 
-Optional<TypeIndex> TypeTableCollection::getFirst() {
+std::optional<TypeIndex> TypeTableCollection::getFirst() {
   if (empty())
-    return None;
+    return std::nullopt;
   return TypeIndex::fromArrayIndex(0);
 }
 
-Optional<TypeIndex> TypeTableCollection::getNext(TypeIndex Prev) {
+std::optional<TypeIndex> TypeTableCollection::getNext(TypeIndex Prev) {
   assert(contains(Prev));
   ++Prev;
   if (Prev.toArrayIndex() == size())
-    return None;
+    return std::nullopt;
   return Prev;
 }
 
 CVType TypeTableCollection::getType(TypeIndex Index) {
   assert(Index.toArrayIndex() < Records.size());
-  ArrayRef<uint8_t> Bytes = Records[Index.toArrayIndex()];
-  const RecordPrefix *Prefix =
-      reinterpret_cast<const RecordPrefix *>(Bytes.data());
-  TypeLeafKind Kind = static_cast<TypeLeafKind>(uint16_t(Prefix->RecordKind));
-  return CVType(Kind, Bytes);
+  return CVType(Records[Index.toArrayIndex()]);
 }
 
 StringRef TypeTableCollection::getTypeName(TypeIndex Index) {
@@ -63,3 +59,8 @@ bool TypeTableCollection::contains(TypeIndex Index) {
 uint32_t TypeTableCollection::size() { return Records.size(); }
 
 uint32_t TypeTableCollection::capacity() { return Records.size(); }
+
+bool TypeTableCollection::replaceType(TypeIndex &Index, CVType Data,
+                                      bool Stabilize) {
+  llvm_unreachable("Method cannot be called");
+}

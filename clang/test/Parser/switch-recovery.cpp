@@ -105,7 +105,7 @@ void test9(int x) { // expected-note {{'x' declared here}}
               expected-error {{expected expression}}
     8:: x; // expected-error {{expected ';' after expression}} \
               expected-error {{no member named 'x' in the global namespace; did you mean simply 'x'?}} \
-              expected-warning 2 {{expression result unused}}
+              expected-warning {{expression result unused}}
     9:: :y; // expected-error {{expected ';' after expression}} \
                expected-error {{expected unqualified-id}} \
                expected-warning {{expression result unused}}
@@ -160,15 +160,15 @@ void test12(int x) {
 void missing_statement_case(int x) {
   switch (x) {
     case 1:
-    case 0: // expected-error {{label at end of compound statement: expected statement}}
-  }
+    case 0:
+  } // expected-warning {{label at end of compound statement is a C++2b extension}}
 }
 
 void missing_statement_default(int x) {
   switch (x) {
     case 0:
-    default: // expected-error {{label at end of compound statement: expected statement}}
-  }
+    default:
+  } // expected-warning {{label at end of compound statement is a C++2b extension}}
 }
 
 void pr19022_1() {
@@ -178,9 +178,8 @@ void pr19022_1() {
 
 void pr19022_1a(int x) {
   switch(x) {
-  case 1  // expected-error{{expected ':' after 'case'}} \
-          // expected-error{{label at end of compound statement: expected statement}}
-  }
+  case 1  // expected-error{{expected ':' after 'case'}}
+  } // expected-warning {{label at end of compound statement is a C++2b extension}}
 }
 
 void pr19022_1b(int x) {
@@ -210,9 +209,9 @@ int pr19022_4(int x) {
 
 void pr19022_5(int x) {
   switch(x) {
-  case 1: case // expected-error{{expected ':' after 'case'}} \
-               // expected-error{{expected statement}}
-  }  // expected-error{{expected expression}}
+  case 1: case // expected-error{{expected ':' after 'case'}}
+  }  // expected-error{{expected expression}} \
+     // expected-warning {{label at end of compound statement is a C++2b extension}}
 }
 
 namespace pr19022 {

@@ -92,3 +92,13 @@ class PR33189
   template <class T>
   ~PR33189() { } // expected-error{{destructor cannot be declared as a template}}
 };
+
+namespace PR38671 {
+struct S {
+  template <class>
+  ~S(); // expected-error{{destructor cannot be declared as a template}}
+};
+struct T : S {
+  ~T() = default;
+};
+} // namespace PR38671

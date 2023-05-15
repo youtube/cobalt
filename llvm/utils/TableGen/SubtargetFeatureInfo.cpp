@@ -1,18 +1,16 @@
 //===- SubtargetFeatureInfo.cpp - Helpers for subtarget features ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "SubtargetFeatureInfo.h"
-
 #include "Types.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
-
 #include <map>
 
 using namespace llvm;
@@ -39,24 +37,14 @@ SubtargetFeatureInfo::getAll(const RecordKeeper &Records) {
     if (Pred->getName().empty())
       PrintFatalError(Pred->getLoc(), "Predicate has no name!");
 
+    // Ignore always true predicates.
+    if (Pred->getValueAsString("CondString").empty())
+      continue;
+
     SubtargetFeatures.emplace_back(
         Pred, SubtargetFeatureInfo(Pred, SubtargetFeatures.size()));
   }
   return SubtargetFeatures;
-}
-
-void SubtargetFeatureInfo::emitSubtargetFeatureFlagEnumeration(
-    SubtargetFeatureInfoMap &SubtargetFeatures, raw_ostream &OS) {
-  OS << "// Flags for subtarget features that participate in "
-     << "instruction matching.\n";
-  OS << "enum SubtargetFeatureFlag : "
-     << getMinimalTypeForEnumBitfield(SubtargetFeatures.size()) << " {\n";
-  for (const auto &SF : SubtargetFeatures) {
-    const SubtargetFeatureInfo &SFI = SF.second;
-    OS << "  " << SFI.getEnumName() << " = (1ULL << " << SFI.Index << "),\n";
-  }
-  OS << "  Feature_None = 0\n";
-  OS << "};\n\n";
 }
 
 void SubtargetFeatureInfo::emitSubtargetFeatureBitEnumeration(
@@ -110,54 +98,68 @@ void SubtargetFeatureInfo::emitComputeAvailableFeatures(
   OS << "  PredicateBitset Features;\n";
   for (const auto &SF : SubtargetFeatures) {
     const SubtargetFeatureInfo &SFI = SF.second;
+    StringRef CondStr = SFI.TheDef->getValueAsString("CondString");
+    assert(!CondStr.empty() && "true predicate should have been filtered");
 
-    OS << "  if (" << SFI.TheDef->getValueAsString("CondString") << ")\n";
-    OS << "    Features[" << SFI.getEnumBitName() << "] = 1;\n";
+    OS << "  if (" << CondStr << ")\n";
+    OS << "    Features.set(" << SFI.getEnumBitName() << ");\n";
   }
   OS << "  return Features;\n";
   OS << "}\n\n";
 }
 
+// If ParenIfBinOp is true, print a surrounding () if Val uses && or ||.
+static bool emitFeaturesAux(StringRef TargetName, const Init &Val,
+                            bool ParenIfBinOp, raw_ostream &OS) {
+  if (auto *D = dyn_cast<DefInit>(&Val)) {
+    if (!D->getDef()->isSubClassOf("SubtargetFeature"))
+      return true;
+    OS << "FB[" << TargetName << "::" << D->getAsString() << "]";
+    return false;
+  }
+  if (auto *D = dyn_cast<DagInit>(&Val)) {
+    std::string Op = D->getOperator()->getAsString();
+    if (Op == "not" && D->getNumArgs() == 1) {
+      OS << '!';
+      return emitFeaturesAux(TargetName, *D->getArg(0), true, OS);
+    }
+    if ((Op == "any_of" || Op == "all_of") && D->getNumArgs() > 0) {
+      bool Paren = D->getNumArgs() > 1 && std::exchange(ParenIfBinOp, true);
+      if (Paren)
+        OS << '(';
+      ListSeparator LS(Op == "any_of" ? " || " : " && ");
+      for (auto *Arg : D->getArgs()) {
+        OS << LS;
+        if (emitFeaturesAux(TargetName, *Arg, ParenIfBinOp, OS))
+          return true;
+      }
+      if (Paren)
+        OS << ')';
+      return false;
+    }
+  }
+  return true;
+}
+
 void SubtargetFeatureInfo::emitComputeAssemblerAvailableFeatures(
     StringRef TargetName, StringRef ClassName, StringRef FuncName,
     SubtargetFeatureInfoMap &SubtargetFeatures, raw_ostream &OS) {
-  OS << "uint64_t " << TargetName << ClassName << "::\n"
-     << FuncName << "(const FeatureBitset& FB) const {\n";
-  OS << "  uint64_t Features = 0;\n";
+  OS << "FeatureBitset ";
+  if (!ClassName.empty())
+    OS << TargetName << ClassName << "::\n";
+  OS << FuncName << "(const FeatureBitset &FB) ";
+  if (!ClassName.empty())
+    OS << "const ";
+  OS << "{\n";
+  OS << "  FeatureBitset Features;\n";
   for (const auto &SF : SubtargetFeatures) {
     const SubtargetFeatureInfo &SFI = SF.second;
 
     OS << "  if (";
-    std::string CondStorage =
-        SFI.TheDef->getValueAsString("AssemblerCondString");
-    StringRef Conds = CondStorage;
-    std::pair<StringRef, StringRef> Comma = Conds.split(',');
-    bool First = true;
-    do {
-      if (!First)
-        OS << " && ";
-
-      bool Neg = false;
-      StringRef Cond = Comma.first;
-      if (Cond[0] == '!') {
-        Neg = true;
-        Cond = Cond.substr(1);
-      }
-
-      OS << "(";
-      if (Neg)
-        OS << "!";
-      OS << "FB[" << TargetName << "::" << Cond << "])";
-
-      if (Comma.second.empty())
-        break;
-
-      First = false;
-      Comma = Comma.second.split(',');
-    } while (true);
-
+    emitFeaturesAux(TargetName, *SFI.TheDef->getValueAsDag("AssemblerCondDag"),
+                    /*ParenIfBinOp=*/false, OS);
     OS << ")\n";
-    OS << "    Features |= " << SFI.getEnumName() << ";\n";
+    OS << "    Features.set(" << SFI.getEnumBitName() << ");\n";
   }
   OS << "  return Features;\n";
   OS << "}\n\n";

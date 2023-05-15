@@ -1,9 +1,8 @@
 //===- ThreadSafetyCommon.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -27,6 +26,7 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/Specifiers.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include <algorithm>
@@ -41,7 +41,7 @@ using namespace threadSafety;
 std::string threadSafety::getSourceLiteralString(const Expr *CE) {
   switch (CE->getStmtClass()) {
     case Stmt::IntegerLiteralClass:
-      return cast<IntegerLiteral>(CE)->getValue().toString(10, true);
+      return toString(cast<IntegerLiteral>(CE)->getValue(), 10, true);
     case Stmt::StringLiteralClass: {
       std::string ret("\"");
       ret += cast<StringLiteral>(CE)->getString();
@@ -86,6 +86,28 @@ static bool isCalleeArrow(const Expr *E) {
   return ME ? ME->isArrow() : false;
 }
 
+static StringRef ClassifyDiagnostic(const CapabilityAttr *A) {
+  return A->getName();
+}
+
+static StringRef ClassifyDiagnostic(QualType VDT) {
+  // We need to look at the declaration of the type of the value to determine
+  // which it is. The type should either be a record or a typedef, or a pointer
+  // or reference thereof.
+  if (const auto *RT = VDT->getAs<RecordType>()) {
+    if (const auto *RD = RT->getDecl())
+      if (const auto *CA = RD->getAttr<CapabilityAttr>())
+        return ClassifyDiagnostic(CA);
+  } else if (const auto *TT = VDT->getAs<TypedefType>()) {
+    if (const auto *TD = TT->getDecl())
+      if (const auto *CA = TD->getAttr<CapabilityAttr>())
+        return ClassifyDiagnostic(CA);
+  } else if (VDT->isPointerType() || VDT->isReferenceType())
+    return ClassifyDiagnostic(VDT->getPointeeType());
+
+  return "mutex";
+}
+
 /// Translate a clang expression in an attribute to a til::SExpr.
 /// Constructs the context from D, DeclExp, and SelfDecl.
 ///
@@ -93,19 +115,22 @@ static bool isCalleeArrow(const Expr *E) {
 /// \param D       The declaration to which the attribute is attached.
 /// \param DeclExp An expression involving the Decl to which the attribute
 ///                is attached.  E.g. the call to a function.
+/// \param Self    S-expression to substitute for a \ref CXXThisExpr.
 CapabilityExpr SExprBuilder::translateAttrExpr(const Expr *AttrExp,
                                                const NamedDecl *D,
                                                const Expr *DeclExp,
-                                               VarDecl *SelfDecl) {
+                                               til::SExpr *Self) {
   // If we are processing a raw attribute expression, with no substitutions.
-  if (!DeclExp)
+  if (!DeclExp && !Self)
     return translateAttrExpr(AttrExp, nullptr);
 
   CallingContext Ctx(nullptr, D);
 
   // Examine DeclExp to find SelfArg and FunArgs, which are used to substitute
   // for formal parameters when we call buildMutexID later.
-  if (const auto *ME = dyn_cast<MemberExpr>(DeclExp)) {
+  if (!DeclExp)
+    /* We'll use Self. */;
+  else if (const auto *ME = dyn_cast<MemberExpr>(DeclExp)) {
     Ctx.SelfArg   = ME->getBase();
     Ctx.SelfArrow = ME->isArrow();
   } else if (const auto *CE = dyn_cast<CXXMemberCallExpr>(DeclExp)) {
@@ -120,28 +145,24 @@ CapabilityExpr SExprBuilder::translateAttrExpr(const Expr *AttrExp,
     Ctx.SelfArg = nullptr;  // Will be set below
     Ctx.NumArgs = CE->getNumArgs();
     Ctx.FunArgs = CE->getArgs();
-  } else if (D && isa<CXXDestructorDecl>(D)) {
-    // There's no such thing as a "destructor call" in the AST.
-    Ctx.SelfArg = DeclExp;
   }
 
-  // Hack to handle constructors, where self cannot be recovered from
-  // the expression.
-  if (SelfDecl && !Ctx.SelfArg) {
-    DeclRefExpr SelfDRE(SelfDecl, false, SelfDecl->getType(), VK_LValue,
-                        SelfDecl->getLocation());
-    Ctx.SelfArg = &SelfDRE;
+  if (Self) {
+    assert(!Ctx.SelfArg && "Ambiguous self argument");
+    Ctx.SelfArg = Self;
 
     // If the attribute has no arguments, then assume the argument is "this".
     if (!AttrExp)
-      return translateAttrExpr(Ctx.SelfArg, nullptr);
+      return CapabilityExpr(
+          Self, ClassifyDiagnostic(cast<CXXMethodDecl>(D)->getThisObjectType()),
+          false);
     else  // For most attributes.
       return translateAttrExpr(AttrExp, &Ctx);
   }
 
   // If the attribute has no arguments, then assume the argument is "this".
   if (!AttrExp)
-    return translateAttrExpr(Ctx.SelfArg, nullptr);
+    return translateAttrExpr(cast<const Expr *>(Ctx.SelfArg), nullptr);
   else  // For most attributes.
     return translateAttrExpr(AttrExp, &Ctx);
 }
@@ -151,16 +172,17 @@ CapabilityExpr SExprBuilder::translateAttrExpr(const Expr *AttrExp,
 CapabilityExpr SExprBuilder::translateAttrExpr(const Expr *AttrExp,
                                                CallingContext *Ctx) {
   if (!AttrExp)
-    return CapabilityExpr(nullptr, false);
+    return CapabilityExpr();
 
   if (const auto* SLit = dyn_cast<StringLiteral>(AttrExp)) {
     if (SLit->getString() == StringRef("*"))
       // The "*" expr is a universal lock, which essentially turns off
       // checks until it is removed from the lockset.
-      return CapabilityExpr(new (Arena) til::Wildcard(), false);
+      return CapabilityExpr(new (Arena) til::Wildcard(), StringRef("wildcard"),
+                            false);
     else
       // Ignore other string literals for now.
-      return CapabilityExpr(nullptr, false);
+      return CapabilityExpr();
   }
 
   bool Neg = false;
@@ -182,14 +204,26 @@ CapabilityExpr SExprBuilder::translateAttrExpr(const Expr *AttrExp,
   // Trap mutex expressions like nullptr, or 0.
   // Any literal value is nonsense.
   if (!E || isa<til::Literal>(E))
-    return CapabilityExpr(nullptr, false);
+    return CapabilityExpr();
+
+  StringRef Kind = ClassifyDiagnostic(AttrExp->getType());
 
   // Hack to deal with smart pointers -- strip off top-level pointer casts.
-  if (const auto *CE = dyn_cast_or_null<til::Cast>(E)) {
+  if (const auto *CE = dyn_cast<til::Cast>(E)) {
     if (CE->castOpcode() == til::CAST_objToPtr)
-      return CapabilityExpr(CE->expr(), Neg);
+      return CapabilityExpr(CE->expr(), Kind, Neg);
   }
-  return CapabilityExpr(E, Neg);
+  return CapabilityExpr(E, Kind, Neg);
+}
+
+til::LiteralPtr *SExprBuilder::createVariable(const VarDecl *VD) {
+  return new (Arena) til::LiteralPtr(VD);
+}
+
+std::pair<til::LiteralPtr *, StringRef>
+SExprBuilder::createThisPlaceholder(const Expr *Exp) {
+  return {new (Arena) til::LiteralPtr(nullptr),
+          ClassifyDiagnostic(Exp->getType())};
 }
 
 // Translate a clang statement or expression to a TIL expression.
@@ -211,6 +245,8 @@ til::SExpr *SExprBuilder::translate(const Stmt *S, CallingContext *Ctx) {
     return translateCXXThisExpr(cast<CXXThisExpr>(S), Ctx);
   case Stmt::MemberExprClass:
     return translateMemberExpr(cast<MemberExpr>(S), Ctx);
+  case Stmt::ObjCIvarRefExprClass:
+    return translateObjCIVarRefExpr(cast<ObjCIvarRefExpr>(S), Ctx);
   case Stmt::CallExprClass:
     return translateCallExpr(cast<CallExpr>(S), Ctx);
   case Stmt::CXXMemberCallExprClass:
@@ -233,6 +269,8 @@ til::SExpr *SExprBuilder::translate(const Stmt *S, CallingContext *Ctx) {
              cast<BinaryConditionalOperator>(S), Ctx);
 
   // We treat these as no-ops
+  case Stmt::ConstantExprClass:
+    return translate(cast<ConstantExpr>(S)->getSubExpr(), Ctx);
   case Stmt::ParenExprClass:
     return translate(cast<ParenExpr>(S)->getSubExpr(), Ctx);
   case Stmt::ExprWithCleanupsClass:
@@ -240,8 +278,7 @@ til::SExpr *SExprBuilder::translate(const Stmt *S, CallingContext *Ctx) {
   case Stmt::CXXBindTemporaryExprClass:
     return translate(cast<CXXBindTemporaryExpr>(S)->getSubExpr(), Ctx);
   case Stmt::MaterializeTemporaryExprClass:
-    return translate(cast<MaterializeTemporaryExpr>(S)->GetTemporaryExpr(),
-                     Ctx);
+    return translate(cast<MaterializeTemporaryExpr>(S)->getSubExpr(), Ctx);
 
   // Collect all literals
   case Stmt::CharacterLiteralClass:
@@ -271,19 +308,24 @@ til::SExpr *SExprBuilder::translateDeclRefExpr(const DeclRefExpr *DRE,
   const auto *VD = cast<ValueDecl>(DRE->getDecl()->getCanonicalDecl());
 
   // Function parameters require substitution and/or renaming.
-  if (const auto *PV = dyn_cast_or_null<ParmVarDecl>(VD)) {
-    const auto *FD =
-        cast<FunctionDecl>(PV->getDeclContext())->getCanonicalDecl();
+  if (const auto *PV = dyn_cast<ParmVarDecl>(VD)) {
     unsigned I = PV->getFunctionScopeIndex();
-
-    if (Ctx && Ctx->FunArgs && FD == Ctx->AttrDecl->getCanonicalDecl()) {
-      // Substitute call arguments for references to function parameters
-      assert(I < Ctx->NumArgs);
-      return translate(Ctx->FunArgs[I], Ctx->Prev);
+    const DeclContext *D = PV->getDeclContext();
+    if (Ctx && Ctx->FunArgs) {
+      const Decl *Canonical = Ctx->AttrDecl->getCanonicalDecl();
+      if (isa<FunctionDecl>(D)
+              ? (cast<FunctionDecl>(D)->getCanonicalDecl() == Canonical)
+              : (cast<ObjCMethodDecl>(D)->getCanonicalDecl() == Canonical)) {
+        // Substitute call arguments for references to function parameters
+        assert(I < Ctx->NumArgs);
+        return translate(Ctx->FunArgs[I], Ctx->Prev);
+      }
     }
     // Map the param back to the param of the original function declaration
     // for consistent comparisons.
-    VD = FD->getParamDecl(I);
+    VD = isa<FunctionDecl>(D)
+             ? cast<FunctionDecl>(D)->getCanonicalDecl()->getParamDecl(I)
+             : cast<ObjCMethodDecl>(D)->getCanonicalDecl()->getParamDecl(I);
   }
 
   // For non-local variables, treat it as a reference to a named object.
@@ -293,8 +335,12 @@ til::SExpr *SExprBuilder::translateDeclRefExpr(const DeclRefExpr *DRE,
 til::SExpr *SExprBuilder::translateCXXThisExpr(const CXXThisExpr *TE,
                                                CallingContext *Ctx) {
   // Substitute for 'this'
-  if (Ctx && Ctx->SelfArg)
-    return translate(Ctx->SelfArg, Ctx->Prev);
+  if (Ctx && Ctx->SelfArg) {
+    if (const auto *SelfArg = dyn_cast<const Expr *>(Ctx->SelfArg))
+      return translate(SelfArg, Ctx->Prev);
+    else
+      return cast<til::SExpr *>(Ctx->SelfArg);
+  }
   assert(SelfVar && "We have no variable for 'this'!");
   return SelfVar;
 }
@@ -311,9 +357,9 @@ static const ValueDecl *getValueDeclFromSExpr(const til::SExpr *E) {
   return nullptr;
 }
 
-static bool hasCppPointerType(const til::SExpr *E) {
+static bool hasAnyPointerType(const til::SExpr *E) {
   auto *VD = getValueDeclFromSExpr(E);
-  if (VD && VD->getType()->isPointerType())
+  if (VD && VD->getType()->isAnyPointerType())
     return true;
   if (const auto *C = dyn_cast<til::Cast>(E))
     return C->castOpcode() == til::CAST_objToPtr;
@@ -344,7 +390,20 @@ til::SExpr *SExprBuilder::translateMemberExpr(const MemberExpr *ME,
     D = getFirstVirtualDecl(VD);
 
   til::Project *P = new (Arena) til::Project(E, D);
-  if (hasCppPointerType(BE))
+  if (hasAnyPointerType(BE))
+    P->setArrow(true);
+  return P;
+}
+
+til::SExpr *SExprBuilder::translateObjCIVarRefExpr(const ObjCIvarRefExpr *IVRE,
+                                                   CallingContext *Ctx) {
+  til::SExpr *BE = translate(IVRE->getBase(), Ctx);
+  til::SExpr *E = new (Arena) til::SApply(BE);
+
+  const auto *D = cast<ObjCIvarDecl>(IVRE->getDecl()->getCanonicalDecl());
+
+  til::Project *P = new (Arena) til::Project(E, D);
+  if (hasAnyPointerType(BE))
     P->setArrow(true);
   return P;
 }
@@ -354,15 +413,17 @@ til::SExpr *SExprBuilder::translateCallExpr(const CallExpr *CE,
                                             const Expr *SelfE) {
   if (CapabilityExprMode) {
     // Handle LOCK_RETURNED
-    const FunctionDecl *FD = CE->getDirectCallee()->getMostRecentDecl();
-    if (LockReturnedAttr* At = FD->getAttr<LockReturnedAttr>()) {
-      CallingContext LRCallCtx(Ctx);
-      LRCallCtx.AttrDecl = CE->getDirectCallee();
-      LRCallCtx.SelfArg  = SelfE;
-      LRCallCtx.NumArgs  = CE->getNumArgs();
-      LRCallCtx.FunArgs  = CE->getArgs();
-      return const_cast<til::SExpr *>(
-          translateAttrExpr(At->getArg(), &LRCallCtx).sexpr());
+    if (const FunctionDecl *FD = CE->getDirectCallee()) {
+      FD = FD->getMostRecentDecl();
+      if (LockReturnedAttr *At = FD->getAttr<LockReturnedAttr>()) {
+        CallingContext LRCallCtx(Ctx);
+        LRCallCtx.AttrDecl = CE->getDirectCallee();
+        LRCallCtx.SelfArg = SelfE;
+        LRCallCtx.NumArgs = CE->getNumArgs();
+        LRCallCtx.FunArgs = CE->getArgs();
+        return const_cast<til::SExpr *>(
+            translateAttrExpr(At->getArg(), &LRCallCtx).sexpr());
+      }
     }
   }
 
@@ -588,7 +649,7 @@ SExprBuilder::translateAbstractConditionalOperator(
 til::SExpr *
 SExprBuilder::translateDeclStmt(const DeclStmt *S, CallingContext *Ctx) {
   DeclGroupRef DGrp = S->getDeclGroup();
-  for (auto I : DGrp) {
+  for (auto *I : DGrp) {
     if (auto *VD = dyn_cast_or_null<VarDecl>(I)) {
       Expr *E = VD->getInit();
       til::SExpr* SE = translate(E, Ctx);
@@ -927,6 +988,16 @@ void SExprBuilder::exitCFG(const CFGBlock *Last) {
 }
 
 /*
+namespace {
+
+class TILPrinter :
+    public til::PrettyPrinter<TILPrinter, llvm::raw_ostream> {};
+
+} // namespace
+
+namespace clang {
+namespace threadSafety {
+
 void printSCFG(CFGWalker &Walker) {
   llvm::BumpPtrAllocator Bpa;
   til::MemRegionRef Arena(&Bpa);
@@ -934,4 +1005,7 @@ void printSCFG(CFGWalker &Walker) {
   til::SCFG *Scfg = SxBuilder.buildCFG(Walker);
   TILPrinter::print(Scfg, llvm::errs());
 }
+
+} // namespace threadSafety
+} // namespace clang
 */

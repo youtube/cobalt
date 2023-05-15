@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,6 +13,7 @@
 
 #include <list>
 #include <cassert>
+#include "test_macros.h"
 #include "test_iterators.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
@@ -26,8 +26,8 @@ void basic_test()
 {
     {
         int a[] = {0, 1, 2, 3};
-        std::list<int> l(input_iterator<const int*>(a),
-                         input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])));
+        std::list<int> l(cpp17_input_iterator<const int*>(a),
+                         cpp17_input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])));
         assert(l.size() == sizeof(a)/sizeof(a[0]));
         assert(std::distance(l.begin(), l.end()) == sizeof(a)/sizeof(a[0]));
         int j = 0;
@@ -36,8 +36,8 @@ void basic_test()
     }
     {
         int a[] = {0, 1, 2, 3};
-        std::list<int> l(input_iterator<const int*>(a),
-                         input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])),
+        std::list<int> l(cpp17_input_iterator<const int*>(a),
+                         cpp17_input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])),
                          std::allocator<int>());
         assert(l.size() == sizeof(a)/sizeof(a[0]));
         assert(std::distance(l.begin(), l.end()) == sizeof(a)/sizeof(a[0]));
@@ -48,8 +48,8 @@ void basic_test()
     {
         int a[] = {0, 1, 2, 3};
         // Add 2 for implementations that dynamically allocate a sentinel node and container proxy.
-        std::list<int, limited_allocator<int, sizeof(a)/sizeof(a[0]) + 2> > l(input_iterator<const int*>(a),
-                         input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])));
+        std::list<int, limited_allocator<int, sizeof(a)/sizeof(a[0]) + 2> > l(cpp17_input_iterator<const int*>(a),
+                         cpp17_input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])));
         assert(l.size() == sizeof(a)/sizeof(a[0]));
         assert(std::distance(l.begin(), l.end()) == sizeof(a)/sizeof(a[0]));
         int j = 0;
@@ -59,8 +59,8 @@ void basic_test()
 #if TEST_STD_VER >= 11
     {
         int a[] = {0, 1, 2, 3};
-        std::list<int, min_allocator<int>> l(input_iterator<const int*>(a),
-                         input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])));
+        std::list<int, min_allocator<int>> l(cpp17_input_iterator<const int*>(a),
+                         cpp17_input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])));
         assert(l.size() == sizeof(a)/sizeof(a[0]));
         assert(std::distance(l.begin(), l.end()) == sizeof(a)/sizeof(a[0]));
         int j = 0;
@@ -69,8 +69,8 @@ void basic_test()
     }
     {
         int a[] = {0, 1, 2, 3};
-        std::list<int, min_allocator<int>> l(input_iterator<const int*>(a),
-                         input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])),
+        std::list<int, min_allocator<int>> l(cpp17_input_iterator<const int*>(a),
+                         cpp17_input_iterator<const int*>(a + sizeof(a)/sizeof(a[0])),
                          min_allocator<int>());
         assert(l.size() == sizeof(a)/sizeof(a[0]));
         assert(std::distance(l.begin(), l.end()) == sizeof(a)/sizeof(a[0]));
@@ -107,7 +107,7 @@ void test_emplacable_concept() {
   }
   {
     using T = EmplaceConstructible<int>;
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     {
       std::list<T> v(It(arr1), It(std::end(arr1)));
       auto I = v.begin();
@@ -155,7 +155,7 @@ void test_emplacable_concept_with_alloc() {
   }
   {
     using T = EmplaceConstructible<int>;
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     std::allocator<T> a;
     {
       std::list<T> v(It(arr1), It(std::end(arr1)), a);
@@ -183,7 +183,6 @@ void test_ctor_under_alloc() {
   int arr2[] = {1, 101, 42};
   {
     using C = TCT::list<>;
-    using T = typename C::value_type;
     using It = forward_iterator<int*>;
     {
       ExpectConstructGuard<int&> G(1);
@@ -196,8 +195,7 @@ void test_ctor_under_alloc() {
   }
   {
     using C = TCT::list<>;
-    using T = typename C::value_type;
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     {
       ExpectConstructGuard<int&> G(1);
       C v(It(arr1), It(std::end(arr1)));
@@ -216,7 +214,6 @@ void test_ctor_under_alloc_with_alloc() {
   int arr2[] = {1, 101, 42};
   {
     using C = TCT::list<>;
-    using T = typename C::value_type;
     using It = forward_iterator<int*>;
     using Alloc = typename C::allocator_type;
     Alloc a;
@@ -231,8 +228,7 @@ void test_ctor_under_alloc_with_alloc() {
   }
   {
     using C = TCT::list<>;
-    using T = typename C::value_type;
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     using Alloc = typename C::allocator_type;
     Alloc a;
     {
@@ -249,10 +245,12 @@ void test_ctor_under_alloc_with_alloc() {
 
 
 
-int main() {
+int main(int, char**) {
   basic_test();
   test_emplacable_concept();
   test_emplacable_concept_with_alloc();
   test_ctor_under_alloc();
   test_ctor_under_alloc_with_alloc();
+
+  return 0;
 }

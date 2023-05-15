@@ -1,9 +1,8 @@
 //===-- LanaiTargetMachine.cpp - Define TargetMachine for Lanai ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,15 +13,18 @@
 #include "LanaiTargetMachine.h"
 
 #include "Lanai.h"
+#include "LanaiMachineFunctionInfo.h"
 #include "LanaiTargetObjectFile.h"
 #include "LanaiTargetTransformInfo.h"
+#include "TargetInfo/LanaiTargetInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
+#include <optional>
 
 using namespace llvm;
 
@@ -30,10 +32,12 @@ namespace llvm {
 void initializeLanaiMemAluCombinerPass(PassRegistry &);
 } // namespace llvm
 
-extern "C" void LLVMInitializeLanaiTarget() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeLanaiTarget() {
   // Register the target.
   RegisterTargetMachine<LanaiTargetMachine> registered_target(
       getTheLanaiTarget());
+  PassRegistry &PR = *PassRegistry::getPassRegistry();
+  initializeLanaiDAGToDAGISelPass(PR);
 }
 
 static std::string computeDataLayout() {
@@ -47,27 +51,19 @@ static std::string computeDataLayout() {
          "-S64";    // 64 bit natural stack alignment
 }
 
-static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
-  if (!RM.hasValue())
-    return Reloc::PIC_;
-  return *RM;
+static Reloc::Model getEffectiveRelocModel(std::optional<Reloc::Model> RM) {
+  return RM.value_or(Reloc::PIC_);
 }
 
-static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM) {
-  if (CM)
-    return *CM;
-  return CodeModel::Medium;
-}
-
-LanaiTargetMachine::LanaiTargetMachine(const Target &T, const Triple &TT,
-                                       StringRef Cpu, StringRef FeatureString,
-                                       const TargetOptions &Options,
-                                       Optional<Reloc::Model> RM,
-                                       Optional<CodeModel::Model> CodeModel,
-                                       CodeGenOpt::Level OptLevel, bool JIT)
+LanaiTargetMachine::LanaiTargetMachine(
+    const Target &T, const Triple &TT, StringRef Cpu, StringRef FeatureString,
+    const TargetOptions &Options, std::optional<Reloc::Model> RM,
+    std::optional<CodeModel::Model> CodeModel, CodeGenOpt::Level OptLevel,
+    bool JIT)
     : LLVMTargetMachine(T, computeDataLayout(), TT, Cpu, FeatureString, Options,
                         getEffectiveRelocModel(RM),
-                        getEffectiveCodeModel(CodeModel), OptLevel),
+                        getEffectiveCodeModel(CodeModel, CodeModel::Medium),
+                        OptLevel),
       Subtarget(TT, Cpu, FeatureString, *this, Options, getCodeModel(),
                 OptLevel),
       TLOF(new LanaiTargetObjectFile()) {
@@ -75,8 +71,15 @@ LanaiTargetMachine::LanaiTargetMachine(const Target &T, const Triple &TT,
 }
 
 TargetTransformInfo
-LanaiTargetMachine::getTargetTransformInfo(const Function &F) {
+LanaiTargetMachine::getTargetTransformInfo(const Function &F) const {
   return TargetTransformInfo(LanaiTTIImpl(this, F));
+}
+
+MachineFunctionInfo *LanaiTargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return LanaiMachineFunctionInfo::create<LanaiMachineFunctionInfo>(Allocator,
+                                                                    F, STI);
 }
 
 namespace {

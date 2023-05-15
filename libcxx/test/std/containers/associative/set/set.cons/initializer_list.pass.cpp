@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <set>
 
@@ -18,16 +17,17 @@
 #include <set>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::set<int> C;
     typedef C::value_type V;
     C m = {1, 2, 3, 4, 5, 6};
     assert(m.size() == 6);
-    assert(distance(m.begin(), m.end()) == 6);
+    assert(std::distance(m.begin(), m.end()) == 6);
     C::const_iterator i = m.cbegin();
     assert(*i == V(1));
     assert(*++i == V(2));
@@ -41,7 +41,7 @@ int main()
     typedef C::value_type V;
     C m = {1, 2, 3, 4, 5, 6};
     assert(m.size() == 6);
-    assert(distance(m.begin(), m.end()) == 6);
+    assert(std::distance(m.begin(), m.end()) == 6);
     C::const_iterator i = m.cbegin();
     assert(*i == V(1));
     assert(*++i == V(2));
@@ -50,4 +50,6 @@ int main()
     assert(*++i == V(5));
     assert(*++i == V(6));
     }
+
+  return 0;
 }

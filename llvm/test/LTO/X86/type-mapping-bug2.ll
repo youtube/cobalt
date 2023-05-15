@@ -4,7 +4,7 @@
 ;
 ; Test for the issue described in https://bugs.llvm.org/show_bug.cgi?id=37684
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 ; T1 will be linked against T2 because T2 was already loaded in %t0.o due to
@@ -16,7 +16,7 @@ define %"T1" @a() {
   unreachable
 }
 
-define i1 @b(%"T2"*) {
+define i1 @b(ptr) {
   unreachable
 }
 
@@ -32,7 +32,7 @@ define i1 @b(%"T2"*) {
 
 ; The reference to @b and T2 that will be loaded in %t0.o
 
-!7 = !DITemplateValueParameter(value: i1 (%"T2"*)* @b)
+!7 = !DITemplateValueParameter(value: ptr @b)
 !8 = distinct !DISubprogram(unit: !2)
 
 ; This DICompositeType is uniqued against !5 in Inputs/type-mapping-bug2.ll,

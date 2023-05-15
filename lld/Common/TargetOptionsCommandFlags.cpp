@@ -1,34 +1,29 @@
 //===-- TargetOptionsCommandFlags.cpp ---------------------------*- C++ -*-===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file exists as a place for global variables defined in LLVM's
-// CodeGen/CommandFlags.inc. By putting the resulting object file in
-// an archive and linking with it, the definitions will automatically be
-// included when needed and skipped when already present.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lld/Common/TargetOptionsCommandFlags.h"
-
-#include "llvm/CodeGen/CommandFlags.inc"
+#include "llvm/ADT/Triple.h"
+#include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/Target/TargetOptions.h"
+#include <optional>
 
-// Define an externally visible version of
-// InitTargetOptionsFromCodeGenFlags, so that its functionality can be
-// used without having to include llvm/CodeGen/CommandFlags.inc, which
-// would lead to multiple definitions of the command line flags.
-llvm::TargetOptions lld::InitTargetOptionsFromCodeGenFlags() {
-  return ::InitTargetOptionsFromCodeGenFlags();
+llvm::TargetOptions lld::initTargetOptionsFromCodeGenFlags() {
+  return llvm::codegen::InitTargetOptionsFromCodeGenFlags(llvm::Triple());
 }
 
-llvm::Optional<llvm::CodeModel::Model> lld::GetCodeModelFromCMModel() {
-  return getCodeModel();
+std::optional<llvm::Reloc::Model> lld::getRelocModelFromCMModel() {
+  return llvm::codegen::getExplicitRelocModel();
 }
 
-std::string lld::GetCPUStr() { return ::getCPUStr(); }
+std::optional<llvm::CodeModel::Model> lld::getCodeModelFromCMModel() {
+  return llvm::codegen::getExplicitCodeModel();
+}
+
+std::string lld::getCPUStr() { return llvm::codegen::getCPUStr(); }
+
+std::vector<std::string> lld::getMAttrs() { return llvm::codegen::getMAttrs(); }

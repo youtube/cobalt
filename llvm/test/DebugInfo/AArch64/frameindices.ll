@@ -1,11 +1,11 @@
-; RUN: llc -disable-fp-elim -O0 -fast-isel -filetype=obj < %s | llvm-dwarfdump -v - | FileCheck %s
+; RUN: llc -frame-pointer=all -O0 -fast-isel -filetype=obj < %s | llvm-dwarfdump -v - | FileCheck %s
 ; Test that a variable with multiple entries in the MMI table makes it into the
 ; debug info.
 ;
 ; CHECK: DW_TAG_inlined_subroutine
 ; CHECK:    "_Z3f111A"
 ; CHECK: DW_TAG_formal_parameter
-; CHECK: DW_AT_location [DW_FORM_block1]    (DW_OP_piece 0x1, DW_OP_fbreg -47, DW_OP_piece 0xf, DW_OP_piece 0x1, DW_OP_fbreg -54, DW_OP_piece 0x7)
+; CHECK: DW_AT_location [DW_FORM_block1]    (DW_OP_piece 0x1, DW_OP_fbreg -47, DW_OP_piece 0xf, DW_OP_piece 0x1, DW_OP_breg31 WSP+42, DW_OP_piece 0x7)
 ; CHECK: DW_AT_abstract_origin {{.*}} "p1"
 ;
 ; long a;

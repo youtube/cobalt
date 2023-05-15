@@ -1,17 +1,16 @@
 // -*- C++ -*-
-//===---------------------------- stdio.h ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #if defined(__need_FILE) || defined(__need___FILE)
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
 #include_next <stdio.h>
@@ -102,10 +101,12 @@ void perror(const char* s);
 #include <__config>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
-#include_next <stdio.h>
+#  if __has_include_next(<stdio.h>)
+#    include_next <stdio.h>
+#  endif
 
 #ifdef __cplusplus
 
@@ -117,4 +118,4 @@ void perror(const char* s);
 
 #endif
 
-#endif  // _LIBCPP_STDIO_H
+#endif // _LIBCPP_STDIO_H

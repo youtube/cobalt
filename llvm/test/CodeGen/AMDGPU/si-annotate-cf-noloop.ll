@@ -1,5 +1,5 @@
-; RUN: opt -mtriple=amdgcn-- -S -structurizecfg -si-annotate-control-flow %s | FileCheck -check-prefix=OPT %s
-; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -check-prefix=GCN %s
+; RUN: opt -mtriple=amdgcn-- -S -structurizecfg -si-annotate-control-flow -simplifycfg-require-and-preserve-domtree=1 %s | FileCheck -check-prefix=OPT %s
+; RUN: llc -march=amdgcn -verify-machineinstrs -simplifycfg-require-and-preserve-domtree=1 < %s | FileCheck -check-prefix=GCN %s
 
 
 ; OPT-LABEL: @annotate_unreachable_noloop(
@@ -9,15 +9,15 @@
 ; GCN: s_cbranch_scc1
 ; GCN-NOT: s_endpgm
 ; GCN: .Lfunc_end0
-define amdgpu_kernel void @annotate_unreachable_noloop(<4 x float> addrspace(1)* noalias nocapture readonly %arg) #0 {
+define amdgpu_kernel void @annotate_unreachable_noloop(ptr addrspace(1) noalias nocapture readonly %arg) #0 {
 bb:
   %tmp = tail call i32 @llvm.amdgcn.workitem.id.x()
   br label %bb1
 
 bb1:                                              ; preds = %bb
   %tmp2 = sext i32 %tmp to i64
-  %tmp3 = getelementptr inbounds <4 x float>, <4 x float> addrspace(1)* %arg, i64 %tmp2
-  %tmp4 = load <4 x float>, <4 x float> addrspace(1)* %tmp3, align 16
+  %tmp3 = getelementptr inbounds <4 x float>, ptr addrspace(1) %arg, i64 %tmp2
+  %tmp4 = load <4 x float>, ptr addrspace(1) %tmp3, align 16
   br i1 undef, label %bb5, label %bb3
 
 bb3:                                              ; preds = %bb1
@@ -40,21 +40,19 @@ bb5:                                              ; preds = %bb3, %bb1
 ; GCN: load_dwordx4
 ; GCN: v_cmp_nlt_f32
 ; GCN: s_and_saveexec_b64
-; GCN: ; mask branch [[UNIFIED_RET:BB[0-9]+_[0-9]+]]
-; GCN-NEXT: [[UNIFIED_RET]]:
 ; GCN-NEXT: s_endpgm
 ; GCN: .Lfunc_end
-define amdgpu_kernel void @annotate_ret_noloop(<4 x float> addrspace(1)* noalias nocapture readonly %arg) #0 {
+define amdgpu_kernel void @annotate_ret_noloop(ptr addrspace(1) noalias nocapture readonly %arg) #0 {
 bb:
   %tmp = tail call i32 @llvm.amdgcn.workitem.id.x()
   br label %bb1
 
 bb1:                                              ; preds = %bb
   %tmp2 = sext i32 %tmp to i64
-  %tmp3 = getelementptr inbounds <4 x float>, <4 x float> addrspace(1)* %arg, i64 %tmp2
-  %tmp4 = load <4 x float>, <4 x float> addrspace(1)* %tmp3, align 16
+  %tmp3 = getelementptr inbounds <4 x float>, ptr addrspace(1) %arg, i64 %tmp2
+  %tmp4 = load <4 x float>, ptr addrspace(1) %tmp3, align 16
   %tmp5 = extractelement <4 x float> %tmp4, i32 1
-  store volatile <4 x float> %tmp4, <4 x float> addrspace(1)* undef
+  store volatile <4 x float> %tmp4, ptr addrspace(1) undef
   %cmp = fcmp ogt float %tmp5, 1.0
   br i1 %cmp, label %bb5, label %bb3
 
@@ -77,14 +75,14 @@ bb5:                                              ; preds = %bb3, %bb1
 ; GCN: s_cbranch_scc1
 ; GCN: s_endpgm
 ; GCN: .Lfunc_end
-define amdgpu_kernel void @uniform_annotate_ret_noloop(<4 x float> addrspace(1)* noalias nocapture readonly %arg, i32 %tmp) #0 {
+define amdgpu_kernel void @uniform_annotate_ret_noloop(ptr addrspace(1) noalias nocapture readonly %arg, i32 %tmp) #0 {
 bb:
   br label %bb1
 
 bb1:                                              ; preds = %bb
   %tmp2 = sext i32 %tmp to i64
-  %tmp3 = getelementptr inbounds <4 x float>, <4 x float> addrspace(1)* %arg, i64 %tmp2
-  %tmp4 = load <4 x float>, <4 x float> addrspace(1)* %tmp3, align 16
+  %tmp3 = getelementptr inbounds <4 x float>, ptr addrspace(1) %arg, i64 %tmp2
+  %tmp4 = load <4 x float>, ptr addrspace(1) %tmp3, align 16
   br i1 undef, label %bb5, label %bb3
 
 bb3:                                              ; preds = %bb1

@@ -1,9 +1,8 @@
 //===--- tools/extra/clang-rename/ClangRename.cpp - Clang rename tool -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -69,17 +68,17 @@ static cl::OptionCategory ClangRenameOptions("clang-rename common options");
 static cl::list<unsigned> SymbolOffsets(
     "offset",
     cl::desc("Locates the symbol by offset as opposed to <line>:<column>."),
-    cl::ZeroOrMore, cl::cat(ClangRenameOptions));
+    cl::cat(ClangRenameOptions));
 static cl::opt<bool> Inplace("i", cl::desc("Overwrite edited <file>s."),
                              cl::cat(ClangRenameOptions));
 static cl::list<std::string>
     QualifiedNames("qualified-name",
                    cl::desc("The fully qualified name of the symbol."),
-                   cl::ZeroOrMore, cl::cat(ClangRenameOptions));
+                   cl::cat(ClangRenameOptions));
 
 static cl::list<std::string>
     NewNames("new-name", cl::desc("The new name to change the symbol to."),
-             cl::ZeroOrMore, cl::cat(ClangRenameOptions));
+             cl::cat(ClangRenameOptions));
 static cl::opt<bool> PrintName(
     "pn",
     cl::desc("Print the found symbol's name prior to renaming to stderr."),
@@ -99,7 +98,13 @@ static cl::opt<bool> Force("force",
                            cl::cat(ClangRenameOptions));
 
 int main(int argc, const char **argv) {
-  tooling::CommonOptionsParser OP(argc, argv, ClangRenameOptions);
+  auto ExpectedParser =
+      tooling::CommonOptionsParser::create(argc, argv, ClangRenameOptions);
+  if (!ExpectedParser) {
+    llvm::errs() << ExpectedParser.takeError();
+    return 1;
+  }
+  tooling::CommonOptionsParser &OP = ExpectedParser.get();
 
   if (!Input.empty()) {
     // Populate QualifiedNames and NewNames from a YAML file.
@@ -189,7 +194,7 @@ int main(int argc, const char **argv) {
 
     if (!ExportFixes.empty()) {
       std::error_code EC;
-      llvm::raw_fd_ostream OS(ExportFixes, EC, llvm::sys::fs::F_None);
+      llvm::raw_fd_ostream OS(ExportFixes, EC, llvm::sys::fs::OF_None);
       if (EC) {
         llvm::errs() << "Error opening output file: " << EC.message() << '\n';
         return 1;
@@ -223,8 +228,8 @@ int main(int argc, const char **argv) {
 
     Tool.applyAllReplacements(Rewrite);
     for (const auto &File : Files) {
-      const auto *Entry = FileMgr.getFile(File);
-      const auto ID = Sources.getOrCreateFileID(Entry, SrcMgr::C_User);
+      auto Entry = FileMgr.getFile(File);
+      const auto ID = Sources.getOrCreateFileID(*Entry, SrcMgr::C_User);
       Rewrite.getEditBuffer(ID).write(outs());
     }
   }

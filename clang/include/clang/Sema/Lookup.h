@@ -1,9 +1,8 @@
 //===- Lookup.h - Classes for name lookup -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -27,10 +26,10 @@
 #include "clang/Basic/Specifiers.h"
 #include "clang/Sema/Sema.h"
 #include "llvm/ADT/MapVector.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Casting.h"
 #include <cassert>
+#include <optional>
 #include <utility>
 
 namespace clang {
@@ -173,7 +172,8 @@ public:
       : SemaPtr(Other.SemaPtr), NameInfo(Other.NameInfo),
         LookupKind(Other.LookupKind), IDNS(Other.IDNS), Redecl(Other.Redecl),
         ExternalRedecl(Other.ExternalRedecl), HideTags(Other.HideTags),
-        AllowHidden(Other.AllowHidden) {}
+        AllowHidden(Other.AllowHidden),
+        TemplateNameLookup(Other.TemplateNameLookup) {}
 
   // FIXME: Remove these deleted methods once the default build includes
   // -Wdeprecated.
@@ -194,7 +194,8 @@ public:
         HideTags(std::move(Other.HideTags)),
         Diagnose(std::move(Other.Diagnose)),
         AllowHidden(std::move(Other.AllowHidden)),
-        Shadowed(std::move(Other.Shadowed)) {
+        Shadowed(std::move(Other.Shadowed)),
+        TemplateNameLookup(std::move(Other.TemplateNameLookup)) {
     Other.Paths = nullptr;
     Other.Diagnose = false;
   }
@@ -217,6 +218,7 @@ public:
     Diagnose = std::move(Other.Diagnose);
     AllowHidden = std::move(Other.AllowHidden);
     Shadowed = std::move(Other.Shadowed);
+    TemplateNameLookup = std::move(Other.TemplateNameLookup);
     Other.Paths = nullptr;
     Other.Diagnose = false;
     return *this;
@@ -287,6 +289,15 @@ public:
     HideTags = Hide;
   }
 
+  /// Sets whether this is a template-name lookup. For template-name lookups,
+  /// injected-class-names are treated as naming a template rather than a
+  /// template specialization.
+  void setTemplateNameLookup(bool TemplateName) {
+    TemplateNameLookup = TemplateName;
+  }
+
+  bool isTemplateNameLookup() const { return TemplateNameLookup; }
+
   bool isAmbiguous() const {
     return getResultKind() == Ambiguous;
   }
@@ -308,7 +319,7 @@ public:
   }
 
   LookupResultKind getResultKind() const {
-    assert(sanity());
+    assert(checkDebugAssumptions());
     return ResultKind;
   }
 
@@ -335,15 +346,39 @@ public:
 
   /// Determine whether the given declaration is visible to the
   /// program.
-  static bool isVisible(Sema &SemaRef, NamedDecl *D) {
-    // If this declaration is not hidden, it's visible.
-    if (!D->isHidden())
-      return true;
+  static bool isVisible(Sema &SemaRef, NamedDecl *D);
 
-    // During template instantiation, we can refer to hidden declarations, if
-    // they were visible in any module along the path of instantiation.
-    return isVisibleSlow(SemaRef, D);
+  static bool isReachable(Sema &SemaRef, NamedDecl *D);
+
+  static bool isAcceptable(Sema &SemaRef, NamedDecl *D,
+                           Sema::AcceptableKind Kind) {
+    return Kind == Sema::AcceptableKind::Visible ? isVisible(SemaRef, D)
+                                                 : isReachable(SemaRef, D);
   }
+
+  /// Determine whether this lookup is permitted to see the declaration.
+  /// Note that a reachable but not visible declaration inhabiting a namespace
+  /// is not allowed to be seen during name lookup.
+  ///
+  /// For example:
+  /// ```
+  /// // m.cppm
+  /// export module m;
+  /// struct reachable { int v; }
+  /// export auto func() { return reachable{43}; }
+  /// // Use.cpp
+  /// import m;
+  /// auto Use() {
+  ///   // Not valid. We couldn't see reachable here.
+  ///   // So isAvailableForLookup would return false when we look
+  ///   up 'reachable' here.
+  ///   // return reachable(43).v;
+  ///   // Valid. The field name 'v' is allowed during name lookup.
+  ///   // So isAvailableForLookup would return true when we look up 'v' here.
+  ///   return func().v;
+  /// }
+  /// ```
+  static bool isAvailableForLookup(Sema &SemaRef, NamedDecl *ND);
 
   /// Retrieve the accepted (re)declaration of the given declaration,
   /// if there is one.
@@ -351,14 +386,16 @@ public:
     if (!D->isInIdentifierNamespace(IDNS))
       return nullptr;
 
-    if (isVisible(getSema(), D) || isHiddenDeclarationVisible(D))
+    if (isAvailableForLookup(getSema(), D) || isHiddenDeclarationVisible(D))
       return D;
 
     return getAcceptableDeclSlow(D);
   }
 
 private:
-  static bool isVisibleSlow(Sema &SemaRef, NamedDecl *D);
+  static bool isAcceptableSlow(Sema &SemaRef, NamedDecl *D,
+                               Sema::AcceptableKind Kind);
+  static bool isReachableSlow(Sema &SemaRef, NamedDecl *D);
   NamedDecl *getAcceptableDeclSlow(NamedDecl *D) const;
 
 public:
@@ -470,7 +507,7 @@ public:
         Paths = nullptr;
       }
     } else {
-      llvm::Optional<AmbiguityKind> SavedAK;
+      std::optional<AmbiguityKind> SavedAK;
       bool WasAmbiguous = false;
       if (ResultKind == Ambiguous) {
         SavedAK = Ambiguity;
@@ -484,7 +521,7 @@ public:
       if (ResultKind == Ambiguous) {
         (void)WasAmbiguous;
         assert(WasAmbiguous);
-        Ambiguity = SavedAK.getValue();
+        Ambiguity = *SavedAK;
       } else if (Paths) {
         deletePaths(Paths);
         Paths = nullptr;
@@ -540,7 +577,7 @@ public:
   }
 
   /// Clears out any current state.
-  void clear() {
+  LLVM_ATTRIBUTE_REINITIALIZES void clear() {
     ResultKind = NotFound;
     Decls.clear();
     if (Paths) deletePaths(Paths);
@@ -695,10 +732,9 @@ private:
   void addDeclsFromBasePaths(const CXXBasePaths &P);
   void configure();
 
-  // Sanity checks.
-  bool sanity() const;
+  bool checkDebugAssumptions() const;
 
-  bool sanityCheckUnresolved() const {
+  bool checkUnresolved() const {
     for (iterator I = begin(), E = end(); I != E; ++I)
       if (isa<UnresolvedUsingValueDecl>((*I)->getUnderlyingDecl()))
         return true;
@@ -709,7 +745,9 @@ private:
 
   // Results.
   LookupResultKind ResultKind = NotFound;
-  AmbiguityKind Ambiguity; // ill-defined unless ambiguous
+  // ill-defined unless ambiguous. Still need to be initialized it will be
+  // copied/moved.
+  AmbiguityKind Ambiguity = {};
   UnresolvedSet<8> Decls;
   CXXBasePaths *Paths = nullptr;
   CXXRecordDecl *NamingClass = nullptr;
@@ -738,6 +776,9 @@ private:
   /// declaration that we skipped. This only happens when \c LookupKind
   /// is \c LookupRedeclarationWithLinkage.
   bool Shadowed = false;
+
+  /// True if we're looking up a template-name.
+  bool TemplateNameLookup = false;
 };
 
 /// Consumes visible declarations found when searching for

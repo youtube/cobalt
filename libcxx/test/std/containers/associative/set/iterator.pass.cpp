@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,7 +32,7 @@
 #include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef int V;
@@ -71,8 +70,14 @@ int main()
         i = m.begin();
         std::set<int>::const_iterator k = i;
         assert(i == k);
-        for (int j = 1; static_cast<std::size_t>(j) <= m.size(); ++j, ++i)
+        for (int j = 1; j <= static_cast<int>(m.size()); ++j, ++i)
             assert(*i == j);
+        assert(i == m.end());
+        for (int j = static_cast<int>(m.size()); j >= 1; --j) {
+            --i;
+            assert(*i == j);
+        }
+        assert(i == m.begin());
     }
     {
         typedef int V;
@@ -110,8 +115,14 @@ int main()
         assert(static_cast<std::size_t>(std::distance(m.crbegin(), m.crend())) == m.size());
         std::set<int>::const_iterator i;
         i = m.begin();
-        for (int j = 1; static_cast<std::size_t>(j) <= m.size(); ++j, ++i)
+        for (int j = 1; j <= static_cast<int>(m.size()); ++j, ++i)
             assert(*i == j);
+        assert(i == m.end());
+        for (int j = static_cast<int>(m.size()); j >= 1; --j) {
+            --i;
+            assert(*i == j);
+        }
+        assert(i == m.begin());
     }
 #if TEST_STD_VER >= 11
     {
@@ -150,8 +161,14 @@ int main()
         i = m.begin();
         std::set<int, std::less<int>, min_allocator<int>>::const_iterator k = i;
         assert(i == k);
-        for (int j = 1; static_cast<std::size_t>(j) <= m.size(); ++j, ++i)
+        for (int j = 1; j <= static_cast<int>(m.size()); ++j, ++i)
             assert(*i == j);
+        assert(i == m.end());
+        for (int j = static_cast<int>(m.size()); j >= 1; --j) {
+            --i;
+            assert(*i == j);
+        }
+        assert(i == m.begin());
     }
     {
         typedef int V;
@@ -189,8 +206,14 @@ int main()
         assert(static_cast<std::size_t>(std::distance(m.crbegin(), m.crend())) == m.size());
         std::set<int, std::less<int>, min_allocator<int>>::const_iterator i;
         i = m.begin();
-        for (int j = 1; static_cast<std::size_t>(j) <= m.size(); ++j, ++i)
+        for (int j = 1; j <= static_cast<int>(m.size()); ++j, ++i)
             assert(*i == j);
+        assert(i == m.end());
+        for (int j = static_cast<int>(m.size()); j >= 1; --j) {
+            --i;
+            assert(*i == j);
+        }
+        assert(i == m.begin());
     }
 #endif
 #if TEST_STD_VER > 11
@@ -210,4 +233,6 @@ int main()
         assert (!(cii != ii1 ));
     }
 #endif
+
+  return 0;
 }

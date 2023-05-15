@@ -1,12 +1,12 @@
 /*===- InstrProfilingValue.c - Support library for PGO instrumentation ----===*\
 |*
-|*                     The LLVM Compiler Infrastructure
-|*
-|* This file is distributed under the University of Illinois Open Source
-|* License. See LICENSE.TXT for details.
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+|* See https://llvm.org/LICENSE.txt for license information.
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 |*
 \*===----------------------------------------------------------------------===*/
 
+#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,13 +18,14 @@
 
 #define INSTR_PROF_VALUE_PROF_DATA
 #define INSTR_PROF_COMMON_API_IMPL
-#include "InstrProfData.inc"
+#define INSTR_PROF_VALUE_PROF_MEMOP_API
+#include "profile/InstrProfData.inc"
 
 static int hasStaticCounters = 1;
 static int OutOfNodesWarnings = 0;
 static int hasNonDefaultValsPerSite = 0;
 #define INSTR_PROF_MAX_VP_WARNS 10
-#define INSTR_PROF_DEFAULT_NUM_VAL_PER_SITE 16
+#define INSTR_PROF_DEFAULT_NUM_VAL_PER_SITE 24
 #define INSTR_PROF_VNODE_POOL_SIZE 1024
 
 #ifndef _MSC_VER
@@ -32,13 +33,13 @@ static int hasNonDefaultValsPerSite = 0;
  * allocated by the compiler.  */
 COMPILER_RT_VISIBILITY ValueProfNode
     lprofValueProfNodes[INSTR_PROF_VNODE_POOL_SIZE] COMPILER_RT_SECTION(
-       COMPILER_RT_SEG INSTR_PROF_VNODES_SECT_NAME_STR);
+       COMPILER_RT_SEG INSTR_PROF_VNODES_SECT_NAME);
 #endif
 
 COMPILER_RT_VISIBILITY uint32_t VPMaxNumValsPerSite =
     INSTR_PROF_DEFAULT_NUM_VAL_PER_SITE;
 
-COMPILER_RT_VISIBILITY void lprofSetupValueProfiler() {
+COMPILER_RT_VISIBILITY void lprofSetupValueProfiler(void) {
   const char *Str = 0;
   Str = getenv("LLVM_VP_MAX_NUM_VALS_PER_SITE");
   if (Str && Str[0]) {
@@ -94,6 +95,8 @@ static int allocateValueProfileCounters(__llvm_profile_data *Data) {
   for (VKI = IPVK_First; VKI <= IPVK_Last; ++VKI)
     NumVSites += Data->NumValueSites[VKI];
 
+  // If NumVSites = 0, calloc is allowed to return a non-null pointer.
+  assert(NumVSites > 0 && "NumVSites can't be zero");
   ValueProfNode **Mem =
       (ValueProfNode **)calloc(NumVSites, sizeof(ValueProfNode *));
   if (!Mem)
@@ -105,8 +108,7 @@ static int allocateValueProfileCounters(__llvm_profile_data *Data) {
   return 1;
 }
 
-static ValueProfNode *allocateOneNode(__llvm_profile_data *Data, uint32_t Index,
-                                      uint64_t Value) {
+static ValueProfNode *allocateOneNode(void) {
   ValueProfNode *Node;
 
   if (!hasStaticCounters)
@@ -205,7 +207,7 @@ instrumentTargetValueImpl(uint64_t TargetValue, void *Data,
     return;
   }
 
-  CurVNode = allocateOneNode(PData, CounterIndex, TargetValue);
+  CurVNode = allocateOneNode();
   if (!CurVNode)
     return;
   CurVNode->Value = TargetValue;
@@ -237,38 +239,21 @@ __llvm_profile_instrument_target_value(uint64_t TargetValue, void *Data,
 }
 
 /*
- * The target values are partitioned into multiple regions/ranges. There is one
- * contiguous region which is precise -- every value in the range is tracked
- * individually. A value outside the precise region will be collapsed into one
- * value depending on the region it falls in.
- *
- * There are three regions:
- * 1. (-inf, PreciseRangeStart) and (PreciseRangeLast, LargeRangeValue) belong
- * to one region -- all values here should be mapped to one value of
- * "PreciseRangeLast + 1".
- * 2. [PreciseRangeStart, PreciseRangeLast]
- * 3. Large values: [LargeValue, +inf) maps to one value of LargeValue.
- *
- * The range for large values is optional. The default value of INT64_MIN
- * indicates it is not specified.
+ * The target values are partitioned into multiple ranges. The range spec is
+ * defined in InstrProfData.inc.
  */
-COMPILER_RT_VISIBILITY void __llvm_profile_instrument_range(
-    uint64_t TargetValue, void *Data, uint32_t CounterIndex,
-    int64_t PreciseRangeStart, int64_t PreciseRangeLast, int64_t LargeValue) {
-
-  if (LargeValue != INT64_MIN && (int64_t)TargetValue >= LargeValue)
-    TargetValue = LargeValue;
-  else if ((int64_t)TargetValue < PreciseRangeStart ||
-           (int64_t)TargetValue > PreciseRangeLast)
-    TargetValue = PreciseRangeLast + 1;
-
-  __llvm_profile_instrument_target(TargetValue, Data, CounterIndex);
+COMPILER_RT_VISIBILITY void
+__llvm_profile_instrument_memop(uint64_t TargetValue, void *Data,
+                                uint32_t CounterIndex) {
+  // Map the target value to the representative value of its range.
+  uint64_t RepValue = InstrProfGetRangeRepValue(TargetValue);
+  __llvm_profile_instrument_target(RepValue, Data, CounterIndex);
 }
 
 /*
  * A wrapper struct that represents value profile runtime data.
  * Like InstrProfRecord class which is used by profiling host tools,
- * ValueProfRuntimeRecord also implements the abstract intefaces defined in
+ * ValueProfRuntimeRecord also implements the abstract interfaces defined in
  * ValueProfRecordClosure so that the runtime data can be serialized using
  * shared C implementation.
  */
@@ -368,6 +353,6 @@ static VPDataReaderType TheVPDataReader = {
     getFirstValueProfRecord,          getNumValueDataForSiteWrapper,
     getValueProfDataSizeWrapper,      getNextNValueData};
 
-COMPILER_RT_VISIBILITY VPDataReaderType *lprofGetVPDataReader() {
+COMPILER_RT_VISIBILITY VPDataReaderType *lprofGetVPDataReader(void) {
   return &TheVPDataReader;
 }

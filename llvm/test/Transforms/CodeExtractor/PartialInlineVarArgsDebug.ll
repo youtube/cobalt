@@ -1,4 +1,4 @@
-; RUN: opt < %s -S -partial-inliner -skip-partial-inlining-cost-analysis=true | FileCheck %s
+; RUN: opt < %s -S -passes=partial-inliner -skip-partial-inlining-cost-analysis=true | FileCheck %s
 
 ; CHECK-LABEL: @callee
 ; CHECK: %mul = mul nsw i32 %v, 10, !dbg ![[DBG1:[0-9]+]]
@@ -19,14 +19,15 @@ if.end:                                           ; preds = %if.then, %entry
 
 ; CHECK-LABEL: @caller
 ; CHECK: codeRepl.i:
-; CHECK-NEXT: call void (i32, i32*, ...) @callee.1_if.then(i32 %v, i32* %mul.loc.i, i32 99), !dbg ![[DBG2:[0-9]+]]
+; CHECK-NOT: br label
+; CHECK: call void (i32, ptr, ...) @callee.1.if.then(i32 %v, ptr %mul.loc.i, i32 99), !dbg ![[DBG2:[0-9]+]]
 define i32 @caller(i32 %v) !dbg !8 {
 entry:
   %call = call i32 (i32, ...) @callee(i32 %v, i32 99), !dbg !14
   ret i32 %call, !dbg !15
 }
 
-; CHECK-LABEL: define internal void @callee.1_if.then
+; CHECK-LABEL: define internal void @callee.1.if.then
 ; CHECK: br label %if.then, !dbg ![[DBG3:[0-9]+]]
 
 ; CHECK: ![[DBG1]] = !DILocation(line: 10, column: 7,

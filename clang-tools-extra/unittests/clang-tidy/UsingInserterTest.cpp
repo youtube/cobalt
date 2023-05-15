@@ -1,9 +1,8 @@
 //===---- UsingInserterTest.cpp - clang-tidy ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -38,10 +37,10 @@ public:
     auto Hint =
         Inserter->createUsingDeclaration(*Result.Context, *Call, "::foo::func");
 
-    if (Hint.hasValue())
-      diag(Call->getLocStart(), "Fix for testing") << Hint.getValue();
+    if (Hint)
+      diag(Call->getBeginLoc(), "Fix for testing") << *Hint;
 
-    diag(Call->getLocStart(), "insert call")
+    diag(Call->getBeginLoc(), "insert call")
         << clang::FixItHint::CreateReplacement(
                Call->getCallee()->getSourceRange(),
                Inserter->getShortName(*Result.Context, *Call, "::foo::func"));
@@ -62,7 +61,7 @@ std::string runChecker(StringRef Code, unsigned ExpectedWarningCount) {
   std::vector<ClangTidyError> errors;
 
   std::string result =
-      test::runCheckOnCode<Check>(Code, &errors, "foo.cc", None,
+      test::runCheckOnCode<Check>(Code, &errors, "foo.cc", std::nullopt,
                                   ClangTidyOptions(), AdditionalFileContents);
 
   EXPECT_EQ(ExpectedWarningCount, errors.size());

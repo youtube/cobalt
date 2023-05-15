@@ -2,24 +2,19 @@ add_subdirectory(Rewrite)
 
 set(LLVM_LINK_COMPONENTS
   BitReader
+  BitstreamReader
   Option
   ProfileData
   Support
+  TargetParser
   )
-
-set(optional_deps intrinsics_gen)
-if (CLANG_BUILT_STANDALONE)
-  set(optional_deps)
-endif()
 
 add_clang_library(clangFrontend
   ASTConsumers.cpp
   ASTMerge.cpp
   ASTUnit.cpp
-  CacheTokens.cpp
   ChainedDiagnosticConsumer.cpp
   ChainedIncludesSource.cpp
-  CodeGenOptions.cpp
   CompilerInstance.cpp
   CompilerInvocation.cpp
   CreateInvocationFromCommandLine.cpp
@@ -29,18 +24,16 @@ add_clang_library(clangFrontend
   FrontendAction.cpp
   FrontendActions.cpp
   FrontendOptions.cpp
-  FrontendTiming.cpp
   HeaderIncludeGen.cpp
-  InitHeaderSearch.cpp
   InitPreprocessor.cpp
-  LangStandards.cpp
   LayoutOverrideSource.cpp
   LogDiagnosticPrinter.cpp
   ModuleDependencyCollector.cpp
   MultiplexConsumer.cpp
-  PCHContainerOperations.cpp
   PrecompiledPreamble.cpp
   PrintPreprocessedOutput.cpp
+  SARIFDiagnostic.cpp
+  SARIFDiagnosticPrinter.cpp
   SerializedDiagnosticPrinter.cpp
   SerializedDiagnosticReader.cpp
   TestModuleFileExtension.cpp
@@ -48,10 +41,11 @@ add_clang_library(clangFrontend
   TextDiagnosticBuffer.cpp
   TextDiagnosticPrinter.cpp
   VerifyDiagnosticConsumer.cpp
+  InterfaceStubFunctionsConsumer.cpp
 
   DEPENDS
   ClangDriverOptions
-  ${optional_deps}
+  intrinsics_gen
 
   LINK_LIBS
   clangAST

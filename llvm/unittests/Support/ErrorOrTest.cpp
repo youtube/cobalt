@@ -1,9 +1,8 @@
 //===- unittests/ErrorOrTest.cpp - ErrorOr.h tests ------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -114,27 +113,26 @@ TEST(ErrorOr, ImplicitConversionNoAmbiguity) {
 // ErrorOr<int*> x(nullptr);
 // ErrorOr<std::unique_ptr<int>> y = x; // invalid conversion
 static_assert(
-    !std::is_convertible<const ErrorOr<int *> &,
-                         ErrorOr<std::unique_ptr<int>>>::value,
+    !std::is_convertible_v<const ErrorOr<int *> &,
+                           ErrorOr<std::unique_ptr<int>>>,
     "do not invoke explicit ctors in implicit conversion from lvalue");
 
 // ErrorOr<std::unique_ptr<int>> y = ErrorOr<int*>(nullptr); // invalid
 //                                                           // conversion
 static_assert(
-    !std::is_convertible<ErrorOr<int *> &&,
-                         ErrorOr<std::unique_ptr<int>>>::value,
+    !std::is_convertible_v<ErrorOr<int *> &&, ErrorOr<std::unique_ptr<int>>>,
     "do not invoke explicit ctors in implicit conversion from rvalue");
 
 // ErrorOr<int*> x(nullptr);
 // ErrorOr<std::unique_ptr<int>> y;
 // y = x; // invalid conversion
-static_assert(!std::is_assignable<ErrorOr<std::unique_ptr<int>>&,
-                                  const ErrorOr<int *> &>::value,
+static_assert(!std::is_assignable_v<ErrorOr<std::unique_ptr<int>> &,
+                                    const ErrorOr<int *> &>,
               "do not invoke explicit ctors in assignment");
 
 // ErrorOr<std::unique_ptr<int>> x;
 // x = ErrorOr<int*>(nullptr); // invalid conversion
-static_assert(!std::is_assignable<ErrorOr<std::unique_ptr<int>>&,
-                                  ErrorOr<int *> &&>::value,
-              "do not invoke explicit ctors in assignment");
+static_assert(
+    !std::is_assignable_v<ErrorOr<std::unique_ptr<int>> &, ErrorOr<int *> &&>,
+    "do not invoke explicit ctors in assignment");
 } // end anon namespace

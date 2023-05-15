@@ -1,12 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
 
 // <string_view>
 
@@ -14,6 +14,7 @@
 
 #include <string_view>
 #include <cassert>
+#include <iterator>
 
 #include "test_macros.h"
 
@@ -28,12 +29,14 @@ void test ( const CharT *s, size_t len ) {
 #endif
     }
 
-int main () {
+int main(int, char**) {
     test ( "ABCDE", 5 );
     test ( "a", 1 );
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test ( L"ABCDE", 5 );
     test ( L"a", 1 );
+#endif
 
 #if TEST_STD_VER >= 11
     test ( u"ABCDE", 5 );
@@ -51,4 +54,6 @@ int main () {
     static_assert( sv.data() == s, "" );
     }
 #endif
+
+  return 0;
 }

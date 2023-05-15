@@ -2,6 +2,8 @@
 // RUN: %clang_cc1 -std=c++11 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors -triple %itanium_abi_triple
 // RUN: %clang_cc1 -std=c++14 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors -triple %itanium_abi_triple
 // RUN: %clang_cc1 -std=c++17 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors -triple %itanium_abi_triple
+// RUN: %clang_cc1 -std=c++20 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors -triple %itanium_abi_triple
+// RUN: %clang_cc1 -std=c++2b %s -verify -fexceptions -fcxx-exceptions -pedantic-errors -triple %itanium_abi_triple
 
 namespace dr1 { // dr1: no
   namespace X { extern "C" void dr1_f(int a = 1); }
@@ -79,7 +81,7 @@ namespace dr5 { // dr5: yes
 namespace dr7 { // dr7: yes
   class A { public: ~A(); };
   class B : virtual private A {}; // expected-note 2 {{declared private here}}
-  class C : public B {} c; // expected-error 2 {{inherited virtual base class 'dr7::A' has private destructor}} \
+  class C : public B {} c; // expected-error 2 {{inherited virtual base class 'A' has private destructor}} \
                            // expected-note {{implicit default constructor for 'dr7::C' first required here}} \
                            // expected-note {{implicit destructor for 'dr7::C' first required here}}
   class VeryDerivedC : public B, virtual public A {} vdc;
@@ -118,10 +120,10 @@ namespace dr9 { // dr9: yes
     int m; // expected-note {{here}}
     friend int R1();
   };
-  struct N : protected B { // expected-note 2{{protected}}
+  struct N : protected B { // expected-note {{protected}}
     friend int R2();
   } n;
-  int R1() { return n.m; } // expected-error {{protected base class}} expected-error {{protected member}}
+  int R1() { return n.m; } // expected-error {{protected member}}
   int R2() { return n.m; }
 }
 
@@ -204,10 +206,10 @@ namespace dr16 { // dr16: yes
     void f(); // expected-note {{here}}
     friend class C;
   };
-  class B : A {}; // expected-note 4{{here}}
+  class B : A {}; // expected-note 3{{here}}
   class C : B {
     void g() {
-      f(); // expected-error {{private member}} expected-error {{private base}}
+      f(); // expected-error {{private member}}
       A::f(); // expected-error {{private member}} expected-error {{private base}}
     }
   };
@@ -316,15 +318,16 @@ namespace dr25 { // dr25: yes
 namespace dr26 { // dr26: yes
   struct A { A(A, const A & = A()); }; // expected-error {{must pass its first argument by reference}}
   struct B {
-    B(); // expected-note 0-1{{candidate}}
+    B();
+    // FIXME: In C++98, we diagnose this twice.
     B(const B &, B = B());
 #if __cplusplus <= 201402L
-    // expected-error@-2 {{no matching constructor}} expected-note@-2 {{candidate}} expected-note@-2 {{here}}
+    // expected-error@-2 1+{{recursive evaluation of default argument}} expected-note@-2 1+{{used here}}
 #endif
   };
   struct C {
     static C &f();
-    C(const C &, C = f()); // expected-error {{no matching constructor}} expected-note {{candidate}} expected-note {{here}}
+    C(const C &, C = f()); // expected-error {{recursive evaluation of default argument}} expected-note {{used here}}
   };
 }
 
@@ -413,10 +416,128 @@ namespace dr33 { // dr33: yes
   void g(X::S);
   template<typename Z> Z g(Y::T);
   void h() { f(&g); } // expected-error {{ambiguous}}
+
+  template<typename T> void t(X::S);
+  template<typename T, typename U = void> void u(X::S); // expected-error 0-1{{default template argument}}
+  void templ() { f(t<int>); f(u<int>); }
+
+  // Even though v<int> cannot select the first overload, ADL considers it
+  // and adds namespace Z to the set of associated namespaces, and then picks
+  // Z::f even though that function has nothing to do with any associated type.
+  namespace Z { struct Q; void f(void(*)()); }
+  template<int> Z::Q v();
+  template<typename> void v();
+  void unrelated_templ() { f(v<int>); }
+
+  namespace dependent {
+    struct X {};
+    template<class T> struct Y {
+      friend int operator+(X, void(*)(Y)) {}
+    };
+
+    template<typename T> void f(Y<T>);
+    int use = X() + f<int>; // expected-error {{invalid operands}}
+  }
+
+  namespace member {
+    struct Q {};
+    struct Y { friend int operator+(Q, Y (*)()); };
+    struct X { template<typename> static Y f(); };
+    int m = Q() + X().f<int>; // ok
+    int n = Q() + (&(X().f<int>)); // ok
+  }
 }
 
 // dr34: na
 // dr35: dup 178
+
+namespace dr36 { // dr36: yes
+namespace example1 {
+  namespace A {
+    int i;
+  }
+  
+  namespace A1 {
+    using A::i;
+    using A::i;
+  }
+  
+  void f()
+  {
+    using A::i;
+    using A::i;
+  }
+}
+
+namespace example2 {
+  struct A
+  {
+    int i;
+    static int j;
+  };
+
+  struct B : A { };
+  struct C : A { };
+
+  struct D : virtual B, virtual C
+  {
+    using B::i; // expected-note {{previous using declaration}}
+    using B::i; // expected-error {{redeclaration of using declaration}}
+
+    using C::i; // expected-note {{previous using declaration}}
+    using C::i; // expected-error {{redeclaration of using declaration}}
+
+    using B::j; // expected-note {{previous using declaration}}
+    using B::j; // expected-error {{redeclaration of using declaration}}
+
+    using C::j; // expected-note {{previous using declaration}}
+    using C::j; // expected-error {{redeclaration of using declaration}}
+  };
+}
+
+namespace example3 {
+  template<typename T>
+  struct A
+  {
+    T i;
+    static T j;
+  };
+
+  template<typename T>
+  struct B : A<T> { };
+  template<typename T>
+  struct C : A<T> { };
+
+  template<typename T>
+  struct D : virtual B<T>, virtual C<T>
+  {
+    using B<T>::i; // expected-note {{previous using declaration}}
+    using B<T>::i; // expected-error {{redeclaration of using declaration}}
+
+    using C<T>::i; // expected-note {{previous using declaration}}
+    using C<T>::i; // expected-error {{redeclaration of using declaration}}
+
+    using B<T>::j; // expected-note {{previous using declaration}}
+    using B<T>::j; // expected-error {{redeclaration of using declaration}}
+
+    using C<T>::j; // expected-note {{previous using declaration}}
+    using C<T>::j; // expected-error {{redeclaration of using declaration}}
+  };
+}
+namespace example4 {
+  template<typename T>
+  struct E {
+    T k;
+  };
+
+  template<typename T>
+  struct G : E<T> {
+    using E<T>::k; // expected-note {{previous using declaration}}
+    using E<T>::k; // expected-error {{redeclaration of using declaration}}
+  };
+}
+}
+
 // dr37: sup 475
 
 namespace dr38 { // dr38: yes
@@ -451,7 +572,7 @@ namespace dr39 { // dr39: no
       using V::z;
       float &z(float);
     };
-    struct C : A, B, virtual V {} c; // expected-warning {{direct base 'dr39::example2::A' is inaccessible due to ambiguity:\n    struct dr39::example2::C -> struct dr39::example2::A\n    struct dr39::example2::C -> struct dr39::example2::B -> struct dr39::example2::A}}
+    struct C : A, B, virtual V {} c; // expected-warning {{direct base 'A' is inaccessible due to ambiguity:\n    struct dr39::example2::C -> A\n    struct dr39::example2::C -> B -> A}}
     int &x = c.x(0); // expected-error {{found in multiple base classes}}
     // FIXME: This is valid, because we find the same static data member either way.
     int &y = c.y(0); // expected-error {{found in multiple base classes}}
@@ -668,6 +789,8 @@ namespace dr58 { // dr58: yes
 }
 
 namespace dr59 { // dr59: yes
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-volatile"
   template<typename T> struct convert_to { operator T() const; };
   struct A {}; // expected-note 5+{{candidate}}
   struct B : A {}; // expected-note 0+{{candidate}}
@@ -701,6 +824,7 @@ namespace dr59 { // dr59: yes
   int n3 = convert_to<const int>();
   int n4 = convert_to<const volatile int>();
   int n5 = convert_to<const volatile int&>();
+#pragma clang diagnostic pop
 }
 
 namespace dr60 { // dr60: yes
@@ -839,18 +963,17 @@ namespace dr68 { // dr68: yes
 }
 
 namespace dr69 { // dr69: yes
-  template<typename T> static void f() {}
+  template<typename T> static void f() {} // #dr69-f
   // FIXME: Should we warn here?
   inline void g() { f<int>(); }
-  // FIXME: This should be rejected, per [temp.explicit]p11.
-  extern template void f<char>();
+  extern template void f<char>(); // expected-error {{explicit instantiation declaration of 'f' with internal linkage}}
 #if __cplusplus < 201103L
   // expected-error@-2 {{C++11 extension}}
 #endif
   template<void(*)()> struct Q {};
   Q<&f<int> > q;
 #if __cplusplus < 201103L
-  // expected-error@-2 {{internal linkage}} expected-note@-11 {{here}}
+  // expected-error@-2 {{internal linkage}} expected-note@#dr69-f {{here}}
 #endif
 }
 
@@ -865,10 +988,10 @@ namespace dr70 { // dr70: yes
 // dr72: dup 69
 
 #if __cplusplus >= 201103L
-namespace dr73 { // dr73: no
-  // The resolution to dr73 is unworkable. Consider:
+namespace dr73 { // dr73: sup 1652
   int a, b;
   static_assert(&a + 1 != &b, ""); // expected-error {{not an integral constant expression}}
+  // expected-note@-1 {{comparison against pointer '&a + 1' that points past the end of a complete object}}
 }
 #endif
 
@@ -885,7 +1008,7 @@ namespace dr75 { // dr75: yes
 
 namespace dr76 { // dr76: yes
   const volatile int n = 1;
-  int arr[n]; // expected-error +{{variable length array}}
+  int arr[n]; // expected-error +{{variable length array}} expected-note {{read of volatile}}
 }
 
 namespace dr77 { // dr77: yes
@@ -935,7 +1058,7 @@ namespace dr84 { // dr84: yes
   struct C {};
   struct B {
     B(B&); // expected-note 0-1{{candidate}}
-    B(C); // expected-note 0-1{{no known conversion from 'dr84::B' to 'dr84::C'}}
+    B(C); // expected-note 0-1{{no known conversion from 'B' to 'C'}}
     operator C() const;
   };
   A a;

@@ -1,9 +1,8 @@
 //===- CoverageMappingWriter.cpp - Code coverage mapping writer -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,9 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ProfileData/InstrProf.h"
 #include "llvm/ProfileData/Coverage/CoverageMappingWriter.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Compression.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -25,12 +26,42 @@
 using namespace llvm;
 using namespace coverage;
 
-void CoverageFilenamesSectionWriter::write(raw_ostream &OS) {
-  encodeULEB128(Filenames.size(), OS);
-  for (const auto &Filename : Filenames) {
-    encodeULEB128(Filename.size(), OS);
-    OS << Filename;
+CoverageFilenamesSectionWriter::CoverageFilenamesSectionWriter(
+    ArrayRef<std::string> Filenames)
+    : Filenames(Filenames) {
+#ifndef NDEBUG
+  StringSet<> NameSet;
+  for (StringRef Name : Filenames)
+    assert(NameSet.insert(Name).second && "Duplicate filename");
+#endif
+}
+
+void CoverageFilenamesSectionWriter::write(raw_ostream &OS, bool Compress) {
+  std::string FilenamesStr;
+  {
+    raw_string_ostream FilenamesOS{FilenamesStr};
+    for (const auto &Filename : Filenames) {
+      encodeULEB128(Filename.size(), FilenamesOS);
+      FilenamesOS << Filename;
+    }
   }
+
+  SmallVector<uint8_t, 128> CompressedStr;
+  bool doCompression = Compress && compression::zlib::isAvailable() &&
+                       DoInstrProfNameCompression;
+  if (doCompression)
+    compression::zlib::compress(arrayRefFromStringRef(FilenamesStr),
+                                CompressedStr,
+                                compression::zlib::BestSizeCompression);
+
+  // ::= <num-filenames>
+  //     <uncompressed-len>
+  //     <compressed-len-or-zero>
+  //     (<compressed-filenames> | <uncompressed-filenames>)
+  encodeULEB128(Filenames.size(), OS);
+  encodeULEB128(FilenamesStr.size(), OS);
+  encodeULEB128(doCompression ? CompressedStr.size() : 0U, OS);
+  OS << (doCompression ? toStringRef(CompressedStr) : StringRef(FilenamesStr));
 }
 
 namespace {
@@ -47,10 +78,14 @@ public:
                               ArrayRef<CounterMappingRegion> MappingRegions)
       : Expressions(Expressions) {
     AdjustedExpressionIDs.resize(Expressions.size(), 0);
-    for (const auto &I : MappingRegions)
+    for (const auto &I : MappingRegions) {
       mark(I.Count);
-    for (const auto &I : MappingRegions)
+      mark(I.FalseCount);
+    }
+    for (const auto &I : MappingRegions) {
       gatherUsed(I.Count);
+      gatherUsed(I.FalseCount);
+    }
   }
 
   void mark(Counter C) {
@@ -125,15 +160,14 @@ void CoverageMappingWriter::write(raw_ostream &OS) {
 
   // Sort the regions in an ascending order by the file id and the starting
   // location. Sort by region kinds to ensure stable order for tests.
-  std::stable_sort(
-      MappingRegions.begin(), MappingRegions.end(),
-      [](const CounterMappingRegion &LHS, const CounterMappingRegion &RHS) {
-        if (LHS.FileID != RHS.FileID)
-          return LHS.FileID < RHS.FileID;
-        if (LHS.startLoc() != RHS.startLoc())
-          return LHS.startLoc() < RHS.startLoc();
-        return LHS.Kind < RHS.Kind;
-      });
+  llvm::stable_sort(MappingRegions, [](const CounterMappingRegion &LHS,
+                                       const CounterMappingRegion &RHS) {
+    if (LHS.FileID != RHS.FileID)
+      return LHS.FileID < RHS.FileID;
+    if (LHS.startLoc() != RHS.startLoc())
+      return LHS.startLoc() < RHS.startLoc();
+    return LHS.Kind < RHS.Kind;
+  });
 
   // Write out the fileid -> filename mapping.
   encodeULEB128(VirtualFileMapping.size(), OS);
@@ -169,6 +203,7 @@ void CoverageMappingWriter::write(raw_ostream &OS) {
       PrevLineStart = 0;
     }
     Counter Count = Minimizer.adjust(I->Count);
+    Counter FalseCount = Minimizer.adjust(I->FalseCount);
     switch (I->Kind) {
     case CounterMappingRegion::CodeRegion:
     case CounterMappingRegion::GapRegion:
@@ -193,6 +228,13 @@ void CoverageMappingWriter::write(raw_ostream &OS) {
       encodeULEB128(unsigned(I->Kind)
                         << Counter::EncodingCounterTagAndExpansionRegionTagBits,
                     OS);
+      break;
+    case CounterMappingRegion::BranchRegion:
+      encodeULEB128(unsigned(I->Kind)
+                        << Counter::EncodingCounterTagAndExpansionRegionTagBits,
+                    OS);
+      writeCounter(MinExpressions, Count, OS);
+      writeCounter(MinExpressions, FalseCount, OS);
       break;
     }
     assert(I->LineStart >= PrevLineStart);

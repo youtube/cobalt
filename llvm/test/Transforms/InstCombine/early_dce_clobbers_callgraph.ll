@@ -1,4 +1,4 @@
-; RUN: opt < %s -inline -instcombine -S | FileCheck %s
+; RUN: opt < %s -passes=inline,instcombine -S | FileCheck %s
 
 ; This test case exposed a bug in instcombine where the early
 ; DCE of a call wasn't recognized as changing the IR.
@@ -11,9 +11,7 @@
 ; no longer used function 'bar' (due to incorrect reference
 ; count in the CallGraph).
 
-attributes #0 = { noinline norecurse nounwind readnone }
-
-define void @foo() #0 {
+define void @foo() {
 ; CHECK-LABEL: @foo(
 ; CHECK-NEXT:  entry:
 ; CHECK-NEXT:    ret void
@@ -23,7 +21,7 @@ entry:
   ret void
 }
 
-define internal i32 @bar() #0 {
+define internal i32 @bar() {
 ; CHECK-NOT: bar
 entry:
   ret i32 42

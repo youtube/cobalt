@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify -fcxx-exceptions %s
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify -fcxx-exceptions -Wno-deprecated-builtins %s
 
 void fn() = default; // expected-error {{only special member}}
 struct foo {
@@ -44,18 +44,20 @@ void tester() {
 }
 
 template<typename T> struct S : T {
-  constexpr S() = default;
-  constexpr S(const S&) = default;
-  constexpr S(S&&) = default;
+  constexpr S() = default;         // expected-note {{previous declaration is here}}
+  constexpr S(const S&) = default; // expected-note {{previous declaration is here}}
+  constexpr S(S&&) = default;      // expected-note {{previous declaration is here}}
 };
 struct lit { constexpr lit() {} };
 S<lit> s_lit; // ok
 S<bar> s_bar; // ok
 
 struct Friends {
-  friend S<bar>::S();
-  friend S<bar>::S(const S&);
-  friend S<bar>::S(S&&);
+  // FIXME: these error may or may not be correct; there is an open question on
+  // the CWG reflectors about this.
+  friend S<bar>::S();          // expected-error {{non-constexpr declaration of 'S' follows constexpr declaration}}
+  friend S<bar>::S(const S&);  // expected-error {{non-constexpr declaration of 'S' follows constexpr declaration}}
+  friend S<bar>::S(S&&);       // expected-error {{non-constexpr declaration of 'S' follows constexpr declaration}}
 };
 
 namespace DefaultedFnExceptionSpec {
@@ -99,8 +101,6 @@ namespace DefaultedFnExceptionSpec {
 
   Error<char> c; // expected-note 2{{instantiation of}}
   struct DelayImplicit {
-    // FIXME: The location of this note is terrible. The instantiation was
-    // triggered by the uses of the functions in the decltype expressions below.
     Error<int> e; // expected-note 6{{instantiation of}}
   };
   Error<float> *e;
@@ -109,9 +109,9 @@ namespace DefaultedFnExceptionSpec {
   // a defaulted special member function that calls the function is needed.
   // Use in an unevaluated operand still results in the exception spec being
   // needed.
-  void test1(decltype(declval<DelayImplicit>() = DelayImplicit(DelayImplicit())));
-  void test2(decltype(declval<DelayImplicit>() = declval<const DelayImplicit>()));
-  void test3(decltype(DelayImplicit(declval<const DelayImplicit>())));
+  void test1(decltype(declval<DelayImplicit>() = DelayImplicit(DelayImplicit()))); // expected-note 4{{in evaluation of exception specification}}
+  void test2(decltype(declval<DelayImplicit>() = declval<const DelayImplicit>())); // expected-note {{in evaluation of exception specification}}
+  void test3(decltype(DelayImplicit(declval<const DelayImplicit>()))); // expected-note {{in evaluation of exception specification}}
 
   // Any odr-use needs the exception specification.
   void f(Error<double> *p) {
@@ -177,7 +177,7 @@ namespace PR14577 {
   Outer<T>::Inner1<T>::~Inner1() = delete; // expected-error {{nested name specifier 'Outer<T>::Inner1<T>::' for declaration does not refer into a class, class template or class template partial specialization}}  expected-error {{only functions can have deleted definitions}}
 
   template<typename T>
-  Outer<T>::Inner2<T>::~Inner2() = default; // expected-error {{nested name specifier 'Outer<T>::Inner2<T>::' for declaration does not refer into a class, class template or class template partial specialization}}  expected-error {{only special member functions may be defaulted}}
+  Outer<T>::Inner2<T>::~Inner2() = default; // expected-error {{nested name specifier 'Outer<T>::Inner2<T>::' for declaration does not refer into a class, class template or class template partial specialization}}
 }
 
 extern "C" { // expected-note {{extern "C" language linkage specification begins here}}
@@ -191,11 +191,11 @@ namespace PR15597 {
     ~A() noexcept(true) = default;
   };
   template<typename T> struct B {
-    B() noexcept(false) = default; // expected-error {{does not match the calculated one}}
-    ~B() noexcept(false) = default; // expected-error {{does not match the calculated one}}
+    B() noexcept(false) = default;
+    ~B() noexcept(false) = default;
   };
   A<int> a;
-  B<int> b; // expected-note {{here}}
+  B<int> b;
 }
 
 namespace PR27941 {
@@ -243,4 +243,46 @@ class E {
 template <typename Type>
 E<Type>::E(const int&) {}  // expected-error {{definition of explicitly defaulted function}}
 
+}
+
+namespace P1286R2 {
+  struct X {
+    X();
+  };
+  struct A {
+    struct B {
+      B() noexcept(A::value) = default;
+      X x;
+    };
+    decltype(B()) b;
+    static constexpr bool value = true;
+  };
+  A::B b;
+
+  static_assert(noexcept(A::B()), "");
+}
+
+namespace GH56456 {
+template <typename T>
+using RC=T const&;
+template <typename T>
+using RV=T&;
+template <typename T>
+using RM=T&&;
+
+struct A {
+  A(RC<A>) = default;
+  A(RM<A>) = default;
+
+  auto operator=(RC<A>) -> RV<A> = default;
+  auto operator=(RM<A>) -> RV<A> = default;
+};
+
+struct B {
+  B (RC<B>) = delete;
+  B (RM<B>) = delete;
+
+  auto operator = (RC<B>) -> RV<B> = delete;
+  auto operator = (RM<B>) -> RV<B> = delete;
+};
 }

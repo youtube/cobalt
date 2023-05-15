@@ -1,9 +1,8 @@
 // MallocOverflowSecurityChecker.cpp - Check for malloc overflows -*- C++ -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,13 +17,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/SmallVector.h"
+#include <optional>
 #include <utility>
 
 using namespace clang;
@@ -33,12 +33,14 @@ using llvm::APSInt;
 
 namespace {
 struct MallocOverflowCheck {
+  const CallExpr *call;
   const BinaryOperator *mulop;
   const Expr *variable;
   APSInt maxVal;
 
-  MallocOverflowCheck(const BinaryOperator *m, const Expr *v, APSInt val)
-      : mulop(m), variable(v), maxVal(std::move(val)) {}
+  MallocOverflowCheck(const CallExpr *call, const BinaryOperator *m,
+                      const Expr *v, APSInt val)
+      : call(call), mulop(m), variable(v), maxVal(std::move(val)) {}
 };
 
 class MallocOverflowSecurityChecker : public Checker<check::ASTCodeBody> {
@@ -47,8 +49,8 @@ public:
                         BugReporter &BR) const;
 
   void CheckMallocArgument(
-    SmallVectorImpl<MallocOverflowCheck> &PossibleMallocOverflows,
-    const Expr *TheArgument, ASTContext &Context) const;
+      SmallVectorImpl<MallocOverflowCheck> &PossibleMallocOverflows,
+      const CallExpr *TheCall, ASTContext &Context) const;
 
   void OutputPossibleOverflows(
     SmallVectorImpl<MallocOverflowCheck> &PossibleMallocOverflows,
@@ -63,16 +65,15 @@ static inline bool EvaluatesToZero(APSInt &Val, BinaryOperatorKind op) {
 }
 
 void MallocOverflowSecurityChecker::CheckMallocArgument(
-  SmallVectorImpl<MallocOverflowCheck> &PossibleMallocOverflows,
-  const Expr *TheArgument,
-  ASTContext &Context) const {
+    SmallVectorImpl<MallocOverflowCheck> &PossibleMallocOverflows,
+    const CallExpr *TheCall, ASTContext &Context) const {
 
   /* Look for a linear combination with a single variable, and at least
    one multiplication.
    Reject anything that applies to the variable: an explicit cast,
    conditional expression, an operation that could reduce the range
    of the result, or anything too complicated :-).  */
-  const Expr *e = TheArgument;
+  const Expr *e = TheCall->getArg(0);
   const BinaryOperator * mulop = nullptr;
   APSInt maxVal;
 
@@ -102,8 +103,7 @@ void MallocOverflowSecurityChecker::CheckMallocArgument(
         e = rhs;
       } else
         return;
-    }
-    else if (isa<DeclRefExpr>(e) || isa<MemberExpr>(e))
+    } else if (isa<DeclRefExpr, MemberExpr>(e))
       break;
     else
       return;
@@ -116,9 +116,8 @@ void MallocOverflowSecurityChecker::CheckMallocArgument(
   // the data so when the body of the function is completely available
   // we can check for comparisons.
 
-  // TODO: Could push this into the innermost scope where 'e' is
-  // defined, rather than the whole function.
-  PossibleMallocOverflows.push_back(MallocOverflowCheck(mulop, e, maxVal));
+  PossibleMallocOverflows.push_back(
+      MallocOverflowCheck(TheCall, mulop, e, maxVal));
 }
 
 namespace {
@@ -135,9 +134,9 @@ private:
     bool isIntZeroExpr(const Expr *E) const {
       if (!E->getType()->isIntegralOrEnumerationType())
         return false;
-      llvm::APSInt Result;
+      Expr::EvalResult Result;
       if (E->EvaluateAsInt(Result, Context))
-        return Result == 0;
+        return Result.Val.getInt() == 0;
       return false;
     }
 
@@ -154,17 +153,19 @@ private:
           return getDecl(CheckDR) == getDecl(DR) && Pred(Check);
         return false;
       };
-      toScanFor.erase(std::remove_if(toScanFor.begin(), toScanFor.end(), P),
-                      toScanFor.end());
+      llvm::erase_if(toScanFor, P);
     }
 
     void CheckExpr(const Expr *E_p) {
-      auto PredTrue = [](const MallocOverflowCheck &) { return true; };
       const Expr *E = E_p->IgnoreParenImpCasts();
+      const auto PrecedesMalloc = [E, this](const MallocOverflowCheck &c) {
+        return Context.getSourceManager().isBeforeInTranslationUnit(
+            E->getExprLoc(), c.call->getExprLoc());
+      };
       if (const DeclRefExpr *DR = dyn_cast<DeclRefExpr>(E))
-        Erase<DeclRefExpr>(DR, PredTrue);
+        Erase<DeclRefExpr>(DR, PrecedesMalloc);
       else if (const auto *ME = dyn_cast<MemberExpr>(E)) {
-        Erase<MemberExpr>(ME, PredTrue);
+        Erase<MemberExpr>(ME, PrecedesMalloc);
       }
     }
 
@@ -191,8 +192,11 @@ private:
       if (const BinaryOperator *BOp = dyn_cast<BinaryOperator>(rhse)) {
         if (BOp->getOpcode() == BO_Div) {
           const Expr *denom = BOp->getRHS()->IgnoreParenImpCasts();
-          if (denom->EvaluateAsInt(denomVal, Context))
+          Expr::EvalResult Result;
+          if (denom->EvaluateAsInt(Result, Context)) {
+            denomVal = Result.Val.getInt();
             denomKnown = true;
+          }
           const Expr *numerator = BOp->getLHS()->IgnoreParenImpCasts();
           if (numerator->isEvaluatable(Context))
             numeratorKnown = true;
@@ -305,33 +309,37 @@ void MallocOverflowSecurityChecker::checkASTCodeBody(const Decl *D,
     CFGBlock *block = *it;
     for (CFGBlock::iterator bi = block->begin(), be = block->end();
          bi != be; ++bi) {
-      if (Optional<CFGStmt> CS = bi->getAs<CFGStmt>()) {
-        if (const CallExpr *TheCall = dyn_cast<CallExpr>(CS->getStmt())) {
-          // Get the callee.
-          const FunctionDecl *FD = TheCall->getDirectCallee();
+        if (std::optional<CFGStmt> CS = bi->getAs<CFGStmt>()) {
+          if (const CallExpr *TheCall = dyn_cast<CallExpr>(CS->getStmt())) {
+            // Get the callee.
+            const FunctionDecl *FD = TheCall->getDirectCallee();
 
-          if (!FD)
-            continue;
+            if (!FD)
+              continue;
 
-          // Get the name of the callee. If it's a builtin, strip off the prefix.
-          IdentifierInfo *FnInfo = FD->getIdentifier();
-          if (!FnInfo)
-            continue;
+            // Get the name of the callee. If it's a builtin, strip off the
+            // prefix.
+            IdentifierInfo *FnInfo = FD->getIdentifier();
+            if (!FnInfo)
+              continue;
 
-          if (FnInfo->isStr ("malloc") || FnInfo->isStr ("_MALLOC")) {
-            if (TheCall->getNumArgs() == 1)
-              CheckMallocArgument(PossibleMallocOverflows, TheCall->getArg(0),
-                                  mgr.getASTContext());
+            if (FnInfo->isStr("malloc") || FnInfo->isStr("_MALLOC")) {
+              if (TheCall->getNumArgs() == 1)
+                CheckMallocArgument(PossibleMallocOverflows, TheCall,
+                                    mgr.getASTContext());
+            }
           }
         }
-      }
     }
   }
 
   OutputPossibleOverflows(PossibleMallocOverflows, D, BR, mgr);
 }
 
-void
-ento::registerMallocOverflowSecurityChecker(CheckerManager &mgr) {
+void ento::registerMallocOverflowSecurityChecker(CheckerManager &mgr) {
   mgr.registerChecker<MallocOverflowSecurityChecker>();
+}
+
+bool ento::shouldRegisterMallocOverflowSecurityChecker(const CheckerManager &mgr) {
+  return true;
 }

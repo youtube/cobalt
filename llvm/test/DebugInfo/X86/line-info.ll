@@ -17,11 +17,11 @@
 define i32 @foo(i32 %x) #0 !dbg !4 {
 entry:
   %x.addr = alloca i32, align 4
-  store i32 %x, i32* %x.addr, align 4
-  call void @llvm.dbg.declare(metadata i32* %x.addr, metadata !14, metadata !DIExpression()), !dbg !15
-  %0 = load i32, i32* %x.addr, align 4, !dbg !16
+  store i32 %x, ptr %x.addr, align 4
+  call void @llvm.dbg.declare(metadata ptr %x.addr, metadata !14, metadata !DIExpression()), !dbg !15
+  %0 = load i32, ptr %x.addr, align 4, !dbg !16
   %inc = add nsw i32 %0, 1, !dbg !16
-  store i32 %inc, i32* %x.addr, align 4, !dbg !16
+  store i32 %inc, ptr %x.addr, align 4, !dbg !16
   ret i32 %inc, !dbg !16
 }
 
@@ -32,7 +32,7 @@ entry:
   ret i32 0, !dbg !17
 }
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "frame-pointer"="non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

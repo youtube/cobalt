@@ -1,13 +1,12 @@
 //===-- ClangDoc.h - ClangDoc -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// This file exposes a method to craete the FrontendActionFactory for the
+// This file exposes a method to create the FrontendActionFactory for the
 // clang-doc tool. The factory runs the clang-doc mapper on a given set of
 // source code files, storing the results key-value pairs in its
 // ExecutionContext.

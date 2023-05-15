@@ -1,9 +1,8 @@
-//===-- LineTable.cpp -------------------------------------------*- C++ -*-===//
+//===-- LineTable.cpp -----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,16 +17,24 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // LineTable constructor
-//----------------------------------------------------------------------
 LineTable::LineTable(CompileUnit *comp_unit)
     : m_comp_unit(comp_unit), m_entries() {}
 
-//----------------------------------------------------------------------
+LineTable::LineTable(CompileUnit *comp_unit,
+                     std::vector<std::unique_ptr<LineSequence>> &&sequences)
+    : m_comp_unit(comp_unit), m_entries() {
+  LineTable::Entry::LessThanBinaryPredicate less_than_bp(this);
+  llvm::stable_sort(sequences, less_than_bp);
+  for (const auto &sequence : sequences) {
+    LineSequenceImpl *seq = static_cast<LineSequenceImpl *>(sequence.get());
+    m_entries.insert(m_entries.end(), seq->m_entries.begin(),
+                     seq->m_entries.end());
+  }
+}
+
 // Destructor
-//----------------------------------------------------------------------
-LineTable::~LineTable() {}
+LineTable::~LineTable() = default;
 
 void LineTable::InsertLineEntry(lldb::addr_t file_addr, uint32_t line,
                                 uint16_t column, uint16_t file_idx,
@@ -39,11 +46,9 @@ void LineTable::InsertLineEntry(lldb::addr_t file_addr, uint32_t line,
               is_start_of_basic_block, is_prologue_end, is_epilogue_begin,
               is_terminal_entry);
 
-  entry_collection::iterator begin_pos = m_entries.begin();
-  entry_collection::iterator end_pos = m_entries.end();
   LineTable::Entry::LessThanBinaryPredicate less_than_bp(this);
   entry_collection::iterator pos =
-      upper_bound(begin_pos, end_pos, entry, less_than_bp);
+      llvm::upper_bound(m_entries, entry, less_than_bp);
 
   //  Stream s(stdout);
   //  s << "\n\nBefore:\n";
@@ -53,12 +58,12 @@ void LineTable::InsertLineEntry(lldb::addr_t file_addr, uint32_t line,
   //  Dump (&s, Address::DumpStyleFileAddress);
 }
 
-LineSequence::LineSequence() {}
+LineSequence::LineSequence() = default;
 
 void LineTable::LineSequenceImpl::Clear() { m_entries.clear(); }
 
-LineSequence *LineTable::CreateLineSequenceContainer() {
-  return new LineTable::LineSequenceImpl();
+std::unique_ptr<LineSequence> LineTable::CreateLineSequenceContainer() {
+  return std::make_unique<LineTable::LineSequenceImpl>();
 }
 
 void LineTable::AppendLineEntryToSequence(
@@ -126,7 +131,7 @@ void LineTable::InsertSequence(LineSequence *sequence) {
       pos++;
   }
 
-#ifdef LLDB_CONFIGURATION_DEBUG
+#ifndef NDEBUG
   // If we aren't inserting at the beginning, the previous entry should
   // terminate a sequence.
   if (pos != begin_pos) {
@@ -137,7 +142,6 @@ void LineTable::InsertSequence(LineSequence *sequence) {
   m_entries.insert(pos, seq->m_entries.begin(), seq->m_entries.end());
 }
 
-//----------------------------------------------------------------------
 LineTable::Entry::LessThanBinaryPredicate::LessThanBinaryPredicate(
     LineTable *line_table)
     : m_line_table(line_table) {}
@@ -160,6 +164,14 @@ operator()(const LineTable::Entry &a, const LineTable::Entry &b) const {
   LT_COMPARE(a.file_idx, b.file_idx);
   return false;
 #undef LT_COMPARE
+}
+
+bool LineTable::Entry::LessThanBinaryPredicate::
+operator()(const std::unique_ptr<LineSequence> &sequence_a,
+           const std::unique_ptr<LineSequence> &sequence_b) const {
+  auto *seq_a = static_cast<const LineSequenceImpl *>(sequence_a.get());
+  auto *seq_b = static_cast<const LineSequenceImpl *>(sequence_b.get());
+  return (*this)(seq_a->m_entries.front(), seq_b->m_entries.front());
 }
 
 uint32_t LineTable::GetSize() const { return m_entries.size(); }
@@ -247,123 +259,70 @@ bool LineTable::FindLineEntryByAddress(const Address &so_addr,
 
 bool LineTable::ConvertEntryAtIndexToLineEntry(uint32_t idx,
                                                LineEntry &line_entry) {
-  if (idx < m_entries.size()) {
-    const Entry &entry = m_entries[idx];
-    ModuleSP module_sp(m_comp_unit->GetModule());
-    if (module_sp &&
-        module_sp->ResolveFileAddress(entry.file_addr,
-                                      line_entry.range.GetBaseAddress())) {
-      if (!entry.is_terminal_entry && idx + 1 < m_entries.size())
-        line_entry.range.SetByteSize(m_entries[idx + 1].file_addr -
-                                     entry.file_addr);
-      else
-        line_entry.range.SetByteSize(0);
+  if (idx >= m_entries.size())
+    return false;
 
-      line_entry.file =
-          m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
-      line_entry.original_file =
-          m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
-      line_entry.line = entry.line;
-      line_entry.column = entry.column;
-      line_entry.is_start_of_statement = entry.is_start_of_statement;
-      line_entry.is_start_of_basic_block = entry.is_start_of_basic_block;
-      line_entry.is_prologue_end = entry.is_prologue_end;
-      line_entry.is_epilogue_begin = entry.is_epilogue_begin;
-      line_entry.is_terminal_entry = entry.is_terminal_entry;
-      return true;
-    }
-  }
-  return false;
+  const Entry &entry = m_entries[idx];
+  ModuleSP module_sp(m_comp_unit->GetModule());
+  if (!module_sp)
+    return false;
+
+  addr_t file_addr = entry.file_addr;
+
+  // A terminal entry can point outside of a module or a section. Decrement the
+  // address to ensure it resolves correctly.
+  if (entry.is_terminal_entry)
+    --file_addr;
+
+  if (!module_sp->ResolveFileAddress(file_addr,
+                                     line_entry.range.GetBaseAddress()))
+    return false;
+
+  // Now undo the decrement above.
+  if (entry.is_terminal_entry)
+    line_entry.range.GetBaseAddress().Slide(1);
+
+  if (!entry.is_terminal_entry && idx + 1 < m_entries.size())
+    line_entry.range.SetByteSize(m_entries[idx + 1].file_addr -
+                                 entry.file_addr);
+  else
+    line_entry.range.SetByteSize(0);
+
+  line_entry.file =
+      m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
+  line_entry.original_file =
+      m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
+  line_entry.line = entry.line;
+  line_entry.column = entry.column;
+  line_entry.is_start_of_statement = entry.is_start_of_statement;
+  line_entry.is_start_of_basic_block = entry.is_start_of_basic_block;
+  line_entry.is_prologue_end = entry.is_prologue_end;
+  line_entry.is_epilogue_begin = entry.is_epilogue_begin;
+  line_entry.is_terminal_entry = entry.is_terminal_entry;
+  return true;
 }
 
 uint32_t LineTable::FindLineEntryIndexByFileIndex(
-    uint32_t start_idx, const std::vector<uint32_t> &file_indexes,
-    uint32_t line, bool exact, LineEntry *line_entry_ptr) {
+    uint32_t start_idx, uint32_t file_idx,
+    const SourceLocationSpec &src_location_spec, LineEntry *line_entry_ptr) {
+  auto file_idx_matcher = [](uint32_t file_index, uint16_t entry_file_idx) {
+    return file_index == entry_file_idx;
+  };
+  return FindLineEntryIndexByFileIndexImpl<uint32_t>(
 
-  const size_t count = m_entries.size();
-  std::vector<uint32_t>::const_iterator begin_pos = file_indexes.begin();
-  std::vector<uint32_t>::const_iterator end_pos = file_indexes.end();
-  size_t best_match = UINT32_MAX;
-
-  for (size_t idx = start_idx; idx < count; ++idx) {
-    // Skip line table rows that terminate the previous row (is_terminal_entry
-    // is non-zero)
-    if (m_entries[idx].is_terminal_entry)
-      continue;
-
-    if (find(begin_pos, end_pos, m_entries[idx].file_idx) == end_pos)
-      continue;
-
-    // Exact match always wins.  Otherwise try to find the closest line > the
-    // desired line.
-    // FIXME: Maybe want to find the line closest before and the line closest
-    // after and
-    // if they're not in the same function, don't return a match.
-
-    if (m_entries[idx].line < line) {
-      continue;
-    } else if (m_entries[idx].line == line) {
-      if (line_entry_ptr)
-        ConvertEntryAtIndexToLineEntry(idx, *line_entry_ptr);
-      return idx;
-    } else if (!exact) {
-      if (best_match == UINT32_MAX)
-        best_match = idx;
-      else if (m_entries[idx].line < m_entries[best_match].line)
-        best_match = idx;
-    }
-  }
-
-  if (best_match != UINT32_MAX) {
-    if (line_entry_ptr)
-      ConvertEntryAtIndexToLineEntry(best_match, *line_entry_ptr);
-    return best_match;
-  }
-  return UINT32_MAX;
+      start_idx, file_idx, src_location_spec, line_entry_ptr, file_idx_matcher);
 }
 
-uint32_t LineTable::FindLineEntryIndexByFileIndex(uint32_t start_idx,
-                                                  uint32_t file_idx,
-                                                  uint32_t line, bool exact,
-                                                  LineEntry *line_entry_ptr) {
-  const size_t count = m_entries.size();
-  size_t best_match = UINT32_MAX;
+uint32_t LineTable::FindLineEntryIndexByFileIndex(
+    uint32_t start_idx, const std::vector<uint32_t> &file_idx,
+    const SourceLocationSpec &src_location_spec, LineEntry *line_entry_ptr) {
+  auto file_idx_matcher = [](const std::vector<uint32_t> &file_indexes,
+                             uint16_t entry_file_idx) {
+    return llvm::is_contained(file_indexes, entry_file_idx);
+  };
 
-  for (size_t idx = start_idx; idx < count; ++idx) {
-    // Skip line table rows that terminate the previous row (is_terminal_entry
-    // is non-zero)
-    if (m_entries[idx].is_terminal_entry)
-      continue;
-
-    if (m_entries[idx].file_idx != file_idx)
-      continue;
-
-    // Exact match always wins.  Otherwise try to find the closest line > the
-    // desired line.
-    // FIXME: Maybe want to find the line closest before and the line closest
-    // after and
-    // if they're not in the same function, don't return a match.
-
-    if (m_entries[idx].line < line) {
-      continue;
-    } else if (m_entries[idx].line == line) {
-      if (line_entry_ptr)
-        ConvertEntryAtIndexToLineEntry(idx, *line_entry_ptr);
-      return idx;
-    } else if (!exact) {
-      if (best_match == UINT32_MAX)
-        best_match = idx;
-      else if (m_entries[idx].line < m_entries[best_match].line)
-        best_match = idx;
-    }
-  }
-
-  if (best_match != UINT32_MAX) {
-    if (line_entry_ptr)
-      ConvertEntryAtIndexToLineEntry(best_match, *line_entry_ptr);
-    return best_match;
-  }
-  return UINT32_MAX;
+  return FindLineEntryIndexByFileIndexImpl<std::vector<uint32_t>>(
+      start_idx, file_idx, src_location_spec, line_entry_ptr, file_idx_matcher);
 }
 
 size_t LineTable::FineLineEntriesForFileIndex(uint32_t file_idx, bool append,
@@ -445,7 +404,7 @@ size_t LineTable::GetContiguousFileAddressRanges(FileAddressRanges &file_ranges,
 }
 
 LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
-  std::unique_ptr<LineTable> line_table_ap(new LineTable(m_comp_unit));
+  std::unique_ptr<LineTable> line_table_up(new LineTable(m_comp_unit));
   LineSequenceImpl sequence;
   const size_t count = m_entries.size();
   LineEntry line_entry;
@@ -508,7 +467,7 @@ LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
       sequence.m_entries.back().is_terminal_entry = true;
 
       // Append the sequence since we just terminated the previous one
-      line_table_ap->InsertSequence(&sequence);
+      line_table_up->InsertSequence(&sequence);
       sequence.Clear();
     }
 
@@ -524,7 +483,7 @@ LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
     // insert this sequence into our new line table.
     if (!sequence.m_entries.empty() &&
         sequence.m_entries.back().is_terminal_entry) {
-      line_table_ap->InsertSequence(&sequence);
+      line_table_up->InsertSequence(&sequence);
       sequence.Clear();
       prev_entry_was_linked = false;
     } else {
@@ -533,7 +492,7 @@ LineTable *LineTable::LinkLineTable(const FileRangeMap &file_range_map) {
     prev_file_addr = entry.file_addr;
     range_changed = false;
   }
-  if (line_table_ap->m_entries.empty())
+  if (line_table_up->m_entries.empty())
     return nullptr;
-  return line_table_ap.release();
+  return line_table_up.release();
 }

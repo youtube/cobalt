@@ -1,18 +1,17 @@
 //===-- Platform.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // this file is only relevant for Visual C++
 #if defined(_WIN32)
 
-#include <assert.h>
+#include <cassert>
+#include <cstdlib>
 #include <process.h>
-#include <stdlib.h>
 
 #include "Platform.h"
 #include "llvm/Support/ErrorHandling.h"

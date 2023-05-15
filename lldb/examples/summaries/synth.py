@@ -34,10 +34,6 @@ class PythonObjectSyntheticChildProvider(object):
         data = None
         type = None
         if isinstance(value, int):
-            data = lldb.SBData.CreateDataFromUInt32Array(
-                self.bo, self.ps, [value])
-            type = self.value.target.GetBasicType(lldb.eBasicTypeInt)
-        elif isinstance(value, long):
             data = lldb.SBData.CreateDataFromUInt64Array(
                 self.bo, self.ps, [value])
             type = self.value.target.GetBasicType(lldb.eBasicTypeLong)

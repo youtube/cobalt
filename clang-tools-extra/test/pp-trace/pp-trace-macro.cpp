@@ -1,4 +1,4 @@
-// RUN: pp-trace -ignore FileChanged %s -undef -target x86_64 -std=c++11 | FileCheck --strict-whitespace %s
+// RUN: pp-trace -callbacks '*,-FileChanged' %s -- -undef -target x86_64 -std=c++11 | FileCheck --strict-whitespace %s
 
 #define MACRO 1
 int i = MACRO;
@@ -31,6 +31,7 @@ X
 // CHECK:        MacroNameTok: __STDC_UTF_32__
 // CHECK-NEXT:   MacroDirective: MD_Define
 // CHECK:      - Callback: MacroDefined
+// CHECK:      - Callback: MacroDefined
 // CHECK-NEXT:   MacroNameTok: MACRO
 // CHECK-NEXT:   MacroDirective: MD_Define
 // CHECK-NEXT: - Callback: MacroExpands
@@ -44,7 +45,7 @@ X
 // CHECK-NEXT:   Range: ["{{.*}}{{[/\\]}}pp-trace-macro.cpp:5:5", "{{.*}}{{[/\\]}}pp-trace-macro.cpp:5:19"]
 // CHECK-NEXT: - Callback: If
 // CHECK-NEXT:   Loc: "{{.*}}{{[/\\]}}pp-trace-macro.cpp:5:2"
-// CHECK-NEXT:   ConditionRange: ["{{.*}}{{[/\\]}}pp-trace-macro.cpp:5:4", "{{.*}}{{[/\\]}}pp-trace-macro.cpp:6:1"]
+// CHECK-NEXT:   ConditionRange: ["{{.*}}{{[/\\]}}pp-trace-macro.cpp:5:5", "{{.*}}{{[/\\]}}pp-trace-macro.cpp:5:19"]
 // CHECK-NEXT:   ConditionValue: CVK_True
 // CHECK-NEXT: - Callback: Endif
 // CHECK-NEXT:   Loc: "{{.*}}{{[/\\]}}pp-trace-macro.cpp:6:2"
@@ -58,7 +59,7 @@ X
 // CHECK-NEXT:   Range: ["{{.*}}{{[/\\]}}pp-trace-macro.cpp:8:5", "{{.*}}{{[/\\]}}pp-trace-macro.cpp:8:19"]
 // CHECK-NEXT: - Callback: If
 // CHECK-NEXT:   Loc: "{{.*}}{{[/\\]}}pp-trace-macro.cpp:8:2"
-// CHECK-NEXT:   ConditionRange: ["{{.*}}{{[/\\]}}pp-trace-macro.cpp:8:4", "{{.*}}{{[/\\]}}pp-trace-macro.cpp:9:1"]
+// CHECK-NEXT:   ConditionRange: ["{{.*}}{{[/\\]}}pp-trace-macro.cpp:8:5", "{{.*}}{{[/\\]}}pp-trace-macro.cpp:8:19"]
 // CHECK-NEXT:   ConditionValue: CVK_False
 // CHECK-NEXT: - Callback: Endif
 // CHECK-NEXT:   Loc: "{{.*}}{{[/\\]}}pp-trace-macro.cpp:9:2"

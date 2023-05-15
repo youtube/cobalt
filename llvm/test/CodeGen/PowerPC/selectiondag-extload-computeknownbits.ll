@@ -1,10 +1,10 @@
-; RUN: llc -verify-machineinstrs -mtriple=powerpc64-bgq-linux < %s
+; RUN: llc -verify-machineinstrs -mtriple=powerpc64le-unknown-linux < %s
 
 ; Check that llc does not crash due to an illegal APInt operation
 
-define i1 @f(i8* %ptr) {
+define i1 @f(ptr %ptr) {
  entry:
-  %val = load i8, i8* %ptr, align 8, !range !0
+  %val = load i8, ptr %ptr, align 8, !range !0
   %tobool = icmp eq i8 %val, 0
   ret i1 %tobool
 }

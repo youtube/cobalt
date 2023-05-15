@@ -9,11 +9,11 @@ struct Y {
   ~Y();
 };
 
-// CHECK-LABEL: define void @_Z1fiPPKc(
+// CHECK-LABEL: define{{.*}} void @_Z1fiPPKc(
 void f(int argc, const char* argv[]) {
   // CHECK: call void @_ZN1XC1Ev
   X x;
-  // CHECK: call i8* @llvm.stacksave(
+  // CHECK: call ptr @llvm.stacksave(
   const char *argv2[argc];
   // CHECK: call void @_ZN1YC1Ev
   Y y;

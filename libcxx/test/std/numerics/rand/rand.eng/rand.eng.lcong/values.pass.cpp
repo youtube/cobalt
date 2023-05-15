@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -45,10 +44,8 @@ test1()
     assert((LCE::min() == (c == 0u ? 1u: 0u)));
 #endif
 
-#ifdef TEST_COMPILER_C1XX
-    #pragma warning(push)
-    #pragma warning(disable: 4310) // cast truncates constant value
-#endif // TEST_COMPILER_C1XX
+    TEST_DIAGNOSTIC_PUSH
+    TEST_MSVC_DIAGNOSTIC_IGNORED(4310) // cast truncates constant value
 
 #if TEST_STD_VER >= 11
     static_assert((LCE::max() == result_type(m - 1u)), "");
@@ -56,9 +53,7 @@ test1()
     assert((LCE::max() == result_type(m - 1u)));
 #endif
 
-#ifdef TEST_COMPILER_C1XX
-    #pragma warning(pop)
-#endif // TEST_COMPILER_C1XX
+    TEST_DIAGNOSTIC_POP
 
     static_assert((LCE::default_seed == 1), "");
     where(LCE::multiplier);
@@ -86,10 +81,12 @@ test()
     test1<T, M-1, M-1, M>();
 }
 
-int main()
+int main(int, char**)
 {
     test<unsigned short>();
     test<unsigned int>();
     test<unsigned long>();
     test<unsigned long long>();
+
+  return 0;
 }

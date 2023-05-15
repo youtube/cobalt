@@ -52,7 +52,7 @@
 ; RUN:  -r %t2.bc,bar,px
 ; RUN: llvm-dis < %t.o.0.0.preopt.bc | FileCheck  %s --check-prefix=NONE-PREVAILED2
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 @v = common global i8 0, align 8
@@ -65,6 +65,6 @@ target triple = "x86_64-unknown-linux-gnu"
 ; NONE-PREVAILED1: @v = external global i8, align 8
 ; NONE-PREVAILED2: @v = external global i16, align 4
 
-define i8 *@foo() {
- ret i8 *@v
+define ptr @foo() {
+ ret ptr @v
 }

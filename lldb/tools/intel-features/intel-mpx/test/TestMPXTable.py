@@ -16,8 +16,6 @@ from lldbsuite.test import lldbutil
 
 class TestMPXTable(TestBase):
 
-    mydir = TestBase.compute_mydir(__file__)
-
     def setUp(self):
         TestBase.setUp(self)
 
@@ -30,9 +28,7 @@ class TestMPXTable(TestBase):
         """Test 'mpx-table show' command"""
         self.build()
 
-        lldb_exec_dir = os.environ["LLDB_IMPLIB_DIR"]
-        lldb_lib_dir = os.path.join(lldb_exec_dir, os.pardir, "lib")
-        plugin_file = os.path.join(lldb_lib_dir, "liblldbIntelFeatures.so")
+        plugin_file = os.path.join(configuration.lldb_libs_dir, "liblldbIntelFeatures.so")
         if not os.path.isfile(plugin_file):
             self.skipTest("features plugin missing.")
         plugin_command = " "
@@ -122,9 +118,7 @@ class TestMPXTable(TestBase):
         """Test 'mpx-table set' command"""
         self.build()
 
-        lldb_exec_dir = os.environ["LLDB_IMPLIB_DIR"]
-        lldb_lib_dir = os.path.join(lldb_exec_dir, os.pardir, "lib")
-        plugin_file = os.path.join(lldb_lib_dir, "liblldbIntelFeatures.so")
+        plugin_file = os.path.join(configuration.lldb_libs_dir, "liblldbIntelFeatures.so")
         if not os.path.isfile(plugin_file):
             self.skipTest("features plugin missing.")
         plugin_command = " "

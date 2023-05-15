@@ -13,9 +13,9 @@ int f() {
   if (T(n) = 0; n) {}
 
   // init-statement expressions
-  if (T{f()}; f()) {}
-  if (T{f()}, g, h; f()) {} // expected-warning 2{{unused}}
-  if (T(f()), g, h + 1; f()) {} // expected-warning 2{{unused}}
+  if (T{f()}; f()) {} // expected-warning {{expression result unused}}
+  if (T{f()}, g, h; f()) {} // expected-warning 2{{left operand of comma operator has no effect}} expected-warning {{expression result unused}}
+  if (T(f()), g, h + 1; f()) {} // expected-warning 2{{left operand of comma operator has no effect}} expected-warning {{expression result unused}}
 
   // condition declarations
   if (T(n){g}) {}
@@ -26,8 +26,8 @@ int f() {
   // condition expressions
   if (T(f())) {}
   if (T{f()}) {}
-  if (T(f()), g, h) {} // expected-warning 2{{unused}}
-  if (T{f()}, g, h) {} // expected-warning 2{{unused}}
+  if (T(f()), g, h) {} // expected-warning 2{{left operand of comma operator has no effect}}
+  if (T{f()}, g, h) {} // expected-warning 2{{left operand of comma operator has no effect}}
 
   // none of the above, disambiguated as expression (can't be a declaration)
   if (T(n)(g)) {} // expected-error {{undeclared identifier 'n'}}
@@ -35,7 +35,7 @@ int f() {
 
   // Likewise for 'switch'
   switch (int n; n) {}
-  switch (g; int g = 5) {}
+  switch (g; int g = 5) {} // expected-warning {{expression result unused}}
 
   if (int a, b; int c = a) { // expected-note 6{{previous}}
     int a; // expected-error {{redefinition}}

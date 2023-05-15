@@ -1,6 +1,6 @@
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=tahiti -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=SI -check-prefix=SIVI %s
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=fiji -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=GFX89 -check-prefix=VI -check-prefix=SIVI %s
-; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=gfx900 -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=GFX89 -check-prefix=GFX9 %s
+; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=tahiti -verify-machineinstrs < %s | FileCheck --check-prefixes=GCN,SI %s
+; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=fiji -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck --check-prefixes=GCN,GFX89,VI %s
+; RUN: llc -amdgpu-scalarize-global-loads=false -march=amdgcn -mcpu=gfx900 -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck --check-prefixes=GCN,GFX89,GFX9 %s
 
 ; GCN-LABEL: {{^}}fsub_f16:
 ; GCN: buffer_load_ushort v[[A_F16:[0-9]+]]
@@ -13,14 +13,14 @@
 ; GCN: buffer_store_short v[[R_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fsub_f16(
-    half addrspace(1)* %r,
-    half addrspace(1)* %a,
-    half addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a,
+    ptr addrspace(1) %b) {
 entry:
-  %a.val = load volatile half, half addrspace(1)* %a
-  %b.val = load volatile half, half addrspace(1)* %b
+  %a.val = load volatile half, ptr addrspace(1) %a
+  %b.val = load volatile half, ptr addrspace(1) %b
   %r.val = fsub half %a.val, %b.val
-  store half %r.val, half addrspace(1)* %r
+  store half %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -33,12 +33,12 @@ entry:
 ; GCN: buffer_store_short v[[R_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fsub_f16_imm_a(
-    half addrspace(1)* %r,
-    half addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %b) {
 entry:
-  %b.val = load volatile half, half addrspace(1)* %b
+  %b.val = load volatile half, ptr addrspace(1) %b
   %r.val = fsub half 1.0, %b.val
-  store half %r.val, half addrspace(1)* %r
+  store half %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -51,12 +51,12 @@ entry:
 ; GCN: buffer_store_short v[[R_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fsub_f16_imm_b(
-    half addrspace(1)* %r,
-    half addrspace(1)* %a) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a) {
 entry:
-  %a.val = load volatile half, half addrspace(1)* %a
+  %a.val = load volatile half, ptr addrspace(1) %a
   %r.val = fsub half %a.val, 2.0
-  store half %r.val, half addrspace(1)* %r
+  store half %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -95,14 +95,14 @@ entry:
 ; GCN: s_endpgm
 
 define amdgpu_kernel void @fsub_v2f16(
-    <2 x half> addrspace(1)* %r,
-    <2 x half> addrspace(1)* %a,
-    <2 x half> addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a,
+    ptr addrspace(1) %b) {
 entry:
-  %a.val = load <2 x half>, <2 x half> addrspace(1)* %a
-  %b.val = load <2 x half>, <2 x half> addrspace(1)* %b
+  %a.val = load <2 x half>, ptr addrspace(1) %a
+  %b.val = load <2 x half>, ptr addrspace(1) %b
   %r.val = fsub <2 x half> %a.val, %b.val
-  store <2 x half> %r.val, <2 x half> addrspace(1)* %r
+  store <2 x half> %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -131,12 +131,12 @@ entry:
 ; GCN: s_endpgm
 
 define amdgpu_kernel void @fsub_v2f16_imm_a(
-    <2 x half> addrspace(1)* %r,
-    <2 x half> addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %b) {
 entry:
-  %b.val = load <2 x half>, <2 x half> addrspace(1)* %b
+  %b.val = load <2 x half>, ptr addrspace(1) %b
   %r.val = fsub <2 x half> <half 1.0, half 2.0>, %b.val
-  store <2 x half> %r.val, <2 x half> addrspace(1)* %r
+  store <2 x half> %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -165,11 +165,11 @@ entry:
 ; GCN: s_endpgm
 
 define amdgpu_kernel void @fsub_v2f16_imm_b(
-    <2 x half> addrspace(1)* %r,
-    <2 x half> addrspace(1)* %a) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a) {
 entry:
-  %a.val = load <2 x half>, <2 x half> addrspace(1)* %a
+  %a.val = load <2 x half>, ptr addrspace(1) %a
   %r.val = fsub <2 x half> %a.val, <half 2.0, half 1.0>
-  store <2 x half> %r.val, <2 x half> addrspace(1)* %r
+  store <2 x half> %r.val, ptr addrspace(1) %r
   ret void
 }

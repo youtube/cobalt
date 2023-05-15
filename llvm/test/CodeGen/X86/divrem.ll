@@ -2,7 +2,7 @@
 ; RUN: llc < %s -mtriple=i686-unknown | FileCheck %s --check-prefix=X32
 ; RUN: llc < %s -mtriple=x86_64-unknown | FileCheck %s --check-prefix=X64
 
-define void @si64(i64 %x, i64 %y, i64* %p, i64* %q) nounwind {
+define void @si64(i64 %x, i64 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: si64:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %ebp
@@ -48,20 +48,20 @@ define void @si64(i64 %x, i64 %y, i64* %p, i64* %q) nounwind {
 ; X64-NEXT:    retq
 	%r = sdiv i64 %x, %y
 	%t = srem i64 %x, %y
-	store i64 %r, i64* %p
-	store i64 %t, i64* %q
+	store i64 %r, ptr %p
+	store i64 %t, ptr %q
 	ret void
 }
 
-define void @si32(i32 %x, i32 %y, i32* %p, i32* %q) nounwind {
+define void @si32(i32 %x, i32 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: si32:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %esi
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %eax
 ; X32-NEXT:    cltd
 ; X32-NEXT:    idivl {{[0-9]+}}(%esp)
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movl %eax, (%esi)
 ; X32-NEXT:    movl %edx, (%ecx)
 ; X32-NEXT:    popl %esi
@@ -78,20 +78,20 @@ define void @si32(i32 %x, i32 %y, i32* %p, i32* %q) nounwind {
 ; X64-NEXT:    retq
 	%r = sdiv i32 %x, %y
 	%t = srem i32 %x, %y
-	store i32 %r, i32* %p
-	store i32 %t, i32* %q
+	store i32 %r, ptr %p
+	store i32 %t, ptr %q
 	ret void
 }
 
-define void @si16(i16 %x, i16 %y, i16* %p, i16* %q) nounwind {
+define void @si16(i16 %x, i16 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: si16:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %esi
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movzwl {{[0-9]+}}(%esp), %eax
 ; X32-NEXT:    cwtd
 ; X32-NEXT:    idivw {{[0-9]+}}(%esp)
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movw %ax, (%esi)
 ; X32-NEXT:    movw %dx, (%ecx)
 ; X32-NEXT:    popl %esi
@@ -101,6 +101,7 @@ define void @si16(i16 %x, i16 %y, i16* %p, i16* %q) nounwind {
 ; X64:       # %bb.0:
 ; X64-NEXT:    movq %rdx, %r8
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    # kill: def $ax killed $ax killed $eax
 ; X64-NEXT:    cwtd
 ; X64-NEXT:    idivw %si
 ; X64-NEXT:    movw %ax, (%r8)
@@ -108,20 +109,19 @@ define void @si16(i16 %x, i16 %y, i16* %p, i16* %q) nounwind {
 ; X64-NEXT:    retq
 	%r = sdiv i16 %x, %y
 	%t = srem i16 %x, %y
-	store i16 %r, i16* %p
-	store i16 %t, i16* %q
+	store i16 %r, ptr %p
+	store i16 %t, ptr %q
 	ret void
 }
 
-define void @si8(i8 %x, i8 %y, i8* %p, i8* %q) nounwind {
+define void @si8(i8 %x, i8 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: si8:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %ebx
+; X32-NEXT:    movsbl {{[0-9]+}}(%esp), %eax
+; X32-NEXT:    idivb {{[0-9]+}}(%esp)
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %edx
-; X32-NEXT:    movb {{[0-9]+}}(%esp), %al
-; X32-NEXT:    cbtw
-; X32-NEXT:    idivb {{[0-9]+}}(%esp)
 ; X32-NEXT:    movsbl %ah, %ebx
 ; X32-NEXT:    movb %al, (%edx)
 ; X32-NEXT:    movb %bl, (%ecx)
@@ -130,8 +130,7 @@ define void @si8(i8 %x, i8 %y, i8* %p, i8* %q) nounwind {
 ;
 ; X64-LABEL: si8:
 ; X64:       # %bb.0:
-; X64-NEXT:    movl %edi, %eax
-; X64-NEXT:    cbtw
+; X64-NEXT:    movsbl %dil, %eax
 ; X64-NEXT:    idivb %sil
 ; X64-NEXT:    movsbl %ah, %esi
 ; X64-NEXT:    movb %al, (%rdx)
@@ -139,12 +138,12 @@ define void @si8(i8 %x, i8 %y, i8* %p, i8* %q) nounwind {
 ; X64-NEXT:    retq
 	%r = sdiv i8 %x, %y
 	%t = srem i8 %x, %y
-	store i8 %r, i8* %p
-	store i8 %t, i8* %q
+	store i8 %r, ptr %p
+	store i8 %t, ptr %q
 	ret void
 }
 
-define void @ui64(i64 %x, i64 %y, i64* %p, i64* %q) nounwind {
+define void @ui64(i64 %x, i64 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: ui64:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %ebp
@@ -182,28 +181,28 @@ define void @ui64(i64 %x, i64 %y, i64* %p, i64* %q) nounwind {
 ; X64-LABEL: ui64:
 ; X64:       # %bb.0:
 ; X64-NEXT:    movq %rdx, %r8
-; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    divq %rsi
 ; X64-NEXT:    movq %rax, (%r8)
 ; X64-NEXT:    movq %rdx, (%rcx)
 ; X64-NEXT:    retq
 	%r = udiv i64 %x, %y
 	%t = urem i64 %x, %y
-	store i64 %r, i64* %p
-	store i64 %t, i64* %q
+	store i64 %r, ptr %p
+	store i64 %t, ptr %q
 	ret void
 }
 
-define void @ui32(i32 %x, i32 %y, i32* %p, i32* %q) nounwind {
+define void @ui32(i32 %x, i32 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: ui32:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %esi
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %eax
 ; X32-NEXT:    xorl %edx, %edx
 ; X32-NEXT:    divl {{[0-9]+}}(%esp)
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movl %eax, (%esi)
 ; X32-NEXT:    movl %edx, (%ecx)
 ; X32-NEXT:    popl %esi
@@ -212,28 +211,28 @@ define void @ui32(i32 %x, i32 %y, i32* %p, i32* %q) nounwind {
 ; X64-LABEL: ui32:
 ; X64:       # %bb.0:
 ; X64-NEXT:    movq %rdx, %r8
-; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    divl %esi
 ; X64-NEXT:    movl %eax, (%r8)
 ; X64-NEXT:    movl %edx, (%rcx)
 ; X64-NEXT:    retq
 	%r = udiv i32 %x, %y
 	%t = urem i32 %x, %y
-	store i32 %r, i32* %p
-	store i32 %t, i32* %q
+	store i32 %r, ptr %p
+	store i32 %t, ptr %q
 	ret void
 }
 
-define void @ui16(i16 %x, i16 %y, i16* %p, i16* %q) nounwind {
+define void @ui16(i16 %x, i16 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: ui16:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %esi
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movzwl {{[0-9]+}}(%esp), %eax
 ; X32-NEXT:    xorl %edx, %edx
 ; X32-NEXT:    divw {{[0-9]+}}(%esp)
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; X32-NEXT:    movw %ax, (%esi)
 ; X32-NEXT:    movw %dx, (%ecx)
 ; X32-NEXT:    popl %esi
@@ -242,28 +241,28 @@ define void @ui16(i16 %x, i16 %y, i16* %p, i16* %q) nounwind {
 ; X64-LABEL: ui16:
 ; X64:       # %bb.0:
 ; X64-NEXT:    movq %rdx, %r8
-; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    # kill: def $ax killed $ax killed $eax
+; X64-NEXT:    xorl %edx, %edx
 ; X64-NEXT:    divw %si
 ; X64-NEXT:    movw %ax, (%r8)
 ; X64-NEXT:    movw %dx, (%rcx)
 ; X64-NEXT:    retq
 	%r = udiv i16 %x, %y
 	%t = urem i16 %x, %y
-	store i16 %r, i16* %p
-	store i16 %t, i16* %q
+	store i16 %r, ptr %p
+	store i16 %t, ptr %q
 	ret void
 }
 
-define void @ui8(i8 %x, i8 %y, i8* %p, i8* %q) nounwind {
+define void @ui8(i8 %x, i8 %y, ptr %p, ptr %q) nounwind {
 ; X32-LABEL: ui8:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %ebx
+; X32-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
+; X32-NEXT:    divb {{[0-9]+}}(%esp)
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
 ; X32-NEXT:    movl {{[0-9]+}}(%esp), %edx
-; X32-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
-; X32-NEXT:    # kill: def $eax killed $eax def $ax
-; X32-NEXT:    divb {{[0-9]+}}(%esp)
 ; X32-NEXT:    movzbl %ah, %ebx
 ; X32-NEXT:    movb %al, (%edx)
 ; X32-NEXT:    movb %bl, (%ecx)
@@ -273,7 +272,6 @@ define void @ui8(i8 %x, i8 %y, i8* %p, i8* %q) nounwind {
 ; X64-LABEL: ui8:
 ; X64:       # %bb.0:
 ; X64-NEXT:    movzbl %dil, %eax
-; X64-NEXT:    # kill: def $eax killed $eax def $ax
 ; X64-NEXT:    divb %sil
 ; X64-NEXT:    movzbl %ah, %esi
 ; X64-NEXT:    movb %al, (%rdx)
@@ -281,7 +279,7 @@ define void @ui8(i8 %x, i8 %y, i8* %p, i8* %q) nounwind {
 ; X64-NEXT:    retq
 	%r = udiv i8 %x, %y
 	%t = urem i8 %x, %y
-	store i8 %r, i8* %p
-	store i8 %t, i8* %q
+	store i8 %r, ptr %p
+	store i8 %t, ptr %q
 	ret void
 }

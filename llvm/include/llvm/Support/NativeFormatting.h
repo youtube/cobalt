@@ -1,21 +1,19 @@
 //===- NativeFormatting.h - Low level formatting helpers ---------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_NATIVE_FORMATTING_H
-#define LLVM_SUPPORT_NATIVE_FORMATTING_H
-
-#include "llvm/ADT/Optional.h"
-#include "llvm/Support/raw_ostream.h"
+#ifndef LLVM_SUPPORT_NATIVEFORMATTING_H
+#define LLVM_SUPPORT_NATIVEFORMATTING_H
 
 #include <cstdint>
+#include <optional>
 
 namespace llvm {
+class raw_ostream;
 enum class FloatStyle { Exponent, ExponentUpper, Fixed, Percent };
 enum class IntegerStyle {
   Integer,
@@ -40,9 +38,9 @@ void write_integer(raw_ostream &S, long long N, size_t MinDigits,
                    IntegerStyle Style);
 
 void write_hex(raw_ostream &S, uint64_t N, HexPrintStyle Style,
-               Optional<size_t> Width = None);
+               std::optional<size_t> Width = std::nullopt);
 void write_double(raw_ostream &S, double D, FloatStyle Style,
-                  Optional<size_t> Precision = None);
+                  std::optional<size_t> Precision = std::nullopt);
 }
 
 #endif

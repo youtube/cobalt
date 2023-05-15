@@ -1,9 +1,8 @@
 //===-- VPlanVerifier.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -25,19 +24,24 @@
 #ifndef LLVM_TRANSFORMS_VECTORIZE_VPLANVERIFIER_H
 #define LLVM_TRANSFORMS_VECTORIZE_VPLANVERIFIER_H
 
-#include "VPlan.h"
-
 namespace llvm {
+class VPRegionBlock;
+class VPlan;
 
-/// Class with utility functions that can be used to check the consistency and
+/// Struct with utility functions that can be used to check the consistency and
 /// invariants of a VPlan, including the components of its H-CFG.
-class VPlanVerifier {
-public:
+struct VPlanVerifier {
   /// Verify the invariants of the H-CFG starting from \p TopRegion. The
   /// verification process comprises the following steps:
   /// 1. Region/Block verification: Check the Region/Block verification
   /// invariants for every region in the H-CFG.
   void verifyHierarchicalCFG(const VPRegionBlock *TopRegion) const;
+
+  /// Verify invariants for general VPlans. Currently it checks the following:
+  /// 1. all phi-like recipes must be at the beginning of a block, with no other
+  /// recipes in between. Note that currently there is still an exception for
+  /// VPBlendRecipes.
+  static bool verifyPlanIsValid(const VPlan &Plan);
 };
 } // namespace llvm
 

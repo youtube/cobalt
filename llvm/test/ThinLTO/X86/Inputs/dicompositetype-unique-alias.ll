@@ -1,22 +1,21 @@
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-scei-ps4"
 
 %struct.CFVS = type { %struct.Vec }
 %struct.Vec = type { i8 }
 %struct.S = type { i8 }
 
-@_ZN4CFVSD1Ev = alias void (%struct.CFVS*), void (%struct.CFVS*)* @_ZN4CFVSD2Ev
+@_ZN4CFVSD1Ev = alias void (ptr), ptr @_ZN4CFVSD2Ev
 
-define void @_ZN4CFVSD2Ev(%struct.CFVS* %this) unnamed_addr align 2 !dbg !8 {
+define void @_ZN4CFVSD2Ev(ptr %this) unnamed_addr align 2 !dbg !8 {
 entry:
-  %this.addr = alloca %struct.CFVS*, align 8
-  store %struct.CFVS* %this, %struct.CFVS** %this.addr, align 8
-  %this1 = load %struct.CFVS*, %struct.CFVS** %this.addr, align 8
-  %m_val = getelementptr inbounds %struct.CFVS, %struct.CFVS* %this1, i32 0, i32 0
+  %this.addr = alloca ptr, align 8
+  store ptr %this, ptr %this.addr, align 8
+  %this1 = load ptr, ptr %this.addr, align 8
   ret void
 }
 
-declare dereferenceable(1) %struct.S* @_Z3Getv()
+declare dereferenceable(1) ptr @_Z3Getv()
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!3, !4, !5, !6}

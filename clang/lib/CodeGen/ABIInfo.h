@@ -1,9 +1,8 @@
 //===----- ABIInfo.h - ABI information access & encapsulation ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -34,11 +33,6 @@ namespace CodeGen {
   class CGFunctionInfo;
   class CodeGenFunction;
   class CodeGenTypes;
-  class SwiftABIInfo;
-
-namespace swiftcall {
-  class SwiftAggLowering;
-}
 
   // FIXME: All of this stuff should be part of the target interface
   // somehow. It is currently here because it is not clear how to factor
@@ -49,9 +43,8 @@ namespace swiftcall {
   /// ABIInfo - Target specific hooks for defining how a type should be
   /// passed or returned from functions.
   class ABIInfo {
-  public:
-    CodeGen::CodeGenTypes &CGT;
   protected:
+    CodeGen::CodeGenTypes &CGT;
     llvm::CallingConv::ID RuntimeCC;
   public:
     ABIInfo(CodeGen::CodeGenTypes &cgt)
@@ -59,7 +52,7 @@ namespace swiftcall {
 
     virtual ~ABIInfo();
 
-    virtual bool supportsSwift() const { return false; }
+    virtual bool allowBFloatArgsAndRet() const { return false; }
 
     CodeGen::CGCXXABI &getCXXABI() const;
     ASTContext &getContext() const;
@@ -99,46 +92,51 @@ namespace swiftcall {
 
     virtual bool isHomogeneousAggregateSmallEnough(const Type *Base,
                                                    uint64_t Members) const;
+    virtual bool isZeroLengthBitfieldPermittedInHomogeneousAggregate() const;
 
     bool isHomogeneousAggregate(QualType Ty, const Type *&Base,
                                 uint64_t &Members) const;
 
+    // Implement the Type::IsPromotableIntegerType for ABI specific needs. The
+    // only difference is that this considers bit-precise integer types as well.
+    bool isPromotableIntegerTypeForABI(QualType Ty) const;
+
     /// A convenience method to return an indirect ABIArgInfo with an
     /// expected alignment equal to the ABI alignment of the given type.
     CodeGen::ABIArgInfo
-    getNaturalAlignIndirect(QualType Ty, bool ByRef = true,
+    getNaturalAlignIndirect(QualType Ty, bool ByVal = true,
                             bool Realign = false,
                             llvm::Type *Padding = nullptr) const;
 
     CodeGen::ABIArgInfo
     getNaturalAlignIndirectInReg(QualType Ty, bool Realign = false) const;
-
-
   };
 
-  /// A refining implementation of ABIInfo for targets that support swiftcall.
-  ///
-  /// If we find ourselves wanting multiple such refinements, they'll probably
-  /// be independent refinements, and we should probably find another way
-  /// to do it than simple inheritance.
-  class SwiftABIInfo : public ABIInfo {
+  /// Target specific hooks for defining how a type should be passed or returned
+  /// from functions with one of the Swift calling conventions.
+  class SwiftABIInfo {
+  protected:
+    CodeGenTypes &CGT;
+    bool SwiftErrorInRegister;
+
   public:
-    SwiftABIInfo(CodeGen::CodeGenTypes &cgt) : ABIInfo(cgt) {}
+    SwiftABIInfo(CodeGen::CodeGenTypes &CGT, bool SwiftErrorInRegister)
+        : CGT(CGT), SwiftErrorInRegister(SwiftErrorInRegister) {}
 
-    bool supportsSwift() const final override { return true; }
+    virtual ~SwiftABIInfo();
 
-    virtual bool shouldPassIndirectlyForSwift(ArrayRef<llvm::Type*> types,
-                                              bool asReturnValue) const = 0;
+    /// Returns true if an aggregate which expands to the given type sequence
+    /// should be passed / returned indirectly.
+    virtual bool shouldPassIndirectly(ArrayRef<llvm::Type *> ComponentTys,
+                                      bool AsReturnValue) const;
 
-    virtual bool isLegalVectorTypeForSwift(CharUnits totalSize,
-                                           llvm::Type *eltTy,
-                                           unsigned elts) const;
+    /// Returns true if the given vector type is legal from Swift's calling
+    /// convention perspective.
+    virtual bool isLegalVectorType(CharUnits VectorSize, llvm::Type *EltTy,
+                                   unsigned NumElts) const;
 
-    virtual bool isSwiftErrorInRegister() const = 0;
-
-    static bool classof(const ABIInfo *info) {
-      return info->supportsSwift();
-    }
+    /// Returns true if swifterror is lowered to a register by the target ABI.
+    bool isSwiftErrorInRegister() const { return SwiftErrorInRegister; };
   };
 }  // end namespace CodeGen
 }  // end namespace clang

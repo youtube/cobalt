@@ -1,9 +1,8 @@
 //===- SSAUpdaterImpl.h - SSA Updater Implementation ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -324,6 +323,28 @@ public:
     } while (Changed);
   }
 
+  /// Check all predecessors and if all of them have the same AvailableVal use
+  /// it as value for block represented by Info. Return true if singluar value
+  /// is found.
+  bool FindSingularVal(BBInfo *Info) {
+    if (!Info->NumPreds)
+      return false;
+    ValT Singular = Info->Preds[0]->DefBB->AvailableVal;
+    if (!Singular)
+      return false;
+    for (unsigned Idx = 1; Idx < Info->NumPreds; ++Idx) {
+      ValT PredVal = Info->Preds[Idx]->DefBB->AvailableVal;
+      if (!PredVal || Singular != PredVal)
+        return false;
+    }
+    // Record Singular value.
+    (*AvailableVals)[Info->BB] = Singular;
+    assert(BBMap[Info->BB] == Info && "Info missed in BBMap?");
+    Info->AvailableVal = Singular;
+    Info->DefBB = Info->Preds[0]->DefBB;
+    return true;
+  }
+
   /// FindAvailableVal - If this block requires a PHI, first check if an
   /// existing PHI matches the PHI placement and reaching definitions computed
   /// earlier, and if not, create a new PHI.  Visit all the block's
@@ -338,6 +359,10 @@ public:
       BBInfo *Info = *I;
       // Check if there needs to be a PHI in BB.
       if (Info->DefBB != Info)
+        continue;
+
+      // Look for singular value.
+      if (FindSingularVal(Info))
         continue;
 
       // Look for an existing PHI.

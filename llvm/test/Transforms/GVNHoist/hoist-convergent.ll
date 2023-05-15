@@ -1,4 +1,4 @@
-; RUN: opt -gvn-hoist -S < %s | FileCheck %s
+; RUN: opt -passes=gvn-hoist -S < %s | FileCheck %s
 
 ; Check that convergent calls are not hoisted.
 ;
@@ -89,5 +89,5 @@ if.end:
 declare float @convergent_func(float, float) #0
 declare float @func(float, float) #1
 
-attributes #0 = { nounwind readnone convergent }
-attributes #1 = { nounwind readnone }
+attributes #0 = { nounwind readnone convergent willreturn }
+attributes #1 = { nounwind readnone willreturn }

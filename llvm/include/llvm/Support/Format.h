@@ -1,9 +1,8 @@
 //===- Format.h - Efficient printf-style formatting for streams -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -30,6 +29,7 @@
 #include <cassert>
 #include <cstdio>
 #include <tuple>
+#include <utility>
 
 namespace llvm {
 
@@ -80,7 +80,7 @@ public:
 template <typename... Args> struct validate_format_parameters;
 template <typename Arg, typename... Args>
 struct validate_format_parameters<Arg, Args...> {
-  static_assert(std::is_scalar<Arg>::value,
+  static_assert(std::is_scalar_v<Arg>,
                 "format can't be used with non fundamental / non pointer type");
   validate_format_parameters() { validate_format_parameters<Args...>(); }
 };
@@ -92,7 +92,7 @@ class format_object final : public format_object_base {
 
   template <std::size_t... Is>
   int snprint_tuple(char *Buffer, unsigned BufferSize,
-                    index_sequence<Is...>) const {
+                    std::index_sequence<Is...>) const {
 #ifdef _MSC_VER
     return _snprintf(Buffer, BufferSize, Fmt, std::get<Is>(Vals)...);
 #else
@@ -107,7 +107,7 @@ public:
   }
 
   int snprint(char *Buffer, unsigned BufferSize) const override {
-    return snprint_tuple(Buffer, BufferSize, index_sequence_for<Ts...>());
+    return snprint_tuple(Buffer, BufferSize, std::index_sequence_for<Ts...>());
   }
 };
 
@@ -216,7 +216,7 @@ class FormattedBytes {
   ArrayRef<uint8_t> Bytes;
 
   // If not None, display offsets for each line relative to starting value.
-  Optional<uint64_t> FirstByteOffset;
+  std::optional<uint64_t> FirstByteOffset;
   uint32_t IndentLevel;  // Number of characters to indent each line.
   uint32_t NumPerLine;   // Number of bytes to show per line.
   uint8_t ByteGroupSize; // How many hex bytes are grouped without spaces
@@ -225,7 +225,7 @@ class FormattedBytes {
   friend class raw_ostream;
 
 public:
-  FormattedBytes(ArrayRef<uint8_t> B, uint32_t IL, Optional<uint64_t> O,
+  FormattedBytes(ArrayRef<uint8_t> B, uint32_t IL, std::optional<uint64_t> O,
                  uint32_t NPL, uint8_t BGS, bool U, bool A)
       : Bytes(B), FirstByteOffset(O), IndentLevel(IL), NumPerLine(NPL),
         ByteGroupSize(BGS), Upper(U), ASCII(A) {
@@ -236,7 +236,8 @@ public:
 };
 
 inline FormattedBytes
-format_bytes(ArrayRef<uint8_t> Bytes, Optional<uint64_t> FirstByteOffset = None,
+format_bytes(ArrayRef<uint8_t> Bytes,
+             std::optional<uint64_t> FirstByteOffset = std::nullopt,
              uint32_t NumPerLine = 16, uint8_t ByteGroupSize = 4,
              uint32_t IndentLevel = 0, bool Upper = false) {
   return FormattedBytes(Bytes, IndentLevel, FirstByteOffset, NumPerLine,
@@ -245,7 +246,7 @@ format_bytes(ArrayRef<uint8_t> Bytes, Optional<uint64_t> FirstByteOffset = None,
 
 inline FormattedBytes
 format_bytes_with_ascii(ArrayRef<uint8_t> Bytes,
-                        Optional<uint64_t> FirstByteOffset = None,
+                        std::optional<uint64_t> FirstByteOffset = std::nullopt,
                         uint32_t NumPerLine = 16, uint8_t ByteGroupSize = 4,
                         uint32_t IndentLevel = 0, bool Upper = false) {
   return FormattedBytes(Bytes, IndentLevel, FirstByteOffset, NumPerLine,

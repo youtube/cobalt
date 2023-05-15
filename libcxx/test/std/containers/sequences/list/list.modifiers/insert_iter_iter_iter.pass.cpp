@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,7 +18,7 @@
 #include "test_macros.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
-#include "count_new.hpp"
+#include "count_new.h"
 
 template <class List>
 void test() {
@@ -28,7 +27,7 @@ void test() {
     typename List::iterator i = l1.insert(l1.begin(), a1, a1+3);
     assert(i == l1.begin());
     assert(l1.size() == 3);
-    assert(distance(l1.begin(), l1.end()) == 3);
+    assert(std::distance(l1.begin(), l1.end()) == 3);
     i = l1.begin();
     assert(*i == 1);
     ++i;
@@ -39,7 +38,7 @@ void test() {
     i = l1.insert(i, a2, a2+3);
     assert(*i == 4);
     assert(l1.size() == 6);
-    assert(distance(l1.begin(), l1.end()) == 6);
+    assert(std::distance(l1.begin(), l1.end()) == 6);
     i = l1.begin();
     assert(*i == 1);
     ++i;
@@ -66,7 +65,7 @@ void test() {
     }
     assert(globalMemCounter.checkOutstandingNewEq(save_count));
     assert(l1.size() == 6);
-    assert(distance(l1.begin(), l1.end()) == 6);
+    assert(std::distance(l1.begin(), l1.end()) == 6);
     i = l1.begin();
     assert(*i == 1);
     ++i;
@@ -82,10 +81,12 @@ void test() {
 #endif
 }
 
-int main()
+int main(int, char**)
 {
     test<std::list<int> >();
 #if TEST_STD_VER >= 11
     test<std::list<int, min_allocator<int>>>();
 #endif
+
+  return 0;
 }

@@ -1,36 +1,36 @@
 //===- PDBFileBuilder.h - PDB File Creation ---------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGINFO_PDB_RAW_PDBFILEBUILDER_H
-#define LLVM_DEBUGINFO_PDB_RAW_PDBFILEBUILDER_H
+#ifndef LLVM_DEBUGINFO_PDB_NATIVE_PDBFILEBUILDER_H
+#define LLVM_DEBUGINFO_PDB_NATIVE_PDBFILEBUILDER_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/DebugInfo/PDB/Native/HashTable.h"
 #include "llvm/DebugInfo/PDB/Native/NamedStreamMap.h"
-#include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/PDBStringTableBuilder.h"
-#include "llvm/DebugInfo/PDB/Native/RawConstants.h"
-#include "llvm/DebugInfo/PDB/Native/RawTypes.h"
 #include "llvm/Support/Allocator.h"
-#include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-
 #include <memory>
-#include <vector>
 
 namespace llvm {
+class WritableBinaryStream;
+namespace codeview {
+struct GUID;
+}
+
 namespace msf {
 class MSFBuilder;
+struct MSFLayout;
 }
 namespace pdb {
+struct SrcHeaderBlockEntry;
 class DbiStreamBuilder;
 class InfoStreamBuilder;
 class GSIStreamBuilder;
@@ -53,7 +53,9 @@ public:
   PDBStringTableBuilder &getStringTableBuilder();
   GSIStreamBuilder &getGsiBuilder();
 
-  Error commit(StringRef Filename);
+  // If HashPDBContentsToGUID is true on the InfoStreamBuilder, Guid is filled
+  // with the computed PDB GUID on return.
+  Error commit(StringRef Filename, codeview::GUID *Guid);
 
   Expected<uint32_t> getNamedStreamIndex(StringRef Name) const;
   Error addNamedStream(StringRef Name, StringRef Data);
@@ -79,7 +81,6 @@ private:
   Error finalizeMsfLayout();
   Expected<uint32_t> allocateNamedStream(StringRef Name, uint32_t Size);
 
-  void commitFpm(WritableBinaryStream &MsfBuffer, const msf::MSFLayout &Layout);
   void commitInjectedSources(WritableBinaryStream &MsfBuffer,
                              const msf::MSFLayout &Layout);
   void commitSrcHeaderBlock(WritableBinaryStream &MsfBuffer,
@@ -96,7 +97,7 @@ private:
 
   PDBStringTableBuilder Strings;
   StringTableHashTraits InjectedSourceHashTraits;
-  HashTable<SrcHeaderBlockEntry, StringTableHashTraits> InjectedSourceTable;
+  HashTable<SrcHeaderBlockEntry> InjectedSourceTable;
 
   SmallVector<InjectedSourceDescriptor, 2> InjectedSources;
 

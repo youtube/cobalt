@@ -1,9 +1,8 @@
 //===-- ResourceScriptToken.cpp ---------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 //
@@ -13,6 +12,7 @@
 //===---------------------------------------------------------------------===//
 
 #include "ResourceScriptToken.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
@@ -85,7 +85,7 @@ namespace {
 
 class Tokenizer {
 public:
-  Tokenizer(StringRef Input) : Data(Input), DataLength(Input.size()) {}
+  Tokenizer(StringRef Input) : Data(Input), DataLength(Input.size()), Pos(0) {}
 
   Expected<std::vector<RCToken>> run();
 
@@ -202,7 +202,7 @@ bool Tokenizer::advance(size_t Amount) {
 }
 
 bool Tokenizer::skipWhitespaces() {
-  while (!streamEof() && std::isspace(Data[Pos]))
+  while (!streamEof() && isSpace(Data[Pos]))
     advance();
   return !streamEof();
 }
@@ -288,7 +288,7 @@ bool Tokenizer::canContinueIdentifier() const {
   assert(!streamEof());
   const char CurChar = Data[Pos];
   return std::isalnum(CurChar) || CurChar == '_' || CurChar == '.' ||
-         CurChar == '/' || CurChar == '\\';
+         CurChar == '/' || CurChar == '\\' || CurChar == '-';
 }
 
 bool Tokenizer::canStartInt() const {
@@ -350,9 +350,9 @@ void Tokenizer::processIdentifier(RCToken &Token) const {
   assert(Token.kind() == Kind::Identifier);
   StringRef Name = Token.value();
 
-  if (Name.equals_lower("begin"))
+  if (Name.equals_insensitive("begin"))
     Token = RCToken(Kind::BlockBegin, Name);
-  else if (Name.equals_lower("end"))
+  else if (Name.equals_insensitive("end"))
     Token = RCToken(Kind::BlockEnd, Name);
 }
 

@@ -1,9 +1,8 @@
-//===-- UnixSignalsTest.cpp -------------------------------------*- C++ -*-===//
+//===-- UnixSignalsTest.cpp -----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include <string>
@@ -15,7 +14,6 @@
 
 using namespace lldb;
 using namespace lldb_private;
-using llvm::None;
 
 class TestSignals : public UnixSignals {
 public:
@@ -52,6 +50,29 @@ TEST(UnixSignalsTest, Iteration) {
   EXPECT_EQ(8, signals.GetNextSignalNumber(4));
   EXPECT_EQ(16, signals.GetNextSignalNumber(8));
   EXPECT_EQ(LLDB_INVALID_SIGNAL_NUMBER, signals.GetNextSignalNumber(16));
+}
+
+TEST(UnixSignalsTest, Reset) {
+  TestSignals signals;
+  bool stop_val     = signals.GetShouldStop(2);
+  bool notify_val   = signals.GetShouldNotify(2);
+  bool suppress_val = signals.GetShouldSuppress(2);
+  
+  // Change two, then reset one and make sure only that one was reset:
+  EXPECT_EQ(true, signals.SetShouldNotify(2, !notify_val));
+  EXPECT_EQ(true, signals.SetShouldSuppress(2, !suppress_val));
+  EXPECT_EQ(true, signals.ResetSignal(2, false, true, false));
+  EXPECT_EQ(stop_val, signals.GetShouldStop(2));
+  EXPECT_EQ(notify_val, signals.GetShouldStop(2));
+  EXPECT_EQ(!suppress_val, signals.GetShouldNotify(2));
+  
+  // Make sure reset with no arguments resets them all:
+  EXPECT_EQ(true, signals.SetShouldSuppress(2, !suppress_val));
+  EXPECT_EQ(true, signals.SetShouldNotify(2, !notify_val));
+  EXPECT_EQ(true, signals.ResetSignal(2));
+  EXPECT_EQ(stop_val, signals.GetShouldStop(2));
+  EXPECT_EQ(notify_val, signals.GetShouldNotify(2));
+  EXPECT_EQ(suppress_val, signals.GetShouldSuppress(2));
 }
 
 TEST(UnixSignalsTest, GetInfo) {
@@ -106,31 +127,35 @@ TEST(UnixSignalsTest, VersionChange) {
 TEST(UnixSignalsTest, GetFilteredSignals) {
   TestSignals signals;
 
-  auto all_signals = signals.GetFilteredSignals(None, None, None);
+  auto all_signals =
+      signals.GetFilteredSignals(std::nullopt, std::nullopt, std::nullopt);
   std::vector<int32_t> expected = {2, 4, 8, 16};
   EXPECT_EQ_ARRAYS(expected, all_signals);
 
-  auto supressed = signals.GetFilteredSignals(true, None, None);
+  auto supressed = signals.GetFilteredSignals(true, std::nullopt, std::nullopt);
   expected = {4, 8, 16};
   EXPECT_EQ_ARRAYS(expected, supressed);
 
-  auto not_supressed = signals.GetFilteredSignals(false, None, None);
+  auto not_supressed =
+      signals.GetFilteredSignals(false, std::nullopt, std::nullopt);
   expected = {2};
   EXPECT_EQ_ARRAYS(expected, not_supressed);
 
-  auto stopped = signals.GetFilteredSignals(None, true, None);
+  auto stopped = signals.GetFilteredSignals(std::nullopt, true, std::nullopt);
   expected = {2, 8};
   EXPECT_EQ_ARRAYS(expected, stopped);
 
-  auto not_stopped = signals.GetFilteredSignals(None, false, None);
+  auto not_stopped =
+      signals.GetFilteredSignals(std::nullopt, false, std::nullopt);
   expected = {4, 16};
   EXPECT_EQ_ARRAYS(expected, not_stopped);
 
-  auto notified = signals.GetFilteredSignals(None, None, true);
+  auto notified = signals.GetFilteredSignals(std::nullopt, std::nullopt, true);
   expected = {2, 4, 8};
   EXPECT_EQ_ARRAYS(expected, notified);
 
-  auto not_notified = signals.GetFilteredSignals(None, None, false);
+  auto not_notified =
+      signals.GetFilteredSignals(std::nullopt, std::nullopt, false);
   expected = {16};
   EXPECT_EQ_ARRAYS(expected, not_notified);
 

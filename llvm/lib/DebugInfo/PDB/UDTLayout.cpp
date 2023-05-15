@@ -1,9 +1,8 @@
 //===- UDTLayout.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,8 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/DebugInfo/PDB/IPDBEnumChildren.h"
+#include "llvm/DebugInfo/PDB/IPDBLineNumber.h"
 #include "llvm/DebugInfo/PDB/IPDBRawSymbol.h"
 #include "llvm/DebugInfo/PDB/IPDBSession.h"
 #include "llvm/DebugInfo/PDB/PDBSymbol.h"
@@ -18,6 +19,7 @@
 #include "llvm/DebugInfo/PDB/PDBSymbolFunc.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeBaseClass.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeBuiltin.h"
+#include "llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypePointer.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeUDT.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeVTable.h"
@@ -72,7 +74,7 @@ DataMemberLayoutItem::DataMemberLayoutItem(
       DataMember(std::move(Member)) {
   auto Type = DataMember->getType();
   if (auto UDT = unique_dyn_cast<PDBSymbolTypeUDT>(Type)) {
-    UdtLayout = llvm::make_unique<ClassLayout>(std::move(UDT));
+    UdtLayout = std::make_unique<ClassLayout>(std::move(UDT));
     UsedBytes = UdtLayout->usedBytes();
   }
 }
@@ -85,7 +87,7 @@ VBPtrLayoutItem::VBPtrLayoutItem(const UDTLayoutBase &Parent,
 }
 
 const PDBSymbolData &DataMemberLayoutItem::getDataMember() {
-  return *dyn_cast<PDBSymbolData>(Symbol);
+  return *cast<PDBSymbolData>(Symbol);
 }
 
 bool DataMemberLayoutItem::hasUDTLayout() const { return UdtLayout != nullptr; }
@@ -206,7 +208,7 @@ void UDTLayoutBase::initializeChildren(const PDBSymbol &Sym) {
   for (auto &Base : Bases) {
     uint32_t Offset = Base->getOffset();
     // Non-virtual bases never get elided.
-    auto BL = llvm::make_unique<BaseClassLayout>(*this, Offset, false,
+    auto BL = std::make_unique<BaseClassLayout>(*this, Offset, false,
                                                  std::move(Base));
 
     AllBases.push_back(BL.get());
@@ -217,7 +219,7 @@ void UDTLayoutBase::initializeChildren(const PDBSymbol &Sym) {
   assert(VTables.size() <= 1);
   if (!VTables.empty()) {
     auto VTLayout =
-        llvm::make_unique<VTableLayoutItem>(*this, std::move(VTables[0]));
+        std::make_unique<VTableLayoutItem>(*this, std::move(VTables[0]));
 
     VTable = VTLayout.get();
 
@@ -225,7 +227,7 @@ void UDTLayoutBase::initializeChildren(const PDBSymbol &Sym) {
   }
 
   for (auto &Data : Members) {
-    auto DM = llvm::make_unique<DataMemberLayoutItem>(*this, std::move(Data));
+    auto DM = std::make_unique<DataMemberLayoutItem>(*this, std::move(Data));
 
     addChildToLayout(std::move(DM));
   }
@@ -237,7 +239,7 @@ void UDTLayoutBase::initializeChildren(const PDBSymbol &Sym) {
     int VBPO = VB->getVirtualBasePointerOffset();
     if (!hasVBPtrAtOffset(VBPO)) {
       if (auto VBP = VB->getRawSymbol().getVirtualBaseTableType()) {
-        auto VBPL = llvm::make_unique<VBPtrLayoutItem>(*this, std::move(VBP),
+        auto VBPL = std::make_unique<VBPtrLayoutItem>(*this, std::move(VBP),
                                                        VBPO, VBP->getLength());
         VBPtr = VBPL.get();
         addChildToLayout(std::move(VBPL));
@@ -251,7 +253,7 @@ void UDTLayoutBase::initializeChildren(const PDBSymbol &Sym) {
     uint32_t Offset = UsedBytes.find_last() + 1;
     bool Elide = (Parent != nullptr);
     auto BL =
-        llvm::make_unique<BaseClassLayout>(*this, Offset, Elide, std::move(VB));
+        std::make_unique<BaseClassLayout>(*this, Offset, Elide, std::move(VB));
     AllBases.push_back(BL.get());
 
     // Only lay this virtual base out directly inside of *this* class if this
@@ -259,7 +261,7 @@ void UDTLayoutBase::initializeChildren(const PDBSymbol &Sym) {
     // physically lay it out if it's a topmost derived class.
     addChildToLayout(std::move(BL));
   }
-  VirtualBases = makeArrayRef(AllBases).drop_front(NonVirtualBases.size());
+  VirtualBases = ArrayRef(AllBases).drop_front(NonVirtualBases.size());
 
   if (Parent != nullptr)
     LayoutSize = UsedBytes.find_last() + 1;
@@ -290,10 +292,10 @@ void UDTLayoutBase::addChildToLayout(std::unique_ptr<LayoutItemBase> Child) {
     UsedBytes |= ChildBytes;
 
     if (ChildBytes.count() > 0) {
-      auto Loc = std::upper_bound(LayoutItems.begin(), LayoutItems.end(), Begin,
-                                  [](uint32_t Off, const LayoutItemBase *Item) {
-                                    return (Off < Item->getOffsetInParent());
-                                  });
+      auto Loc = llvm::upper_bound(
+          LayoutItems, Begin, [](uint32_t Off, const LayoutItemBase *Item) {
+            return (Off < Item->getOffsetInParent());
+          });
 
       LayoutItems.insert(Loc, Child.get());
     }

@@ -17,4 +17,6 @@ define void @foo() #0 {
   ret void
 }
 
+@llvm.used = appending global [2 x ptr] [ptr @foo, ptr @bar]
+
 attributes #0 = { nounwind }

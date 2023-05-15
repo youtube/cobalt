@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <set>
 
@@ -19,9 +18,10 @@
 #include <cassert>
 #include <cstddef>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::multiset<int> C;
@@ -29,7 +29,7 @@ int main()
     C m = {10, 8};
     m.insert({1, 2, 3, 4, 5, 6});
     assert(m.size() == 8);
-    assert(static_cast<std::size_t>(distance(m.begin(), m.end())) == m.size());
+    assert(static_cast<std::size_t>(std::distance(m.begin(), m.end())) == m.size());
     C::const_iterator i = m.cbegin();
     assert(*i == V(1));
     assert(*++i == V(2));
@@ -46,7 +46,7 @@ int main()
     C m = {10, 8};
     m.insert({1, 2, 3, 4, 5, 6});
     assert(m.size() == 8);
-    assert(static_cast<std::size_t>(distance(m.begin(), m.end())) == m.size());
+    assert(static_cast<std::size_t>(std::distance(m.begin(), m.end())) == m.size());
     C::const_iterator i = m.cbegin();
     assert(*i == V(1));
     assert(*++i == V(2));
@@ -57,4 +57,6 @@ int main()
     assert(*++i == V(8));
     assert(*++i == V(10));
     }
+
+  return 0;
 }

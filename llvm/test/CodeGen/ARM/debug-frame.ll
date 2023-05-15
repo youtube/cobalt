@@ -4,18 +4,18 @@
 ; are properly generated or not.
 
 ; We have to check several cases:
-; (1) arm with -disable-fp-elim
-; (2) arm without -disable-fp-elim
-; (3) armv7 with -disable-fp-elim
-; (4) armv7 without -disable-fp-elim
-; (5) thumb with -disable-fp-elim
-; (6) thumb without -disable-fp-elim
-; (7) thumbv7 with -disable-fp-elim
-; (8) thumbv7 without -disable-fp-elim
+; (1) arm with -frame-pointer=all
+; (2) arm without -frame-pointer=all
+; (3) armv7 with -frame-pointer=all
+; (4) armv7 without -frame-pointer=all
+; (5) thumb with -frame-pointer=all
+; (6) thumb without -frame-pointer=all
+; (7) thumbv7 with -frame-pointer=all
+; (8) thumbv7 without -frame-pointer=all
 ; (9) thumbv7 with -no-integrated-as
 
 ; RUN: llc -mtriple arm-unknown-linux-gnueabi \
-; RUN:     -disable-fp-elim -filetype=asm -o - %s \
+; RUN:     -frame-pointer=all -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-FP
 
 ; RUN: llc -mtriple arm-unknown-linux-gnueabi \
@@ -23,7 +23,7 @@
 ; RUN:   | FileCheck %s --check-prefix=CHECK-FP-ELIM
 
 ; RUN: llc -mtriple armv7-unknown-linux-gnueabi \
-; RUN:     -disable-fp-elim -filetype=asm -o - %s \
+; RUN:     -frame-pointer=all -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-V7-FP
 
 ; RUN: llc -mtriple armv7-unknown-linux-gnueabi \
@@ -31,7 +31,7 @@
 ; RUN:   | FileCheck %s --check-prefix=CHECK-V7-FP-ELIM
 
 ; RUN: llc -mtriple thumbv5-unknown-linux-gnueabi \
-; RUN:     -disable-fp-elim -filetype=asm -o - %s \
+; RUN:     -frame-pointer=all -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-THUMB-FP
 
 ; RUN: llc -mtriple thumbv5-unknown-linux-gnueabi \
@@ -39,7 +39,7 @@
 ; RUN:   | FileCheck %s --check-prefix=CHECK-THUMB-FP-ELIM
 
 ; RUN: llc -mtriple thumbv7-unknown-linux-gnueabi \
-; RUN:     -disable-fp-elim -filetype=asm -o - %s \
+; RUN:     -frame-pointer=all -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-THUMB-V7-FP
 
 ; RUN: llc -mtriple thumbv7-unknown-linux-gnueabi \
@@ -47,7 +47,7 @@
 ; RUN:   | FileCheck %s --check-prefix=CHECK-THUMB-V7-FP-ELIM
 
 ; RUN: llc -mtriple thumbv7-unknown-linux-gnueabi \
-; RUN:     -disable-fp-elim -no-integrated-as -filetype=asm -o - %s \
+; RUN:     -frame-pointer=all -no-integrated-as -filetype=asm -o - %s \
 ; RUN:   | FileCheck %s --check-prefix=CHECK-THUMB-V7-FP-NOIAS
 
 ;-------------------------------------------------------------------------------
@@ -73,16 +73,16 @@ declare void @_Z5printddddd(double, double, double, double, double)
 
 define void @_Z4testiiiiiddddd(i32 %a, i32 %b, i32 %c, i32 %d, i32 %e,
                                double %m, double %n, double %p,
-                               double %q, double %r) personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+                               double %q, double %r) personality ptr @__gxx_personality_v0 {
 entry:
   invoke void @_Z5printiiiii(i32 %a, i32 %b, i32 %c, i32 %d, i32 %e)
           to label %try.cont unwind label %lpad
 
 lpad:
-  %0 = landingpad { i8*, i32 }
-          catch i8* null
-  %1 = extractvalue { i8*, i32 } %0, 0
-  %2 = tail call i8* @__cxa_begin_catch(i8* %1)
+  %0 = landingpad { ptr, i32 }
+          catch ptr null
+  %1 = extractvalue { ptr, i32 } %0, 0
+  %2 = tail call ptr @__cxa_begin_catch(ptr %1)
   invoke void @_Z5printddddd(double %m, double %n, double %p,
                              double %q, double %r)
           to label %invoke.cont2 unwind label %lpad1
@@ -95,27 +95,27 @@ try.cont:
   ret void
 
 lpad1:
-  %3 = landingpad { i8*, i32 }
+  %3 = landingpad { ptr, i32 }
           cleanup
   invoke void @__cxa_end_catch()
           to label %eh.resume unwind label %terminate.lpad
 
 eh.resume:
-  resume { i8*, i32 } %3
+  resume { ptr, i32 } %3
 
 terminate.lpad:
-  %4 = landingpad { i8*, i32 }
-          catch i8* null
-  %5 = extractvalue { i8*, i32 } %4, 0
-  tail call void @__clang_call_terminate(i8* %5)
+  %4 = landingpad { ptr, i32 }
+          catch ptr null
+  %5 = extractvalue { ptr, i32 } %4, 0
+  tail call void @__clang_call_terminate(ptr %5)
   unreachable
 }
 
-declare void @__clang_call_terminate(i8*)
+declare void @__clang_call_terminate(ptr)
 
 declare i32 @__gxx_personality_v0(...)
 
-declare i8* @__cxa_begin_catch(i8*)
+declare ptr @__cxa_begin_catch(ptr)
 
 declare void @__cxa_end_catch()
 
@@ -197,29 +197,27 @@ declare void @_ZSt9terminatev()
 
 ; CHECK-V7-FP-LABEL: _Z4testiiiiiddddd:
 ; CHECK-V7-FP:   .cfi_startproc
-; CHECK-V7-FP:   push   {r4, r10, r11, lr}
-; CHECK-V7-FP:   .cfi_def_cfa_offset 16
+; CHECK-V7-FP:   push   {r11, lr}
+; CHECK-V7-FP:   .cfi_def_cfa_offset 8
 ; CHECK-V7-FP:   .cfi_offset lr, -4
 ; CHECK-V7-FP:   .cfi_offset r11, -8
-; CHECK-V7-FP:   .cfi_offset r10, -12
-; CHECK-V7-FP:   .cfi_offset r4, -16
-; CHECK-V7-FP:   add    r11, sp, #8
-; CHECK-V7-FP:   .cfi_def_cfa r11, 8
+; CHECK-V7-FP:   mov     r11, sp
+; CHECK-V7-FP:   .cfi_def_cfa_register r11
 ; CHECK-V7-FP:   vpush  {d8, d9, d10, d11, d12}
-; CHECK-V7-FP:   .cfi_offset d12, -24
-; CHECK-V7-FP:   .cfi_offset d11, -32
-; CHECK-V7-FP:   .cfi_offset d10, -40
-; CHECK-V7-FP:   .cfi_offset d9, -48
-; CHECK-V7-FP:   .cfi_offset d8, -56
+; CHECK-V7-FP:   .cfi_offset d12, -16
+; CHECK-V7-FP:   .cfi_offset d11, -24
+; CHECK-V7-FP:   .cfi_offset d10, -32
+; CHECK-V7-FP:   .cfi_offset d9, -40
+; CHECK-V7-FP:   .cfi_offset d8, -48
 ; CHECK-V7-FP:   sub    sp, sp, #24
 ; CHECK-V7-FP:   .cfi_endproc
 
 ; CHECK-V7-FP-ELIM-LABEL: _Z4testiiiiiddddd:
 ; CHECK-V7-FP-ELIM:   .cfi_startproc
-; CHECK-V7-FP-ELIM:   push   {r4, lr}
+; CHECK-V7-FP-ELIM:   push   {r11, lr}
 ; CHECK-V7-FP-ELIM:   .cfi_def_cfa_offset 8
 ; CHECK-V7-FP-ELIM:   .cfi_offset lr, -4
-; CHECK-V7-FP-ELIM:   .cfi_offset r4, -8
+; CHECK-V7-FP-ELIM:   .cfi_offset r11, -8
 ; CHECK-V7-FP-ELIM:   vpush  {d8, d9, d10, d11, d12}
 ; CHECK-V7-FP-ELIM:   .cfi_def_cfa_offset 48
 ; CHECK-V7-FP-ELIM:   .cfi_offset d12, -16
@@ -254,35 +252,33 @@ declare void @_ZSt9terminatev()
 ; CHECK-THUMB-FP-ELIM:   .cfi_offset r6, -12
 ; CHECK-THUMB-FP-ELIM:   .cfi_offset r5, -16
 ; CHECK-THUMB-FP-ELIM:   .cfi_offset r4, -20
-; CHECK-THUMB-FP-ELIM:   sub    sp, #60
-; CHECK-THUMB-FP-ELIM:   .cfi_def_cfa_offset 80
+; CHECK-THUMB-FP-ELIM:   sub    sp, #52
+; CHECK-THUMB-FP-ELIM:   .cfi_def_cfa_offset 72
 ; CHECK-THUMB-FP-ELIM:   .cfi_endproc
 
 ; CHECK-THUMB-V7-FP-LABEL: _Z4testiiiiiddddd:
 ; CHECK-THUMB-V7-FP:   .cfi_startproc
-; CHECK-THUMB-V7-FP:   push   {r4, r6, r7, lr}
-; CHECK-THUMB-V7-FP:   .cfi_def_cfa_offset 16
+; CHECK-THUMB-V7-FP:   push   {r7, lr}
+; CHECK-THUMB-V7-FP:   .cfi_def_cfa_offset 8
 ; CHECK-THUMB-V7-FP:   .cfi_offset lr, -4
 ; CHECK-THUMB-V7-FP:   .cfi_offset r7, -8
-; CHECK-THUMB-V7-FP:   .cfi_offset r6, -12
-; CHECK-THUMB-V7-FP:   .cfi_offset r4, -16
-; CHECK-THUMB-V7-FP:   add    r7, sp, #8
-; CHECK-THUMB-V7-FP:   .cfi_def_cfa r7, 8
+; CHECK-THUMB-V7-FP:   mov    r7, sp
+; CHECK-THUMB-V7-FP:   .cfi_def_cfa_register r7
 ; CHECK-THUMB-V7-FP:   vpush  {d8, d9, d10, d11, d12}
-; CHECK-THUMB-V7-FP:   .cfi_offset d12, -24
-; CHECK-THUMB-V7-FP:   .cfi_offset d11, -32
-; CHECK-THUMB-V7-FP:   .cfi_offset d10, -40
-; CHECK-THUMB-V7-FP:   .cfi_offset d9, -48
-; CHECK-THUMB-V7-FP:   .cfi_offset d8, -56
+; CHECK-THUMB-V7-FP:   .cfi_offset d12, -16
+; CHECK-THUMB-V7-FP:   .cfi_offset d11, -24
+; CHECK-THUMB-V7-FP:   .cfi_offset d10, -32
+; CHECK-THUMB-V7-FP:   .cfi_offset d9, -40
+; CHECK-THUMB-V7-FP:   .cfi_offset d8, -48
 ; CHECK-THUMB-V7-FP:   sub    sp, #24
 ; CHECK-THUMB-V7-FP:   .cfi_endproc
 
 ; CHECK-THUMB-V7-FP-ELIM-LABEL: _Z4testiiiiiddddd:
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_startproc
-; CHECK-THUMB-V7-FP-ELIM:   push   {r4, lr}
+; CHECK-THUMB-V7-FP-ELIM:   push   {r7, lr}
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_def_cfa_offset 8
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset lr, -4
-; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r4, -8
+; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset r7, -8
 ; CHECK-THUMB-V7-FP-ELIM:   vpush  {d8, d9, d10, d11, d12}
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_def_cfa_offset 48
 ; CHECK-THUMB-V7-FP-ELIM:   .cfi_offset d12, -16
@@ -296,20 +292,18 @@ declare void @_ZSt9terminatev()
 
 ; CHECK-THUMB-V7-FP-NOIAS-LABEL: _Z4testiiiiiddddd:
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_startproc
-; CHECK-THUMB-V7-FP-NOIAS:   push   {r4, r6, r7, lr}
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_def_cfa_offset 16
+; CHECK-THUMB-V7-FP-NOIAS:   push   {r7, lr}
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_def_cfa_offset 8
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 14, -4
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 7, -8
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 6, -12
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 4, -16
-; CHECK-THUMB-V7-FP-NOIAS:   add    r7, sp, #8
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_def_cfa 7, 8
+; CHECK-THUMB-V7-FP-NOIAS:   mov    r7, sp
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_def_cfa_register 7
 ; CHECK-THUMB-V7-FP-NOIAS:   vpush  {d8, d9, d10, d11, d12}
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 268, -24
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 267, -32
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 266, -40
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 265, -48
-; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 264, -56
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 268, -16
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 267, -24
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 266, -32
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 265, -40
+; CHECK-THUMB-V7-FP-NOIAS:   .cfi_offset 264, -48
 ; CHECK-THUMB-V7-FP-NOIAS:   sub    sp, #24
 ; CHECK-THUMB-V7-FP-NOIAS:   .cfi_endproc
 

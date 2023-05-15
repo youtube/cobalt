@@ -47,7 +47,7 @@ The 3.9 release of clang includes ThinLTO support. However, ThinLTO
 is under active development, and new features, improvements and bugfixes
 are being added for the next release. For the latest ThinLTO support,
 `build a recent version of clang and LLVM
-<http://llvm.org/docs/CMake.html>`_.
+<https://llvm.org/docs/CMake.html>`_.
 
 Linkers
 -------
@@ -59,7 +59,7 @@ ThinLTO is currently supported for the following linkers:
 - **gold (via the gold-plugin)**:
   Similar to monolithic LTO, this requires using
   a `gold linker configured with plugins enabled
-  <http://llvm.org/docs/GoldPlugin.html>`_.
+  <https://llvm.org/docs/GoldPlugin.html>`_.
 - **ld64**:
   Starting with `Xcode 8 <https://developer.apple.com/xcode/>`_.
 - **lld**:
@@ -87,7 +87,7 @@ When using lld-link, the -flto option need only be added to the compile step:
 
 As mentioned earlier, by default the linkers will launch the ThinLTO backend
 threads in parallel, passing the resulting native object files back to the
-linker for the final native link.  As such, the usage model the same as
+linker for the final native link.  As such, the usage model is the same as
 non-LTO.
 
 With gold, if you see an error during the link of the form:
@@ -99,13 +99,15 @@ With gold, if you see an error during the link of the form:
 Then either gold was not configured with plugins enabled, or clang
 was not built with ``-DLLVM_BINUTILS_INCDIR`` set properly. See
 the instructions for the
-`LLVM gold plugin <http://llvm.org/docs/GoldPlugin.html#how-to-build-it>`_.
+`LLVM gold plugin <https://llvm.org/docs/GoldPlugin.html#how-to-build-it>`_.
 
 Controlling Backend Parallelism
 -------------------------------
 .. _parallelism:
 
-By default, the ThinLTO link step will launch up to
+By default, the ThinLTO link step will launch as many
+threads in parallel as there are cores. If the number of
+cores can't be computed for the architecture, then it will launch
 ``std::thread::hardware_concurrency`` number of threads in parallel.
 For machines with hyper-threading, this is the total number of
 virtual cores. For some applications and machine configurations this
@@ -120,6 +122,15 @@ be reduced to ``N`` via:
   ``-Wl,--thinlto-jobs=N``
 - lld-link:
   ``/opt:lldltojobs=N``
+
+Other possible values for ``N`` are:
+
+- 0:
+  Use one thread per physical core (default)
+- 1:
+  Use a single thread only (disable multi-threading)
+- all:
+  Use one thread per logical core (uses all hyper-threads)
 
 Incremental
 -----------
@@ -192,13 +203,14 @@ Possible key-value pairs are:
 Clang Bootstrap
 ---------------
 
-To bootstrap clang/LLVM with ThinLTO, follow these steps:
+To `bootstrap clang/LLVM <https://llvm.org/docs/AdvancedBuilds.html#bootstrap-builds>`_
+with ThinLTO, follow these steps:
 
 1. The host compiler_ must be a version of clang that supports ThinLTO.
 #. The host linker_ must support ThinLTO (and in the case of gold, must be
-   `configured with plugins enabled <http://llvm.org/docs/GoldPlugin.html>`_.
+   `configured with plugins enabled <https://llvm.org/docs/GoldPlugin.html>`_).
 #. Use the following additional `CMake variables
-   <http://llvm.org/docs/CMake.html#options-and-variables>`_
+   <https://llvm.org/docs/CMake.html#options-and-variables>`_
    when configuring the bootstrap compiler build:
 
   * ``-DLLVM_ENABLE_LTO=Thin``
@@ -222,6 +234,10 @@ To bootstrap clang/LLVM with ThinLTO, follow these steps:
    build directory. Specify any additional linker options after
    ``CMAKE_EXE_LINKER_FLAGS:STRING=``. Note the configure may fail if
    linker plugin options are instead specified directly in the previous step.
+
+The ``BOOTSTRAP_LLVM_ENABLE_LTO=Thin`` will enable ThinLTO for stage 2 and
+stage 3 in case the compiler used for stage 1 does not support the ThinLTO
+option.
 
 More Information
 ================

@@ -5,12 +5,12 @@ struct Coerce {
 
 struct Coerce coerce_func(void);
 
-// CHECK-LABEL: define void @Coerce_test()
+// CHECK-LABEL: define{{.*}} void @Coerce_test()
 void Coerce_test(void) {
   struct Coerce c;
   
-  // CHECK: call i8* @coerce_func
-  // CHECK: call i8* @objc_memmove_collectable(
+  // CHECK: call ptr @coerce_func
+  // CHECK: call ptr @objc_memmove_collectable(
   c = coerce_func();
 }
 
@@ -21,11 +21,11 @@ struct Indirect {
 
 struct Indirect indirect_func(void);
 
-// CHECK-LABEL: define void @Indirect_test()
+// CHECK-LABEL: define{{.*}} void @Indirect_test()
 void Indirect_test(void) {
   struct Indirect i;
   
-  // CHECK: call void @indirect_func(%struct.Indirect* sret
-  // CHECK: call i8* @objc_memmove_collectable(
+  // CHECK: call void @indirect_func(ptr sret
+  // CHECK: call ptr @objc_memmove_collectable(
   i = indirect_func();
 }

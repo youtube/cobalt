@@ -1,16 +1,6 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
-//===-- modti3_test.c - Test __modti3 -------------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __modti3 for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
+// REQUIRES: librt_has_modti3
+// REQUIRES: int128
 
 #include "int_lib.h"
 #include <stdio.h>
@@ -63,17 +53,17 @@ int main()
     if (test__modti3(-5, -3, -2))
         return 1;
 
-    if (test__modti3(0x8000000000000000LL, 1, 0x0LL))
+    if (test__modti3(0x8000000000000000ULL, 1, 0x0LL))
         return 1;
-    if (test__modti3(0x8000000000000000LL, -1, 0x0LL))
+    if (test__modti3(0x8000000000000000ULL, -1, 0x0LL))
         return 1;
-    if (test__modti3(0x8000000000000000LL, 2, 0x0LL))
+    if (test__modti3(0x8000000000000000ULL, 2, 0x0LL))
         return 1;
-    if (test__modti3(0x8000000000000000LL, -2, 0x0LL))
+    if (test__modti3(0x8000000000000000ULL, -2, 0x0LL))
         return 1;
-    if (test__modti3(0x8000000000000000LL, 3, 2))
+    if (test__modti3(0x8000000000000000ULL, 3, 2))
         return 1;
-    if (test__modti3(0x8000000000000000LL, -3, 2))
+    if (test__modti3(0x8000000000000000ULL, -3, 2))
         return 1;
 
     if (test__modti3(make_ti(0x8000000000000000LL, 0), 1, 0x0LL))

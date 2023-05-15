@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,10 +26,14 @@
 #include "kmp_str.h"
 
 #if KMP_OS_WINDOWS
+#if KMP_MSVC_COMPAT
 #pragma warning(push)
 #pragma warning(disable : 271 310)
+#endif
 #include <windows.h>
+#if KMP_MSVC_COMPAT
 #pragma warning(pop)
+#endif
 #endif
 
 /* ------------------------------------------------------------------------ */
@@ -42,10 +45,7 @@ kmp_bootstrap_lock_t __kmp_console_lock = KMP_BOOTSTRAP_LOCK_INITIALIZER(
 
 #if KMP_OS_WINDOWS
 
-#ifdef KMP_DEBUG
-/* __kmp_stdout is used only for dev build */
 static HANDLE __kmp_stdout = NULL;
-#endif
 static HANDLE __kmp_stderr = NULL;
 static int __kmp_console_exists = FALSE;
 static kmp_str_buf_t __kmp_console_buf;
@@ -72,10 +72,7 @@ void __kmp_close_console(void) {
   /* wait until user presses return before closing window */
   /* TODO only close if a window was opened */
   if (__kmp_console_exists) {
-#ifdef KMP_DEBUG
-    /* standard out is used only in dev build */
     __kmp_stdout = NULL;
-#endif
     __kmp_stderr = NULL;
     __kmp_str_buf_free(&__kmp_console_buf);
     __kmp_console_exists = FALSE;
@@ -87,39 +84,37 @@ void __kmp_close_console(void) {
 static void __kmp_redirect_output(void) {
   __kmp_acquire_bootstrap_lock(&__kmp_console_lock);
 
+  (void)is_console;
   if (!__kmp_console_exists) {
-#ifdef KMP_DEBUG
-    /* standard out is used only in dev build */
     HANDLE ho;
-#endif
     HANDLE he;
 
     __kmp_str_buf_init(&__kmp_console_buf);
 
     AllocConsole();
-// We do not check the result of AllocConsole because
-//  1. the call is harmless
-//  2. it is not clear how to communicate failue
-//  3. we will detect failure later when we get handle(s)
+    // We do not check the result of AllocConsole because
+    //  1. the call is harmless
+    //  2. it is not clear how to communicate failue
+    //  3. we will detect failure later when we get handle(s)
 
-#ifdef KMP_DEBUG
     ho = GetStdHandle(STD_OUTPUT_HANDLE);
     if (ho == INVALID_HANDLE_VALUE || ho == NULL) {
 
       DWORD err = GetLastError();
       // TODO: output error somehow (maybe message box)
+      (void)err;
       __kmp_stdout = NULL;
 
     } else {
 
       __kmp_stdout = ho; // temporary code, need new global for ho
     }
-#endif
     he = GetStdHandle(STD_ERROR_HANDLE);
     if (he == INVALID_HANDLE_VALUE || he == NULL) {
 
       DWORD err = GetLastError();
       // TODO: output error somehow (maybe message box)
+      (void)err;
       __kmp_stderr = NULL;
 
     } else {
@@ -133,22 +128,22 @@ static void __kmp_redirect_output(void) {
 
 #else
 #define __kmp_stderr (stderr)
+#define __kmp_stdout (stdout)
 #endif /* KMP_OS_WINDOWS */
 
-void __kmp_vprintf(enum kmp_io __kmp_io, char const *format, va_list ap) {
+void __kmp_vprintf(enum kmp_io out_stream, char const *format, va_list ap) {
 #if KMP_OS_WINDOWS
   if (!__kmp_console_exists) {
     __kmp_redirect_output();
   }
-  if (!__kmp_stderr && __kmp_io == kmp_err) {
+  if (!__kmp_stderr && out_stream == kmp_err) {
     return;
   }
-#ifdef KMP_DEBUG
-  if (!__kmp_stdout && __kmp_io == kmp_out) {
+  if (!__kmp_stdout && out_stream == kmp_out) {
     return;
   }
-#endif
 #endif /* KMP_OS_WINDOWS */
+  auto stream = ((out_stream == kmp_out) ? __kmp_stdout : __kmp_stderr);
 
   if (__kmp_debug_buf && __kmp_debug_buffer != NULL) {
 
@@ -157,8 +152,8 @@ void __kmp_vprintf(enum kmp_io __kmp_io, char const *format, va_list ap) {
     int chars = 0;
 
 #ifdef KMP_DEBUG_PIDS
-    chars = KMP_SNPRINTF(db, __kmp_debug_buf_chars, "pid=%d: ",
-                         (kmp_int32)getpid());
+    chars = KMP_SNPRINTF(db, __kmp_debug_buf_chars,
+                         "pid=%d: ", (kmp_int32)getpid());
 #endif
     chars += KMP_VSNPRINTF(db, __kmp_debug_buf_chars, format, ap);
 
@@ -166,18 +161,20 @@ void __kmp_vprintf(enum kmp_io __kmp_io, char const *format, va_list ap) {
       if (chars + 1 > __kmp_debug_buf_warn_chars) {
 #if KMP_OS_WINDOWS
         DWORD count;
-        __kmp_str_buf_print(&__kmp_console_buf, "OMP warning: Debugging buffer "
-                                                "overflow; increase "
-                                                "KMP_DEBUG_BUF_CHARS to %d\n",
+        __kmp_str_buf_print(&__kmp_console_buf,
+                            "OMP warning: Debugging buffer "
+                            "overflow; increase "
+                            "KMP_DEBUG_BUF_CHARS to %d\n",
                             chars + 1);
-        WriteFile(__kmp_stderr, __kmp_console_buf.str, __kmp_console_buf.used,
-                  &count, NULL);
+        WriteFile(stream, __kmp_console_buf.str, __kmp_console_buf.used, &count,
+                  NULL);
         __kmp_str_buf_clear(&__kmp_console_buf);
 #else
-        fprintf(__kmp_stderr, "OMP warning: Debugging buffer overflow; "
-                              "increase KMP_DEBUG_BUF_CHARS to %d\n",
+        fprintf(stream,
+                "OMP warning: Debugging buffer overflow; "
+                "increase KMP_DEBUG_BUF_CHARS to %d\n",
                 chars + 1);
-        fflush(__kmp_stderr);
+        fflush(stream);
 #endif
         __kmp_debug_buf_warn_chars = chars + 1;
       }
@@ -192,15 +189,15 @@ void __kmp_vprintf(enum kmp_io __kmp_io, char const *format, va_list ap) {
     __kmp_str_buf_print(&__kmp_console_buf, "pid=%d: ", (kmp_int32)getpid());
 #endif
     __kmp_str_buf_vprint(&__kmp_console_buf, format, ap);
-    WriteFile(__kmp_stderr, __kmp_console_buf.str, __kmp_console_buf.used,
-              &count, NULL);
+    WriteFile(stream, __kmp_console_buf.str, __kmp_console_buf.used, &count,
+              NULL);
     __kmp_str_buf_clear(&__kmp_console_buf);
 #else
 #ifdef KMP_DEBUG_PIDS
-    fprintf(__kmp_stderr, "pid=%d: ", (kmp_int32)getpid());
+    fprintf(stream, "pid=%d: ", (kmp_int32)getpid());
 #endif
-    vfprintf(__kmp_stderr, format, ap);
-    fflush(__kmp_stderr);
+    vfprintf(stream, format, ap);
+    fflush(stream);
 #endif
   }
 }
@@ -221,6 +218,17 @@ void __kmp_printf_no_lock(char const *format, ...) {
   va_start(ap, format);
 
   __kmp_vprintf(kmp_err, format, ap);
+
+  va_end(ap);
+}
+
+void __kmp_fprintf(enum kmp_io stream, char const *format, ...) {
+  va_list ap;
+  va_start(ap, format);
+
+  __kmp_acquire_bootstrap_lock(&__kmp_stdio_lock);
+  __kmp_vprintf(stream, format, ap);
+  __kmp_release_bootstrap_lock(&__kmp_stdio_lock);
 
   va_end(ap);
 }

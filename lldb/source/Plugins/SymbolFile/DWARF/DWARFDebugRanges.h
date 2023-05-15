@@ -1,34 +1,36 @@
 //===-- DWARFDebugRanges.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SymbolFileDWARF_DWARFDebugRanges_h_
-#define SymbolFileDWARF_DWARFDebugRanges_h_
+#ifndef LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFDEBUGRANGES_H
+#define LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFDEBUGRANGES_H
 
-#include "DWARFDIE.h"
-#include "SymbolFileDWARF.h"
-
+#include "lldb/Core/dwarf.h"
 #include <map>
+
+class DWARFUnit;
+namespace lldb_private {
+class DWARFContext;
+}
 
 class DWARFDebugRanges {
 public:
   DWARFDebugRanges();
-  ~DWARFDebugRanges();
-  void Extract(SymbolFileDWARF *dwarf2Data);
+
+  void Extract(lldb_private::DWARFContext &context);
+  bool FindRanges(const DWARFUnit *cu, dw_offset_t debug_ranges_offset,
+                  DWARFRangeList &range_list) const;
+
   static void Dump(lldb_private::Stream &s,
                    const lldb_private::DWARFDataExtractor &debug_ranges_data,
                    lldb::offset_t *offset_ptr, dw_addr_t cu_base_addr);
-  bool FindRanges(dw_addr_t debug_ranges_base,
-                  dw_offset_t debug_ranges_offset,
-                  DWARFRangeList &range_list) const;
 
 protected:
-  bool Extract(SymbolFileDWARF *dwarf2Data, lldb::offset_t *offset_ptr,
+  bool Extract(lldb_private::DWARFContext &context, lldb::offset_t *offset_ptr,
                DWARFRangeList &range_list);
 
   typedef std::map<dw_offset_t, DWARFRangeList> range_map;
@@ -37,4 +39,4 @@ protected:
   range_map m_range_map;
 };
 
-#endif // SymbolFileDWARF_DWARFDebugRanges_h_
+#endif // LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFDEBUGRANGES_H

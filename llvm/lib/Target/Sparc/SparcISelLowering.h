@@ -1,9 +1,8 @@
 //===-- SparcISelLowering.h - Sparc DAG Lowering Interface ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -22,36 +21,43 @@ namespace llvm {
   class SparcSubtarget;
 
   namespace SPISD {
-    enum NodeType : unsigned {
-      FIRST_NUMBER = ISD::BUILTIN_OP_END,
-      CMPICC,      // Compare two GPR operands, set icc+xcc.
-      CMPFCC,      // Compare two FP operands, set fcc.
-      BRICC,       // Branch to dest on icc condition
-      BRXCC,       // Branch to dest on xcc condition (64-bit only).
-      BRFCC,       // Branch to dest on fcc condition
-      SELECT_ICC,  // Select between two values using the current ICC flags.
-      SELECT_XCC,  // Select between two values using the current XCC flags.
-      SELECT_FCC,  // Select between two values using the current FCC flags.
+  enum NodeType : unsigned {
+    FIRST_NUMBER = ISD::BUILTIN_OP_END,
+    CMPICC,    // Compare two GPR operands, set icc+xcc.
+    CMPFCC,    // Compare two FP operands, set fcc.
+    CMPFCC_V9, // Compare two FP operands, set fcc (v9 variant).
+    BRICC,     // Branch to dest on icc condition
+    BPICC,    // Branch to dest on icc condition, with prediction (64-bit only).
+    BPXCC,    // Branch to dest on xcc condition, with prediction (64-bit only).
+    BRFCC,    // Branch to dest on fcc condition
+    BRFCC_V9, // Branch to dest on fcc condition (v9 variant).
+    SELECT_ICC, // Select between two values using the current ICC flags.
+    SELECT_XCC, // Select between two values using the current XCC flags.
+    SELECT_FCC, // Select between two values using the current FCC flags.
+    SELECT_REG, // Select between two values using the comparison of a register
+                // with zero.
 
-      EH_SJLJ_SETJMP,  // builtin setjmp operation
-      EH_SJLJ_LONGJMP, // builtin longjmp operation
+    Hi,
+    Lo, // Hi/Lo operations, typically on a global address.
 
-      Hi, Lo,      // Hi/Lo operations, typically on a global address.
+    FTOI, // FP to Int within a FP register.
+    ITOF, // Int to FP within a FP register.
+    FTOX, // FP to Int64 within a FP register.
+    XTOF, // Int64 to FP within a FP register.
 
-      FTOI,        // FP to Int within a FP register.
-      ITOF,        // Int to FP within a FP register.
-      FTOX,        // FP to Int64 within a FP register.
-      XTOF,        // Int64 to FP within a FP register.
+    CALL,            // A call instruction.
+    RET_FLAG,        // Return with a flag operand.
+    GLOBAL_BASE_REG, // Global base reg for PIC.
+    FLUSHW,          // FLUSH register windows to stack.
 
-      CALL,        // A call instruction.
-      RET_FLAG,    // Return with a flag operand.
-      GLOBAL_BASE_REG, // Global base reg for PIC.
-      FLUSHW,      // FLUSH register windows to stack.
+    TAIL_CALL, // Tail call
 
-      TLS_ADD,     // For Thread Local Storage (TLS).
-      TLS_LD,
-      TLS_CALL
-    };
+    TLS_ADD, // For Thread Local Storage (TLS).
+    TLS_LD,
+    TLS_CALL,
+
+    LOAD_GDOP, // Load operation w/ gdop relocation.
+  };
   }
 
   class SparcTargetLowering : public TargetLowering {
@@ -86,13 +92,6 @@ namespace llvm {
                                       std::vector<SDValue> &Ops,
                                       SelectionDAG &DAG) const override;
 
-    unsigned
-    getInlineAsmMemConstraint(StringRef ConstraintCode) const override {
-      if (ConstraintCode == "o")
-        return InlineAsm::Constraint_o;
-      return TargetLowering::getInlineAsmMemConstraint(ConstraintCode);
-    }
-
     std::pair<unsigned, const TargetRegisterClass *>
     getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
                                  StringRef Constraint, MVT VT) const override;
@@ -102,19 +101,19 @@ namespace llvm {
       return MVT::i32;
     }
 
-    unsigned getRegisterByName(const char* RegName, EVT VT,
-                               SelectionDAG &DAG) const override;
+    Register getRegisterByName(const char* RegName, LLT VT,
+                               const MachineFunction &MF) const override;
 
     /// If a physical register, this returns the register that receives the
     /// exception address on entry to an EH pad.
-    unsigned
+    Register
     getExceptionPointerRegister(const Constant *PersonalityFn) const override {
       return SP::I0;
     }
 
     /// If a physical register, this returns the register that receives the
     /// exception typeid on entry to a landing pad.
-    unsigned
+    Register
     getExceptionSelectorRegister(const Constant *PersonalityFn) const override {
       return SP::I1;
     }
@@ -151,6 +150,11 @@ namespace llvm {
     SDValue LowerCall_64(TargetLowering::CallLoweringInfo &CLI,
                          SmallVectorImpl<SDValue> &InVals) const;
 
+    bool CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+                        bool isVarArg,
+                        const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        LLVMContext &Context) const override;
+
     SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                         const SmallVectorImpl<ISD::OutputArg> &Outs,
                         const SmallVectorImpl<SDValue> &OutVals,
@@ -171,12 +175,6 @@ namespace llvm {
     SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
 
-    SDValue LowerEH_SJLJ_SETJMP(SDValue Op, SelectionDAG &DAG,
-                                const SparcTargetLowering &TLI) const ;
-    SDValue LowerEH_SJLJ_LONGJMP(SDValue Op, SelectionDAG &DAG,
-                                 const SparcTargetLowering &TLI) const ;
-
-    unsigned getSRetArgSize(SelectionDAG &DAG, SDValue Callee) const;
     SDValue withTargetFlags(SDValue Op, unsigned TF, SelectionDAG &DAG) const;
     SDValue makeHiLoPair(SDValue Op, unsigned HiTF, unsigned LoTF,
                          SelectionDAG &DAG) const;
@@ -191,6 +189,17 @@ namespace llvm {
                              const SDLoc &DL, SelectionDAG &DAG) const;
 
     SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
+
+    SDValue PerformBITCASTCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+
+    SDValue bitcastConstantFPToInt(ConstantFPSDNode *C, const SDLoc &DL,
+                                   SelectionDAG &DAG) const;
+
+    SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
+
+    bool IsEligibleForTailCallOptimization(CCState &CCInfo,
+                                           CallLoweringInfo &CLI,
+                                           MachineFunction &MF) const;
 
     bool ShouldShrinkFPConstant(EVT VT) const override {
       // Do not shrink FP constpool if VT == MVT::f128.
@@ -213,10 +222,6 @@ namespace llvm {
 
     MachineBasicBlock *expandSelectCC(MachineInstr &MI, MachineBasicBlock *BB,
                                       unsigned BROpcode) const;
-    MachineBasicBlock *emitEHSjLjSetJmp(MachineInstr &MI,
-                                        MachineBasicBlock *MBB) const;
-    MachineBasicBlock *emitEHSjLjLongJmp(MachineInstr &MI,
-                                         MachineBasicBlock *MBB) const;
   };
 } // end namespace llvm
 

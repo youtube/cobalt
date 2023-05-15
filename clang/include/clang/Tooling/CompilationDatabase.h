@@ -1,9 +1,8 @@
 //===- CompilationDatabase.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -32,6 +31,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include <memory>
 #include <string>
 #include <utility>
@@ -43,10 +43,10 @@ namespace tooling {
 /// Specifies the working directory and command of a compilation.
 struct CompileCommand {
   CompileCommand() = default;
-  CompileCommand(Twine Directory, Twine Filename,
-                 std::vector<std::string> CommandLine, Twine Output)
+  CompileCommand(const Twine &Directory, const Twine &Filename,
+                 std::vector<std::string> CommandLine, const Twine &Output)
       : Directory(Directory.str()), Filename(Filename.str()),
-        CommandLine(std::move(CommandLine)), Output(Output.str()){}
+        CommandLine(std::move(CommandLine)), Output(Output.str()) {}
 
   /// The working directory the command was executed from.
   std::string Directory;
@@ -60,9 +60,15 @@ struct CompileCommand {
   /// The output file associated with the command.
   std::string Output;
 
+  /// If this compile command was guessed rather than read from an authoritative
+  /// source, a short human-readable explanation.
+  /// e.g. "inferred from foo/bar.h".
+  std::string Heuristic;
+
   friend bool operator==(const CompileCommand &LHS, const CompileCommand &RHS) {
     return LHS.Directory == RHS.Directory && LHS.Filename == RHS.Filename &&
-           LHS.CommandLine == RHS.CommandLine && LHS.Output == RHS.Output;
+           LHS.CommandLine == RHS.CommandLine && LHS.Output == RHS.Output &&
+           LHS.Heuristic == RHS.Heuristic;
   }
 
   friend bool operator!=(const CompileCommand &LHS, const CompileCommand &RHS) {
@@ -141,27 +147,6 @@ public:
   virtual std::vector<CompileCommand> getAllCompileCommands() const;
 };
 
-/// Interface for compilation database plugins.
-///
-/// A compilation database plugin allows the user to register custom compilation
-/// databases that are picked up as compilation database if the corresponding
-/// library is linked in. To register a plugin, declare a static variable like:
-///
-/// \code
-/// static CompilationDatabasePluginRegistry::Add<MyDatabasePlugin>
-/// X("my-compilation-database", "Reads my own compilation database");
-/// \endcode
-class CompilationDatabasePlugin {
-public:
-  virtual ~CompilationDatabasePlugin();
-
-  /// Loads a compilation database from a build directory.
-  ///
-  /// \see CompilationDatabase::loadFromDirectory().
-  virtual std::unique_ptr<CompilationDatabase>
-  loadFromDirectory(StringRef Directory, std::string &ErrorMessage) = 0;
-};
-
 /// A compilation database that returns a single compile command line.
 ///
 /// Useful when we want a tool to behave more like a compiler invocation.
@@ -195,18 +180,24 @@ public:
   /// \param Argv Points to the command line arguments.
   /// \param ErrorMsg Contains error text if the function returns null pointer.
   /// \param Directory The base directory used in the FixedCompilationDatabase.
-  static std::unique_ptr<FixedCompilationDatabase> loadFromCommandLine(
-      int &Argc, const char *const *Argv, std::string &ErrorMsg,
-      Twine Directory = ".");
+  static std::unique_ptr<FixedCompilationDatabase>
+  loadFromCommandLine(int &Argc, const char *const *Argv, std::string &ErrorMsg,
+                      const Twine &Directory = ".");
 
-  /// Reads flags from the given file, one-per line.
+  /// Reads flags from the given file, one-per-line.
   /// Returns nullptr and sets ErrorMessage if we can't read the file.
   static std::unique_ptr<FixedCompilationDatabase>
   loadFromFile(StringRef Path, std::string &ErrorMsg);
 
+  /// Reads flags from the given buffer, one-per-line.
+  /// Directory is the command CWD, typically the parent of compile_flags.txt.
+  static std::unique_ptr<FixedCompilationDatabase>
+  loadFromBuffer(StringRef Directory, StringRef Data, std::string &ErrorMsg);
+
   /// Constructs a compilation data base from a specified directory
   /// and command line.
-  FixedCompilationDatabase(Twine Directory, ArrayRef<std::string> CommandLine);
+  FixedCompilationDatabase(const Twine &Directory,
+                           ArrayRef<std::string> CommandLine);
 
   /// Returns the given compile command.
   ///
@@ -222,12 +213,32 @@ private:
   std::vector<CompileCommand> CompileCommands;
 };
 
+/// Transforms a compile command so that it applies the same configuration to
+/// a different file. Most args are left intact, but tweaks may be needed
+/// to certain flags (-x, -std etc).
+///
+/// The output command will always end in {"--", Filename}.
+tooling::CompileCommand transferCompileCommand(tooling::CompileCommand,
+                                               StringRef Filename);
+
 /// Returns a wrapped CompilationDatabase that defers to the provided one,
 /// but getCompileCommands() will infer commands for unknown files.
 /// The return value of getAllFiles() or getAllCompileCommands() is unchanged.
 /// See InterpolatingCompilationDatabase.cpp for details on heuristics.
 std::unique_ptr<CompilationDatabase>
     inferMissingCompileCommands(std::unique_ptr<CompilationDatabase>);
+
+/// Returns a wrapped CompilationDatabase that will add -target and -mode flags
+/// to commandline when they can be deduced from argv[0] of commandline returned
+/// by underlying database.
+std::unique_ptr<CompilationDatabase>
+inferTargetAndDriverMode(std::unique_ptr<CompilationDatabase> Base);
+
+/// Returns a wrapped CompilationDatabase that will expand all rsp(response)
+/// files on commandline returned by underlying database.
+std::unique_ptr<CompilationDatabase>
+expandResponseFiles(std::unique_ptr<CompilationDatabase> Base,
+                    llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS);
 
 } // namespace tooling
 } // namespace clang

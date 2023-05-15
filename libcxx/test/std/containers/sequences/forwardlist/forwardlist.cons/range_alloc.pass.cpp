@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,17 +16,18 @@
 #include <cassert>
 #include <iterator>
 
+#include "test_macros.h"
 #include "test_allocator.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef int T;
         typedef test_allocator<T> A;
         typedef std::forward_list<T, A> C;
-        typedef input_iterator<const T*> I;
+        typedef cpp17_input_iterator<const T*> I;
         const T t[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         C c(I(std::begin(t)), I(std::end(t)), A(13));
         int n = 0;
@@ -41,7 +41,7 @@ int main()
         typedef int T;
         typedef min_allocator<T> A;
         typedef std::forward_list<T, A> C;
-        typedef input_iterator<const T*> I;
+        typedef cpp17_input_iterator<const T*> I;
         const T t[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
         C c(I(std::begin(t)), I(std::end(t)), A());
         int n = 0;
@@ -51,4 +51,6 @@ int main()
         assert(c.get_allocator() == A());
     }
 #endif
+
+  return 0;
 }

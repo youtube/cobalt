@@ -1,9 +1,8 @@
 //===-- BPFInstrInfo.cpp - BPF Instruction Information ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,8 +30,8 @@ BPFInstrInfo::BPFInstrInfo()
 
 void BPFInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator I,
-                               const DebugLoc &DL, unsigned DestReg,
-                               unsigned SrcReg, bool KillSrc) const {
+                               const DebugLoc &DL, MCRegister DestReg,
+                               MCRegister SrcReg, bool KillSrc) const {
   if (BPF::GPRRegClass.contains(DestReg, SrcReg))
     BuildMI(MBB, I, DL, get(BPF::MOV_rr), DestReg)
         .addReg(SrcReg, getKillRegState(KillSrc));
@@ -44,11 +43,11 @@ void BPFInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 }
 
 void BPFInstrInfo::expandMEMCPY(MachineBasicBlock::iterator MI) const {
-  unsigned DstReg = MI->getOperand(0).getReg();
-  unsigned SrcReg = MI->getOperand(1).getReg();
+  Register DstReg = MI->getOperand(0).getReg();
+  Register SrcReg = MI->getOperand(1).getReg();
   uint64_t CopyLen = MI->getOperand(2).getImm();
   uint64_t Alignment = MI->getOperand(3).getImm();
-  unsigned ScratchReg = MI->getOperand(4).getReg();
+  Register ScratchReg = MI->getOperand(4).getReg();
   MachineBasicBlock *BB = MI->getParent();
   DebugLoc dl = MI->getDebugLoc();
   unsigned LdOpc, StOpc;
@@ -124,9 +123,10 @@ bool BPFInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
 
 void BPFInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                        MachineBasicBlock::iterator I,
-                                       unsigned SrcReg, bool IsKill, int FI,
+                                       Register SrcReg, bool IsKill, int FI,
                                        const TargetRegisterClass *RC,
-                                       const TargetRegisterInfo *TRI) const {
+                                       const TargetRegisterInfo *TRI,
+                                       Register VReg) const {
   DebugLoc DL;
   if (I != MBB.end())
     DL = I->getDebugLoc();
@@ -147,9 +147,10 @@ void BPFInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 
 void BPFInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                         MachineBasicBlock::iterator I,
-                                        unsigned DestReg, int FI,
+                                        Register DestReg, int FI,
                                         const TargetRegisterClass *RC,
-                                        const TargetRegisterInfo *TRI) const {
+                                        const TargetRegisterInfo *TRI,
+                                        Register VReg) const {
   DebugLoc DL;
   if (I != MBB.end())
     DL = I->getDebugLoc();
@@ -193,8 +194,7 @@ bool BPFInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
       }
 
       // If the block has any instructions after a J, delete them.
-      while (std::next(I) != MBB.end())
-        std::next(I)->eraseFromParent();
+      MBB.erase(std::next(I), MBB.end());
       Cond.clear();
       FBB = nullptr;
 

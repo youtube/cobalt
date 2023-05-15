@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <memory>
 
@@ -24,7 +23,7 @@
 #include "unique_ptr_test_helper.h"
 
 template <class VT>
-void test_pointer_ctor() {
+TEST_CONSTEXPR_CXX23 void test_pointer_ctor() {
   {
     std::unique_ptr<VT> p(0);
     assert(p.get() == 0);
@@ -37,7 +36,7 @@ void test_pointer_ctor() {
 }
 
 template <class VT>
-void test_pointer_deleter_ctor() {
+TEST_CONSTEXPR_CXX23 void test_pointer_deleter_ctor() {
   {
     std::default_delete<VT> d;
     std::unique_ptr<VT> p(0, d);
@@ -62,7 +61,7 @@ void test_pointer_deleter_ctor() {
   }
 }
 
-int main() {
+TEST_CONSTEXPR_CXX23 bool test() {
   {
     // test_pointer_ctor<int>();
     test_pointer_deleter_ctor<int>();
@@ -71,4 +70,15 @@ int main() {
     test_pointer_ctor<int[]>();
     test_pointer_deleter_ctor<int[]>();
   }
+
+  return true;
+}
+
+int main(int, char**) {
+  test();
+#if TEST_STD_VER >= 23
+  static_assert(test());
+#endif
+
+  return 0;
 }

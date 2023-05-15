@@ -35,7 +35,7 @@
 ...
 ---
 name:            a
-alignment:       2
+alignment:       4
 exposesReturnsTwice: false
 legalized:       false
 regBankSelected: false
@@ -73,15 +73,15 @@ body:             |
   ; MM:   successors: %bb.2(0x50000000), %bb.1(0x30000000)
   ; MM:   FCMP_D32_MM killed renamable $d6, killed renamable $d7, 2, implicit-def $fcc0
   ; MM:   BC1F_MM $fcc0, %bb.2, implicit-def $at {
-  ; MM:     NOP
+  ; MM:     $zero = SLL_MM $zero, 0
   ; MM:   }
   ; MM: bb.1.entry:
   ; MM:   successors: %bb.3(0x80000000)
   ; MM:   J %bb.3, implicit-def $at {
-  ; MM:     NOP
+  ; MM:     $zero = SLL_MM $zero, 0
   ; MM:   }
   ; MM: bb.2.if.then:
-  ; MM:   INLINEASM &".space 310680", 1, 12, implicit-def dead early-clobber $at
+  ; MM:   INLINEASM &".space 310680", 1 /* sideeffect attdialect */, 12 /* clobber */, implicit-def dead early-clobber $at
   ; MM:   $v0 = LI16_MM 0
   ; MM:   JRC16_MM undef $ra, implicit killed $v0
   ; MM: bb.3.return:
@@ -92,7 +92,7 @@ body:             |
   ; PIC:   successors: %bb.3(0x50000000), %bb.1(0x30000000)
   ; PIC:   FCMP_D32_MM killed renamable $d6, killed renamable $d7, 2, implicit-def $fcc0
   ; PIC:   BC1F_MM $fcc0, %bb.3, implicit-def $at {
-  ; PIC:     NOP
+  ; PIC:     $zero = SLL_MM $zero, 0
   ; PIC:   }
   ; PIC: bb.1.entry:
   ; PIC:   successors: %bb.2(0x80000000)
@@ -110,7 +110,7 @@ body:             |
   ; PIC:     $sp = ADDiu $sp, 8
   ; PIC:   }
   ; PIC: bb.3.if.then:
-  ; PIC:   INLINEASM &".space 310680", 1, 12, implicit-def dead early-clobber $at
+  ; PIC:   INLINEASM &".space 310680", 1 /* sideeffect attdialect */, 12 /* clobber */, implicit-def dead early-clobber $at
   ; PIC:   $v0 = LI16_MM 0
   ; PIC:   JRC16_MM undef $ra, implicit killed $v0
   ; PIC: bb.4.return:
@@ -135,7 +135,7 @@ body:             |
 ...
 ---
 name:            b
-alignment:       2
+alignment:       4
 exposesReturnsTwice: false
 legalized:       false
 regBankSelected: false
@@ -173,13 +173,13 @@ body:             |
   ; MM:   successors: %bb.2(0x30000000), %bb.1(0x50000000)
   ; MM:   FCMP_D32_MM killed renamable $d6, killed renamable $d7, 19, implicit-def $fcc0
   ; MM:   BC1F_MM killed $fcc0, %bb.1, implicit-def dead $at {
-  ; MM:     NOP
+  ; MM:     $zero = SLL_MM $zero, 0
   ; MM:   }
   ; MM: bb.1.return:
   ; MM:   $v0 = LI16_MM 1
   ; MM:   JRC16_MM undef $ra, implicit killed $v0
   ; MM: bb.2.if.then:
-  ; MM:   INLINEASM &".space 310680", 1, 12, implicit-def dead early-clobber $at
+  ; MM:   INLINEASM &".space 310680", 1 /* sideeffect attdialect */, 12 /* clobber */, implicit-def dead early-clobber $at
   ; MM:   $v0 = LI16_MM 0
   ; MM:   JRC16_MM undef $ra, implicit killed $v0
   ; PIC-LABEL: name: b
@@ -187,13 +187,13 @@ body:             |
   ; PIC:   successors: %bb.2(0x30000000), %bb.1(0x50000000)
   ; PIC:   FCMP_D32_MM killed renamable $d6, killed renamable $d7, 19, implicit-def $fcc0
   ; PIC:   BC1F_MM killed $fcc0, %bb.1, implicit-def dead $at {
-  ; PIC:     NOP
+  ; PIC:     $zero = SLL_MM $zero, 0
   ; PIC:   }
   ; PIC: bb.1.return:
   ; PIC:   $v0 = LI16_MM 1
   ; PIC:   JRC16_MM undef $ra, implicit killed $v0
   ; PIC: bb.2.if.then:
-  ; PIC:   INLINEASM &".space 310680", 1, 12, implicit-def dead early-clobber $at
+  ; PIC:   INLINEASM &".space 310680", 1 /* sideeffect attdialect */, 12 /* clobber */, implicit-def dead early-clobber $at
   ; PIC:   $v0 = LI16_MM 0
   ; PIC:   JRC16_MM undef $ra, implicit killed $v0
   bb.0.entry:

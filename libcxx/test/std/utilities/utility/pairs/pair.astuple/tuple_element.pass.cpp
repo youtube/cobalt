@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,6 +12,7 @@
 
 // tuple_element<I, pair<T1, T2> >::type
 
+#include <type_traits>
 #include <utility>
 
 template <class T1, class T2>
@@ -48,8 +48,10 @@ void test()
     }
 }
 
-int main()
+int main(int, char**)
 {
     test<int, short>();
     test<int*, char>();
+
+  return 0;
 }

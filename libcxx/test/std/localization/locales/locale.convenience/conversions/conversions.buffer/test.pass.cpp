@@ -1,36 +1,41 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <locale>
 
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
+
 // wbuffer_convert<Codecvt, Elem, Tr>
 
-#include <fstream>
-#include <locale>
-#include <codecvt>
-#include <cassert>
+// XFAIL: no-wide-characters
 
-int main()
-{
+#include <cassert>
+#include <codecvt>
+#include <locale>
+#include <sstream>
+
+int main(int, char**) {
+    std::string storage;
     {
-        std::ofstream bytestream("myfile.txt");
+        std::ostringstream bytestream;
         std::wbuffer_convert<std::codecvt_utf8<wchar_t> > mybuf(bytestream.rdbuf());
         std::wostream mystr(&mybuf);
         mystr << L"Hello" << std::endl;
+        storage = bytestream.str();
     }
     {
-        std::ifstream bytestream("myfile.txt");
+        std::istringstream bytestream(storage);
         std::wbuffer_convert<std::codecvt_utf8<wchar_t> > mybuf(bytestream.rdbuf());
         std::wistream mystr(&mybuf);
         std::wstring ws;
         mystr >> ws;
         assert(ws == L"Hello");
     }
-    std::remove("myfile.txt");
+
+    return 0;
 }

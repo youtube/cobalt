@@ -1,4 +1,4 @@
-; RUN: opt < %s -S -speculative-execution \
+; RUN: opt < %s -S -passes=speculative-execution \
 ; RUN:   -spec-exec-max-speculation-cost 4 -spec-exec-max-not-hoisted 3 \
 ; RUN:   | FileCheck %s
 
@@ -23,7 +23,7 @@ define void @ifThen_ptrtoint() {
   br i1 true, label %a, label %b
 
 a:
-  %x = ptrtoint i32* undef to i64
+  %x = ptrtoint ptr undef to i64
   br label %b
 
 b:
@@ -37,7 +37,7 @@ define void @ifThen_inttoptr() {
   br i1 true, label %a, label %b
 
 a:
-  %x = inttoptr i64 undef to i32*
+  %x = inttoptr i64 undef to ptr
   br label %b
 
 b:
@@ -50,7 +50,7 @@ b:
 define void @ifThen_addrspacecast() {
   br i1 true, label %a, label %b
 a:
-  %x = addrspacecast i32* undef to i32 addrspace(1)*
+  %x = addrspacecast ptr undef to ptr addrspace(1)
   br label %b
 
 b:
@@ -129,6 +129,19 @@ define void @ifThen_fptrunc() {
   br i1 true, label %a, label %b
 a:
   %x = fptrunc double undef to float
+  br label %b
+
+b:
+  ret void
+}
+
+; CHECK-LABEL: @ifThen_trunc(
+; CHECK: trunc
+; CHECK: br i1 true
+define void @ifThen_trunc() {
+  br i1 true, label %a, label %b
+a:
+  %x = trunc i32 undef to i16
   br label %b
 
 b:

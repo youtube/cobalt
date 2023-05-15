@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=gnu++11 %s
-// RUN: %clang_cc1 -fsyntax-only -verify -Wno-c++11-extensions -Wno-local-type-template-args %s
-// RUN: %clang_cc1 -fsyntax-only -verify -Wno-c++11-extensions -Wno-local-type-template-args -fmodules %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-non-c-typedef-for-linkage -std=gnu++11 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-non-c-typedef-for-linkage -Wno-c++11-extensions -Wno-local-type-template-args %s -std=gnu++98
+// RUN: %clang_cc1 -fsyntax-only -verify -Wno-non-c-typedef-for-linkage -Wno-c++11-extensions -Wno-local-type-template-args -fmodules %s
 
 namespace test1 {
   int x; // expected-note {{previous definition is here}}
@@ -173,7 +173,10 @@ namespace test17 {
     };
   }
   template <typename T1, typename T2> void foo() {}
-  template <typename T, T x> void bar() {} // expected-note {{candidate function}}
+  template <typename T, T x> void bar() {}
+#if __cplusplus < 201703L
+  // expected-note@-2 {{candidate function}}
+#endif
   inline void *g() {
     struct L {
     };
@@ -181,7 +184,10 @@ namespace test17 {
     // InternalLinkage in c++11) and VisibleNoLinkage. The correct answer is
     // NoLinkage in both cases. This means that using foo<L, I> as a template
     // argument should fail.
-    return reinterpret_cast<void*>(bar<typeof(foo<L, I>), foo<L, I> >); // expected-error {{reinterpret_cast cannot resolve overloaded function 'bar' to type 'void *}}
+    return reinterpret_cast<void*>(bar<typeof(foo<L, I>), foo<L, I> >);
+#if __cplusplus < 201703L
+    // expected-error@-2 {{reinterpret_cast cannot resolve overloaded function 'bar' to type 'void *}}
+#endif
   }
   void h() {
     g();
@@ -245,7 +251,8 @@ namespace typedef_name_for_linkage {
     void f() { struct Inner {}; Use<Inner> ui; }
   } F;
 #if __cplusplus < 201103L
-  // expected-error@-2 {{unsupported: typedef changes linkage of anonymous type, but linkage was already computed}}
-  // expected-note@-5 {{use a tag name here}}
+  // expected-error@-4 {{given name for linkage purposes by typedef declaration after its linkage was computed}}
+  // expected-note@-4 {{due to this member}}
+  // expected-note@-4 {{by this typedef}}
 #endif
 }

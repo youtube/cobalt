@@ -16,9 +16,9 @@ define void @test2(i32 %lane_id, i32 %rx_pwr_st) #0 {
 entry:
   %lane_id.addr = alloca i32, align 4
   %rx_pwr_st.addr = alloca i32, align 4
-  store i32 %lane_id, i32* %lane_id.addr, align 4
-  store i32 %rx_pwr_st, i32* %rx_pwr_st.addr, align 4
-  %0 = load i32, i32* %lane_id.addr, align 4
+  store i32 %lane_id, ptr %lane_id.addr, align 4
+  store i32 %rx_pwr_st, ptr %rx_pwr_st.addr, align 4
+  %0 = load i32, ptr %lane_id.addr, align 4
   switch i32 %0, label %sw.epilog [
     i32 0, label %sw.bb
     i32 1, label %sw.bb1
@@ -28,30 +28,30 @@ entry:
   ]
 
 sw.bb:                                            ; preds = %entry
-  store i32 1, i32* @lane0_pwr_st, align 4
+  store i32 1, ptr @lane0_pwr_st, align 4
   br label %sw.epilog
 
 sw.bb1:                                           ; preds = %entry
-  store i32 1, i32* @lane1_pwr_st, align 4
+  store i32 1, ptr @lane1_pwr_st, align 4
   br label %sw.epilog
 
 sw.bb2:                                           ; preds = %entry
-  store i32 1, i32* @lane2_pwr_st, align 4
+  store i32 1, ptr @lane2_pwr_st, align 4
   br label %sw.epilog
 
 sw.bb3:                                           ; preds = %entry
-  store i32 1, i32* @lane3_pwr_st, align 4
+  store i32 1, ptr @lane3_pwr_st, align 4
   br label %sw.epilog
 
 sw.bb4:                                           ; preds = %entry
-  store i32 1, i32* @lane0_pwr_st, align 4
-  store i32 1, i32* @lane1_pwr_st, align 4
-  store i32 1, i32* @lane2_pwr_st, align 4
-  store i32 1, i32* @lane3_pwr_st, align 4
+  store i32 1, ptr @lane0_pwr_st, align 4
+  store i32 1, ptr @lane1_pwr_st, align 4
+  store i32 1, ptr @lane2_pwr_st, align 4
+  store i32 1, ptr @lane3_pwr_st, align 4
   br label %sw.epilog
 
 sw.epilog:                                        ; preds = %entry, %sw.bb4, %sw.bb3, %sw.bb2, %sw.bb1, %sw.bb
   ret void
 }
 
-attributes #0 = { noinline nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv60" "target-features"="-hvx,-long-calls" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { noinline nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv60" "target-features"="-hvx,-long-calls" "unsafe-fp-math"="false" "use-soft-float"="false" }

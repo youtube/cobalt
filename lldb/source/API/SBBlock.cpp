@@ -1,9 +1,8 @@
-//===-- SBBlock.cpp ---------------------------------------------*- C++ -*-===//
+//===-- SBBlock.cpp -------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,51 +20,63 @@
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Instrumentation.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBBlock::SBBlock() : m_opaque_ptr(NULL) {}
+SBBlock::SBBlock() { LLDB_INSTRUMENT_VA(this); }
 
 SBBlock::SBBlock(lldb_private::Block *lldb_object_ptr)
     : m_opaque_ptr(lldb_object_ptr) {}
 
-SBBlock::SBBlock(const SBBlock &rhs) : m_opaque_ptr(rhs.m_opaque_ptr) {}
+SBBlock::SBBlock(const SBBlock &rhs) : m_opaque_ptr(rhs.m_opaque_ptr) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
 const SBBlock &SBBlock::operator=(const SBBlock &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   m_opaque_ptr = rhs.m_opaque_ptr;
   return *this;
 }
 
-SBBlock::~SBBlock() { m_opaque_ptr = NULL; }
+SBBlock::~SBBlock() { m_opaque_ptr = nullptr; }
 
-bool SBBlock::IsValid() const { return m_opaque_ptr != NULL; }
+bool SBBlock::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBBlock::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_ptr != nullptr;
+}
 
 bool SBBlock::IsInlined() const {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
-    return m_opaque_ptr->GetInlinedFunctionInfo() != NULL;
+    return m_opaque_ptr->GetInlinedFunctionInfo() != nullptr;
   return false;
 }
 
 const char *SBBlock::GetInlinedName() const {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr) {
     const InlineFunctionInfo *inlined_info =
         m_opaque_ptr->GetInlinedFunctionInfo();
     if (inlined_info) {
-      Function *function = m_opaque_ptr->CalculateSymbolContextFunction();
-      LanguageType language;
-      if (function)
-        language = function->GetLanguage();
-      else
-        language = lldb::eLanguageTypeUnknown;
-      return inlined_info->GetName(language).AsCString(NULL);
+      return inlined_info->GetName().AsCString(nullptr);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 SBFileSpec SBBlock::GetInlinedCallSiteFile() const {
+  LLDB_INSTRUMENT_VA(this);
+
   SBFileSpec sb_file;
   if (m_opaque_ptr) {
     const InlineFunctionInfo *inlined_info =
@@ -77,6 +88,8 @@ SBFileSpec SBBlock::GetInlinedCallSiteFile() const {
 }
 
 uint32_t SBBlock::GetInlinedCallSiteLine() const {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr) {
     const InlineFunctionInfo *inlined_info =
         m_opaque_ptr->GetInlinedFunctionInfo();
@@ -87,6 +100,8 @@ uint32_t SBBlock::GetInlinedCallSiteLine() const {
 }
 
 uint32_t SBBlock::GetInlinedCallSiteColumn() const {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr) {
     const InlineFunctionInfo *inlined_info =
         m_opaque_ptr->GetInlinedFunctionInfo();
@@ -106,6 +121,8 @@ void SBBlock::AppendVariables(bool can_create, bool get_parent_variables,
 }
 
 SBBlock SBBlock::GetParent() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBBlock sb_block;
   if (m_opaque_ptr)
     sb_block.m_opaque_ptr = m_opaque_ptr->GetParent();
@@ -113,6 +130,8 @@ SBBlock SBBlock::GetParent() {
 }
 
 lldb::SBBlock SBBlock::GetContainingInlinedBlock() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBBlock sb_block;
   if (m_opaque_ptr)
     sb_block.m_opaque_ptr = m_opaque_ptr->GetContainingInlinedBlock();
@@ -120,6 +139,8 @@ lldb::SBBlock SBBlock::GetContainingInlinedBlock() {
 }
 
 SBBlock SBBlock::GetSibling() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBBlock sb_block;
   if (m_opaque_ptr)
     sb_block.m_opaque_ptr = m_opaque_ptr->GetSibling();
@@ -127,6 +148,8 @@ SBBlock SBBlock::GetSibling() {
 }
 
 SBBlock SBBlock::GetFirstChild() {
+  LLDB_INSTRUMENT_VA(this);
+
   SBBlock sb_block;
   if (m_opaque_ptr)
     sb_block.m_opaque_ptr = m_opaque_ptr->GetFirstChild();
@@ -138,6 +161,8 @@ lldb_private::Block *SBBlock::GetPtr() { return m_opaque_ptr; }
 void SBBlock::SetPtr(lldb_private::Block *block) { m_opaque_ptr = block; }
 
 bool SBBlock::GetDescription(SBStream &description) {
+  LLDB_INSTRUMENT_VA(this, description);
+
   Stream &strm = description.ref();
 
   if (m_opaque_ptr) {
@@ -160,12 +185,16 @@ bool SBBlock::GetDescription(SBStream &description) {
 }
 
 uint32_t SBBlock::GetNumRanges() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_ptr)
     return m_opaque_ptr->GetNumRanges();
   return 0;
 }
 
 lldb::SBAddress SBBlock::GetRangeStartAddress(uint32_t idx) {
+  LLDB_INSTRUMENT_VA(this, idx);
+
   lldb::SBAddress sb_addr;
   if (m_opaque_ptr) {
     AddressRange range;
@@ -177,6 +206,8 @@ lldb::SBAddress SBBlock::GetRangeStartAddress(uint32_t idx) {
 }
 
 lldb::SBAddress SBBlock::GetRangeEndAddress(uint32_t idx) {
+  LLDB_INSTRUMENT_VA(this, idx);
+
   lldb::SBAddress sb_addr;
   if (m_opaque_ptr) {
     AddressRange range;
@@ -189,6 +220,8 @@ lldb::SBAddress SBBlock::GetRangeEndAddress(uint32_t idx) {
 }
 
 uint32_t SBBlock::GetRangeIndexForBlockAddress(lldb::SBAddress block_addr) {
+  LLDB_INSTRUMENT_VA(this, block_addr);
+
   if (m_opaque_ptr && block_addr.IsValid()) {
     return m_opaque_ptr->GetRangeIndexContainingAddress(block_addr.ref());
   }
@@ -199,6 +232,8 @@ uint32_t SBBlock::GetRangeIndexForBlockAddress(lldb::SBAddress block_addr) {
 lldb::SBValueList SBBlock::GetVariables(lldb::SBFrame &frame, bool arguments,
                                         bool locals, bool statics,
                                         lldb::DynamicValueType use_dynamic) {
+  LLDB_INSTRUMENT_VA(this, frame, arguments, locals, statics, use_dynamic);
+
   Block *block = GetPtr();
   SBValueList value_list;
   if (block) {
@@ -250,6 +285,8 @@ lldb::SBValueList SBBlock::GetVariables(lldb::SBFrame &frame, bool arguments,
 
 lldb::SBValueList SBBlock::GetVariables(lldb::SBTarget &target, bool arguments,
                                         bool locals, bool statics) {
+  LLDB_INSTRUMENT_VA(this, target, arguments, locals, statics);
+
   Block *block = GetPtr();
 
   SBValueList value_list;

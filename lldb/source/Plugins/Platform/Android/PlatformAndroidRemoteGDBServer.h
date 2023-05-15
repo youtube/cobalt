@@ -1,25 +1,20 @@
 //===-- PlatformAndroidRemoteGDBServer.h ------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformAndroidRemoteGDBServer_h_
-#define liblldb_PlatformAndroidRemoteGDBServer_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_ANDROID_PLATFORMANDROIDREMOTEGDBSERVER_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_ANDROID_PLATFORMANDROIDREMOTEGDBSERVER_H
 
-// C Includes
-// C++ Includes
 #include <map>
+#include <optional>
 #include <utility>
 
-// Other libraries and framework includes
-// Project includes
 #include "Plugins/Platform/gdb-server/PlatformRemoteGDBServer.h"
 
-#include "llvm/ADT/Optional.h"
 
 #include "AdbClient.h"
 
@@ -29,7 +24,7 @@ namespace platform_android {
 class PlatformAndroidRemoteGDBServer
     : public platform_gdb_server::PlatformRemoteGDBServer {
 public:
-  PlatformAndroidRemoteGDBServer();
+  PlatformAndroidRemoteGDBServer() = default;
 
   ~PlatformAndroidRemoteGDBServer() override;
 
@@ -46,7 +41,7 @@ public:
 protected:
   std::string m_device_id;
   std::map<lldb::pid_t, uint16_t> m_port_forwards;
-  llvm::Optional<AdbClient::UnixSocketNamespace> m_socket_namespace;
+  std::optional<AdbClient::UnixSocketNamespace> m_socket_namespace;
 
   bool LaunchGDBServer(lldb::pid_t &pid, std::string &connect_url) override;
 
@@ -54,15 +49,19 @@ protected:
 
   void DeleteForwardPort(lldb::pid_t pid);
 
-  Status MakeConnectURL(const lldb::pid_t pid, const uint16_t remote_port,
+  Status MakeConnectURL(const lldb::pid_t pid, const uint16_t local_port,
+                        const uint16_t remote_port,
                         llvm::StringRef remote_socket_name,
                         std::string &connect_url);
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(PlatformAndroidRemoteGDBServer);
+  PlatformAndroidRemoteGDBServer(const PlatformAndroidRemoteGDBServer &) =
+      delete;
+  const PlatformAndroidRemoteGDBServer &
+  operator=(const PlatformAndroidRemoteGDBServer &) = delete;
 };
 
 } // namespace platform_android
 } // namespace lldb_private
 
-#endif // liblldb_PlatformAndroidRemoteGDBServer_h_
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_ANDROID_PLATFORMANDROIDREMOTEGDBSERVER_H

@@ -1,10 +1,9 @@
 #
 #//===----------------------------------------------------------------------===//
 #//
-#//                     The LLVM Compiler Infrastructure
-#//
-#// This file is dual licensed under the MIT and the University of Illinois Open
-#// Source Licenses. See LICENSE.txt for details.
+#// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+#// See https://llvm.org/LICENSE.txt for license information.
+#// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #//
 #//===----------------------------------------------------------------------===//
 #
@@ -36,7 +35,7 @@ function(libomp_get_architecture return_arch)
       #error ARCHITECTURE=arm
     #elif defined(__arm__) || defined(_M_ARM) || defined(_ARM)
       #error ARCHITECTURE=arm
-    #elif defined(__aarch64__)
+    #elif defined(__aarch64__) || defined(_M_ARM64)
       #error ARCHITECTURE=aarch64
     #elif defined(__powerpc64__) && defined(__LITTLE_ENDIAN__)
       #error ARCHITECTURE=ppc64le
@@ -46,6 +45,10 @@ function(libomp_get_architecture return_arch)
       #error ARCHITECTURE=mips64
     #elif defined(__mips__) && !defined(__mips64)
       #error ARCHITECTURE=mips
+    #elif defined(__riscv) && __riscv_xlen == 64
+      #error ARCHITECTURE=riscv64
+    #elif defined(__loongarch__) && __loongarch_grlen == 64
+      #error ARCHITECTURE=loongarch64
     #else
       #error ARCHITECTURE=UnknownArchitecture
     #endif
@@ -68,3 +71,18 @@ function(libomp_get_architecture return_arch)
   # Remove ${detect_arch_src_txt} from cmake/ subdirectory
   file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/libomp_detect_arch.c")
 endfunction()
+
+function(libomp_is_aarch64_a64fx return_is_aarch64_a64fx)
+  set(is_aarch64_a64fx FALSE)
+  if (EXISTS "/proc/cpuinfo")
+    file(READ "/proc/cpuinfo" cpu_info_content)
+    string(REGEX MATCH "CPU implementer[ \t]*: 0x46\n" cpu_implementer ${cpu_info_content})
+    string(REGEX MATCH "CPU architecture[ \t]*: 8\n" cpu_architecture ${cpu_info_content})
+
+    if (cpu_architecture AND cpu_implementer)
+      set(is_aarch64_a64fx TRUE)
+    endif()
+  endif()
+
+  set(${return_is_aarch64_a64fx} "${is_aarch64_a64fx}" PARENT_SCOPE)
+endfunction(libomp_is_aarch64_a64fx)

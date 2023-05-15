@@ -1,5 +1,3 @@
-; REQUIRES: object-emission
-
 ; RUN: %llc_dwarf -O0 -filetype=obj < %s > %t
 ; RUN: llvm-dwarfdump -v -debug-info %t | FileCheck %s
 
@@ -27,16 +25,14 @@
 ;         CHECK: DW_AT_alignment
 ;         CHECK: DW_AT_data_member_location [DW_FORM_data1]	(0x00)
 
-%F = type { [0 x i8], {}*, [8 x i8] }
+%F = type { [0 x i8], ptr, [8 x i8] }
 %"F::Nope" = type {}
 
 define internal void @_ZN2e34main17h934ff72f9a38d4bbE() unnamed_addr #0 !dbg !5 {
 start:
   %qq = alloca %F, align 8
-  call void @llvm.dbg.declare(metadata %F* %qq, metadata !10, metadata !28), !dbg !29
-  %0 = bitcast %F* %qq to {}**, !dbg !29
-  store {}* null, {}** %0, !dbg !29
-  %1 = bitcast %F* %qq to %"F::Nope"*, !dbg !29
+  call void @llvm.dbg.declare(metadata ptr %qq, metadata !10, metadata !28), !dbg !29
+  store ptr null, ptr %qq, !dbg !29
   ret void, !dbg !30
 }
 
@@ -53,7 +49,7 @@ attributes #0 = { nounwind uwtable }
 !2 = distinct !DICompileUnit(language: DW_LANG_Rust, file: !3, producer: "clang LLVM (rustc version 1.24.0-dev)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !4)
 !3 = !DIFile(filename: "e3.rs", directory: "/home/tromey/Rust")
 !4 = !{}
-!5 = distinct !DISubprogram(name: "main", linkageName: "_ZN2e34mainE", scope: !6, file: !3, line: 2, type: !8, isLocal: true, isDefinition: true, scopeLine: 2, flags: DIFlagPrototyped | DIFlagMainSubprogram, isOptimized: false, unit: !2, templateParams: !4, retainedNodes: !4)
+!5 = distinct !DISubprogram(name: "main", linkageName: "_ZN2e34mainE", scope: !6, file: !3, line: 2, type: !8, scopeLine: 2, flags: DIFlagPrototyped, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition | DISPFlagMainSubprogram, isOptimized: false, unit: !2, templateParams: !4, retainedNodes: !4)
 !6 = !DINamespace(name: "e3", scope: null)
 !7 = !DIFile(filename: "<unknown>", directory: "")
 !8 = !DISubroutineType(types: !9)

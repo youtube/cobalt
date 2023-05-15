@@ -1,18 +1,13 @@
-//===-- RegisterContextKDP_arm.cpp ------------------------------*- C++ -*-===//
+//===-- RegisterContextKDP_arm.cpp ----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "RegisterContextKDP_arm.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "ProcessKDP.h"
 #include "ThreadKDP.h"
 
@@ -24,7 +19,7 @@ RegisterContextKDP_arm::RegisterContextKDP_arm(ThreadKDP &thread,
     : RegisterContextDarwin_arm(thread, concrete_frame_idx),
       m_kdp_thread(thread) {}
 
-RegisterContextKDP_arm::~RegisterContextKDP_arm() {}
+RegisterContextKDP_arm::~RegisterContextKDP_arm() = default;
 
 int RegisterContextKDP_arm::DoReadGPR(lldb::tid_t tid, int flavor, GPR &gpr) {
   ProcessSP process_sp(CalculateProcess());

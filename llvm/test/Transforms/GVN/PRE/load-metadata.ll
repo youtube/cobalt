@@ -1,4 +1,4 @@
-; RUN: opt -S -gvn < %s | FileCheck %s
+; RUN: opt -S -passes=gvn < %s | FileCheck %s
 
 define i32 @test1(i32* %p, i1 %C) {
 ; CHECK-LABEL: @test1(
@@ -8,7 +8,7 @@ block1:
 block2:
  br label %block4
 ; CHECK: block2:
-; CHECK-NEXT: load i32, i32* %p, !range !0, !invariant.group !1
+; CHECK-NEXT: load i32, i32* %p, align 4, !range !0, !invariant.group !1
 
 block3:
   store i32 0, i32* %p

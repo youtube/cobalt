@@ -1,15 +1,14 @@
 //===- Verifier.h - LLVM IR Verifier ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the function verifier interface, that can be used for some
-// sanity checking of input to the system, and for checking that transformations
-// haven't done something bad.
+// This file defines the function verifier interface, that can be used for
+// validation checking of input to the system, and for checking that
+// transformations haven't done something bad.
 //
 // Note that this does not provide full 'java style' security and verifications,
 // instead it just tries to ensure that code is well formed.
@@ -117,12 +116,8 @@ public:
 
   Result run(Module &M, ModuleAnalysisManager &);
   Result run(Function &F, FunctionAnalysisManager &);
+  static bool isRequired() { return true; }
 };
-
-/// Check a module for errors, but report debug info errors separately.
-/// Otherwise behaves as the normal verifyModule. Debug info errors can be
-/// "recovered" from by stripping the debug info.
-bool verifyModule(bool &BrokenDebugInfo, const Module &M, raw_ostream *OS);
 
 /// Create a verifier pass.
 ///
@@ -142,6 +137,7 @@ public:
 
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  static bool isRequired() { return true; }
 };
 
 } // end namespace llvm

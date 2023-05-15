@@ -2,8 +2,8 @@
 ;
 ; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck -allow-deprecated-dag-overlap %s
 
-declare i8 *@llvm.stacksave()
-declare void @llvm.stackrestore(i8 *)
+declare ptr@llvm.stacksave()
+declare void @llvm.stackrestore(ptr)
 declare void @g()
 
 ; nothing should happen if no stack frame is needed.
@@ -74,11 +74,44 @@ define void @f5(i32 %count1, i32 %count2) "backchain" {
 ; CHECK-DAG: stg [[BC3]], 0([[NEWSP2]])
 ; CHECK: lmg %r11, %r15, 248(%r11)
 ; CHECK: br %r14
-  %src = call i8 *@llvm.stacksave()
+  %src = call ptr@llvm.stacksave()
   %array1 = alloca i8, i32 %count1
-  store volatile i8 0, i8 *%array1
-  call void @llvm.stackrestore(i8 *%src)
+  store volatile i8 0, ptr %array1
+  call void @llvm.stackrestore(ptr %src)
   %array2 = alloca i8, i32 %count2
-  store volatile i8 0, i8 *%array2
+  store volatile i8 0, ptr %array2
   ret void
 }
+
+; same, but with the kernel backchain
+define void @f6(i32 %count1, i32 %count2) #0 {
+; CHECK-LABEL: f6:
+; CHECK: stmg %r11, %r15, 112(%r15)
+; CHECK: lgr %r1, %r15
+; CHECK: aghi %r15, -48
+; CHECK: stg %r1, 152(%r15)
+; CHECK: lgr %r11, %r15
+; CHECK-DAG: lgr [[SAVESP:%r[0-9]+]], %r15
+; CHECK-DAG: lg [[BC:%r[0-9]+]], 152(%r15)
+; CHECK-DAG: lgr [[NEWSP:%r[0-9]+]], %r15
+; CHECK-DAG: lgr %r15, [[NEWSP]]
+; CHECK-DAG: stg [[BC]], 152([[NEWSP]])
+; CHECK-DAG: lg [[BC2:%r[0-9]+]], 152(%r15)
+; CHECK-DAG: lgr %r15, [[SAVESP]]
+; CHECK-DAG: stg [[BC2]], 152([[SAVESP]])
+; CHECK-DAG: lg [[BC3:%r[0-9]+]], 152(%r15)
+; CHECK-DAG: lgr [[NEWSP2:%r[0-9]+]], %r15
+; CHECK-DAG: lgr %r15, [[NEWSP2]]
+; CHECK-DAG: stg [[BC3]], 152([[NEWSP2]])
+; CHECK: lmg %r11, %r15, 160(%r11)
+; CHECK: br %r14
+  %src = call ptr@llvm.stacksave()
+  %array1 = alloca i8, i32 %count1
+  store volatile i8 0, ptr %array1
+  call void @llvm.stackrestore(ptr %src)
+  %array2 = alloca i8, i32 %count2
+  store volatile i8 0, ptr %array2
+  ret void
+}
+
+attributes #0 = { "backchain" "packed-stack" "use-soft-float"="true" }

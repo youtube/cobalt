@@ -1,9 +1,8 @@
 //===--- RAIIObjectsForParser.h - RAII helpers for the parser ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_LIB_PARSE_RAIIOBJECTSFORPARSER_H
-#define LLVM_CLANG_LIB_PARSE_RAIIOBJECTSFORPARSER_H
+#ifndef LLVM_CLANG_PARSE_RAIIOBJECTSFORPARSER_H
+#define LLVM_CLANG_PARSE_RAIIOBJECTSFORPARSER_H
 
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Parser.h"
@@ -202,9 +201,11 @@ namespace clang {
     ParsingDeclRAIIObject ParsingRAII;
 
   public:
-    ParsingDeclarator(Parser &P, const ParsingDeclSpec &DS, DeclaratorContext C)
-      : Declarator(DS, C), ParsingRAII(P, &DS.getDelayedDiagnosticPool()) {
-    }
+    ParsingDeclarator(Parser &P, const ParsingDeclSpec &DS,
+                      const ParsedAttributes &DeclarationAttrs,
+                      DeclaratorContext C)
+        : Declarator(DS, DeclarationAttrs, C),
+          ParsingRAII(P, &DS.getDelayedDiagnosticPool()) {}
 
     const ParsingDeclSpec &getDeclSpec() const {
       return static_cast<const ParsingDeclSpec&>(Declarator::getDeclSpec());
@@ -229,9 +230,10 @@ namespace clang {
     ParsingDeclRAIIObject ParsingRAII;
 
   public:
-    ParsingFieldDeclarator(Parser &P, const ParsingDeclSpec &DS)
-      : FieldDeclarator(DS), ParsingRAII(P, &DS.getDelayedDiagnosticPool()) {
-    }
+    ParsingFieldDeclarator(Parser &P, const ParsingDeclSpec &DS,
+                           const ParsedAttributes &DeclarationAttrs)
+        : FieldDeclarator(DS, DeclarationAttrs),
+          ParsingRAII(P, &DS.getDelayedDiagnosticPool()) {}
 
     const ParsingDeclSpec &getDeclSpec() const {
       return static_cast<const ParsingDeclSpec&>(D.getDeclSpec());
@@ -286,6 +288,25 @@ namespace clang {
     ~ColonProtectionRAIIObject() {
       restore();
     }
+  };
+
+  /// Activates OpenMP parsing mode to preseve OpenMP specific annotation
+  /// tokens.
+  class ParsingOpenMPDirectiveRAII {
+    Parser &P;
+    bool OldVal;
+
+  public:
+    ParsingOpenMPDirectiveRAII(Parser &P, bool Value = true)
+        : P(P), OldVal(P.OpenMPDirectiveParsing) {
+      P.OpenMPDirectiveParsing = Value;
+    }
+
+    /// This can be used to restore the state early, before the dtor
+    /// is run.
+    void restore() { P.OpenMPDirectiveParsing = OldVal; }
+
+    ~ParsingOpenMPDirectiveRAII() { restore(); }
   };
 
   /// RAII object that makes '>' behave either as an operator
@@ -440,26 +461,6 @@ namespace clang {
       return diagnoseMissingClose();
     }
     void skipToEnd();
-  };
-
-  /// RAIIObject to destroy the contents of a SmallVector of
-  /// TemplateIdAnnotation pointers and clear the vector.
-  class DestroyTemplateIdAnnotationsRAIIObj {
-    SmallVectorImpl<TemplateIdAnnotation *> &Container;
-
-  public:
-    DestroyTemplateIdAnnotationsRAIIObj(
-        SmallVectorImpl<TemplateIdAnnotation *> &Container)
-        : Container(Container) {}
-
-    ~DestroyTemplateIdAnnotationsRAIIObj() {
-      for (SmallVectorImpl<TemplateIdAnnotation *>::iterator I =
-               Container.begin(),
-             E = Container.end();
-           I != E; ++I)
-        (*I)->Destroy();
-      Container.clear();
-    }
   };
 } // end namespace clang
 

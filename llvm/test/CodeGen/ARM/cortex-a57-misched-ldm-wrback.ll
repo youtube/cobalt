@@ -1,10 +1,10 @@
 ; REQUIRES: asserts
-; RUN: llc < %s -mtriple=armv8r-eabi -mcpu=cortex-a57 -misched-postra -enable-misched -verify-misched -debug-only=machine-scheduler -o - 2>&1 > /dev/null | FileCheck %s
+; RUN: llc < %s -mtriple=armv8r-eabi -mcpu=cortex-a57 -mattr=use-misched -verify-misched -debug-only=machine-scheduler -o - 2>&1 > /dev/null | FileCheck %s
 ; 
 
-@a = global i32 0, align 4
-@b = global i32 0, align 4
-@c = global i32 0, align 4
+@a = dso_local global i32 0, align 4
+@b = dso_local global i32 0, align 4
+@c = dso_local global i32 0, align 4
 
 ; CHECK:       ********** MI Scheduling **********
 ; We need second, post-ra scheduling to have LDM instruction combined from single-loads
@@ -18,17 +18,17 @@
 ; CHECK-NEXT:  Data
 ; CHECK-SAME:  Latency=3
 ; CHECK-NEXT:  Data
-; CHECK-SAME:  Latency=3
+; CHECK-SAME:  Latency=0
 ; CHECK-NEXT:  Data
-; CHECK-SAME:  Latency=4
-define i32 @bar(i32 %a1, i32 %b1, i32 %c1) minsize optsize {
-  %1 = load i32, i32* @a, align 4
-  %2 = load i32, i32* @b, align 4
-  %3 = load i32, i32* @c, align 4
+; CHECK-SAME:  Latency=0
+define dso_local i32 @bar(i32 %a1, i32 %b1, i32 %c1) minsize optsize {
+  %1 = load i32, ptr @a, align 4
+  %2 = load i32, ptr @b, align 4
+  %3 = load i32, ptr @c, align 4
 
-  %ptr_after = getelementptr i32, i32* @a, i32 3
+  %ptr_after = getelementptr i32, ptr @a, i32 3
 
-  %ptr_val = ptrtoint i32* %ptr_after to i32
+  %ptr_val = ptrtoint ptr %ptr_after to i32
   %mul1 = mul i32 %ptr_val, %1
   %mul2 = mul i32 %mul1, %2
   %mul3 = mul i32 %mul2, %3

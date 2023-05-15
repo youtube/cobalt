@@ -10,7 +10,7 @@
 
 define inreg {fp128} @ret_struct_fp128() nounwind {
 entry:
-        %0 = load volatile {fp128}, {fp128}* @struct_fp128
+        %0 = load volatile {fp128}, ptr @struct_fp128
         ret {fp128} %0
 }
 
@@ -23,14 +23,10 @@ entry:
 ; is returned in $f0, and $f1 instead of the usual $f0, and $f2. This is to
 ; match the de facto ABI as implemented by GCC.
 ; N32-DAG:        lui [[R1:\$[0-9]+]], %hi(struct_fp128)
-; N32-DAG:        ld  [[R2:\$[0-9]+]], %lo(struct_fp128)([[R1]])
-; N32-DAG:        dmtc1 [[R2]], $f0
+; N32-DAG:        ldc1 $f0, %lo(struct_fp128)([[R1]])
 ; N32-DAG:        addiu [[R3:\$[0-9]+]], [[R1]], %lo(struct_fp128)
-; N32-DAG:        ld  [[R4:\$[0-9]+]], 8([[R3]])
-; N32-DAG:        dmtc1 [[R4]], $f1
+; N32-DAG:        ldc1  $f1, 8([[R3]])
 
 ; N64-DAG:        lui  [[R1:\$[0-9]+]], %highest(struct_fp128)
-; N64-DAG:        ld  [[R2:\$[0-9]+]], %lo(struct_fp128)([[R1]])
-; N64-DAG:        dmtc1 [[R2]], $f0
-; N64-DAG:        ld  [[R4:\$[0-9]+]], 8([[R1]])
-; N64-DAG:        dmtc1 [[R4]], $f1
+; N64-DAG:        ldc1 $f0, %lo(struct_fp128)([[R1]])
+; N64-DAG:        ldc1 $f1, 8([[R1]])

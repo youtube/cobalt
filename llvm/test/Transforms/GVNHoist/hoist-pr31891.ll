@@ -1,4 +1,4 @@
-; RUN: opt -S -gvn-hoist < %s | FileCheck %s
+; RUN: opt -S -passes=gvn-hoist < %s | FileCheck %s
 
 ; Hoisted inlinable calls need to have accurate scope information, but we're
 ; allowed to erase the line information.
@@ -52,7 +52,7 @@ declare void @useit1(float)
 declare void @useit2(float)
 
 attributes #0 = { noinline nounwind readnone uwtable }
-attributes #1 = { nounwind readnone }
+attributes #1 = { nounwind readnone willreturn }
 attributes #2 = { noinline nounwind uwtable }
 
 !llvm.dbg.cu = !{!0}

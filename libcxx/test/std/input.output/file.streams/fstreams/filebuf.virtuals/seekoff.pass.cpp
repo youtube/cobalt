@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,7 +18,7 @@
 
 #include "test_macros.h"
 
-int main()
+int main(int, char**)
 {
     {
         char buf[10];
@@ -42,6 +41,8 @@ int main()
         assert(f.sgetc() == 'l');
     }
     std::remove("seekoff.dat");
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         wchar_t buf[10];
         typedef std::filebuf::pos_type pos_type;
@@ -63,4 +64,7 @@ int main()
         assert(f.sgetc() == L'l');
     }
     std::remove("seekoff.dat");
+#endif
+
+  return 0;
 }

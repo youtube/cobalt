@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
 
 // <functional>
 
@@ -29,8 +30,10 @@ void
 test()
 {
     typedef std::hash<T> H;
-    static_assert((std::is_same<typename H::argument_type, T>::value), "" );
-    static_assert((std::is_same<typename H::result_type, std::size_t>::value), "" );
+#if TEST_STD_VER <= 17
+    static_assert((std::is_same<typename H::argument_type, T>::value), "");
+    static_assert((std::is_same<typename H::result_type, std::size_t>::value), "");
+#endif
     ASSERT_NOEXCEPT(H()(T()));
     H h;
 
@@ -47,7 +50,7 @@ test()
     }
 }
 
-int main()
+int main(int, char**)
 {
     test<bool>();
     test<char>();
@@ -55,7 +58,9 @@ int main()
     test<unsigned char>();
     test<char16_t>();
     test<char32_t>();
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test<wchar_t>();
+#endif
     test<short>();
     test<unsigned short>();
     test<int>();
@@ -105,8 +110,10 @@ int main()
     test<uintmax_t>();
     test<uintptr_t>();
 
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test<__int128_t>();
     test<__uint128_t>();
 #endif
+
+  return 0;
 }

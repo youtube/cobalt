@@ -1,9 +1,8 @@
 //==- GTestChecker.cpp - Model gtest API --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
@@ -21,6 +20,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 using namespace clang;
 using namespace ento;
@@ -136,7 +136,7 @@ void GTestChecker::modelAssertionResultBoolConstructor(
   SVal BooleanArgVal = Call->getArgSVal(0);
   if (IsRef) {
     // The argument is a reference, so load from it to get the boolean value.
-    if (!BooleanArgVal.getAs<Loc>())
+    if (!isa<Loc>(BooleanArgVal))
       return;
     BooleanArgVal = C.getState()->getSVal(BooleanArgVal.castAs<Loc>());
   }
@@ -259,9 +259,9 @@ SVal GTestChecker::getAssertionResultSuccessFieldValue(
   if (!SuccessField)
     return UnknownVal();
 
-  Optional<Loc> FieldLoc =
+  std::optional<Loc> FieldLoc =
       State->getLValue(SuccessField, Instance).getAs<Loc>();
-  if (!FieldLoc.hasValue())
+  if (!FieldLoc)
     return UnknownVal();
 
   return State->getSVal(*FieldLoc);
@@ -271,29 +271,27 @@ SVal GTestChecker::getAssertionResultSuccessFieldValue(
 ProgramStateRef GTestChecker::assumeValuesEqual(SVal Val1, SVal Val2,
                                                 ProgramStateRef State,
                                                 CheckerContext &C) {
-  if (!Val1.getAs<DefinedOrUnknownSVal>() ||
-      !Val2.getAs<DefinedOrUnknownSVal>())
+  auto DVal1 = Val1.getAs<DefinedOrUnknownSVal>();
+  auto DVal2 = Val2.getAs<DefinedOrUnknownSVal>();
+  if (!DVal1 || !DVal2)
     return State;
 
   auto ValuesEqual =
-      C.getSValBuilder().evalEQ(State, Val1.castAs<DefinedOrUnknownSVal>(),
-                                Val2.castAs<DefinedOrUnknownSVal>());
-
-  if (!ValuesEqual.getAs<DefinedSVal>())
+      C.getSValBuilder().evalEQ(State, *DVal1, *DVal2).getAs<DefinedSVal>();
+  if (!ValuesEqual)
     return State;
 
-  State = C.getConstraintManager().assume(
-      State, ValuesEqual.castAs<DefinedSVal>(), true);
-
+  State = C.getConstraintManager().assume(State, *ValuesEqual, true);
   return State;
 }
 
 void ento::registerGTestChecker(CheckerManager &Mgr) {
-  const LangOptions &LangOpts = Mgr.getLangOpts();
+  Mgr.registerChecker<GTestChecker>();
+}
+
+bool ento::shouldRegisterGTestChecker(const CheckerManager &mgr) {
   // gtest is a C++ API so there is no sense running the checker
   // if not compiling for C++.
-  if (!LangOpts.CPlusPlus)
-    return;
-
-  Mgr.registerChecker<GTestChecker>();
+  const LangOptions &LO = mgr.getLangOpts();
+  return LO.CPlusPlus;
 }

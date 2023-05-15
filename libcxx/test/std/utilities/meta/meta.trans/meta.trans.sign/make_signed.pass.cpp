@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,7 +26,7 @@ enum BigEnum
     big = 0xFFFFFFFFFFFFFFFFULL
 };
 
-#if !defined(_LIBCPP_HAS_NO_INT128) && !defined(_LIBCPP_HAS_NO_STRONG_ENUMS)
+#if !defined(TEST_HAS_NO_INT128) && TEST_STD_VER >= 11
 enum HugeEnum : __uint128_t
 {
     hugezero
@@ -37,13 +36,13 @@ enum HugeEnum : __uint128_t
 template <class T, class U>
 void test_make_signed()
 {
-    static_assert((std::is_same<typename std::make_signed<T>::type, U>::value), "");
+    ASSERT_SAME_TYPE(U, typename std::make_signed<T>::type);
 #if TEST_STD_VER > 11
-    static_assert((std::is_same<std::make_signed_t<T>, U>::value), "");
+    ASSERT_SAME_TYPE(U, std::make_signed_t<T>);
 #endif
 }
 
-int main()
+int main(int, char**)
 {
     test_make_signed< signed char, signed char >();
     test_make_signed< unsigned char, signed char >();
@@ -60,11 +59,13 @@ int main()
     test_make_signed< const wchar_t, std::conditional<sizeof(wchar_t) == 4, const int, const short>::type >();
     test_make_signed< const Enum, std::conditional<sizeof(Enum) == sizeof(int), const int, const signed char>::type >();
     test_make_signed< BigEnum, std::conditional<sizeof(long) == 4, long long, long>::type >();
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test_make_signed< __int128_t, __int128_t >();
     test_make_signed< __uint128_t, __int128_t >();
-# ifndef _LIBCPP_HAS_NO_STRONG_ENUMS
+# if TEST_STD_VER >= 11
     test_make_signed< HugeEnum, __int128_t >();
 # endif
 #endif
+
+  return 0;
 }

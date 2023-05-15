@@ -1,31 +1,23 @@
-//===-- RegisterContextMemory.cpp -------------------------------*- C++ -*-===//
+//===-- RegisterContextMemory.cpp -----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "RegisterContextMemory.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-#include "DynamicRegisterInfo.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // RegisterContextMemory constructor
-//----------------------------------------------------------------------
 RegisterContextMemory::RegisterContextMemory(Thread &thread,
                                              uint32_t concrete_frame_idx,
                                              DynamicRegisterInfo &reg_infos,
@@ -40,15 +32,13 @@ RegisterContextMemory::RegisterContextMemory(Thread &thread,
   m_reg_valid.resize(num_regs);
 
   // Make a heap based buffer that is big enough to store all registers
-  DataBufferSP reg_data_sp(
-      new DataBufferHeap(reg_infos.GetRegisterDataByteSize(), 0));
-  m_reg_data.SetData(reg_data_sp);
+  m_data =
+      std::make_shared<DataBufferHeap>(reg_infos.GetRegisterDataByteSize(), 0);
+  m_reg_data.SetData(m_data);
 }
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
-RegisterContextMemory::~RegisterContextMemory() {}
+RegisterContextMemory::~RegisterContextMemory() = default;
 
 void RegisterContextMemory::InvalidateAllRegisters() {
   if (m_reg_data_addr != LLDB_INVALID_ADDRESS)
@@ -86,12 +76,12 @@ bool RegisterContextMemory::ReadRegister(const RegisterInfo *reg_info,
                                          RegisterValue &reg_value) {
   const uint32_t reg_num = reg_info->kinds[eRegisterKindLLDB];
   if (!m_reg_valid[reg_num]) {
-    if (!ReadAllRegisterValues(m_reg_data.GetSharedDataBuffer()))
+    if (!ReadAllRegisterValues(m_data))
       return false;
   }
   const bool partial_data_ok = false;
   return reg_value
-      .SetValueFromData(reg_info, m_reg_data, reg_info->byte_offset,
+      .SetValueFromData(*reg_info, m_reg_data, reg_info->byte_offset,
                         partial_data_ok)
       .Success();
 }
@@ -109,7 +99,8 @@ bool RegisterContextMemory::WriteRegister(const RegisterInfo *reg_info,
   return false;
 }
 
-bool RegisterContextMemory::ReadAllRegisterValues(DataBufferSP &data_sp) {
+bool RegisterContextMemory::ReadAllRegisterValues(
+    WritableDataBufferSP &data_sp) {
   if (m_reg_data_addr != LLDB_INVALID_ADDRESS) {
     ProcessSP process_sp(CalculateProcess());
     if (process_sp) {

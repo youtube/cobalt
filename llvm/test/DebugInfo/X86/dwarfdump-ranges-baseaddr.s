@@ -1,10 +1,10 @@
 # RUN: llvm-mc -triple x86_64-pc-linux -filetype=obj %s -o %t
-# RUN: llvm-dwarfdump -v %t 2>%t.err | FileCheck %s
+# RUN: not llvm-dwarfdump -v %t 2>%t.err | FileCheck %s
 # RUN: FileCheck %s <%t.err -check-prefix=ERR
 
 # CHECK: .debug_info contents:
 # CHECK: 0x0000000b: DW_TAG_compile_unit [1]
-# CHECK:             DW_AT_low_pc [DW_FORM_addr]       (0x0000000000000000)
+# CHECK:             DW_AT_low_pc [DW_FORM_addr]       (0x0000000000000000 ".text")
 # CHECK-NEXT:        DW_AT_ranges [DW_FORM_sec_offset] (0x00000000
 # CHECK-NEXT:    [0x0000000000000000, 0x0000000000000001) ".text"
 # CHECK-NEXT:    [0x0000000000000003, 0x0000000000000006) ".text"

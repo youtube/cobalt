@@ -1,7 +1,14 @@
+// RUN: rm -f %t.log
 // RUN: env CC_PRINT_OPTIONS=1 \
 // RUN:     CC_PRINT_OPTIONS_FILE=%t.log \
-// RUN: %clang -no-canonical-prefixes -S -o %t.s %s
+// RUN: %clang -S -o %t.s %s
 // RUN: FileCheck %s < %t.log
 
-// CHECK: [Logging clang options]{{.*}}clang{{.*}}"-S"
+// RUN: rm -f %t.log
+// RUN: env CC_PRINT_OPTIONS=1 \
+// RUN:     CC_PRINT_OPTIONS_FILE=%t.log \
+// RUN: %clang -fdriver-only -o %t.s %s
+// RUN: FileCheck %s < %t.log
 
+// CHECK: [Logging clang options]
+// CHECK: {{.*}} "-cc1"

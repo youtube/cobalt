@@ -1,18 +1,17 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
 
 // <string_view>
 
 //  constexpr basic_string_view(const _CharT* _s, size_type _len)
 //      : __data (_s), __size(_len) {}
-
 
 #include <string_view>
 #include <string>
@@ -32,7 +31,7 @@ void test ( const CharT *s, size_t sz ) {
     }
 }
 
-int main () {
+int main(int, char**) {
 
     test ( "QBCDE", 5 );
     test ( "QBCDE", 2 );
@@ -46,6 +45,7 @@ int main () {
     }
 #endif
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test ( L"QBCDE", 5 );
     test ( L"QBCDE", 2 );
     test ( L"", 0 );
@@ -57,6 +57,7 @@ int main () {
     static_assert ( sv1.data() == s, "" );
     }
 #endif
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
 
 #if TEST_STD_VER >= 11
     test ( u"QBCDE", 5 );
@@ -83,4 +84,6 @@ int main () {
     }
 #endif
 #endif
+
+  return 0;
 }

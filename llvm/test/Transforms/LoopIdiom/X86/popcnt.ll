@@ -1,4 +1,6 @@
-; RUN: opt -loop-idiom < %s -mtriple=x86_64-apple-darwin -mcpu=corei7 -S | FileCheck %s
+; RUN: opt -passes=loop-idiom < %s -mtriple=x86_64-apple-darwin -mcpu=corei7 -S | FileCheck %s
+
+target triple = "x86_64-apple-macosx10.8.0"
 
 ;To recognize this pattern:
 ;int popcount(unsigned long long a) {
@@ -9,7 +11,7 @@
 ;    }
 ;    return c;
 ;}
-; 
+;
 ; CHECK: entry
 ; CHECK: llvm.ctpop.i64
 ; CHECK: ret
@@ -75,7 +77,6 @@ while.end:                                        ; preds = %while.body, %entry
 }
 
 ; Some variants once cause crash
-target triple = "x86_64-apple-macosx10.8.0"
 
 define i32 @PopCntCrash1(i64 %a) nounwind uwtable readnone ssp {
 entry:
@@ -97,7 +98,7 @@ while.end:                                        ; preds = %while.body, %entry
   ret i32 %c.0.lcssa
 
 ; CHECK: entry
-; CHECK: ret 
+; CHECK: ret
 }
 
 define i32 @PopCntCrash2(i64 %a, i32 %b) nounwind uwtable readnone ssp {

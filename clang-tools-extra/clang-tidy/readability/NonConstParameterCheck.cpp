@@ -1,9 +1,8 @@
 //===--- NonConstParameterCheck.cpp - clang-tidy---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,13 +12,11 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace readability {
+namespace clang::tidy::readability {
 
 void NonConstParameterCheck::registerMatchers(MatchFinder *Finder) {
   // Add parameters to Parameters.
-  Finder->addMatcher(parmVarDecl(unless(isInstantiated())).bind("Parm"), this);
+  Finder->addMatcher(parmVarDecl().bind("Parm"), this);
 
   // C++ constructor.
   Finder->addMatcher(cxxConstructorDecl().bind("Ctor"), this);
@@ -29,8 +26,7 @@ void NonConstParameterCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(declRefExpr().bind("Ref"), this);
 
   // Analyse parameter usage in function.
-  Finder->addMatcher(stmt(anyOf(unaryOperator(anyOf(hasOperatorName("++"),
-                                                    hasOperatorName("--"))),
+  Finder->addMatcher(stmt(anyOf(unaryOperator(hasAnyOperatorName("++", "--")),
                                 binaryOperator(), callExpr(), returnStmt(),
                                 cxxConstructExpr()))
                          .bind("Mark"),
@@ -85,6 +81,20 @@ void NonConstParameterCheck::check(const MatchFinder::MatchResult &Result) {
       for (const auto *Arg : CE->arguments()) {
         markCanNotBeConst(Arg->IgnoreParenCasts(), true);
       }
+      // Data passed by nonconst reference should not be made const.
+      unsigned ArgNr = 0U;
+      if (const auto *CD = CE->getConstructor()) {
+        for (const auto *Par : CD->parameters()) {
+          if (ArgNr >= CE->getNumArgs())
+            break;
+          const Expr *Arg = CE->getArg(ArgNr++);
+          // Is this a non constant reference parameter?
+          const Type *ParType = Par->getType().getTypePtr();
+          if (!ParType->isReferenceType() || Par->getType().isConstQualified())
+            continue;
+          markCanNotBeConst(Arg->IgnoreParenCasts(), false);
+        }
+      }
     } else if (const auto *R = dyn_cast<ReturnStmt>(S)) {
       markCanNotBeConst(R->getRetValue(), true);
     } else if (const auto *U = dyn_cast<UnaryOperator>(S)) {
@@ -95,6 +105,9 @@ void NonConstParameterCheck::check(const MatchFinder::MatchResult &Result) {
     if ((T->isPointerType() && !T->getPointeeType().isConstQualified()) ||
         T->isArrayType())
       markCanNotBeConst(VD->getInit(), true);
+    else if (T->isLValueReferenceType() &&
+             !T->getPointeeType().isConstQualified())
+      markCanNotBeConst(VD->getInit(), false);
   }
 }
 
@@ -146,7 +159,7 @@ void NonConstParameterCheck::diagnoseNonConstParameters() {
     unsigned Index = Par->getFunctionScopeIndex();
     for (FunctionDecl *FnDecl : Function->redecls())
       Fixes.push_back(FixItHint::CreateInsertion(
-          FnDecl->getParamDecl(Index)->getLocStart(), "const "));
+          FnDecl->getParamDecl(Index)->getBeginLoc(), "const "));
 
     diag(Par->getLocation(), "pointer parameter '%0' can be pointer to const")
         << Par->getName() << Fixes;
@@ -203,7 +216,7 @@ void NonConstParameterCheck::markCanNotBeConst(const Expr *E,
   } else if (const auto *Constr = dyn_cast<CXXConstructExpr>(E)) {
     for (const auto *Arg : Constr->arguments()) {
       if (const auto *M = dyn_cast<MaterializeTemporaryExpr>(Arg))
-        markCanNotBeConst(cast<Expr>(M->getTemporary()), CanNotBeConst);
+        markCanNotBeConst(cast<Expr>(M->getSubExpr()), CanNotBeConst);
     }
   } else if (const auto *ILE = dyn_cast<InitListExpr>(E)) {
     for (unsigned I = 0U; I < ILE->getNumInits(); ++I)
@@ -218,6 +231,4 @@ void NonConstParameterCheck::markCanNotBeConst(const Expr *E,
   }
 }
 
-} // namespace readability
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::readability

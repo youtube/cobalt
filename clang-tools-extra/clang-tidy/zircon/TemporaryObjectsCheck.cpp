@@ -1,9 +1,8 @@
 //===--- TemporaryObjectsCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,14 +16,11 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace zircon {
+namespace clang::tidy::zircon {
 
-AST_MATCHER_P(CXXRecordDecl, matchesAnyName, ArrayRef<std::string>, Names) {
+AST_MATCHER_P(CXXRecordDecl, matchesAnyName, ArrayRef<StringRef>, Names) {
   std::string QualifiedName = Node.getQualifiedNameAsString();
-  return llvm::any_of(Names,
-                      [&](StringRef Name) { return QualifiedName == Name; });
+  return llvm::is_contained(Names, QualifiedName);
 }
 
 void TemporaryObjectsCheck::registerMatchers(MatchFinder *Finder) {
@@ -37,10 +33,11 @@ void TemporaryObjectsCheck::registerMatchers(MatchFinder *Finder) {
 
   // Matcher for user-defined constructors.
   Finder->addMatcher(
-      cxxConstructExpr(allOf(hasParent(cxxFunctionalCastExpr()),
-                             hasDeclaration(cxxConstructorDecl(hasParent(
-                                 cxxRecordDecl(matchesAnyName(Names)))))))
-          .bind("temps"),
+      traverse(TK_AsIs,
+               cxxConstructExpr(hasParent(cxxFunctionalCastExpr()),
+                                hasDeclaration(cxxConstructorDecl(hasParent(
+                                    cxxRecordDecl(matchesAnyName(Names))))))
+                   .bind("temps")),
       this);
 }
 
@@ -55,6 +52,4 @@ void TemporaryObjectsCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "Names", utils::options::serializeStringList(Names));
 }
 
-} // namespace zircon
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::zircon

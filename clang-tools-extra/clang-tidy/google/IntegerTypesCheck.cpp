@@ -1,9 +1,8 @@
 //===--- IntegerTypesCheck.cpp - clang-tidy -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -37,9 +36,7 @@ static Token getTokenAtLoc(SourceLocation Loc,
   return Tok;
 }
 
-namespace tidy {
-namespace google {
-namespace runtime {
+namespace tidy::google::runtime {
 
 IntegerTypesCheck::IntegerTypesCheck(StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
@@ -54,9 +51,6 @@ void IntegerTypesCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 }
 
 void IntegerTypesCheck::registerMatchers(MatchFinder *Finder) {
-  // Find all TypeLocs. The relevant Style Guide rule only applies to C++.
-  if (!getLangOpts().CPlusPlus)
-    return;
   // Match any integer types, unless they are passed to a printf-based API:
   //
   // http://google.github.io/styleguide/cppguide.html#64-bit_Portability
@@ -67,12 +61,12 @@ void IntegerTypesCheck::registerMatchers(MatchFinder *Finder) {
                                  callee(functionDecl(hasAttr(attr::Format)))))))
                          .bind("tl"),
                      this);
-  IdentTable = llvm::make_unique<IdentifierTable>(getLangOpts());
+  IdentTable = std::make_unique<IdentifierTable>(getLangOpts());
 }
 
 void IntegerTypesCheck::check(const MatchFinder::MatchResult &Result) {
   auto TL = *Result.Nodes.getNodeAs<TypeLoc>("tl");
-  SourceLocation Loc = TL.getLocStart();
+  SourceLocation Loc = TL.getBeginLoc();
 
   if (Loc.isInvalid() || Loc.isMacroID())
     return;
@@ -133,7 +127,7 @@ void IntegerTypesCheck::check(const MatchFinder::MatchResult &Result) {
   const StringRef Port = "unsigned short port";
   const char *Data = Result.SourceManager->getCharacterData(Loc);
   if (!std::strncmp(Data, Port.data(), Port.size()) &&
-      !isIdentifierBody(Data[Port.size()]))
+      !isAsciiIdentifierContinue(Data[Port.size()]))
     return;
 
   std::string Replacement =
@@ -148,7 +142,5 @@ void IntegerTypesCheck::check(const MatchFinder::MatchResult &Result) {
                                                << Replacement;
 }
 
-} // namespace runtime
-} // namespace google
-} // namespace tidy
+} // namespace tidy::google::runtime
 } // namespace clang

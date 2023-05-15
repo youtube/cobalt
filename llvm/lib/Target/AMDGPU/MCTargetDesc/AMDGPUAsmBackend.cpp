@@ -1,26 +1,28 @@
 //===-- AMDGPUAsmBackend.cpp - AMDGPU Assembler Backend -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 /// \file
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/AMDGPUFixupKinds.h"
 #include "MCTargetDesc/AMDGPUMCTargetDesc.h"
-#include "llvm/ADT/StringRef.h"
+#include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
-#include "llvm/MC/MCValue.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/EndianStream.h"
+#include "llvm/Support/TargetParser.h"
 
 using namespace llvm;
+using namespace llvm::AMDGPU;
 
 namespace {
 
@@ -36,25 +38,55 @@ public:
                   const MCSubtargetInfo *STI) const override;
   bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
                             const MCRelaxableFragment *DF,
-                            const MCAsmLayout &Layout) const override {
-    return false;
-  }
-  void relaxInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
-                        MCInst &Res) const override {
-    llvm_unreachable("Not implemented");
-  }
+                            const MCAsmLayout &Layout) const override;
+
+  void relaxInstruction(MCInst &Inst,
+                        const MCSubtargetInfo &STI) const override;
+
   bool mayNeedRelaxation(const MCInst &Inst,
-                         const MCSubtargetInfo &STI) const override {
-    return false;
-  }
+                         const MCSubtargetInfo &STI) const override;
 
   unsigned getMinimumNopSize() const override;
-  bool writeNopData(raw_ostream &OS, uint64_t Count) const override;
+  bool writeNopData(raw_ostream &OS, uint64_t Count,
+                    const MCSubtargetInfo *STI) const override;
 
+  std::optional<MCFixupKind> getFixupKind(StringRef Name) const override;
   const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
+  bool shouldForceRelocation(const MCAssembler &Asm, const MCFixup &Fixup,
+                             const MCValue &Target) override;
 };
 
 } //End anonymous namespace
+
+void AMDGPUAsmBackend::relaxInstruction(MCInst &Inst,
+                                        const MCSubtargetInfo &STI) const {
+  MCInst Res;
+  unsigned RelaxedOpcode = AMDGPU::getSOPPWithRelaxation(Inst.getOpcode());
+  Res.setOpcode(RelaxedOpcode);
+  Res.addOperand(Inst.getOperand(0));
+  Inst = std::move(Res);
+}
+
+bool AMDGPUAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup,
+                                            uint64_t Value,
+                                            const MCRelaxableFragment *DF,
+                                            const MCAsmLayout &Layout) const {
+  // if the branch target has an offset of x3f this needs to be relaxed to
+  // add a s_nop 0 immediately after branch to effectively increment offset
+  // for hardware workaround in gfx1010
+  return (((int64_t(Value)/4)-1) == 0x3f);
+}
+
+bool AMDGPUAsmBackend::mayNeedRelaxation(const MCInst &Inst,
+                       const MCSubtargetInfo &STI) const {
+  if (!STI.getFeatureBits()[AMDGPU::FeatureOffset3fBug])
+    return false;
+
+  if (AMDGPU::getSOPPWithRelaxation(Inst.getOpcode()) >= 0)
+    return true;
+
+  return false;
+}
 
 static unsigned getFixupKindNumBytes(unsigned Kind) {
   switch (Kind) {
@@ -82,7 +114,7 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
                                  MCContext *Ctx) {
   int64_t SignedValue = static_cast<int64_t>(Value);
 
-  switch (static_cast<unsigned>(Fixup.getKind())) {
+  switch (Fixup.getTargetKind()) {
   case AMDGPU::fixup_si_sopp_br: {
     int64_t BrImm = (SignedValue - 4) / 4;
 
@@ -108,6 +140,9 @@ void AMDGPUAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
                                   MutableArrayRef<char> Data, uint64_t Value,
                                   bool IsResolved,
                                   const MCSubtargetInfo *STI) const {
+  if (Fixup.getKind() >= FirstLiteralRelocationKind)
+    return;
+
   Value = adjustFixupValue(Fixup, Value, &Asm.getContext());
   if (!Value)
     return; // Doesn't change encoding.
@@ -127,6 +162,16 @@ void AMDGPUAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
     Data[Offset + i] |= static_cast<uint8_t>((Value >> (i * 8)) & 0xff);
 }
 
+std::optional<MCFixupKind>
+AMDGPUAsmBackend::getFixupKind(StringRef Name) const {
+  return StringSwitch<std::optional<MCFixupKind>>(Name)
+#define ELF_RELOC(Name, Value)                                                 \
+  .Case(#Name, MCFixupKind(FirstLiteralRelocationKind + Value))
+#include "llvm/BinaryFormat/ELFRelocs/AMDGPU.def"
+#undef ELF_RELOC
+      .Default(std::nullopt);
+}
+
 const MCFixupKindInfo &AMDGPUAsmBackend::getFixupKindInfo(
                                                        MCFixupKind Kind) const {
   const static MCFixupKindInfo Infos[AMDGPU::NumTargetFixupKinds] = {
@@ -134,17 +179,27 @@ const MCFixupKindInfo &AMDGPUAsmBackend::getFixupKindInfo(
     { "fixup_si_sopp_br",     0,     16,   MCFixupKindInfo::FKF_IsPCRel },
   };
 
+  if (Kind >= FirstLiteralRelocationKind)
+    return MCAsmBackend::getFixupKindInfo(FK_NONE);
+
   if (Kind < FirstTargetFixupKind)
     return MCAsmBackend::getFixupKindInfo(Kind);
 
   return Infos[Kind - FirstTargetFixupKind];
 }
 
+bool AMDGPUAsmBackend::shouldForceRelocation(const MCAssembler &,
+                                             const MCFixup &Fixup,
+                                             const MCValue &) {
+  return Fixup.getKind() >= FirstLiteralRelocationKind;
+}
+
 unsigned AMDGPUAsmBackend::getMinimumNopSize() const {
   return 4;
 }
 
-bool AMDGPUAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count) const {
+bool AMDGPUAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
+                                    const MCSubtargetInfo *STI) const {
   // If the count is not 4-byte aligned, we must be writing data into the text
   // section (otherwise we have unaligned instructions, and thus have far
   // bigger problems), so just write zeros instead.
@@ -173,11 +228,13 @@ class ELFAMDGPUAsmBackend : public AMDGPUAsmBackend {
   bool Is64Bit;
   bool HasRelocationAddend;
   uint8_t OSABI = ELF::ELFOSABI_NONE;
+  uint8_t ABIVersion = 0;
 
 public:
-  ELFAMDGPUAsmBackend(const Target &T, const Triple &TT) :
+  ELFAMDGPUAsmBackend(const Target &T, const Triple &TT, uint8_t ABIVersion) :
       AMDGPUAsmBackend(T), Is64Bit(TT.getArch() == Triple::amdgcn),
-      HasRelocationAddend(TT.getOS() == Triple::AMDHSA) {
+      HasRelocationAddend(TT.getOS() == Triple::AMDHSA),
+      ABIVersion(ABIVersion) {
     switch (TT.getOS()) {
     case Triple::AMDHSA:
       OSABI = ELF::ELFOSABI_AMDGPU_HSA;
@@ -195,7 +252,8 @@ public:
 
   std::unique_ptr<MCObjectTargetWriter>
   createObjectTargetWriter() const override {
-    return createAMDGPUELFObjectWriter(Is64Bit, OSABI, HasRelocationAddend);
+    return createAMDGPUELFObjectWriter(Is64Bit, OSABI, HasRelocationAddend,
+                                       ABIVersion);
   }
 };
 
@@ -205,6 +263,6 @@ MCAsmBackend *llvm::createAMDGPUAsmBackend(const Target &T,
                                            const MCSubtargetInfo &STI,
                                            const MCRegisterInfo &MRI,
                                            const MCTargetOptions &Options) {
-  // Use 64-bit ELF for amdgcn
-  return new ELFAMDGPUAsmBackend(T, STI.getTargetTriple());
+  return new ELFAMDGPUAsmBackend(T, STI.getTargetTriple(),
+                                 getHsaAbiVersion(&STI).value_or(0));
 }

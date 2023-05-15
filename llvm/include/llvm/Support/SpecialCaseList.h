@@ -1,15 +1,14 @@
 //===-- SpecialCaseList.h - special case list for sanitizers ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //===----------------------------------------------------------------------===//
 //
 // This is a utility class used to parse user-provided text files with
 // "special case lists" for code sanitizers. Such files are used to
-// define an "ABI list" for DataFlowSanitizer and blacklists for sanitizers
-// like AddressSanitizer or UndefinedBehaviorSanitizer.
+// define an "ABI list" for DataFlowSanitizer and allow/exclusion lists for
+// sanitizers like AddressSanitizer or UndefinedBehaviorSanitizer.
 //
 // Empty lines and lines starting with "#" are ignored. Sections are defined
 // using a '[section_name]' header and can be used to specify sanitizers the
@@ -20,24 +19,25 @@
 //   prefix:wildcard_expression[=category]
 // If category is not specified, it is assumed to be empty string.
 // Definitions of "prefix" and "category" are sanitizer-specific. For example,
-// sanitizer blacklists support prefixes "src", "fun" and "global".
-// Wildcard expressions define, respectively, source files, functions or
-// globals which shouldn't be instrumented.
+// sanitizer exclusion support prefixes "src", "mainfile", "fun" and "global".
+// Wildcard expressions define, respectively, source files, main files,
+// functions or globals which shouldn't be instrumented.
 // Examples of categories:
 //   "functional": used in DFSan to list functions with pure functional
 //                 semantics.
-//   "init": used in ASan blacklist to disable initialization-order bugs
+//   "init": used in ASan exclusion list to disable initialization-order bugs
 //           detection for certain globals or source files.
 // Full special case list file example:
 // ---
 // [address]
-// # Blacklisted items:
+// # Excluded items:
 // fun:*_ZN4base6subtle*
 // global:*global_with_bad_access_or_initialization*
 // global:*global_with_initialization_issues*=init
 // type:*Namespace::ClassName*=init
 // src:file_with_tricky_code.cc
 // src:ignore-global-initializers-issues.cc=init
+// mainfile:main_file.cc
 //
 // [dataflow]
 // # Functions with pure functional semantics:
@@ -53,23 +53,27 @@
 #define LLVM_SUPPORT_SPECIALCASELIST_H
 
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/TrigramIndex.h"
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace llvm {
 class MemoryBuffer;
-class Regex;
 class StringRef;
+
+namespace vfs {
+class FileSystem;
+}
 
 class SpecialCaseList {
 public:
   /// Parses the special case list entries from files. On failure, returns
   /// 0 and writes an error message to string.
   static std::unique_ptr<SpecialCaseList>
-  create(const std::vector<std::string> &Paths, std::string &Error);
+  create(const std::vector<std::string> &Paths, llvm::vfs::FileSystem &FS,
+         std::string &Error);
   /// Parses the special case list from a memory buffer. On failure, returns
   /// 0 and writes an error message to string.
   static std::unique_ptr<SpecialCaseList> create(const MemoryBuffer *MB,
@@ -77,7 +81,7 @@ public:
   /// Parses the special case list entries from files. On failure, reports a
   /// fatal error.
   static std::unique_ptr<SpecialCaseList>
-  createOrDie(const std::vector<std::string> &Paths);
+  createOrDie(const std::vector<std::string> &Paths, llvm::vfs::FileSystem &FS);
 
   ~SpecialCaseList();
 
@@ -95,7 +99,7 @@ public:
   ///   @Prefix:<E>=@Category
   /// \endcode
   /// where @Query satisfies wildcard expression <E> in a given @Section.
-  /// Returns zero if there is no blacklist entry corresponding to this
+  /// Returns zero if there is no exclusion entry corresponding to this
   /// expression.
   unsigned inSectionBlame(StringRef Section, StringRef Prefix, StringRef Query,
                           StringRef Category = StringRef()) const;
@@ -104,7 +108,7 @@ protected:
   // Implementations of the create*() functions that can also be used by derived
   // classes.
   bool createInternal(const std::vector<std::string> &Paths,
-                      std::string &Error);
+                      vfs::FileSystem &VFS, std::string &Error);
   bool createInternal(const MemoryBuffer *MB, std::string &Error);
 
   SpecialCaseList() = default;

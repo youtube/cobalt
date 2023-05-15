@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,9 +27,8 @@ constexpr bool test_constexpr()
 }
 #endif
 
-int main()
+int main(int, char**)
 {
-#ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
 #if TEST_STD_VER >= 11
     char16_t c = u'\0';
     std::char_traits<char16_t>::assign(c, u'a');
@@ -40,5 +38,6 @@ int main()
 #if TEST_STD_VER > 14
     static_assert(test_constexpr(), "" );
 #endif
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
+
+  return 0;
 }

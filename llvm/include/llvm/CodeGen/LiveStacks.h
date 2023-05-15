@@ -1,9 +1,8 @@
 //===- LiveStacks.h - Live Stack Slot Analysis ------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,13 +17,18 @@
 
 #include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Pass.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/PassRegistry.h"
 #include <cassert>
 #include <map>
 #include <unordered_map>
 
 namespace llvm {
 
+class AnalysisUsage;
+class MachineFunction;
+class Module;
+class raw_ostream;
 class TargetRegisterClass;
 class TargetRegisterInfo;
 

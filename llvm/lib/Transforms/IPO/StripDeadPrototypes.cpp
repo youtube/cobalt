@@ -1,9 +1,8 @@
 //===-- StripDeadPrototypes.cpp - Remove unused function declarations ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,6 +16,7 @@
 #include "llvm/Transforms/IPO/StripDeadPrototypes.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/IPO.h"
 
@@ -30,23 +30,20 @@ static bool stripDeadPrototypes(Module &M) {
   bool MadeChange = false;
 
   // Erase dead function prototypes.
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ) {
-    Function *F = &*I++;
+  for (Function &F : llvm::make_early_inc_range(M)) {
     // Function must be a prototype and unused.
-    if (F->isDeclaration() && F->use_empty()) {
-      F->eraseFromParent();
+    if (F.isDeclaration() && F.use_empty()) {
+      F.eraseFromParent();
       ++NumDeadPrototypes;
       MadeChange = true;
     }
   }
 
   // Erase dead global var prototypes.
-  for (Module::global_iterator I = M.global_begin(), E = M.global_end();
-       I != E; ) {
-    GlobalVariable *GV = &*I++;
+  for (GlobalVariable &GV : llvm::make_early_inc_range(M.globals())) {
     // Global must be a prototype and unused.
-    if (GV->isDeclaration() && GV->use_empty())
-      GV->eraseFromParent();
+    if (GV.isDeclaration() && GV.use_empty())
+      GV.eraseFromParent();
   }
 
   // Return an indication of whether we changed anything or not.

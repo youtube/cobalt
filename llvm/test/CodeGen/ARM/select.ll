@@ -62,8 +62,8 @@ entry:
 
 define double @f7(double %a, double %b) {
 ;CHECK-LABEL: f7:
-;CHECK: movlt
-;CHECK: movge
+;CHECK: movmi
+;CHECK: movpl
 ;CHECK-VFP-LABEL: f7:
 ;CHECK-VFP: vmovmi
     %tmp = fcmp olt double %a, 1.234e+00
@@ -80,8 +80,8 @@ define double @f7(double %a, double %b) {
 ; block generated, odds are good that we have close to the ideal code for this:
 ;
 ; CHECK-NEON-LABEL: f8:
-; CHECK-NEON:      movw    [[R3:r[0-9]+]], #1123
 ; CHECK-NEON:      adr     [[R2:r[0-9]+]], LCPI7_0
+; CHECK-NEON:      movw    [[R3:r[0-9]+]], #1123
 ; CHECK-NEON-NEXT: cmp     r0, [[R3]]
 ; CHECK-NEON-NEXT: it      eq
 ; CHECK-NEON-NEXT: addeq{{.*}} [[R2]], #4
@@ -100,10 +100,10 @@ define arm_apcscc float @f8(i32 %a) nounwind {
 ; scheduler to assert.
 ; CHECK-VFP-LABEL: f9:
 
-declare i8* @objc_msgSend(i8*, i8*, ...)
+declare ptr @objc_msgSend(ptr, ptr, ...)
 define void @f9() optsize {
 entry:
-  %cmp = icmp eq i8* undef, inttoptr (i32 4 to i8*)
+  %cmp = icmp eq ptr undef, inttoptr (i32 4 to ptr)
   %conv191 = select i1 %cmp, float -3.000000e+00, float 0.000000e+00
   %conv195 = select i1 %cmp, double -1.000000e+00, double 0.000000e+00
   %add = fadd double %conv195, 1.100000e+01
@@ -113,7 +113,7 @@ entry:
   %tmp478 = bitcast float %add201 to i32
   %tmp490 = insertvalue [2 x i32] undef, i32 %tmp484, 0
   %tmp493 = insertvalue [2 x i32] %tmp490, i32 %tmp478, 1
-  call void bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to void (i8*, i8*, [2 x i32], i32, float)*)(i8* undef, i8* undef, [2 x i32] %tmp493, i32 0, float 1.000000e+00) optsize
+  call void @objc_msgSend(ptr undef, ptr undef, [2 x i32] %tmp493, i32 0, float 1.000000e+00) optsize
   ret void
 }
 
@@ -142,3 +142,14 @@ define float @f12(i32 %a, i32 %b) nounwind uwtable readnone ssp {
   ret float %2
 }
 
+; CHECK-LABEL: test_overflow_recombine:
+define i1 @test_overflow_recombine(i32 %in1, i32 %in2) {
+; CHECK: smull [[LO:r[0-9]+]], [[HI:r[0-9]+]]
+; CHECK: subs [[ZERO:r[0-9]+]], [[HI]], [[LO]], asr #31
+; CHECK: movne [[ZERO]], #1
+  %prod = call { i32, i1 } @llvm.smul.with.overflow.i32(i32 %in1, i32 %in2)
+  %overflow = extractvalue { i32, i1 } %prod, 1
+  ret i1 %overflow
+}
+
+declare { i32, i1 } @llvm.smul.with.overflow.i32(i32, i32)

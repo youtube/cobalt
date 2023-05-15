@@ -7,9 +7,9 @@
 // CHECK: [[HPP:.*]] = !DIFile(filename: "./template.hpp",
 // CHECK: [[SP:.*]] = distinct !DISubprogram(name: "bar",
 // CHECK-SAME:                               file: [[HPP]], line: 22
-// CHECK-SAME:                               isDefinition: true
+// CHECK-SAME:                               DISPFlagDefinition
 // We shouldn't need a lexical block for this function.
-// CHECK: [[DBG]] = !DILocation(line: 23, scope: [[SP]])
+// CHECK: [[DBG]] = !DILocation(line: 23, column: 3, scope: [[SP]])
 
 
 # 1 "./template.h" 1

@@ -1,9 +1,8 @@
 //===------ VirtualInstruction.cpp ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +17,7 @@
 #include "polly/ScopInfo.h"
 
 namespace polly {
+using llvm::User;
 
 /// Determine the nature of a value's use within a statement.
 ///
@@ -28,7 +28,7 @@ namespace polly {
 /// Despite its name it is not tied to virtual instructions (although it works
 /// fine with them), but to promote consistent handling of values used in
 /// statements.
-class VirtualUse {
+class VirtualUse final {
 public:
   /// The different types of uses. Handling usually differentiates a lot between
   /// these; one can use a switch to handle each case (and get warned by the
@@ -94,7 +94,7 @@ public:
   /// @param U       The llvm::Use the get information for.
   /// @param LI      The LoopInfo analysis. Needed to determine whether the
   ///                value is synthesizable.
-  /// @param Virtual Whether to ignore existing MemoryAcccess.
+  /// @param Virtual Whether to ignore existing MemoryAccess.
   ///
   /// @return The VirtualUse representing the same use as @p U.
   static VirtualUse create(Scop *S, const Use &U, LoopInfo *LI, bool Virtual);
@@ -167,12 +167,10 @@ public:
 };
 
 /// An iterator for virtual operands.
-class VirtualOperandIterator
-    : public std::iterator<std::forward_iterator_tag, VirtualUse> {
+class VirtualOperandIterator final {
   friend class VirtualInstruction;
   friend class VirtualUse;
 
-  using super = std::iterator<std::forward_iterator_tag, VirtualUse>;
   using Self = VirtualOperandIterator;
 
   ScopStmt *User;
@@ -182,8 +180,11 @@ class VirtualOperandIterator
       : User(User), U(U) {}
 
 public:
-  using pointer = typename super::pointer;
-  using reference = typename super::reference;
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = VirtualUse;
+  using difference_type = std::ptrdiff_t;
+  using pointer = value_type *;
+  using reference = value_type &;
 
   inline bool operator==(const Self &that) const {
     assert(this->User == that.User);
@@ -227,7 +228,7 @@ public:
 /// ScopStmt/Instruction-pair uniquely identifies a virtual instructions.
 /// ScopStmt::getInstruction() can contain the same instruction multiple times,
 /// but they necessarily compute the same value.
-class VirtualInstruction {
+class VirtualInstruction final {
   friend class VirtualOperandIterator;
   friend struct llvm::DenseMapInfo<VirtualInstruction>;
 

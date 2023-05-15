@@ -1,9 +1,8 @@
 //===- llvm/InlineAsm.h - Class to represent inline asm strings -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,14 +15,17 @@
 #ifndef LLVM_IR_INLINEASM_H
 #define LLVM_IR_INLINEASM_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 #include <string>
 #include <vector>
 
 namespace llvm {
 
+class Error;
 class FunctionType;
 class PointerType;
 template <class ConstantClass> class ConstantUniqueMap;
@@ -44,10 +46,11 @@ private:
   bool HasSideEffects;
   bool IsAlignStack;
   AsmDialect Dialect;
+  bool CanThrow;
 
   InlineAsm(FunctionType *Ty, const std::string &AsmString,
             const std::string &Constraints, bool hasSideEffects,
-            bool isAlignStack, AsmDialect asmDialect);
+            bool isAlignStack, AsmDialect asmDialect, bool canThrow);
 
   /// When the ConstantUniqueMap merges two types and makes two InlineAsms
   /// identical, it destroys one of them with this method.
@@ -62,11 +65,12 @@ public:
   static InlineAsm *get(FunctionType *Ty, StringRef AsmString,
                         StringRef Constraints, bool hasSideEffects,
                         bool isAlignStack = false,
-                        AsmDialect asmDialect = AD_ATT);
+                        AsmDialect asmDialect = AD_ATT, bool canThrow = false);
 
   bool hasSideEffects() const { return HasSideEffects; }
   bool isAlignStack() const { return IsAlignStack; }
   AsmDialect getDialect() const { return Dialect; }
+  bool canThrow() const { return CanThrow; }
 
   /// getType - InlineAsm's are always pointers.
   ///
@@ -80,18 +84,18 @@ public:
 
   const std::string &getAsmString() const { return AsmString; }
   const std::string &getConstraintString() const { return Constraints; }
+  void collectAsmStrs(SmallVectorImpl<StringRef> &AsmStrs) const;
 
-  /// Verify - This static method can be used by the parser to check to see if
-  /// the specified constraint string is legal for the type.  This returns true
-  /// if legal, false if not.
-  ///
-  static bool Verify(FunctionType *Ty, StringRef Constraints);
+  /// This static method can be used by the parser to check to see if the
+  /// specified constraint string is legal for the type.
+  static Error verify(FunctionType *Ty, StringRef Constraints);
 
   // Constraint String Parsing
   enum ConstraintPrefix {
     isInput,            // 'x'
     isOutput,           // '=x'
-    isClobber           // '~x'
+    isClobber,          // '~x'
+    isLabel,            // '!x'
   };
 
   using ConstraintCodeVector = std::vector<std::string>;
@@ -116,7 +120,7 @@ public:
   using ConstraintInfoVector = std::vector<ConstraintInfo>;
 
   struct ConstraintInfo {
-    /// Type - The basic type of the constraint: input/output/clobber
+    /// Type - The basic type of the constraint: input/output/clobber/label
     ///
     ConstraintPrefix Type = isInput;
 
@@ -169,6 +173,11 @@ public:
     /// selectAlternative - Point this constraint to the alternative constraint
     /// indicated by the index.
     void selectAlternative(unsigned index);
+
+    /// Whether this constraint corresponds to an argument.
+    bool hasArg() const {
+      return Type == isInput || (Type == isOutput && isIndirect);
+    }
   };
 
   /// ParseConstraints - Split up the constraint string into the specific
@@ -233,18 +242,24 @@ public:
     Kind_RegDefEarlyClobber = 3, // Early-clobber output register, "=&r".
     Kind_Clobber = 4,            // Clobbered register, "~r".
     Kind_Imm = 5,                // Immediate.
-    Kind_Mem = 6,                // Memory operand, "m".
+    Kind_Mem = 6,                // Memory operand, "m", or an address, "p".
+    Kind_Func = 7,               // Address operand of function call
 
     // Memory constraint codes.
     // These could be tablegenerated but there's little need to do that since
     // there's plenty of space in the encoding to support the union of all
     // constraint codes for all targets.
+    // Addresses are included here as they need to be treated the same by the
+    // backend, the only difference is that they are not used to actaully
+    // access memory by the instruction.
     Constraint_Unknown = 0,
     Constraint_es,
     Constraint_i,
+    Constraint_k,
     Constraint_m,
     Constraint_o,
     Constraint_v,
+    Constraint_A,
     Constraint_Q,
     Constraint_R,
     Constraint_S,
@@ -258,9 +273,18 @@ public:
     Constraint_Uy,
     Constraint_X,
     Constraint_Z,
+    Constraint_ZB,
     Constraint_ZC,
     Constraint_Zy,
-    Constraints_Max = Constraint_Zy,
+
+    // Address constraints
+    Constraint_p,
+    Constraint_ZQ,
+    Constraint_ZR,
+    Constraint_ZS,
+    Constraint_ZT,
+
+    Constraints_Max = Constraint_ZT,
     Constraints_ShiftAmount = 16,
 
     Flag_MatchingOperand = 0x80000000
@@ -268,13 +292,14 @@ public:
 
   static unsigned getFlagWord(unsigned Kind, unsigned NumOps) {
     assert(((NumOps << 3) & ~0xffff) == 0 && "Too many inline asm operands!");
-    assert(Kind >= Kind_RegUse && Kind <= Kind_Mem && "Invalid Kind");
+    assert(Kind >= Kind_RegUse && Kind <= Kind_Func && "Invalid Kind");
     return Kind | (NumOps << 3);
   }
 
   static bool isRegDefKind(unsigned Flag){ return getKind(Flag) == Kind_RegDef;}
   static bool isImmKind(unsigned Flag) { return getKind(Flag) == Kind_Imm; }
   static bool isMemKind(unsigned Flag) { return getKind(Flag) == Kind_Mem; }
+  static bool isFuncKind(unsigned Flag) { return getKind(Flag) == Kind_Func; }
   static bool isRegDefEarlyClobberKind(unsigned Flag) {
     return getKind(Flag) == Kind_RegDefEarlyClobber;
   }
@@ -310,7 +335,8 @@ public:
   /// Augment an existing flag word returned by getFlagWord with the constraint
   /// code for a memory constraint.
   static unsigned getFlagWordForMem(unsigned InputFlag, unsigned Constraint) {
-    assert(isMemKind(InputFlag) && "InputFlag is not a memory constraint!");
+    assert((isMemKind(InputFlag) || isFuncKind(InputFlag)) &&
+           "InputFlag is not a memory (include function) constraint!");
     assert(Constraint <= 0x7fff && "Too large a memory constraint ID");
     assert(Constraint <= Constraints_Max && "Unknown constraint ID");
     assert((InputFlag & ~0xffff) == 0 && "High bits already contain data");
@@ -327,7 +353,8 @@ public:
   }
 
   static unsigned getMemoryConstraintID(unsigned Flag) {
-    assert(isMemKind(Flag));
+    assert((isMemKind(Flag) || isFuncKind(Flag)) &&
+           "Not expected mem or function flang!");
     return (Flag >> Constraints_ShiftAmount) & 0x7fff;
   }
 
@@ -358,6 +385,111 @@ public:
       return false;
     RC = High - 1;
     return true;
+  }
+
+  static std::vector<StringRef> getExtraInfoNames(unsigned ExtraInfo) {
+    std::vector<StringRef> Result;
+    if (ExtraInfo & InlineAsm::Extra_HasSideEffects)
+      Result.push_back("sideeffect");
+    if (ExtraInfo & InlineAsm::Extra_MayLoad)
+      Result.push_back("mayload");
+    if (ExtraInfo & InlineAsm::Extra_MayStore)
+      Result.push_back("maystore");
+    if (ExtraInfo & InlineAsm::Extra_IsConvergent)
+      Result.push_back("isconvergent");
+    if (ExtraInfo & InlineAsm::Extra_IsAlignStack)
+      Result.push_back("alignstack");
+
+    AsmDialect Dialect =
+        InlineAsm::AsmDialect((ExtraInfo & InlineAsm::Extra_AsmDialect));
+
+    if (Dialect == InlineAsm::AD_ATT)
+      Result.push_back("attdialect");
+    if (Dialect == InlineAsm::AD_Intel)
+      Result.push_back("inteldialect");
+
+    return Result;
+  }
+
+  static StringRef getKindName(unsigned Kind) {
+    switch (Kind) {
+    case InlineAsm::Kind_RegUse:
+      return "reguse";
+    case InlineAsm::Kind_RegDef:
+      return "regdef";
+    case InlineAsm::Kind_RegDefEarlyClobber:
+      return "regdef-ec";
+    case InlineAsm::Kind_Clobber:
+      return "clobber";
+    case InlineAsm::Kind_Imm:
+      return "imm";
+    case InlineAsm::Kind_Mem:
+    case InlineAsm::Kind_Func:
+      return "mem";
+    default:
+      llvm_unreachable("Unknown operand kind");
+    }
+  }
+
+  static StringRef getMemConstraintName(unsigned Constraint) {
+    switch (Constraint) {
+    case InlineAsm::Constraint_es:
+      return "es";
+    case InlineAsm::Constraint_i:
+      return "i";
+    case InlineAsm::Constraint_k:
+      return "k";
+    case InlineAsm::Constraint_m:
+      return "m";
+    case InlineAsm::Constraint_o:
+      return "o";
+    case InlineAsm::Constraint_v:
+      return "v";
+    case InlineAsm::Constraint_Q:
+      return "Q";
+    case InlineAsm::Constraint_R:
+      return "R";
+    case InlineAsm::Constraint_S:
+      return "S";
+    case InlineAsm::Constraint_T:
+      return "T";
+    case InlineAsm::Constraint_Um:
+      return "Um";
+    case InlineAsm::Constraint_Un:
+      return "Un";
+    case InlineAsm::Constraint_Uq:
+      return "Uq";
+    case InlineAsm::Constraint_Us:
+      return "Us";
+    case InlineAsm::Constraint_Ut:
+      return "Ut";
+    case InlineAsm::Constraint_Uv:
+      return "Uv";
+    case InlineAsm::Constraint_Uy:
+      return "Uy";
+    case InlineAsm::Constraint_X:
+      return "X";
+    case InlineAsm::Constraint_Z:
+      return "Z";
+    case InlineAsm::Constraint_ZB:
+      return "ZB";
+    case InlineAsm::Constraint_ZC:
+      return "ZC";
+    case InlineAsm::Constraint_Zy:
+      return "Zy";
+    case InlineAsm::Constraint_p:
+      return "p";
+    case InlineAsm::Constraint_ZQ:
+      return "ZQ";
+    case InlineAsm::Constraint_ZR:
+      return "ZR";
+    case InlineAsm::Constraint_ZS:
+      return "ZS";
+    case InlineAsm::Constraint_ZT:
+      return "ZT";
+    default:
+      llvm_unreachable("Unknown memory constraint");
+    }
   }
 };
 

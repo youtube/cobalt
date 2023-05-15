@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // <optional>
 
 // optional<T>& operator=(nullopt_t) noexcept;
@@ -17,14 +16,27 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "archetypes.hpp"
+#include "archetypes.h"
 
 using std::optional;
 using std::nullopt_t;
 using std::nullopt;
 
-int main()
+TEST_CONSTEXPR_CXX20 bool test()
 {
+    enum class State { inactive, constructed, destroyed };
+    State state = State::inactive;
+
+    struct StateTracker {
+      TEST_CONSTEXPR_CXX20 StateTracker(State& s)
+      : state_(&s)
+      {
+        s = State::constructed;
+      }
+      TEST_CONSTEXPR_CXX20 ~StateTracker() { *state_ = State::destroyed; }
+
+      State* state_;
+    };
     {
         optional<int> opt;
         static_assert(noexcept(opt = nullopt) == true, "");
@@ -36,6 +48,29 @@ int main()
         opt = nullopt;
         assert(static_cast<bool>(opt) == false);
     }
+    {
+        optional<StateTracker> opt;
+        opt = nullopt;
+        assert(state == State::inactive);
+        assert(static_cast<bool>(opt) == false);
+    }
+    {
+        optional<StateTracker> opt(state);
+        assert(state == State::constructed);
+        opt = nullopt;
+        assert(state == State::destroyed);
+        assert(static_cast<bool>(opt) == false);
+    }
+    return true;
+}
+
+
+int main(int, char**)
+{
+#if TEST_STD_VER > 17
+    static_assert(test());
+#endif
+    test();
     using TT = TestTypes::TestType;
     TT::reset();
     {
@@ -64,4 +99,6 @@ int main()
     assert(TT::alive == 0);
     assert(TT::destroyed == 1);
     TT::reset();
+
+  return 0;
 }

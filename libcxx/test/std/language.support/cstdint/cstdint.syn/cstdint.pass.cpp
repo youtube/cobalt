@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,15 +10,20 @@
 
 #include <cstdint>
 #include <cstddef>
-#include <cwchar>
 #include <csignal>
-#include <cwctype>
 #include <climits>
 #include <type_traits>
 #include <limits>
 #include <cassert>
 
-int main()
+#include "test_macros.h"
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+#   include <cwchar>
+#   include <cwctype>
+#endif
+
+int main(int, char**)
 {
     // typedef std::int8_t
     static_assert(sizeof(std::int8_t)*CHAR_BIT == 8,
@@ -238,6 +242,7 @@ int main()
     // SIZE_MAX
     assert(SIZE_MAX == std::numeric_limits<std::size_t>::max());
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     // WCHAR_MIN
     assert(WCHAR_MIN == std::numeric_limits<wchar_t>::min());
 
@@ -249,6 +254,7 @@ int main()
 
     // WINT_MAX
     assert(WINT_MAX == std::numeric_limits<std::wint_t>::max());
+#endif
 
 #ifndef INT8_C
 #error INT8_C not defined
@@ -289,4 +295,6 @@ int main()
 #ifndef UINTMAX_C
 #error UINTMAX_C not defined
 #endif
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===--- ASTSelection.cpp - Clang refactoring library ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,10 +10,10 @@
 #include "clang/AST/LexicallyOrderedRecursiveASTVisitor.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include <optional>
 
 using namespace clang;
 using namespace tooling;
-using ast_type_traits::DynTypedNode;
 
 namespace {
 
@@ -52,12 +51,12 @@ public:
                         SourceSelectionKind::None));
   }
 
-  Optional<SelectedASTNode> getSelectedASTNode() {
+  std::optional<SelectedASTNode> getSelectedASTNode() {
     assert(SelectionStack.size() == 1 && "stack was not popped");
     SelectedASTNode Result = std::move(SelectionStack.back());
     SelectionStack.pop_back();
     if (Result.Children.empty())
-      return None;
+      return std::nullopt;
     return std::move(Result);
   }
 
@@ -65,14 +64,14 @@ public:
     // Avoid traversing the semantic expressions. They should be handled by
     // looking through the appropriate opaque expressions in order to build
     // a meaningful selection tree.
-    llvm::SaveAndRestore<bool> LookThrough(LookThroughOpaqueValueExprs, true);
+    llvm::SaveAndRestore LookThrough(LookThroughOpaqueValueExprs, true);
     return TraverseStmt(E->getSyntacticForm());
   }
 
   bool TraverseOpaqueValueExpr(OpaqueValueExpr *E) {
     if (!LookThroughOpaqueValueExprs)
       return true;
-    llvm::SaveAndRestore<bool> LookThrough(LookThroughOpaqueValueExprs, false);
+    llvm::SaveAndRestore LookThrough(LookThroughOpaqueValueExprs, false);
     return TraverseStmt(E->getSourceExpr());
   }
 
@@ -180,7 +179,7 @@ private:
 
 } // end anonymous namespace
 
-Optional<SelectedASTNode>
+std::optional<SelectedASTNode>
 clang::tooling::findSelectedASTNodes(const ASTContext &Context,
                                      SourceRange SelectionRange) {
   assert(SelectionRange.isValid() &&
@@ -220,7 +219,7 @@ static void dump(const SelectedASTNode &Node, llvm::raw_ostream &OS,
   if (const Decl *D = Node.Node.get<Decl>()) {
     OS << D->getDeclKindName() << "Decl";
     if (const auto *ND = dyn_cast<NamedDecl>(D))
-      OS << " \"" << ND->getNameAsString() << '"';
+      OS << " \"" << ND->getDeclName() << '"';
   } else if (const Stmt *S = Node.Node.get<Stmt>()) {
     OS << S->getStmtClassName();
   }
@@ -250,8 +249,6 @@ static bool hasAnyDirectChildrenWithKind(const SelectedASTNode &Node,
 
 namespace {
 struct SelectedNodeWithParents {
-  SelectedNodeWithParents(SelectedNodeWithParents &&) = default;
-  SelectedNodeWithParents &operator=(SelectedNodeWithParents &&) = default;
   SelectedASTNode::ReferenceType Node;
   llvm::SmallVector<SelectedASTNode::ReferenceType, 8> Parents;
 
@@ -379,22 +376,22 @@ static void findDeepestWithKind(
   findDeepestWithKind(ASTSelection, MatchingNodes, Kind, ParentStack);
 }
 
-Optional<CodeRangeASTSelection>
+std::optional<CodeRangeASTSelection>
 CodeRangeASTSelection::create(SourceRange SelectionRange,
                               const SelectedASTNode &ASTSelection) {
   // Code range is selected when the selection range is not empty.
   if (SelectionRange.getBegin() == SelectionRange.getEnd())
-    return None;
+    return std::nullopt;
   llvm::SmallVector<SelectedNodeWithParents, 4> ContainSelection;
   findDeepestWithKind(ASTSelection, ContainSelection,
                       SourceSelectionKind::ContainsSelection);
   // We are looking for a selection in one body of code, so let's focus on
   // one matching result.
   if (ContainSelection.size() != 1)
-    return None;
+    return std::nullopt;
   SelectedNodeWithParents &Selected = ContainSelection[0];
   if (!Selected.Node.get().Node.get<Stmt>())
-    return None;
+    return std::nullopt;
   const Stmt *CodeRangeStmt = Selected.Node.get().Node.get<Stmt>();
   if (!isa<CompoundStmt>(CodeRangeStmt)) {
     Selected.canonicalize();

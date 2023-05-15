@@ -1,20 +1,23 @@
 //===--- OpenBSD.cpp - OpenBSD ToolChain Implementations --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "OpenBSD.h"
+#include "Arch/ARM.h"
 #include "Arch/Mips.h"
 #include "Arch/Sparc.h"
 #include "CommonArgs.h"
+#include "clang/Config/config.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 using namespace clang::driver;
 using namespace clang::driver::tools;
@@ -27,35 +30,40 @@ void openbsd::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
                                       const InputInfoList &Inputs,
                                       const ArgList &Args,
                                       const char *LinkingOutput) const {
+  const toolchains::OpenBSD &ToolChain =
+      static_cast<const toolchains::OpenBSD &>(getToolChain());
+  const Driver &D = ToolChain.getDriver();
+  const llvm::Triple &Triple = ToolChain.getTriple();
+
   claimNoWarnArgs(Args);
   ArgStringList CmdArgs;
 
-  switch (getToolChain().getArch()) {
+  switch (ToolChain.getArch()) {
   case llvm::Triple::x86:
     // When building 32-bit code on OpenBSD/amd64, we have to explicitly
     // instruct as in the base system to assemble 32-bit code.
     CmdArgs.push_back("--32");
     break;
 
+  case llvm::Triple::arm:
+  case llvm::Triple::armeb: {
+    StringRef MArch, MCPU;
+    arm::getARMArchCPUFromArgs(Args, MArch, MCPU, /*FromAs*/ true);
+    std::string Arch = arm::getARMTargetCPU(MCPU, MArch, Triple);
+    CmdArgs.push_back(Args.MakeArgString("-mcpu=" + Arch));
+    break;
+  }
+
   case llvm::Triple::ppc:
     CmdArgs.push_back("-mppc");
     CmdArgs.push_back("-many");
     break;
 
-  case llvm::Triple::sparc:
-  case llvm::Triple::sparcel: {
-    CmdArgs.push_back("-32");
-    std::string CPU = getCPUName(Args, getToolChain().getTriple());
-    CmdArgs.push_back(sparc::getSparcAsmModeForCPU(CPU, getToolChain().getTriple()));
-    AddAssemblerKPIC(getToolChain(), Args, CmdArgs);
-    break;
-  }
-
   case llvm::Triple::sparcv9: {
     CmdArgs.push_back("-64");
-    std::string CPU = getCPUName(Args, getToolChain().getTriple());
-    CmdArgs.push_back(sparc::getSparcAsmModeForCPU(CPU, getToolChain().getTriple()));
-    AddAssemblerKPIC(getToolChain(), Args, CmdArgs);
+    std::string CPU = getCPUName(D, Args, Triple);
+    CmdArgs.push_back(sparc::getSparcAsmModeForCPU(CPU, Triple));
+    AddAssemblerKPIC(ToolChain, Args, CmdArgs);
     break;
   }
 
@@ -63,17 +71,20 @@ void openbsd::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
   case llvm::Triple::mips64el: {
     StringRef CPUName;
     StringRef ABIName;
-    mips::getMipsCPUAndABI(Args, getToolChain().getTriple(), CPUName, ABIName);
+    mips::getMipsCPUAndABI(Args, Triple, CPUName, ABIName);
+
+    CmdArgs.push_back("-march");
+    CmdArgs.push_back(CPUName.data());
 
     CmdArgs.push_back("-mabi");
     CmdArgs.push_back(mips::getGnuCompatibleMipsABIName(ABIName).data());
 
-    if (getToolChain().getTriple().isLittleEndian())
+    if (Triple.isLittleEndian())
       CmdArgs.push_back("-EL");
     else
       CmdArgs.push_back("-EB");
 
-    AddAssemblerKPIC(getToolChain(), Args, CmdArgs);
+    AddAssemblerKPIC(ToolChain, Args, CmdArgs);
     break;
   }
 
@@ -89,8 +100,10 @@ void openbsd::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
   for (const auto &II : Inputs)
     CmdArgs.push_back(II.getFilename());
 
-  const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("as"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  const char *Exec = Args.MakeArgString(ToolChain.GetProgramPath("as"));
+  C.addCommand(std::make_unique<Command>(JA, *this,
+                                         ResponseFileSupport::AtFileCurCP(),
+                                         Exec, CmdArgs, Inputs, Output));
 }
 
 void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
@@ -100,7 +113,8 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
                                    const char *LinkingOutput) const {
   const toolchains::OpenBSD &ToolChain =
       static_cast<const toolchains::OpenBSD &>(getToolChain());
-  const Driver &D = getToolChain().getDriver();
+  const Driver &D = ToolChain.getDriver();
+  const llvm::Triple::ArchType Arch = ToolChain.getArch();
   ArgStringList CmdArgs;
 
   // Silence warning for "clang -g foo.o -o foo"
@@ -111,9 +125,12 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   // handled somewhere else.
   Args.ClaimAllArgs(options::OPT_w);
 
-  if (getToolChain().getArch() == llvm::Triple::mips64)
+  if (!D.SysRoot.empty())
+    CmdArgs.push_back(Args.MakeArgString("--sysroot=" + D.SysRoot));
+
+  if (Arch == llvm::Triple::mips64)
     CmdArgs.push_back("-EB");
-  else if (getToolChain().getArch() == llvm::Triple::mips64el)
+  else if (Arch == llvm::Triple::mips64el)
     CmdArgs.push_back("-EL");
 
   if (!Args.hasArg(options::OPT_nostdlib, options::OPT_shared)) {
@@ -130,7 +147,7 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-Bdynamic");
     if (Args.hasArg(options::OPT_shared)) {
       CmdArgs.push_back("-shared");
-    } else {
+    } else if (!Args.hasArg(options::OPT_r)) {
       CmdArgs.push_back("-dynamic-linker");
       CmdArgs.push_back("/usr/libexec/ld.so");
     }
@@ -141,6 +158,9 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.hasArg(options::OPT_nopie) || Args.hasArg(options::OPT_pg))
     CmdArgs.push_back("-nopie");
 
+  if (Arch == llvm::Triple::riscv64)
+    CmdArgs.push_back("-X");
+
   if (Output.isFilename()) {
     CmdArgs.push_back("-o");
     CmdArgs.push_back(Output.getFilename());
@@ -148,61 +168,64 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     assert(Output.isNothing() && "Invalid output.");
   }
 
-  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
+  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles,
+                   options::OPT_r)) {
+    const char *crt0 = nullptr;
+    const char *crtbegin = nullptr;
     if (!Args.hasArg(options::OPT_shared)) {
       if (Args.hasArg(options::OPT_pg))
-        CmdArgs.push_back(
-            Args.MakeArgString(getToolChain().GetFilePath("gcrt0.o")));
+        crt0 = "gcrt0.o";
       else if (Args.hasArg(options::OPT_static) &&
                !Args.hasArg(options::OPT_nopie))
-        CmdArgs.push_back(
-            Args.MakeArgString(getToolChain().GetFilePath("rcrt0.o")));
+        crt0 = "rcrt0.o";
       else
-        CmdArgs.push_back(
-            Args.MakeArgString(getToolChain().GetFilePath("crt0.o")));
-      CmdArgs.push_back(
-          Args.MakeArgString(getToolChain().GetFilePath("crtbegin.o")));
+        crt0 = "crt0.o";
+      crtbegin = "crtbegin.o";
     } else {
-      CmdArgs.push_back(
-          Args.MakeArgString(getToolChain().GetFilePath("crtbeginS.o")));
+      crtbegin = "crtbeginS.o";
     }
+
+    if (crt0)
+      CmdArgs.push_back(Args.MakeArgString(ToolChain.GetFilePath(crt0)));
+    CmdArgs.push_back(Args.MakeArgString(ToolChain.GetFilePath(crtbegin)));
   }
 
-  std::string Triple = getToolChain().getTripleString();
-  if (Triple.substr(0, 6) == "x86_64")
-    Triple.replace(0, 6, "amd64");
-  CmdArgs.push_back(
-      Args.MakeArgString("-L/usr/lib/gcc-lib/" + Triple + "/4.2.1"));
-  CmdArgs.push_back(Args.MakeArgString("-L/usr/lib"));
-
-  Args.AddAllArgs(CmdArgs, {options::OPT_L, options::OPT_T_Group,
-                            options::OPT_e, options::OPT_s, options::OPT_t,
+  Args.AddAllArgs(CmdArgs, options::OPT_L);
+  ToolChain.AddFilePathLibArgs(Args, CmdArgs);
+  Args.AddAllArgs(CmdArgs, {options::OPT_T_Group, options::OPT_e,
+                            options::OPT_s, options::OPT_t,
                             options::OPT_Z_Flag, options::OPT_r});
 
   bool NeedsSanitizerDeps = addSanitizerRuntimes(ToolChain, Args, CmdArgs);
   bool NeedsXRayDeps = addXRayRuntime(ToolChain, Args, CmdArgs);
-  AddLinkerInputs(getToolChain(), Inputs, Args, CmdArgs, JA);
+  AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs, JA);
 
-  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs)) {
+  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nodefaultlibs,
+                   options::OPT_r)) {
+    // Use the static OpenMP runtime with -static-openmp
+    bool StaticOpenMP = Args.hasArg(options::OPT_static_openmp) &&
+                        !Args.hasArg(options::OPT_static);
+    addOpenMPRuntime(CmdArgs, ToolChain, Args, StaticOpenMP);
+
     if (D.CCCIsCXX()) {
-      if (getToolChain().ShouldLinkCXXStdlib(Args))
-        getToolChain().AddCXXStdlibLibArgs(Args, CmdArgs);
+      if (ToolChain.ShouldLinkCXXStdlib(Args))
+        ToolChain.AddCXXStdlibLibArgs(Args, CmdArgs);
       if (Args.hasArg(options::OPT_pg))
         CmdArgs.push_back("-lm_p");
       else
         CmdArgs.push_back("-lm");
     }
     if (NeedsSanitizerDeps) {
-      CmdArgs.push_back(ToolChain.getCompilerRTArgString(Args, "builtins", false));
+      CmdArgs.push_back(ToolChain.getCompilerRTArgString(Args, "builtins"));
       linkSanitizerRuntimeDeps(ToolChain, CmdArgs);
     }
     if (NeedsXRayDeps) {
-      CmdArgs.push_back(ToolChain.getCompilerRTArgString(Args, "builtins", false));
+      CmdArgs.push_back(ToolChain.getCompilerRTArgString(Args, "builtins"));
       linkXRayRuntimeDeps(ToolChain, CmdArgs);
     }
     // FIXME: For some reason GCC passes -lgcc before adding
     // the default system libraries. Just mimic this for now.
-    CmdArgs.push_back("-lgcc");
+    CmdArgs.push_back("-lcompiler_rt");
 
     if (Args.hasArg(options::OPT_pthread)) {
       if (!Args.hasArg(options::OPT_shared) && Args.hasArg(options::OPT_pg))
@@ -218,22 +241,26 @@ void openbsd::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         CmdArgs.push_back("-lc");
     }
 
-    CmdArgs.push_back("-lgcc");
+    CmdArgs.push_back("-lcompiler_rt");
   }
 
-  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles)) {
+  if (!Args.hasArg(options::OPT_nostdlib, options::OPT_nostartfiles,
+                   options::OPT_r)) {
+    const char *crtend = nullptr;
     if (!Args.hasArg(options::OPT_shared))
-      CmdArgs.push_back(
-          Args.MakeArgString(getToolChain().GetFilePath("crtend.o")));
+      crtend = "crtend.o";
     else
-      CmdArgs.push_back(
-          Args.MakeArgString(getToolChain().GetFilePath("crtendS.o")));
+      crtend = "crtendS.o";
+
+    CmdArgs.push_back(Args.MakeArgString(ToolChain.GetFilePath(crtend)));
   }
 
-  const char *Exec = Args.MakeArgString(
-      !NeedsSanitizerDeps ? getToolChain().GetLinkerPath()
-                          : getToolChain().GetProgramPath("ld.lld"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  ToolChain.addProfileRTLibs(Args, CmdArgs);
+
+  const char *Exec = Args.MakeArgString(ToolChain.GetLinkerPath());
+  C.addCommand(std::make_unique<Command>(JA, *this,
+                                         ResponseFileSupport::AtFileCurCP(),
+                                         Exec, CmdArgs, Inputs, Output));
 }
 
 SanitizerMask OpenBSD::getSupportedSanitizers() const {
@@ -257,8 +284,47 @@ SanitizerMask OpenBSD::getSupportedSanitizers() const {
 OpenBSD::OpenBSD(const Driver &D, const llvm::Triple &Triple,
                  const ArgList &Args)
     : Generic_ELF(D, Triple, Args) {
-  getFilePaths().push_back(getDriver().Dir + "/../lib");
-  getFilePaths().push_back("/usr/lib");
+  getFilePaths().push_back(concat(getDriver().SysRoot, "/usr/lib"));
+}
+
+void OpenBSD::AddClangSystemIncludeArgs(
+    const llvm::opt::ArgList &DriverArgs,
+    llvm::opt::ArgStringList &CC1Args) const {
+  const Driver &D = getDriver();
+
+  if (DriverArgs.hasArg(clang::driver::options::OPT_nostdinc))
+    return;
+
+  if (!DriverArgs.hasArg(options::OPT_nobuiltininc)) {
+    SmallString<128> Dir(D.ResourceDir);
+    llvm::sys::path::append(Dir, "include");
+    addSystemInclude(DriverArgs, CC1Args, Dir.str());
+  }
+
+  if (DriverArgs.hasArg(options::OPT_nostdlibinc))
+    return;
+
+  // Check for configure-time C include directories.
+  StringRef CIncludeDirs(C_INCLUDE_DIRS);
+  if (CIncludeDirs != "") {
+    SmallVector<StringRef, 5> dirs;
+    CIncludeDirs.split(dirs, ":");
+    for (StringRef dir : dirs) {
+      StringRef Prefix =
+          llvm::sys::path::is_absolute(dir) ? StringRef(D.SysRoot) : "";
+      addExternCSystemInclude(DriverArgs, CC1Args, Prefix + dir);
+    }
+    return;
+  }
+
+  addExternCSystemInclude(DriverArgs, CC1Args,
+                          concat(D.SysRoot, "/usr/include"));
+}
+
+void OpenBSD::addLibCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
+                                    llvm::opt::ArgStringList &CC1Args) const {
+  addSystemInclude(DriverArgs, CC1Args,
+                   concat(getDriver().SysRoot, "/usr/include/c++/v1"));
 }
 
 void OpenBSD::AddCXXStdlibLibArgs(const ArgList &Args,
@@ -266,7 +332,27 @@ void OpenBSD::AddCXXStdlibLibArgs(const ArgList &Args,
   bool Profiling = Args.hasArg(options::OPT_pg);
 
   CmdArgs.push_back(Profiling ? "-lc++_p" : "-lc++");
+  if (Args.hasArg(options::OPT_fexperimental_library))
+    CmdArgs.push_back("-lc++experimental");
   CmdArgs.push_back(Profiling ? "-lc++abi_p" : "-lc++abi");
+  CmdArgs.push_back(Profiling ? "-lpthread_p" : "-lpthread");
+}
+
+std::string OpenBSD::getCompilerRT(const ArgList &Args, StringRef Component,
+                                   FileType Type) const {
+  if (Component == "builtins") {
+    SmallString<128> Path(getDriver().SysRoot);
+    llvm::sys::path::append(Path, "/usr/lib/libcompiler_rt.a");
+    return std::string(Path.str());
+  }
+  SmallString<128> P(getDriver().ResourceDir);
+  std::string CRTBasename =
+      buildCompilerRTBasename(Args, Component, Type, /*AddArch=*/false);
+  llvm::sys::path::append(P, "lib", CRTBasename);
+  // Checks if this is the base system case which uses a different location.
+  if (getVFS().exists(P))
+    return std::string(P.str());
+  return ToolChain::getCompilerRT(Args, Component, Type);
 }
 
 Tool *OpenBSD::buildAssembler() const {
@@ -274,3 +360,15 @@ Tool *OpenBSD::buildAssembler() const {
 }
 
 Tool *OpenBSD::buildLinker() const { return new tools::openbsd::Linker(*this); }
+
+bool OpenBSD::HasNativeLLVMSupport() const { return true; }
+
+ToolChain::UnwindTableLevel
+OpenBSD::getDefaultUnwindTableLevel(const ArgList &Args) const {
+  switch (getArch()) {
+  case llvm::Triple::arm:
+    return UnwindTableLevel::None;
+  default:
+    return UnwindTableLevel::Asynchronous;
+  }
+}

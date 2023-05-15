@@ -1,9 +1,8 @@
 //===--- PNaCl.cpp - Implement PNaCl target feature support ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,10 +16,12 @@
 using namespace clang;
 using namespace clang::targets;
 
-ArrayRef<const char *> PNaClTargetInfo::getGCCRegNames() const { return None; }
+ArrayRef<const char *> PNaClTargetInfo::getGCCRegNames() const {
+  return std::nullopt;
+}
 
 ArrayRef<TargetInfo::GCCRegAlias> PNaClTargetInfo::getGCCRegAliases() const {
-  return None;
+  return std::nullopt;
 }
 
 void PNaClTargetInfo::getArchDefines(const LangOptions &Opts,

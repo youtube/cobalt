@@ -1,9 +1,8 @@
 //=- HexagonMachineFunctionInfo.h - Hexagon machine function info -*- C++ -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,9 +27,11 @@ class HexagonMachineFunctionInfo : public MachineFunctionInfo {
   // returning the value of the returned struct in a register. This field
   // holds the virtual register into which the sret argument is passed.
   unsigned SRetReturnReg = 0;
-  unsigned StackAlignBaseVReg = 0;    // Aligned-stack base register (virtual)
-  unsigned StackAlignBasePhysReg = 0; //                             (physical)
+  Register StackAlignBaseReg = 0;    // Aligned-stack base register
   int VarArgsFrameIndex;
+  int RegSavedAreaStartFrameIndex;
+  int FirstNamedArgFrameIndex;
+  int LastNamedArgFrameIndex;
   bool HasClobberLR = false;
   bool HasEHReturn = false;
   std::map<const MachineInstr*, unsigned> PacketInfo;
@@ -39,13 +40,28 @@ class HexagonMachineFunctionInfo : public MachineFunctionInfo {
 public:
   HexagonMachineFunctionInfo() = default;
 
-  HexagonMachineFunctionInfo(MachineFunction &MF) {}
+  HexagonMachineFunctionInfo(const Function &F,
+                             const TargetSubtargetInfo *STI) {}
+
+  MachineFunctionInfo *
+  clone(BumpPtrAllocator &Allocator, MachineFunction &DestMF,
+        const DenseMap<MachineBasicBlock *, MachineBasicBlock *> &Src2DstMBB)
+      const override;
 
   unsigned getSRetReturnReg() const { return SRetReturnReg; }
   void setSRetReturnReg(unsigned Reg) { SRetReturnReg = Reg; }
 
   void setVarArgsFrameIndex(int v) { VarArgsFrameIndex = v; }
   int getVarArgsFrameIndex() { return VarArgsFrameIndex; }
+
+  void setRegSavedAreaStartFrameIndex(int v) { RegSavedAreaStartFrameIndex = v;}
+  int getRegSavedAreaStartFrameIndex() { return RegSavedAreaStartFrameIndex; }
+
+  void setFirstNamedArgFrameIndex(int v) { FirstNamedArgFrameIndex = v; }
+  int getFirstNamedArgFrameIndex() { return FirstNamedArgFrameIndex; }
+
+  void setLastNamedArgFrameIndex(int v) { LastNamedArgFrameIndex = v; }
+  int getLastNamedArgFrameIndex() { return LastNamedArgFrameIndex; }
 
   void setStartPacket(MachineInstr* MI) {
     PacketInfo[MI] |= Hexagon::StartPacket;
@@ -67,11 +83,8 @@ public:
   bool hasEHReturn() const { return HasEHReturn; };
   void setHasEHReturn(bool H = true) { HasEHReturn = H; };
 
-  void setStackAlignBaseVReg(unsigned R) { StackAlignBaseVReg = R; }
-  unsigned getStackAlignBaseVReg() const { return StackAlignBaseVReg; }
-
-  void setStackAlignBasePhysReg(unsigned R) { StackAlignBasePhysReg = R; }
-  unsigned getStackAlignBasePhysReg() const { return StackAlignBasePhysReg; }
+  void setStackAlignBaseReg(Register R) { StackAlignBaseReg = R; }
+  Register getStackAlignBaseReg() const { return StackAlignBaseReg; }
 };
 
 } // end namespace llvm

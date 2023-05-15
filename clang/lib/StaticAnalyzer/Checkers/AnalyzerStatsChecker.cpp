@@ -1,14 +1,13 @@
 //==--AnalyzerStatsChecker.cpp - Analyzer visitation statistics --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This file reports various statistics about analyzer visitation.
 //===----------------------------------------------------------------------===//
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
@@ -20,6 +19,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 using namespace clang;
 using namespace ento;
@@ -60,7 +60,7 @@ void AnalyzerStatsChecker::checkEndAnalysis(ExplodedGraph &G,
     if (D != P.getLocationContext()->getDecl())
       continue;
 
-    if (Optional<BlockEntrance> BE = P.getAs<BlockEntrance>()) {
+    if (std::optional<BlockEntrance> BE = P.getAs<BlockEntrance>()) {
       const CFGBlock *CB = BE->getBlock();
       reachable.insert(CB);
     }
@@ -94,17 +94,16 @@ void AnalyzerStatsChecker::checkEndAnalysis(ExplodedGraph &G,
   if (!Loc.isValid())
     return;
 
-  if (isa<FunctionDecl>(D) || isa<ObjCMethodDecl>(D)) {
+  if (isa<FunctionDecl, ObjCMethodDecl>(D)) {
     const NamedDecl *ND = cast<NamedDecl>(D);
     output << *ND;
-  }
-  else if (isa<BlockDecl>(D)) {
+  } else if (isa<BlockDecl>(D)) {
     output << "block(line:" << Loc.getLine() << ":col:" << Loc.getColumn();
   }
 
   NumBlocksUnreachable += unreachable;
   NumBlocks += total;
-  std::string NameOfRootFunction = output.str();
+  std::string NameOfRootFunction = std::string(output.str());
 
   output << " -> Total CFGBlocks: " << total << " | Unreachable CFGBlocks: "
       << unreachable << " | Exhausted Block: "
@@ -125,7 +124,7 @@ void AnalyzerStatsChecker::checkEndAnalysis(ExplodedGraph &G,
     if (Exit->empty())
       continue;
     const CFGElement &CE = Exit->front();
-    if (Optional<CFGStmt> CS = CE.getAs<CFGStmt>()) {
+    if (std::optional<CFGStmt> CS = CE.getAs<CFGStmt>()) {
       SmallString<128> bufI;
       llvm::raw_svector_ostream outputI(bufI);
       outputI << "(" << NameOfRootFunction << ")" <<
@@ -139,4 +138,8 @@ void AnalyzerStatsChecker::checkEndAnalysis(ExplodedGraph &G,
 
 void ento::registerAnalyzerStatsChecker(CheckerManager &mgr) {
   mgr.registerChecker<AnalyzerStatsChecker>();
+}
+
+bool ento::shouldRegisterAnalyzerStatsChecker(const CheckerManager &mgr) {
+  return true;
 }

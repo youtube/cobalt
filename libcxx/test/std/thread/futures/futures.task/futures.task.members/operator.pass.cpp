@@ -1,14 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: no-threads
+// UNSUPPORTED: c++03
 
 // <future>
 
@@ -19,6 +18,7 @@
 #include <future>
 #include <cassert>
 
+#include "make_test_thread.h"
 #include "test_macros.h"
 
 class A
@@ -30,31 +30,30 @@ public:
 
     long operator()(long i, long j) const
     {
-        if (j == 'z')
-            TEST_THROW(A(6));
-        return data_ + i + j;
+      if (j == 122)
+        TEST_THROW(A(6));
+      return data_ + i + j;
     }
 };
 
 void func0(std::packaged_task<double(int, char)> p)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    p(3, 'a');
+    p(3, 97);
 }
 
 void func1(std::packaged_task<double(int, char)> p)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    p(3, 'z');
+    p(3, 122);
 }
 
 void func2(std::packaged_task<double(int, char)> p)
 {
 #ifndef TEST_HAS_NO_EXCEPTIONS
-    p(3, 'a');
-    try
-    {
-        p(3, 'c');
+  p(3, 97);
+  try {
+    p(3, 99);
     }
     catch (const std::future_error& e)
     {
@@ -70,7 +69,7 @@ void func3(std::packaged_task<double(int, char)> p)
 #ifndef TEST_HAS_NO_EXCEPTIONS
     try
     {
-        p(3, 'a');
+      p(3, 97);
     }
     catch (const std::future_error& e)
     {
@@ -81,19 +80,19 @@ void func3(std::packaged_task<double(int, char)> p)
 #endif
 }
 
-int main()
+int main(int, char**)
 {
     {
         std::packaged_task<double(int, char)> p(A(5));
         std::future<double> f = p.get_future();
-        std::thread(func0, std::move(p)).detach();
+        support::make_test_thread(func0, std::move(p)).detach();
         assert(f.get() == 105.0);
     }
 #ifndef TEST_HAS_NO_EXCEPTIONS
     {
         std::packaged_task<double(int, char)> p(A(5));
         std::future<double> f = p.get_future();
-        std::thread(func1, std::move(p)).detach();
+        support::make_test_thread(func1, std::move(p)).detach();
         try
         {
             f.get();
@@ -101,20 +100,22 @@ int main()
         }
         catch (const A& e)
         {
-            assert(e(3, 'a') == 106);
+          assert(e(3, 97) == 106.0);
         }
     }
     {
         std::packaged_task<double(int, char)> p(A(5));
         std::future<double> f = p.get_future();
-        std::thread t(func2, std::move(p));
+        std::thread t = support::make_test_thread(func2, std::move(p));
         assert(f.get() == 105.0);
         t.join();
     }
     {
         std::packaged_task<double(int, char)> p;
-        std::thread t(func3, std::move(p));
+        std::thread t = support::make_test_thread(func3, std::move(p));
         t.join();
     }
 #endif
+
+  return 0;
 }

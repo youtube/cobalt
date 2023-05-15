@@ -1,23 +1,22 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // <optional>
 
-// optional<T>& operator=(const optional<T>& rhs);
+// constexpr optional<T>& operator=(const optional<T>& rhs);
 
 #include <optional>
 #include <type_traits>
 #include <cassert>
 
 #include "test_macros.h"
-#include "archetypes.hpp"
+#include "archetypes.h"
 
 using std::optional;
 
@@ -31,6 +30,7 @@ struct X
         if (throw_now)
             TEST_THROW(6);
     }
+    X& operator=(X const&) = default;
 };
 
 bool X::throw_now = false;
@@ -49,19 +49,19 @@ constexpr bool assign_value(optional<Tp>&& lhs) {
     return lhs.has_value() && rhs.has_value() && *lhs == *rhs;
 }
 
-int main()
+int main(int, char**)
 {
     {
         using O = optional<int>;
-        LIBCPP_STATIC_ASSERT(assign_empty(O{42}), "");
-        LIBCPP_STATIC_ASSERT(assign_value(O{42}), "");
+        static_assert(assign_empty(O{42}));
+        static_assert(assign_value(O{42}));
         assert(assign_empty(O{42}));
         assert(assign_value(O{42}));
     }
     {
         using O = optional<TrivialTestTypes::TestType>;
-        LIBCPP_STATIC_ASSERT(assign_empty(O{42}), "");
-        LIBCPP_STATIC_ASSERT(assign_value(O{42}), "");
+        static_assert(assign_empty(O{42}));
+        static_assert(assign_value(O{42}));
         assert(assign_empty(O{42}));
         assert(assign_value(O{42}));
     }
@@ -99,4 +99,6 @@ int main()
         }
     }
 #endif
+
+  return 0;
 }

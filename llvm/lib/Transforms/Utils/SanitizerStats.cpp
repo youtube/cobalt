@@ -1,9 +1,8 @@
 //===- SanitizerStats.cpp - Sanitizer statistics gathering ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/SanitizerStats.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -57,8 +55,8 @@ void SanitizerStatReport::create(IRBuilder<> &B, SanitizerStatKind SK) {
 
   FunctionType *StatReportTy =
       FunctionType::get(B.getVoidTy(), Int8PtrTy, false);
-  Constant *StatReport = M->getOrInsertFunction(
-      "__sanitizer_stat_report", StatReportTy);
+  FunctionCallee StatReport =
+      M->getOrInsertFunction("__sanitizer_stat_report", StatReportTy);
 
   auto InitAddr = ConstantExpr::getGetElementPtr(
       EmptyModuleStatsTy, ModuleStatsGV,
@@ -98,8 +96,8 @@ void SanitizerStatReport::finish() {
   IRBuilder<> B(BB);
 
   FunctionType *StatInitTy = FunctionType::get(VoidTy, Int8PtrTy, false);
-  Constant *StatInit = M->getOrInsertFunction(
-      "__sanitizer_stat_init", StatInitTy);
+  FunctionCallee StatInit =
+      M->getOrInsertFunction("__sanitizer_stat_init", StatInitTy);
 
   B.CreateCall(StatInit, ConstantExpr::getBitCast(NewModuleStatsGV, Int8PtrTy));
   B.CreateRetVoid();

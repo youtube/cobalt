@@ -1,9 +1,8 @@
 //===- ArchiveWriter.h - ar archive file format writer ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,10 +13,7 @@
 #ifndef LLVM_OBJECT_ARCHIVEWRITER_H
 #define LLVM_OBJECT_ARCHIVEWRITER_H
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Object/Archive.h"
-#include "llvm/Support/Error.h"
-#include "llvm/Support/FileSystem.h"
 
 namespace llvm {
 
@@ -27,9 +23,13 @@ struct NewArchiveMember {
   sys::TimePoint<std::chrono::seconds> ModTime;
   unsigned UID = 0, GID = 0, Perms = 0644;
 
-  bool IsNew = false;
   NewArchiveMember() = default;
   NewArchiveMember(MemoryBufferRef BufRef);
+
+  // Detect the archive format from the object or bitcode file. This helps
+  // assume the archive format when creating or editing archives in the case
+  // one isn't explicitly set.
+  object::Archive::Kind detectKindFromObject() const;
 
   static Expected<NewArchiveMember>
   getOldMember(const object::Archive::Child &OldMember, bool Deterministic);
@@ -38,10 +38,18 @@ struct NewArchiveMember {
                                             bool Deterministic);
 };
 
+Expected<std::string> computeArchiveRelativePath(StringRef From, StringRef To);
+
 Error writeArchive(StringRef ArcName, ArrayRef<NewArchiveMember> NewMembers,
                    bool WriteSymtab, object::Archive::Kind Kind,
                    bool Deterministic, bool Thin,
                    std::unique_ptr<MemoryBuffer> OldArchiveBuf = nullptr);
+
+// writeArchiveToBuffer is similar to writeArchive but returns the Archive in a
+// buffer instead of writing it out to a file.
+Expected<std::unique_ptr<MemoryBuffer>>
+writeArchiveToBuffer(ArrayRef<NewArchiveMember> NewMembers, bool WriteSymtab,
+                     object::Archive::Kind Kind, bool Deterministic, bool Thin);
 }
 
 #endif

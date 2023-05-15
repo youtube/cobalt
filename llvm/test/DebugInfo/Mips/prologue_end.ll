@@ -1,7 +1,7 @@
 ; RUN: llc -O0 -mtriple mips-unknown-linux-gnu -relocation-model=static < %s | FileCheck %s -check-prefix=STATIC
-; RUN: llc -O0 -mtriple mips-unknown-linux-gnu -relocation-model=static -disable-fp-elim < %s | FileCheck %s -check-prefix=STATIC-FP
+; RUN: llc -O0 -mtriple mips-unknown-linux-gnu -relocation-model=static -frame-pointer=all < %s | FileCheck %s -check-prefix=STATIC-FP
 ; RUN: llc -O0 -mtriple mips-unknown-linux-gnu -relocation-model=pic < %s | FileCheck %s -check-prefix=PIC
-; RUN: llc -O0 -mtriple mips-unknown-linux-gnu -relocation-model=pic -disable-fp-elim < %s | FileCheck %s -check-prefix=PIC-FP
+; RUN: llc -O0 -mtriple mips-unknown-linux-gnu -relocation-model=pic -frame-pointer=all < %s | FileCheck %s -check-prefix=PIC-FP
 
 ; Generated using clang -O0 -emit-llvm -S -target mipsel-unknown-linux -g test.c -o test.ll
 ; test.c:
@@ -30,7 +30,7 @@ entry:
 ; PIC:     	addiu	$[[R0]], $[[R0]], %lo(_gp_disp)
 ; PIC:     	addiu	$sp, $sp, -{{[0-9]+}}
 ; PIC:     	sw	$ra, {{[0-9]+}}($sp)
-; PIC:     	addu	$[[R1:[0-9]+]], $[[R0]], $25
+; PIC:     	addu	$[[R1:[0-9]+|gp]], $[[R0]], $25
 ; PIC:     	.loc	1 2 3 prologue_end
 ; PIC:     	lw	$[[R2:[0-9]+]], %got($.str)($[[R1]])
 
@@ -40,15 +40,15 @@ entry:
 ; PIC-FP:	sw	$ra, {{[0-9]+}}($sp)
 ; PIC-FP:	sw	$fp, {{[0-9]+}}($sp)
 ; PIC-FP:	move	$fp, $sp
-; PIC-FP:	addu	$[[R1:[0-9]+]], $[[R0]], $25
+; PIC-FP:	addu	$[[R1:[0-9]+|gp]], $[[R0]], $25
 ; PIC-FP:	.loc	1 2 3 prologue_end
 ; PIC-FP:	lw	$[[R2:[0-9]+]], %got($.str)($[[R1]])
 
-  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str, i32 0, i32 0)), !dbg !10
+  %call = call i32 (ptr, ...) @printf(ptr @.str), !dbg !10
   ret void, !dbg !11
 }
 
-declare i32 @printf(i8*, ...)
+declare i32 @printf(ptr, ...)
 
 attributes #0 = { nounwind }
 

@@ -1,9 +1,8 @@
 //===- ValueEnumerator.cpp - Number values and types for bitcode writer ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,11 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "ValueEnumerator.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Argument.h"
-#include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -31,9 +28,9 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
-#include "llvm/IR/UseListOrder.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/ValueSymbolTable.h"
@@ -43,12 +40,9 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <iterator>
 #include <tuple>
-#include <utility>
-#include <vector>
 
 using namespace llvm;
 
@@ -56,17 +50,12 @@ namespace {
 
 struct OrderMap {
   DenseMap<const Value *, std::pair<unsigned, bool>> IDs;
-  unsigned LastGlobalConstantID = 0;
   unsigned LastGlobalValueID = 0;
 
   OrderMap() = default;
 
-  bool isGlobalConstant(unsigned ID) const {
-    return ID <= LastGlobalConstantID;
-  }
-
   bool isGlobalValue(unsigned ID) const {
-    return ID <= LastGlobalValueID && !isGlobalConstant(ID);
+    return ID <= LastGlobalValueID;
   }
 
   unsigned size() const { return IDs.size(); }
@@ -89,11 +78,16 @@ static void orderValue(const Value *V, OrderMap &OM) {
   if (OM.lookup(V).first)
     return;
 
-  if (const Constant *C = dyn_cast<Constant>(V))
-    if (C->getNumOperands() && !isa<GlobalValue>(C))
+  if (const Constant *C = dyn_cast<Constant>(V)) {
+    if (C->getNumOperands()) {
       for (const Value *Op : C->operands())
         if (!isa<BasicBlock>(Op) && !isa<GlobalValue>(Op))
           orderValue(Op, OM);
+      if (auto *CE = dyn_cast<ConstantExpr>(C))
+        if (CE->getOpcode() == Instruction::ShuffleVector)
+          orderValue(CE->getShuffleMaskForBitcode(), OM);
+    }
+  }
 
   // Note: we cannot cache this lookup above, since inserting into the map
   // changes the map's size, and thus affects the other IDs.
@@ -105,28 +99,6 @@ static OrderMap orderModule(const Module &M) {
   // and ValueEnumerator::incorporateFunction().
   OrderMap OM;
 
-  // In the reader, initializers of GlobalValues are set *after* all the
-  // globals have been read.  Rather than awkwardly modeling this behaviour
-  // directly in predictValueUseListOrderImpl(), just assign IDs to
-  // initializers of GlobalValues before GlobalValues themselves to model this
-  // implicitly.
-  for (const GlobalVariable &G : M.globals())
-    if (G.hasInitializer())
-      if (!isa<GlobalValue>(G.getInitializer()))
-        orderValue(G.getInitializer(), OM);
-  for (const GlobalAlias &A : M.aliases())
-    if (!isa<GlobalValue>(A.getAliasee()))
-      orderValue(A.getAliasee(), OM);
-  for (const GlobalIFunc &I : M.ifuncs())
-    if (!isa<GlobalValue>(I.getResolver()))
-      orderValue(I.getResolver(), OM);
-  for (const Function &F : M) {
-    for (const Use &U : F.operands())
-      if (!isa<GlobalValue>(U.get()))
-        orderValue(U.get(), OM);
-  }
-  OM.LastGlobalConstantID = OM.size();
-
   // Initializers of GlobalValues are processed in
   // BitcodeReader::ResolveGlobalAndAliasInits().  Match the order there rather
   // than ValueEnumerator, and match the code in predictValueUseListOrderImpl()
@@ -135,15 +107,20 @@ static OrderMap orderModule(const Module &M) {
   // Since GlobalValues never reference each other directly (just through
   // initializers), their relative IDs only matter for determining order of
   // uses in their initializers.
-  for (const Function &F : M)
-    orderValue(&F, OM);
-  for (const GlobalAlias &A : M.aliases())
-    orderValue(&A, OM);
-  for (const GlobalIFunc &I : M.ifuncs())
-    orderValue(&I, OM);
-  for (const GlobalVariable &G : M.globals())
+  for (const GlobalVariable &G : reverse(M.globals()))
     orderValue(&G, OM);
+  for (const GlobalAlias &A : reverse(M.aliases()))
+    orderValue(&A, OM);
+  for (const GlobalIFunc &I : reverse(M.ifuncs()))
+    orderValue(&I, OM);
+  for (const Function &F : reverse(M))
+    orderValue(&F, OM);
   OM.LastGlobalValueID = OM.size();
+
+  auto orderConstantValue = [&OM](const Value *V) {
+    if (isa<Constant>(V) || isa<InlineAsm>(V))
+      orderValue(V, OM);
+  };
 
   for (const Function &F : M) {
     if (F.isDeclaration())
@@ -153,17 +130,34 @@ static OrderMap orderModule(const Module &M) {
     // anything else (by declaring their size).
     for (const BasicBlock &BB : F)
       orderValue(&BB, OM);
+
+    // Metadata used by instructions is decoded before the actual instructions,
+    // so visit any constants used by it beforehand.
+    for (const BasicBlock &BB : F)
+      for (const Instruction &I : BB)
+        for (const Value *V : I.operands()) {
+          if (const auto *MAV = dyn_cast<MetadataAsValue>(V)) {
+            if (const auto *VAM =
+                    dyn_cast<ValueAsMetadata>(MAV->getMetadata())) {
+              orderConstantValue(VAM->getValue());
+            } else if (const auto *AL =
+                           dyn_cast<DIArgList>(MAV->getMetadata())) {
+              for (const auto *VAM : AL->getArgs())
+                orderConstantValue(VAM->getValue());
+            }
+          }
+        }
+
     for (const Argument &A : F.args())
       orderValue(&A, OM);
     for (const BasicBlock &BB : F)
-      for (const Instruction &I : BB)
+      for (const Instruction &I : BB) {
         for (const Value *Op : I.operands())
-          if ((isa<Constant>(*Op) && !isa<GlobalValue>(*Op)) ||
-              isa<InlineAsm>(*Op))
-            orderValue(Op, OM);
-    for (const BasicBlock &BB : F)
-      for (const Instruction &I : BB)
+          orderConstantValue(Op);
+        if (auto *SVI = dyn_cast<ShuffleVectorInst>(&I))
+          orderValue(SVI->getShuffleMaskForBitcode(), OM);
         orderValue(&I, OM);
+      }
   }
   return OM;
 }
@@ -184,7 +178,7 @@ static void predictValueUseListOrderImpl(const Value *V, const Function *F,
     return;
 
   bool IsGlobalValue = OM.isGlobalValue(ID);
-  llvm::sort(List.begin(), List.end(), [&](const Entry &L, const Entry &R) {
+  llvm::sort(List, [&](const Entry &L, const Entry &R) {
     const Use *LU = L.first;
     const Use *RU = R.first;
     if (LU == RU)
@@ -192,15 +186,6 @@ static void predictValueUseListOrderImpl(const Value *V, const Function *F,
 
     auto LID = OM.lookup(LU->getUser()).first;
     auto RID = OM.lookup(RU->getUser()).first;
-
-    // Global values are processed in reverse order.
-    //
-    // Moreover, initializers of GlobalValues are set *after* all the globals
-    // have been read (despite having earlier IDs).  Rather than awkwardly
-    // modeling this behaviour here, orderModule() has assigned IDs to
-    // initializers of GlobalValues before GlobalValues themselves.
-    if (OM.isGlobalValue(LID) && OM.isGlobalValue(RID))
-      return LID < RID;
 
     // If ID is 4, then expect: 7 6 5 1 2 3.
     if (LID < RID) {
@@ -224,9 +209,7 @@ static void predictValueUseListOrderImpl(const Value *V, const Function *F,
     return LU->getOperandNo() > RU->getOperandNo();
   });
 
-  if (std::is_sorted(
-          List.begin(), List.end(),
-          [](const Entry &L, const Entry &R) { return L.second < R.second; }))
+  if (llvm::is_sorted(List, llvm::less_second()))
     // Order is already correct.
     return;
 
@@ -251,11 +234,17 @@ static void predictValueUseListOrder(const Value *V, const Function *F,
     predictValueUseListOrderImpl(V, F, IDPair.first, OM, Stack);
 
   // Recursive descent into constants.
-  if (const Constant *C = dyn_cast<Constant>(V))
-    if (C->getNumOperands()) // Visit GlobalValues.
+  if (const Constant *C = dyn_cast<Constant>(V)) {
+    if (C->getNumOperands()) { // Visit GlobalValues.
       for (const Value *Op : C->operands())
         if (isa<Constant>(Op)) // Visit GlobalValues.
           predictValueUseListOrder(Op, F, OM, Stack);
+      if (auto *CE = dyn_cast<ConstantExpr>(C))
+        if (CE->getOpcode() == Instruction::ShuffleVector)
+          predictValueUseListOrder(CE->getShuffleMaskForBitcode(), F, OM,
+                                   Stack);
+    }
+  }
 }
 
 static UseListOrderStack predictUseListOrder(const Module &M) {
@@ -271,8 +260,7 @@ static UseListOrderStack predictUseListOrder(const Module &M) {
   // We want to visit the functions backward now so we can list function-local
   // constants in the last Function they're used in.  Module-level constants
   // have already been visited above.
-  for (auto I = M.rbegin(), E = M.rend(); I != E; ++I) {
-    const Function &F = *I;
+  for (const Function &F : llvm::reverse(M)) {
     if (F.isDeclaration())
       continue;
     for (const BasicBlock &BB : F)
@@ -280,13 +268,26 @@ static UseListOrderStack predictUseListOrder(const Module &M) {
     for (const Argument &A : F.args())
       predictValueUseListOrder(&A, &F, OM, Stack);
     for (const BasicBlock &BB : F)
-      for (const Instruction &I : BB)
-        for (const Value *Op : I.operands())
+      for (const Instruction &I : BB) {
+        for (const Value *Op : I.operands()) {
           if (isa<Constant>(*Op) || isa<InlineAsm>(*Op)) // Visit GlobalValues.
             predictValueUseListOrder(Op, &F, OM, Stack);
-    for (const BasicBlock &BB : F)
-      for (const Instruction &I : BB)
+          if (const auto *MAV = dyn_cast<MetadataAsValue>(Op)) {
+            if (const auto *VAM =
+                    dyn_cast<ValueAsMetadata>(MAV->getMetadata())) {
+              predictValueUseListOrder(VAM->getValue(), &F, OM, Stack);
+            } else if (const auto *AL =
+                           dyn_cast<DIArgList>(MAV->getMetadata())) {
+              for (const auto *VAM : AL->getArgs())
+                predictValueUseListOrder(VAM->getValue(), &F, OM, Stack);
+            }
+          }
+        }
+        if (auto *SVI = dyn_cast<ShuffleVectorInst>(&I))
+          predictValueUseListOrder(SVI->getShuffleMaskForBitcode(), &F, OM,
+                                   Stack);
         predictValueUseListOrder(&I, &F, OM, Stack);
+      }
   }
 
   // Visit globals last, since the module-level use-list block will be seen
@@ -325,22 +326,29 @@ ValueEnumerator::ValueEnumerator(const Module &M,
     UseListOrders = predictUseListOrder(M);
 
   // Enumerate the global variables.
-  for (const GlobalVariable &GV : M.globals())
+  for (const GlobalVariable &GV : M.globals()) {
     EnumerateValue(&GV);
+    EnumerateType(GV.getValueType());
+  }
 
   // Enumerate the functions.
   for (const Function & F : M) {
     EnumerateValue(&F);
+    EnumerateType(F.getValueType());
     EnumerateAttributes(F.getAttributes());
   }
 
   // Enumerate the aliases.
-  for (const GlobalAlias &GA : M.aliases())
+  for (const GlobalAlias &GA : M.aliases()) {
     EnumerateValue(&GA);
+    EnumerateType(GA.getValueType());
+  }
 
   // Enumerate the ifuncs.
-  for (const GlobalIFunc &GIF : M.ifuncs())
+  for (const GlobalIFunc &GIF : M.ifuncs()) {
     EnumerateValue(&GIF);
+    EnumerateType(GIF.getValueType());
+  }
 
   // Remember what is the cutoff between globalvalue's and other constants.
   unsigned FirstConstant = Values.size();
@@ -408,17 +416,31 @@ ValueEnumerator::ValueEnumerator(const Module &M,
             continue;
           }
 
-          // Local metadata is enumerated during function-incorporation.
+          // Local metadata is enumerated during function-incorporation, but
+          // any ConstantAsMetadata arguments in a DIArgList should be examined
+          // now.
           if (isa<LocalAsMetadata>(MD->getMetadata()))
             continue;
+          if (auto *AL = dyn_cast<DIArgList>(MD->getMetadata())) {
+            for (auto *VAM : AL->getArgs())
+              if (isa<ConstantAsMetadata>(VAM))
+                EnumerateMetadata(&F, VAM);
+            continue;
+          }
 
           EnumerateMetadata(&F, MD->getMetadata());
         }
+        if (auto *SVI = dyn_cast<ShuffleVectorInst>(&I))
+          EnumerateType(SVI->getShuffleMaskForBitcode()->getType());
+        if (auto *GEP = dyn_cast<GetElementPtrInst>(&I))
+          EnumerateType(GEP->getSourceElementType());
+        if (auto *AI = dyn_cast<AllocaInst>(&I))
+          EnumerateType(AI->getAllocatedType());
         EnumerateType(I.getType());
-        if (const CallInst *CI = dyn_cast<CallInst>(&I))
-          EnumerateAttributes(CI->getAttributes());
-        else if (const InvokeInst *II = dyn_cast<InvokeInst>(&I))
-          EnumerateAttributes(II->getAttributes());
+        if (const auto *Call = dyn_cast<CallBase>(&I)) {
+          EnumerateAttributes(Call->getAttributes());
+          EnumerateType(Call->getFunctionType());
+        }
 
         // Enumerate metadata attached with this instruction.
         MDs.clear();
@@ -479,9 +501,8 @@ void ValueEnumerator::print(raw_ostream &OS, const ValueMapType &Map,
                             const char *Name) const {
   OS << "Map Name: " << Name << "\n";
   OS << "Size: " << Map.size() << "\n";
-  for (ValueMapType::const_iterator I = Map.begin(),
-         E = Map.end(); I != E; ++I) {
-    const Value *V = I->first;
+  for (const auto &I : Map) {
+    const Value *V = I.first;
     if (V->hasName())
       OS << "Value: " << V->getName();
     else
@@ -507,10 +528,10 @@ void ValueEnumerator::print(raw_ostream &OS, const MetadataMapType &Map,
                             const char *Name) const {
   OS << "Map Name: " << Name << "\n";
   OS << "Size: " << Map.size() << "\n";
-  for (auto I = Map.begin(), E = Map.end(); I != E; ++I) {
-    const Metadata *MD = I->first;
-    OS << "Metadata: slot = " << I->second.ID << "\n";
-    OS << "Metadata: function = " << I->second.F << "\n";
+  for (const auto &I : Map) {
+    const Metadata *MD = I.first;
+    OS << "Metadata: slot = " << I.second.ID << "\n";
+    OS << "Metadata: function = " << I.second.F << "\n";
     MD->print(OS);
     OS << "\n";
   }
@@ -577,6 +598,11 @@ void ValueEnumerator::EnumerateMetadata(const Function *F, const Metadata *MD) {
 void ValueEnumerator::EnumerateFunctionLocalMetadata(
     const Function &F, const LocalAsMetadata *Local) {
   EnumerateFunctionLocalMetadata(getMetadataFunctionID(&F), Local);
+}
+
+void ValueEnumerator::EnumerateFunctionLocalListMetadata(
+    const Function &F, const DIArgList *ArgList) {
+  EnumerateFunctionLocalListMetadata(getMetadataFunctionID(&F), ArgList);
 }
 
 void ValueEnumerator::dropFunctionFromMetadata(
@@ -689,7 +715,7 @@ const MDNode *ValueEnumerator::enumerateMetadataImpl(unsigned F, const Metadata 
   return nullptr;
 }
 
-/// EnumerateFunctionLocalMetadataa - Incorporate function-local metadata
+/// EnumerateFunctionLocalMetadata - Incorporate function-local metadata
 /// information reachable from the metadata.
 void ValueEnumerator::EnumerateFunctionLocalMetadata(
     unsigned F, const LocalAsMetadata *Local) {
@@ -707,6 +733,39 @@ void ValueEnumerator::EnumerateFunctionLocalMetadata(
   Index.ID = MDs.size();
 
   EnumerateValue(Local->getValue());
+}
+
+/// EnumerateFunctionLocalListMetadata - Incorporate function-local metadata
+/// information reachable from the metadata.
+void ValueEnumerator::EnumerateFunctionLocalListMetadata(
+    unsigned F, const DIArgList *ArgList) {
+  assert(F && "Expected a function");
+
+  // Check to see if it's already in!
+  MDIndex &Index = MetadataMap[ArgList];
+  if (Index.ID) {
+    assert(Index.F == F && "Expected the same function");
+    return;
+  }
+
+  for (ValueAsMetadata *VAM : ArgList->getArgs()) {
+    if (isa<LocalAsMetadata>(VAM)) {
+      assert(MetadataMap.count(VAM) &&
+             "LocalAsMetadata should be enumerated before DIArgList");
+      assert(MetadataMap[VAM].F == F &&
+             "Expected LocalAsMetadata in the same function");
+    } else {
+      assert(isa<ConstantAsMetadata>(VAM) &&
+             "Expected LocalAsMetadata or ConstantAsMetadata");
+      assert(ValueMap.count(VAM->getValue()) &&
+             "Constant should be enumerated beforeDIArgList");
+      EnumerateMetadata(F, VAM);
+    }
+  }
+
+  MDs.push_back(ArgList);
+  Index.F = F;
+  Index.ID = MDs.size();
 }
 
 static unsigned getMetadataTypeOrder(const Metadata *MD) {
@@ -743,16 +802,17 @@ void ValueEnumerator::organizeMetadata() {
   //   - by function, then
   //   - by isa<MDString>
   // and then sort by the original/current ID.  Since the IDs are guaranteed to
-  // be unique, the result of std::sort will be deterministic.  There's no need
+  // be unique, the result of llvm::sort will be deterministic.  There's no need
   // for std::stable_sort.
-  llvm::sort(Order.begin(), Order.end(), [this](MDIndex LHS, MDIndex RHS) {
+  llvm::sort(Order, [this](MDIndex LHS, MDIndex RHS) {
     return std::make_tuple(LHS.F, getMetadataTypeOrder(LHS.get(MDs)), LHS.ID) <
            std::make_tuple(RHS.F, getMetadataTypeOrder(RHS.get(MDs)), RHS.ID);
   });
 
   // Rebuild MDs, index the metadata ranges for each function in FunctionMDs,
   // and fix up MetadataMap.
-  std::vector<const Metadata *> OldMDs = std::move(MDs);
+  std::vector<const Metadata *> OldMDs;
+  MDs.swap(OldMDs);
   MDs.reserve(OldMDs.size());
   for (unsigned I = 0, E = Order.size(); I != E && !Order[I].F; ++I) {
     auto *MD = Order[I].get(OldMDs);
@@ -838,6 +898,12 @@ void ValueEnumerator::EnumerateValue(const Value *V) {
            I != E; ++I)
         if (!isa<BasicBlock>(*I)) // Don't enumerate BB operand to BlockAddress.
           EnumerateValue(*I);
+      if (auto *CE = dyn_cast<ConstantExpr>(C)) {
+        if (CE->getOpcode() == Instruction::ShuffleVector)
+          EnumerateValue(CE->getShuffleMaskForBitcode());
+        if (auto *GEP = dyn_cast<GEPOperator>(CE))
+          EnumerateType(GEP->getSourceElementType());
+      }
 
       // Finally, add the value.  Doing this could make the ValueID reference be
       // dangling, don't reuse it.
@@ -915,6 +981,12 @@ void ValueEnumerator::EnumerateOperandType(const Value *V) {
 
     EnumerateOperandType(Op);
   }
+  if (auto *CE = dyn_cast<ConstantExpr>(C)) {
+    if (CE->getOpcode() == Instruction::ShuffleVector)
+      EnumerateOperandType(CE->getShuffleMaskForBitcode());
+    if (CE->getOpcode() == Instruction::GetElementPtr)
+      EnumerateType(cast<GEPOperator>(CE)->getSourceElementType());
+  }
 }
 
 void ValueEnumerator::EnumerateAttributes(AttributeList PAL) {
@@ -929,7 +1001,7 @@ void ValueEnumerator::EnumerateAttributes(AttributeList PAL) {
   }
 
   // Do lookups for all attribute groups.
-  for (unsigned i = PAL.index_begin(), e = PAL.index_end(); i != e; ++i) {
+  for (unsigned i : PAL.indexes()) {
     AttributeSet AS = PAL.getAttributes(i);
     if (!AS.hasAttributes())
       continue;
@@ -938,6 +1010,11 @@ void ValueEnumerator::EnumerateAttributes(AttributeList PAL) {
     if (Entry == 0) {
       AttributeGroups.push_back(Pair);
       Entry = AttributeGroups.size();
+
+      for (Attribute Attr : AS) {
+        if (Attr.isTypeAttribute())
+          EnumerateType(Attr.getValueAsType());
+      }
     }
   }
 }
@@ -951,18 +1028,27 @@ void ValueEnumerator::incorporateFunction(const Function &F) {
   incorporateFunctionMetadata(F);
 
   // Adding function arguments to the value table.
-  for (const auto &I : F.args())
+  for (const auto &I : F.args()) {
     EnumerateValue(&I);
-
+    if (I.hasAttribute(Attribute::ByVal))
+      EnumerateType(I.getParamByValType());
+    else if (I.hasAttribute(Attribute::StructRet))
+      EnumerateType(I.getParamStructRetType());
+    else if (I.hasAttribute(Attribute::ByRef))
+      EnumerateType(I.getParamByRefType());
+  }
   FirstFuncConstantID = Values.size();
 
   // Add all function-level constants to the value table.
   for (const BasicBlock &BB : F) {
-    for (const Instruction &I : BB)
+    for (const Instruction &I : BB) {
       for (const Use &OI : I.operands()) {
         if ((isa<Constant>(OI) && !isa<GlobalValue>(OI)) || isa<InlineAsm>(OI))
           EnumerateValue(OI);
       }
+      if (auto *SVI = dyn_cast<ShuffleVectorInst>(&I))
+        EnumerateValue(SVI->getShuffleMaskForBitcode());
+    }
     BasicBlocks.push_back(&BB);
     ValueMap[&BB] = BasicBlocks.size();
   }
@@ -977,14 +1063,26 @@ void ValueEnumerator::incorporateFunction(const Function &F) {
   FirstInstID = Values.size();
 
   SmallVector<LocalAsMetadata *, 8> FnLocalMDVector;
+  SmallVector<DIArgList *, 8> ArgListMDVector;
   // Add all of the instructions.
   for (const BasicBlock &BB : F) {
     for (const Instruction &I : BB) {
       for (const Use &OI : I.operands()) {
-        if (auto *MD = dyn_cast<MetadataAsValue>(&OI))
-          if (auto *Local = dyn_cast<LocalAsMetadata>(MD->getMetadata()))
+        if (auto *MD = dyn_cast<MetadataAsValue>(&OI)) {
+          if (auto *Local = dyn_cast<LocalAsMetadata>(MD->getMetadata())) {
             // Enumerate metadata after the instructions they might refer to.
             FnLocalMDVector.push_back(Local);
+          } else if (auto *ArgList = dyn_cast<DIArgList>(MD->getMetadata())) {
+            ArgListMDVector.push_back(ArgList);
+            for (ValueAsMetadata *VMD : ArgList->getArgs()) {
+              if (auto *Local = dyn_cast<LocalAsMetadata>(VMD)) {
+                // Enumerate metadata after the instructions they might refer
+                // to.
+                FnLocalMDVector.push_back(Local);
+              }
+            }
+          }
+        }
       }
 
       if (!I.getType()->isVoidTy())
@@ -1000,6 +1098,10 @@ void ValueEnumerator::incorporateFunction(const Function &F) {
            "Missing value for metadata operand");
     EnumerateFunctionLocalMetadata(F, FnLocalMDVector[i]);
   }
+  // DIArgList entries must come after function-local metadata, as it is not
+  // possible to forward-reference them.
+  for (const DIArgList *ArgList : ArgListMDVector)
+    EnumerateFunctionLocalListMetadata(F, ArgList);
 }
 
 void ValueEnumerator::purgeFunction() {
@@ -1008,8 +1110,8 @@ void ValueEnumerator::purgeFunction() {
     ValueMap.erase(Values[i].first);
   for (unsigned i = NumModuleMDs, e = MDs.size(); i != e; ++i)
     MetadataMap.erase(MDs[i]);
-  for (unsigned i = 0, e = BasicBlocks.size(); i != e; ++i)
-    ValueMap.erase(BasicBlocks[i]);
+  for (const BasicBlock *BB : BasicBlocks)
+    ValueMap.erase(BB);
 
   Values.resize(NumModuleValues);
   MDs.resize(NumModuleMDs);

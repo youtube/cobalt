@@ -1,9 +1,8 @@
 //===- FormatVariadicTest.cpp - Unit tests for string formatting ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -60,6 +59,18 @@ TEST(FormatVariadicTest, EscapedBrace) {
   Replacements = formatv_object_base::parseFormatString("{{{{{{");
   ASSERT_EQ(1u, Replacements.size());
   EXPECT_EQ("{{{", Replacements[0].Spec);
+  EXPECT_EQ(ReplacementType::Literal, Replacements[0].Type);
+
+  // } does not require doubling up.
+  Replacements = formatv_object_base::parseFormatString("}");
+  ASSERT_EQ(1u, Replacements.size());
+  EXPECT_EQ("}", Replacements[0].Spec);
+  EXPECT_EQ(ReplacementType::Literal, Replacements[0].Type);
+
+  // } does not require doubling up.
+  Replacements = formatv_object_base::parseFormatString("}}}");
+  ASSERT_EQ(1u, Replacements.size());
+  EXPECT_EQ("}}}", Replacements[0].Spec);
   EXPECT_EQ(ReplacementType::Literal, Replacements[0].Type);
 }
 
@@ -488,9 +499,7 @@ struct format_tuple {
   const char *Fmt;
   explicit format_tuple(const char *Fmt) : Fmt(Fmt) {}
 
-  template <typename... Ts>
-  auto operator()(Ts &&... Values) const
-      -> decltype(formatv(Fmt, std::forward<Ts>(Values)...)) {
+  template <typename... Ts> auto operator()(Ts &&... Values) const {
     return formatv(Fmt, std::forward<Ts>(Values)...);
   }
 };
@@ -519,15 +528,14 @@ TEST(FormatVariadicTest, BigTest) {
 
   std::string S;
   llvm::raw_string_ostream Stream(S);
-  Stream << formatv(Intro, std::tuple_size<Tuple>::value,
-                    llvm::array_lengthof(Ts))
+  Stream << formatv(Intro, std::tuple_size<Tuple>::value, std::size(Ts))
          << "\n";
   Stream << formatv(Header, "Char", "HexInt", "Str", "Ref", "std::str",
                     "double", "float", "pointer", "comma", "exp", "bigint",
                     "bigint2", "limit", "byte")
          << "\n";
   for (auto &Item : Ts) {
-    Stream << llvm::apply_tuple(format_tuple(Line), Item) << "\n";
+    Stream << std::apply(format_tuple(Line), Item) << "\n";
   }
   Stream.flush();
   const char *Expected =
@@ -619,11 +627,11 @@ TEST(FormatVariadicTest, Adapter) {
 TEST(FormatVariadicTest, MoveConstructor) {
   auto fmt = formatv("{0} {1}", 1, 2);
   auto fmt2 = std::move(fmt);
-  std::string S = fmt2;
+  std::string S = std::string(fmt2);
   EXPECT_EQ("1 2", S);
 }
 TEST(FormatVariadicTest, ImplicitConversions) {
-  std::string S = formatv("{0} {1}", 1, 2);
+  std::string S = std::string(formatv("{0} {1}", 1, 2));
   EXPECT_EQ("1 2", S);
 
   SmallString<4> S2 = formatv("{0} {1}", 1, 2);
@@ -689,3 +697,32 @@ TEST(FormatVariadicTest, FormatError) {
   EXPECT_EQ("X", formatv("{0}", fmt_consume(std::move(E1))).str());
   EXPECT_FALSE(E1.isA<StringError>()); // consumed
 }
+
+TEST(FormatVariadicTest, FormatFilterRange) {
+  std::vector<int> Vec{0, 1, 2};
+  auto Range = map_range(Vec, [](int V) { return V + 1; });
+  EXPECT_EQ("1, 2, 3", formatv("{0}", Range).str());
+}
+
+namespace {
+
+enum class Base { First };
+
+class IntegerValuesRange final
+    : public indexed_accessor_range<IntegerValuesRange, Base, int, int *, int> {
+public:
+  using indexed_accessor_range<IntegerValuesRange, Base, int, int *,
+                               int>::indexed_accessor_range;
+
+  static int dereference(const Base &, ptrdiff_t Index) {
+    return static_cast<int>(Index);
+  }
+};
+
+TEST(FormatVariadicTest, FormatRangeNonRef) {
+  IntegerValuesRange Range(Base(), 0, 3);
+  EXPECT_EQ("0, 1, 2",
+            formatv("{0}", make_range(Range.begin(), Range.end())).str());
+}
+
+} // namespace

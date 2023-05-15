@@ -1,9 +1,8 @@
 //===-- TTYState.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,7 +18,7 @@
 TTYState::TTYState()
     : m_fd(-1), m_tflags(-1), m_ttystateErr(-1), m_processGroup(-1) {}
 
-TTYState::~TTYState() {}
+TTYState::~TTYState() = default;
 
 bool TTYState::GetTTYState(int fd, bool saveProcessGroup) {
   if (fd >= 0 && ::isatty(fd)) {
@@ -40,20 +39,19 @@ bool TTYState::GetTTYState(int fd, bool saveProcessGroup) {
 }
 
 bool TTYState::SetTTYState() const {
-  int result = 0;
   if (IsValid()) {
     if (TFlagsValid())
-      result = fcntl(m_fd, F_SETFL, m_tflags);
+      fcntl(m_fd, F_SETFL, m_tflags);
 
     if (TTYStateValid())
-      result = tcsetattr(m_fd, TCSANOW, &m_ttystate);
+      tcsetattr(m_fd, TCSANOW, &m_ttystate);
 
     if (ProcessGroupValid()) {
       // Save the original signal handler.
       void (*saved_sigttou_callback)(int) = NULL;
       saved_sigttou_callback = (void (*)(int))signal(SIGTTOU, SIG_IGN);
       // Set the process group
-      result = tcsetpgrp(m_fd, m_processGroup);
+      tcsetpgrp(m_fd, m_processGroup);
       // Restore the original signal handler.
       signal(SIGTTOU, saved_sigttou_callback);
     }
@@ -64,7 +62,7 @@ bool TTYState::SetTTYState() const {
 
 TTYStateSwitcher::TTYStateSwitcher() : m_currentState(~0) {}
 
-TTYStateSwitcher::~TTYStateSwitcher() {}
+TTYStateSwitcher::~TTYStateSwitcher() = default;
 
 bool TTYStateSwitcher::GetState(uint32_t idx, int fd, bool saveProcessGroup) {
   if (ValidStateIndex(idx))

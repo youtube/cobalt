@@ -1,9 +1,8 @@
-//===-- lldb-windows.h ------------------------------------------*- C++ -*-===//
+//===-- windows.h -----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,9 +17,11 @@
 #undef NOMINMAX // undef a previous definition to avoid warning
 #define NOMINMAX
 #include <windows.h>
+#undef CreateProcess
+#undef GetMessage
 #undef GetUserName
 #undef LoadImage
-#undef CreateProcess
+#undef Yield
 #undef far
 #undef near
 #undef FAR

@@ -1,14 +1,13 @@
 //===- RawConstants.h -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGINFO_PDB_RAW_PDBRAWCONSTANTS_H
-#define LLVM_DEBUGINFO_PDB_RAW_PDBRAWCONSTANTS_H
+#ifndef LLVM_DEBUGINFO_PDB_NATIVE_RAWCONSTANTS_H
+#define LLVM_DEBUGINFO_PDB_NATIVE_RAWCONSTANTS_H
 
 #include "llvm/ADT/BitmaskEnum.h"
 #include "llvm/DebugInfo/CodeView/CodeView.h"
@@ -116,4 +115,4 @@ LLVM_ENABLE_BITMASK_ENUMS_IN_NAMESPACE();
 } // end namespace pdb
 } // end namespace llvm
 
-#endif // LLVM_DEBUGINFO_PDB_RAW_PDBRAWCONSTANTS_H
+#endif // LLVM_DEBUGINFO_PDB_NATIVE_RAWCONSTANTS_H

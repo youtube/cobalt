@@ -1,14 +1,13 @@
 //===- llvm/unittest/ADT/StringMapMap.cpp - StringMap unit tests ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/DataTypes.h"
 #include "gtest/gtest.h"
@@ -18,6 +17,10 @@ using namespace llvm;
 
 namespace {
 
+static_assert(sizeof(StringMap<uint32_t>) <
+                  sizeof(StringMap<uint32_t, MallocAllocator &>),
+              "Ensure empty base optimization happens with default allocator");
+
 // Test fixture
 class StringMapTest : public testing::Test {
 protected:
@@ -25,7 +28,7 @@ protected:
 
   static const char testKey[];
   static const uint32_t testValue;
-  static const char* testKeyFirst;
+  static const char *testKeyFirst;
   static size_t testKeyLength;
   static const std::string testKeyStr;
 
@@ -42,7 +45,7 @@ protected:
     EXPECT_EQ(0u, testMap.count(StringRef(testKeyFirst, testKeyLength)));
     EXPECT_EQ(0u, testMap.count(testKeyStr));
     EXPECT_TRUE(testMap.find(testKey) == testMap.end());
-    EXPECT_TRUE(testMap.find(StringRef(testKeyFirst, testKeyLength)) == 
+    EXPECT_TRUE(testMap.find(StringRef(testKeyFirst, testKeyLength)) ==
                 testMap.end());
     EXPECT_TRUE(testMap.find(testKeyStr) == testMap.end());
   }
@@ -65,7 +68,7 @@ protected:
     EXPECT_EQ(1u, testMap.count(StringRef(testKeyFirst, testKeyLength)));
     EXPECT_EQ(1u, testMap.count(testKeyStr));
     EXPECT_TRUE(testMap.find(testKey) == testMap.begin());
-    EXPECT_TRUE(testMap.find(StringRef(testKeyFirst, testKeyLength)) == 
+    EXPECT_TRUE(testMap.find(StringRef(testKeyFirst, testKeyLength)) ==
                 testMap.begin());
     EXPECT_TRUE(testMap.find(testKeyStr) == testMap.begin());
   }
@@ -73,18 +76,26 @@ protected:
 
 const char StringMapTest::testKey[] = "key";
 const uint32_t StringMapTest::testValue = 1u;
-const char* StringMapTest::testKeyFirst = testKey;
+const char *StringMapTest::testKeyFirst = testKey;
 size_t StringMapTest::testKeyLength = sizeof(testKey) - 1;
 const std::string StringMapTest::testKeyStr(testKey);
 
+struct CountCopyAndMove {
+  CountCopyAndMove() = default;
+  CountCopyAndMove(const CountCopyAndMove &) { copy = 1; }
+  CountCopyAndMove(CountCopyAndMove &&) { move = 1; }
+  void operator=(const CountCopyAndMove &) { ++copy; }
+  void operator=(CountCopyAndMove &&) { ++move; }
+  int copy = 0;
+  int move = 0;
+};
+
 // Empty map tests.
-TEST_F(StringMapTest, EmptyMapTest) {
-  assertEmptyMap();
-}
+TEST_F(StringMapTest, EmptyMapTest) { assertEmptyMap(); }
 
 // Constant map tests.
 TEST_F(StringMapTest, ConstEmptyMapTest) {
-  const StringMap<uint32_t>& constTestMap = testMap;
+  const StringMap<uint32_t> &constTestMap = testMap;
 
   // Size tests
   EXPECT_EQ(0u, constTestMap.size());
@@ -101,6 +112,13 @@ TEST_F(StringMapTest, ConstEmptyMapTest) {
   EXPECT_TRUE(constTestMap.find(StringRef(testKeyFirst, testKeyLength)) ==
               constTestMap.end());
   EXPECT_TRUE(constTestMap.find(testKeyStr) == constTestMap.end());
+}
+
+// initializer_list ctor test; also implicitly tests initializer_list and
+// iterator overloads of insert().
+TEST_F(StringMapTest, InitializerListCtor) {
+  testMap = StringMap<uint32_t>({{"key", 1}});
+  assertSingleItemMap();
 }
 
 // A map with a single entry.
@@ -200,8 +218,8 @@ TEST_F(StringMapTest, IterationTest) {
   }
 
   // Iterate over all numbers and mark each one found.
-  for (StringMap<uint32_t>::iterator it = testMap.begin();
-      it != testMap.end(); ++it) {
+  for (StringMap<uint32_t>::iterator it = testMap.begin(); it != testMap.end();
+       ++it) {
     std::stringstream ss;
     ss << "key_" << it->second;
     ASSERT_STREQ(ss.str().c_str(), it->first().data());
@@ -216,21 +234,20 @@ TEST_F(StringMapTest, IterationTest) {
 
 // Test StringMapEntry::Create() method.
 TEST_F(StringMapTest, StringMapEntryTest) {
-  StringMap<uint32_t>::value_type* entry =
-      StringMap<uint32_t>::value_type::Create(
-          StringRef(testKeyFirst, testKeyLength), 1u);
+  MallocAllocator Allocator;
+  StringMap<uint32_t>::value_type *entry =
+      StringMap<uint32_t>::value_type::create(
+          StringRef(testKeyFirst, testKeyLength), Allocator, 1u);
   EXPECT_STREQ(testKey, entry->first().data());
   EXPECT_EQ(1u, entry->second);
-  free(entry);
+  entry->Destroy(Allocator);
 }
 
 // Test insert() method.
 TEST_F(StringMapTest, InsertTest) {
   SCOPED_TRACE("InsertTest");
-  testMap.insert(
-      StringMap<uint32_t>::value_type::Create(
-          StringRef(testKeyFirst, testKeyLength),
-          testMap.getAllocator(), 1u));
+  testMap.insert(StringMap<uint32_t>::value_type::create(
+      StringRef(testKeyFirst, testKeyLength), testMap.getAllocator(), 1u));
   assertSingleItemMap();
 }
 
@@ -265,13 +282,48 @@ TEST_F(StringMapTest, InsertRehashingPairTest) {
   EXPECT_EQ(0u, t.getNumBuckets());
 
   StringMap<uint32_t>::iterator It =
-    t.insert(std::make_pair("abcdef", 42)).first;
+      t.insert(std::make_pair("abcdef", 42)).first;
   EXPECT_EQ(16u, t.getNumBuckets());
   EXPECT_EQ("abcdef", It->first());
   EXPECT_EQ(42u, It->second);
 }
 
-TEST_F(StringMapTest, IterMapKeys) {
+TEST_F(StringMapTest, InsertOrAssignTest) {
+  struct A : CountCopyAndMove {
+    A(int v) : v(v) {}
+    int v;
+  };
+  StringMap<A> t(0);
+
+  auto try1 = t.insert_or_assign("A", A(1));
+  EXPECT_TRUE(try1.second);
+  EXPECT_EQ(1, try1.first->second.v);
+  EXPECT_EQ(1, try1.first->second.move);
+
+  auto try2 = t.insert_or_assign("A", A(2));
+  EXPECT_FALSE(try2.second);
+  EXPECT_EQ(2, try2.first->second.v);
+  EXPECT_EQ(2, try1.first->second.move);
+
+  EXPECT_EQ(try1.first, try2.first);
+  EXPECT_EQ(0, try1.first->second.copy);
+}
+
+TEST_F(StringMapTest, IterMapKeysVector) {
+  StringMap<int> Map;
+  Map["A"] = 1;
+  Map["B"] = 2;
+  Map["C"] = 3;
+  Map["D"] = 3;
+
+  std::vector<StringRef> Keys{Map.keys().begin(), Map.keys().end()};
+  llvm::sort(Keys);
+
+  std::vector<StringRef> Expected{{"A", "B", "C", "D"}};
+  EXPECT_EQ(Expected, Keys);
+}
+
+TEST_F(StringMapTest, IterMapKeysSmallVector) {
   StringMap<int> Map;
   Map["A"] = 1;
   Map["B"] = 2;
@@ -279,21 +331,7 @@ TEST_F(StringMapTest, IterMapKeys) {
   Map["D"] = 3;
 
   auto Keys = to_vector<4>(Map.keys());
-  llvm::sort(Keys.begin(), Keys.end());
-
-  SmallVector<StringRef, 4> Expected = {"A", "B", "C", "D"};
-  EXPECT_EQ(Expected, Keys);
-}
-
-TEST_F(StringMapTest, IterSetKeys) {
-  StringSet<> Set;
-  Set.insert("A");
-  Set.insert("B");
-  Set.insert("C");
-  Set.insert("D");
-
-  auto Keys = to_vector<4>(Set.keys());
-  llvm::sort(Keys.begin(), Keys.end());
+  llvm::sort(Keys);
 
   SmallVector<StringRef, 4> Expected = {"A", "B", "C", "D"};
   EXPECT_EQ(Expected, Keys);
@@ -316,13 +354,13 @@ TEST_F(StringMapTest, NonDefaultConstructable) {
 
 struct Immovable {
   Immovable() {}
-  Immovable(Immovable&&) = delete; // will disable the other special members
+  Immovable(Immovable &&) = delete; // will disable the other special members
 };
 
 struct MoveOnly {
   int i;
   MoveOnly(int i) : i(i) {}
-  MoveOnly(const Immovable&) : i(0) {}
+  MoveOnly(const Immovable &) : i(0) {}
   MoveOnly(MoveOnly &&RHS) : i(RHS.i) {}
   MoveOnly &operator=(MoveOnly &&RHS) {
     i = RHS.i;
@@ -338,14 +376,15 @@ TEST_F(StringMapTest, MoveOnly) {
   StringMap<MoveOnly> t;
   t.insert(std::make_pair("Test", MoveOnly(42)));
   StringRef Key = "Test";
-  StringMapEntry<MoveOnly>::Create(Key, MoveOnly(42))
-      ->Destroy();
+  StringMapEntry<MoveOnly>::create(Key, t.getAllocator(), MoveOnly(42))
+      ->Destroy(t.getAllocator());
 }
 
 TEST_F(StringMapTest, CtorArg) {
   StringRef Key = "Test";
-  StringMapEntry<MoveOnly>::Create(Key, Immovable())
-      ->Destroy();
+  MallocAllocator Allocator;
+  StringMapEntry<MoveOnly>::create(Key, Allocator, Immovable())
+      ->Destroy(Allocator);
 }
 
 TEST_F(StringMapTest, MoveConstruct) {
@@ -368,6 +407,70 @@ TEST_F(StringMapTest, MoveAssignment) {
   ASSERT_EQ(B.size(), 0u);
   ASSERT_EQ(A["y"], 117);
   ASSERT_EQ(B.count("x"), 0u);
+}
+
+TEST_F(StringMapTest, EqualEmpty) {
+  StringMap<int> A;
+  StringMap<int> B;
+  ASSERT_TRUE(A == B);
+  ASSERT_FALSE(A != B);
+  ASSERT_TRUE(A == A); // self check
+}
+
+TEST_F(StringMapTest, EqualWithValues) {
+  StringMap<int> A;
+  A["A"] = 1;
+  A["B"] = 2;
+  A["C"] = 3;
+  A["D"] = 3;
+
+  StringMap<int> B;
+  B["A"] = 1;
+  B["B"] = 2;
+  B["C"] = 3;
+  B["D"] = 3;
+
+  ASSERT_TRUE(A == B);
+  ASSERT_TRUE(B == A);
+  ASSERT_FALSE(A != B);
+  ASSERT_FALSE(B != A);
+  ASSERT_TRUE(A == A); // self check
+}
+
+TEST_F(StringMapTest, NotEqualMissingKeys) {
+  StringMap<int> A;
+  A["A"] = 1;
+  A["B"] = 2;
+
+  StringMap<int> B;
+  B["A"] = 1;
+  B["B"] = 2;
+  B["C"] = 3;
+  B["D"] = 3;
+
+  ASSERT_FALSE(A == B);
+  ASSERT_FALSE(B == A);
+  ASSERT_TRUE(A != B);
+  ASSERT_TRUE(B != A);
+}
+
+TEST_F(StringMapTest, NotEqualWithDifferentValues) {
+  StringMap<int> A;
+  A["A"] = 1;
+  A["B"] = 2;
+  A["C"] = 100;
+  A["D"] = 3;
+
+  StringMap<int> B;
+  B["A"] = 1;
+  B["B"] = 2;
+  B["C"] = 3;
+  B["D"] = 3;
+
+  ASSERT_FALSE(A == B);
+  ASSERT_FALSE(B == A);
+  ASSERT_TRUE(A != B);
+  ASSERT_TRUE(B != A);
 }
 
 struct Countable {
@@ -412,6 +515,16 @@ TEST_F(StringMapTest, MoveDtor) {
   B = StringMap<Countable>();
   ASSERT_EQ(InstanceCount, 0);
   ASSERT_TRUE(B.empty());
+}
+
+TEST_F(StringMapTest, StructuredBindings) {
+  StringMap<int> A;
+  A["a"] = 42;
+
+  for (auto &[Key, Value] : A) {
+    EXPECT_EQ("a", Key);
+    EXPECT_EQ(42, Value);
+  }
 }
 
 namespace {
@@ -483,7 +596,7 @@ struct NonMoveableNonCopyableType {
   NonMoveableNonCopyableType(const NonMoveableNonCopyableType &) = delete;
   NonMoveableNonCopyableType(NonMoveableNonCopyableType &&) = delete;
 };
-}
+} // namespace
 
 // Test that we can "emplace" an element in the map without involving map/move
 TEST(StringMapCustomTest, EmplaceTest) {

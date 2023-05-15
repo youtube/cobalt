@@ -1,8 +1,16 @@
-// RUN: %clang_cc1 -w -fdump-record-layouts-simple %s > %t.layouts
-// RUN: %clang_cc1 -w -fdump-record-layouts-simple %s > %t.before
-// RUN: %clang_cc1 -w -DPACKED= -DALIGNED16= -fdump-record-layouts-simple -foverride-record-layout=%t.layouts %s > %t.after
+// RUN: %clang_cc1 %std_cxx98-14 -w -fdump-record-layouts-simple %s > %t.layouts
+// RUN: %clang_cc1 %std_cxx98-14 -w -fdump-record-layouts-simple %s > %t.before
+// RUN: %clang_cc1 %std_cxx98-14 -w -DPACKED= -DALIGNED16= -fdump-record-layouts-simple -foverride-record-layout=%t.layouts %s > %t.after
 // RUN: diff -u %t.before %t.after
-// RUN: FileCheck %s < %t.after
+// RUN: FileCheck --check-prefixes=CHECK,PRE17 %s < %t.after
+
+// RUN: %clang_cc1 -std=c++17 -w -fdump-record-layouts-simple %s > %t.layouts
+// RUN: %clang_cc1 -std=c++17 -w -fdump-record-layouts-simple %s > %t.before
+// RUN: %clang_cc1 -std=c++17 -w -DPACKED= -DALIGNED16= -fdump-record-layouts-simple -foverride-record-layout=%t.layouts %s > %t.after
+// RUN: diff -u %t.before %t.after
+// RUN: FileCheck --check-prefixes=CHECK,CXX17 %s < %t.after
+
+// CXX17: Type: struct X6
 
 // If not explicitly disabled, set PACKED to the packed attribute.
 #ifndef PACKED
@@ -64,6 +72,23 @@ struct PACKED X5 {
   short r;
 };
 
+// PRE17: Type: struct X6
+struct __attribute__((aligned(16))) X6 {
+  int x;
+  int y;
+  virtual ~X6();
+};
+
+// PRE17: Type: struct X7
+struct X7 {
+  int z;
+};
+
+// PRE17: Type: struct X8
+struct X8 : X6, virtual X7 {
+  char c;
+};
+
 void use_structs() {
   X0 x0s[sizeof(X0)];
   X1 x1s[sizeof(X1)];
@@ -71,7 +96,9 @@ void use_structs() {
   X3 x3s[sizeof(X3)];
   X4 x4s[sizeof(X4)];
   X5 x5s[sizeof(X5)];
+  X6 x6s[sizeof(X6)];
+  X7 x7s[sizeof(X7)];
+  X8 x8s[sizeof(X8)];
   x4s[1].a = 1;
   x5s[1].a = 17;
 }
-

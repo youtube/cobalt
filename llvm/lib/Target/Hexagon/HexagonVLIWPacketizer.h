@@ -1,9 +1,8 @@
 //===- HexagonPacketizer.h - VLIW packetizer --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -57,6 +56,16 @@ class HexagonPacketizerList : public VLIWPacketizerList {
   // Set to true if the packet contains an instruction that stalls with an
   // instruction from the previous packet.
   bool PacketStalls = false;
+  // Set to the number of cycles of stall a given instruction will incur
+  // because of dependence on instruction in previous packet.
+  unsigned int PacketStallCycles = 0;
+
+  // Set to true if the packet has a duplex pair of sub-instructions.
+  bool PacketHasDuplex = false;
+
+  // Set to true if the packet has a instruction that can only be executed
+  // in SLOT0.
+  bool PacketHasSLOT0OnlyInsn = false;
 
 protected:
   /// A handle to the branch probability pass.
@@ -66,11 +75,12 @@ protected:
 private:
   const HexagonInstrInfo *HII;
   const HexagonRegisterInfo *HRI;
+  const bool Minimal;
 
 public:
   HexagonPacketizerList(MachineFunction &MF, MachineLoopInfo &MLI,
-                        AliasAnalysis *AA,
-                        const MachineBranchProbabilityInfo *MBPI);
+                        AAResults *AA, const MachineBranchProbabilityInfo *MBPI,
+                        bool Minimal);
 
   // initPacketizerState - initialize some internal flags.
   void initPacketizerState() override;
@@ -147,8 +157,9 @@ protected:
   bool hasDeadDependence(const MachineInstr &I, const MachineInstr &J);
   bool hasControlDependence(const MachineInstr &I, const MachineInstr &J);
   bool hasRegMaskDependence(const MachineInstr &I, const MachineInstr &J);
-  bool hasV4SpecificDependence(const MachineInstr &I, const MachineInstr &J);
+  bool hasDualStoreDependence(const MachineInstr &I, const MachineInstr &J);
   bool producesStall(const MachineInstr &MI);
+  unsigned int calcStall(const MachineInstr &MI);
 };
 
 } // end namespace llvm

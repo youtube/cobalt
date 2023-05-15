@@ -1,10 +1,12 @@
+; REQUIRES: x86-registered-target
+
 ; Do setup work for all below tests: generate bitcode and combined index
 ; RUN: opt -module-summary %s -o %t.bc
 ; RUN: opt -module-summary %p/Inputs/funcimport.ll -o %t2.bc
 ; RUN: llvm-lto -thinlto -print-summary-global-ids -o %t3 %t.bc %t2.bc 2>&1 | FileCheck %s --check-prefix=GUID
 
 ; Do the import now
-; RUN: opt -function-import -stats -print-imports -enable-import-metadata -summary-file %t3.thinlto.bc %t.bc -S 2>&1 | FileCheck %s --check-prefix=CHECK --check-prefix=INSTLIMDEF
+; RUN: opt -passes=function-import -stats -print-imports -enable-import-metadata -summary-file %t3.thinlto.bc %t.bc -S 2>&1 | FileCheck %s --check-prefix=CHECK --check-prefix=INSTLIMDEF
 ; Try again with new pass manager
 ; RUN: opt -passes='function-import' -stats -print-imports -enable-import-metadata -summary-file %t3.thinlto.bc %t.bc -S 2>&1 | FileCheck %s --check-prefix=CHECK --check-prefix=INSTLIMDEF
 ; RUN: opt -passes='function-import' -debug-only=function-import -enable-import-metadata -summary-file %t3.thinlto.bc %t.bc -S 2>&1 | FileCheck %s --check-prefix=DUMP
@@ -12,9 +14,16 @@
 ; REQUIRES: asserts
 
 ; Test import with smaller instruction limit
-; RUN: opt -function-import -enable-import-metadata  -summary-file %t3.thinlto.bc %t.bc -import-instr-limit=5 -S | FileCheck %s --check-prefix=CHECK --check-prefix=INSTLIM5
+; RUN: opt -passes=function-import -enable-import-metadata  -summary-file %t3.thinlto.bc %t.bc -import-instr-limit=5 -S | FileCheck %s --check-prefix=CHECK --check-prefix=INSTLIM5
 ; INSTLIM5-NOT: @staticfunc.llvm.
 
+; Test force import all
+; RUN: llvm-lto -thinlto-action=run -force-import-all %t.bc %t2.bc 2>&1 \
+; RUN:  | FileCheck %s --check-prefix=IMPORTALL
+; IMPORTALL-DAG: Error importing module: Failed to import function weakalias due to InterposableLinkage
+
+target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-apple-macosx10.11.0"
 
 define i32 @main() #0 {
 entry:
@@ -29,7 +38,8 @@ entry:
   call void (...) @weakfunc()
   call void (...) @linkoncefunc2()
   call void (...) @referencelargelinkonce()
-  call void (...) @variadic()
+  call void (...) @variadic_no_va_start()
+  call void (...) @variadic_va_start()
   ret i32 0
 }
 
@@ -81,9 +91,9 @@ declare void @callfuncptr(...) #1
 
 ; Ensure that all uses of local variable @P which has used in setfuncptr
 ; and callfuncptr are to the same promoted/renamed global.
-; CHECK-DAG: @P.llvm.{{.*}} = available_externally hidden global void ()* null
-; CHECK-DAG: %0 = load void ()*, void ()** @P.llvm.
-; CHECK-DAG: store void ()* @staticfunc2.llvm.{{.*}}, void ()** @P.llvm.
+; CHECK-DAG: @P.llvm.{{.*}} = available_externally hidden global ptr null
+; CHECK-DAG: %0 = load ptr, ptr @P.llvm.
+; CHECK-DAG: store ptr @staticfunc2.llvm.{{.*}}, ptr @P.llvm.
 
 ; Ensure that @referencelargelinkonce definition is pulled in, but later we
 ; also check that the linkonceodr function is not.
@@ -100,14 +110,22 @@ declare void @weakfunc(...) #1
 declare void @linkoncefunc2(...) #1
 
 ; INSTLIMDEF-DAG: Import funcwithpersonality
-; INSTLIMDEF-DAG: define available_externally hidden void @funcwithpersonality.llvm.{{.*}}() personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) !thinlto_src_module !0 {
+; INSTLIMDEF-DAG: define available_externally hidden void @funcwithpersonality.llvm.{{.*}}() personality ptr @__gxx_personality_v0 !thinlto_src_module !0 {
 ; INSTLIM5-DAG: declare hidden void @funcwithpersonality.llvm.{{.*}}()
 
-; CHECK-DAG: declare void @variadic(...)
-declare void @variadic(...)
+; We can import variadic functions without a va_start, since the inliner
+; can handle them.
+; INSTLIMDEF-DAG: Import variadic_no_va_start
+; CHECK-DAG: define available_externally void @variadic_no_va_start(...) !thinlto_src_module !0 {
+declare void @variadic_no_va_start(...)
+
+; We can import variadic functions with a va_start, since the inliner
+; can sometimes handle them.
+; CHECK-DAG: define available_externally void @variadic_va_start(...)
+declare void @variadic_va_start(...)
 
 ; INSTLIMDEF-DAG: Import globalfunc2
-; INSTLIMDEF-DAG: 13 function-import - Number of functions imported
+; INSTLIMDEF-DAG: 15 function-import - Number of functions imported
 ; INSTLIMDEF-DAG: 4 function-import - Number of global variables imported
 
 ; CHECK-DAG: !0 = !{!"{{.*}}/Inputs/funcimport.ll"}
@@ -147,7 +165,7 @@ declare void @variadic(...)
 ; GUID-DAG: GUID {{.*}} is linkoncefunc
 
 ; DUMP:       Module [[M1:.*]] imports from 1 module
-; DUMP-NEXT:  13 functions imported from [[M2:.*]]
+; DUMP-NEXT:  15 functions imported from [[M2:.*]]
 ; DUMP-NEXT:  4 vars imported from [[M2]]
-; DUMP:       Imported 13 functions for Module [[M1]]
+; DUMP:       Imported 15 functions for Module [[M1]]
 ; DUMP-NEXT:  Imported 4 global variables for Module [[M1]]

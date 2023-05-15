@@ -13,9 +13,6 @@ config.name = 'LLVM-Unit'
 # suffixes: A list of file extensions to treat as test files.
 config.suffixes = []
 
-# is_early; Request to run this suite early.
-config.is_early = True
-
 # test_source_root: The root path where tests are located.
 # test_exec_root: The root path where tests should be run.
 config.test_exec_root = os.path.join(config.llvm_obj_root, 'unittests')
@@ -31,10 +28,26 @@ if 'TMP' in os.environ:
 if 'TEMP' in os.environ:
     config.environment['TEMP'] = os.environ['TEMP']
 
-# Propagate path to symbolizer for ASan/MSan.
-for symbolizer in ['ASAN_SYMBOLIZER_PATH', 'MSAN_SYMBOLIZER_PATH']:
-    if symbolizer in os.environ:
-        config.environment[symbolizer] = os.environ[symbolizer]
+# Propagate HOME as it can be used to override incorrect homedir in passwd
+# that causes the tests to fail.
+if 'HOME' in os.environ:
+    config.environment['HOME'] = os.environ['HOME']
+
+# Propagate sanitizer options.
+for var in [
+    'ASAN_SYMBOLIZER_PATH',
+    'HWASAN_SYMBOLIZER_PATH',
+    'MSAN_SYMBOLIZER_PATH',
+    'TSAN_SYMBOLIZER_PATH',
+    'UBSAN_SYMBOLIZER_PATH',
+    'ASAN_OPTIONS',
+    'HWASAN_OPTIONS',
+    'MSAN_OPTIONS',
+    'TSAN_OPTIONS',
+    'UBSAN_OPTIONS',
+]:
+    if var in os.environ:
+        config.environment[var] = os.environ[var]
 
 # Win32 seeks DLLs along %PATH%.
 if sys.platform in ['win32', 'cygwin'] and os.path.isdir(config.shlibdir):

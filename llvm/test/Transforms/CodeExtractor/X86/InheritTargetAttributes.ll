@@ -1,5 +1,5 @@
-; RUN: opt < %s -partial-inliner -skip-partial-inlining-cost-analysis | llc -filetype=null
-; RUN: opt < %s -partial-inliner -skip-partial-inlining-cost-analysis -S | FileCheck %s
+; RUN: opt < %s -passes=partial-inliner -skip-partial-inlining-cost-analysis | llc -filetype=null
+; RUN: opt < %s -passes=partial-inliner -skip-partial-inlining-cost-analysis -S | FileCheck %s
 ; This testcase checks to see if CodeExtractor properly inherits
 ;   target specific attributes for the extracted function. This can
 ;   cause certain instructions that depend on the attributes to not
@@ -36,5 +36,5 @@ entry:
 attributes #0 = { nounwind readnone }
 attributes #1 = { nounwind uwtable "target-cpu"="x86-64" "target-features"="+sse4.1" }
 
-; CHECK: define {{.*}} @inlinedFunc.1_if.then{{.*}} [[COUNT1:#[0-9]+]]
+; CHECK: define {{.*}} @inlinedFunc.1.if.then{{.*}} [[COUNT1:#[0-9]+]]
 ; CHECK: [[COUNT1]] = { {{.*}} "target-cpu"="x86-64" "target-features"="+sse4.1" }

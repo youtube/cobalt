@@ -1,9 +1,8 @@
 //===- BypassSlowDivision.cpp - Bypass slow division ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,8 +16,6 @@
 
 #include "llvm/Transforms/Utils/BypassSlowDivision.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -88,7 +85,7 @@ class FastDivInsertionTask {
   QuotRemPair createDivRemPhiNodes(QuotRemWithBB &LHS, QuotRemWithBB &RHS,
                                    BasicBlock *PhiBB);
   Value *insertOperandRuntimeCheck(Value *Op1, Value *Op2);
-  Optional<QuotRemPair> insertFastDivAndRem();
+  std::optional<QuotRemPair> insertFastDivAndRem();
 
   bool isSignedOp() {
     return SlowDivOrRem->getOpcode() == Instruction::SDiv ||
@@ -162,7 +159,7 @@ Value *FastDivInsertionTask::getReplacement(DivCacheTy &Cache) {
 
   if (CacheI == Cache.end()) {
     // If previous instance does not exist, try to insert fast div.
-    Optional<QuotRemPair> OptResult = insertFastDivAndRem();
+    std::optional<QuotRemPair> OptResult = insertFastDivAndRem();
     // Bail out if insertFastDivAndRem has failed.
     if (!OptResult)
       return nullptr;
@@ -214,9 +211,8 @@ bool FastDivInsertionTask::isHashLikeValue(Value *V, VisitedSetTy &Visited) {
       return false;
     // Do not visit nodes that have been visited already. We return true because
     // it means that we couldn't find any value that doesn't look hash-like.
-    if (Visited.find(I) != Visited.end())
+    if (!Visited.insert(I).second)
       return true;
-    Visited.insert(I);
     return llvm::all_of(cast<PHINode>(I)->incoming_values(), [&](Value *V) {
       // Ignore undef values as they probably don't affect the division
       // operands.
@@ -265,6 +261,7 @@ QuotRemWithBB FastDivInsertionTask::createSlowBB(BasicBlock *SuccessorBB) {
   DivRemPair.BB = BasicBlock::Create(MainBB->getParent()->getContext(), "",
                                      MainBB->getParent(), SuccessorBB);
   IRBuilder<> Builder(DivRemPair.BB, DivRemPair.BB->begin());
+  Builder.SetCurrentDebugLocation(SlowDivOrRem->getDebugLoc());
 
   Value *Dividend = SlowDivOrRem->getOperand(0);
   Value *Divisor = SlowDivOrRem->getOperand(1);
@@ -288,6 +285,7 @@ QuotRemWithBB FastDivInsertionTask::createFastBB(BasicBlock *SuccessorBB) {
   DivRemPair.BB = BasicBlock::Create(MainBB->getParent()->getContext(), "",
                                      MainBB->getParent(), SuccessorBB);
   IRBuilder<> Builder(DivRemPair.BB, DivRemPair.BB->begin());
+  Builder.SetCurrentDebugLocation(SlowDivOrRem->getDebugLoc());
 
   Value *Dividend = SlowDivOrRem->getOperand(0);
   Value *Divisor = SlowDivOrRem->getOperand(1);
@@ -313,6 +311,7 @@ QuotRemPair FastDivInsertionTask::createDivRemPhiNodes(QuotRemWithBB &LHS,
                                                        QuotRemWithBB &RHS,
                                                        BasicBlock *PhiBB) {
   IRBuilder<> Builder(PhiBB, PhiBB->begin());
+  Builder.SetCurrentDebugLocation(SlowDivOrRem->getDebugLoc());
   PHINode *QuoPhi = Builder.CreatePHI(getSlowType(), 2);
   QuoPhi->addIncoming(LHS.Quotient, LHS.BB);
   QuoPhi->addIncoming(RHS.Quotient, RHS.BB);
@@ -329,6 +328,7 @@ QuotRemPair FastDivInsertionTask::createDivRemPhiNodes(QuotRemWithBB &LHS,
 Value *FastDivInsertionTask::insertOperandRuntimeCheck(Value *Op1, Value *Op2) {
   assert((Op1 || Op2) && "Nothing to check");
   IRBuilder<> Builder(MainBB, MainBB->end());
+  Builder.SetCurrentDebugLocation(SlowDivOrRem->getDebugLoc());
 
   Value *OrV;
   if (Op1 && Op2)
@@ -348,19 +348,19 @@ Value *FastDivInsertionTask::insertOperandRuntimeCheck(Value *Op1, Value *Op2) {
 
 /// Substitutes the div/rem instruction with code that checks the value of the
 /// operands and uses a shorter-faster div/rem instruction when possible.
-Optional<QuotRemPair> FastDivInsertionTask::insertFastDivAndRem() {
+std::optional<QuotRemPair> FastDivInsertionTask::insertFastDivAndRem() {
   Value *Dividend = SlowDivOrRem->getOperand(0);
   Value *Divisor = SlowDivOrRem->getOperand(1);
 
   VisitedSetTy SetL;
   ValueRange DividendRange = getValueRange(Dividend, SetL);
   if (DividendRange == VALRNG_LIKELY_LONG)
-    return None;
+    return std::nullopt;
 
   VisitedSetTy SetR;
   ValueRange DivisorRange = getValueRange(Divisor, SetR);
   if (DivisorRange == VALRNG_LIKELY_LONG)
-    return None;
+    return std::nullopt;
 
   bool DividendShort = (DividendRange == VALRNG_KNOWN_SHORT);
   bool DivisorShort = (DivisorRange == VALRNG_KNOWN_SHORT);
@@ -385,7 +385,7 @@ Optional<QuotRemPair> FastDivInsertionTask::insertFastDivAndRem() {
     // If the divisor is not a constant, DAGCombiner will convert it to a
     // multiplication by a magic constant.  It isn't clear if it is worth
     // introducing control flow to get a narrower multiply.
-    return None;
+    return std::nullopt;
   }
 
   // After Constant Hoisting pass, long constants may be represented as
@@ -395,7 +395,10 @@ Optional<QuotRemPair> FastDivInsertionTask::insertFastDivAndRem() {
   if (auto *BCI = dyn_cast<BitCastInst>(Divisor))
     if (BCI->getParent() == SlowDivOrRem->getParent() &&
         isa<ConstantInt>(BCI->getOperand(0)))
-      return None;
+      return std::nullopt;
+
+  IRBuilder<> Builder(MainBB, MainBB->end());
+  Builder.SetCurrentDebugLocation(SlowDivOrRem->getDebugLoc());
 
   if (DividendShort && !isSignedOp()) {
     // If the division is unsigned and Dividend is known to be short, then
@@ -412,14 +415,13 @@ Optional<QuotRemPair> FastDivInsertionTask::insertFastDivAndRem() {
     // Split the basic block before the div/rem.
     BasicBlock *SuccessorBB = MainBB->splitBasicBlock(SlowDivOrRem);
     // Remove the unconditional branch from MainBB to SuccessorBB.
-    MainBB->getInstList().back().eraseFromParent();
+    MainBB->back().eraseFromParent();
     QuotRemWithBB Long;
     Long.BB = MainBB;
     Long.Quotient = ConstantInt::get(getSlowType(), 0);
     Long.Remainder = Dividend;
     QuotRemWithBB Fast = createFastBB(SuccessorBB);
     QuotRemPair Result = createDivRemPhiNodes(Fast, Long, SuccessorBB);
-    IRBuilder<> Builder(MainBB, MainBB->end());
     Value *CmpV = Builder.CreateICmpUGE(Dividend, Divisor);
     Builder.CreateCondBr(CmpV, Fast.BB, SuccessorBB);
     return Result;
@@ -430,13 +432,12 @@ Optional<QuotRemPair> FastDivInsertionTask::insertFastDivAndRem() {
     // Split the basic block before the div/rem.
     BasicBlock *SuccessorBB = MainBB->splitBasicBlock(SlowDivOrRem);
     // Remove the unconditional branch from MainBB to SuccessorBB.
-    MainBB->getInstList().back().eraseFromParent();
+    MainBB->back().eraseFromParent();
     QuotRemWithBB Fast = createFastBB(SuccessorBB);
     QuotRemWithBB Slow = createSlowBB(SuccessorBB);
     QuotRemPair Result = createDivRemPhiNodes(Fast, Slow, SuccessorBB);
     Value *CmpV = insertOperandRuntimeCheck(DividendShort ? nullptr : Dividend,
                                             DivisorShort ? nullptr : Divisor);
-    IRBuilder<> Builder(MainBB, MainBB->end());
     Builder.CreateCondBr(CmpV, Fast.BB, Slow.BB);
     return Result;
   }
@@ -449,12 +450,16 @@ bool llvm::bypassSlowDivision(BasicBlock *BB,
   DivCacheTy PerBBDivCache;
 
   bool MadeChange = false;
-  Instruction* Next = &*BB->begin();
+  Instruction *Next = &*BB->begin();
   while (Next != nullptr) {
     // We may add instructions immediately after I, but we want to skip over
     // them.
-    Instruction* I = Next;
+    Instruction *I = Next;
     Next = Next->getNextNode();
+
+    // Ignore dead code to save time and avoid bugs.
+    if (I->hasNUses(0))
+      continue;
 
     FastDivInsertionTask Task(I, BypassWidths);
     if (Value *Replacement = Task.getReplacement(PerBBDivCache)) {

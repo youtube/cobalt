@@ -1,36 +1,30 @@
 //===-- Opcode.h ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_Opcode_h
-#define lldb_Opcode_h
+#ifndef LLDB_CORE_OPCODE_H
+#define LLDB_CORE_OPCODE_H
 
 #include "lldb/Utility/Endian.h"
-#include "lldb/lldb-enumerations.h" // for ByteOrder, ByteOrder::eByteOrde...
+#include "lldb/lldb-enumerations.h"
 
-#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/SwapByteOrder.h"
 
-#include <assert.h> // for assert
-#include <stdint.h> // for uint32_t, uint8_t, uint16_t
-#include <string.h>
-
-namespace lldb_private {
-class DataExtractor;
-}
-namespace lldb_private {
-class Stream;
-}
+#include <cassert>
+#include <cstdint>
+#include <cstring>
 
 namespace lldb {
 class SBInstruction;
 }
 
 namespace lldb_private {
+class DataExtractor;
+class Stream;
 
 class Opcode {
 public:
@@ -44,7 +38,7 @@ public:
     eTypeBytes
   };
 
-  Opcode() : m_byte_order(lldb::eByteOrderInvalid), m_type(eTypeInvalid) {}
+  Opcode() = default;
 
   Opcode(uint8_t inst, lldb::ByteOrder order)
       : m_byte_order(order), m_type(eType8) {
@@ -258,9 +252,9 @@ protected:
             endian::InlHostByteOrder() == lldb::eByteOrderBig);
   }
 
-  lldb::ByteOrder m_byte_order;
+  lldb::ByteOrder m_byte_order = lldb::eByteOrderInvalid;
 
-  Opcode::Type m_type;
+  Opcode::Type m_type = eTypeInvalid;
   union {
     uint8_t inst8;
     uint16_t inst16;
@@ -276,4 +270,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // lldb_Opcode_h
+#endif // LLDB_CORE_OPCODE_H

@@ -1,33 +1,24 @@
-=======================
-LLD 7.0.0 Release Notes
-=======================
+===========================
+lld |release| Release Notes
+===========================
 
 .. contents::
     :local:
 
+.. only:: PreRelease
+
+  .. warning::
+     These are in-progress notes for the upcoming LLVM |release| release.
+     Release notes for previous releases can be found on
+     `the Download Page <https://releases.llvm.org/download.html>`_.
+
 Introduction
 ============
 
-lld is a high-performance linker that supports ELF (Unix), COFF (Windows),
-Mach-O (macOS), MinGW and WebAssembly. lld is command-line-compatible with GNU
-linkers and Microsoft link.exe, and is significantly faster than the system
-default linkers.
-
-lld 7 for ELF, COFF and MinGW are production-ready.
-
-* lld/ELF can build the entire FreeBSD/{AMD64,ARMv7} and will be the default
-  linker of the next version of the operating system.
-
-* lld/COFF is being used to create official builds of large popular programs
-  such as Chrome and Firefox.
-
-* lld/MinGW is being used by Firefox for their MinGW builds. lld/MinGW still
-  needs a sysroot specifically built for lld, with llvm-dlltool, though.
-
-* lld/WebAssembly is used as the default (only) linker in Emscripten when using
-  the upstream LLVM compiler.
-
-* lld/Mach-O is still experimental.
+This document contains the release notes for the lld linker, release |release|.
+Here we describe the status of lld, including major improvements
+from the previous release. All lld releases may be downloaded
+from the `LLVM releases web site <https://llvm.org/releases/>`_.
 
 Non-comprehensive list of changes in this release
 =================================================
@@ -35,80 +26,54 @@ Non-comprehensive list of changes in this release
 ELF Improvements
 ----------------
 
-* Fixed a lot of long-tail compatibility issues with GNU linkers.
+* ``ELFCOMPRESS_ZSTD`` compressed input sections are now supported.
+  (`D129406 <https://reviews.llvm.org/D129406>`_)
+* ``--compress-debug-sections=zstd`` is now available to compress debug
+  sections with zstd (``ELFCOMPRESS_ZSTD``).
+  (`D133548 <https://reviews.llvm.org/D133548>`_)
+* ``--no-warnings``/``-w`` is now available to suppress warnings.
+  (`D136569 <https://reviews.llvm.org/D136569>`_)
+* ``DT_RISCV_VARIANT_CC`` is now produced if at least one ``R_RISCV_JUMP_SLOT``
+  relocation references a symbol with the ``STO_RISCV_VARIANT_CC`` bit.
+  (`D107951 <https://reviews.llvm.org/D107951>`_)
+* ``--no-undefined-version`` is now the default; symbols named in version
+  scripts that have no matching symbol in the output will be reported. Use
+  ``--undefined-version`` to revert to the old behavior.
+* The output ``SHT_RISCV_ATTRIBUTES`` section now merges all input components
+  instead of picking the first input component.
+  (`D138550 <https://reviews.llvm.org/D138550>`_)
 
-* Added ``-z retpolineplt`` to emit a PLT entry that doesn't contain an indirect
-  jump instruction to mitigate Spectre v2 vulnerability.
-
-* Added experimental support for `SHT_RELR sections
-  <https://groups.google.com/forum/#!topic/generic-abi/bX460iggiKg>`_ to create a
-  compact dynamic relocation table.
-
-* Added support for `split stacks <https://gcc.gnu.org/wiki/SplitStacks>`_.
-
-* Added support for address significance table (section with type
-  SHT_LLVM_ADDRSIG) to improve Identical Code Folding (ICF). Combined with the
-  ``-faddrsig`` compiler option added to Clang 7, lld's ``--icf=all`` can now
-  safely merge functions and data to generate smaller outputs than before.
-
-* Improved ``--gdb-index`` so that it is faster (`r336790
-  <https://reviews.llvm.org/rL336790>`_) and uses less memory (`r336672
-  <https://reviews.llvm.org/rL336672>`_).
-
-* Reduced memory usage of ``--compress-debug-sections`` (`r338913
-  <https://reviews.llvm.org/rL338913>`_).
-
-* Added linker script OVERLAY support (`r335714 <https://reviews.llvm.org/rL335714>`_).
-
-* Added ``--warn-backref`` to make it easy to identify command line option order
-  that doesn't work with GNU linkers (`r329636 <https://reviews.llvm.org/rL329636>`_)
-
-* Added ld.lld.1 man page (`r324512 <https://reviews.llvm.org/rL324512>`_).
-
-* Added support for multi-GOT.
-
-* Added support for MIPS position-independent executable (PIE).
-
-* Fixed MIPS TLS GOT entries for local symbols in shared libraries.
-
-* Fixed calculation of MIPS GP relative relocations in case of relocatable
-  output.
-
-* Added support for PPCv2 ABI.
-
-* Removed an incomplete support of PPCv1 ABI.
-
-* Added support for Qualcomm Hexagon ISA.
-
-* Added the following flags: ``--apply-dynamic-relocs``, ``--check-sections``,
-  ``--cref``, ``--just-symbols``, ``--keep-unique``,
-  ``--no-allow-multiple-definition``, ``--no-apply-dynamic-relocs``,
-  ``--no-check-sections``, ``--no-gnu-unique, ``--no-pic-executable``,
-  ``--no-undefined-version``, ``--no-warn-common``, ``--pack-dyn-relocs=relr``,
-  ``--pop-state``, ``--print-icf-sections``, ``--push-state``,
-  ``--thinlto-index-only``, ``--thinlto-object-suffix-replace``,
-  ``--thinlto-prefix-replace``, ``--warn-backref``, ``-z combreloc``, ``-z
-  copyreloc``, ``-z initfirst``, ``-z keep-text-section-prefix``, ``-z lazy``,
-  ``-z noexecstack``, ``-z relro``, ``-z retpolineplt``, ``-z text``
+Breaking changes
+----------------
 
 COFF Improvements
 -----------------
 
-* Improved correctness of exporting mangled stdcall symbols.
+* The linker command line entry in ``S_ENVBLOCK`` of the PDB is now stripped
+  from input files, to align with MSVC behavior.
+  (`D137723 <https://reviews.llvm.org/D137723>`_)
+* Switched from SHA1 to BLAKE3 for PDB type hashing / ``-gcodeview-ghash``
+  (`D137101 <https://reviews.llvm.org/D137101>`_)
+* Improvements to the PCH.OBJ files handling. Now LLD behaves the same as MSVC
+  link.exe when merging PCH.OBJ files that don't have the same signature.
+  (`D136762 <https://reviews.llvm.org/D136762>`_)
 
-* Completed support for ARM64 relocations.
+MinGW Improvements
+------------------
 
-* Added support for outputting PDB debug info for MinGW targets.
+* The lld-specific options ``--guard-cf``, ``--no-guard-cf``,
+  ``--guard-longjmp`` and ``--no-guard-longjmp`` has been added to allow
+  enabling Control Flow Guard and long jump hardening. These options are
+  disabled by default, but enabling ``--guard-cf`` will also enable
+  ``--guard-longjmp`` unless ``--no-guard-longjmp`` is also specified.
+  ``--guard-longjmp`` depends on ``--guard-cf`` and cannot be used by itself.
+  Note that these features require the ``_load_config_used`` symbol to contain
+  the load config directory and be filled with the required symbols.
+  (`D132808 <https://reviews.llvm.org/D132808>`_)
 
-* Improved compatibility of output binaries with GNU binutils objcopy/strip.
+MachO Improvements
+------------------
 
-* Sped up PDB file creation.
+WebAssembly Improvements
+------------------------
 
-* Changed section layout to improve compatibility with link.exe.
-
-* `/subsystem` inference is improved to cover more corner cases.
-
-* Added the following flags: ``--color-diagnostics={always,never,auto}``,
-  ``--no-color-diagnostics``, ``/brepro``, ``/debug:full``, ``/debug:ghash``,
-  ``/guard:cf``, ``/guard:longjmp``, ``/guard:nolongjmp``, ``/integritycheck``,
-  ``/order``, ``/pdbsourcepath``, ``/timestamp``

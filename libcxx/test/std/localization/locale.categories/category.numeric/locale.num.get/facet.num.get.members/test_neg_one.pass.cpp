@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,20 +13,19 @@
 // iter_type get(iter_type in, iter_type end, ios_base&,
 //               ios_base::iostate& err, unsigned int& v) const;
 
+#include <limits>
 #include <locale>
 #include <ios>
 #include <cassert>
 #include <streambuf>
 #include <sstream>
-#include <iostream>
+
 #include "test_iterators.h"
 #include "test_macros.h"
 
-#ifdef TEST_COMPILER_C1XX
-#pragma warning(disable: 4146) // unary minus operator applied to unsigned type, result still unsigned
-#endif
+TEST_MSVC_DIAGNOSTIC_IGNORED(4146) // unary minus operator applied to unsigned type, result still unsigned
 
-typedef std::num_get<char, input_iterator<const char*> > F;
+typedef std::num_get<char, cpp17_input_iterator<const char*> > F;
 
 class my_facet
     : public F
@@ -53,11 +51,11 @@ void test_neg_one() {
     {
         const char str[] = "-1";
         std::ios_base::iostate err = ios.goodbit;
-        input_iterator<const char*> iter =
-            f.get(input_iterator<const char*>(str),
-                  input_iterator<const char*>(str+sizeof(str)),
+        cpp17_input_iterator<const char*> iter =
+            f.get(cpp17_input_iterator<const char*>(str),
+                  cpp17_input_iterator<const char*>(str+sizeof(str)),
                   ios, err, v);
-        assert(iter.base() == str+sizeof(str)-1);
+        assert(base(iter) == str+sizeof(str)-1);
         assert(err == ios.goodbit);
         assert(v == T(-1));
     }
@@ -65,11 +63,11 @@ void test_neg_one() {
     {
         const char str[] = "-";
         std::ios_base::iostate err = ios.goodbit;
-        input_iterator<const char*> iter =
-            f.get(input_iterator<const char*>(str),
-                  input_iterator<const char*>(str+sizeof(str)),
+        cpp17_input_iterator<const char*> iter =
+            f.get(cpp17_input_iterator<const char*>(str),
+                  cpp17_input_iterator<const char*>(str+sizeof(str)),
                   ios, err, v);
-        assert(iter.base() == str+sizeof(str)-1);
+        assert(base(iter) == str+sizeof(str)-1);
         assert(err == ios.failbit);
         assert(v == 0);
     }
@@ -88,11 +86,11 @@ void test_negate() {
         const char* str = std_str.data();
         size_t size = std_str.size();
         std::ios_base::iostate err = ios.goodbit;
-        input_iterator<const char*> iter =
-            f.get(input_iterator<const char*>(str),
-                  input_iterator<const char*>(str+size+1),
+        cpp17_input_iterator<const char*> iter =
+            f.get(cpp17_input_iterator<const char*>(str),
+                  cpp17_input_iterator<const char*>(str+size+1),
                   ios, err, v);
-        assert(iter.base() == str+size);
+        assert(base(iter) == str+size);
         assert(err == ios.goodbit);
         T expected = -value;
         assert(v == expected);
@@ -106,11 +104,11 @@ void test_negate() {
         const char* str = std_str.data();
         size_t size = std_str.size();
         std::ios_base::iostate err = ios.goodbit;
-        input_iterator<const char*> iter =
-            f.get(input_iterator<const char*>(str),
-                  input_iterator<const char*>(str+size+1),
+        cpp17_input_iterator<const char*> iter =
+            f.get(cpp17_input_iterator<const char*>(str),
+                  cpp17_input_iterator<const char*>(str+size+1),
                   ios, err, v);
-        assert(iter.base() == str+size);
+        assert(base(iter) == str+size);
         assert(err == ios.goodbit);
         T expected = -value;
         assert(v == expected);
@@ -122,11 +120,11 @@ void test_negate() {
         const char* str = std_str.data();
         size_t size = std_str.size();
         std::ios_base::iostate err = ios.goodbit;
-        input_iterator<const char*> iter =
-            f.get(input_iterator<const char*>(str),
-                  input_iterator<const char*>(str+size+1),
+        cpp17_input_iterator<const char*> iter =
+            f.get(cpp17_input_iterator<const char*>(str),
+                  cpp17_input_iterator<const char*>(str+size+1),
                   ios, err, v);
-        assert(iter.base() == str+size);
+        assert(base(iter) == str+size);
         assert(err == ios.goodbit);
         T expected = -value;
         assert(v == expected);
@@ -138,17 +136,17 @@ void test_negate() {
         const char* str = std_str.data();
         size_t size = std_str.size();
         std::ios_base::iostate err = ios.goodbit;
-        input_iterator<const char*> iter =
-            f.get(input_iterator<const char*>(str),
-                  input_iterator<const char*>(str+size+1),
+        cpp17_input_iterator<const char*> iter =
+            f.get(cpp17_input_iterator<const char*>(str),
+                  cpp17_input_iterator<const char*>(str+size+1),
                   ios, err, v);
-        assert(iter.base() == str+size);
+        assert(base(iter) == str+size);
         assert(err == ios.failbit);
         assert(v == T(-1));
     }
 }
 
-int main(void)
+int main(int, char**)
 {
     test_neg_one<long>();
     test_neg_one<long long>();
@@ -161,4 +159,6 @@ int main(void)
     test_negate<unsigned int>();
     test_negate<unsigned long>();
     test_negate<unsigned long long>();
+
+  return 0;
 }

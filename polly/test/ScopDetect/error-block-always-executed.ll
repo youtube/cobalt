@@ -1,5 +1,4 @@
-; RUN: opt %loadPolly -polly-detect -analyze < %s \
-; RUN:     | FileCheck %s
+; RUN: opt %loadPolly -polly-print-detect -disable-output < %s | FileCheck %s
 ;
 ; CHECK-NOT: Valid Region for Scop:
 
@@ -15,13 +14,13 @@ bb13:
   br i1 undef, label %bb14, label %bb19
 
 bb14:                                             ; preds = %bb13
-  %tmp = load i32, i32* undef, align 4, !tbaa !1
+  %tmp = load i32, ptr undef, align 4, !tbaa !1
   call void @quux() #2
   br i1 false, label %bb15, label %bb18
 
 bb15:                                             ; preds = %bb14
-  %tmp16 = getelementptr inbounds %struct.hoge, %struct.hoge* %tmp1, i64 0, i32 1
-  %tmp17 = getelementptr inbounds %struct.hoge, %struct.hoge* %tmp1, i64 0, i32 2
+  %tmp16 = getelementptr inbounds %struct.hoge, ptr %tmp1, i64 0, i32 1
+  %tmp17 = getelementptr inbounds %struct.hoge, ptr %tmp1, i64 0, i32 2
   br label %bb19
 
 bb18:                                             ; preds = %bb14
@@ -49,8 +48,8 @@ bb25:                                             ; preds = %bb2
 
 declare void @quux() #1
 
-attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { nounwind }
 
 !llvm.ident = !{!0}

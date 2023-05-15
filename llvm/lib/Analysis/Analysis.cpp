@@ -1,9 +1,8 @@
 //===-- Analysis.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,6 @@ using namespace llvm;
 /// initializeAnalysis - Initialize all passes linked into the Analysis library.
 void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeAAEvalLegacyPassPass(Registry);
-  initializeAliasSetPrinterPass(Registry);
   initializeBasicAAWrapperPassPass(Registry);
   initializeBlockFrequencyInfoWrapperPassPass(Registry);
   initializeBranchProbabilityInfoWrapperPassPass(Registry);
@@ -34,39 +32,39 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeCFGPrinterLegacyPassPass(Registry);
   initializeCFGOnlyViewerLegacyPassPass(Registry);
   initializeCFGOnlyPrinterLegacyPassPass(Registry);
-  initializeCFLAndersAAWrapperPassPass(Registry);
-  initializeCFLSteensAAWrapperPassPass(Registry);
+  initializeCycleInfoWrapperPassPass(Registry);
   initializeDependenceAnalysisWrapperPassPass(Registry);
   initializeDelinearizationPass(Registry);
   initializeDemandedBitsWrapperPassPass(Registry);
-  initializeDivergenceAnalysisPass(Registry);
   initializeDominanceFrontierWrapperPassPass(Registry);
-  initializeDomViewerPass(Registry);
-  initializeDomPrinterPass(Registry);
-  initializeDomOnlyViewerPass(Registry);
-  initializePostDomViewerPass(Registry);
-  initializeDomOnlyPrinterPass(Registry);
-  initializePostDomPrinterPass(Registry);
-  initializePostDomOnlyViewerPass(Registry);
-  initializePostDomOnlyPrinterPass(Registry);
+  initializeDomViewerWrapperPassPass(Registry);
+  initializeDomPrinterWrapperPassPass(Registry);
+  initializeDomOnlyViewerWrapperPassPass(Registry);
+  initializePostDomViewerWrapperPassPass(Registry);
+  initializeDomOnlyPrinterWrapperPassPass(Registry);
+  initializePostDomPrinterWrapperPassPass(Registry);
+  initializePostDomOnlyViewerWrapperPassPass(Registry);
+  initializePostDomOnlyPrinterWrapperPassPass(Registry);
   initializeAAResultsWrapperPassPass(Registry);
   initializeGlobalsAAWrapperPassPass(Registry);
   initializeIVUsersWrapperPassPass(Registry);
-  initializeInstCountPass(Registry);
+  initializeInstCountLegacyPassPass(Registry);
   initializeIntervalPartitionPass(Registry);
+  initializeIRSimilarityIdentifierWrapperPassPass(Registry);
   initializeLazyBranchProbabilityInfoPassPass(Registry);
   initializeLazyBlockFrequencyInfoPassPass(Registry);
   initializeLazyValueInfoWrapperPassPass(Registry);
   initializeLazyValueInfoPrinterPass(Registry);
-  initializeLintPass(Registry);
+  initializeLegacyDivergenceAnalysisPass(Registry);
+  initializeLintLegacyPassPass(Registry);
   initializeLoopInfoWrapperPassPass(Registry);
   initializeMemDepPrinterPass(Registry);
   initializeMemDerefPrinterPass(Registry);
   initializeMemoryDependenceWrapperPassPass(Registry);
-  initializeModuleDebugInfoPrinterPass(Registry);
+  initializeModuleDebugInfoLegacyPrinterPass(Registry);
   initializeModuleSummaryIndexWrapperPassPass(Registry);
   initializeMustExecutePrinterPass(Registry);
-  initializeObjCARCAAWrapperPassPass(Registry);
+  initializeMustBeExecutedContextPrinterPass(Registry);
   initializeOptimizationRemarkEmitterWrapperPassPass(Registry);
   initializePhiValuesWrapperPassPass(Registry);
   initializePostDominatorTreeWrapperPassPass(Registry);
@@ -77,6 +75,8 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeRegionOnlyPrinterPass(Registry);
   initializeSCEVAAWrapperPassPass(Registry);
   initializeScalarEvolutionWrapperPassPass(Registry);
+  initializeStackSafetyGlobalInfoWrapperPassPass(Registry);
+  initializeStackSafetyInfoWrapperPassPass(Registry);
   initializeTargetTransformInfoWrapperPassPass(Registry);
   initializeTypeBasedAAWrapperPassPass(Registry);
   initializeScopedNoAliasAAWrapperPassPass(Registry);

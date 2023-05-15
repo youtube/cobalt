@@ -122,12 +122,12 @@ namespace objects {
   }
 
   struct B { // expected-note 2 {{candidate constructor}}
-    B(C, int, C); // expected-note {{candidate constructor not viable: cannot convert initializer list argument to 'objects::C'}}
+    B(C, int, C); // expected-note {{candidate constructor not viable: cannot convert initializer list argument to 'C'}}
   };
 
   void nested_init() {
     B b1{{1, 1.0}, 2, {3, 4}};
-    B b2{{1, 1.0, 4}, 2, {3, 4}}; // expected-error {{no matching constructor for initialization of 'objects::B'}}
+    B b2{{1, 1.0, 4}, 2, {3, 4}}; // expected-error {{no matching constructor for initialization of 'B'}}
   }
 
   void overloaded_call() {
@@ -163,7 +163,7 @@ namespace objects {
     // (for the second phase, no constructor is viable)
     G g1{1, 2, 3}; // expected-error {{no matching constructor}}
     (void) new G{1, 2, 3}; // expected-error {{no matching constructor}}
-    (void) G{1, 2, 3} // expected-error {{no matching constructor}}
+    (void) G{1, 2, 3}; // expected-error {{no matching constructor}}
 
     // valid (T deduced to <>).
     G g2({1, 2, 3});
@@ -266,7 +266,7 @@ namespace PR12120 {
   struct A { explicit A(int); A(float); }; // expected-note {{declared here}}
   A a = { 0 }; // expected-error {{constructor is explicit}}
 
-  struct B { explicit B(short); B(long); }; // expected-note 4{{candidate}}
+  struct B { explicit B(short); B(long); }; // expected-note 2{{candidate}}
   B b = { 0 }; // expected-error {{ambiguous}}
 
   struct C { explicit C(short); C(long); }; // expected-note 2{{candidate}}
@@ -282,7 +282,7 @@ namespace PR12498 {
 
   static void bar(C* c)
   {
-    c->foo({ nullptr, 1 }); // expected-error{{initialization of incomplete type 'const PR12498::ArrayRef'}}
+    c->foo({ nullptr, 1 }); // expected-error{{initialization of incomplete type 'const ArrayRef'}}
   }
 }
 
@@ -406,6 +406,6 @@ namespace PR11410 {
     0, 1
   }; // expected-error {{ambiguous}} expected-note {{in implicit initialization of array element 2}}
   C c2[3] = {
-    [0] = 1, [2] = 3
+    [0] = 1, [2] = 3 // expected-warning {{C99}}
   }; // expected-error {{ambiguous}} expected-note {{in implicit initialization of array element 1}}
 }

@@ -1,28 +1,22 @@
-//===-- CommandObjectType.cpp -----------------------------------*- C++ -*-===//
+//===-- CommandObjectType.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "CommandObjectType.h"
 
-// C Includes
-// C++ Includes
-#include <algorithm>
-#include <cctype>
-#include <functional>
-
-// Project includes
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/IOHandler.h"
-#include "lldb/Core/State.h"
 #include "lldb/DataFormatters/DataVisualization.h"
+#include "lldb/DataFormatters/FormatClasses.h"
+#include "lldb/Host/Config.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandObject.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
@@ -32,17 +26,21 @@
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Symbol/Symbol.h"
 #include "lldb/Target/Language.h"
-#include "lldb/Target/Process.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
-#include "lldb/Target/ThreadList.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/RegularExpression.h"
 #include "lldb/Utility/StringList.h"
 
-// Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
+
+#include <algorithm>
+#include <functional>
+#include <memory>
+
+#define CHECK_FORMATTER_KIND_MASK(VAL)                                         \
+  ((m_formatter_kind_mask & (VAL)) == (VAL))
 
 using namespace lldb;
 using namespace lldb_private;
@@ -51,13 +49,15 @@ class ScriptAddOptions {
 public:
   TypeSummaryImpl::Flags m_flags;
   StringList m_target_types;
-  bool m_regex;
+  FormatterMatchType m_match_type;
   ConstString m_name;
   std::string m_category;
 
-  ScriptAddOptions(const TypeSummaryImpl::Flags &flags, bool regx,
-                   const ConstString &name, std::string catg)
-      : m_flags(flags), m_regex(regx), m_name(name), m_category(catg) {}
+  ScriptAddOptions(const TypeSummaryImpl::Flags &flags,
+                   FormatterMatchType match_type, ConstString name,
+                   std::string catg)
+      : m_flags(flags), m_match_type(match_type), m_name(name),
+        m_category(catg) {}
 
   typedef std::shared_ptr<ScriptAddOptions> SharedPointer;
 };
@@ -67,13 +67,14 @@ public:
   bool m_skip_pointers;
   bool m_skip_references;
   bool m_cascade;
-  bool m_regex;
+  FormatterMatchType m_match_type;
   StringList m_target_types;
   std::string m_category;
 
-  SynthAddOptions(bool sptr, bool sref, bool casc, bool regx, std::string catg)
+  SynthAddOptions(bool sptr, bool sref, bool casc,
+                  FormatterMatchType match_type, std::string catg)
       : m_skip_pointers(sptr), m_skip_references(sref), m_cascade(casc),
-        m_regex(regx), m_target_types(), m_category(catg) {}
+        m_match_type(match_type), m_category(catg) {}
 
   typedef std::shared_ptr<SynthAddOptions> SharedPointer;
 };
@@ -84,9 +85,9 @@ static bool WarnOnPotentialUnquotedUnsignedType(Args &command,
     return false;
 
   for (auto entry : llvm::enumerate(command.entries().drop_back())) {
-    if (entry.value().ref != "unsigned")
+    if (entry.value().ref() != "unsigned")
       continue;
-    auto next = command.entries()[entry.index() + 1].ref;
+    auto next = command.entries()[entry.index() + 1].ref();
     if (next == "int" || next == "short" || next == "char" || next == "long") {
       result.AppendWarningWithFormat(
           "unsigned %s being treated as two types. if you meant the combined "
@@ -99,32 +100,15 @@ static bool WarnOnPotentialUnquotedUnsignedType(Args &command,
   return false;
 }
 
-static OptionDefinition g_type_summary_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL,                false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL,                false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL,                false, "no-value",        'v', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't show the value, just show the summary, for this type." },
-  { LLDB_OPT_SET_ALL,                false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL,                false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL,                false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Type names are actually regular expressions." },
-  { LLDB_OPT_SET_1,                  true,  "inline-children", 'c', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "If true, inline all child values into summary string." },
-  { LLDB_OPT_SET_1,                  false, "omit-names",      'O', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "If true, omit value names in the summary display." },
-  { LLDB_OPT_SET_2,                  true,  "summary-string",  's', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeSummaryString,  "Summary string used to display text and object contents." },
-  { LLDB_OPT_SET_3,                  false, "python-script",   'o', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePythonScript,   "Give a one-liner Python script as part of the command." },
-  { LLDB_OPT_SET_3,                  false, "python-function", 'F', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePythonFunction, "Give the name of a Python function to use for this type." },
-  { LLDB_OPT_SET_3,                  false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Input Python code to use for this type manually." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "expand",          'e', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Expand aggregate data types to show children on separate lines." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "hide-empty",      'h', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Do not expand aggregate data types with no children." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "name",            'n', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,           "A name for this summary string." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_summary_add
+#include "CommandOptions.inc"
 
 class CommandObjectTypeSummaryAdd : public CommandObjectParsed,
                                     public IOHandlerDelegateMultiline {
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions(CommandInterpreter &interpreter) : Options() {}
+    CommandOptions(CommandInterpreter &interpreter) {}
 
     ~CommandOptions() override = default;
 
@@ -134,18 +118,18 @@ private:
     void OptionParsingStarting(ExecutionContext *execution_context) override;
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_summary_add_options);
+      return llvm::ArrayRef(g_type_summary_add_options);
     }
 
     // Instance variables to hold the values for command options.
 
     TypeSummaryImpl::Flags m_flags;
-    bool m_regex;
+    FormatterMatchType m_match_type = eFormatterMatchExact;
     std::string m_format_string;
     ConstString m_name;
     std::string m_python_script;
     std::string m_python_function;
-    bool m_is_add_script;
+    bool m_is_add_script = false;
     std::string m_category;
   };
 
@@ -158,13 +142,11 @@ private:
   bool Execute_StringSummary(Args &command, CommandReturnObject &result);
 
 public:
-  enum SummaryFormatType { eRegularSummary, eRegexSummary, eNamedSummary };
-
   CommandObjectTypeSummaryAdd(CommandInterpreter &interpreter);
 
   ~CommandObjectTypeSummaryAdd() override = default;
 
-  void IOHandlerActivated(IOHandler &io_handler) override {
+  void IOHandlerActivated(IOHandler &io_handler, bool interactive) override {
     static const char *g_summary_addreader_instructions =
         "Enter your Python command(s). Type 'DONE' to end.\n"
         "def function (valobj,internal_dict):\n"
@@ -172,8 +154,8 @@ public:
         "for\n"
         "        internal_dict: an LLDB support object not to be used\"\"\"\n";
 
-    StreamFileSP output_sp(io_handler.GetOutputStreamFile());
-    if (output_sp) {
+    StreamFileSP output_sp(io_handler.GetOutputStreamFileSP());
+    if (output_sp && interactive) {
       output_sp->PutCString(g_summary_addreader_instructions);
       output_sp->Flush();
     }
@@ -181,10 +163,10 @@ public:
 
   void IOHandlerInputComplete(IOHandler &io_handler,
                               std::string &data) override {
-    StreamFileSP error_sp = io_handler.GetErrorStreamFile();
+    StreamFileSP error_sp = io_handler.GetErrorStreamFileSP();
 
-#ifndef LLDB_DISABLE_PYTHON
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+#if LLDB_ENABLE_PYTHON
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
     if (interpreter) {
       StringList lines;
       lines.SplitIntoLines(data);
@@ -196,7 +178,7 @@ public:
               options_ptr); // this will ensure that we get rid of the pointer
                             // when going out of scope
 
-          ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+          ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
           if (interpreter) {
             std::string funct_name_str;
             if (interpreter->GenerateTypeScriptFunction(lines,
@@ -210,21 +192,16 @@ public:
                 // for every type in the list
 
                 TypeSummaryImplSP script_format;
-                script_format.reset(new ScriptSummaryFormat(
+                script_format = std::make_shared<ScriptSummaryFormat>(
                     options->m_flags, funct_name_str.c_str(),
-                    lines.CopyList("    ").c_str()));
+                    lines.CopyList("    ").c_str());
 
                 Status error;
 
-                for (size_t i = 0; i < options->m_target_types.GetSize(); i++) {
-                  const char *type_name =
-                      options->m_target_types.GetStringAtIndex(i);
-                  CommandObjectTypeSummaryAdd::AddSummary(
-                      ConstString(type_name), script_format,
-                      (options->m_regex
-                           ? CommandObjectTypeSummaryAdd::eRegexSummary
-                           : CommandObjectTypeSummaryAdd::eRegularSummary),
-                      options->m_category, &error);
+                for (const std::string &type_name : options->m_target_types) {
+                  AddSummary(ConstString(type_name), script_format,
+                             options->m_match_type, options->m_category,
+                             &error);
                   if (error.Fail()) {
                     error_sp->Printf("error: %s", error.AsCString());
                     error_sp->Flush();
@@ -232,15 +209,11 @@ public:
                 }
 
                 if (options->m_name) {
-                  CommandObjectTypeSummaryAdd::AddSummary(
-                      options->m_name, script_format,
-                      CommandObjectTypeSummaryAdd::eNamedSummary,
-                      options->m_category, &error);
+                  CommandObjectTypeSummaryAdd::AddNamedSummary(
+                      options->m_name, script_format, &error);
                   if (error.Fail()) {
-                    CommandObjectTypeSummaryAdd::AddSummary(
-                        options->m_name, script_format,
-                        CommandObjectTypeSummaryAdd::eNamedSummary,
-                        options->m_category, &error);
+                    CommandObjectTypeSummaryAdd::AddNamedSummary(
+                        options->m_name, script_format, &error);
                     if (error.Fail()) {
                       error_sp->Printf("error: %s", error.AsCString());
                       error_sp->Flush();
@@ -278,13 +251,16 @@ public:
           "error: script interpreter missing, didn't add python command.\n");
       error_sp->Flush();
     }
-#endif // LLDB_DISABLE_PYTHON
+#endif
     io_handler.SetIsDone(true);
   }
 
-  static bool AddSummary(ConstString type_name, lldb::TypeSummaryImplSP entry,
-                         SummaryFormatType type, std::string category,
-                         Status *error = nullptr);
+  bool AddSummary(ConstString type_name, lldb::TypeSummaryImplSP entry,
+                  FormatterMatchType match_type, std::string category,
+                  Status *error = nullptr);
+
+  bool AddNamedSummary(ConstString summary_name, lldb::TypeSummaryImplSP entry,
+                       Status *error = nullptr);
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override;
@@ -293,7 +269,7 @@ protected:
 static const char *g_synth_addreader_instructions =
     "Enter your Python command(s). Type 'DONE' to end.\n"
     "You must define a Python class with these methods:\n"
-    "    def __init__(self, valobj, dict):\n"
+    "    def __init__(self, valobj, internal_dict):\n"
     "    def num_children(self):\n"
     "    def get_child_at_index(self, index):\n"
     "    def get_child_index(self, name):\n"
@@ -301,24 +277,15 @@ static const char *g_synth_addreader_instructions =
     "        '''Optional'''\n"
     "class synthProvider:\n";
 
-static OptionDefinition g_type_synth_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,     "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,        "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_2,   false, "python-class",    'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePythonClass, "Use this Python class to produce synthetic children." },
-  { LLDB_OPT_SET_3,   false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Type Python code to generate a class that provides synthetic children." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Type names are actually regular expressions." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_synth_add
+#include "CommandOptions.inc"
 
 class CommandObjectTypeSynthAdd : public CommandObjectParsed,
                                   public IOHandlerDelegateMultiline {
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -352,12 +319,21 @@ private:
         m_category = std::string(option_arg);
         break;
       case 'x':
-        m_regex = true;
+        if (m_match_type == eFormatterMatchCallback)
+          error.SetErrorString(
+              "can't use --regex and --recognizer-function at the same time");
+        else
+          m_match_type = eFormatterMatchRegex;
+        break;
+      case '\x01':
+        if (m_match_type == eFormatterMatchRegex)
+          error.SetErrorString(
+              "can't use --regex and --recognizer-function at the same time");
+        else
+          m_match_type = eFormatterMatchCallback;
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -371,11 +347,11 @@ private:
       m_category = "default";
       is_class_based = false;
       handwrite_python = false;
-      m_regex = false;
+      m_match_type = eFormatterMatchExact;
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_synth_add_options);
+      return llvm::ArrayRef(g_type_synth_add_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -388,7 +364,7 @@ private:
     std::string m_category;
     bool is_class_based;
     bool handwrite_python;
-    bool m_regex;
+    FormatterMatchType m_match_type;
   };
 
   CommandOptions m_options;
@@ -411,14 +387,13 @@ protected:
       result.AppendError("must either provide a children list, a Python class "
                          "name, or use -P and type a Python class "
                          "line-by-line");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
 
-  void IOHandlerActivated(IOHandler &io_handler) override {
-    StreamFileSP output_sp(io_handler.GetOutputStreamFile());
-    if (output_sp) {
+  void IOHandlerActivated(IOHandler &io_handler, bool interactive) override {
+    StreamFileSP output_sp(io_handler.GetOutputStreamFileSP());
+    if (output_sp && interactive) {
       output_sp->PutCString(g_synth_addreader_instructions);
       output_sp->Flush();
     }
@@ -426,10 +401,10 @@ protected:
 
   void IOHandlerInputComplete(IOHandler &io_handler,
                               std::string &data) override {
-    StreamFileSP error_sp = io_handler.GetErrorStreamFile();
+    StreamFileSP error_sp = io_handler.GetErrorStreamFileSP();
 
-#ifndef LLDB_DISABLE_PYTHON
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+#if LLDB_ENABLE_PYTHON
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
     if (interpreter) {
       StringList lines;
       lines.SplitIntoLines(data);
@@ -441,7 +416,7 @@ protected:
               options_ptr); // this will ensure that we get rid of the pointer
                             // when going out of scope
 
-          ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+          ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
           if (interpreter) {
             std::string class_name_str;
             if (interpreter->GenerateTypeSynthClass(lines, class_name_str)) {
@@ -454,12 +429,12 @@ protected:
                 // class
 
                 SyntheticChildrenSP synth_provider;
-                synth_provider.reset(new ScriptedSyntheticChildren(
+                synth_provider = std::make_shared<ScriptedSyntheticChildren>(
                     SyntheticChildren::Flags()
                         .SetCascades(options->m_cascade)
                         .SetSkipPointers(options->m_skip_pointers)
                         .SetSkipReferences(options->m_skip_references),
-                    class_name_str.c_str()));
+                    class_name_str.c_str());
 
                 lldb::TypeCategoryImplSP category;
                 DataVisualization::Categories::GetCategory(
@@ -467,17 +442,11 @@ protected:
 
                 Status error;
 
-                for (size_t i = 0; i < options->m_target_types.GetSize(); i++) {
-                  const char *type_name =
-                      options->m_target_types.GetStringAtIndex(i);
-                  ConstString const_type_name(type_name);
-                  if (const_type_name) {
-                    if (!CommandObjectTypeSynthAdd::AddSynth(
-                            const_type_name, synth_provider,
-                            options->m_regex
-                                ? CommandObjectTypeSynthAdd::eRegexSynth
-                                : CommandObjectTypeSynthAdd::eRegularSynth,
-                            options->m_category, &error)) {
+                for (const std::string &type_name : options->m_target_types) {
+                  if (!type_name.empty()) {
+                    if (AddSynth(ConstString(type_name), synth_provider,
+                                 options->m_match_type, options->m_category,
+                                 &error)) {
                       error_sp->Printf("error: %s\n", error.AsCString());
                       error_sp->Flush();
                       break;
@@ -511,47 +480,35 @@ protected:
       error_sp->Flush();
     }
 
-#endif // LLDB_DISABLE_PYTHON
+#endif
     io_handler.SetIsDone(true);
   }
 
 public:
-  enum SynthFormatType { eRegularSynth, eRegexSynth };
-
   CommandObjectTypeSynthAdd(CommandInterpreter &interpreter);
 
   ~CommandObjectTypeSynthAdd() override = default;
 
-  static bool AddSynth(ConstString type_name, lldb::SyntheticChildrenSP entry,
-                       SynthFormatType type, std::string category_name,
-                       Status *error);
+  bool AddSynth(ConstString type_name, lldb::SyntheticChildrenSP entry,
+                FormatterMatchType match_type, std::string category_name,
+                Status *error);
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatAdd
-//-------------------------------------------------------------------------
 
-static OptionDefinition g_type_format_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,    "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,    "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,    "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,    "Type names are actually regular expressions." },
-  { LLDB_OPT_SET_2,   false, "type",            't', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,    "Format variables as if they were of this type." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_format_add
+#include "CommandOptions.inc"
 
 class CommandObjectTypeFormatAdd : public CommandObjectParsed {
 private:
   class CommandOptions : public OptionGroup {
   public:
-    CommandOptions() : OptionGroup() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_format_add_options);
+      return llvm::ArrayRef(g_type_format_add_options);
     }
 
     void OptionParsingStarting(ExecutionContext *execution_context) override {
@@ -581,7 +538,7 @@ private:
         m_skip_pointers = true;
         break;
       case 'w':
-        m_category.assign(option_value);
+        m_category.assign(std::string(option_value));
         break;
       case 'r':
         m_skip_references = true;
@@ -590,12 +547,10 @@ private:
         m_regex = true;
         break;
       case 't':
-        m_custom_type_name.assign(option_value);
+        m_custom_type_name.assign(std::string(option_value));
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -621,8 +576,7 @@ public:
   CommandObjectTypeFormatAdd(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "type format add",
                             "Add a new formatting style for a type.", nullptr),
-        m_option_group(), m_format_options(eFormatInvalid),
-        m_command_options() {
+        m_format_options(eFormatInvalid) {
     CommandArgumentEntry type_arg;
     CommandArgumentData type_style_arg;
 
@@ -688,7 +642,6 @@ protected:
     if (argc < 1) {
       result.AppendErrorWithFormat("%s takes one or more args.\n",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -697,25 +650,24 @@ protected:
         m_command_options.m_custom_type_name.empty()) {
       result.AppendErrorWithFormat("%s needs a valid format.\n",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
     TypeFormatImplSP entry;
 
     if (m_command_options.m_custom_type_name.empty())
-      entry.reset(new TypeFormatImpl_Format(
+      entry = std::make_shared<TypeFormatImpl_Format>(
           format, TypeFormatImpl::Flags()
                       .SetCascades(m_command_options.m_cascade)
                       .SetSkipPointers(m_command_options.m_skip_pointers)
-                      .SetSkipReferences(m_command_options.m_skip_references)));
+                      .SetSkipReferences(m_command_options.m_skip_references));
     else
-      entry.reset(new TypeFormatImpl_EnumType(
+      entry = std::make_shared<TypeFormatImpl_EnumType>(
           ConstString(m_command_options.m_custom_type_name.c_str()),
           TypeFormatImpl::Flags()
               .SetCascades(m_command_options.m_cascade)
               .SetSkipPointers(m_command_options.m_skip_pointers)
-              .SetSkipReferences(m_command_options.m_skip_references)));
+              .SetSkipReferences(m_command_options.m_skip_references));
 
     // now I have a valid format, let's add it to every type
 
@@ -728,25 +680,22 @@ protected:
     WarnOnPotentialUnquotedUnsignedType(command, result);
 
     for (auto &arg_entry : command.entries()) {
-      if (arg_entry.ref.empty()) {
+      if (arg_entry.ref().empty()) {
         result.AppendError("empty typenames not allowed");
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
 
-      ConstString typeCS(arg_entry.ref);
+      FormatterMatchType match_type = eFormatterMatchExact;
       if (m_command_options.m_regex) {
-        RegularExpressionSP typeRX(new RegularExpression());
-        if (!typeRX->Compile(arg_entry.ref)) {
+        match_type = eFormatterMatchRegex;
+        RegularExpression typeRX(arg_entry.ref());
+        if (!typeRX.IsValid()) {
           result.AppendError(
               "regex format error (maybe this is not really a regex?)");
-          result.SetStatus(eReturnStatusFailed);
           return false;
         }
-        category_sp->GetRegexTypeSummariesContainer()->Delete(typeCS);
-        category_sp->GetRegexTypeFormatsContainer()->Add(typeRX, entry);
-      } else
-        category_sp->GetTypeFormatsContainer()->Add(typeCS, entry);
+      }
+      category_sp->AddTypeFormat(arg_entry.ref(), match_type, entry);
     }
 
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
@@ -754,19 +703,14 @@ protected:
   }
 };
 
-static OptionDefinition g_type_formatter_delete_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_1, false, "all",      'a', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Delete from every category." },
-  { LLDB_OPT_SET_2, false, "category", 'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,     "Delete from given category." },
-  { LLDB_OPT_SET_3, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Delete from given language's category." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_formatter_delete
+#include "CommandOptions.inc"
 
 class CommandObjectTypeFormatterDelete : public CommandObjectParsed {
 protected:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -786,9 +730,7 @@ protected:
         m_language = Language::GetLanguageTypeFromString(option_arg);
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -801,7 +743,7 @@ protected:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_formatter_delete_options);
+      return llvm::ArrayRef(g_type_formatter_delete_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -820,7 +762,7 @@ public:
   CommandObjectTypeFormatterDelete(CommandInterpreter &interpreter,
                                    uint32_t formatter_kind_mask,
                                    const char *name, const char *help)
-      : CommandObjectParsed(interpreter, name, help, nullptr), m_options(),
+      : CommandObjectParsed(interpreter, name, help, nullptr),
         m_formatter_kind_mask(formatter_kind_mask) {
     CommandArgumentEntry type_arg;
     CommandArgumentData type_style_arg;
@@ -835,6 +777,19 @@ public:
 
   ~CommandObjectTypeFormatterDelete() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex())
+      return;
+
+    DataVisualization::Categories::ForEach(
+        [this, &request](const lldb::TypeCategoryImplSP &category_sp) {
+          category_sp->AutoComplete(request, m_formatter_kind_mask);
+          return true;
+        });
+  }
+
 protected:
   virtual bool FormatterSpecificDeletion(ConstString typeCS) { return false; }
 
@@ -843,7 +798,6 @@ protected:
 
     if (argc != 1) {
       result.AppendErrorWithFormat("%s takes 1 arg.\n", m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -852,7 +806,6 @@ protected:
 
     if (!typeCS) {
       result.AppendError("empty typenames not allowed");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -890,23 +843,19 @@ protected:
       return result.Succeeded();
     } else {
       result.AppendErrorWithFormat("no custom formatter for %s.\n", typeA);
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
 };
 
-static OptionDefinition g_type_formatter_clear_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "all", 'a', OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone, "Clear every category." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_formatter_clear
+#include "CommandOptions.inc"
 
 class CommandObjectTypeFormatterClear : public CommandObjectParsed {
 private:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -920,9 +869,7 @@ private:
         m_delete_all = true;
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -933,7 +880,7 @@ private:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_formatter_clear_options);
+      return llvm::ArrayRef(g_type_formatter_clear_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -949,8 +896,11 @@ public:
   CommandObjectTypeFormatterClear(CommandInterpreter &interpreter,
                                   uint32_t formatter_kind_mask,
                                   const char *name, const char *help)
-      : CommandObjectParsed(interpreter, name, help, nullptr), m_options(),
-        m_formatter_kind_mask(formatter_kind_mask) {}
+      : CommandObjectParsed(interpreter, name, help, nullptr),
+        m_formatter_kind_mask(formatter_kind_mask) {
+    CommandArgumentData category_arg{eArgTypeName, eArgRepeatOptional};
+    m_arguments.push_back({category_arg});
+  }
 
   ~CommandObjectTypeFormatterClear() override = default;
 
@@ -984,34 +934,30 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFormatDelete : public CommandObjectTypeFormatterDelete {
 public:
   CommandObjectTypeFormatDelete(CommandInterpreter &interpreter)
       : CommandObjectTypeFormatterDelete(
-            interpreter,
-            eFormatCategoryItemValue | eFormatCategoryItemRegexValue,
-            "type format delete",
+            interpreter, eFormatCategoryItemFormat, "type format delete",
             "Delete an existing formatting style for a type.") {}
 
   ~CommandObjectTypeFormatDelete() override = default;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatClear
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFormatClear : public CommandObjectTypeFormatterClear {
 public:
   CommandObjectTypeFormatClear(CommandInterpreter &interpreter)
-      : CommandObjectTypeFormatterClear(
-            interpreter,
-            eFormatCategoryItemValue | eFormatCategoryItemRegexValue,
-            "type format clear", "Delete all existing format styles.") {}
+      : CommandObjectTypeFormatterClear(interpreter, eFormatCategoryItemFormat,
+                                        "type format clear",
+                                        "Delete all existing format styles.") {}
 };
+
+#define LLDB_OPTIONS_type_formatter_list
+#include "CommandOptions.inc"
 
 template <typename FormatterType>
 class CommandObjectTypeFormatterList : public CommandObjectParsed {
@@ -1041,9 +987,7 @@ class CommandObjectTypeFormatterList : public CommandObjectParsed {
           m_category_language.SetOptionWasSet();
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -1055,13 +999,7 @@ class CommandObjectTypeFormatterList : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      static OptionDefinition g_option_table[] = {
-          // clang-format off
-            {LLDB_OPT_SET_1, false, "category-regex", 'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,     "Only show categories matching this filter."},
-            {LLDB_OPT_SET_2, false, "language",       'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Only show the category for a specific language."}
-          // clang-format on
-      };
-      return llvm::ArrayRef<OptionDefinition>(g_option_table);
+      return llvm::ArrayRef(g_type_formatter_list_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -1096,6 +1034,15 @@ protected:
     return false;
   }
 
+  static bool ShouldListItem(llvm::StringRef s, RegularExpression *regex) {
+    // If we have a regex, it can match two kinds of results:
+    //   - An item created with that same regex string (exact string match), so
+    //     the user can list it using the same string it used at creation time.
+    //   - Items that match the regex.
+    // No regex means list everything.
+    return regex == nullptr || s == regex->GetText() || regex->Execute(s);
+  }
+
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
 
@@ -1103,83 +1050,49 @@ protected:
     std::unique_ptr<RegularExpression> formatter_regex;
 
     if (m_options.m_category_regex.OptionWasSet()) {
-      category_regex.reset(new RegularExpression());
-      if (!category_regex->Compile(
-              m_options.m_category_regex.GetCurrentValueAsRef())) {
+      category_regex = std::make_unique<RegularExpression>(
+          m_options.m_category_regex.GetCurrentValueAsRef());
+      if (!category_regex->IsValid()) {
         result.AppendErrorWithFormat(
             "syntax error in category regular expression '%s'",
             m_options.m_category_regex.GetCurrentValueAsRef().str().c_str());
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
     }
 
     if (argc == 1) {
       const char *arg = command.GetArgumentAtIndex(0);
-      formatter_regex.reset(new RegularExpression());
-      if (!formatter_regex->Compile(llvm::StringRef::withNullAsEmpty(arg))) {
+      formatter_regex = std::make_unique<RegularExpression>(arg);
+      if (!formatter_regex->IsValid()) {
         result.AppendErrorWithFormat("syntax error in regular expression '%s'",
                                      arg);
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
     }
 
     bool any_printed = false;
 
-    auto category_closure = [&result, &formatter_regex, &any_printed](
-        const lldb::TypeCategoryImplSP &category) -> void {
+    auto category_closure =
+        [&result, &formatter_regex,
+         &any_printed](const lldb::TypeCategoryImplSP &category) -> void {
       result.GetOutputStream().Printf(
           "-----------------------\nCategory: %s%s\n-----------------------\n",
           category->GetName(), category->IsEnabled() ? "" : " (disabled)");
 
-      TypeCategoryImpl::ForEachCallbacks<FormatterType> foreach;
-      foreach
-        .SetExact([&result, &formatter_regex, &any_printed](
-                      ConstString name,
-                      const FormatterSharedPointer &format_sp) -> bool {
-          if (formatter_regex) {
-            bool escape = true;
-            if (name.GetStringRef() == formatter_regex->GetText()) {
-              escape = false;
-            } else if (formatter_regex->Execute(name.GetStringRef())) {
-              escape = false;
-            }
-
-            if (escape)
-              return true;
-          }
-
+      TypeCategoryImpl::ForEachCallback<FormatterType> print_formatter =
+          [&result, &formatter_regex,
+           &any_printed](const TypeMatcher &type_matcher,
+                         const FormatterSharedPointer &format_sp) -> bool {
+        if (ShouldListItem(type_matcher.GetMatchString().GetStringRef(),
+                           formatter_regex.get())) {
           any_printed = true;
-          result.GetOutputStream().Printf("%s: %s\n", name.AsCString(),
-                                          format_sp->GetDescription().c_str());
-          return true;
-        });
-
-      foreach
-        .SetWithRegex([&result, &formatter_regex, &any_printed](
-                          RegularExpressionSP regex_sp,
-                          const FormatterSharedPointer &format_sp) -> bool {
-          if (formatter_regex) {
-            bool escape = true;
-            if (regex_sp->GetText() == formatter_regex->GetText()) {
-              escape = false;
-            } else if (formatter_regex->Execute(regex_sp->GetText())) {
-              escape = false;
-            }
-
-            if (escape)
-              return true;
-          }
-
-          any_printed = true;
-          result.GetOutputStream().Printf("%s: %s\n",
-                                          regex_sp->GetText().str().c_str(),
-                                          format_sp->GetDescription().c_str());
-          return true;
-        });
-
-      category->ForEach(foreach);
+          result.GetOutputStream().Printf(
+              "%s: %s\n", type_matcher.GetMatchString().GetCString(),
+              format_sp->GetDescription().c_str());
+        }
+        return true;
+      };
+      category->ForEach(print_formatter);
     };
 
     if (m_options.m_category_language.OptionWasSet()) {
@@ -1192,22 +1105,9 @@ protected:
       DataVisualization::Categories::ForEach(
           [&category_regex, &category_closure](
               const lldb::TypeCategoryImplSP &category) -> bool {
-            if (category_regex) {
-              bool escape = true;
-              if (category->GetName() == category_regex->GetText()) {
-                escape = false;
-              } else if (category_regex->Execute(
-                             llvm::StringRef::withNullAsEmpty(
-                                 category->GetName()))) {
-                escape = false;
-              }
-
-              if (escape)
-                return true;
+            if (ShouldListItem(category->GetName(), category_regex.get())) {
+              category_closure(category);
             }
-
-            category_closure(category);
-
             return true;
           });
 
@@ -1224,9 +1124,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFormatList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFormatList
     : public CommandObjectTypeFormatterList<TypeFormatImpl> {
@@ -1235,14 +1133,6 @@ public:
       : CommandObjectTypeFormatterList(interpreter, "type format list",
                                        "Show a list of current formats.") {}
 };
-
-#ifndef LLDB_DISABLE_PYTHON
-
-//-------------------------------------------------------------------------
-// CommandObjectTypeSummaryAdd
-//-------------------------------------------------------------------------
-
-#endif // LLDB_DISABLE_PYTHON
 
 Status CommandObjectTypeSummaryAdd::CommandOptions::SetOptionValue(
     uint32_t option_idx, llvm::StringRef option_arg,
@@ -1280,17 +1170,28 @@ Status CommandObjectTypeSummaryAdd::CommandOptions::SetOptionValue(
     m_flags.SetSkipReferences(true);
     break;
   case 'x':
-    m_regex = true;
+    if (m_match_type == eFormatterMatchCallback)
+      error.SetErrorString(
+          "can't use --regex and --recognizer-function at the same time");
+    else
+      m_match_type = eFormatterMatchRegex;
+    break;
+  case '\x01':
+    if (m_match_type == eFormatterMatchRegex)
+      error.SetErrorString(
+          "can't use --regex and --recognizer-function at the same time");
+    else
+      m_match_type = eFormatterMatchCallback;
     break;
   case 'n':
     m_name.SetString(option_arg);
     break;
   case 'o':
-    m_python_script = option_arg;
+    m_python_script = std::string(option_arg);
     m_is_add_script = true;
     break;
   case 'F':
-    m_python_function = option_arg;
+    m_python_function = std::string(option_arg);
     m_is_add_script = true;
     break;
   case 'P':
@@ -1303,8 +1204,7 @@ Status CommandObjectTypeSummaryAdd::CommandOptions::SetOptionValue(
     m_flags.SetHideItemNames(true);
     break;
   default:
-    error.SetErrorStringWithFormat("unrecognized option '%c'", short_option);
-    break;
+    llvm_unreachable("Unimplemented option");
   }
 
   return error;
@@ -1318,7 +1218,7 @@ void CommandObjectTypeSummaryAdd::CommandOptions::OptionParsingStarting(
       .SetSkipReferences(false)
       .SetHideItemNames(false);
 
-  m_regex = false;
+  m_match_type = eFormatterMatchExact;
   m_name.Clear();
   m_python_script = "";
   m_python_function = "";
@@ -1327,7 +1227,7 @@ void CommandObjectTypeSummaryAdd::CommandOptions::OptionParsingStarting(
   m_category = "default";
 }
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
 
 bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
     Args &command, CommandReturnObject &result) {
@@ -1336,7 +1236,6 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
   if (argc < 1 && !m_options.m_name) {
     result.AppendErrorWithFormat("%s takes one or more args.\n",
                                  m_cmd_name.c_str());
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
 
@@ -1348,17 +1247,16 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
     const char *funct_name = m_options.m_python_function.c_str();
     if (!funct_name || !funct_name[0]) {
       result.AppendError("function name empty.\n");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
     std::string code =
         ("    " + m_options.m_python_function + "(valobj,internal_dict)");
 
-    script_format.reset(
-        new ScriptSummaryFormat(m_options.m_flags, funct_name, code.c_str()));
+    script_format = std::make_shared<ScriptSummaryFormat>(
+        m_options.m_flags, funct_name, code.c_str());
 
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
 
     if (interpreter && !interpreter->CheckObjectExists(funct_name))
       result.AppendWarningWithFormat(
@@ -1368,11 +1266,10 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
   } else if (!m_options.m_python_script
                   .empty()) // we have a quick 1-line script, just use it
   {
-    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
     if (!interpreter) {
       result.AppendError("script interpreter missing - unable to generate "
                          "function wrapper.\n");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
     StringList funct_sl;
@@ -1380,42 +1277,38 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
     std::string funct_name_str;
     if (!interpreter->GenerateTypeScriptFunction(funct_sl, funct_name_str)) {
       result.AppendError("unable to generate function wrapper.\n");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
     if (funct_name_str.empty()) {
       result.AppendError(
           "script interpreter failed to generate a valid function name.\n");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
     std::string code = "    " + m_options.m_python_script;
 
-    script_format.reset(new ScriptSummaryFormat(
-        m_options.m_flags, funct_name_str.c_str(), code.c_str()));
+    script_format = std::make_shared<ScriptSummaryFormat>(
+        m_options.m_flags, funct_name_str.c_str(), code.c_str());
   } else {
     // Use an IOHandler to grab Python code from the user
-    ScriptAddOptions *options =
-        new ScriptAddOptions(m_options.m_flags, m_options.m_regex,
-                             m_options.m_name, m_options.m_category);
+    auto options = std::make_unique<ScriptAddOptions>(
+        m_options.m_flags, m_options.m_match_type, m_options.m_name,
+        m_options.m_category);
 
     for (auto &entry : command.entries()) {
-      if (entry.ref.empty()) {
+      if (entry.ref().empty()) {
         result.AppendError("empty typenames not allowed");
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
 
-      options->m_target_types << entry.ref;
+      options->m_target_types << std::string(entry.ref());
     }
 
     m_interpreter.GetPythonCommandsFromIOHandler(
-        "    ",   // Prompt
-        *this,    // IOHandlerDelegate
-        true,     // Run IOHandler in async mode
-        options); // Baton for the "io_handler" that will be passed back into
-                  // our IOHandlerDelegate functions
+        "    ",             // Prompt
+        *this,              // IOHandlerDelegate
+        options.release()); // Baton for the "io_handler" that will be passed
+                            // back into our IOHandlerDelegate functions
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
 
     return result.Succeeded();
@@ -1427,24 +1320,19 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
   Status error;
 
   for (auto &entry : command.entries()) {
-    CommandObjectTypeSummaryAdd::AddSummary(
-        ConstString(entry.ref), script_format,
-        (m_options.m_regex ? eRegexSummary : eRegularSummary),
-        m_options.m_category, &error);
+    AddSummary(ConstString(entry.ref()), script_format, m_options.m_match_type,
+               m_options.m_category, &error);
     if (error.Fail()) {
       result.AppendError(error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
 
   if (m_options.m_name) {
-    AddSummary(m_options.m_name, script_format, eNamedSummary,
-               m_options.m_category, &error);
+    AddNamedSummary(m_options.m_name, script_format, &error);
     if (error.Fail()) {
       result.AppendError(error.AsCString());
       result.AppendError("added to types, but not given a name");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
@@ -1452,7 +1340,7 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
   return result.Succeeded();
 }
 
-#endif // LLDB_DISABLE_PYTHON
+#endif
 
 bool CommandObjectTypeSummaryAdd::Execute_StringSummary(
     Args &command, CommandReturnObject &result) {
@@ -1461,14 +1349,12 @@ bool CommandObjectTypeSummaryAdd::Execute_StringSummary(
   if (argc < 1 && !m_options.m_name) {
     result.AppendErrorWithFormat("%s takes one or more args.\n",
                                  m_cmd_name.c_str());
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
 
   if (!m_options.m_flags.GetShowMembersOneLiner() &&
       m_options.m_format_string.empty()) {
     result.AppendError("empty summary strings not allowed");
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
 
@@ -1479,7 +1365,6 @@ bool CommandObjectTypeSummaryAdd::Execute_StringSummary(
   // ${var%S} is an endless recursion, prevent it
   if (strcmp(format_cstr, "${var%S}") == 0) {
     result.AppendError("recursive summary not allowed");
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
 
@@ -1487,13 +1372,11 @@ bool CommandObjectTypeSummaryAdd::Execute_StringSummary(
       new StringSummaryFormat(m_options.m_flags, format_cstr));
   if (!string_format) {
     result.AppendError("summary creation failed");
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
   if (string_format->m_error.Fail()) {
     result.AppendErrorWithFormat("syntax error: %s",
                                  string_format->m_error.AsCString("<unknown>"));
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
   lldb::TypeSummaryImplSP entry(string_format.release());
@@ -1501,31 +1384,26 @@ bool CommandObjectTypeSummaryAdd::Execute_StringSummary(
   // now I have a valid format, let's add it to every type
   Status error;
   for (auto &arg_entry : command.entries()) {
-    if (arg_entry.ref.empty()) {
+    if (arg_entry.ref().empty()) {
       result.AppendError("empty typenames not allowed");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
-    ConstString typeCS(arg_entry.ref);
+    ConstString typeCS(arg_entry.ref());
 
-    AddSummary(typeCS, entry,
-               (m_options.m_regex ? eRegexSummary : eRegularSummary),
-               m_options.m_category, &error);
+    AddSummary(typeCS, entry, m_options.m_match_type, m_options.m_category,
+               &error);
 
     if (error.Fail()) {
       result.AppendError(error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
 
   if (m_options.m_name) {
-    AddSummary(m_options.m_name, entry, eNamedSummary, m_options.m_category,
-               &error);
+    AddNamedSummary(m_options.m_name, entry, &error);
     if (error.Fail()) {
       result.AppendError(error.AsCString());
       result.AppendError("added to types, but not given a name");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
@@ -1650,13 +1528,12 @@ bool CommandObjectTypeSummaryAdd::DoExecute(Args &command,
   WarnOnPotentialUnquotedUnsignedType(command, result);
 
   if (m_options.m_is_add_script) {
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
     return Execute_ScriptSummary(command, result);
 #else
     result.AppendError("python is disabled");
-    result.SetStatus(eReturnStatusFailed);
     return false;
-#endif // LLDB_DISABLE_PYTHON
+#endif
   }
 
   return Execute_StringSummary(command, result);
@@ -1669,7 +1546,7 @@ static bool FixArrayTypeNameWithRegex(ConstString &type_name) {
     std::string type_name_str(type_name.GetCString());
     type_name_str.resize(type_name_str.length() - 2);
     if (type_name_str.back() != ' ')
-      type_name_str.append(" \\[[0-9]+\\]");
+      type_name_str.append(" ?\\[[0-9]+\\]");
     else
       type_name_str.append("\\[[0-9]+\\]");
     type_name.SetCString(type_name_str.c_str());
@@ -1678,54 +1555,62 @@ static bool FixArrayTypeNameWithRegex(ConstString &type_name) {
   return false;
 }
 
+bool CommandObjectTypeSummaryAdd::AddNamedSummary(ConstString summary_name,
+                                                  TypeSummaryImplSP entry,
+                                                  Status *error) {
+  // system named summaries do not exist (yet?)
+  DataVisualization::NamedSummaryFormats::Add(summary_name, entry);
+  return true;
+}
+
 bool CommandObjectTypeSummaryAdd::AddSummary(ConstString type_name,
                                              TypeSummaryImplSP entry,
-                                             SummaryFormatType type,
+                                             FormatterMatchType match_type,
                                              std::string category_name,
                                              Status *error) {
   lldb::TypeCategoryImplSP category;
   DataVisualization::Categories::GetCategory(ConstString(category_name.c_str()),
                                              category);
 
-  if (type == eRegularSummary) {
+  if (match_type == eFormatterMatchExact) {
     if (FixArrayTypeNameWithRegex(type_name))
-      type = eRegexSummary;
+      match_type = eFormatterMatchRegex;
   }
 
-  if (type == eRegexSummary) {
-    RegularExpressionSP typeRX(new RegularExpression());
-    if (!typeRX->Compile(type_name.GetStringRef())) {
+  if (match_type == eFormatterMatchRegex) {
+    match_type = eFormatterMatchRegex;
+    RegularExpression typeRX(type_name.GetStringRef());
+    if (!typeRX.IsValid()) {
       if (error)
         error->SetErrorString(
             "regex format error (maybe this is not really a regex?)");
       return false;
     }
-
-    category->GetRegexTypeSummariesContainer()->Delete(type_name);
-    category->GetRegexTypeSummariesContainer()->Add(typeRX, entry);
-
-    return true;
-  } else if (type == eNamedSummary) {
-    // system named summaries do not exist (yet?)
-    DataVisualization::NamedSummaryFormats::Add(type_name, entry);
-    return true;
-  } else {
-    category->GetTypeSummariesContainer()->Add(type_name, entry);
-    return true;
   }
+
+  if (match_type == eFormatterMatchCallback) {
+    const char *function_name = type_name.AsCString();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
+    if (interpreter && !interpreter->CheckObjectExists(function_name)) {
+      error->SetErrorStringWithFormat(
+          "The provided recognizer function \"%s\" does not exist - "
+          "please define it before attempting to use this summary.\n",
+          function_name);
+      return false;
+    }
+  }
+  category->AddTypeSummary(type_name.GetStringRef(), match_type, entry);
+  return true;
 }
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSummaryDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSummaryDelete : public CommandObjectTypeFormatterDelete {
 public:
   CommandObjectTypeSummaryDelete(CommandInterpreter &interpreter)
       : CommandObjectTypeFormatterDelete(
-            interpreter,
-            eFormatCategoryItemSummary | eFormatCategoryItemRegexSummary,
-            "type summary delete", "Delete an existing summary for a type.") {}
+            interpreter, eFormatCategoryItemSummary, "type summary delete",
+            "Delete an existing summary for a type.") {}
 
   ~CommandObjectTypeSummaryDelete() override = default;
 
@@ -1740,10 +1625,9 @@ protected:
 class CommandObjectTypeSummaryClear : public CommandObjectTypeFormatterClear {
 public:
   CommandObjectTypeSummaryClear(CommandInterpreter &interpreter)
-      : CommandObjectTypeFormatterClear(
-            interpreter,
-            eFormatCategoryItemSummary | eFormatCategoryItemRegexSummary,
-            "type summary clear", "Delete all existing summaries.") {}
+      : CommandObjectTypeFormatterClear(interpreter, eFormatCategoryItemSummary,
+                                        "type summary clear",
+                                        "Delete all existing summaries.") {}
 
 protected:
   void FormatterSpecificDeletion() override {
@@ -1751,9 +1635,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSummaryList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSummaryList
     : public CommandObjectTypeFormatterList<TypeSummaryImpl> {
@@ -1767,10 +1649,10 @@ protected:
     if (DataVisualization::NamedSummaryFormats::GetCount() > 0) {
       result.GetOutputStream().Printf("Named summaries:\n");
       DataVisualization::NamedSummaryFormats::ForEach(
-          [&result](ConstString name,
+          [&result](const TypeMatcher &type_matcher,
                     const TypeSummaryImplSP &summary_sp) -> bool {
             result.GetOutputStream().Printf(
-                "%s: %s\n", name.AsCString(),
+                "%s: %s\n", type_matcher.GetMatchString().GetCString(),
                 summary_sp->GetDescription().c_str());
             return true;
           });
@@ -1780,22 +1662,15 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryDefine
-//-------------------------------------------------------------------------
-
-static OptionDefinition g_type_category_define_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "enabled",  'e', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "If specified, this category will be created enabled." },
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Specify the language that this category is supported for." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_category_define
+#include "CommandOptions.inc"
 
 class CommandObjectTypeCategoryDefine : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
     CommandOptions()
-        : Options(), m_define_enabled(false, false),
+        : m_define_enabled(false, false),
           m_cate_language(eLanguageTypeUnknown, eLanguageTypeUnknown) {}
 
     ~CommandOptions() override = default;
@@ -1813,9 +1688,7 @@ class CommandObjectTypeCategoryDefine : public CommandObjectParsed {
         error = m_cate_language.SetValueFromString(option_arg);
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -1827,7 +1700,7 @@ class CommandObjectTypeCategoryDefine : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_category_define_options);
+      return llvm::ArrayRef(g_type_category_define_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -1844,8 +1717,7 @@ public:
   CommandObjectTypeCategoryDefine(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "type category define",
                             "Define a new category as a source of formatters.",
-                            nullptr),
-        m_options() {
+                            nullptr) {
     CommandArgumentEntry type_arg;
     CommandArgumentData type_style_arg;
 
@@ -1859,6 +1731,14 @@ public:
 
   ~CommandObjectTypeCategoryDefine() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -1866,13 +1746,12 @@ protected:
     if (argc < 1) {
       result.AppendErrorWithFormat("%s takes 1 or more args.\n",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
     for (auto &entry : command.entries()) {
       TypeCategoryImplSP category_sp;
-      if (DataVisualization::Categories::GetCategory(ConstString(entry.ref),
+      if (DataVisualization::Categories::GetCategory(ConstString(entry.ref()),
                                                      category_sp) &&
           category_sp) {
         category_sp->AddLanguage(m_options.m_cate_language.GetCurrentValue());
@@ -1887,20 +1766,14 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryEnable
-//-------------------------------------------------------------------------
-
-static OptionDefinition g_type_category_enable_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Enable the category for this language." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_category_enable
+#include "CommandOptions.inc"
 
 class CommandObjectTypeCategoryEnable : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -1919,9 +1792,7 @@ class CommandObjectTypeCategoryEnable : public CommandObjectParsed {
         }
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -1932,7 +1803,7 @@ class CommandObjectTypeCategoryEnable : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_category_enable_options);
+      return llvm::ArrayRef(g_type_category_enable_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -1948,8 +1819,7 @@ public:
   CommandObjectTypeCategoryEnable(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "type category enable",
                             "Enable a category as a source of formatters.",
-                            nullptr),
-        m_options() {
+                            nullptr) {
     CommandArgumentEntry type_arg;
     CommandArgumentData type_style_arg;
 
@@ -1963,6 +1833,14 @@ public:
 
   ~CommandObjectTypeCategoryEnable() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -1970,7 +1848,6 @@ protected:
     if (argc < 1 && m_options.m_language == lldb::eLanguageTypeUnknown) {
       result.AppendErrorWithFormat("%s takes arguments and/or a language",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -1983,7 +1860,6 @@ protected:
 
         if (!typeCS) {
           result.AppendError("empty category name not allowed");
-          result.SetStatus(eReturnStatusFailed);
           return false;
         }
         DataVisualization::Categories::Enable(typeCS);
@@ -2004,9 +1880,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeCategoryDelete : public CommandObjectParsed {
 public:
@@ -2027,6 +1901,14 @@ public:
 
   ~CommandObjectTypeCategoryDelete() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -2034,7 +1916,6 @@ protected:
     if (argc < 1) {
       result.AppendErrorWithFormat("%s takes 1 or more arg.\n",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -2047,7 +1928,6 @@ protected:
 
       if (!typeCS) {
         result.AppendError("empty category name not allowed");
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
       if (!DataVisualization::Categories::Delete(typeCS))
@@ -2058,26 +1938,19 @@ protected:
       return result.Succeeded();
     } else {
       result.AppendError("cannot delete one or more categories\n");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryDisable
-//-------------------------------------------------------------------------
-
-OptionDefinition g_type_category_disable_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Enable the category for this language." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_category_disable
+#include "CommandOptions.inc"
 
 class CommandObjectTypeCategoryDisable : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -2096,9 +1969,7 @@ class CommandObjectTypeCategoryDisable : public CommandObjectParsed {
         }
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -2109,7 +1980,7 @@ class CommandObjectTypeCategoryDisable : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_category_disable_options);
+      return llvm::ArrayRef(g_type_category_disable_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -2125,8 +1996,7 @@ public:
   CommandObjectTypeCategoryDisable(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "type category disable",
                             "Disable a category as a source of formatters.",
-                            nullptr),
-        m_options() {
+                            nullptr) {
     CommandArgumentEntry type_arg;
     CommandArgumentData type_style_arg;
 
@@ -2140,6 +2010,14 @@ public:
 
   ~CommandObjectTypeCategoryDisable() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -2147,7 +2025,6 @@ protected:
     if (argc < 1 && m_options.m_language == lldb::eLanguageTypeUnknown) {
       result.AppendErrorWithFormat("%s takes arguments and/or a language",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -2161,7 +2038,6 @@ protected:
 
         if (!typeCS) {
           result.AppendError("empty category name not allowed");
-          result.SetStatus(eReturnStatusFailed);
           return false;
         }
         DataVisualization::Categories::Disable(typeCS);
@@ -2176,9 +2052,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeCategoryList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeCategoryList : public CommandObjectParsed {
 public:
@@ -2199,6 +2073,16 @@ public:
 
   ~CommandObjectTypeCategoryList() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex())
+      return;
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -2206,18 +2090,16 @@ protected:
     std::unique_ptr<RegularExpression> regex;
 
     if (argc == 1) {
-      regex.reset(new RegularExpression());
       const char *arg = command.GetArgumentAtIndex(0);
-      if (!regex->Compile(llvm::StringRef::withNullAsEmpty(arg))) {
+      regex = std::make_unique<RegularExpression>(arg);
+      if (!regex->IsValid()) {
         result.AppendErrorWithFormat(
             "syntax error in category regular expression '%s'", arg);
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
     } else if (argc != 0) {
       result.AppendErrorWithFormat("%s takes 0 or one arg.\n",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -2227,8 +2109,7 @@ protected:
             bool escape = true;
             if (regex->GetText() == category_sp->GetName()) {
               escape = false;
-            } else if (regex->Execute(llvm::StringRef::withNullAsEmpty(
-                           category_sp->GetName()))) {
+            } else if (regex->Execute(category_sp->GetName())) {
               escape = false;
             }
 
@@ -2247,9 +2128,7 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFilterList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFilterList
     : public CommandObjectTypeFormatterList<TypeFilterImpl> {
@@ -2259,11 +2138,9 @@ public:
                                        "Show a list of current filters.") {}
 };
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSynthList
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSynthList
     : public CommandObjectTypeFormatterList<SyntheticChildren> {
@@ -2274,93 +2151,77 @@ public:
             "Show a list of current synthetic providers.") {}
 };
 
-#endif // LLDB_DISABLE_PYTHON
+#endif
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFilterDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFilterDelete : public CommandObjectTypeFormatterDelete {
 public:
   CommandObjectTypeFilterDelete(CommandInterpreter &interpreter)
       : CommandObjectTypeFormatterDelete(
-            interpreter,
-            eFormatCategoryItemFilter | eFormatCategoryItemRegexFilter,
-            "type filter delete", "Delete an existing filter for a type.") {}
+            interpreter, eFormatCategoryItemFilter, "type filter delete",
+            "Delete an existing filter for a type.") {}
 
   ~CommandObjectTypeFilterDelete() override = default;
 };
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeSynthDelete
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSynthDelete : public CommandObjectTypeFormatterDelete {
 public:
   CommandObjectTypeSynthDelete(CommandInterpreter &interpreter)
       : CommandObjectTypeFormatterDelete(
-            interpreter,
-            eFormatCategoryItemSynth | eFormatCategoryItemRegexSynth,
-            "type synthetic delete",
+            interpreter, eFormatCategoryItemSynth, "type synthetic delete",
             "Delete an existing synthetic provider for a type.") {}
 
   ~CommandObjectTypeSynthDelete() override = default;
 };
 
-#endif // LLDB_DISABLE_PYTHON
+#endif
 
-//-------------------------------------------------------------------------
 // CommandObjectTypeFilterClear
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeFilterClear : public CommandObjectTypeFormatterClear {
 public:
   CommandObjectTypeFilterClear(CommandInterpreter &interpreter)
-      : CommandObjectTypeFormatterClear(
-            interpreter,
-            eFormatCategoryItemFilter | eFormatCategoryItemRegexFilter,
-            "type filter clear", "Delete all existing filter.") {}
+      : CommandObjectTypeFormatterClear(interpreter, eFormatCategoryItemFilter,
+                                        "type filter clear",
+                                        "Delete all existing filter.") {}
 };
 
-#ifndef LLDB_DISABLE_PYTHON
-//-------------------------------------------------------------------------
+#if LLDB_ENABLE_PYTHON
 // CommandObjectTypeSynthClear
-//-------------------------------------------------------------------------
 
 class CommandObjectTypeSynthClear : public CommandObjectTypeFormatterClear {
 public:
   CommandObjectTypeSynthClear(CommandInterpreter &interpreter)
       : CommandObjectTypeFormatterClear(
-            interpreter,
-            eFormatCategoryItemSynth | eFormatCategoryItemRegexSynth,
-            "type synthetic clear",
+            interpreter, eFormatCategoryItemSynth, "type synthetic clear",
             "Delete all existing synthetic providers.") {}
 };
 
 bool CommandObjectTypeSynthAdd::Execute_HandwritePython(
     Args &command, CommandReturnObject &result) {
-  SynthAddOptions *options = new SynthAddOptions(
+  auto options = std::make_unique<SynthAddOptions>(
       m_options.m_skip_pointers, m_options.m_skip_references,
-      m_options.m_cascade, m_options.m_regex, m_options.m_category);
+      m_options.m_cascade, m_options.m_match_type, m_options.m_category);
 
   for (auto &entry : command.entries()) {
-    if (entry.ref.empty()) {
+    if (entry.ref().empty()) {
       result.AppendError("empty typenames not allowed");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    options->m_target_types << entry.ref;
+    options->m_target_types << std::string(entry.ref());
   }
 
   m_interpreter.GetPythonCommandsFromIOHandler(
-      "    ",   // Prompt
-      *this,    // IOHandlerDelegate
-      true,     // Run IOHandler in async mode
-      options); // Baton for the "io_handler" that will be passed back into our
-                // IOHandlerDelegate functions
+      "    ",             // Prompt
+      *this,              // IOHandlerDelegate
+      options.release()); // Baton for the "io_handler" that will be passed back
+                          // into our IOHandlerDelegate functions
   result.SetStatus(eReturnStatusSuccessFinishNoResult);
   return result.Succeeded();
 }
@@ -2372,7 +2233,6 @@ bool CommandObjectTypeSynthAdd::Execute_PythonClass(
   if (argc < 1) {
     result.AppendErrorWithFormat("%s takes one or more args.\n",
                                  m_cmd_name.c_str());
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
 
@@ -2380,7 +2240,6 @@ bool CommandObjectTypeSynthAdd::Execute_PythonClass(
     result.AppendErrorWithFormat("%s needs either a Python class name or -P to "
                                  "directly input Python code.\n",
                                  m_cmd_name.c_str());
-    result.SetStatus(eReturnStatusFailed);
     return false;
   }
 
@@ -2395,7 +2254,7 @@ bool CommandObjectTypeSynthAdd::Execute_PythonClass(
 
   entry.reset(impl);
 
-  ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+  ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
 
   if (interpreter &&
       !interpreter->CheckObjectExists(impl->GetPythonClassName()))
@@ -2411,18 +2270,15 @@ bool CommandObjectTypeSynthAdd::Execute_PythonClass(
   Status error;
 
   for (auto &arg_entry : command.entries()) {
-    if (arg_entry.ref.empty()) {
+    if (arg_entry.ref().empty()) {
       result.AppendError("empty typenames not allowed");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    ConstString typeCS(arg_entry.ref);
-    if (!AddSynth(typeCS, entry,
-                  m_options.m_regex ? eRegexSynth : eRegularSynth,
-                  m_options.m_category, &error)) {
+    ConstString typeCS(arg_entry.ref());
+    if (!AddSynth(typeCS, entry, m_options.m_match_type, m_options.m_category,
+                  &error)) {
       result.AppendError(error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
   }
@@ -2449,59 +2305,66 @@ CommandObjectTypeSynthAdd::CommandObjectTypeSynthAdd(
 
 bool CommandObjectTypeSynthAdd::AddSynth(ConstString type_name,
                                          SyntheticChildrenSP entry,
-                                         SynthFormatType type,
+                                         FormatterMatchType match_type,
                                          std::string category_name,
                                          Status *error) {
   lldb::TypeCategoryImplSP category;
   DataVisualization::Categories::GetCategory(ConstString(category_name.c_str()),
                                              category);
 
-  if (type == eRegularSynth) {
+  if (match_type == eFormatterMatchExact) {
     if (FixArrayTypeNameWithRegex(type_name))
-      type = eRegexSynth;
+      match_type = eFormatterMatchRegex;
   }
 
-  if (category->AnyMatches(type_name, eFormatCategoryItemFilter |
-                                          eFormatCategoryItemRegexFilter,
-                           false)) {
-    if (error)
-      error->SetErrorStringWithFormat("cannot add synthetic for type %s when "
-                                      "filter is defined in same category!",
-                                      type_name.AsCString());
-    return false;
+  // Only check for conflicting filters in the same category if `type_name` is
+  // an actual type name. Matching a regex string against registered regexes
+  // doesn't work.
+  if (match_type == eFormatterMatchExact) {
+    // It's not generally possible to get a type object here. For example, this
+    // command can be run before loading any binaries. Do just a best-effort
+    // name-based lookup here to try to prevent conflicts.
+    FormattersMatchCandidate candidate_type(type_name, nullptr, TypeImpl(),
+                                            FormattersMatchCandidate::Flags());
+    if (category->AnyMatches(candidate_type, eFormatCategoryItemFilter,
+                             false)) {
+      if (error)
+        error->SetErrorStringWithFormat("cannot add synthetic for type %s when "
+                                        "filter is defined in same category!",
+                                        type_name.AsCString());
+      return false;
+    }
   }
 
-  if (type == eRegexSynth) {
-    RegularExpressionSP typeRX(new RegularExpression());
-    if (!typeRX->Compile(type_name.GetStringRef())) {
+  if (match_type == eFormatterMatchRegex) {
+    RegularExpression typeRX(type_name.GetStringRef());
+    if (!typeRX.IsValid()) {
       if (error)
         error->SetErrorString(
             "regex format error (maybe this is not really a regex?)");
       return false;
     }
-
-    category->GetRegexTypeSyntheticsContainer()->Delete(type_name);
-    category->GetRegexTypeSyntheticsContainer()->Add(typeRX, entry);
-
-    return true;
-  } else {
-    category->GetTypeSyntheticsContainer()->Add(type_name, entry);
-    return true;
   }
+
+  if (match_type == eFormatterMatchCallback) {
+    const char *function_name = type_name.AsCString();
+    ScriptInterpreter *interpreter = GetDebugger().GetScriptInterpreter();
+    if (interpreter && !interpreter->CheckObjectExists(function_name)) {
+      error->SetErrorStringWithFormat(
+          "The provided recognizer function \"%s\" does not exist - "
+          "please define it before attempting to use this summary.\n",
+          function_name);
+      return false;
+    }
+  }
+
+  category->AddTypeSynthetic(type_name.GetStringRef(), match_type, entry);
+  return true;
 }
 
-#endif // LLDB_DISABLE_PYTHON
-
-static OptionDefinition g_type_filter_add_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL, false, "child",           'c', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeExpressionPath, "Include this expression path in the synthetic view." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Type names are actually regular expressions." }
-    // clang-format on
-};
+#endif
+#define LLDB_OPTIONS_type_filter_add
+#include "CommandOptions.inc"
 
 class CommandObjectTypeFilterAdd : public CommandObjectParsed {
 private:
@@ -2509,7 +2372,7 @@ private:
     typedef std::vector<std::string> option_vector;
 
   public:
-    CommandOptions() : Options() {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
@@ -2527,7 +2390,7 @@ private:
                                          option_arg.str().c_str());
         break;
       case 'c':
-        m_expr_paths.push_back(option_arg);
+        m_expr_paths.push_back(std::string(option_arg));
         has_child_list = true;
         break;
       case 'p':
@@ -2543,9 +2406,7 @@ private:
         m_regex = true;
         break;
       default:
-        error.SetErrorStringWithFormat("unrecognized option '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -2562,7 +2423,7 @@ private:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_filter_add_options);
+      return llvm::ArrayRef(g_type_filter_add_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -2597,41 +2458,46 @@ private:
         type = eRegexFilter;
     }
 
-    if (category->AnyMatches(type_name, eFormatCategoryItemSynth |
-                                            eFormatCategoryItemRegexSynth,
-                             false)) {
-      if (error)
-        error->SetErrorStringWithFormat("cannot add filter for type %s when "
-                                        "synthetic is defined in same "
-                                        "category!",
-                                        type_name.AsCString());
-      return false;
+    // Only check for conflicting synthetic child providers in the same category
+    // if `type_name` is an actual type name. Matching a regex string against
+    // registered regexes doesn't work.
+    if (type == eRegularFilter) {
+      // It's not generally possible to get a type object here. For example,
+      // this command can be run before loading any binaries. Do just a
+      // best-effort name-based lookup here to try to prevent conflicts.
+      FormattersMatchCandidate candidate_type(
+          type_name, nullptr, TypeImpl(), FormattersMatchCandidate::Flags());
+      lldb::SyntheticChildrenSP entry;
+      if (category->AnyMatches(candidate_type, eFormatCategoryItemSynth,
+                               false)) {
+        if (error)
+          error->SetErrorStringWithFormat("cannot add filter for type %s when "
+                                          "synthetic is defined in same "
+                                          "category!",
+                                          type_name.AsCString());
+        return false;
+      }
     }
 
+    FormatterMatchType match_type = eFormatterMatchExact;
     if (type == eRegexFilter) {
-      RegularExpressionSP typeRX(new RegularExpression());
-      if (!typeRX->Compile(type_name.GetStringRef())) {
+      match_type = eFormatterMatchRegex;
+      RegularExpression typeRX(type_name.GetStringRef());
+      if (!typeRX.IsValid()) {
         if (error)
           error->SetErrorString(
               "regex format error (maybe this is not really a regex?)");
         return false;
       }
-
-      category->GetRegexTypeFiltersContainer()->Delete(type_name);
-      category->GetRegexTypeFiltersContainer()->Add(typeRX, entry);
-
-      return true;
-    } else {
-      category->GetTypeFiltersContainer()->Add(type_name, entry);
-      return true;
     }
+    category->AddTypeFilter(type_name.GetStringRef(), match_type, entry);
+    return true;
   }
 
 public:
   CommandObjectTypeFilterAdd(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "type filter add",
-                            "Add a new filter for a type.", nullptr),
-        m_options() {
+                            "Add a new filter for a type.", nullptr) {
     CommandArgumentEntry type_arg;
     CommandArgumentData type_style_arg;
 
@@ -2688,14 +2554,12 @@ protected:
     if (argc < 1) {
       result.AppendErrorWithFormat("%s takes one or more args.\n",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
     if (m_options.m_expr_paths.empty()) {
       result.AppendErrorWithFormat("%s needs one or more children.\n",
                                    m_cmd_name.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -2723,18 +2587,16 @@ protected:
     WarnOnPotentialUnquotedUnsignedType(command, result);
 
     for (auto &arg_entry : command.entries()) {
-      if (arg_entry.ref.empty()) {
+      if (arg_entry.ref().empty()) {
         result.AppendError("empty typenames not allowed");
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
 
-      ConstString typeCS(arg_entry.ref);
+      ConstString typeCS(arg_entry.ref());
       if (!AddFilter(typeCS, entry,
                      m_options.m_regex ? eRegexFilter : eRegularFilter,
                      m_options.m_category, &error)) {
         result.AppendError(error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
         return false;
       }
     }
@@ -2744,15 +2606,9 @@ protected:
   }
 };
 
-//----------------------------------------------------------------------
 // "type lookup"
-//----------------------------------------------------------------------
-static OptionDefinition g_type_lookup_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "show-help", 'h', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Display available help for types" },
-  { LLDB_OPT_SET_ALL, false, "language",  'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Which language's types should the search scope be" }
-    // clang-format on
-};
+#define LLDB_OPTIONS_type_lookup
+#include "CommandOptions.inc"
 
 class CommandObjectTypeLookup : public CommandObjectRaw {
 protected:
@@ -2778,13 +2634,12 @@ protected:
 
   class CommandOptions : public OptionGroup {
   public:
-    CommandOptions()
-        : OptionGroup(), m_show_help(false), m_language(eLanguageTypeUnknown) {}
+    CommandOptions() = default;
 
     ~CommandOptions() override = default;
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_type_lookup_options);
+      return llvm::ArrayRef(g_type_lookup_options);
     }
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
@@ -2803,9 +2658,7 @@ protected:
         break;
 
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
 
       return error;
@@ -2818,8 +2671,8 @@ protected:
 
     // Options table: Required for subclasses of Options.
 
-    bool m_show_help;
-    lldb::LanguageType m_language;
+    bool m_show_help = false;
+    lldb::LanguageType m_language = eLanguageTypeUnknown;
   };
 
   OptionGroupOptions m_option_group;
@@ -2831,8 +2684,7 @@ public:
                          "Lookup types and declarations in the current target, "
                          "following language-specific naming conventions.",
                          "type lookup <type-specifier>",
-                         eCommandRequiresTarget),
-        m_option_group(), m_command_options() {
+                         eCommandRequiresTarget) {
     m_option_group.Append(&m_command_options);
     m_option_group.Finalize();
   }
@@ -2846,26 +2698,20 @@ public:
       return m_cmd_help_long;
 
     StreamString stream;
-    // FIXME: hardcoding languages is not good
-    lldb::LanguageType languages[] = {eLanguageTypeObjC,
-                                      eLanguageTypeC_plus_plus};
+    Language::ForEach([&](Language *lang) {
+      if (const char *help = lang->GetLanguageSpecificTypeLookupHelp())
+        stream.Printf("%s\n", help);
+      return true;
+    });
 
-    for (const auto lang_type : languages) {
-      if (auto language = Language::FindPlugin(lang_type)) {
-        if (const char *help = language->GetLanguageSpecificTypeLookupHelp()) {
-          stream.Printf("%s\n", help);
-        }
-      }
-    }
-
-    m_cmd_help_long = stream.GetString();
+    m_cmd_help_long = std::string(stream.GetString());
     return m_cmd_help_long;
   }
 
   bool DoExecute(llvm::StringRef raw_command_line,
                  CommandReturnObject &result) override {
     if (raw_command_line.empty()) {
-      result.SetError(
+      result.AppendError(
           "type lookup cannot be invoked without a type name as argument");
       return false;
     }
@@ -2881,10 +2727,6 @@ public:
                                  exe_ctx))
         return false;
 
-    // TargetSP
-    // target_sp(GetCommandInterpreter().GetDebugger().GetSelectedTarget());
-    // const bool fill_all_in = true;
-    // ExecutionContext exe_ctx(target_sp.get(), fill_all_in);
     ExecutionContextScope *best_scope = exe_ctx.GetBestExecutionContextScope();
 
     bool any_found = false;
@@ -2896,9 +2738,10 @@ public:
 
     if ((is_global_search =
              (m_command_options.m_language == eLanguageTypeUnknown))) {
-      // FIXME: hardcoding languages is not good
-      languages.push_back(Language::FindPlugin(eLanguageTypeObjC));
-      languages.push_back(Language::FindPlugin(eLanguageTypeC_plus_plus));
+      Language::ForEach([&](Language *lang) {
+        languages.push_back(lang);
+        return true;
+      });
     } else {
       languages.push_back(Language::FindPlugin(m_command_options.m_language));
     }
@@ -2909,7 +2752,7 @@ public:
     if (StackFrame *frame = m_exe_ctx.GetFramePtr()) {
       guessed_language = GuessLanguage(frame);
       if (guessed_language != eLanguageTypeUnknown) {
-        std::sort(
+        llvm::sort(
             languages.begin(), languages.end(),
             [guessed_language](Language *lang1, Language *lang2) -> bool {
               if (!lang1 || !lang2)
@@ -2974,8 +2817,7 @@ public:
   CommandObjectFormatterInfo(CommandInterpreter &interpreter,
                              const char *formatter_name,
                              DiscoveryFunction discovery_func)
-      : CommandObjectRaw(interpreter, "", "", "",
-                         eCommandRequiresFrame),
+      : CommandObjectRaw(interpreter, "", "", "", eCommandRequiresFrame),
         m_formatter_name(formatter_name ? formatter_name : ""),
         m_discovery_function(discovery_func) {
     StreamString name;
@@ -2996,11 +2838,10 @@ public:
 protected:
   bool DoExecute(llvm::StringRef command,
                  CommandReturnObject &result) override {
-    TargetSP target_sp = m_interpreter.GetDebugger().GetSelectedTarget();
+    TargetSP target_sp = GetDebugger().GetSelectedTarget();
     Thread *thread = GetDefaultThread();
     if (!thread) {
       result.AppendError("no default thread");
-      result.SetStatus(lldb::eReturnStatusFailed);
       return false;
     }
 
@@ -3033,7 +2874,6 @@ protected:
       return true;
     } else {
       result.AppendError("failed to evaluate expression");
-      result.SetStatus(lldb::eReturnStatusFailed);
       return false;
     }
   }
@@ -3069,7 +2909,7 @@ public:
   ~CommandObjectTypeFormat() override = default;
 };
 
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
 
 class CommandObjectTypeSynth : public CommandObjectMultiword {
 public:
@@ -3098,14 +2938,14 @@ public:
   ~CommandObjectTypeSynth() override = default;
 };
 
-#endif // LLDB_DISABLE_PYTHON
+#endif
 
 class CommandObjectTypeFilter : public CommandObjectMultiword {
 public:
   CommandObjectTypeFilter(CommandInterpreter &interpreter)
       : CommandObjectMultiword(interpreter, "type filter",
                                "Commands for operating on type filters.",
-                               "type synthetic [<sub-command-options>] ") {
+                               "type filter [<sub-command-options>] ") {
     LoadSubCommand(
         "add", CommandObjectSP(new CommandObjectTypeFilterAdd(interpreter)));
     LoadSubCommand("clear", CommandObjectSP(
@@ -3170,9 +3010,7 @@ public:
   ~CommandObjectTypeSummary() override = default;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectType
-//-------------------------------------------------------------------------
 
 CommandObjectType::CommandObjectType(CommandInterpreter &interpreter)
     : CommandObjectMultiword(interpreter, "type",
@@ -3186,10 +3024,10 @@ CommandObjectType::CommandObjectType(CommandInterpreter &interpreter)
                  CommandObjectSP(new CommandObjectTypeFormat(interpreter)));
   LoadSubCommand("summary",
                  CommandObjectSP(new CommandObjectTypeSummary(interpreter)));
-#ifndef LLDB_DISABLE_PYTHON
+#if LLDB_ENABLE_PYTHON
   LoadSubCommand("synthetic",
                  CommandObjectSP(new CommandObjectTypeSynth(interpreter)));
-#endif // LLDB_DISABLE_PYTHON
+#endif
   LoadSubCommand("lookup",
                  CommandObjectSP(new CommandObjectTypeLookup(interpreter)));
 }

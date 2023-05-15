@@ -1,9 +1,8 @@
 //===--- Lambda.h - Types for C++ Lambdas -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -33,7 +32,7 @@ enum LambdaCaptureDefault {
 /// is an expression.
 enum LambdaCaptureKind {
   LCK_This,   ///< Capturing the \c *this object by reference
-  LCK_StarThis, /// < Capturing the \c *this object by copy
+  LCK_StarThis, ///< Capturing the \c *this object by copy
   LCK_ByCopy, ///< Capturing by copy (a.k.a., by value)
   LCK_ByRef,  ///< Capturing by reference
   LCK_VLAType ///< Capturing variable-length array type

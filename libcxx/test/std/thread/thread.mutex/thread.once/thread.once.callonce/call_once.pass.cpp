@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// UNSUPPORTED: libcpp-has-no-threads
+
+// UNSUPPORTED: no-threads
 
 // <mutex>
 
@@ -20,6 +19,7 @@
 #include <thread>
 #include <cassert>
 
+#include "make_test_thread.h"
 #include "test_macros.h"
 
 typedef std::chrono::milliseconds ms;
@@ -101,7 +101,7 @@ void f2()
     std::call_once(flg2, init2(), 4, 5);
 }
 
-#endif  // TEST_STD_VER >= 11
+#endif // TEST_STD_VER >= 11
 
 std::once_flag flg41;
 std::once_flag flg42;
@@ -187,12 +187,12 @@ struct RefQual
 
 #endif // TEST_STD_VER >= 11
 
-int main()
+int main(int, char**)
 {
     // check basic functionality
     {
-        std::thread t0(f0);
-        std::thread t1(f0);
+        std::thread t0 = support::make_test_thread(f0);
+        std::thread t1 = support::make_test_thread(f0);
         t0.join();
         t1.join();
         assert(init0_called == 1);
@@ -200,8 +200,8 @@ int main()
 #ifndef TEST_HAS_NO_EXCEPTIONS
     // check basic exception safety
     {
-        std::thread t0(f3);
-        std::thread t1(f3);
+        std::thread t0 = support::make_test_thread(f3);
+        std::thread t1 = support::make_test_thread(f3);
         t0.join();
         t1.join();
         assert(init3_called == 2);
@@ -210,8 +210,8 @@ int main()
 #endif
     // check deadlock avoidance
     {
-        std::thread t0(f41);
-        std::thread t1(f42);
+        std::thread t0 = support::make_test_thread(f41);
+        std::thread t1 = support::make_test_thread(f42);
         t0.join();
         t1.join();
         assert(init41_called == 1);
@@ -220,16 +220,16 @@ int main()
 #if TEST_STD_VER >= 11
     // check functors with 1 arg
     {
-        std::thread t0(f1);
-        std::thread t1(f1);
+        std::thread t0 = support::make_test_thread(f1);
+        std::thread t1 = support::make_test_thread(f1);
         t0.join();
         t1.join();
         assert(init1::called == 1);
     }
     // check functors with 2 args
     {
-        std::thread t0(f2);
-        std::thread t1(f2);
+        std::thread t0 = support::make_test_thread(f2);
+        std::thread t1 = support::make_test_thread(f2);
         t0.join();
         t1.join();
         assert(init2::called == 5);
@@ -253,5 +253,7 @@ int main()
         std::call_once(f2, std::move(rq));
         assert(rq.rv_called == 1);
     }
-#endif  // TEST_STD_VER >= 11
+#endif // TEST_STD_VER >= 11
+
+  return 0;
 }

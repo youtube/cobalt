@@ -5,10 +5,10 @@
 # RUN:         used_in_script : { *(used_in_script) } \
 # RUN:         .text : { *(.text) } \
 # RUN:       }" > %t.script
-# RUN: ld.lld -T %t.script -o %t.so %t.o --gc-sections
+# RUN: ld.lld -T %t.script -o %t.so %t.o --gc-sections -z nostart-stop-gc
 # RUN: llvm-objdump -h %t.so | FileCheck %s
 
-# CHECK: Idx Name          Size      Address          Type
+# CHECK: Idx Name          Size      VMA          Type
 # CHECK-NEXT:  0
 # CHECK-NEXT:    used_in_reloc
 # CHECK-NEXT:    .text

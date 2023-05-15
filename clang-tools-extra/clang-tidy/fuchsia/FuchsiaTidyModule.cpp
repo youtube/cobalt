@@ -1,9 +1,8 @@
-//===--- FuchsiaTidyModule.cpp - clang-tidy--------------------------------===//
+//===--- FuchsiaTidyModule.cpp - clang-tidy -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,34 +10,33 @@
 #include "../ClangTidyModule.h"
 #include "../ClangTidyModuleRegistry.h"
 #include "../google/UnnamedNamespaceInHeaderCheck.h"
-#include "DefaultArgumentsCheck.h"
+#include "DefaultArgumentsCallsCheck.h"
+#include "DefaultArgumentsDeclarationsCheck.h"
 #include "MultipleInheritanceCheck.h"
 #include "OverloadedOperatorCheck.h"
-#include "RestrictSystemIncludesCheck.h"
 #include "StaticallyConstructedObjectsCheck.h"
 #include "TrailingReturnCheck.h"
 #include "VirtualInheritanceCheck.h"
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
+namespace clang::tidy {
 namespace fuchsia {
 
 /// This module is for Fuchsia-specific checks.
 class FuchsiaModule : public ClangTidyModule {
 public:
   void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
-    CheckFactories.registerCheck<DefaultArgumentsCheck>(
-        "fuchsia-default-arguments");
+    CheckFactories.registerCheck<DefaultArgumentsCallsCheck>(
+        "fuchsia-default-arguments-calls");
+    CheckFactories.registerCheck<DefaultArgumentsDeclarationsCheck>(
+        "fuchsia-default-arguments-declarations");
     CheckFactories.registerCheck<google::build::UnnamedNamespaceInHeaderCheck>(
         "fuchsia-header-anon-namespaces");
     CheckFactories.registerCheck<MultipleInheritanceCheck>(
         "fuchsia-multiple-inheritance");
     CheckFactories.registerCheck<OverloadedOperatorCheck>(
         "fuchsia-overloaded-operator");
-    CheckFactories.registerCheck<RestrictSystemIncludesCheck>(
-        "fuchsia-restrict-system-includes");
     CheckFactories.registerCheck<StaticallyConstructedObjectsCheck>(
         "fuchsia-statically-constructed-objects");
     CheckFactories.registerCheck<TrailingReturnCheck>(
@@ -56,5 +54,4 @@ static ClangTidyModuleRegistry::Add<FuchsiaModule>
 // and thus register the FuchsiaModule.
 volatile int FuchsiaModuleAnchorSource = 0;
 
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy

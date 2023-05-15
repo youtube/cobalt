@@ -1,9 +1,8 @@
 //===--- NSAPI.cpp - NSFoundation APIs ------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,6 +11,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "llvm/ADT/StringSwitch.h"
+#include <optional>
 
 using namespace clang;
 
@@ -74,17 +74,6 @@ Selector NSAPI::getNSStringSelector(NSStringMethodKind MK) const {
   }
 
   return NSStringSelectors[MK];
-}
-
-Optional<NSAPI::NSStringMethodKind>
-NSAPI::getNSStringMethodKind(Selector Sel) const {
-  for (unsigned i = 0; i != NumNSStringMethods; ++i) {
-    NSStringMethodKind MK = NSStringMethodKind(i);
-    if (Sel == getNSStringSelector(MK))
-      return MK;
-  }
-
-  return None;
 }
 
 Selector NSAPI::getNSArraySelector(NSArrayMethodKind MK) const {
@@ -154,14 +143,15 @@ Selector NSAPI::getNSArraySelector(NSArrayMethodKind MK) const {
   return NSArraySelectors[MK];
 }
 
-Optional<NSAPI::NSArrayMethodKind> NSAPI::getNSArrayMethodKind(Selector Sel) {
+std::optional<NSAPI::NSArrayMethodKind>
+NSAPI::getNSArrayMethodKind(Selector Sel) {
   for (unsigned i = 0; i != NumNSArrayMethods; ++i) {
     NSArrayMethodKind MK = NSArrayMethodKind(i);
     if (Sel == getNSArraySelector(MK))
       return MK;
   }
 
-  return None;
+  return std::nullopt;
 }
 
 Selector NSAPI::getNSDictionarySelector(
@@ -255,7 +245,7 @@ Selector NSAPI::getNSDictionarySelector(
   return NSDictionarySelectors[MK];
 }
 
-Optional<NSAPI::NSDictionaryMethodKind>
+std::optional<NSAPI::NSDictionaryMethodKind>
 NSAPI::getNSDictionaryMethodKind(Selector Sel) {
   for (unsigned i = 0; i != NumNSDictionaryMethods; ++i) {
     NSDictionaryMethodKind MK = NSDictionaryMethodKind(i);
@@ -263,7 +253,7 @@ NSAPI::getNSDictionaryMethodKind(Selector Sel) {
       return MK;
   }
 
-  return None;
+  return std::nullopt;
 }
 
 Selector NSAPI::getNSSetSelector(NSSetMethodKind MK) const {
@@ -312,15 +302,14 @@ Selector NSAPI::getNSSetSelector(NSSetMethodKind MK) const {
   return NSSetSelectors[MK];
 }
 
-Optional<NSAPI::NSSetMethodKind>
-NSAPI::getNSSetMethodKind(Selector Sel) {
+std::optional<NSAPI::NSSetMethodKind> NSAPI::getNSSetMethodKind(Selector Sel) {
   for (unsigned i = 0; i != NumNSSetMethods; ++i) {
     NSSetMethodKind MK = NSSetMethodKind(i);
     if (Sel == getNSSetSelector(MK))
       return MK;
   }
 
-  return None;
+  return std::nullopt;
 }
 
 Selector NSAPI::getNSNumberLiteralSelector(NSNumberLiteralMethodKind MK,
@@ -375,7 +364,7 @@ Selector NSAPI::getNSNumberLiteralSelector(NSNumberLiteralMethodKind MK,
   return Sels[MK];
 }
 
-Optional<NSAPI::NSNumberLiteralMethodKind>
+std::optional<NSAPI::NSNumberLiteralMethodKind>
 NSAPI::getNSNumberLiteralMethodKind(Selector Sel) const {
   for (unsigned i = 0; i != NumNSNumberLiteralMethods; ++i) {
     NSNumberLiteralMethodKind MK = NSNumberLiteralMethodKind(i);
@@ -383,14 +372,14 @@ NSAPI::getNSNumberLiteralMethodKind(Selector Sel) const {
       return MK;
   }
 
-  return None;
+  return std::nullopt;
 }
 
-Optional<NSAPI::NSNumberLiteralMethodKind>
+std::optional<NSAPI::NSNumberLiteralMethodKind>
 NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   const BuiltinType *BT = T->getAs<BuiltinType>();
   if (!BT)
-    return None;
+    return std::nullopt;
 
   const TypedefType *TDT = T->getAs<TypedefType>();
   if (TDT) {
@@ -468,6 +457,7 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::UInt128:
   case BuiltinType::Float16:
   case BuiltinType::Float128:
+  case BuiltinType::Ibm128:
   case BuiltinType::NullPtr:
   case BuiltinType::ObjCClass:
   case BuiltinType::ObjCId:
@@ -475,11 +465,22 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"
+#define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
+  case BuiltinType::Id:
+#include "clang/Basic/OpenCLExtensionTypes.def"
   case BuiltinType::OCLSampler:
   case BuiltinType::OCLEvent:
   case BuiltinType::OCLClkEvent:
   case BuiltinType::OCLQueue:
   case BuiltinType::OCLReserveID:
+#define SVE_TYPE(Name, Id, SingletonId) \
+  case BuiltinType::Id:
+#include "clang/Basic/AArch64SVEACLETypes.def"
+#define PPC_VECTOR_TYPE(Name, Id, Size) \
+  case BuiltinType::Id:
+#include "clang/Basic/PPCTypes.def"
+#define RVV_TYPE(Name, Id, SingletonId) case BuiltinType::Id:
+#include "clang/Basic/RISCVVTypes.def"
   case BuiltinType::BoundMember:
   case BuiltinType::Dependent:
   case BuiltinType::Overload:
@@ -488,11 +489,15 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::Half:
   case BuiltinType::PseudoObject:
   case BuiltinType::BuiltinFn:
+  case BuiltinType::IncompleteMatrixIdx:
   case BuiltinType::OMPArraySection:
+  case BuiltinType::OMPArrayShaping:
+  case BuiltinType::OMPIterator:
+  case BuiltinType::BFloat16:
     break;
   }
 
-  return None;
+  return std::nullopt;
 }
 
 /// Returns true if \param T is a typedef of "BOOL" in objective-c.
@@ -509,7 +514,7 @@ bool NSAPI::isObjCNSUIntegerType(QualType T) const {
 }
 
 StringRef NSAPI::GetNSIntegralKind(QualType T) const {
-  if (!Ctx.getLangOpts().ObjC1 || T.isNull())
+  if (!Ctx.getLangOpts().ObjC || T.isNull())
     return StringRef();
 
   while (const TypedefType *TDT = T->getAs<TypedefType>()) {
@@ -561,7 +566,7 @@ bool NSAPI::isSubclassOfNSClass(ObjCInterfaceDecl *InterfaceDecl,
 
 bool NSAPI::isObjCTypedef(QualType T,
                           StringRef name, IdentifierInfo *&II) const {
-  if (!Ctx.getLangOpts().ObjC1)
+  if (!Ctx.getLangOpts().ObjC)
     return false;
   if (T.isNull())
     return false;
@@ -580,7 +585,7 @@ bool NSAPI::isObjCTypedef(QualType T,
 
 bool NSAPI::isObjCEnumerator(const Expr *E,
                              StringRef name, IdentifierInfo *&II) const {
-  if (!Ctx.getLangOpts().ObjC1)
+  if (!Ctx.getLangOpts().ObjC)
     return false;
   if (!E)
     return false;
@@ -604,6 +609,14 @@ Selector NSAPI::getOrInitSelector(ArrayRef<StringRef> Ids,
            I = Ids.begin(), E = Ids.end(); I != E; ++I)
       Idents.push_back(&Ctx.Idents.get(*I));
     Sel = Ctx.Selectors.getSelector(Idents.size(), Idents.data());
+  }
+  return Sel;
+}
+
+Selector NSAPI::getOrInitNullarySelector(StringRef Id, Selector &Sel) const {
+  if (Sel.isNull()) {
+    IdentifierInfo *Ident = &Ctx.Idents.get(Id);
+    Sel = Ctx.Selectors.getSelector(0, &Ident);
   }
   return Sel;
 }

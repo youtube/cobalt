@@ -1,5 +1,4 @@
 set(LLVM_LINK_COMPONENTS
-  AllTargetsAsmPrinters
   AllTargetsAsmParsers
   AllTargetsDescs
   AllTargetsDisassemblers
@@ -9,6 +8,7 @@ set(LLVM_LINK_COMPONENTS
   Object
   Support
   Symbolize
+  TargetParser
   )
 
 add_llvm_unittest(CFIVerifyTests
@@ -16,3 +16,5 @@ add_llvm_unittest(CFIVerifyTests
   GraphBuilder.cpp
   )
 target_link_libraries(CFIVerifyTests PRIVATE LLVMCFIVerify)
+
+set_property(TARGET CFIVerifyTests PROPERTY FOLDER "Tests/UnitTests/ToolTests")

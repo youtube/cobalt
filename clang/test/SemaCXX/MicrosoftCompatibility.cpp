@@ -1,5 +1,9 @@
+// RUN: %clang_cc1 %s -triple i686-pc-win32 -fsyntax-only -std=c++11 -Wmicrosoft -verify -fms-compatibility -fexceptions -fcxx-exceptions -fms-compatibility-version=19.28
+// RUN: %clang_cc1 %s -triple i686-pc-win32 -fsyntax-only -std=c++11 -Wmicrosoft -verify -fms-compatibility -fexceptions -fcxx-exceptions -fms-compatibility-version=19.27
 // RUN: %clang_cc1 %s -triple i686-pc-win32 -fsyntax-only -std=c++11 -Wmicrosoft -verify -fms-compatibility -fexceptions -fcxx-exceptions -fms-compatibility-version=19.00
 // RUN: %clang_cc1 %s -triple i686-pc-win32 -fsyntax-only -std=c++11 -Wmicrosoft -verify -fms-compatibility -fexceptions -fcxx-exceptions -fms-compatibility-version=18.00
+// RUN: %clang_cc1 %s -triple i686-pc-win32 -fsyntax-only -std=c++17 -Wmicrosoft -verify -fms-compatibility -fexceptions -fcxx-exceptions
+
 
 #if defined(_HAS_CHAR16_T_LANGUAGE_SUPPORT) && _HAS_CHAR16_T_LANGUAGE_SUPPORT
 char16_t x;
@@ -28,12 +32,20 @@ namespace ms_conversion_rules {
 
 void f(float a);
 void f(int a);
+#if _MSC_VER >= 1928
+// expected-note@-3 2 {{candidate function}}
+// expected-note@-3 2 {{candidate function}}
+#endif
 
 void test()
 {
     long a = 0;
     f((long)0);
-	f(a);
+    f(a);
+#if _MSC_VER >= 1928
+// expected-error@-3 {{call to 'f' is ambiguous}}
+// expected-error@-3 {{call to 'f' is ambiguous}}
+#endif
 }
 
 }
@@ -108,7 +120,7 @@ namespace PR11826 {
   void f() {
     pair p0(3);
 #if _MSC_VER >= 1900
-    pair p = p0; // expected-error {{call to implicitly-deleted copy constructor of 'PR11826::pair'}}
+    pair p = p0; // expected-error {{call to implicitly-deleted copy constructor of 'pair'}}
 #else
     pair p = p0;
 #endif
@@ -128,7 +140,7 @@ namespace PR11826_for_symmetry {
     pair p0(3);
     pair p(4);
 #if _MSC_VER >= 1900
-    p = p0; // expected-error {{object of type 'PR11826_for_symmetry::pair' cannot be assigned because its copy assignment operator is implicitly deleted}}
+    p = p0; // expected-error {{object of type 'pair' cannot be assigned because its copy assignment operator is implicitly deleted}}
 #else
     p = p0;
 #endif
@@ -199,14 +211,14 @@ public:
    typedef B<U> Base2;
    typedef A<U> Base3;
 
-   A<T>::TYPE a1; // expected-warning {{missing 'typename' prior to dependent type name}}
-   Base1::TYPE a2; // expected-warning {{missing 'typename' prior to dependent type name}}
+   A<T>::TYPE a1; // expected-warning {{implicit 'typename' is a C++20 extension}}
+   Base1::TYPE a2; // expected-warning {{implicit 'typename' is a C++20 extension}}
 
-   B<U>::TYPE a3; // expected-warning {{missing 'typename' prior to dependent type name}}
-   Base2::TYPE a4; // expected-warning {{missing 'typename' prior to dependent type name}}
+   B<U>::TYPE a3; // expected-warning {{implicit 'typename' is a C++20 extension}}
+   Base2::TYPE a4; // expected-warning {{implicit 'typename' is a C++20 extension}}
 
-   A<U>::TYPE a5; // expected-error {{missing 'typename' prior to dependent type name}}
-   Base3::TYPE a6; // expected-error {{missing 'typename' prior to dependent type name}}
+   A<U>::TYPE a5; // expected-warning {{implicit 'typename' is a C++20 extension}}
+   Base3::TYPE a6; // expected-warning {{implicit 'typename' is a C++20 extension}}
  };
 
 class D {
@@ -215,9 +227,9 @@ public:
 };
 
 template <class T>
-void function_missing_typename(const T::Type param)// expected-warning {{missing 'typename' prior to dependent type name}}
+void function_missing_typename(const T::Type param)// expected-warning {{missing 'typename'}}
 {
-    const T::Type var = 2; // expected-warning {{missing 'typename' prior to dependent type name}}
+    const T::Type var = 2; // expected-warning {{missing 'typename'}}
 }
 
 template void function_missing_typename<D>(const D::Type param);
@@ -227,14 +239,14 @@ template void function_missing_typename<D>(const D::Type param);
 //MSVC allows forward enum declaration
 enum ENUM; // expected-warning {{forward references to 'enum' types are a Microsoft extension}}
 ENUM *var = 0;     
-ENUM var2 = (ENUM)3;
+ENUM var2 = (ENUM)0;
 enum ENUM1* var3 = 0;// expected-warning {{forward references to 'enum' types are a Microsoft extension}}
 
 enum ENUM1 { kA };
 enum ENUM1;  // This way round is fine.
 
 enum ENUM2 {
-	ENUM2_a = (enum ENUM2) 4,
+	ENUM2_a = (enum ENUM2) 0,
 	ENUM2_b = 0x9FFFFFFF, // expected-warning {{enumerator value is not representable in the underlying type 'int'}}
 	ENUM2_c = 0x100000000 // expected-warning {{enumerator value is not representable in the underlying type 'int'}}
 };
@@ -275,6 +287,17 @@ namespace IntToNullPtrConv {
 
   template<int N> int *get_n() { return N; }   // expected-warning {{expression which evaluates to zero treated as a null pointer constant}}
   int *g_nullptr = get_n<0>();  // expected-note {{in instantiation of function template specialization}}
+
+  // FIXME: MSVC accepts this.
+  constexpr float k = 0;
+  int *p1 = (int)k; // expected-error {{cannot initialize}}
+
+  constexpr int n = 0;
+  const int &r = n;
+  int *p2 = (int)r; // expected-error {{cannot initialize}}
+
+  constexpr int f() { return 0; }
+  int *p = f(); // expected-error {{cannot initialize}}
 }
 
 namespace signed_hex_i64 {
@@ -301,4 +324,88 @@ void function_to_voidptr_conv() {
   void *a1 = function_prototype;  // expected-warning {{implicit conversion between pointer-to-function and pointer-to-object is a Microsoft extension}}
   void *a2 = &function_prototype; // expected-warning {{implicit conversion between pointer-to-function and pointer-to-object is a Microsoft extension}}
   void *a3 = function_ptr;        // expected-warning {{implicit conversion between pointer-to-function and pointer-to-object is a Microsoft extension}}
+}
+
+namespace member_lookup {
+
+template<typename T>
+struct ConfuseLookup {
+  T* m_val;
+  struct m_val {
+    static size_t ms_test;
+  };
+};
+
+// Microsoft mode allows explicit constructor calls
+// This could confuse name lookup in cases such as this
+template<typename T>
+size_t ConfuseLookup<T>::m_val::ms_test
+  = size_t(&(char&)(reinterpret_cast<ConfuseLookup<T>*>(0)->m_val));
+
+void instantiate() { ConfuseLookup<int>::m_val::ms_test = 1; }
+}
+
+
+// Microsoft doesn't validate exception specification.
+namespace microsoft_exception_spec {
+
+void foo(); // expected-note {{previous declaration}}
+void foo() throw(); // expected-warning {{exception specification in declaration does not match previous declaration}}
+
+#if __cplusplus < 201703L
+void r6() throw(...); // expected-note {{previous declaration}}
+void r6() throw(int); // expected-warning {{exception specification in declaration does not match previous declaration}}
+
+struct Base {
+  virtual void f2();
+  virtual void f3() throw(...);
+};
+
+struct Derived : Base {
+  virtual void f2() throw(...);
+  virtual void f3();
+};
+#endif
+
+class A {
+  virtual ~A() throw();
+#if __cplusplus <= 199711L
+  // expected-note@-2 {{overridden virtual function is here}}
+#endif
+};
+
+class B : public A {
+  virtual ~B();
+#if __cplusplus <= 199711L
+  // expected-warning@-2 {{exception specification of overriding function is more lax than base version}}
+#endif
+};
+
+void f4() throw(); // expected-note {{previous declaration is here}}
+void f4() {}       // expected-warning {{'f4' is missing exception specification 'throw()'}}
+
+__declspec(nothrow) void f5();
+void f5() {}
+
+void f6() noexcept; // expected-note {{previous declaration is here}}
+void f6() {}        // expected-error {{'f6' is missing exception specification 'noexcept'}}
+}
+
+namespace PR43265 {
+template <int N> // expected-note {{template parameter is declared here}}
+struct Foo {
+  static const int N = 42; // expected-warning {{declaration of 'N' shadows template parameter}}
+};
+}
+
+namespace Inner_Outer_same_template_param_name {
+template <typename T> // expected-note {{template parameter is declared here}}
+struct Outmost {
+  template <typename T> // expected-warning {{declaration of 'T' shadows template parameter}}
+  struct Inner {
+    void f() {
+      T *var;
+    }
+  };
+};
 }

@@ -1,9 +1,8 @@
 //===- MachOYAML.h - Mach-O YAMLIO implementation ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,13 +18,29 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/ObjectYAML/DWARFYAML.h"
+#include "llvm/ObjectYAML/YAML.h"
 #include "llvm/Support/YAMLTraits.h"
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace llvm {
 namespace MachOYAML {
+
+struct Relocation {
+  // Offset in the section to what is being relocated.
+  llvm::yaml::Hex32 address;
+  // Symbol index if r_extern == 1 else section index.
+  uint32_t symbolnum;
+  bool is_pcrel;
+  // Real length = 2 ^ length.
+  uint8_t length;
+  bool is_extern;
+  uint8_t type;
+  bool is_scattered;
+  int32_t value;
+};
 
 struct Section {
   char sectname[16];
@@ -40,6 +55,8 @@ struct Section {
   llvm::yaml::Hex32 reserved1;
   llvm::yaml::Hex32 reserved2;
   llvm::yaml::Hex32 reserved3;
+  std::optional<llvm::yaml::BinaryRef> content;
+  std::vector<Relocation> relocations;
 };
 
 struct FileHeader {
@@ -60,7 +77,7 @@ struct LoadCommand {
   std::vector<Section> Sections;
   std::vector<MachO::build_tool_version> Tools;
   std::vector<llvm::yaml::Hex8> PayloadBytes;
-  std::string PayloadString;
+  std::string Content;
   uint64_t ZeroPadBytes;
 };
 
@@ -97,6 +114,12 @@ struct ExportEntry {
   std::vector<MachOYAML::ExportEntry> Children;
 };
 
+struct DataInCodeEntry {
+  llvm::yaml::Hex32 Offset;
+  uint16_t Length;
+  llvm::yaml::Hex16 Kind;
+};
+
 struct LinkEditData {
   std::vector<MachOYAML::RebaseOpcode> RebaseOpcodes;
   std::vector<MachOYAML::BindOpcode> BindOpcodes;
@@ -105,6 +128,10 @@ struct LinkEditData {
   MachOYAML::ExportEntry ExportTrie;
   std::vector<NListEntry> NameList;
   std::vector<StringRef> StringTable;
+  std::vector<yaml::Hex32> IndirectSymbols;
+  std::vector<yaml::Hex64> FunctionStarts;
+  std::vector<DataInCodeEntry> DataInCode;
+  std::vector<yaml::Hex8> ChainedFixups;
 
   bool isEmpty() const;
 };
@@ -115,6 +142,7 @@ struct Object {
   std::vector<LoadCommand> LoadCommands;
   std::vector<Section> Sections;
   LinkEditData LinkEdit;
+  std::optional<llvm::yaml::BinaryRef> RawLinkEditSegment;
   DWARFYAML::Data DWARF;
 };
 
@@ -142,6 +170,7 @@ struct UniversalBinary {
 } // end namespace llvm
 
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::LoadCommand)
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::Relocation)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::Section)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::RebaseOpcode)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::BindOpcode)
@@ -149,6 +178,7 @@ LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::ExportEntry)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::NListEntry)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::Object)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::FatArch)
+LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachOYAML::DataInCodeEntry)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::MachO::build_tool_version)
 
 namespace llvm {
@@ -197,8 +227,13 @@ template <> struct MappingTraits<MachOYAML::ExportEntry> {
   static void mapping(IO &IO, MachOYAML::ExportEntry &ExportEntry);
 };
 
+template <> struct MappingTraits<MachOYAML::Relocation> {
+  static void mapping(IO &IO, MachOYAML::Relocation &R);
+};
+
 template <> struct MappingTraits<MachOYAML::Section> {
   static void mapping(IO &IO, MachOYAML::Section &Section);
+  static std::string validate(IO &io, MachOYAML::Section &Section);
 };
 
 template <> struct MappingTraits<MachOYAML::NListEntry> {
@@ -207,6 +242,10 @@ template <> struct MappingTraits<MachOYAML::NListEntry> {
 
 template <> struct MappingTraits<MachO::build_tool_version> {
   static void mapping(IO &IO, MachO::build_tool_version &tool);
+};
+
+template <> struct MappingTraits<MachOYAML::DataInCodeEntry> {
+  static void mapping(IO &IO, MachOYAML::DataInCodeEntry &DataInCodeEntry);
 };
 
 #define HANDLE_LOAD_COMMAND(LCName, LCValue, LCStruct)                         \

@@ -1,14 +1,17 @@
-//===---------------------- catch_function_03.cpp -------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // Can a noexcept function pointer be caught by a non-noexcept catch clause?
-// UNSUPPORTED: libcxxabi-no-exceptions, libcxxabi-no-noexcept-function-type
+// UNSUPPORTED: c++03, c++11, c++14
+// UNSUPPORTED: no-exceptions
+
+// Support for catching a function pointer including noexcept was shipped in macOS 10.13
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12}}
 
 #include <cassert>
 
@@ -54,11 +57,13 @@ void check_deep() {
     }
 }
 
-int main()
+int main(int, char**)
 {
     check<false, false>();
     check<false, true>();
     check<true, false>();
     check<true, true>();
     check_deep();
+
+    return 0;
 }

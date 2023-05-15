@@ -20,15 +20,15 @@ namespace NonPublicMembers {
     int a; // expected-note 2{{declared private here}}
   };
 
-  struct NonPublic3 : private A {}; // expected-note {{constrained by private inheritance}}
+  struct NonPublic3 : private A {}; // expected-note {{declared private here}}
 
   struct NonPublic4 : NonPublic2 {};
 
   void test() {
-    auto [a1] = NonPublic1(); // expected-error {{cannot decompose non-public member 'a' of 'NonPublicMembers::NonPublic1'}}
-    auto [a2] = NonPublic2(); // expected-error {{cannot decompose non-public member 'a' of 'NonPublicMembers::NonPublic2'}}
-    auto [a3] = NonPublic3(); // expected-error {{cannot decompose members of non-public base class 'A' of 'NonPublic3'}}
-    auto [a4] = NonPublic4(); // expected-error {{cannot decompose non-public member 'a' of 'NonPublicMembers::NonPublic4'}}
+    auto [a1] = NonPublic1(); // expected-error {{cannot decompose protected member 'a' of 'NonPublicMembers::NonPublic1'}}
+    auto [a2] = NonPublic2(); // expected-error {{cannot decompose private member 'a' of 'NonPublicMembers::NonPublic2'}}
+    auto [a3] = NonPublic3(); // expected-error {{cannot decompose members of inaccessible base class 'A' of 'NonPublicMembers::NonPublic3'}}
+    auto [a4] = NonPublic4(); // expected-error {{cannot decompose private member 'a' of 'NonPublicMembers::NonPublic2'}}
   }
 }
 
@@ -46,8 +46,8 @@ namespace AnonymousMember {
   };
 
   void test() {
-    auto [a1] = Struct(); // expected-error {{cannot decompose class type 'AnonymousMember::Struct' because it has an anonymous struct member}}
-    auto [a2] = Union(); // expected-error {{cannot decompose class type 'AnonymousMember::Union' because it has an anonymous union member}}
+    auto [a1] = Struct(); // expected-error {{cannot decompose class type 'Struct' because it has an anonymous struct member}}
+    auto [a2] = Union(); // expected-error {{cannot decompose class type 'Union' because it has an anonymous union member}}
   }
 }
 
@@ -67,18 +67,18 @@ namespace MultipleClasses {
 
   struct I { int i; };
   struct J : I {};
-  struct K : I, virtual J {}; // expected-warning {{direct base 'MultipleClasses::I' is inaccessible due to ambiguity}}
+  struct K : I, virtual J {}; // expected-warning {{direct base 'I' is inaccessible due to ambiguity}}
 
   struct L : virtual J {};
   struct M : virtual J, L {};
 
   void test() {
     auto [b] = B(); // expected-error {{cannot decompose class type 'B': both it and its base class 'A' have non-static data members}}
-    auto [d] = D(); // expected-error {{cannot decompose class type 'D': its base classes 'A' and 'MultipleClasses::C' have non-static data members}}
+    auto [d] = D(); // expected-error {{cannot decompose class type 'D': its base classes 'A' and 'C' have non-static data members}}
     auto [e] = E();
-    auto [f] = F(); // expected-error-re {{cannot decompose members of ambiguous base class 'A' of 'F':{{.*}}struct MultipleClasses::F -> struct A{{.*}}struct MultipleClasses::F -> struct MultipleClasses::E -> struct A}}
+    auto [f] = F(); // expected-error-re {{cannot decompose members of ambiguous base class 'A' of 'F':{{.*}}struct MultipleClasses::F -> A{{.*}}struct MultipleClasses::F -> E -> A}}
     auto [h] = H(); // ok, only one (virtual) base subobject even though there are two paths to it
-    auto [k] = K(); // expected-error {{cannot decompose members of ambiguous base class 'MultipleClasses::I'}}
+    auto [k] = K(); // expected-error {{cannot decompose members of ambiguous base class 'I'}}
     auto [m] = M(); // ok, all paths to I are through the same virtual base subobject J
 
     same<decltype(m), int>();
@@ -197,4 +197,45 @@ namespace std_example {
 
   same<decltype((x)), const int&> same1;
   same<decltype((y)), const volatile double&> same2;
+}
+
+namespace p0969r0 {
+  struct A {
+    int x;
+    int y;
+  };
+  struct B : private A { // expected-note {{declared private here}}
+    void test_member() {
+      auto &[x, y] = *this;
+    }
+    friend void test_friend(B);
+  };
+  void test_friend(B b) {
+    auto &[x, y] = b;
+  }
+  void test_external(B b) {
+    auto &[x, y] = b; // expected-error {{cannot decompose members of inaccessible base class 'A' of 'p0969r0::B'}}
+  }
+
+  struct C {
+    int x;
+  protected:
+    int y; // expected-note {{declared protected here}} expected-note {{can only access this member on an object of type 'p0969r0::D'}}
+    void test_member() {
+      auto &[x, y] = *this;
+    }
+    friend void test_friend(struct D);
+  };
+  struct D : C {
+    static void test_member(D d, C c) {
+      auto &[x1, y1] = d;
+      auto &[x2, y2] = c; // expected-error {{cannot decompose protected member 'y' of 'p0969r0::C'}}
+    }
+  };
+  void test_friend(D d) {
+    auto &[x, y] = d;
+  }
+  void test_external(D d) {
+    auto &[x, y] = d; // expected-error {{cannot decompose protected member 'y' of 'p0969r0::C'}}
+  }
 }

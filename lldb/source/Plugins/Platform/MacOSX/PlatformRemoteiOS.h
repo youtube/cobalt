@@ -1,76 +1,51 @@
 //===-- PlatformRemoteiOS.h -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformRemoteiOS_h_
-#define liblldb_PlatformRemoteiOS_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEIOS_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEIOS_H
 
-// C Includes
-// C++ Includes
-#include <string>
-
-// Other libraries and framework includes
-// Project includes
 #include "PlatformRemoteDarwinDevice.h"
-#include "lldb/Utility/FileSpec.h"
+#include "lldb/lldb-forward.h"
+#include "llvm/ADT/StringRef.h"
 
-#include "llvm/Support/FileSystem.h"
+#include <vector>
+
+namespace lldb_private {
+class ArchSpec;
 
 class PlatformRemoteiOS : public PlatformRemoteDarwinDevice {
 public:
   PlatformRemoteiOS();
 
-  ~PlatformRemoteiOS() override = default;
-
-  //------------------------------------------------------------
-  // Class Functions
-  //------------------------------------------------------------
-  static lldb::PlatformSP CreateInstance(bool force,
-                                         const lldb_private::ArchSpec *arch);
+  static lldb::PlatformSP CreateInstance(bool force, const ArchSpec *arch);
 
   static void Initialize();
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "remote-ios"; }
 
-  static const char *GetDescriptionStatic();
+  static llvm::StringRef GetDescriptionStatic();
 
-  //------------------------------------------------------------
-  // lldb_private::Platform functions
-  //------------------------------------------------------------
+  llvm::StringRef GetDescription() override { return GetDescriptionStatic(); }
 
-  const char *GetDescription() override { return GetDescriptionStatic(); }
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
-  //------------------------------------------------------------
-  // lldb_private::PluginInterface functions
-  //------------------------------------------------------------
-  lldb_private::ConstString GetPluginName() override {
-    return GetPluginNameStatic();
-  }
-
-  uint32_t GetPluginVersion() override { return 1; }
-
-  bool GetSupportedArchitectureAtIndex(uint32_t idx,
-                                       lldb_private::ArchSpec &arch) override;
+  std::vector<ArchSpec>
+  GetSupportedArchitectures(const ArchSpec &process_host_arch) override;
 
 protected:
+  bool CheckLocalSharedCache() const override;
 
-  //------------------------------------------------------------
-  // lldb_private::PlatformRemoteDarwinDevice functions
-  //------------------------------------------------------------
-
-  void GetDeviceSupportDirectoryNames (std::vector<std::string> &dirnames) override;
-
-  std::string GetPlatformName () override;
-
-private:
-  DISALLOW_COPY_AND_ASSIGN(PlatformRemoteiOS);
+  llvm::StringRef GetDeviceSupportDirectoryName() override;
+  llvm::StringRef GetPlatformName() override;
 };
 
-#endif // liblldb_PlatformRemoteiOS_h_
+} // namespace lldb_private
+
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMREMOTEIOS_H

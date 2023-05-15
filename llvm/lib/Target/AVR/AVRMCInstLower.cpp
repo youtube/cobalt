@@ -1,9 +1,8 @@
 //===-- AVRMCInstLower.cpp - Convert AVR MachineInstr to an MCInst --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -30,7 +29,9 @@ MCOperand AVRMCInstLower::lowerSymbolOperand(const MachineOperand &MO,
   const MCExpr *Expr = MCSymbolRefExpr::create(Sym, Ctx);
 
   bool IsNegated = false;
-  if (TF & AVRII::MO_NEG) { IsNegated = true; }
+  if (TF & AVRII::MO_NEG) {
+    IsNegated = true;
+  }
 
   if (!MO.isJTI() && MO.getOffset()) {
     Expr = MCBinaryExpr::createAdd(
@@ -60,7 +61,8 @@ MCOperand AVRMCInstLower::lowerSymbolOperand(const MachineOperand &MO,
   return MCOperand::createExpr(Expr);
 }
 
-void AVRMCInstLower::lowerInstruction(const MachineInstr &MI, MCInst &OutMI) const {
+void AVRMCInstLower::lowerInstruction(const MachineInstr &MI,
+                                      MCInst &OutMI) const {
   OutMI.setOpcode(MI.getOpcode());
 
   for (MachineOperand const &MO : MI.operands()) {
@@ -109,4 +111,3 @@ void AVRMCInstLower::lowerInstruction(const MachineInstr &MI, MCInst &OutMI) con
 }
 
 } // end of namespace llvm
-

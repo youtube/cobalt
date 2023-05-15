@@ -11,7 +11,7 @@ entry:
 
 ; CHECK-LABEL: @testExpandISELToIfElse
 ; CHECK: addi r5, r3, 1
-; CHECK-NEXT: cmpwi cr0, r3, 0
+; CHECK-NEXT: cmpwi r3, 0
 ; CHECK-NEXT: bc 12, gt, [[TRUE:.LBB[0-9]+]]
 ; CHECK: ori r3, r4, 0
 ; CHECK-NEXT: b [[SUCCESSOR:.LBB[0-9]+]]
@@ -101,7 +101,7 @@ entry:
   ret i32 %add
 
 ; CHECK-LABEL: @testExpandISELsTo2ORIs1ADDI
-; CHECK: cmpwi cr0, r7, 0
+; CHECK: cmpwi r7, 0
 ; CHECK-NEXT: bc 12, gt, [[TRUE:.LBB[0-9]+]]
 ; CHECK: ori r3, r4, 0
 ; CHECK-NEXT: ori r4, r6, 0
@@ -127,7 +127,7 @@ entry:
   ret i32 %add2
 
 ; CHECK-LABEL: @testExpandISELsTo1ORI1ADDI
-; CHECK: cmpwi cr0, r7, 0
+; CHECK: cmpwi r7, 0
 ; CHECK-NEXT: bc 12, gt, [[TRUE:.LBB[0-9]+]]
 ; CHECK: ori r5, r6, 0
 ; CHECK-NEXT: b [[SUCCESSOR:.LBB[0-9]+]]
@@ -154,7 +154,7 @@ entry:
   ret i32 %sub1
 
 ; CHECK-LABEL: @testExpandISELsTo0ORI2ADDIs
-; CHECK: cmpwi cr0, r7, 0
+; CHECK: cmpwi r7, 0
 ; CHECK-NEXT: bc 12, gt, [[TRUE:.LBB[0-9]+]]
 ; CHECK-NEXT: b [[SUCCESSOR:.LBB[0-9]+]]
 ; CHECK-NEXT:  [[TRUE]]
@@ -163,26 +163,26 @@ entry:
 ; CHECK-NEXT:  [[SUCCESSOR]]
 ; CHECK-NEXT: add r4, r4, r6
 ; CHECK-NEXT: add r3, r3, r4
-; CHECK-NEXT: subf r3, r5, r3
+; CHECK-NEXT: sub r3, r3, r5
 ; CHECK-NEXT: extsw r3, r3
 ; CHECK-NEXT: blr
 }
 
 
-@b = common local_unnamed_addr global i32 0, align 4
-@a = common local_unnamed_addr global i32 0, align 4
+@b = local_unnamed_addr global i32 0, align 4
+@a = local_unnamed_addr global i32 0, align 4
 ; Function Attrs: norecurse nounwind readonly
 define signext i32 @testComplexISEL() #0 {
 entry:
-  %0 = load i32, i32* @b, align 4, !tbaa !1
+  %0 = load i32, ptr @b, align 4, !tbaa !1
   %tobool = icmp eq i32 %0, 0
   br i1 %tobool, label %if.end, label %cleanup
 
 if.end:
-  %1 = load i32, i32* @a, align 4, !tbaa !1
+  %1 = load i32, ptr @a, align 4, !tbaa !1
   %conv = sext i32 %1 to i64
-  %2 = inttoptr i64 %conv to i32 (...)*
-  %cmp = icmp eq i32 (...)* %2, bitcast (i32 ()* @testComplexISEL to i32 (...)*)
+  %2 = inttoptr i64 %conv to ptr
+  %cmp = icmp eq ptr %2, @testComplexISEL
   %conv3 = zext i1 %cmp to i32
   br label %cleanup
 
@@ -193,10 +193,7 @@ cleanup:
 ; CHECK-LABEL: @testComplexISEL
 ; CHECK: cmplwi r3, 0
 ; CHECK: li r3, 1
-; CHECK: beq cr0, [[TGT:.LBB[0-9_]+]]
-; CHECK: clrldi r3, r3, 32
-; CHECK: blr
-; CHECK: [[TGT]]
+; CHECK: bnelr cr0
 ; CHECK: xor [[XOR:r[0-9]+]]
 ; CHECK: cntlzd [[CZ:r[0-9]+]], [[XOR]]
 ; CHECK: rldicl [[SH:r[0-9]+]], [[CZ]], 58, 63

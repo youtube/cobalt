@@ -109,43 +109,42 @@ bb25:                                             ; preds = %bb24
   br i1 undef, label %bb19, label %bb26
 
 bb26:                                             ; preds = %bb56, %bb25
-  %tmp = phi [9 x [152 x i32]]* [ undef, %bb56 ], [ bitcast (i32* getelementptr inbounds ([9 x [152 x i32]], [9 x [152 x i32]]* @global.1, i64 0, i64 0, i64 32) to [9 x [152 x i32]]*), %bb25 ]
+  %tmp = phi ptr [ undef, %bb56 ], [ getelementptr inbounds ([9 x [152 x i32]], ptr @global.1, i64 0, i64 0, i64 32), %bb25 ]
   br label %bb27
 
 bb27:                                             ; preds = %bb27, %bb26
   br i1 undef, label %bb27, label %bb28
 
 bb28:                                             ; preds = %bb27
-  %tmp29 = bitcast [9 x [152 x i32]]* %tmp to i32*
   br label %bb30
 
 bb30:                                             ; preds = %bb38, %bb28
   %tmp31 = phi i32 [ 3, %bb28 ], [ %tmp40, %bb38 ]
-  %tmp32 = phi i32* [ %tmp29, %bb28 ], [ %tmp39, %bb38 ]
+  %tmp32 = phi ptr [ %tmp, %bb28 ], [ %tmp39, %bb38 ]
   br label %bb33
 
 bb33:                                             ; preds = %bb33, %bb30
   %tmp34 = phi i32 [ 0, %bb30 ], [ %tmp37, %bb33 ]
-  %tmp35 = phi i32* [ %tmp32, %bb30 ], [ undef, %bb33 ]
-  %tmp36 = getelementptr inbounds i32, i32* %tmp35, i64 1
-  store i32 undef, i32* %tmp36, align 4, !tbaa !1
+  %tmp35 = phi ptr [ %tmp32, %bb30 ], [ undef, %bb33 ]
+  %tmp36 = getelementptr inbounds i32, ptr %tmp35, i64 1
+  store i32 undef, ptr %tmp36, align 4, !tbaa !1
   %tmp37 = add nuw nsw i32 %tmp34, 1
   br i1 false, label %bb33, label %bb38
 
 bb38:                                             ; preds = %bb33
-  %tmp39 = getelementptr i32, i32* %tmp32, i64 12
+  %tmp39 = getelementptr i32, ptr %tmp32, i64 12
   %tmp40 = add nuw nsw i32 %tmp31, 1
   %tmp41 = icmp ne i32 %tmp40, 13
   br i1 %tmp41, label %bb30, label %bb42
 
 bb42:                                             ; preds = %bb38
-  %tmp43 = getelementptr inbounds [9 x %struct.hoge], [9 x %struct.hoge]* @global, i64 0, i64 0, i32 3, i64 0
+  %tmp43 = getelementptr inbounds [9 x %struct.hoge], ptr @global, i64 0, i64 0, i32 3, i64 0
   br label %bb44
 
 bb44:                                             ; preds = %bb51, %bb42
   %tmp45 = phi i32 [ 0, %bb42 ], [ %tmp52, %bb51 ]
-  %tmp46 = phi i16* [ %tmp43, %bb42 ], [ undef, %bb51 ]
-  %tmp47 = load i16, i16* %tmp46, align 2, !tbaa !5
+  %tmp46 = phi ptr [ %tmp43, %bb42 ], [ undef, %bb51 ]
+  %tmp47 = load i16, ptr %tmp46, align 2, !tbaa !5
   br label %bb48
 
 bb48:                                             ; preds = %bb48, %bb44
@@ -258,11 +257,11 @@ bb86:                                             ; preds = %bb85
   ret void
 }
 
-attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.ident = !{!0}
 
-!0 = !{!"clang version 4.0.0 (http://llvm.org/git/clang.git 359c45534e46a8ef263db1a8b855740bbeca6998) (http://llvm.org/git/llvm.git 2628aff56683b7652abe9f9eb9e54a82d1716aa7)"}
+!0 = !{!"clang version 4.0.0"}
 !1 = !{!2, !2, i64 0}
 !2 = !{!"int", !3, i64 0}
 !3 = !{!"omnipotent char", !4, i64 0}

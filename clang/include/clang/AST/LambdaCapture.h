@@ -1,9 +1,8 @@
 //===--- LambdaCapture.h - Types for C++ Lambda Captures --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -72,7 +71,7 @@ public:
   /// capture that is a pack expansion, or an invalid source
   /// location to indicate that this is not a pack expansion.
   LambdaCapture(SourceLocation Loc, bool Implicit, LambdaCaptureKind Kind,
-                VarDecl *Var = nullptr,
+                ValueDecl *Var = nullptr,
                 SourceLocation EllipsisLoc = SourceLocation());
 
   /// Determine the kind of capture.
@@ -87,7 +86,7 @@ public:
 
   /// Determine whether this capture handles a variable.
   bool capturesVariable() const {
-    return dyn_cast_or_null<VarDecl>(DeclAndBits.getPointer());
+    return isa_and_nonnull<ValueDecl>(DeclAndBits.getPointer());
   }
 
   /// Determine whether this captures a variable length array bound
@@ -102,9 +101,9 @@ public:
   ///
   /// This operation is only valid if this capture is a variable capture
   /// (other than a capture of \c this).
-  VarDecl *getCapturedVar() const {
+  ValueDecl *getCapturedVar() const {
     assert(capturesVariable() && "No variable available for capture");
-    return static_cast<VarDecl *>(DeclAndBits.getPointer());
+    return static_cast<ValueDecl *>(DeclAndBits.getPointer());
   }
 
   /// Determine whether this was an implicit capture (not

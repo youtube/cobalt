@@ -1,19 +1,14 @@
 //===-- ThreadPlanCallFunction.h --------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ThreadPlanCallFunction_h_
-#define liblldb_ThreadPlanCallFunction_h_
+#ifndef LLDB_TARGET_THREADPLANCALLFUNCTION_H
+#define LLDB_TARGET_THREADPLANCALLFUNCTION_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/lldb-private.h"
@@ -73,10 +68,10 @@ public:
   // been cleaned up.
   lldb::addr_t GetFunctionStackPointer() { return m_function_sp; }
 
-  // Classes that derive from FunctionCaller, and implement their own WillPop
+  // Classes that derive from FunctionCaller, and implement their own DidPop
   // methods should call this so that the thread state gets restored if the
   // plan gets discarded.
-  void WillPop() override;
+  void DidPop() override;
 
   // If the thread plan stops mid-course, this will be the stop reason that
   // interrupted us. Once DoTakedown is called, this will be the real stop
@@ -86,7 +81,7 @@ public:
   // stop reason. But if something bad goes wrong, it is nice to be able to
   // tell the user what really happened.
 
-  lldb::StopInfoSP GetRealStopInfo() override {
+  virtual lldb::StopInfoSP GetRealStopInfo() {
     if (m_real_stop_info_sp)
       return m_real_stop_info_sp;
     else
@@ -95,7 +90,7 @@ public:
 
   lldb::addr_t GetStopAddress() { return m_stop_address; }
 
-  bool RestoreThreadState() override;
+  void RestoreThreadState() override;
 
   void ThreadDestroyed() override { m_takedown_done = true; }
 
@@ -151,9 +146,11 @@ protected:
 
 private:
   CompilerType m_return_type;
-  DISALLOW_COPY_AND_ASSIGN(ThreadPlanCallFunction);
+  ThreadPlanCallFunction(const ThreadPlanCallFunction &) = delete;
+  const ThreadPlanCallFunction &
+  operator=(const ThreadPlanCallFunction &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ThreadPlanCallFunction_h_
+#endif // LLDB_TARGET_THREADPLANCALLFUNCTION_H

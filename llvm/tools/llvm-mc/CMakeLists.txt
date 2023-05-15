@@ -1,5 +1,4 @@
 set(LLVM_LINK_COMPONENTS
-  AllTargetsAsmPrinters
   AllTargetsAsmParsers
   AllTargetsDescs
   AllTargetsDisassemblers
@@ -7,6 +6,7 @@ set(LLVM_LINK_COMPONENTS
   MC
   MCParser
   Support
+  TargetParser
   )
 
 add_llvm_tool(llvm-mc

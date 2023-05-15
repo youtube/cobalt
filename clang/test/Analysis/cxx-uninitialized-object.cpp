@@ -1,6 +1,15 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,alpha.cplusplus.UninitializedObject -analyzer-config alpha.cplusplus.UninitializedObject:Pedantic=true -std=c++11 -DPEDANTIC -verify %s
+// RUN: %clang_analyze_cc1 -std=c++14 -verify  %s \
+// RUN:   -analyzer-checker=core \
+// RUN:   -analyzer-checker=optin.cplusplus.UninitializedObject \
+// RUN:   -analyzer-config optin.cplusplus.UninitializedObject:Pedantic=true -DPEDANTIC \
+// RUN:   -analyzer-config \
+// RUN:     optin.cplusplus.UninitializedObject:CheckPointeeInitialization=true
 
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,alpha.cplusplus.UninitializedObject -std=c++11 -verify %s
+// RUN: %clang_analyze_cc1 -std=c++14 -verify  %s \
+// RUN:   -analyzer-checker=core \
+// RUN:   -analyzer-checker=optin.cplusplus.UninitializedObject \
+// RUN:   -analyzer-config \
+// RUN:     optin.cplusplus.UninitializedObject:CheckPointeeInitialization=true
 
 //===----------------------------------------------------------------------===//
 // Default constructor test.
@@ -776,7 +785,7 @@ struct LambdaTest2 {
 
 void fLambdaTest2() {
   int b;
-  auto equals = [&b](int a) { return a == b; }; // expected-note{{uninitialized field 'this->functor.b'}}
+  auto equals = [&b](int a) { return a == b; }; // expected-note{{uninitialized pointee 'this->functor./*captured variable*/b'}}
   LambdaTest2<decltype(equals)>(equals, int());
 }
 #else
@@ -798,8 +807,8 @@ void fLambdaTest2() {
 namespace LT3Detail {
 
 struct RecordType {
-  int x; // expected-note{{uninitialized field 'this->functor.rec1.x'}}
-  int y; // expected-note{{uninitialized field 'this->functor.rec1.y'}}
+  int x; // expected-note{{uninitialized field 'this->functor./*captured variable*/rec1.x'}}
+  int y; // expected-note{{uninitialized field 'this->functor./*captured variable*/rec1.y'}}
 };
 
 } // namespace LT3Detail
@@ -852,8 +861,8 @@ struct MultipleLambdaCapturesTest1 {
 
 void fMultipleLambdaCapturesTest1() {
   int b1, b2 = 3, b3;
-  auto equals = [&b1, &b2, &b3](int a) { return a == b1 == b2 == b3; }; // expected-note{{uninitialized field 'this->functor.b1'}}
-  // expected-note@-1{{uninitialized field 'this->functor.b3'}}
+  auto equals = [&b1, &b2, &b3](int a) { return a == b1 == b2 == b3; }; // expected-note{{uninitialized pointee 'this->functor./*captured variable*/b1'}}
+  // expected-note@-1{{uninitialized pointee 'this->functor./*captured variable*/b3'}}
   MultipleLambdaCapturesTest1<decltype(equals)>(equals, int());
 }
 
@@ -867,8 +876,33 @@ struct MultipleLambdaCapturesTest2 {
 
 void fMultipleLambdaCapturesTest2() {
   int b1, b2 = 3, b3;
-  auto equals = [b1, &b2, &b3](int a) { return a == b1 == b2 == b3; }; // expected-note{{uninitialized field 'this->functor.b3'}}
+  auto equals = [b1, &b2, &b3](int a) { return a == b1 == b2 == b3; }; // expected-note{{uninitialized pointee 'this->functor./*captured variable*/b3'}}
   MultipleLambdaCapturesTest2<decltype(equals)>(equals, int());
+}
+
+struct LambdaWrapper {
+  void *func; // no-crash
+  int dontGetFilteredByNonPedanticMode = 0;
+
+  LambdaWrapper(void *ptr) : func(ptr) {} // expected-warning{{1 uninitialized field}}
+};
+
+struct ThisCapturingLambdaFactory {
+  int a; // expected-note{{uninitialized field 'static_cast<decltype(a.ret()) *>(this->func)->/*'this' capture*/->a'}}
+
+  auto ret() {
+    return [this] { (void)this; };
+  }
+};
+
+void fLambdaFieldWithInvalidThisCapture() {
+  void *ptr;
+  {
+    ThisCapturingLambdaFactory a;
+    decltype(a.ret()) lambda = a.ret();
+    ptr = &lambda;
+  }
+  LambdaWrapper t(ptr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1035,13 +1069,12 @@ void assert(int b) {
 // While a singleton would make more sense as a static variable, that would zero
 // initialize all of its fields, hence the not too practical implementation.
 struct Singleton {
-  // TODO: we'd expect the note: {{uninitialized field 'this->i'}}
-  int i; // no-note
+  int i; // expected-note{{uninitialized field 'this->i'}}
+  int dontGetFilteredByNonPedanticMode = 0;
 
   Singleton() {
     assert(!isInstantiated);
-    // TODO: we'd expect the warning: {{1 uninitialized field}}
-    isInstantiated = true; // no-warning
+    isInstantiated = true; // expected-warning{{1 uninitialized field}}
   }
 
   ~Singleton() {
@@ -1100,4 +1133,52 @@ struct CXX11MemberInitTest2 {
 void fCXX11MemberInitTest2() {
   // TODO: we'd expect the warning: {{2 uninitializeds field}}
   CXX11MemberInitTest2(); // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// "Esoteric" primitive type tests.
+//===----------------------------------------------------------------------===//
+
+struct MyAtomicInt {
+  _Atomic(int) x; // expected-note{{uninitialized field 'this->x'}}
+  int dontGetFilteredByNonPedanticMode = 0;
+
+  MyAtomicInt() {} // expected-warning{{1 uninitialized field}}
+};
+
+void _AtomicTest() {
+  MyAtomicInt b;
+}
+
+struct VectorSizeLong {
+  VectorSizeLong() {}
+  __attribute__((__vector_size__(16))) long x;
+};
+
+void __vector_size__LongTest() {
+  // TODO: Warn for v.x.
+  VectorSizeLong v;
+  v.x[0] = 0;
+}
+
+struct ComplexUninitTest {
+  ComplexUninitTest() {}
+  __complex__ float x;
+  __complex__ int y;
+};
+
+struct ComplexInitTest {
+  ComplexInitTest() {
+    x = {1.0f, 1.0f};
+    y = {1, 1};
+  }
+  __complex__ float x;
+  __complex__ int y;
+};
+
+void fComplexTest() {
+  ComplexInitTest x;
+
+  // TODO: we should emit a warning for x2.x and x2.y.
+  ComplexUninitTest x2;
 }

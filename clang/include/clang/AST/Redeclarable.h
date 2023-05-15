@@ -1,9 +1,8 @@
 //===- Redeclarable.h - Base for Decls that can be redeclared --*- C++ -*-====//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -194,6 +193,7 @@ protected:
 public:
   friend class ASTDeclReader;
   friend class ASTDeclWriter;
+  friend class IncrementalParser;
 
   Redeclarable(const ASTContext &Ctx)
       : RedeclLink(LatestDeclLink(Ctx)),
@@ -258,7 +258,8 @@ public:
 
     redecl_iterator& operator++() {
       assert(Current && "Advancing while iterator has reached end");
-      // Sanity check to avoid infinite loop on invalid redecl chain.
+      // Make sure we don't infinitely loop on an invalid redecl chain. This
+      // should never happen.
       if (Current->isFirstDecl()) {
         if (PassedFirst) {
           assert(0 && "Passed first decl twice, invalid redecl chain!");
@@ -362,8 +363,16 @@ public:
   decl_type &operator*() { return *Ptr; }
   const decl_type &operator*() const { return *Ptr; }
 
+  friend bool operator==(CanonicalDeclPtr LHS, CanonicalDeclPtr RHS) {
+    return LHS.Ptr == RHS.Ptr;
+  }
+  friend bool operator!=(CanonicalDeclPtr LHS, CanonicalDeclPtr RHS) {
+    return LHS.Ptr != RHS.Ptr;
+  }
+
 private:
   friend struct llvm::DenseMapInfo<CanonicalDeclPtr<decl_type>>;
+  friend struct llvm::PointerLikeTypeTraits<CanonicalDeclPtr<decl_type>>;
 
   decl_type *Ptr = nullptr;
 };
@@ -399,6 +408,20 @@ struct DenseMapInfo<clang::CanonicalDeclPtr<decl_type>> {
                       const CanonicalDeclPtr &RHS) {
     return BaseInfo::isEqual(LHS, RHS);
   }
+};
+
+template <typename decl_type>
+struct PointerLikeTypeTraits<clang::CanonicalDeclPtr<decl_type>> {
+  static inline void *getAsVoidPointer(clang::CanonicalDeclPtr<decl_type> P) {
+    return P.Ptr;
+  }
+  static inline clang::CanonicalDeclPtr<decl_type> getFromVoidPointer(void *P) {
+    clang::CanonicalDeclPtr<decl_type> C;
+    C.Ptr = PointerLikeTypeTraits<decl_type *>::getFromVoidPtr(P);
+    return C;
+  }
+  static constexpr int NumLowBitsAvailable =
+      PointerLikeTypeTraits<decl_type *>::NumLowBitsAvailable;
 };
 
 } // namespace llvm

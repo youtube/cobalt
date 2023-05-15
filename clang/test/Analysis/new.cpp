@@ -1,8 +1,9 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,debug.ExprInspection -analyzer-store region -std=c++11 -verify %s
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,debug.ExprInspection -analyzer-store region -std=c++11 -DTEST_INLINABLE_ALLOCATORS -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,debug.ExprInspection -std=c++11 -verify -analyzer-config eagerly-assume=false %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,debug.ExprInspection -std=c++11 -DTEST_INLINABLE_ALLOCATORS -verify -analyzer-config eagerly-assume=false %s
 #include "Inputs/system-header-simulator-cxx.h"
 
 void clang_analyzer_eval(bool);
+void clang_analyzer_warnIfReached();
 
 typedef __typeof__(sizeof(int)) size_t;
 extern "C" void *malloc(size_t);
@@ -115,11 +116,6 @@ void testUseAfter(int *p) {
   delete c;
 }
 
-//--------------------------------------------------------------------
-// Check for intersection with other checkers from MallocChecker.cpp 
-// bounded with unix.Malloc
-//--------------------------------------------------------------------
-
 // new/delete oparators are subjects of cplusplus.NewDelete.
 void testNewDeleteNoWarn() {
   int i;
@@ -135,11 +131,11 @@ void testNewDeleteNoWarn() {
   int *p3 = new int; // no-warning
 }
 
-// unix.Malloc does not know about operators new/delete.
 void testDeleteMallocked() {
   int *x = (int *)malloc(sizeof(int));
-  delete x; // FIXME: Should detect pointer escape and keep silent after 'delete' is modeled properly.
-} // expected-warning{{Potential leak of memory pointed to by 'x'}}
+  // unix.MismatchedDeallocator would catch this, but we're not testing it here.
+  delete x;
+}
 
 void testDeleteOpAfterFree() {
   int *p = (int *)malloc(sizeof(int));
@@ -181,21 +177,20 @@ void testAggregateNew() {
   clang_analyzer_eval(p.y == 2); // expected-warning{{TRUE}}
 }
 
-//--------------------------------
-// Incorrectly-modelled behavior
-//--------------------------------
-
 int testNoInitialization() {
   int *n = new int;
 
-  // Should warn that *n is uninitialized.
-  if (*n) { // no-warning
+  if (*n) { // expected-warning{{Branch condition evaluates to a garbage value [core.uninitialized.Branch]}}
     delete n;
     return 0;
   }
   delete n;
   return 1;
 }
+
+//===----------------------------------------------------------------------===//
+// Incorrectly-modelled behavior.
+//===----------------------------------------------------------------------===//
 
 int testNoInitializationPlacement() {
   int n;
@@ -328,9 +323,8 @@ void testArrayNull() {
 
 void testArrayDestr() {
   NoReturnDtor *p = new NoReturnDtor[2];
-  delete[] p; // Calls the base destructor which aborts, checked below
-   //TODO: clang_analyzer_eval should not be called
-  clang_analyzer_eval(true); // expected-warning{{TRUE}}
+  delete[] p;
+  clang_analyzer_warnIfReached(); // no-warning
 }
 
 // Invalidate Region even in case of default destructor

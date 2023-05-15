@@ -10,19 +10,19 @@
 ; RUN:    -m elf_x86_64 \
 ; RUN:    --plugin-opt=emit-llvm \
 ; RUN:    -shared %t.o -o %t2.o
-; RUN: llvm-dis %t2.o -o - | FileCheck ---check-prefix=NONAME %s
+; RUN: llvm-dis %t2.o -o - | FileCheck --check-prefix=NONAME %s
 
 ; CHECK: @GlobalValueName
 ; CHECK: @foo(i32 %in)
 ; CHECK: somelabel:
-; CHECK:  %GV = load i32, i32* @GlobalValueName
+; CHECK:  %GV = load i32, ptr @GlobalValueName
 ; CHECK:  %add = add i32 %in, %GV
 ; CHECK:  ret i32 %add
 
 ; NONAME: @GlobalValueName
-; NONAME: @foo(i32)
+; NONAME: @foo(i32 %0)
 ; NONAME-NOT: somelabel:
-; NONAME:  %2 = load i32, i32* @GlobalValueName
+; NONAME:  %2 = load i32, ptr @GlobalValueName
 ; NONAME:  %3 = add i32 %0, %2
 ; NONAME:  ret i32 %3
 
@@ -33,7 +33,7 @@ target triple = "x86_64-unknown-linux-gnu"
 
 define i32 @foo(i32 %in) {
 somelabel:
-  %GV = load i32, i32* @GlobalValueName
+  %GV = load i32, ptr @GlobalValueName
   %add = add i32 %in, %GV
   ret i32 %add
 }

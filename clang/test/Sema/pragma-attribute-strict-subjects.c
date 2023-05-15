@@ -55,8 +55,9 @@
 // expected-error@-1 {{attribute 'abi_tag' can't be applied to 'enum'}}
 #pragma clang attribute pop
 
-#pragma clang attribute push (__attribute__((abi_tag("a"))), apply_to = any(enum_constant, function, record(unless(is_union)), variable, variable(is_parameter)))
-// expected-error@-1 {{attribute 'abi_tag' can't be applied to 'variable(is_parameter)', and 'enum_constant'}}
+#pragma clang attribute push (__attribute__((abi_tag("a"))), apply_to = any(enum_constant, function, record(unless(is_union)), variable, variable(is_parameter), enum))
+// FIXME: comma in this diagnostic is wrong.
+// expected-error@-2 {{attribute 'abi_tag' can't be applied to 'enum_constant', and 'enum'}}
 #pragma clang attribute pop
 
 #pragma clang attribute push (__attribute__((abi_tag("a"))), apply_to = any(function, record(unless(is_union)), enum))

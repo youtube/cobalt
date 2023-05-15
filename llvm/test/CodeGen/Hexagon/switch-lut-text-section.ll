@@ -16,12 +16,12 @@ entry:
   br i1 %0, label %switch.lookup, label %return
 
 switch.lookup:                                    ; preds = %entry
-  %switch.gep = getelementptr inbounds [9 x i32], [9 x i32]* @switch.table, i32 0, i32 %x
-  %switch.load = load i32, i32* %switch.gep, align 4
+  %switch.gep = getelementptr inbounds [9 x i32], ptr @switch.table, i32 0, i32 %x
+  %switch.load = load i32, ptr %switch.gep, align 4
   ret i32 %switch.load
 
 return:                                           ; preds = %entry
   ret i32 19
 }
 
-attributes #0 = { norecurse nounwind readnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv60" "target-features"="-hvx,-long-calls" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { norecurse nounwind readnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv60" "target-features"="-hvx,-long-calls" "unsafe-fp-math"="false" "use-soft-float"="false" }

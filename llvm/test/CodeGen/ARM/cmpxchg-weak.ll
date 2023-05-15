@@ -1,10 +1,7 @@
 ; RUN: llc < %s -mtriple=armv7-apple-ios -verify-machineinstrs | FileCheck %s
 
-define void @test_cmpxchg_weak(i32 *%addr, i32 %desired, i32 %new) {
+define void @test_cmpxchg_weak(ptr %addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: test_cmpxchg_weak:
-
-  %pair = cmpxchg weak i32* %addr, i32 %desired, i32 %new seq_cst monotonic
-  %oldval = extractvalue { i32, i1 } %pair, 0
 ; CHECK-NEXT: %bb.0:
 ; CHECK-NEXT:     ldrex   [[LOADED:r[0-9]+]], [r0]
 ; CHECK-NEXT:     cmp     [[LOADED]], r1
@@ -25,18 +22,15 @@ define void @test_cmpxchg_weak(i32 *%addr, i32 %desired, i32 %new) {
 ; CHECK-NEXT:     dmb     ish
 ; CHECK-NEXT:     str     r3, [r0]
 ; CHECK-NEXT:     bx      lr
-
-  store i32 %oldval, i32* %addr
+;
+  %pair = cmpxchg weak ptr %addr, i32 %desired, i32 %new seq_cst monotonic
+  %oldval = extractvalue { i32, i1 } %pair, 0
+  store i32 %oldval, ptr %addr
   ret void
 }
 
-
-define i1 @test_cmpxchg_weak_to_bool(i32, i32 *%addr, i32 %desired, i32 %new) {
+define i1 @test_cmpxchg_weak_to_bool(i32, ptr %addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: test_cmpxchg_weak_to_bool:
-
-  %pair = cmpxchg weak i32* %addr, i32 %desired, i32 %new seq_cst monotonic
-  %success = extractvalue { i32, i1 } %pair, 1
-
 ; CHECK-NEXT: %bb.0:
 ; CHECK-NEXT:     ldrex   [[LOADED:r[0-9]+]], [r1]
 ; CHECK-NEXT:     cmp     [[LOADED]], r2
@@ -47,6 +41,7 @@ define i1 @test_cmpxchg_weak_to_bool(i32, i32 *%addr, i32 %desired, i32 %new) {
 ; CHECK-NEXT:     strex   [[SUCCESS:r[0-9]+]], r3, [r1]
 ; CHECK-NEXT:     cmp     [[SUCCESS]], #0
 ; CHECK-NEXT:     bxne    lr
+; CHECK-NEXT: LBB1_2:
 ; CHECK-NEXT:     mov     r0, #1
 ; CHECK-NEXT:     dmb     ish
 ; CHECK-NEXT:     bx      lr
@@ -54,6 +49,8 @@ define i1 @test_cmpxchg_weak_to_bool(i32, i32 *%addr, i32 %desired, i32 %new) {
 ; CHECK-NEXT:     mov     r0, #0
 ; CHECK-NEXT:     clrex
 ; CHECK-NEXT:     bx      lr
-
+;
+  %pair = cmpxchg weak ptr %addr, i32 %desired, i32 %new seq_cst monotonic
+  %success = extractvalue { i32, i1 } %pair, 1
   ret i1 %success
 }

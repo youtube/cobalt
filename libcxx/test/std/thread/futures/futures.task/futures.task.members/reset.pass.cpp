@@ -1,14 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: no-threads
+// UNSUPPORTED: c++03
 
 // <future>
 
@@ -34,15 +33,15 @@ public:
     }
 };
 
-int main()
+int main(int, char**)
 {
     {
         std::packaged_task<double(int, char)> p(A(5));
         std::future<double> f = p.get_future();
-        p(3, 'a');
+        p(3, 97);
         assert(f.get() == 105.0);
         p.reset();
-        p(4, 'a');
+        p(4, 97);
         f = p.get_future();
         assert(f.get() == 106.0);
     }
@@ -60,4 +59,6 @@ int main()
         }
     }
 #endif
+
+  return 0;
 }

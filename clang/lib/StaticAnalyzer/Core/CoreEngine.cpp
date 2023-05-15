@@ -1,9 +1,8 @@
 //===- CoreEngine.cpp - Path-Sensitive Dataflow Engine --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,10 +23,9 @@
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/BlockCounter.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/FunctionSummary.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/SubEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/WorkList.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Casting.h"
@@ -35,6 +33,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <optional>
 #include <utility>
 
 using namespace clang;
@@ -44,6 +43,8 @@ using namespace ento;
 
 STATISTIC(NumSteps,
             "The # of steps executed.");
+STATISTIC(NumSTUSteps, "The # of STU steps executed.");
+STATISTIC(NumCTUSteps, "The # of CTU steps executed.");
 STATISTIC(NumReachedMaxSteps,
             "The # of times we reached the max number of steps.");
 STATISTIC(NumPathsExplored,
@@ -55,29 +56,37 @@ STATISTIC(NumPathsExplored,
 
 static std::unique_ptr<WorkList> generateWorkList(AnalyzerOptions &Opts) {
   switch (Opts.getExplorationStrategy()) {
-    case AnalyzerOptions::ExplorationStrategyKind::DFS:
+    case ExplorationStrategyKind::DFS:
       return WorkList::makeDFS();
-    case AnalyzerOptions::ExplorationStrategyKind::BFS:
+    case ExplorationStrategyKind::BFS:
       return WorkList::makeBFS();
-    case AnalyzerOptions::ExplorationStrategyKind::BFSBlockDFSContents:
+    case ExplorationStrategyKind::BFSBlockDFSContents:
       return WorkList::makeBFSBlockDFSContents();
-    case AnalyzerOptions::ExplorationStrategyKind::UnexploredFirst:
+    case ExplorationStrategyKind::UnexploredFirst:
       return WorkList::makeUnexploredFirst();
-    case AnalyzerOptions::ExplorationStrategyKind::UnexploredFirstQueue:
+    case ExplorationStrategyKind::UnexploredFirstQueue:
       return WorkList::makeUnexploredFirstPriorityQueue();
-    default:
-      llvm_unreachable("Unexpected case");
+    case ExplorationStrategyKind::UnexploredFirstLocationQueue:
+      return WorkList::makeUnexploredFirstPriorityLocationQueue();
   }
+  llvm_unreachable("Unknown AnalyzerOptions::ExplorationStrategyKind");
 }
 
-CoreEngine::CoreEngine(SubEngine &subengine, FunctionSummariesTy *FS,
+CoreEngine::CoreEngine(ExprEngine &exprengine, FunctionSummariesTy *FS,
                        AnalyzerOptions &Opts)
-    : SubEng(subengine), WList(generateWorkList(Opts)),
+    : ExprEng(exprengine), WList(generateWorkList(Opts)),
+      CTUWList(Opts.IsNaiveCTUEnabled ? generateWorkList(Opts) : nullptr),
       BCounterFactory(G.getAllocator()), FunctionSummaries(FS) {}
 
+void CoreEngine::setBlockCounter(BlockCounter C) {
+  WList->setBlockCounter(C);
+  if (CTUWList)
+    CTUWList->setBlockCounter(C);
+}
+
 /// ExecuteWorkList - Run the worklist algorithm for a maximum number of steps.
-bool CoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps,
-                                   ProgramStateRef InitState) {
+bool CoreEngine::ExecuteWorkList(const LocationContext *L, unsigned MaxSteps,
+                                 ProgramStateRef InitState) {
   if (G.num_roots() == 0) { // Initialize the analysis by constructing
     // the root if none exists.
 
@@ -100,10 +109,10 @@ bool CoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps,
     BlockEdge StartLoc(Entry, Succ, L);
 
     // Set the current block counter to being empty.
-    WList->setBlockCounter(BCounterFactory.GetEmptyCounter());
+    setBlockCounter(BCounterFactory.GetEmptyCounter());
 
     if (!InitState)
-      InitState = SubEng.getInitialState(L);
+      InitState = ExprEng.getInitialState(L);
 
     bool IsNew;
     ExplodedNode *Node = G.getNode(StartLoc, InitState, false, &IsNew);
@@ -112,41 +121,61 @@ bool CoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps,
 
     NodeBuilderContext BuilderCtx(*this, StartLoc.getDst(), Node);
     ExplodedNodeSet DstBegin;
-    SubEng.processBeginOfFunction(BuilderCtx, Node, DstBegin, StartLoc);
+    ExprEng.processBeginOfFunction(BuilderCtx, Node, DstBegin, StartLoc);
 
     enqueue(DstBegin);
   }
 
   // Check if we have a steps limit
-  bool UnlimitedSteps = Steps == 0;
+  bool UnlimitedSteps = MaxSteps == 0;
+
   // Cap our pre-reservation in the event that the user specifies
   // a very large number of maximum steps.
   const unsigned PreReservationCap = 4000000;
   if(!UnlimitedSteps)
-    G.reserve(std::min(Steps,PreReservationCap));
+    G.reserve(std::min(MaxSteps, PreReservationCap));
 
-  while (WList->hasWork()) {
-    if (!UnlimitedSteps) {
-      if (Steps == 0) {
-        NumReachedMaxSteps++;
-        break;
+  auto ProcessWList = [this, UnlimitedSteps](unsigned MaxSteps) {
+    unsigned Steps = MaxSteps;
+    while (WList->hasWork()) {
+      if (!UnlimitedSteps) {
+        if (Steps == 0) {
+          NumReachedMaxSteps++;
+          break;
+        }
+        --Steps;
       }
-      --Steps;
+
+      NumSteps++;
+
+      const WorkListUnit &WU = WList->dequeue();
+
+      // Set the current block counter.
+      setBlockCounter(WU.getBlockCounter());
+
+      // Retrieve the node.
+      ExplodedNode *Node = WU.getNode();
+
+      dispatchWorkItem(Node, Node->getLocation(), WU);
     }
+    return MaxSteps - Steps;
+  };
+  const unsigned STUSteps = ProcessWList(MaxSteps);
 
-    NumSteps++;
+  if (CTUWList) {
+    NumSTUSteps += STUSteps;
+    const unsigned MinCTUSteps =
+        this->ExprEng.getAnalysisManager().options.CTUMaxNodesMin;
+    const unsigned Pct =
+        this->ExprEng.getAnalysisManager().options.CTUMaxNodesPercentage;
+    unsigned MaxCTUSteps = std::max(STUSteps * Pct / 100, MinCTUSteps);
 
-    const WorkListUnit& WU = WList->dequeue();
-
-    // Set the current block counter.
-    WList->setBlockCounter(WU.getBlockCounter());
-
-    // Retrieve the node.
-    ExplodedNode *Node = WU.getNode();
-
-    dispatchWorkItem(Node, Node->getLocation(), WU);
+    WList = std::move(CTUWList);
+    const unsigned CTUSteps = ProcessWList(MaxCTUSteps);
+    NumCTUSteps += CTUSteps;
   }
-  SubEng.processEndWorklist(hasWorkRemaining());
+
+  ExprEng.processEndWorklist();
   return WList->hasWork();
 }
 
@@ -171,7 +200,7 @@ void CoreEngine::dispatchWorkItem(ExplodedNode* Pred, ProgramPoint Loc,
       break;
 
     case ProgramPoint::CallExitBeginKind:
-      SubEng.processCallExit(Pred);
+      ExprEng.processCallExit(Pred);
       break;
 
     case ProgramPoint::EpsilonKind: {
@@ -215,6 +244,26 @@ void CoreEngine::HandleBlockEdge(const BlockEdge &L, ExplodedNode *Pred) {
                                            LC->getDecl(),
                                            LC->getCFG()->getNumBlockIDs());
 
+  // Display a prunable path note to the user if it's a virtual bases branch
+  // and we're taking the path that skips virtual base constructors.
+  if (L.getSrc()->getTerminator().isVirtualBaseBranch() &&
+      L.getDst() == *L.getSrc()->succ_begin()) {
+    ProgramPoint P = L.withTag(getDataTags().make<NoteTag>(
+        [](BugReporterContext &, PathSensitiveBugReport &) -> std::string {
+          // TODO: Just call out the name of the most derived class
+          // when we know it.
+          return "Virtual base initialization skipped because "
+                 "it has already been handled by the most derived class";
+        },
+        /*IsPrunable=*/true));
+    // Perform the transition.
+    ExplodedNodeSet Dst;
+    NodeBuilder Bldr(Pred, Dst, BuilderCtx);
+    Pred = Bldr.generateNode(P, Pred->getState(), Pred);
+    if (!Pred)
+      return;
+  }
+
   // Check if we are entering the EXIT block.
   if (Blk == &(L.getLocationContext()->getCFG()->getExit())) {
     assert(L.getLocationContext()->getCFG()->getExit().empty() &&
@@ -223,23 +272,27 @@ void CoreEngine::HandleBlockEdge(const BlockEdge &L, ExplodedNode *Pred) {
     // Get return statement..
     const ReturnStmt *RS = nullptr;
     if (!L.getSrc()->empty()) {
-      if (Optional<CFGStmt> LastStmt = L.getSrc()->back().getAs<CFGStmt>()) {
+      CFGElement LastElement = L.getSrc()->back();
+      if (std::optional<CFGStmt> LastStmt = LastElement.getAs<CFGStmt>()) {
         RS = dyn_cast<ReturnStmt>(LastStmt->getStmt());
+      } else if (std::optional<CFGAutomaticObjDtor> AutoDtor =
+                     LastElement.getAs<CFGAutomaticObjDtor>()) {
+        RS = dyn_cast<ReturnStmt>(AutoDtor->getTriggerStmt());
       }
     }
 
     // Process the final state transition.
-    SubEng.processEndOfFunction(BuilderCtx, Pred, RS);
+    ExprEng.processEndOfFunction(BuilderCtx, Pred, RS);
 
     // This path is done. Don't enqueue any more nodes.
     return;
   }
 
-  // Call into the SubEngine to process entering the CFGBlock.
+  // Call into the ExprEngine to process entering the CFGBlock.
   ExplodedNodeSet dstNodes;
   BlockEntrance BE(Blk, Pred->getLocationContext());
   NodeBuilderWithSinks nodeBuilder(Pred, dstNodes, BuilderCtx, BE);
-  SubEng.processCFGBlockEntrance(L, nodeBuilder, Pred);
+  ExprEng.processCFGBlockEntrance(L, nodeBuilder, Pred);
 
   // Auto-generate a node.
   if (!nodeBuilder.hasGeneratedNodes()) {
@@ -258,26 +311,25 @@ void CoreEngine::HandleBlockEntrance(const BlockEntrance &L,
   BlockCounter Counter = WList->getBlockCounter();
   Counter = BCounterFactory.IncrementCount(Counter, LC->getStackFrame(),
                                            BlockId);
-  WList->setBlockCounter(Counter);
+  setBlockCounter(Counter);
 
   // Process the entrance of the block.
-  if (Optional<CFGElement> E = L.getFirstElement()) {
+  if (std::optional<CFGElement> E = L.getFirstElement()) {
     NodeBuilderContext Ctx(*this, L.getBlock(), Pred);
-    SubEng.processCFGElement(*E, Pred, 0, &Ctx);
-  }
-  else
+    ExprEng.processCFGElement(*E, Pred, 0, &Ctx);
+  } else
     HandleBlockExit(L.getBlock(), Pred);
 }
 
 void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
-  if (const Stmt *Term = B->getTerminator()) {
+  if (const Stmt *Term = B->getTerminatorStmt()) {
     switch (Term->getStmtClass()) {
       default:
         llvm_unreachable("Analysis for this terminator not implemented.");
 
       case Stmt::CXXBindTemporaryExprClass:
         HandleCleanupTemporaryBranch(
-            cast<CXXBindTemporaryExpr>(B->getTerminator().getStmt()), B, Pred);
+            cast<CXXBindTemporaryExpr>(Term), B, Pred);
         return;
 
       // Model static initializers.
@@ -326,6 +378,7 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
         HandleBranch(cast<ForStmt>(Term)->getCond(), Term, B, Pred);
         return;
 
+      case Stmt::SEHLeaveStmtClass:
       case Stmt::ContinueStmtClass:
       case Stmt::BreakStmtClass:
       case Stmt::GotoStmtClass:
@@ -343,7 +396,7 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
            builder(Pred, B, cast<IndirectGotoStmt>(Term)->getTarget(),
                    *(B->succ_begin()), this);
 
-        SubEng.processIndirectGoto(builder);
+        ExprEng.processIndirectGoto(builder);
         return;
       }
 
@@ -354,7 +407,7 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
         //      'element' variable to a value.
         //  (2) in a terminator, which represents the branch.
         //
-        // For (1), subengines will bind a value (i.e., 0 or 1) indicating
+        // For (1), ExprEngine will bind a value (i.e., 0 or 1) indicating
         // whether or not collection contains any more elements.  We cannot
         // just test to see if the element is nil because a container can
         // contain nil elements.
@@ -365,14 +418,24 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
         SwitchNodeBuilder builder(Pred, B, cast<SwitchStmt>(Term)->getCond(),
                                     this);
 
-        SubEng.processSwitch(builder);
+        ExprEng.processSwitch(builder);
         return;
       }
 
       case Stmt::WhileStmtClass:
         HandleBranch(cast<WhileStmt>(Term)->getCond(), Term, B, Pred);
         return;
+
+      case Stmt::GCCAsmStmtClass:
+        assert(cast<GCCAsmStmt>(Term)->isAsmGoto() && "Encountered GCCAsmStmt without labels");
+        // TODO: Handle jumping to labels
+        return;
     }
+  }
+
+  if (B->getTerminator().isVirtualBaseBranch()) {
+    HandleVirtualBaseBranch(B, Pred);
+    return;
   }
 
   assert(B->succ_size() == 1 &&
@@ -384,7 +447,7 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
 
 void CoreEngine::HandleCallEnter(const CallEnter &CE, ExplodedNode *Pred) {
   NodeBuilderContext BuilderCtx(*this, CE.getEntry(), Pred);
-  SubEng.processCallEnter(BuilderCtx, CE, Pred);
+  ExprEng.processCallEnter(BuilderCtx, CE, Pred);
 }
 
 void CoreEngine::HandleBranch(const Stmt *Cond, const Stmt *Term,
@@ -392,8 +455,8 @@ void CoreEngine::HandleBranch(const Stmt *Cond, const Stmt *Term,
   assert(B->succ_size() == 2);
   NodeBuilderContext Ctx(*this, B, Pred);
   ExplodedNodeSet Dst;
-  SubEng.processBranch(Cond, Term, Ctx, Pred, Dst,
-                       *(B->succ_begin()), *(B->succ_begin()+1));
+  ExprEng.processBranch(Cond, Ctx, Pred, Dst, *(B->succ_begin()),
+                       *(B->succ_begin() + 1));
   // Enqueue the new frontier onto the worklist.
   enqueue(Dst);
 }
@@ -404,7 +467,7 @@ void CoreEngine::HandleCleanupTemporaryBranch(const CXXBindTemporaryExpr *BTE,
   assert(B->succ_size() == 2);
   NodeBuilderContext Ctx(*this, B, Pred);
   ExplodedNodeSet Dst;
-  SubEng.processCleanupTemporaryBranch(BTE, Ctx, Pred, Dst, *(B->succ_begin()),
+  ExprEng.processCleanupTemporaryBranch(BTE, Ctx, Pred, Dst, *(B->succ_begin()),
                                        *(B->succ_begin() + 1));
   // Enqueue the new frontier onto the worklist.
   enqueue(Dst);
@@ -415,7 +478,7 @@ void CoreEngine::HandleStaticInit(const DeclStmt *DS, const CFGBlock *B,
   assert(B->succ_size() == 2);
   NodeBuilderContext Ctx(*this, B, Pred);
   ExplodedNodeSet Dst;
-  SubEng.processStaticInitializer(DS, Ctx, Pred, Dst,
+  ExprEng.processStaticInitializer(DS, Ctx, Pred, Dst,
                                   *(B->succ_begin()), *(B->succ_begin()+1));
   // Enqueue the new frontier onto the worklist.
   enqueue(Dst);
@@ -430,8 +493,31 @@ void CoreEngine::HandlePostStmt(const CFGBlock *B, unsigned StmtIdx,
     HandleBlockExit(B, Pred);
   else {
     NodeBuilderContext Ctx(*this, B, Pred);
-    SubEng.processCFGElement((*B)[StmtIdx], Pred, StmtIdx, &Ctx);
+    ExprEng.processCFGElement((*B)[StmtIdx], Pred, StmtIdx, &Ctx);
   }
+}
+
+void CoreEngine::HandleVirtualBaseBranch(const CFGBlock *B,
+                                         ExplodedNode *Pred) {
+  const LocationContext *LCtx = Pred->getLocationContext();
+  if (const auto *CallerCtor = dyn_cast_or_null<CXXConstructExpr>(
+          LCtx->getStackFrame()->getCallSite())) {
+    switch (CallerCtor->getConstructionKind()) {
+    case CXXConstructExpr::CK_NonVirtualBase:
+    case CXXConstructExpr::CK_VirtualBase: {
+      BlockEdge Loc(B, *B->succ_begin(), LCtx);
+      HandleBlockEdge(Loc, Pred);
+      return;
+    }
+    default:
+      break;
+    }
+  }
+
+  // We either don't see a parent stack frame because we're in the top frame,
+  // or the parent stack frame doesn't initialize our virtual bases.
+  BlockEdge Loc(B, *(B->succ_begin() + 1), LCtx);
+  HandleBlockEdge(Loc, Pred);
 }
 
 /// generateNode - Utility method to generate nodes, hook up successors,
@@ -529,7 +615,7 @@ void CoreEngine::enqueue(ExplodedNodeSet &Set,
 }
 
 void CoreEngine::enqueueEndOfFunction(ExplodedNodeSet &Set, const ReturnStmt *RS) {
-  for (auto I : Set) {
+  for (auto *I : Set) {
     // If we are in an inlined call, generate CallExitBegin node.
     if (I->getLocationContext()->getParent()) {
       I = generateCallExitBeginNode(I, RS);
@@ -628,8 +714,8 @@ SwitchNodeBuilder::generateDefaultCaseNode(ProgramStateRef St,
   assert(Src->succ_rbegin() != Src->succ_rend());
   CFGBlock *DefaultBlock = *Src->succ_rbegin();
 
-  // Sanity check for default blocks that are unreachable and not caught
-  // by earlier stages.
+  // Basic correctness check for default blocks that are unreachable and not
+  // caught by earlier stages.
   if (!DefaultBlock)
     return nullptr;
 

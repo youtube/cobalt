@@ -20,14 +20,14 @@ target triple = "x86_64-unknown-freebsd11.0"
 
 define i32 @g() #0 {
 entry:
-  %tmp = load i32, i32* @i, align 4
+  %tmp = load i32, ptr @i, align 4
   %tobool = icmp eq i32 %tmp, 0
   br i1 %tobool, label %if.end, label %if.then
 
 if.then:                                          ; preds = %entry
-  store i32 0, i32* @i, align 4
+  store i32 0, ptr @i, align 4
   tail call void (...) @f() #2
-  %.pre = load i32, i32* @i, align 4
+  %.pre = load i32, ptr @i, align 4
   br label %if.end
 
 if.end:                                           ; preds = %if.then, %entry
@@ -51,6 +51,6 @@ if.end:                                           ; preds = %if.then, %entry
 
 declare void @f(...) #1
 
-attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { nounwind }

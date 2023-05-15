@@ -1,27 +1,21 @@
-// -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
-// XFAIL: with_system_cxx_lib=macosx10.12
-// XFAIL: with_system_cxx_lib=macosx10.11
-// XFAIL: with_system_cxx_lib=macosx10.10
-// XFAIL: with_system_cxx_lib=macosx10.9
-// XFAIL: with_system_cxx_lib=macosx10.7
-// XFAIL: with_system_cxx_lib=macosx10.8
+// Throwing bad_variant_access is supported starting in macosx10.13
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12}} && !no-exceptions
 
 // <variant>
 
 // template <class ...Types> class variant;
 
-// variant(variant const&);
+// constexpr variant(variant const&);
 
 #include <cassert>
 #include <type_traits>
@@ -125,7 +119,7 @@ void test_copy_ctor_sfinae() {
     static_assert(!std::is_copy_constructible<V>::value, "");
   }
 
-  // The following tests are for not-yet-standardized behavior (P0602):
+  // Make sure we properly propagate triviality (see P0602R4).
   {
     using V = std::variant<int, long>;
     static_assert(std::is_trivially_copy_constructible<V>::value, "");
@@ -173,7 +167,7 @@ void test_copy_ctor_basic() {
     assert(std::get<1>(v2).value == 42);
   }
 
-  // The following tests are for not-yet-standardized behavior (P0602):
+  // Make sure we properly propagate triviality, which implies constexpr-ness (see P0602R4).
   {
     constexpr std::variant<int> v(std::in_place_index<0>, 42);
     static_assert(v.index() == 0, "");
@@ -230,44 +224,34 @@ void test_copy_ctor_valueless_by_exception() {
 }
 
 template <size_t Idx>
-constexpr bool test_constexpr_copy_ctor_extension_imp(
-    std::variant<long, void*, const int> const& v)
-{
+constexpr bool test_constexpr_copy_ctor_imp(std::variant<long, void*, const int> const& v) {
   auto v2 = v;
   return v2.index() == v.index() &&
          v2.index() == Idx &&
          std::get<Idx>(v2) == std::get<Idx>(v);
 }
 
-void test_constexpr_copy_ctor_extension() {
-  // NOTE: This test is for not yet standardized behavior. (P0602)
+void test_constexpr_copy_ctor() {
+  // Make sure we properly propagate triviality, which implies constexpr-ness (see P0602R4).
   using V = std::variant<long, void*, const int>;
-#ifdef TEST_WORKAROUND_C1XX_BROKEN_IS_TRIVIALLY_COPYABLE
+#ifdef TEST_WORKAROUND_MSVC_BROKEN_IS_TRIVIALLY_COPYABLE
   static_assert(std::is_trivially_destructible<V>::value, "");
   static_assert(std::is_trivially_copy_constructible<V>::value, "");
   static_assert(std::is_trivially_move_constructible<V>::value, "");
   static_assert(!std::is_copy_assignable<V>::value, "");
   static_assert(!std::is_move_assignable<V>::value, "");
-#else // TEST_WORKAROUND_C1XX_BROKEN_IS_TRIVIALLY_COPYABLE
+#else // TEST_WORKAROUND_MSVC_BROKEN_IS_TRIVIALLY_COPYABLE
   static_assert(std::is_trivially_copyable<V>::value, "");
-#endif // TEST_WORKAROUND_C1XX_BROKEN_IS_TRIVIALLY_COPYABLE
-  static_assert(test_constexpr_copy_ctor_extension_imp<0>(V(42l)), "");
-  static_assert(test_constexpr_copy_ctor_extension_imp<1>(V(nullptr)), "");
-  static_assert(test_constexpr_copy_ctor_extension_imp<2>(V(101)), "");
+#endif // TEST_WORKAROUND_MSVC_BROKEN_IS_TRIVIALLY_COPYABLE
+  static_assert(test_constexpr_copy_ctor_imp<0>(V(42l)), "");
+  static_assert(test_constexpr_copy_ctor_imp<1>(V(nullptr)), "");
+  static_assert(test_constexpr_copy_ctor_imp<2>(V(101)), "");
 }
 
-int main() {
+int main(int, char**) {
   test_copy_ctor_basic();
   test_copy_ctor_valueless_by_exception();
   test_copy_ctor_sfinae();
-  test_constexpr_copy_ctor_extension();
-#if 0
-// disable this for the moment; it fails on older compilers.
-//  Need to figure out which compilers will support it.
-{ // This is the motivating example from P0739R0
-  std::variant<int, double> v1(3);
-  std::variant v2 = v1;
-  (void) v2;
-}
-#endif
+  test_constexpr_copy_ctor();
+  return 0;
 }

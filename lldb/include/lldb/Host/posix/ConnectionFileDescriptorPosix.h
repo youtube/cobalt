@@ -1,26 +1,22 @@
 //===-- ConnectionFileDescriptorPosix.h -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Host_posix_ConnectionFileDescriptorPosix_h_
-#define liblldb_Host_posix_ConnectionFileDescriptorPosix_h_
+#ifndef LLDB_HOST_POSIX_CONNECTIONFILEDESCRIPTORPOSIX_H
+#define LLDB_HOST_POSIX_CONNECTIONFILEDESCRIPTORPOSIX_H
 
-// C++ Includes
 #include <atomic>
 #include <memory>
 #include <mutex>
 
 #include "lldb/lldb-forward.h"
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/Pipe.h"
-#include "lldb/Host/Predicate.h"
+#include "lldb/Host/Socket.h"
 #include "lldb/Utility/Connection.h"
 #include "lldb/Utility/IOObject.h"
 
@@ -32,16 +28,8 @@ class SocketAddress;
 
 class ConnectionFileDescriptor : public Connection {
 public:
-  static const char *LISTEN_SCHEME;
-  static const char *ACCEPT_SCHEME;
-  static const char *UNIX_ACCEPT_SCHEME;
-  static const char *CONNECT_SCHEME;
-  static const char *TCP_CONNECT_SCHEME;
-  static const char *UDP_SCHEME;
-  static const char *UNIX_CONNECT_SCHEME;
-  static const char *UNIX_ABSTRACT_CONNECT_SCHEME;
-  static const char *FD_SCHEME;
-  static const char *FILE_SCHEME;
+  typedef llvm::function_ref<void(llvm::StringRef local_socket_id)>
+      socket_id_callback_type;
 
   ConnectionFileDescriptor(bool child_processes_inherit = false);
 
@@ -53,7 +41,12 @@ public:
 
   bool IsConnected() const override;
 
-  lldb::ConnectionStatus Connect(llvm::StringRef s, Status *error_ptr) override;
+  lldb::ConnectionStatus Connect(llvm::StringRef url,
+                                 Status *error_ptr) override;
+
+  lldb::ConnectionStatus Connect(llvm::StringRef url,
+                                 socket_id_callback_type socket_id_callback,
+                                 Status *error_ptr);
 
   lldb::ConnectionStatus Disconnect(Status *error_ptr) override;
 
@@ -70,9 +63,7 @@ public:
 
   bool InterruptRead() override;
 
-  lldb::IOObjectSP GetReadObject() override { return m_read_sp; }
-
-  uint16_t GetListeningPort(const Timeout<std::micro> &timeout);
+  lldb::IOObjectSP GetReadObject() override { return m_io_sp; }
 
   bool GetChildProcessesInherit() const;
   void SetChildProcessesInherit(bool child_processes_inherit);
@@ -82,37 +73,68 @@ protected:
 
   void CloseCommandPipe();
 
-  lldb::ConnectionStatus SocketListenAndAccept(llvm::StringRef host_and_port,
-                                               Status *error_ptr);
+  lldb::ConnectionStatus
+  AcceptSocket(Socket::SocketProtocol socket_protocol,
+               llvm::StringRef socket_name,
+               llvm::function_ref<void(Socket &)> post_listen_callback,
+               Status *error_ptr);
+
+  lldb::ConnectionStatus ConnectSocket(Socket::SocketProtocol socket_protocol,
+                                       llvm::StringRef socket_name,
+                                       Status *error_ptr);
+
+  lldb::ConnectionStatus AcceptTCP(llvm::StringRef host_and_port,
+                                   socket_id_callback_type socket_id_callback,
+                                   Status *error_ptr);
 
   lldb::ConnectionStatus ConnectTCP(llvm::StringRef host_and_port,
+                                    socket_id_callback_type socket_id_callback,
                                     Status *error_ptr);
 
-  lldb::ConnectionStatus ConnectUDP(llvm::StringRef args, Status *error_ptr);
+  lldb::ConnectionStatus ConnectUDP(llvm::StringRef args,
+                                    socket_id_callback_type socket_id_callback,
+                                    Status *error_ptr);
 
-  lldb::ConnectionStatus NamedSocketConnect(llvm::StringRef socket_name,
-                                            Status *error_ptr);
+  lldb::ConnectionStatus
+  ConnectNamedSocket(llvm::StringRef socket_name,
+                     socket_id_callback_type socket_id_callback,
+                     Status *error_ptr);
 
-  lldb::ConnectionStatus NamedSocketAccept(llvm::StringRef socket_name,
-                                           Status *error_ptr);
+  lldb::ConnectionStatus
+  AcceptNamedSocket(llvm::StringRef socket_name,
+                    socket_id_callback_type socket_id_callback,
+                    Status *error_ptr);
 
-  lldb::ConnectionStatus UnixAbstractSocketConnect(llvm::StringRef socket_name,
-                                                   Status *error_ptr);
+  lldb::ConnectionStatus
+  AcceptAbstractSocket(llvm::StringRef socket_name,
+                       socket_id_callback_type socket_id_callback,
+                       Status *error_ptr);
 
-  lldb::IOObjectSP m_read_sp;
-  lldb::IOObjectSP m_write_sp;
+  lldb::ConnectionStatus
+  ConnectAbstractSocket(llvm::StringRef socket_name,
+                        socket_id_callback_type socket_id_callback,
+                        Status *error_ptr);
 
-  Predicate<uint16_t>
-      m_port_predicate; // Used when binding to port zero to wait for the thread
-                        // that creates the socket, binds and listens to
-                        // resolve the port number.
+  lldb::ConnectionStatus ConnectFD(llvm::StringRef args,
+                                   socket_id_callback_type socket_id_callback,
+                                   Status *error_ptr);
+
+  lldb::ConnectionStatus ConnectFile(llvm::StringRef args,
+                                     socket_id_callback_type socket_id_callback,
+                                     Status *error_ptr);
+
+  lldb::ConnectionStatus
+  ConnectSerialPort(llvm::StringRef args,
+                    socket_id_callback_type socket_id_callback,
+                    Status *error_ptr);
+
+  lldb::IOObjectSP m_io_sp;
 
   Pipe m_pipe;
   std::recursive_mutex m_mutex;
   std::atomic<bool> m_shutting_down; // This marks that we are shutting down so
                                      // if we get woken up from
   // BytesAvailable to disconnect, we won't try to read again.
-  bool m_waiting_for_accept;
   bool m_child_processes_inherit;
 
   std::string m_uri;
@@ -120,9 +142,11 @@ protected:
 private:
   void InitializeSocket(Socket *socket);
 
-  DISALLOW_COPY_AND_ASSIGN(ConnectionFileDescriptor);
+  ConnectionFileDescriptor(const ConnectionFileDescriptor &) = delete;
+  const ConnectionFileDescriptor &
+  operator=(const ConnectionFileDescriptor &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ConnectionFileDescriptor_h_
+#endif // LLDB_HOST_POSIX_CONNECTIONFILEDESCRIPTORPOSIX_H

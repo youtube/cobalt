@@ -2,10 +2,10 @@
 ; RUN: llc -mtriple=x86_64-pc-windows-msvc -stack-symbol-ordering=0 < %s | FileCheck --check-prefix=X64 %s
 
 declare i32 @__CxxFrameHandler3(...)
-declare void @Dtor(i64* %o)
+declare void @Dtor(ptr %o)
 declare void @f(i32)
 
-define void @realigned_cleanup() personality i32 (...)* @__CxxFrameHandler3 {
+define void @realigned_cleanup() personality ptr @__CxxFrameHandler3 {
 entry:
   ; Overalign %o to cause stack realignment.
   %o = alloca i64, align 32
@@ -13,12 +13,12 @@ entry:
           to label %invoke.cont unwind label %ehcleanup
 
 invoke.cont:                                      ; preds = %entry
-  call void @Dtor(i64* %o)
+  call void @Dtor(ptr %o)
   ret void
 
 ehcleanup:                                        ; preds = %entry
   %0 = cleanuppad within none []
-  call void @Dtor(i64* %o) [ "funclet"(token %0) ]
+  call void @Dtor(ptr %o) [ "funclet"(token %0) ]
   cleanupret from %0 unwind to caller
 }
 
@@ -47,13 +47,13 @@ ehcleanup:                                        ; preds = %entry
 
 ; X64-LABEL: realigned_cleanup: # @realigned_cleanup
 ; X64:         pushq   %rbp
-; X64:         .seh_pushreg 5
+; X64:         .seh_pushreg %rbp
 ; X64:         pushq   %rbx
-; X64:         .seh_pushreg 3
+; X64:         .seh_pushreg %rbx
 ; X64:         subq    $104, %rsp
 ; X64:         .seh_stackalloc 104
 ; X64:         leaq    96(%rsp), %rbp
-; X64:         .seh_setframe 5, 96
+; X64:         .seh_setframe %rbp, 96
 ; X64:         .seh_endprologue
 ; X64:         andq    $-32, %rsp
 ; X64:         movq    %rsp, %rbx
@@ -64,9 +64,9 @@ ehcleanup:                                        ; preds = %entry
 ; X64-LABEL: "?dtor$2@?0?realigned_cleanup@4HA":
 ; X64:         movq    %rdx, 16(%rsp)
 ; X64:         pushq   %rbp
-; X64:         .seh_pushreg 5
+; X64:         .seh_pushreg %rbp
 ; X64:         pushq   %rbx
-; X64:         .seh_pushreg 3
+; X64:         .seh_pushreg %rbx
 ; X64:         subq    $40, %rsp
 ; X64:         .seh_stackalloc 40
 ; X64:         leaq    96(%rdx), %rbp

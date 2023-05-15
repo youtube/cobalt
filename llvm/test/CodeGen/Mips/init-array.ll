@@ -2,7 +2,7 @@
 
 target triple = "mipsel-unknown-linux"
 
-@llvm.global_ctors = appending global [1 x { i32, void ()* }] [{ i32, void ()* } { i32 65535, void ()* @test }]
+@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @test, ptr null }]
 ; CHECK: .section
 ; CHECK: .init_array
 ; CHECK-NOT: .ctors

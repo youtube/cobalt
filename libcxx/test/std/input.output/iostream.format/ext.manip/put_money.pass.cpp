@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,8 +13,10 @@
 // REQUIRES: locale.en_US.UTF-8
 
 #include <iomanip>
+#include <ostream>
 #include <cassert>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
 template <class CharT>
@@ -50,42 +51,62 @@ protected:
         }
 };
 
-int main()
+int main(int, char**)
 {
     {
         testbuf<char> sb;
         std::ostream os(&sb);
         os.imbue(std::locale(LOCALE_en_US_UTF_8));
-        showbase(os);
+        std::showbase(os);
         long double x = -123456789;
         os << std::put_money(x, false);
+#if defined(_WIN32)
+        assert(sb.str() == "($1,234,567.89)");
+#else
         assert(sb.str() == "-$1,234,567.89");
+#endif
     }
     {
         testbuf<char> sb;
         std::ostream os(&sb);
         os.imbue(std::locale(LOCALE_en_US_UTF_8));
-        showbase(os);
+        std::showbase(os);
         long double x = -123456789;
         os << std::put_money(x, true);
+#if defined(_WIN32)
+        assert(sb.str() == "(USD1,234,567.89)");
+#else
         assert(sb.str() == "-USD 1,234,567.89");
+#endif
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         testbuf<wchar_t> sb;
         std::wostream os(&sb);
         os.imbue(std::locale(LOCALE_en_US_UTF_8));
-        showbase(os);
+        std::showbase(os);
         long double x = -123456789;
         os << std::put_money(x, false);
+#if defined(_WIN32)
+        assert(sb.str() == L"($1,234,567.89)");
+#else
         assert(sb.str() == L"-$1,234,567.89");
+#endif
     }
     {
         testbuf<wchar_t> sb;
         std::wostream os(&sb);
         os.imbue(std::locale(LOCALE_en_US_UTF_8));
-        showbase(os);
+        std::showbase(os);
         long double x = -123456789;
         os << std::put_money(x, true);
+#if defined(_WIN32)
+        assert(sb.str() == L"(USD1,234,567.89)");
+#else
         assert(sb.str() == L"-USD 1,234,567.89");
+#endif
     }
+#endif
+
+  return 0;
 }

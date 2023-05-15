@@ -1,5 +1,5 @@
-// RUN: llvm-mc -triple i386-pc-win32 -filetype=obj %s | llvm-readobj -s | FileCheck %s
-// RUN: llvm-mc -triple x86_64-pc-win32 -filetype=obj %s | llvm-readobj -s | FileCheck %s
+// RUN: llvm-mc -triple i386-pc-win32 -filetype=obj %s | llvm-readobj -S - | FileCheck %s
+// RUN: llvm-mc -triple x86_64-pc-win32 -filetype=obj %s | llvm-readobj -S - | FileCheck %s
 
 .section .foo$bar; .long 1
 .section .foo@bar; .long 1
@@ -37,6 +37,7 @@
 .section s_w,"w"; .long 1
 .section s_x,"x"; .long 1
 .section s_y,"y"; .long 1
+.section s_i,"i"; .long 1
 
 // CHECK:        Section {
 // CHECK:          Name: s
@@ -143,6 +144,15 @@
 // CHECK-NEXT:       IMAGE_SCN_ALIGN_1BYTES
 // CHECK-NEXT:     ]
 // CHECK:        }
+// CHECK:        Section {
+// CHECK:          Name: s_i
+// CHECK:          Characteristics [
+// CHECK-NEXT:       IMAGE_SCN_ALIGN_1BYTES
+// CHECK-NEXT:       IMAGE_SCN_LNK_INFO
+// CHECK-NEXT:       IMAGE_SCN_MEM_READ
+// CHECK-NEXT:       IMAGE_SCN_MEM_WRITE
+// CHECK-NEXT:     ]
+// CHECK:        }
 
 // w makes read-only to readable
 .section s_rw,"rw"; .long 1
@@ -190,5 +200,11 @@
 // CHECK-NEXT:     ]
 // CHECK:        }
 
+/// The section name can be quoted.
+.section "@#$-{","n"
+// CHECK:        Section {
+// CHECK-NEXT:     Number:
+// CHECK-NEXT:     Name: @#$-{
 
+// CHECK-NOT:    Section {
 // CHECK:      ]

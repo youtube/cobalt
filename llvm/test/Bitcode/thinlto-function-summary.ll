@@ -1,4 +1,3 @@
-; RUN: opt -name-anon-globals -module-summary < %s | llvm-bcanalyzer -dump | FileCheck %s -check-prefix=BC
 ; RUN: opt -passes=name-anon-globals -module-summary < %s | llvm-bcanalyzer -dump | FileCheck %s -check-prefix=BC
 ; Check for summary block/records.
 
@@ -13,21 +12,27 @@
 ; BC-NEXT: <FUNCTION op0=7 op1=39
 ; "variadic"
 ; BC-NEXT: <FUNCTION op0=46 op1=8
+; "llvm.va_start"
+; BC-NEXT: <FUNCTION op0=54 op1=13
 ; "f"
-; BC-NEXT: <ALIAS op0=54 op1=1
+; BC-NEXT: <ALIAS op0=67 op1=1
 ; BC: <GLOBALVAL_SUMMARY_BLOCK
 ; BC-NEXT: <VERSION
+; BC-NEXT: <FLAGS
 ; BC-NEXT: <PERMODULE {{.*}} op0=1 op1=0
 ; BC-NEXT: <PERMODULE {{.*}} op0=2 op1=0
 ; BC-NEXT: <PERMODULE {{.*}} op0=3 op1=7
-; BC-NEXT: <PERMODULE {{.*}} op0=4 op1=16
-; BC-NEXT: <ALIAS {{.*}} op0=5 op1=0 op2=3
+; BC-NEXT: <PERMODULE {{.*}} op0=4 op1=0 op2=4 op3=0
+; BC-NEXT: <ALIAS {{.*}} op0=6 op1=0 op2=3
+; BC-NEXT: <BLOCK_COUNT op0=5/>
 ; BC-NEXT: </GLOBALVAL_SUMMARY_BLOCK
 ; BC: <STRTAB_BLOCK
-; BC-NEXT: blob data = 'hfoobaranon.{{................................}}.0variadicf{{.*}}'
+; BC-NEXT: blob data = 'hfoobaranon.{{................................}}.0variadicllvm.va_startf{{.*}}'
 
 
-; RUN: opt -name-anon-globals -module-summary < %s | llvm-dis | FileCheck %s
+; RUN: opt -passes=name-anon-globals -module-summary < %s | llvm-dis | FileCheck %s
+; RUN: opt -passes=name-anon-globals -module-summary -S < %s | FileCheck %s
+; RUN: opt -passes=name-anon-globals -module-summary -S < %s | llvm-as | llvm-dis | FileCheck %s
 ; Check that this round-trips correctly.
 
 ; ModuleID = '<stdin>'
@@ -55,8 +60,8 @@ entry:
 ; entries are committed.
 ; Check an anonymous function as well, since in that case only the alias
 ; ends up in the value symbol table and having a summary.
-@f = alias void (), void ()* @0   ; <void ()*> [#uses=0]
-@h = external global void ()*     ; <void ()*> [#uses=0]
+@f = alias void (), void ()* @0   ; <ptr> [#uses=0]
+@h = external global void ()*     ; <ptr> [#uses=0]
 
 define internal void @0() nounwind {
 entry:
@@ -68,5 +73,10 @@ return:         ; preds = %entry
 }
 
 define i32 @variadic(...) {
+    %ap = alloca i8*, align 8
+    %ap.0 = bitcast i8** %ap to i8*
+    call void @llvm.va_start(i8* %ap.0)
     ret i32 42
 }
+
+declare void @llvm.va_start(i8*) nounwind

@@ -1,9 +1,8 @@
 //===- FunctionSummary.h - Stores summaries of functions. -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,11 +17,10 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include <cassert>
 #include <deque>
+#include <optional>
 #include <utility>
 
 namespace clang {
@@ -87,11 +85,11 @@ public:
     markShouldNotInline(D);
   }
 
-  Optional<bool> mayInline(const Decl *D) {
+  std::optional<bool> mayInline(const Decl *D) {
     MapTy::const_iterator I = Map.find(D);
     if (I != Map.end() && I->second.InlineChecked)
       return I->second.MayInline;
-    return None;
+    return std::nullopt;
   }
 
   void markVisitedBasicBlock(unsigned ID, const Decl* D, unsigned TotalIDs) {

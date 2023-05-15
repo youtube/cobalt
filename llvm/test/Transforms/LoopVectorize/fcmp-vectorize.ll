@@ -1,4 +1,4 @@
-; RUN: opt -loop-vectorize -force-vector-width=4 -force-vector-interleave=1 -S %s | FileCheck %s
+; RUN: opt -passes=loop-vectorize -force-vector-width=4 -force-vector-interleave=1 -S %s | FileCheck %s
 
 ; Avoid crashing while trying to vectorize fcmp that can be folded to vector of
 ; i1 true.
@@ -6,9 +6,7 @@ define void @test1() {
 ; CHECK-LABEL: test1(
 ; CHECK-LABEL: vector.body:
 ; CHECK-NEXT:    %index = phi i32 [ 0, %vector.ph ], [ %index.next, %vector.body ]
-; CHECK-NEXT:    %broadcast.splatinsert = insertelement <4 x i32> undef, i32 %index, i32 0
-; CHECK:         %induction = add <4 x i32> %broadcast.splat, <i32 0, i32 1, i32 2, i32 3>
-; CHECK:         %index.next = add i32 %index, 4
+; CHECK:         %index.next = add nuw i32 %index, 4
 
 entry:
   br label %loop

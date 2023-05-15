@@ -1,9 +1,8 @@
 //===- unittest/Tooling/RecursiveASTVisitorTests/Attr.cpp -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,7 +17,7 @@ namespace {
 class AttrVisitor : public ExpectedLocationVisitor<AttrVisitor> {
 public:
   bool VisitMemberExpr(MemberExpr *ME) {
-    Match(ME->getMemberDecl()->getNameAsString(), ME->getLocStart());
+    Match(ME->getMemberDecl()->getNameAsString(), ME->getBeginLoc());
     return true;
   }
   bool VisitAttr(Attr *A) {

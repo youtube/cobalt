@@ -1,16 +1,11 @@
-//===-- VectorType.cpp ------------------------------------------*- C++ -*-===//
+//===-- VectorType.cpp ----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/DataFormatters/VectorType.h"
 
 #include "lldb/Core/ValueObject.h"
@@ -20,6 +15,8 @@
 #include "lldb/Target/Target.h"
 
 #include "lldb/Utility/LLDBAssert.h"
+#include "lldb/Utility/Log.h"
+#include <optional>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -27,8 +24,10 @@ using namespace lldb_private::formatters;
 
 static CompilerType GetCompilerTypeForFormat(lldb::Format format,
                                              CompilerType element_type,
-                                             TypeSystem *type_system) {
+                                             TypeSystemSP type_system) {
   lldbassert(type_system && "type_system needs to be not NULL");
+  if (!type_system)
+    return {};
 
   switch (format) {
   case lldb::eFormatAddressInfo:
@@ -175,13 +174,14 @@ static size_t CalculateNumChildren(
     lldb_private::ExecutionContextScope *exe_scope =
         nullptr // does not matter here because all we trade in are basic types
     ) {
-  auto container_size = container_type.GetByteSize(exe_scope);
-  auto element_size = element_type.GetByteSize(exe_scope);
+  std::optional<uint64_t> container_size =
+      container_type.GetByteSize(exe_scope);
+  std::optional<uint64_t> element_size = element_type.GetByteSize(exe_scope);
 
-  if (element_size) {
-    if (container_size % element_size)
+  if (container_size && element_size && *element_size) {
+    if (*container_size % *element_size)
       return 0;
-    return container_size / element_size;
+    return *container_size / *element_size;
   }
   return 0;
 }
@@ -192,8 +192,7 @@ namespace formatters {
 class VectorTypeSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
 public:
   VectorTypeSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
-      : SyntheticChildrenFrontEnd(*valobj_sp), m_parent_format(eFormatInvalid),
-        m_item_format(eFormatInvalid), m_child_type(), m_num_children(0) {}
+      : SyntheticChildrenFrontEnd(*valobj_sp), m_child_type() {}
 
   ~VectorTypeSyntheticFrontEnd() override = default;
 
@@ -201,8 +200,11 @@ public:
 
   lldb::ValueObjectSP GetChildAtIndex(size_t idx) override {
     if (idx >= CalculateNumChildren())
-      return lldb::ValueObjectSP();
-    auto offset = idx * m_child_type.GetByteSize(nullptr);
+      return {};
+    std::optional<uint64_t> size = m_child_type.GetByteSize(nullptr);
+    if (!size)
+      return {};
+    auto offset = idx * *size;
     StreamString idx_name;
     idx_name.Printf("[%" PRIu64 "]", (uint64_t)idx);
     ValueObjectSP child_sp(m_backend.GetSyntheticChildAtOffset(
@@ -219,14 +221,10 @@ public:
     m_parent_format = m_backend.GetFormat();
     CompilerType parent_type(m_backend.GetCompilerType());
     CompilerType element_type;
-    parent_type.IsVectorType(&element_type, nullptr);
-    TargetSP target_sp(m_backend.GetTargetSP());
+    parent_type.IsVectorType(&element_type);
     m_child_type = ::GetCompilerTypeForFormat(
         m_parent_format, element_type,
-        target_sp
-            ? target_sp->GetScratchTypeSystemForLanguage(nullptr,
-                                                         lldb::eLanguageTypeC)
-            : nullptr);
+        parent_type.GetTypeSystem().GetSharedPointer());
     m_num_children = ::CalculateNumChildren(parent_type, m_child_type);
     m_item_format = GetItemFormatForFormat(m_parent_format, m_child_type);
     return false;
@@ -234,7 +232,7 @@ public:
 
   bool MightHaveChildren() override { return true; }
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
+  size_t GetIndexOfChildWithName(ConstString name) override {
     const char *item_name = name.GetCString();
     uint32_t idx = ExtractIndexFromString(item_name);
     if (idx < UINT32_MAX && idx >= CalculateNumChildren())
@@ -243,10 +241,10 @@ public:
   }
 
 private:
-  lldb::Format m_parent_format;
-  lldb::Format m_item_format;
+  lldb::Format m_parent_format = eFormatInvalid;
+  lldb::Format m_item_format = eFormatInvalid;
   CompilerType m_child_type;
-  size_t m_num_children;
+  size_t m_num_children = 0;
 };
 
 } // namespace formatters

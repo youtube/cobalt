@@ -1,39 +1,33 @@
-//===-- Memory.cpp ----------------------------------------------*- C++ -*-===//
+//===-- Memory.cpp --------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Target/Memory.h"
-// C Includes
-#include <inttypes.h>
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/RangeMap.h"
-#include "lldb/Core/State.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RangeMap.h"
+#include "lldb/Utility/State.h"
+
+#include <cinttypes>
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // MemoryCache constructor
-//----------------------------------------------------------------------
 MemoryCache::MemoryCache(Process &process)
     : m_mutex(), m_L1_cache(), m_L2_cache(), m_invalid_ranges(),
       m_process(process),
       m_L2_cache_line_byte_size(process.GetMemoryCacheLineSize()) {}
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
-MemoryCache::~MemoryCache() {}
+MemoryCache::~MemoryCache() = default;
 
 void MemoryCache::Clear(bool clear_invalid_ranges) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
@@ -123,7 +117,7 @@ bool MemoryCache::RemoveInvalidRange(lldb::addr_t base_addr,
       const InvalidRanges::Entry *entry = m_invalid_ranges.GetEntryAtIndex(idx);
       if (entry->GetRangeBase() == base_addr &&
           entry->GetByteSize() == byte_size)
-        return m_invalid_ranges.RemoveEntrtAtIndex(idx);
+        return m_invalid_ranges.RemoveEntryAtIndex(idx);
     }
   }
   return false;
@@ -149,7 +143,7 @@ size_t MemoryCache::Read(addr_t addr, void *dst, size_t dst_len,
     }
     AddrRange chunk_range(pos->first, pos->second->GetByteSize());
     if (chunk_range.Contains(read_range)) {
-      memcpy(dst, pos->second->GetBytes() + addr - chunk_range.GetRangeBase(),
+      memcpy(dst, pos->second->GetBytes() + (addr - chunk_range.GetRangeBase()),
              dst_len);
       return dst_len;
     }
@@ -231,17 +225,22 @@ size_t MemoryCache::Read(addr_t addr, void *dst, size_t dst_len,
 
       if (bytes_left > 0) {
         assert((curr_addr % cache_line_byte_size) == 0);
-        std::unique_ptr<DataBufferHeap> data_buffer_heap_ap(
+        std::unique_ptr<DataBufferHeap> data_buffer_heap_up(
             new DataBufferHeap(cache_line_byte_size, 0));
         size_t process_bytes_read = m_process.ReadMemoryFromInferior(
-            curr_addr, data_buffer_heap_ap->GetBytes(),
-            data_buffer_heap_ap->GetByteSize(), error);
+            curr_addr, data_buffer_heap_up->GetBytes(),
+            data_buffer_heap_up->GetByteSize(), error);
         if (process_bytes_read == 0)
           return dst_len - bytes_left;
 
-        if (process_bytes_read != cache_line_byte_size)
-          data_buffer_heap_ap->SetByteSize(process_bytes_read);
-        m_L2_cache[curr_addr] = DataBufferSP(data_buffer_heap_ap.release());
+        if (process_bytes_read != cache_line_byte_size) {
+          if (process_bytes_read < data_buffer_heap_up->GetByteSize()) {
+            dst_len -= data_buffer_heap_up->GetByteSize() - process_bytes_read;
+            bytes_left = process_bytes_read;
+          }
+          data_buffer_heap_up->SetByteSize(process_bytes_read);
+        }
+        m_L2_cache[curr_addr] = DataBufferSP(data_buffer_heap_up.release());
         // We have read data and put it into the cache, continue through the
         // loop again to get the data out of the cache...
       }
@@ -261,14 +260,14 @@ AllocatedBlock::AllocatedBlock(lldb::addr_t addr, uint32_t byte_size,
   assert(byte_size > chunk_size);
 }
 
-AllocatedBlock::~AllocatedBlock() {}
+AllocatedBlock::~AllocatedBlock() = default;
 
 lldb::addr_t AllocatedBlock::ReserveBlock(uint32_t size) {
   // We must return something valid for zero bytes.
   if (size == 0)
     size = 1;
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
-  
+  Log *log = GetLog(LLDBLog::Process);
+
   const size_t free_count = m_free_blocks.GetSize();
   for (size_t i=0; i<free_count; ++i)
   {
@@ -323,7 +322,7 @@ bool AllocatedBlock::FreeBlock(addr_t addr) {
     m_reserved_blocks.RemoveEntryAtIndex(entry_idx);
     success = true;
   }
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   LLDB_LOGV(log, "({0}) (addr = {1:x}) => {2}", this, addr, success);
   return success;
 }
@@ -331,11 +330,11 @@ bool AllocatedBlock::FreeBlock(addr_t addr) {
 AllocatedMemoryCache::AllocatedMemoryCache(Process &process)
     : m_process(process), m_mutex(), m_memory_map() {}
 
-AllocatedMemoryCache::~AllocatedMemoryCache() {}
+AllocatedMemoryCache::~AllocatedMemoryCache() = default;
 
-void AllocatedMemoryCache::Clear() {
+void AllocatedMemoryCache::Clear(bool deallocate_memory) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
-  if (m_process.IsAlive()) {
+  if (m_process.IsAlive() && deallocate_memory) {
     PermissionsToBlockMap::iterator pos, end = m_memory_map.end();
     for (pos = m_memory_map.begin(); pos != end; ++pos)
       m_process.DoDeallocateMemory(pos->second->GetBaseAddress());
@@ -353,17 +352,18 @@ AllocatedMemoryCache::AllocatePage(uint32_t byte_size, uint32_t permissions,
 
   addr_t addr = m_process.DoAllocateMemory(page_byte_size, permissions, error);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
   if (log) {
-    log->Printf("Process::DoAllocateMemory (byte_size = 0x%8.8" PRIx32
-                ", permissions = %s) => 0x%16.16" PRIx64,
-                (uint32_t)page_byte_size, GetPermissionsAsCString(permissions),
-                (uint64_t)addr);
+    LLDB_LOGF(log,
+              "Process::DoAllocateMemory (byte_size = 0x%8.8" PRIx32
+              ", permissions = %s) => 0x%16.16" PRIx64,
+              (uint32_t)page_byte_size, GetPermissionsAsCString(permissions),
+              (uint64_t)addr);
   }
 
   if (addr != LLDB_INVALID_ADDRESS) {
-    block_sp.reset(
-        new AllocatedBlock(addr, page_byte_size, permissions, chunk_size));
+    block_sp = std::make_shared<AllocatedBlock>(addr, page_byte_size,
+                                                permissions, chunk_size);
     m_memory_map.insert(std::make_pair(permissions, block_sp));
   }
   return block_sp;
@@ -391,13 +391,12 @@ lldb::addr_t AllocatedMemoryCache::AllocateMemory(size_t byte_size,
     if (block_sp)
       addr = block_sp->ReserveBlock(byte_size);
   }
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
-  if (log)
-    log->Printf(
-        "AllocatedMemoryCache::AllocateMemory (byte_size = 0x%8.8" PRIx32
-        ", permissions = %s) => 0x%16.16" PRIx64,
-        (uint32_t)byte_size, GetPermissionsAsCString(permissions),
-        (uint64_t)addr);
+  Log *log = GetLog(LLDBLog::Process);
+  LLDB_LOGF(log,
+            "AllocatedMemoryCache::AllocateMemory (byte_size = 0x%8.8" PRIx32
+            ", permissions = %s) => 0x%16.16" PRIx64,
+            (uint32_t)byte_size, GetPermissionsAsCString(permissions),
+            (uint64_t)addr);
   return addr;
 }
 
@@ -412,10 +411,10 @@ bool AllocatedMemoryCache::DeallocateMemory(lldb::addr_t addr) {
       break;
     }
   }
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PROCESS));
-  if (log)
-    log->Printf("AllocatedMemoryCache::DeallocateMemory (addr = 0x%16.16" PRIx64
-                ") => %i",
-                (uint64_t)addr, success);
+  Log *log = GetLog(LLDBLog::Process);
+  LLDB_LOGF(log,
+            "AllocatedMemoryCache::DeallocateMemory (addr = 0x%16.16" PRIx64
+            ") => %i",
+            (uint64_t)addr, success);
   return success;
 }

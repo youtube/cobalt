@@ -1,17 +1,13 @@
 //===-- JSONGenerator.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __JSONGenerator_h_
-#define __JSONGenerator_h_
-
-// C Includes
-// C++ Includes
+#ifndef LLDB_TOOLS_DEBUGSERVER_SOURCE_JSONGENERATOR_H
+#define LLDB_TOOLS_DEBUGSERVER_SOURCE_JSONGENERATOR_H
 
 #include <iomanip>
 #include <sstream>
@@ -19,15 +15,13 @@
 #include <utility>
 #include <vector>
 
-//----------------------------------------------------------------------
-/// @class JSONGenerator JSONGenerator.h
+/// \class JSONGenerator JSONGenerator.h
 /// A class which can construct structured data for the sole purpose
 /// of printing it in JSON format.
 ///
 /// A stripped down version of lldb's StructuredData objects which are much
 /// general purpose.  This variant is intended only for assembling information
 /// and printing it as a JSON string.
-//----------------------------------------------------------------------
 
 class JSONGenerator {
 public:
@@ -119,6 +113,8 @@ public:
 
     virtual void Dump(std::ostream &s) const = 0;
 
+    virtual void DumpBinaryEscaped(std::ostream &s) const = 0;
+
   private:
     Type m_type;
   };
@@ -142,6 +138,17 @@ public:
       s << "]";
     }
 
+    void DumpBinaryEscaped(std::ostream &s) const override {
+      s << "[";
+      const size_t arrsize = m_items.size();
+      for (size_t i = 0; i < arrsize; ++i) {
+        m_items[i]->DumpBinaryEscaped(s);
+        if (i + 1 < arrsize)
+          s << ",";
+      }
+      s << "]";
+    }
+
   protected:
     typedef std::vector<ObjectSP> collection;
     collection m_items;
@@ -157,6 +164,8 @@ public:
 
     void Dump(std::ostream &s) const override { s << m_value; }
 
+    void DumpBinaryEscaped(std::ostream &s) const override { Dump(s); }
+
   protected:
     uint64_t m_value;
   };
@@ -171,6 +180,8 @@ public:
 
     void Dump(std::ostream &s) const override { s << m_value; }
 
+    void DumpBinaryEscaped(std::ostream &s) const override { Dump(s); }
+
   protected:
     double m_value;
   };
@@ -184,11 +195,13 @@ public:
     void SetValue(bool value) { m_value = value; }
 
     void Dump(std::ostream &s) const override {
-      if (m_value == true)
+      if (m_value)
         s << "true";
       else
         s << "false";
     }
+
+    void DumpBinaryEscaped(std::ostream &s) const override { Dump(s); }
 
   protected:
     bool m_value;
@@ -205,15 +218,33 @@ public:
     void SetValue(const std::string &string) { m_value = string; }
 
     void Dump(std::ostream &s) const override {
-      std::string quoted;
+      s << '"';
       const size_t strsize = m_value.size();
       for (size_t i = 0; i < strsize; ++i) {
         char ch = m_value[i];
         if (ch == '"')
-          quoted.push_back('\\');
-        quoted.push_back(ch);
+          s << '\\';
+        s << ch;
       }
-      s << '"' << quoted.c_str() << '"';
+      s << '"';
+    }
+
+    void DumpBinaryEscaped(std::ostream &s) const override {
+      s << '"';
+      const size_t strsize = m_value.size();
+      for (size_t i = 0; i < strsize; ++i) {
+        char ch = m_value[i];
+        if (ch == '"')
+          s << '\\';
+        // gdb remote serial protocol binary escaping
+        if (ch == '#' || ch == '$' || ch == '}' || ch == '*') {
+          s << '}'; // 0x7d next character is escaped
+          s << static_cast<char>(ch ^ 0x20);
+        } else {
+          s << ch;
+        }
+      }
+      s << '"';
     }
 
   protected:
@@ -264,7 +295,7 @@ public:
       s << "{";
       for (collection::const_iterator iter = m_dict.begin();
            iter != m_dict.end(); ++iter) {
-        if (have_printed_one_elem == false) {
+        if (!have_printed_one_elem) {
           have_printed_one_elem = true;
         } else {
           s << ",";
@@ -275,7 +306,43 @@ public:
       s << "}";
     }
 
+    void DumpBinaryEscaped(std::ostream &s) const override {
+      bool have_printed_one_elem = false;
+      s << "{";
+      for (collection::const_iterator iter = m_dict.begin();
+           iter != m_dict.end(); ++iter) {
+        if (!have_printed_one_elem) {
+          have_printed_one_elem = true;
+        } else {
+          s << ",";
+        }
+        s << "\"" << binary_encode_string(iter->first) << "\":";
+        iter->second->DumpBinaryEscaped(s);
+      }
+      // '}' must be escaped for the gdb remote serial
+      // protocol.
+      s << "}";
+      s << static_cast<char>('}' ^ 0x20);
+    }
+
   protected:
+    std::string binary_encode_string(const std::string &s) const {
+      std::string output;
+      const size_t s_size = s.size();
+      const char *s_chars = s.c_str();
+
+      for (size_t i = 0; i < s_size; i++) {
+        unsigned char ch = *(s_chars + i);
+        if (ch == '#' || ch == '$' || ch == '}' || ch == '*') {
+          output.push_back('}'); // 0x7d
+          output.push_back(ch ^ 0x20);
+        } else {
+          output.push_back(ch);
+        }
+      }
+      return output;
+    }
+
     // Keep the dictionary as a vector so the dictionary doesn't reorder itself
     // when you dump it
     // We aren't accessing keys by name, so this won't affect performance
@@ -294,6 +361,8 @@ public:
 
     void Dump(std::ostream &s) const override { s << "null"; }
 
+    void DumpBinaryEscaped(std::ostream &s) const override { Dump(s); }
+
   protected:
   };
 
@@ -310,10 +379,12 @@ public:
 
     void Dump(std::ostream &s) const override;
 
+    void DumpBinaryEscaped(std::ostream &s) const override;
+
   private:
     void *m_object;
   };
 
 }; // class JSONGenerator
 
-#endif // __JSONGenerator_h_
+#endif // LLDB_TOOLS_DEBUGSERVER_SOURCE_JSONGENERATOR_H

@@ -1,15 +1,30 @@
-// RUN: %clang_analyze_cc1 -fcxx-exceptions -fexceptions -fblocks -std=c++11 -analyzer-checker=deadcode.DeadStores -verify -Wno-unreachable-code %s
-// RUN: %clang_analyze_cc1 -fcxx-exceptions -fexceptions -fblocks -std=c++11 -analyzer-store=region -analyzer-checker=deadcode.DeadStores -verify -Wno-unreachable-code %s
+// RUN: %clang_analyze_cc1 -fcxx-exceptions -fexceptions -fblocks -std=c++11    \
+// RUN:  -analyzer-checker=deadcode.DeadStores -Wno-unreachable-code            \
+// RUN:  -analyzer-config deadcode.DeadStores:WarnForDeadNestedAssignments=false\
+// RUN:  -verify=non-nested %s
+//
+// RUN: %clang_analyze_cc1 -fcxx-exceptions -fexceptions -fblocks -std=c++11    \
+// RUN:  -analyzer-checker=deadcode.DeadStores           \
+// RUN:  -analyzer-config deadcode.DeadStores:WarnForDeadNestedAssignments=false\
+// RUN:  -Wno-unreachable-code -verify=non-nested %s
+//
+// RUN: %clang_analyze_cc1 -fcxx-exceptions -fexceptions -fblocks -std=c++11    \
+// RUN:  -analyzer-checker=deadcode.DeadStores -Wno-unreachable-code            \
+// RUN:  -verify=non-nested,nested %s
+//
+// RUN: %clang_analyze_cc1 -fcxx-exceptions -fexceptions -fblocks -std=c++17    \
+// RUN:  -analyzer-checker=deadcode.DeadStores -Wno-unreachable-code            \
+// RUN:  -verify=non-nested,nested %s
 
 //===----------------------------------------------------------------------===//
 // Basic dead store checking (but in C++ mode).
 //===----------------------------------------------------------------------===//
 
 int j;
+int make_int();
 void test1() {
   int x = 4;
-
-  x = x + 1; // expected-warning{{never read}}
+  x = x + 1; // non-nested-warning {{never read}}
 
   switch (j) {
   case 1:
@@ -17,6 +32,13 @@ void test1() {
     (void)x;
     break;
   }
+
+  int y;
+  (void)y;
+  if ((y = make_int())) // nested-warning {{Although the value stored}}
+    return;
+
+  auto z = "text"; // non-nested-warning {{never read}}
 }
 
 //===----------------------------------------------------------------------===//
@@ -25,6 +47,7 @@ void test1() {
 
 class Test2 {
   int &x;
+
 public:
   Test2(int &y) : x(y) {}
   ~Test2() { ++x; }
@@ -33,6 +56,18 @@ public:
 int test2(int x) {
   { Test2 a(x); } // no-warning
   return x;
+}
+
+class TestConstructor {
+public:
+  TestConstructor(int &y);
+};
+void copy(int x) {
+  // All these calls might have side effects in the opaque constructor
+  TestConstructor tc1 = x;                    // no-warning potential side effects
+  TestConstructor tc2 = TestConstructor(x);   // no-warning potential side effects
+  TestConstructor tc3 = (TestConstructor(x)); // no-warning potential side effects
+  TestConstructor tc4 = (TestConstructor)(x); // no-warning potential side effects
 }
 
 //===----------------------------------------------------------------------===//
@@ -66,17 +101,17 @@ void test2_b() {
 //===----------------------------------------------------------------------===//
 
 void test3_a(int x) {
-   x = x + 1; // expected-warning{{never read}}
+  x = x + 1; // non-nested-warning {{never read}}
 }
 
 void test3_b(int &x) {
-  x = x + 1; // no-warninge
+  x = x + 1; // no-warning
 }
 
 void test3_c(int x) {
   int &y = x;
-  // Shows the limitation of dead stores tracking.  The write is really
-  // dead since the value cannot escape the function.
+  // Shows the limitation of dead stores tracking. The write is really dead
+  // since the value cannot escape the function.
   ++y; // no-warning
 }
 
@@ -94,7 +129,7 @@ void test3_e(int &x) {
 //===----------------------------------------------------------------------===//
 
 static void test_new(unsigned n) {
-  char **p = new char* [n]; // expected-warning{{never read}}
+  char **p = new char *[n]; // non-nested-warning {{never read}}
 }
 
 //===----------------------------------------------------------------------===//
@@ -102,11 +137,11 @@ static void test_new(unsigned n) {
 //===----------------------------------------------------------------------===//
 
 namespace foo {
-  int test_4(int x) {
-    x = 2; // expected-warning{{Value stored to 'x' is never read}}
-    x = 2;
-    return x;
-  }
+int test_4(int x) {
+  x = 2; // non-nested-warning {{Value stored to 'x' is never read}}
+  x = 2;
+  return x;
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -119,42 +154,39 @@ int test_5() {
   try {
     x = 2; // no-warning
     test_5_Aux();
-  }
-  catch (int z) {
+  } catch (int z) {
     return x + z;
   }
   return 1;
 }
 
-
 int test_6_aux(unsigned x);
-
 void test_6() {
-  unsigned currDestLen = 0;  // no-warning
+  unsigned currDestLen = 0; // no-warning
   try {
     while (test_6_aux(currDestLen)) {
       currDestLen += 2; // no-warning
-    } 
+    }
+  } catch (void *) {
   }
-  catch (void *) {}
 }
 
 void test_6b() {
-  unsigned currDestLen = 0;  // no-warning
+  unsigned currDestLen = 0; // no-warning
   try {
     while (test_6_aux(currDestLen)) {
-      currDestLen += 2; // expected-warning {{Value stored to 'currDestLen' is never read}}
+      currDestLen += 2;
+      // non-nested-warning@-1 {{Value stored to 'currDestLen' is never read}}
       break;
-    } 
+    }
+  } catch (void *) {
   }
-  catch (void *) {}
 }
-
 
 void testCXX11Using() {
   using Int = int;
   Int value;
-  value = 1; // expected-warning {{never read}}
+  value = 1; // non-nested-warning {{never read}}
 }
 
 //===----------------------------------------------------------------------===//
@@ -177,13 +209,14 @@ int radar_13213575() {
 template <class T>
 void test_block_in_dependent_context(typename T::some_t someArray) {
   ^{
-     int i = someArray[0]; // no-warning
+    int i = someArray[0]; // no-warning
   }();
 }
 
 void test_block_in_non_dependent_context(int *someArray) {
   ^{
-     int i = someArray[0]; // expected-warning {{Value stored to 'i' during its initialization is never read}}
+    int i = someArray[0];
+    // non-nested-warning@-1 {{Value stored to 'i' during its initialization is never read}}
   }();
 }
 

@@ -8,14 +8,19 @@ set(LLVM_LINK_COMPONENTS
   ExecutionEngine
   IRReader
   Interpreter
+  JITLink
   MC
   MCJIT
   Object
+  OrcShared
   OrcJIT
+  OrcTargetProcess
+  Passes
   RuntimeDyld
   SelectionDAG
   Support
   Target
+  TargetParser
   TransformUtils
   native
   )
@@ -47,8 +52,10 @@ endif( LLVM_USE_PERF )
 
 add_llvm_tool(lli
   lli.cpp
+  ExecutionUtils.cpp
 
   DEPENDS
   intrinsics_gen
   )
+
 export_executable_symbols(lli)

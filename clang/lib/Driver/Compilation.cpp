@@ -1,9 +1,8 @@
 //===- Compilation.cpp - Compilation Task Implementation ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,7 +15,6 @@
 #include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Util.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Triple.h"
@@ -77,20 +75,33 @@ Compilation::getArgsForToolChain(const ToolChain *TC, StringRef BoundArch,
           *TranslatedArgs, SameTripleAsHost, AllocatedArgs);
     }
 
+    DerivedArgList *NewDAL = nullptr;
     if (!OpenMPArgs) {
-      Entry = TC->TranslateArgs(*TranslatedArgs, BoundArch, DeviceOffloadKind);
-      if (!Entry)
-        Entry = TranslatedArgs;
+      NewDAL = TC->TranslateXarchArgs(*TranslatedArgs, BoundArch,
+                                      DeviceOffloadKind, &AllocatedArgs);
     } else {
-      Entry = TC->TranslateArgs(*OpenMPArgs, BoundArch, DeviceOffloadKind);
-      if (!Entry)
-        Entry = OpenMPArgs;
+      NewDAL = TC->TranslateXarchArgs(*OpenMPArgs, BoundArch, DeviceOffloadKind,
+                                      &AllocatedArgs);
+      if (!NewDAL)
+        NewDAL = OpenMPArgs;
       else
         delete OpenMPArgs;
     }
 
+    if (!NewDAL) {
+      Entry = TC->TranslateArgs(*TranslatedArgs, BoundArch, DeviceOffloadKind);
+      if (!Entry)
+        Entry = TranslatedArgs;
+    } else {
+      Entry = TC->TranslateArgs(*NewDAL, BoundArch, DeviceOffloadKind);
+      if (!Entry)
+        Entry = NewDAL;
+      else
+        delete NewDAL;
+    }
+
     // Add allocated arguments to the final DAL.
-    for (auto ArgPtr : AllocatedArgs)
+    for (auto *ArgPtr : AllocatedArgs)
       Entry->AddSynthesizedArg(ArgPtr);
   }
 
@@ -127,7 +138,7 @@ bool Compilation::CleanupFile(const char *File, bool IssueErrors) const {
   return true;
 }
 
-bool Compilation::CleanupFileList(const ArgStringList &Files,
+bool Compilation::CleanupFileList(const llvm::opt::ArgStringList &Files,
                                   bool IssueErrors) const {
   bool Success = true;
   for (const auto &File: Files)
@@ -150,39 +161,44 @@ bool Compilation::CleanupFileMap(const ArgStringMap &Files,
 }
 
 int Compilation::ExecuteCommand(const Command &C,
-                                const Command *&FailingCommand) const {
+                                const Command *&FailingCommand,
+                                bool LogOnly) const {
   if ((getDriver().CCPrintOptions ||
        getArgs().hasArg(options::OPT_v)) && !getDriver().CCGenDiagnostics) {
     raw_ostream *OS = &llvm::errs();
+    std::unique_ptr<llvm::raw_fd_ostream> OwnedStream;
 
     // Follow gcc implementation of CC_PRINT_OPTIONS; we could also cache the
     // output stream.
-    if (getDriver().CCPrintOptions && getDriver().CCPrintOptionsFilename) {
+    if (getDriver().CCPrintOptions &&
+        !getDriver().CCPrintOptionsFilename.empty()) {
       std::error_code EC;
-      OS = new llvm::raw_fd_ostream(getDriver().CCPrintOptionsFilename, EC,
-                                    llvm::sys::fs::F_Append |
-                                        llvm::sys::fs::F_Text);
+      OwnedStream.reset(new llvm::raw_fd_ostream(
+          getDriver().CCPrintOptionsFilename, EC,
+          llvm::sys::fs::OF_Append | llvm::sys::fs::OF_TextWithCRLF));
       if (EC) {
         getDriver().Diag(diag::err_drv_cc_print_options_failure)
             << EC.message();
         FailingCommand = &C;
-        delete OS;
         return 1;
       }
+      OS = OwnedStream.get();
     }
 
     if (getDriver().CCPrintOptions)
-      *OS << "[Logging clang options]";
+      *OS << "[Logging clang options]\n";
 
     C.Print(*OS, "\n", /*Quote=*/getDriver().CCPrintOptions);
-
-    if (OS != &llvm::errs())
-      delete OS;
   }
+
+  if (LogOnly)
+    return 0;
 
   std::string Error;
   bool ExecutionFailed;
   int Res = C.Execute(Redirects, &Error, &ExecutionFailed);
+  if (PostCallback)
+    PostCallback(C, Res);
   if (!Error.empty()) {
     assert(Res && "Error string set with 0 result code!");
     getDriver().Diag(diag::err_drv_command_failure) << Error;
@@ -224,7 +240,8 @@ static bool InputsOk(const Command &C,
 }
 
 void Compilation::ExecuteJobs(const JobList &Jobs,
-                              FailingCommandList &FailingCommands) const {
+                              FailingCommandList &FailingCommands,
+                              bool LogOnly) const {
   // According to UNIX standard, driver need to continue compiling all the
   // inputs on the command line even one of them failed.
   // In all but CLMode, execute all the jobs unless the necessary inputs for the
@@ -233,7 +250,7 @@ void Compilation::ExecuteJobs(const JobList &Jobs,
     if (!InputsOk(Job, FailingCommands))
       continue;
     const Command *FailingCommand = nullptr;
-    if (int Res = ExecuteCommand(Job, FailingCommand)) {
+    if (int Res = ExecuteCommand(Job, FailingCommand, LogOnly)) {
       FailingCommands.push_back(std::make_pair(Res, FailingCommand));
       // Bail as soon as one command fails in cl driver mode.
       if (TheDriver.IsCLMode())
@@ -261,16 +278,25 @@ void Compilation::initCompilationForDiagnostics() {
 
   // Remove any user specified output.  Claim any unclaimed arguments, so as
   // to avoid emitting warnings about unused args.
-  OptSpecifier OutputOpts[] = { options::OPT_o, options::OPT_MD,
-                                options::OPT_MMD };
-  for (unsigned i = 0, e = llvm::array_lengthof(OutputOpts); i != e; ++i) {
-    if (TranslatedArgs->hasArg(OutputOpts[i]))
-      TranslatedArgs->eraseArg(OutputOpts[i]);
+  OptSpecifier OutputOpts[] = {
+      options::OPT_o,  options::OPT_MD, options::OPT_MMD, options::OPT_M,
+      options::OPT_MM, options::OPT_MF, options::OPT_MG,  options::OPT_MJ,
+      options::OPT_MQ, options::OPT_MT, options::OPT_MV};
+  for (const auto &Opt : OutputOpts) {
+    if (TranslatedArgs->hasArg(Opt))
+      TranslatedArgs->eraseArg(Opt);
   }
   TranslatedArgs->ClaimAllArgs();
 
+  // Force re-creation of the toolchain Args, otherwise our modifications just
+  // above will have no effect.
+  for (auto Arg : TCArgs)
+    if (Arg.second != TranslatedArgs)
+      delete Arg.second;
+  TCArgs.clear();
+
   // Redirect stdout/stderr to /dev/null.
-  Redirects = {None, {""}, {""}};
+  Redirects = {std::nullopt, {""}, {""}};
 
   // Temporary files added by diagnostics should be kept.
   ForceKeepTempFiles = true;
@@ -280,6 +306,6 @@ StringRef Compilation::getSysRoot() const {
   return getDriver().SysRoot;
 }
 
-void Compilation::Redirect(ArrayRef<Optional<StringRef>> Redirects) {
+void Compilation::Redirect(ArrayRef<std::optional<StringRef>> Redirects) {
   this->Redirects = Redirects;
 }

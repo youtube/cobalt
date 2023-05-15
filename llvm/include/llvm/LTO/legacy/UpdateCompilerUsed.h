@@ -1,9 +1,8 @@
 //==------ UpdateCompilerUsed.h - LLVM Link Time Optimizer Utility --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LTO_UPDATE_COMPILER_USED_H
-#define LLVM_LTO_UPDATE_COMPILER_USED_H
+#ifndef LLVM_LTO_LEGACY_UPDATECOMPILERUSED_H
+#define LLVM_LTO_LEGACY_UPDATECOMPILERUSED_H
 
 #include "llvm/ADT/StringSet.h"
 #include "llvm/IR/GlobalValue.h"
@@ -29,4 +28,4 @@ void updateCompilerUsed(Module &TheModule, const TargetMachine &TM,
                         const StringSet<> &AsmUndefinedRefs);
 }
 
-#endif // LLVM_LTO_UPDATE_COMPILER_USED_H
+#endif // LLVM_LTO_LEGACY_UPDATECOMPILERUSED_H

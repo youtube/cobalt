@@ -1,6 +1,6 @@
 ; ModuleID = 'bar.cpp'
 
-%class.B = type { i32, %class.A* }
+%class.B = type { i32, ptr }
 %class.A = type { %class.Base, i32 }
 %class.Base = type { i32 }
 
@@ -9,9 +9,9 @@ define void @_Z1gi(i32 %a) #0 !dbg !20 {
 entry:
   %a.addr = alloca i32, align 4
   %t = alloca %class.B, align 8
-  store i32 %a, i32* %a.addr, align 4
-  call void @llvm.dbg.declare(metadata i32* %a.addr, metadata !28, metadata !DIExpression()), !dbg !29
-  call void @llvm.dbg.declare(metadata %class.B* %t, metadata !30, metadata !DIExpression()), !dbg !31
+  store i32 %a, ptr %a.addr, align 4
+  call void @llvm.dbg.declare(metadata ptr %a.addr, metadata !28, metadata !DIExpression()), !dbg !29
+  call void @llvm.dbg.declare(metadata ptr %t, metadata !30, metadata !DIExpression()), !dbg !31
   ret void, !dbg !32
 }
 
@@ -23,8 +23,8 @@ define i32 @main() #2 !dbg !24 {
 entry:
   %retval = alloca i32, align 4
   %a = alloca %class.A, align 4
-  store i32 0, i32* %retval
-  call void @llvm.dbg.declare(metadata %class.A* %a, metadata !33, metadata !DIExpression()), !dbg !34
+  store i32 0, ptr %retval
+  call void @llvm.dbg.declare(metadata ptr %a, metadata !33, metadata !DIExpression()), !dbg !34
   call void @_Z1fi(i32 0), !dbg !35
   call void @_Z1gi(i32 1), !dbg !36
   ret i32 0, !dbg !37
@@ -32,15 +32,15 @@ entry:
 
 declare void @_Z1fi(i32) #3
 
-attributes #0 = { nounwind ssp uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind ssp uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
-attributes #2 = { ssp uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #3 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { ssp uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #3 = { "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!27, !38}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4 (http://llvm.org/git/clang.git f54e02f969d02d640103db73efc30c45439fceab) (http://llvm.org/git/llvm.git 284353b55896cb1babfaa7add7c0a363245342d2)", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !3, globals: !2, imports: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.4", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !3, globals: !2, imports: !2)
 !1 = !DIFile(filename: "bar.cpp", directory: "/Users/mren/c_testing/type_unique_air/inher")
 !2 = !{}
 !3 = !{!4, !11, !15}

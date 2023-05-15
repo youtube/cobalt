@@ -1,16 +1,13 @@
-//===-- RegisterContextMinidump_x86_64.cpp ----------------------*- C++ -*-===//
+//===-- RegisterContextMinidump_x86_64.cpp --------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// Project includes
 #include "RegisterContextMinidump_x86_64.h"
 
-// Other libraries and framework includes
 #include "lldb/Utility/DataBufferHeap.h"
 
 // C includes
@@ -53,7 +50,7 @@ lldb::DataBufferSP lldb_private::minidump::ConvertMinidumpContext_x86_64(
 
   const RegisterInfo *reg_info = target_reg_interface->GetRegisterInfo();
 
-  lldb::DataBufferSP result_context_buf(
+  lldb::WritableDataBufferSP result_context_buf(
       new DataBufferHeap(target_reg_interface->GetGPRSize(), 0));
   uint8_t *result_base = result_context_buf->GetBytes();
 

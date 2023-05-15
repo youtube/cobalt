@@ -1,9 +1,8 @@
 //===--- AnalysisConsumer.h - Front-end Analysis Engine Hooks ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -22,14 +21,10 @@
 
 namespace clang {
 
-class Preprocessor;
-class DiagnosticsEngine;
-class CodeInjector;
 class CompilerInstance;
 
 namespace ento {
 class PathDiagnosticConsumer;
-class CheckerManager;
 class CheckerRegistry;
 
 class AnalysisASTConsumer : public ASTConsumer {
@@ -56,7 +51,7 @@ public:
 std::unique_ptr<AnalysisASTConsumer>
 CreateAnalysisConsumer(CompilerInstance &CI);
 
-} // end GR namespace
+} // namespace ento
 
 } // end clang namespace
 

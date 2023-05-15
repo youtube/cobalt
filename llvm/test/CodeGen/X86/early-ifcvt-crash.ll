@@ -1,7 +1,7 @@
 ; RUN: llc < %s -x86-early-ifcvt -verify-machineinstrs
 ; RUN: llc < %s -x86-early-ifcvt -stress-early-ifcvt -verify-machineinstrs
 ; CPU without a scheduling model:
-; RUN: llc < %s -x86-early-ifcvt -mcpu=pentium3 -verify-machineinstrs
+; RUN: llc < %s -x86-early-ifcvt -mcpu=k8 -verify-machineinstrs
 ;
 ; Run these tests with and without -stress-early-ifcvt to exercise heuristics.
 ;
@@ -26,9 +26,9 @@ if.else17.i:
 
 if.end25.i:
   %storemerge31.i = phi i32 [ %shl24.i, %if.else17.i ], [ 0, %if.end.i ]
-  store i32 %storemerge31.i, i32* undef, align 4
+  store i32 %storemerge31.i, ptr undef, align 4
   %0 = tail call i32 asm sideeffect "", "=r,r,i,i"(i32 undef, i32 15, i32 1) nounwind
   %conv = trunc i32 %0 to i8
-  store i8 %conv, i8* undef, align 1
+  store i8 %conv, ptr undef, align 1
   unreachable
 }

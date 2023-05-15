@@ -1,20 +1,24 @@
 //===-- README.txt - Notes for WebAssembly code gen -----------------------===//
 
-This WebAssembly backend is presently under development.
+The object format emitted by the WebAssembly backed is documented in:
 
-The most notable feature which is not yet stable is the ".o" file format.
-".o" file support is needed for many common ways of using LLVM, such as
-using it through "clang -c", so this backend is not yet considered widely
-usable. However, this backend is usable within some language toolchain
-packages:
+  * https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md
 
-Emscripten provides a C/C++ compilation environment that includes standard
-libraries, tools, and packaging for producing WebAssembly applications that
-can run in browsers and other environments. For more information, see the
-Emscripten documentation in general, and this page in particular:
+The C ABI is described in:
 
-  * https://github.com/kripken/emscripten/wiki/New-WebAssembly-Backend
- 
+  * https://github.com/WebAssembly/tool-conventions/blob/main/BasicCABI.md
+
+For more information on WebAssembly itself, see the home page:
+
+  * https://webassembly.github.io/
+
+Emscripten provides a C/C++ compilation environment based on clang which
+includes standard libraries, tools, and packaging for producing WebAssembly
+applications that can run in browsers and other environments.
+
+wasi-sdk provides a more minimal C/C++ SDK based on clang, llvm and a libc based
+on musl, for producing WebAssemmbly applictions that use the WASI ABI.
+
 Rust provides WebAssembly support integrated into Cargo. There are two
 main options:
  - wasm32-unknown-unknown, which provides a relatively minimal environment
@@ -25,37 +29,10 @@ main options:
 For more information, see:
   * https://www.hellorust.com/
 
-
-This backend does not yet support debug info. Full DWARF support needs a
-design for how DWARF should be represented in WebAssembly. Sourcemap support
-has an existing design and some corresponding browser implementations, so it
-just needs implementing in LLVM.
-
-Work-in-progress documentation for the ".o" file format is here:
-
-  * https://github.com/WebAssembly/tool-conventions/blob/master/Linking.md
-
-A corresponding linker implementation is also under development:
-
-  * https://lld.llvm.org/WebAssembly.html
-
-For more information on WebAssembly itself, see the home page:
-  * https://webassembly.github.io/
-
 The following documents contain some information on the semantics and binary
 encoding of WebAssembly itself:
-  * https://github.com/WebAssembly/design/blob/master/Semantics.md
-  * https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md
-
-The backend is built, tested and archived on the following waterfall:
-  https://wasm-stat.us
-
-The backend's bringup is done in part by using the GCC torture test suite, since
-it doesn't require C library support. Current known failures are in
-known_gcc_test_failures.txt, all other tests should pass. The waterfall will
-turn red if not. Once most of these pass, further testing will use LLVM's own
-test suite. The tests can be run locally using:
-  https://github.com/WebAssembly/waterfall/blob/master/src/compile_torture_tests.py
+  * https://github.com/WebAssembly/design/blob/main/Semantics.md
+  * https://github.com/WebAssembly/design/blob/main/BinaryEncoding.md
 
 Some notes on ways that the generated code could be improved follow:
 
@@ -94,10 +71,10 @@ WebAssemblyTargetLowering.
 //===---------------------------------------------------------------------===//
 
 Instead of the OptimizeReturned pass, which should consider preserving the
-"returned" attribute through to MachineInstrs and extending the StoreResults
-pass to do this optimization on calls too. That would also let the
-WebAssemblyPeephole pass clean up dead defs for such calls, as it does for
-stores.
+"returned" attribute through to MachineInstrs and extending the
+MemIntrinsicResults pass to do this optimization on calls too. That would also
+let the WebAssemblyPeephole pass clean up dead defs for such calls, as it does
+for stores.
 
 //===---------------------------------------------------------------------===//
 
@@ -120,8 +97,8 @@ code like this:
 It could be done with a smaller encoding like this:
 
     i32.const   $push5=, 0
-    tee_local   $push6=, $4=, $pop5
-    copy_local  $3=, $pop6
+    local.tee   $push6=, $4=, $pop5
+    local.copy  $3=, $pop6
 
 //===---------------------------------------------------------------------===//
 
@@ -180,11 +157,11 @@ floating-point constants.
 //===---------------------------------------------------------------------===//
 
 The function @dynamic_alloca_redzone in test/CodeGen/WebAssembly/userstack.ll
-ends up with a tee_local in its prolog which has an unused result, requiring
+ends up with a local.tee in its prolog which has an unused result, requiring
 an extra drop:
 
-    get_global  $push8=, 0
-    tee_local   $push9=, 1, $pop8
+    global.get  $push8=, 0
+    local.tee   $push9=, 1, $pop8
     drop        $pop9
     [...]
 

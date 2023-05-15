@@ -1,17 +1,17 @@
-//===-- SBTypeSummary.cpp -----------------------------------------*- C++
-//-*-===//
+//===-- SBTypeSummary.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBTypeSummary.h"
+#include "Utils.h"
 #include "lldb/API/SBStream.h"
 #include "lldb/API/SBValue.h"
 #include "lldb/DataFormatters/DataVisualization.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include "llvm/Support/Casting.h"
 
@@ -19,81 +19,93 @@ using namespace lldb;
 using namespace lldb_private;
 
 SBTypeSummaryOptions::SBTypeSummaryOptions() {
-  m_opaque_ap.reset(new TypeSummaryOptions());
+  LLDB_INSTRUMENT_VA(this);
+
+  m_opaque_up = std::make_unique<TypeSummaryOptions>();
 }
 
 SBTypeSummaryOptions::SBTypeSummaryOptions(
     const lldb::SBTypeSummaryOptions &rhs) {
-  if (rhs.m_opaque_ap)
-    m_opaque_ap.reset(new TypeSummaryOptions(*rhs.m_opaque_ap.get()));
-  else
-    m_opaque_ap.reset(new TypeSummaryOptions());
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  m_opaque_up = clone(rhs.m_opaque_up);
 }
 
-SBTypeSummaryOptions::~SBTypeSummaryOptions() {}
+SBTypeSummaryOptions::~SBTypeSummaryOptions() = default;
 
-bool SBTypeSummaryOptions::IsValid() { return m_opaque_ap.get(); }
+bool SBTypeSummaryOptions::IsValid() {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBTypeSummaryOptions::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_up.get();
+}
 
 lldb::LanguageType SBTypeSummaryOptions::GetLanguage() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (IsValid())
-    return m_opaque_ap->GetLanguage();
+    return m_opaque_up->GetLanguage();
   return lldb::eLanguageTypeUnknown;
 }
 
 lldb::TypeSummaryCapping SBTypeSummaryOptions::GetCapping() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (IsValid())
-    return m_opaque_ap->GetCapping();
+    return m_opaque_up->GetCapping();
   return eTypeSummaryCapped;
 }
 
 void SBTypeSummaryOptions::SetLanguage(lldb::LanguageType l) {
+  LLDB_INSTRUMENT_VA(this, l);
+
   if (IsValid())
-    m_opaque_ap->SetLanguage(l);
+    m_opaque_up->SetLanguage(l);
 }
 
 void SBTypeSummaryOptions::SetCapping(lldb::TypeSummaryCapping c) {
+  LLDB_INSTRUMENT_VA(this, c);
+
   if (IsValid())
-    m_opaque_ap->SetCapping(c);
+    m_opaque_up->SetCapping(c);
 }
 
 lldb_private::TypeSummaryOptions *SBTypeSummaryOptions::operator->() {
-  return m_opaque_ap.get();
+  return m_opaque_up.get();
 }
 
 const lldb_private::TypeSummaryOptions *SBTypeSummaryOptions::
 operator->() const {
-  return m_opaque_ap.get();
+  return m_opaque_up.get();
 }
 
 lldb_private::TypeSummaryOptions *SBTypeSummaryOptions::get() {
-  return m_opaque_ap.get();
+  return m_opaque_up.get();
 }
 
 lldb_private::TypeSummaryOptions &SBTypeSummaryOptions::ref() {
-  return *m_opaque_ap.get();
+  return *m_opaque_up;
 }
 
 const lldb_private::TypeSummaryOptions &SBTypeSummaryOptions::ref() const {
-  return *m_opaque_ap.get();
+  return *m_opaque_up;
 }
 
 SBTypeSummaryOptions::SBTypeSummaryOptions(
-    const lldb_private::TypeSummaryOptions *lldb_object_ptr) {
-  SetOptions(lldb_object_ptr);
+    const lldb_private::TypeSummaryOptions &lldb_object)
+    : m_opaque_up(std::make_unique<TypeSummaryOptions>(lldb_object)) {
+  LLDB_INSTRUMENT_VA(this, lldb_object);
 }
 
-void SBTypeSummaryOptions::SetOptions(
-    const lldb_private::TypeSummaryOptions *lldb_object_ptr) {
-  if (lldb_object_ptr)
-    m_opaque_ap.reset(new TypeSummaryOptions(*lldb_object_ptr));
-  else
-    m_opaque_ap.reset(new TypeSummaryOptions());
-}
-
-SBTypeSummary::SBTypeSummary() : m_opaque_sp() {}
+SBTypeSummary::SBTypeSummary() { LLDB_INSTRUMENT_VA(this); }
 
 SBTypeSummary SBTypeSummary::CreateWithSummaryString(const char *data,
                                                      uint32_t options) {
+  LLDB_INSTRUMENT_VA(data, options);
+
   if (!data || data[0] == 0)
     return SBTypeSummary();
 
@@ -103,6 +115,8 @@ SBTypeSummary SBTypeSummary::CreateWithSummaryString(const char *data,
 
 SBTypeSummary SBTypeSummary::CreateWithFunctionName(const char *data,
                                                     uint32_t options) {
+  LLDB_INSTRUMENT_VA(data, options);
+
   if (!data || data[0] == 0)
     return SBTypeSummary();
 
@@ -112,6 +126,8 @@ SBTypeSummary SBTypeSummary::CreateWithFunctionName(const char *data,
 
 SBTypeSummary SBTypeSummary::CreateWithScriptCode(const char *data,
                                                   uint32_t options) {
+  LLDB_INSTRUMENT_VA(data, options);
+
   if (!data || data[0] == 0)
     return SBTypeSummary();
 
@@ -122,6 +138,8 @@ SBTypeSummary SBTypeSummary::CreateWithScriptCode(const char *data,
 SBTypeSummary SBTypeSummary::CreateWithCallback(FormatCallback cb,
                                                 uint32_t options,
                                                 const char *description) {
+  LLDB_INSTRUMENT_VA(cb, options, description);
+
   SBTypeSummary retval;
   if (cb) {
     retval.SetSP(TypeSummaryImplSP(new CXXFunctionSummaryFormat(
@@ -130,7 +148,7 @@ SBTypeSummary SBTypeSummary::CreateWithCallback(FormatCallback cb,
              const TypeSummaryOptions &opt) -> bool {
           SBStream stream;
           SBValue sb_value(valobj.GetSP());
-          SBTypeSummaryOptions options(&opt);
+          SBTypeSummaryOptions options(opt);
           if (!cb(sb_value, options, stream))
             return false;
           stm.Write(stream.GetData(), stream.GetSize());
@@ -143,13 +161,25 @@ SBTypeSummary SBTypeSummary::CreateWithCallback(FormatCallback cb,
 }
 
 SBTypeSummary::SBTypeSummary(const lldb::SBTypeSummary &rhs)
-    : m_opaque_sp(rhs.m_opaque_sp) {}
+    : m_opaque_sp(rhs.m_opaque_sp) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
-SBTypeSummary::~SBTypeSummary() {}
+SBTypeSummary::~SBTypeSummary() = default;
 
-bool SBTypeSummary::IsValid() const { return m_opaque_sp.get() != NULL; }
+bool SBTypeSummary::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBTypeSummary::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp.get() != nullptr;
+}
 
 bool SBTypeSummary::IsFunctionCode() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return false;
   if (ScriptSummaryFormat *script_summary_ptr =
@@ -161,6 +191,8 @@ bool SBTypeSummary::IsFunctionCode() {
 }
 
 bool SBTypeSummary::IsFunctionName() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return false;
   if (ScriptSummaryFormat *script_summary_ptr =
@@ -172,6 +204,8 @@ bool SBTypeSummary::IsFunctionName() {
 }
 
 bool SBTypeSummary::IsSummaryString() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return false;
 
@@ -179,8 +213,10 @@ bool SBTypeSummary::IsSummaryString() {
 }
 
 const char *SBTypeSummary::GetData() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
-    return NULL;
+    return nullptr;
   if (ScriptSummaryFormat *script_summary_ptr =
           llvm::dyn_cast<ScriptSummaryFormat>(m_opaque_sp.get())) {
     const char *fname = script_summary_ptr->GetFunctionName();
@@ -195,18 +231,24 @@ const char *SBTypeSummary::GetData() {
 }
 
 uint32_t SBTypeSummary::GetOptions() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (!IsValid())
     return lldb::eTypeOptionNone;
   return m_opaque_sp->GetOptions();
 }
 
 void SBTypeSummary::SetOptions(uint32_t value) {
+  LLDB_INSTRUMENT_VA(this, value);
+
   if (!CopyOnWrite_Impl())
     return;
   m_opaque_sp->SetOptions(value);
 }
 
 void SBTypeSummary::SetSummaryString(const char *data) {
+  LLDB_INSTRUMENT_VA(this, data);
+
   if (!IsValid())
     return;
   if (!llvm::isa<StringSummaryFormat>(m_opaque_sp.get()))
@@ -217,6 +259,8 @@ void SBTypeSummary::SetSummaryString(const char *data) {
 }
 
 void SBTypeSummary::SetFunctionName(const char *data) {
+  LLDB_INSTRUMENT_VA(this, data);
+
   if (!IsValid())
     return;
   if (!llvm::isa<ScriptSummaryFormat>(m_opaque_sp.get()))
@@ -227,6 +271,8 @@ void SBTypeSummary::SetFunctionName(const char *data) {
 }
 
 void SBTypeSummary::SetFunctionCode(const char *data) {
+  LLDB_INSTRUMENT_VA(this, data);
+
   if (!IsValid())
     return;
   if (!llvm::isa<ScriptSummaryFormat>(m_opaque_sp.get()))
@@ -238,6 +284,8 @@ void SBTypeSummary::SetFunctionCode(const char *data) {
 
 bool SBTypeSummary::GetDescription(lldb::SBStream &description,
                                    lldb::DescriptionLevel description_level) {
+  LLDB_INSTRUMENT_VA(this, description, description_level);
+
   if (!CopyOnWrite_Impl())
     return false;
   else {
@@ -247,6 +295,8 @@ bool SBTypeSummary::GetDescription(lldb::SBStream &description,
 }
 
 bool SBTypeSummary::DoesPrintValue(lldb::SBValue value) {
+  LLDB_INSTRUMENT_VA(this, value);
+
   if (!IsValid())
     return false;
   lldb::ValueObjectSP value_sp = value.GetSP();
@@ -254,6 +304,8 @@ bool SBTypeSummary::DoesPrintValue(lldb::SBValue value) {
 }
 
 lldb::SBTypeSummary &SBTypeSummary::operator=(const lldb::SBTypeSummary &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
     m_opaque_sp = rhs.m_opaque_sp;
   }
@@ -261,12 +313,16 @@ lldb::SBTypeSummary &SBTypeSummary::operator=(const lldb::SBTypeSummary &rhs) {
 }
 
 bool SBTypeSummary::operator==(lldb::SBTypeSummary &rhs) {
-  if (IsValid() == false)
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (!IsValid())
     return !rhs.IsValid();
   return m_opaque_sp == rhs.m_opaque_sp;
 }
 
 bool SBTypeSummary::IsEqualTo(lldb::SBTypeSummary &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (IsValid()) {
     // valid and invalid are different
     if (!rhs.IsValid())
@@ -305,7 +361,9 @@ bool SBTypeSummary::IsEqualTo(lldb::SBTypeSummary &rhs) {
 }
 
 bool SBTypeSummary::operator!=(lldb::SBTypeSummary &rhs) {
-  if (IsValid() == false)
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (!IsValid())
     return !rhs.IsValid();
   return m_opaque_sp != rhs.m_opaque_sp;
 }

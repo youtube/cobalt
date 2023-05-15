@@ -1,9 +1,8 @@
 //===- AutoUpgrade.h - AutoUpgrade Helpers ----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,17 +14,23 @@
 #define LLVM_IR_AUTOUPGRADE_H
 
 #include "llvm/ADT/StringRef.h"
+#include <vector>
 
 namespace llvm {
-  class CallInst;
+  class AttrBuilder;
+  class CallBase;
   class Constant;
   class Function;
   class Instruction;
+  class GlobalVariable;
   class MDNode;
   class Module;
-  class GlobalVariable;
+  class StringRef;
   class Type;
   class Value;
+
+  template <typename T> class OperandBundleDefT;
+  using OperandBundleDef = OperandBundleDefT<Value *>;
 
   /// This is a more granular function that simply checks an intrinsic function
   /// for upgrading, and returns true if it requires upgrading. It may return
@@ -35,7 +40,7 @@ namespace llvm {
 
   /// This is the complement to the above, replacing a specific call to an
   /// intrinsic function with a call to the specified new function.
-  void UpgradeIntrinsicCall(CallInst *CI, Function *NewFn);
+  void UpgradeIntrinsicCall(CallBase *CB, Function *NewFn);
 
   // This upgrades the comment for objc retain release markers in inline asm
   // calls
@@ -47,19 +52,22 @@ namespace llvm {
   /// so that it can update all calls to the old function.
   void UpgradeCallsToIntrinsic(Function* F);
 
-  /// This checks for global variables which should be upgraded. It returns true
-  /// if it requires upgrading.
-  bool UpgradeGlobalVariable(GlobalVariable *GV);
+  /// This checks for global variables which should be upgraded. It it requires
+  /// upgrading, returns a pointer to the upgraded variable.
+  GlobalVariable *UpgradeGlobalVariable(GlobalVariable *GV);
 
   /// This checks for module flags which should be upgraded. It returns true if
   /// module is modified.
   bool UpgradeModuleFlags(Module &M);
 
-  /// This checks for objc retain release marker which should be upgraded. It
-  /// returns true if module is modified.
-  bool UpgradeRetainReleaseMarker(Module &M);
+  /// Convert calls to ARC runtime functions to intrinsic calls and upgrade the
+  /// old retain release marker to new module flag format.
+  void UpgradeARCRuntime(Module &M);
 
   void UpgradeSectionAttributes(Module &M);
+
+  /// Correct any IR that is relying on old function attribute behavior.
+  void UpgradeFunctionAttributes(Function &F);
 
   /// If the given TBAA tag uses the scalar TBAA format, create a new node
   /// corresponding to the upgrade to the struct-path aware TBAA format.
@@ -74,7 +82,7 @@ namespace llvm {
   /// This is an auto-upgrade for bitcast constant expression between pointers
   /// with different address spaces: the instruction is replaced by a pair
   /// ptrtoint+inttoptr.
-  Value *UpgradeBitCastExpr(unsigned Opc, Constant *C, Type *DestTy);
+  Constant *UpgradeBitCastExpr(unsigned Opc, Constant *C, Type *DestTy);
 
   /// Check the debug info version number, if it is out-dated, drop the debug
   /// info. Return true if module is modified.
@@ -87,6 +95,16 @@ namespace llvm {
 
   /// Upgrade the loop attachment metadata node.
   MDNode *upgradeInstructionLoopAttachment(MDNode &N);
+
+  /// Upgrade the datalayout string by adding a section for address space
+  /// pointers.
+  std::string UpgradeDataLayoutString(StringRef DL, StringRef Triple);
+
+  /// Upgrade attributes that changed format or kind.
+  void UpgradeAttributes(AttrBuilder &B);
+
+  /// Upgrade operand bundles (without knowing about their user instruction).
+  void UpgradeOperandBundles(std::vector<OperandBundleDef> &OperandBundles);
 
 } // End llvm namespace
 

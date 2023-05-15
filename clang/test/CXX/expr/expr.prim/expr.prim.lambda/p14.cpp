@@ -15,8 +15,8 @@ public:
 
 void capture_by_copy(NonCopyable nc, NonCopyable &ncr, const NonConstCopy nco) {
   (void)[nc] { }; // expected-error{{capture of variable 'nc' as type 'NonCopyable' calls private copy constructor}}
-  (void)[=] {
-    ncr.foo(); // expected-error{{capture of variable 'ncr' as type 'NonCopyable' calls private copy constructor}} 
+  (void)[=] { // expected-error{{capture of variable 'ncr' as type 'NonCopyable' calls private copy constructor}}
+    ncr.foo();
   }();
 
   [nco] {}(); // expected-error{{no matching constructor for initialization of 'const NonConstCopy'}}
@@ -97,7 +97,7 @@ namespace rdar14468891 {
   class Y : public X { };
 
   void capture(X &x) {
-    [x]() {}(); // expected-error{{by-copy capture of value of abstract type 'rdar14468891::X'}}
+    [x]() {}(); // expected-error{{by-copy capture of value of abstract type 'X'}}
   }
 }
 
@@ -105,7 +105,7 @@ namespace rdar15560464 {
   struct X; // expected-note{{forward declaration of 'rdar15560464::X'}}
   void foo(const X& param) {
     auto x = ([=]() {
-        auto& y = param; // expected-error{{by-copy capture of variable 'param' with incomplete type 'const rdar15560464::X'}}
+        auto& y = param; // expected-error{{by-copy capture of variable 'param' with incomplete type 'const X'}}
       });
   }
 }

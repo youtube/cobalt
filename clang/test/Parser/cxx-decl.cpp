@@ -6,6 +6,8 @@ const char const *x10; // expected-error {{duplicate 'const' declaration specifi
 
 int x(*g); // expected-error {{use of undeclared identifier 'g'}}
 
+private int cplusplus_is_not_opencl; // expected-error {{expected unqualified-id}}
+
 struct Type {
   int Type;
 };
@@ -28,7 +30,7 @@ y::a a3 = a2;
 void foo() {
 y:  // label
   y::a s;
-  
+
   int a = 4;
   a = a ? a : a+1;
 }
@@ -37,7 +39,7 @@ struct b : y::a {};
 
 template <typename T>
 class someclass {
-  
+
   int bar() {
     T *P;
     return 1 ? P->x : P->y;
@@ -60,7 +62,7 @@ struct a {
 void test(struct Type *P) {
   int Type;
   Type = 1 ? P->Type : Type;
-  
+
   Type = (y:b) 4;   // expected-error {{unexpected ':' in nested name specifier}}
   Type = 1 ? (
               (y:b)  // expected-error {{unexpected ':' in nested name specifier}}
@@ -126,7 +128,7 @@ struct CodeCompleteConsumer {
 };
 
 void CodeCompleteConsumer::() { // expected-error {{xpected unqualified-id}}
-} 
+}
 
 ;
 
@@ -236,22 +238,20 @@ namespace PR5066 {
 
 namespace PR17255 {
 void foo() {
-  typename A::template B<>; // expected-error {{use of undeclared identifier 'A'}}
-  // expected-error@-1 {{'template' keyword not permitted here}}
+  typename A::template B<> c; // expected-error {{use of undeclared identifier 'A'}}
 #if __cplusplus <= 199711L
-  // expected-error@-3 {{'template' keyword outside of a template}}
+  // expected-error@-2 {{'template' keyword outside of a template}}
 #endif
-  // expected-error@-5 {{expected a qualified name after 'typename'}}
 }
 }
 
 namespace PR17567 {
   struct Foobar { // expected-note 2{{declared here}}
     FooBar(); // expected-error {{missing return type for function 'FooBar'; did you mean the constructor name 'Foobar'?}}
-    ~FooBar(); // expected-error {{expected the class name after '~' to name a destructor}}
+    ~FooBar(); // expected-error {{undeclared identifier 'FooBar' in destructor name}}
   };
   FooBar::FooBar() {} // expected-error {{undeclared}} expected-error {{missing return type}}
-  FooBar::~FooBar() {} // expected-error {{undeclared}} expected-error {{expected the class name}}
+  FooBar::~FooBar() {} // expected-error 2{{undeclared}}
 }
 
 namespace DuplicateFriend {
@@ -306,14 +306,14 @@ namespace rdar37099386 {
 
 // PR8380
 extern ""      // expected-error {{unknown linkage language}}
-test6a { ;// expected-error {{C++ requires a type specifier for all declarations}}
+test6a { ;// expected-error {{a type specifier is required for all declarations}}
 #if __cplusplus <= 199711L
 // expected-error@-2 {{expected ';' after top level declarator}}
 #else
 // expected-error@-4 {{expected expression}}
 // expected-note@-5 {{to match this}}
 #endif
-  
+
   int test6b;
 #if __cplusplus >= 201103L
 // expected-error@+3 {{expected}}

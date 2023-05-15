@@ -1,20 +1,18 @@
 //===- CoroCleanup.cpp - Coroutine Cleanup Pass ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-// This pass lowers all remaining coroutine intrinsics.
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Coroutines/CoroCleanup.h"
 #include "CoroInternal.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/Pass.h"
-#include "llvm/Transforms/Scalar.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
 
 using namespace llvm;
 
@@ -25,17 +23,8 @@ namespace {
 struct Lowerer : coro::LowererBase {
   IRBuilder<> Builder;
   Lowerer(Module &M) : LowererBase(M), Builder(Context) {}
-  bool lowerRemainingCoroIntrinsics(Function &F);
+  bool lower(Function &F);
 };
-}
-
-static void simplifyCFG(Function &F) {
-  llvm::legacy::FunctionPassManager FPM(F.getParent());
-  FPM.add(createCFGSimplificationPass());
-
-  FPM.doInitialization();
-  FPM.run(F);
-  FPM.doFinalization();
 }
 
 static void lowerSubFn(IRBuilder<> &Builder, CoroSubFnInst *SubFn) {
@@ -50,16 +39,16 @@ static void lowerSubFn(IRBuilder<> &Builder, CoroSubFnInst *SubFn) {
   Builder.SetInsertPoint(SubFn);
   auto *FramePtr = Builder.CreateBitCast(FrameRaw, FramePtrTy);
   auto *Gep = Builder.CreateConstInBoundsGEP2_32(FrameTy, FramePtr, 0, Index);
-  auto *Load = Builder.CreateLoad(Gep);
+  auto *Load = Builder.CreateLoad(FrameTy->getElementType(Index), Gep);
 
   SubFn->replaceAllUsesWith(Load);
 }
 
-bool Lowerer::lowerRemainingCoroIntrinsics(Function &F) {
+bool Lowerer::lower(Function &F) {
+  bool IsPrivateAndUnprocessed = F.isPresplitCoroutine() && F.hasLocalLinkage();
   bool Changed = false;
 
-  for (auto IB = inst_begin(F), E = inst_end(F); IB != E;) {
-    Instruction &I = *IB++;
+  for (Instruction &I : llvm::make_early_inc_range(instructions(F))) {
     if (auto *II = dyn_cast<IntrinsicInst>(&I)) {
       switch (II->getIntrinsicID()) {
       default:
@@ -73,11 +62,42 @@ bool Lowerer::lowerRemainingCoroIntrinsics(Function &F) {
       case Intrinsic::coro_alloc:
         II->replaceAllUsesWith(ConstantInt::getTrue(Context));
         break;
+      case Intrinsic::coro_async_resume:
+        II->replaceAllUsesWith(
+            ConstantPointerNull::get(cast<PointerType>(I.getType())));
+        break;
       case Intrinsic::coro_id:
+      case Intrinsic::coro_id_retcon:
+      case Intrinsic::coro_id_retcon_once:
+      case Intrinsic::coro_id_async:
         II->replaceAllUsesWith(ConstantTokenNone::get(Context));
         break;
       case Intrinsic::coro_subfn_addr:
         lowerSubFn(Builder, cast<CoroSubFnInst>(II));
+        break;
+      case Intrinsic::coro_end:
+      case Intrinsic::coro_suspend_retcon:
+        if (IsPrivateAndUnprocessed) {
+          II->replaceAllUsesWith(UndefValue::get(II->getType()));
+        } else
+          continue;
+        break;
+      case Intrinsic::coro_async_size_replace:
+        auto *Target = cast<ConstantStruct>(
+            cast<GlobalVariable>(II->getArgOperand(0)->stripPointerCasts())
+                ->getInitializer());
+        auto *Source = cast<ConstantStruct>(
+            cast<GlobalVariable>(II->getArgOperand(1)->stripPointerCasts())
+                ->getInitializer());
+        auto *TargetSize = Target->getOperand(1);
+        auto *SourceSize = Source->getOperand(1);
+        if (TargetSize->isElementWiseEqual(SourceSize)) {
+          break;
+        }
+        auto *TargetRelativeFunOffset = Target->getOperand(0);
+        auto *NewFuncPtrStruct = ConstantStruct::get(
+            Target->getType(), TargetRelativeFunOffset, SourceSize);
+        Target->replaceAllUsesWith(NewFuncPtrStruct);
         break;
       }
       II->eraseFromParent();
@@ -85,53 +105,32 @@ bool Lowerer::lowerRemainingCoroIntrinsics(Function &F) {
     }
   }
 
-  if (Changed) {
-    // After replacement were made we can cleanup the function body a little.
-    simplifyCFG(F);
-  }
   return Changed;
 }
 
-//===----------------------------------------------------------------------===//
-//                              Top Level Driver
-//===----------------------------------------------------------------------===//
-
-namespace {
-
-struct CoroCleanup : FunctionPass {
-  static char ID; // Pass identification, replacement for typeid
-
-  CoroCleanup() : FunctionPass(ID) {
-    initializeCoroCleanupPass(*PassRegistry::getPassRegistry());
-  }
-
-  std::unique_ptr<Lowerer> L;
-
-  // This pass has work to do only if we find intrinsics we are going to lower
-  // in the module.
-  bool doInitialization(Module &M) override {
-    if (coro::declaresIntrinsics(M, {"llvm.coro.alloc", "llvm.coro.begin",
-                                     "llvm.coro.subfn.addr", "llvm.coro.free",
-                                     "llvm.coro.id"}))
-      L = llvm::make_unique<Lowerer>(M);
-    return false;
-  }
-
-  bool runOnFunction(Function &F) override {
-    if (L)
-      return L->lowerRemainingCoroIntrinsics(F);
-    return false;
-  }
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    if (!L)
-      AU.setPreservesAll();
-  }
-  StringRef getPassName() const override { return "Coroutine Cleanup"; }
-};
+static bool declaresCoroCleanupIntrinsics(const Module &M) {
+  return coro::declaresIntrinsics(
+      M, {"llvm.coro.alloc", "llvm.coro.begin", "llvm.coro.subfn.addr",
+          "llvm.coro.free", "llvm.coro.id", "llvm.coro.id.retcon",
+          "llvm.coro.id.async", "llvm.coro.id.retcon.once",
+          "llvm.coro.async.size.replace", "llvm.coro.async.resume"});
 }
 
-char CoroCleanup::ID = 0;
-INITIALIZE_PASS(CoroCleanup, "coro-cleanup",
-                "Lower all coroutine related intrinsics", false, false)
+PreservedAnalyses CoroCleanupPass::run(Module &M,
+                                       ModuleAnalysisManager &MAM) {
+  if (!declaresCoroCleanupIntrinsics(M))
+    return PreservedAnalyses::all();
 
-Pass *llvm::createCoroCleanupPass() { return new CoroCleanup(); }
+  FunctionAnalysisManager &FAM =
+      MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
+
+  FunctionPassManager FPM;
+  FPM.addPass(SimplifyCFGPass());
+
+  Lowerer L(M);
+  for (auto &F : M)
+    if (L.lower(F))
+      FPM.run(F, FAM);
+
+  return PreservedAnalyses::none();
+}

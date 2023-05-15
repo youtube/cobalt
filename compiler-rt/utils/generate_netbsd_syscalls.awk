@@ -2,10 +2,9 @@
 
 #===-- generate_netbsd_syscalls.awk ----------------------------------------===#
 #
-#                     The LLVM Compiler Infrastructure
-#
-# This file is distributed under the University of Illinois Open Source
-# License. See LICENSE.TXT for details.
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
 #===------------------------------------------------------------------------===#
 #
@@ -16,12 +15,16 @@
 # This script accepts on the input syscalls.master by default located in the
 # /usr/src/sys/kern/syscalls.master path in the NetBSD distribution.
 #
-# NetBSD version 8.0.
+# This script shall be executed only on the newest NetBSD version.
+# This script will emit compat code for the older releases.
+#
+# NetBSD minimal version supported 9.0.
+# NetBSD current version supported 9.99.30.
 #
 #===------------------------------------------------------------------------===#
 
 BEGIN {
-  # harcode the script name
+  # hardcode the script name
   script_name = "generate_netbsd_syscalls.awk"
   outputh = "../include/sanitizer/netbsd_syscall_hooks.h"
   outputinc = "../lib/sanitizer_common/sanitizer_syscalls_netbsd.inc"
@@ -226,10 +229,9 @@ END {
 
   pcmd("//===-- netbsd_syscall_hooks.h --------------------------------------------===//")
   pcmd("//")
-  pcmd("//                     The LLVM Compiler Infrastructure")
-  pcmd("//")
-  pcmd("// This file is distributed under the University of Illinois Open Source")
-  pcmd("// License. See LICENSE.TXT for details.")
+  pcmd("// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.")
+  pcmd("// See https://llvm.org/LICENSE.txt for license information.")
+  pcmd("// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception")
   pcmd("//")
   pcmd("//===----------------------------------------------------------------------===//")
   pcmd("//")
@@ -302,6 +304,20 @@ END {
   }
 
   pcmd("")
+  pcmd("/* Compat with older releases */")
+  pcmd("#define __sanitizer_syscall_pre_getvfsstat __sanitizer_syscall_pre_compat_90_getvfsstat")
+  pcmd("#define __sanitizer_syscall_post_getvfsstat __sanitizer_syscall_post_compat_90_getvfsstat")
+  pcmd("")
+  pcmd("#define __sanitizer_syscall_pre_statvfs1 __sanitizer_syscall_pre_compat_90_statvfs1")
+  pcmd("#define __sanitizer_syscall_post_statvfs1 __sanitizer_syscall_post_compat_90_statvfs1")
+  pcmd("")
+  pcmd("#define __sanitizer_syscall_pre_fstatvfs1 __sanitizer_syscall_pre_compat_90_fstatvfs1")
+  pcmd("#define __sanitizer_syscall_post_fstatvfs1 __sanitizer_syscall_post_compat_90_fstatvfs1")
+  pcmd("")
+  pcmd("#define __sanitizer_syscall_pre___fhstatvfs140 __sanitizer_syscall_pre_compat_90_fhstatvfs1")
+  pcmd("#define __sanitizer_syscall_post___fhstatvfs140 __sanitizer_syscall_post_compat_90_fhstatvfs1")
+
+  pcmd("")
   pcmd("#ifdef __cplusplus")
   pcmd("extern \"C\" {")
   pcmd("#endif")
@@ -361,10 +377,9 @@ END {
 
   pcmd("//===-- sanitizer_syscalls_netbsd.inc ---------------------------*- C++ -*-===//")
   pcmd("//")
-  pcmd("//                     The LLVM Compiler Infrastructure")
-  pcmd("//")
-  pcmd("// This file is distributed under the University of Illinois Open Source")
-  pcmd("// License. See LICENSE.TXT for details.")
+  pcmd("// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.")
+  pcmd("// See https://llvm.org/LICENSE.txt for license information.")
+  pcmd("// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception")
   pcmd("//")
   pcmd("//===----------------------------------------------------------------------===//")
   pcmd("//")
@@ -718,6 +733,14 @@ function syscall_body(syscall, mode)
       pcmd("  PRE_READ(addr_, struct_ptrace_ptrace_siginfo_struct_sz);")
       pcmd("} else if (req_ == ptrace_pt_get_siginfo) {")
       pcmd("  PRE_WRITE(addr_, struct_ptrace_ptrace_siginfo_struct_sz);")
+      pcmd("} else if (req_ == ptrace_pt_lwpstatus) {")
+      pcmd("  struct __sanitizer_ptrace_lwpstatus *addr = (struct __sanitizer_ptrace_lwpstatus *)addr_;")
+      pcmd("  PRE_READ(&addr->pl_lwpid, sizeof(__sanitizer_lwpid_t));")
+      pcmd("  PRE_WRITE(addr, struct_ptrace_ptrace_lwpstatus_struct_sz);")
+      pcmd("} else if (req_ == ptrace_pt_lwpnext) {")
+      pcmd("  struct __sanitizer_ptrace_lwpstatus *addr = (struct __sanitizer_ptrace_lwpstatus *)addr_;")
+      pcmd("  PRE_READ(&addr->pl_lwpid, sizeof(__sanitizer_lwpid_t));")
+      pcmd("  PRE_WRITE(addr, struct_ptrace_ptrace_lwpstatus_struct_sz);")
       pcmd("} else if (req_ == ptrace_pt_setregs) {")
       pcmd("  PRE_READ(addr_, struct_ptrace_reg_struct_sz);")
       pcmd("} else if (req_ == ptrace_pt_getregs) {")
@@ -754,6 +777,14 @@ function syscall_body(syscall, mode)
       pcmd("    POST_READ(addr_, struct_ptrace_ptrace_siginfo_struct_sz);")
       pcmd("  } else if (req_ == ptrace_pt_get_siginfo) {")
       pcmd("    POST_WRITE(addr_, struct_ptrace_ptrace_siginfo_struct_sz);")
+      pcmd("  } else if (req_ == ptrace_pt_lwpstatus) {")
+      pcmd("    struct __sanitizer_ptrace_lwpstatus *addr = (struct __sanitizer_ptrace_lwpstatus *)addr_;")
+      pcmd("    POST_READ(&addr->pl_lwpid, sizeof(__sanitizer_lwpid_t));")
+      pcmd("    POST_WRITE(addr, struct_ptrace_ptrace_lwpstatus_struct_sz);")
+      pcmd("  } else if (req_ == ptrace_pt_lwpnext) {")
+      pcmd("    struct __sanitizer_ptrace_lwpstatus *addr = (struct __sanitizer_ptrace_lwpstatus *)addr_;")
+      pcmd("    POST_READ(&addr->pl_lwpid, sizeof(__sanitizer_lwpid_t));")
+      pcmd("    POST_WRITE(addr, struct_ptrace_ptrace_lwpstatus_struct_sz);")
       pcmd("  } else if (req_ == ptrace_pt_setregs) {")
       pcmd("    POST_READ(addr_, struct_ptrace_reg_struct_sz);")
       pcmd("  } else if (req_ == ptrace_pt_getregs) {")
@@ -1136,6 +1167,8 @@ function syscall_body(syscall, mode)
     pcmd("/* TODO */")
   } else if (syscall == "dup2") {
     pcmd("/* Nothing to do */")
+  } else if (syscall == "getrandom") {
+    pcmd("/* TODO */")
   } else if (syscall == "fcntl") {
     pcmd("/* Nothing to do */")
   } else if (syscall == "compat_50_select") {
@@ -1400,6 +1433,12 @@ function syscall_body(syscall, mode)
     pcmd("/* TODO */")
   } else if (syscall == "sysarch") {
     pcmd("/* TODO */")
+  } else if (syscall == "__futex") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__futex_set_robust_list") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__futex_get_robust_list") {
+    pcmd("/* TODO */")
   } else if (syscall == "compat_10_osemsys") {
     pcmd("/* TODO */")
   } else if (syscall == "compat_10_omsgsys") {
@@ -1464,6 +1503,8 @@ function syscall_body(syscall, mode)
       pcmd("  }")
       pcmd("}")
     }
+  } else if (syscall == "getsockopt2") {
+    pcmd("/* TODO */")
   } else if (syscall == "fpathconf") {
     pcmd("/* Nothing to do */")
   } else if (syscall == "getrlimit") {
@@ -1982,10 +2023,6 @@ function syscall_body(syscall, mode)
     pcmd("if (nsa_) {")
     pcmd("  PRE_READ(nsa_, sizeof(__sanitizer_sigaction));")
     pcmd("}")
-  } else if (syscall == "pmc_get_info") {
-    pcmd("/* TODO */")
-  } else if (syscall == "pmc_control") {
-    pcmd("/* TODO */")
   } else if (syscall == "rasctl") {
     pcmd("/* Nothing to do */")
   } else if (syscall == "kqueue") {
@@ -2012,9 +2049,9 @@ function syscall_body(syscall, mode)
     pcmd("/* Nothing to do */")
   } else if (syscall == "uuidgen") {
     pcmd("/* Nothing to do */")
-  } else if (syscall == "getvfsstat") {
+  } else if (syscall == "compat_90_getvfsstat") {
     pcmd("/* Nothing to do */")
-  } else if (syscall == "statvfs1") {
+  } else if (syscall == "compat_90_statvfs1") {
     if (mode == "pre") {
       pcmd("const char *path = (const char *)path_;")
       pcmd("if (path) {")
@@ -2026,7 +2063,7 @@ function syscall_body(syscall, mode)
       pcmd("  POST_READ(path, __sanitizer::internal_strlen(path) + 1);")
       pcmd("}")
     }
-  } else if (syscall == "fstatvfs1") {
+  } else if (syscall == "compat_90_fstatvfs1") {
     pcmd("/* Nothing to do */")
   } else if (syscall == "compat_30_fhstatvfs1") {
     pcmd("/* TODO */")
@@ -2290,7 +2327,7 @@ function syscall_body(syscall, mode)
       pcmd("  PRE_READ(fhp_, fh_size_);")
       pcmd("}")
     }
-  } else if (syscall == "__fhstatvfs140") {
+  } else if (syscall == "compat_90_fhstatvfs1") {
     if (mode == "pre") {
       pcmd("if (fhp_) {")
       pcmd("  PRE_READ(fhp_, fh_size_);")
@@ -2935,16 +2972,14 @@ function syscall_body(syscall, mode)
   } else if (syscall == "sendmmsg") {
     if (mode == "pre") {
       pcmd("struct __sanitizer_mmsghdr *mmsg = (struct __sanitizer_mmsghdr *)mmsg_;")
-      pcmd("unsigned int vlen = (vlen_ > 1024 ? 1024 : vlen_);")
       pcmd("if (mmsg) {")
-      pcmd("  PRE_READ(mmsg, sizeof(struct __sanitizer_mmsghdr) * vlen);")
+      pcmd("  PRE_READ(mmsg, sizeof(struct __sanitizer_mmsghdr) * (vlen_ > 1024 ? 1024 : vlen_));")
       pcmd("}")
     } else {
       pcmd("struct __sanitizer_mmsghdr *mmsg = (struct __sanitizer_mmsghdr *)mmsg_;")
-      pcmd("unsigned int vlen = (vlen_ > 1024 ? 1024 : vlen_);")
       pcmd("if (res >= 0) {")
       pcmd("  if (mmsg) {")
-      pcmd("    POST_READ(mmsg, sizeof(struct __sanitizer_mmsghdr) * vlen);")
+      pcmd("    POST_READ(mmsg, sizeof(struct __sanitizer_mmsghdr) * (vlen_ > 1024 ? 1024 : vlen_));")
       pcmd("  }")
       pcmd("}")
     }
@@ -2978,6 +3013,54 @@ function syscall_body(syscall, mode)
     pcmd("/* Nothing to do */")
   } else if (syscall == "clock_getcpuclockid2") {
     pcmd("/* Nothing to do */")
+  } else if (syscall == "__getvfsstat90") {
+    pcmd("/* Nothing to do */")
+  } else if (syscall == "__statvfs190") {
+    if (mode == "pre") {
+      pcmd("const char *path = (const char *)path_;")
+      pcmd("if (path) {")
+      pcmd("  PRE_READ(path, __sanitizer::internal_strlen(path) + 1);")
+      pcmd("}")
+    } else {
+      pcmd("const char *path = (const char *)path_;")
+      pcmd("if (path) {")
+      pcmd("  POST_READ(path, __sanitizer::internal_strlen(path) + 1);")
+      pcmd("}")
+    }
+  } else if (syscall == "__fstatvfs190") {
+    pcmd("/* Nothing to do */")
+  } else if (syscall == "__fhstatvfs190") {
+    if (mode == "pre") {
+      pcmd("if (fhp_) {")
+      pcmd("  PRE_READ(fhp_, fh_size_);")
+      pcmd("}")
+    }
+  } else if (syscall == "__acl_get_link") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_set_link") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_delete_link") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_aclcheck_link") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_get_file") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_set_file") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_get_fd") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_set_fd") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_delete_file") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_delete_fd") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_aclcheck_file") {
+    pcmd("/* TODO */")
+  } else if (syscall == "__acl_aclcheck_fd") {
+    pcmd("/* TODO */")
+  } else if (syscall == "lpathconf") {
+    pcmd("/* TODO */")
   } else {
     print "Unrecognized syscall: " syscall
     abnormal_exit = 1

@@ -1,9 +1,8 @@
 //===--- LayoutOverrideSource.cpp --Override Record Layouts ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Frontend/LayoutOverrideSource.h"
@@ -17,11 +16,11 @@ using namespace clang;
 
 /// Parse a simple identifier.
 static std::string parseName(StringRef S) {
-  if (S.empty() || !isIdentifierHead(S[0]))
+  if (S.empty() || !isAsciiIdentifierStart(S[0]))
     return "";
 
   unsigned Offset = 1;
-  while (Offset < S.size() && isIdentifierBody(S[Offset]))
+  while (Offset < S.size() && isAsciiIdentifierContinue(S[Offset]))
     ++Offset;
 
   return S.substr(0, Offset).str();
@@ -44,7 +43,7 @@ LayoutOverrideSource::LayoutOverrideSource(StringRef Filename) {
     StringRef LineStr(Line);
 
     // Determine whether the following line will start a
-    if (LineStr.find("*** Dumping AST Record Layout") != StringRef::npos)  {
+    if (LineStr.contains("*** Dumping AST Record Layout")) {
       // Flush the last type/layout, if there is one.
       if (!CurrentType.empty())
         Layouts[CurrentType] = CurrentLayout;

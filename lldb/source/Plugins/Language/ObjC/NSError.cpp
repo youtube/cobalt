@@ -1,25 +1,19 @@
-//===-- NSError.cpp ---------------------------------------------*- C++ -*-===//
+//===-- NSError.cpp -------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "clang/AST/DeclCXX.h"
 
-// Project includes
 #include "Cocoa.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
-#include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/ProcessStructReader.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
@@ -28,6 +22,7 @@
 #include "lldb/Utility/Stream.h"
 
 #include "Plugins/Language/ObjC/NSString.h"
+#include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -88,13 +83,15 @@ bool lldb_private::formatters::NSError_SummaryProvider(
   }
 
   InferiorSizedWord isw(domain_str_value, *process_sp);
+  TypeSystemClangSP scratch_ts_sp =
+      ScratchTypeSystemClang::GetForTarget(process_sp->GetTarget());
 
+  if (!scratch_ts_sp)
+    return false;
   ValueObjectSP domain_str_sp = ValueObject::CreateValueObjectFromData(
       "domain_str", isw.GetAsData(process_sp->GetByteOrder()),
-      valobj.GetExecutionContextRef(), process_sp->GetTarget()
-                                           .GetScratchClangASTContext()
-                                           ->GetBasicType(lldb::eBasicTypeVoid)
-                                           .GetPointerType());
+      valobj.GetExecutionContextRef(),
+      scratch_ts_sp->GetBasicType(lldb::eBasicTypeVoid).GetPointerType());
 
   if (!domain_str_sp)
     return false;
@@ -158,19 +155,22 @@ public:
     if (userinfo == LLDB_INVALID_ADDRESS || error.Fail())
       return false;
     InferiorSizedWord isw(userinfo, *process_sp);
+    TypeSystemClangSP scratch_ts_sp =
+        ScratchTypeSystemClang::GetForTarget(process_sp->GetTarget());
+    if (!scratch_ts_sp)
+      return false;
     m_child_sp = CreateValueObjectFromData(
         "_userInfo", isw.GetAsData(process_sp->GetByteOrder()),
         m_backend.GetExecutionContextRef(),
-        process_sp->GetTarget().GetScratchClangASTContext()->GetBasicType(
-            lldb::eBasicTypeObjCID));
+        scratch_ts_sp->GetBasicType(lldb::eBasicTypeObjCID));
     return false;
   }
 
   bool MightHaveChildren() override { return true; }
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
-    static ConstString g___userInfo("_userInfo");
-    if (name == g___userInfo)
+  size_t GetIndexOfChildWithName(ConstString name) override {
+    static ConstString g_userInfo("_userInfo");
+    if (name == g_userInfo)
       return 0;
     return UINT32_MAX;
   }
@@ -182,7 +182,7 @@ private:
   // values to leak if the latter, then I need to store a SharedPointer to it -
   // so that it only goes away when everyone else in the cluster goes away oh
   // joy!
-  ValueObject *m_child_ptr;
+  ValueObject *m_child_ptr = nullptr;
   ValueObjectSP m_child_sp;
 };
 
@@ -192,9 +192,7 @@ lldb_private::formatters::NSErrorSyntheticFrontEndCreator(
   lldb::ProcessSP process_sp(valobj_sp->GetProcessSP());
   if (!process_sp)
     return nullptr;
-  ObjCLanguageRuntime *runtime =
-      (ObjCLanguageRuntime *)process_sp->GetLanguageRuntime(
-          lldb::eLanguageTypeObjC);
+  ObjCLanguageRuntime *runtime = ObjCLanguageRuntime::Get(*process_sp);
   if (!runtime)
     return nullptr;
 

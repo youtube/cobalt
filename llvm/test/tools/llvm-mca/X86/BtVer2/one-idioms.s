@@ -30,7 +30,10 @@ vpcmpeqw  %xmm3, %xmm3, %xmm5
 # CHECK:      Iterations:        100
 # CHECK-NEXT: Instructions:      1500
 # CHECK-NEXT: Total Cycles:      753
-# CHECK-NEXT: Dispatch Width:    2
+# CHECK-NEXT: Total uOps:        1500
+
+# CHECK:      Dispatch Width:    2
+# CHECK-NEXT: uOps Per Cycle:    1.99
 # CHECK-NEXT: IPC:               1.99
 # CHECK-NEXT: Block RThroughput: 7.5
 
@@ -153,3 +156,4 @@ vpcmpeqw  %xmm3, %xmm3, %xmm5
 # CHECK-NEXT: 12.    1     1.0    1.0    0.0       vpcmpeqd	%xmm3, %xmm3, %xmm5
 # CHECK-NEXT: 13.    1     1.0    1.0    0.0       vpcmpeqq	%xmm3, %xmm3, %xmm5
 # CHECK-NEXT: 14.    1     1.0    1.0    0.0       vpcmpeqw	%xmm3, %xmm3, %xmm5
+# CHECK-NEXT:        1     1.0    1.0    0.0       <total>

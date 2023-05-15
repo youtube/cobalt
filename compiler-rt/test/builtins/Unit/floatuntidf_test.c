@@ -1,16 +1,6 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
-//===-- floatuntidf.c - Test __floatuntidf --------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __floatuntidf for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
+// REQUIRES: librt_has_floatuntidf
+// REQUIRES: int128
 
 #include "int_lib.h"
 #include <float.h>

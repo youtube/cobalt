@@ -1,9 +1,8 @@
 //===- ModuleDebugStream.h - PDB Module Info Stream Access ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,19 +10,23 @@
 #define LLVM_DEBUGINFO_PDB_NATIVE_MODULEDEBUGSTREAM_H
 
 #include "llvm/ADT/iterator_range.h"
-#include "llvm/DebugInfo/CodeView/DebugChecksumsSubsection.h"
+#include "llvm/DebugInfo/CodeView/CVRecord.h"
 #include "llvm/DebugInfo/CodeView/DebugSubsectionRecord.h"
-#include "llvm/DebugInfo/CodeView/SymbolRecord.h"
-#include "llvm/DebugInfo/MSF/MappedBlockStream.h"
+#include "llvm/DebugInfo/PDB/Native/DbiModuleDescriptor.h"
 #include "llvm/Support/BinaryStreamRef.h"
 #include "llvm/Support/Error.h"
 #include <cstdint>
 #include <memory>
 
 namespace llvm {
+class BinaryStreamReader;
+namespace codeview {
+class DebugChecksumsSubsectionRef;
+}
+namespace msf {
+class MappedBlockStream;
+}
 namespace pdb {
-
-class DbiModuleDescriptor;
 
 class ModuleDebugStreamRef {
   using DebugSubsectionIterator = codeview::DebugSubsectionArray::Iterator;
@@ -43,6 +46,8 @@ public:
   symbols(bool *HadError) const;
 
   const codeview::CVSymbolArray &getSymbolArray() const { return SymbolArray; }
+  const codeview::CVSymbolArray
+  getSymbolArrayForScope(uint32_t ScopeBegin) const;
 
   BinarySubstreamRef getSymbolsSubstream() const;
   BinarySubstreamRef getC11LinesSubstream() const;
@@ -50,6 +55,8 @@ public:
   BinarySubstreamRef getGlobalRefsSubstream() const;
 
   ModuleDebugStreamRef &operator=(ModuleDebugStreamRef &&Other) = delete;
+
+  codeview::CVSymbol readSymbolAtOffset(uint32_t Offset) const;
 
   iterator_range<DebugSubsectionIterator> subsections() const;
   codeview::DebugSubsectionArray getSubsectionsArray() const {
@@ -64,7 +71,9 @@ public:
   findChecksumsSubsection() const;
 
 private:
-  const DbiModuleDescriptor &Mod;
+  Error reloadSerialize(BinaryStreamReader &Reader);
+
+  DbiModuleDescriptor Mod;
 
   uint32_t Signature;
 

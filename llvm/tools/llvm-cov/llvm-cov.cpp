@@ -1,9 +1,8 @@
 //===- llvm-cov.cpp - LLVM coverage tool ----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,7 +14,6 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
@@ -61,7 +59,7 @@ int main(int argc, const char **argv) {
   InitLLVM X(argc, argv);
 
   // If argv[0] is or ends with 'gcov', always be gcov compatible
-  if (sys::path::stem(argv[0]).endswith_lower("gcov"))
+  if (sys::path::stem(argv[0]).endswith_insensitive("gcov"))
     return gcovMain(argc, argv);
 
   // Check if we are invoking a specific tool command.

@@ -1,9 +1,8 @@
 //===- EnumTables.cpp - Enum to string conversion tables ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,7 +14,7 @@ using namespace llvm;
 using namespace codeview;
 
 #define CV_ENUM_CLASS_ENT(enum_class, enum)                                    \
-  { #enum, std::underlying_type < enum_class > ::type(enum_class::enum) }
+  { #enum, std::underlying_type_t<enum_class>(enum_class::enum) }
 
 #define CV_ENUM_ENT(ns, enum)                                                  \
   { #enum, ns::enum }
@@ -32,10 +31,28 @@ static const EnumEntry<TypeLeafKind> TypeLeafNames[] = {
 #undef CV_TYPE
 };
 
-static const EnumEntry<uint16_t> RegisterNames[] = {
+static const EnumEntry<uint16_t> RegisterNames_X86[] = {
+#define CV_REGISTERS_X86
 #define CV_REGISTER(name, val) CV_ENUM_CLASS_ENT(RegisterId, name),
 #include "llvm/DebugInfo/CodeView/CodeViewRegisters.def"
 #undef CV_REGISTER
+#undef CV_REGISTERS_X86
+};
+
+static const EnumEntry<uint16_t> RegisterNames_ARM[] = {
+#define CV_REGISTERS_ARM
+#define CV_REGISTER(name, val) CV_ENUM_CLASS_ENT(RegisterId, name),
+#include "llvm/DebugInfo/CodeView/CodeViewRegisters.def"
+#undef CV_REGISTER
+#undef CV_REGISTERS_ARM
+};
+
+static const EnumEntry<uint16_t> RegisterNames_ARM64[] = {
+#define CV_REGISTERS_ARM64
+#define CV_REGISTER(name, val) CV_ENUM_CLASS_ENT(RegisterId, name),
+#include "llvm/DebugInfo/CodeView/CodeViewRegisters.def"
+#undef CV_REGISTER
+#undef CV_REGISTERS_ARM64
 };
 
 static const EnumEntry<uint32_t> PublicSymFlagNames[] = {
@@ -87,6 +104,7 @@ static const EnumEntry<codeview::SourceLanguage> SourceLanguages[] = {
     CV_ENUM_ENT(SourceLanguage, ILAsm),   CV_ENUM_ENT(SourceLanguage, Java),
     CV_ENUM_ENT(SourceLanguage, JScript), CV_ENUM_ENT(SourceLanguage, MSIL),
     CV_ENUM_ENT(SourceLanguage, HLSL),    CV_ENUM_ENT(SourceLanguage, D),
+    CV_ENUM_ENT(SourceLanguage, Swift),   CV_ENUM_ENT(SourceLanguage, Rust),
 };
 
 static const EnumEntry<uint32_t> CompileSym2FlagNames[] = {
@@ -182,6 +200,10 @@ static const EnumEntry<unsigned> CPUTypeNames[] = {
     CV_ENUM_CLASS_ENT(CPUType, EBC),
     CV_ENUM_CLASS_ENT(CPUType, Thumb),
     CV_ENUM_CLASS_ENT(CPUType, ARMNT),
+    CV_ENUM_CLASS_ENT(CPUType, ARM64),
+    CV_ENUM_CLASS_ENT(CPUType, HybridX86ARM64),
+    CV_ENUM_CLASS_ENT(CPUType, ARM64EC),
+    CV_ENUM_CLASS_ENT(CPUType, ARM64X),
     CV_ENUM_CLASS_ENT(CPUType, D3D11_Shader),
 };
 
@@ -200,6 +222,8 @@ static const EnumEntry<uint32_t> FrameProcSymFlagNames[] = {
     CV_ENUM_CLASS_ENT(FrameProcedureOptions, Inlined),
     CV_ENUM_CLASS_ENT(FrameProcedureOptions, StrictSecurityChecks),
     CV_ENUM_CLASS_ENT(FrameProcedureOptions, SafeBuffers),
+    CV_ENUM_CLASS_ENT(FrameProcedureOptions, EncodedLocalBasePointerMask),
+    CV_ENUM_CLASS_ENT(FrameProcedureOptions, EncodedParamBasePointerMask),
     CV_ENUM_CLASS_ENT(FrameProcedureOptions, ProfileGuidedOptimization),
     CV_ENUM_CLASS_ENT(FrameProcedureOptions, ValidProfileCounts),
     CV_ENUM_CLASS_ENT(FrameProcedureOptions, OptimizedForSpeed),
@@ -287,80 +311,251 @@ static const EnumEntry<COFF::SectionCharacteristics>
         CV_ENUM_ENT(COFF, IMAGE_SCN_MEM_READ),
         CV_ENUM_ENT(COFF, IMAGE_SCN_MEM_WRITE)};
 
+static const EnumEntry<uint16_t> ClassOptionNames[] = {
+    CV_ENUM_CLASS_ENT(ClassOptions, Packed),
+    CV_ENUM_CLASS_ENT(ClassOptions, HasConstructorOrDestructor),
+    CV_ENUM_CLASS_ENT(ClassOptions, HasOverloadedOperator),
+    CV_ENUM_CLASS_ENT(ClassOptions, Nested),
+    CV_ENUM_CLASS_ENT(ClassOptions, ContainsNestedClass),
+    CV_ENUM_CLASS_ENT(ClassOptions, HasOverloadedAssignmentOperator),
+    CV_ENUM_CLASS_ENT(ClassOptions, HasConversionOperator),
+    CV_ENUM_CLASS_ENT(ClassOptions, ForwardReference),
+    CV_ENUM_CLASS_ENT(ClassOptions, Scoped),
+    CV_ENUM_CLASS_ENT(ClassOptions, HasUniqueName),
+    CV_ENUM_CLASS_ENT(ClassOptions, Sealed),
+    CV_ENUM_CLASS_ENT(ClassOptions, Intrinsic),
+};
+
+static const EnumEntry<uint8_t> MemberAccessNames[] = {
+    CV_ENUM_CLASS_ENT(MemberAccess, None),
+    CV_ENUM_CLASS_ENT(MemberAccess, Private),
+    CV_ENUM_CLASS_ENT(MemberAccess, Protected),
+    CV_ENUM_CLASS_ENT(MemberAccess, Public),
+};
+
+static const EnumEntry<uint16_t> MethodOptionNames[] = {
+    CV_ENUM_CLASS_ENT(MethodOptions, Pseudo),
+    CV_ENUM_CLASS_ENT(MethodOptions, NoInherit),
+    CV_ENUM_CLASS_ENT(MethodOptions, NoConstruct),
+    CV_ENUM_CLASS_ENT(MethodOptions, CompilerGenerated),
+    CV_ENUM_CLASS_ENT(MethodOptions, Sealed),
+};
+
+static const EnumEntry<uint16_t> MemberKindNames[] = {
+    CV_ENUM_CLASS_ENT(MethodKind, Vanilla),
+    CV_ENUM_CLASS_ENT(MethodKind, Virtual),
+    CV_ENUM_CLASS_ENT(MethodKind, Static),
+    CV_ENUM_CLASS_ENT(MethodKind, Friend),
+    CV_ENUM_CLASS_ENT(MethodKind, IntroducingVirtual),
+    CV_ENUM_CLASS_ENT(MethodKind, PureVirtual),
+    CV_ENUM_CLASS_ENT(MethodKind, PureIntroducingVirtual),
+};
+
+static const EnumEntry<uint8_t> PtrKindNames[] = {
+    CV_ENUM_CLASS_ENT(PointerKind, Near16),
+    CV_ENUM_CLASS_ENT(PointerKind, Far16),
+    CV_ENUM_CLASS_ENT(PointerKind, Huge16),
+    CV_ENUM_CLASS_ENT(PointerKind, BasedOnSegment),
+    CV_ENUM_CLASS_ENT(PointerKind, BasedOnValue),
+    CV_ENUM_CLASS_ENT(PointerKind, BasedOnSegmentValue),
+    CV_ENUM_CLASS_ENT(PointerKind, BasedOnAddress),
+    CV_ENUM_CLASS_ENT(PointerKind, BasedOnSegmentAddress),
+    CV_ENUM_CLASS_ENT(PointerKind, BasedOnType),
+    CV_ENUM_CLASS_ENT(PointerKind, BasedOnSelf),
+    CV_ENUM_CLASS_ENT(PointerKind, Near32),
+    CV_ENUM_CLASS_ENT(PointerKind, Far32),
+    CV_ENUM_CLASS_ENT(PointerKind, Near64),
+};
+
+static const EnumEntry<uint8_t> PtrModeNames[] = {
+    CV_ENUM_CLASS_ENT(PointerMode, Pointer),
+    CV_ENUM_CLASS_ENT(PointerMode, LValueReference),
+    CV_ENUM_CLASS_ENT(PointerMode, PointerToDataMember),
+    CV_ENUM_CLASS_ENT(PointerMode, PointerToMemberFunction),
+    CV_ENUM_CLASS_ENT(PointerMode, RValueReference),
+};
+
+static const EnumEntry<uint16_t> PtrMemberRepNames[] = {
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation, Unknown),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation, SingleInheritanceData),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation, MultipleInheritanceData),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation, VirtualInheritanceData),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation, GeneralData),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation, SingleInheritanceFunction),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation,
+                      MultipleInheritanceFunction),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation,
+                      VirtualInheritanceFunction),
+    CV_ENUM_CLASS_ENT(PointerToMemberRepresentation, GeneralFunction),
+};
+
+static const EnumEntry<uint16_t> TypeModifierNames[] = {
+    CV_ENUM_CLASS_ENT(ModifierOptions, Const),
+    CV_ENUM_CLASS_ENT(ModifierOptions, Volatile),
+    CV_ENUM_CLASS_ENT(ModifierOptions, Unaligned),
+};
+
+static const EnumEntry<uint8_t> CallingConventions[] = {
+    CV_ENUM_CLASS_ENT(CallingConvention, NearC),
+    CV_ENUM_CLASS_ENT(CallingConvention, FarC),
+    CV_ENUM_CLASS_ENT(CallingConvention, NearPascal),
+    CV_ENUM_CLASS_ENT(CallingConvention, FarPascal),
+    CV_ENUM_CLASS_ENT(CallingConvention, NearFast),
+    CV_ENUM_CLASS_ENT(CallingConvention, FarFast),
+    CV_ENUM_CLASS_ENT(CallingConvention, NearStdCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, FarStdCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, NearSysCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, FarSysCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, ThisCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, MipsCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, Generic),
+    CV_ENUM_CLASS_ENT(CallingConvention, AlphaCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, PpcCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, SHCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, ArmCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, AM33Call),
+    CV_ENUM_CLASS_ENT(CallingConvention, TriCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, SH5Call),
+    CV_ENUM_CLASS_ENT(CallingConvention, M32RCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, ClrCall),
+    CV_ENUM_CLASS_ENT(CallingConvention, Inline),
+    CV_ENUM_CLASS_ENT(CallingConvention, NearVector),
+};
+
+static const EnumEntry<uint8_t> FunctionOptionEnum[] = {
+    CV_ENUM_CLASS_ENT(FunctionOptions, CxxReturnUdt),
+    CV_ENUM_CLASS_ENT(FunctionOptions, Constructor),
+    CV_ENUM_CLASS_ENT(FunctionOptions, ConstructorWithVirtualBases),
+};
+
+static const EnumEntry<uint16_t> LabelTypeEnum[] = {
+    CV_ENUM_CLASS_ENT(LabelType, Near),
+    CV_ENUM_CLASS_ENT(LabelType, Far),
+};
+
 namespace llvm {
 namespace codeview {
 
 ArrayRef<EnumEntry<SymbolKind>> getSymbolTypeNames() {
-  return makeArrayRef(SymbolTypeNames);
+  return ArrayRef(SymbolTypeNames);
 }
 
 ArrayRef<EnumEntry<TypeLeafKind>> getTypeLeafNames() {
-  return makeArrayRef(TypeLeafNames);
+  return ArrayRef(TypeLeafNames);
 }
 
-ArrayRef<EnumEntry<uint16_t>> getRegisterNames() {
-  return makeArrayRef(RegisterNames);
+ArrayRef<EnumEntry<uint16_t>> getRegisterNames(CPUType Cpu) {
+  if (Cpu == CPUType::ARMNT) {
+    return ArrayRef(RegisterNames_ARM);
+  } else if (Cpu == CPUType::ARM64) {
+    return ArrayRef(RegisterNames_ARM64);
+  }
+  return ArrayRef(RegisterNames_X86);
 }
 
 ArrayRef<EnumEntry<uint32_t>> getPublicSymFlagNames() {
-  return makeArrayRef(PublicSymFlagNames);
+  return ArrayRef(PublicSymFlagNames);
 }
 
 ArrayRef<EnumEntry<uint8_t>> getProcSymFlagNames() {
-  return makeArrayRef(ProcSymFlagNames);
+  return ArrayRef(ProcSymFlagNames);
 }
 
 ArrayRef<EnumEntry<uint16_t>> getLocalFlagNames() {
-  return makeArrayRef(LocalFlags);
+  return ArrayRef(LocalFlags);
 }
 
 ArrayRef<EnumEntry<uint8_t>> getFrameCookieKindNames() {
-  return makeArrayRef(FrameCookieKinds);
+  return ArrayRef(FrameCookieKinds);
 }
 
 ArrayRef<EnumEntry<SourceLanguage>> getSourceLanguageNames() {
-  return makeArrayRef(SourceLanguages);
+  return ArrayRef(SourceLanguages);
 }
 
 ArrayRef<EnumEntry<uint32_t>> getCompileSym2FlagNames() {
-  return makeArrayRef(CompileSym2FlagNames);
+  return ArrayRef(CompileSym2FlagNames);
 }
 
 ArrayRef<EnumEntry<uint32_t>> getCompileSym3FlagNames() {
-  return makeArrayRef(CompileSym3FlagNames);
+  return ArrayRef(CompileSym3FlagNames);
 }
 
 ArrayRef<EnumEntry<uint32_t>> getFileChecksumNames() {
-  return makeArrayRef(FileChecksumNames);
+  return ArrayRef(FileChecksumNames);
 }
 
 ArrayRef<EnumEntry<unsigned>> getCPUTypeNames() {
-  return makeArrayRef(CPUTypeNames);
+  return ArrayRef(CPUTypeNames);
 }
 
 ArrayRef<EnumEntry<uint32_t>> getFrameProcSymFlagNames() {
-  return makeArrayRef(FrameProcSymFlagNames);
+  return ArrayRef(FrameProcSymFlagNames);
 }
 
 ArrayRef<EnumEntry<uint16_t>> getExportSymFlagNames() {
-  return makeArrayRef(ExportSymFlagNames);
+  return ArrayRef(ExportSymFlagNames);
 }
 
 ArrayRef<EnumEntry<uint32_t>> getModuleSubstreamKindNames() {
-  return makeArrayRef(ModuleSubstreamKindNames);
+  return ArrayRef(ModuleSubstreamKindNames);
 }
 
 ArrayRef<EnumEntry<uint8_t>> getThunkOrdinalNames() {
-  return makeArrayRef(ThunkOrdinalNames);
+  return ArrayRef(ThunkOrdinalNames);
 }
 
 ArrayRef<EnumEntry<uint16_t>> getTrampolineNames() {
-  return makeArrayRef(TrampolineNames);
+  return ArrayRef(TrampolineNames);
 }
 
 ArrayRef<EnumEntry<COFF::SectionCharacteristics>>
 getImageSectionCharacteristicNames() {
-  return makeArrayRef(ImageSectionCharacteristicNames);
+  return ArrayRef(ImageSectionCharacteristicNames);
+}
+
+ArrayRef<EnumEntry<uint16_t>> getClassOptionNames() {
+  return ArrayRef(ClassOptionNames);
+}
+
+ArrayRef<EnumEntry<uint8_t>> getMemberAccessNames() {
+  return ArrayRef(MemberAccessNames);
+}
+
+ArrayRef<EnumEntry<uint16_t>> getMethodOptionNames() {
+  return ArrayRef(MethodOptionNames);
+}
+
+ArrayRef<EnumEntry<uint16_t>> getMemberKindNames() {
+  return ArrayRef(MemberKindNames);
+}
+
+ArrayRef<EnumEntry<uint8_t>> getPtrKindNames() {
+  return ArrayRef(PtrKindNames);
+}
+
+ArrayRef<EnumEntry<uint8_t>> getPtrModeNames() {
+  return ArrayRef(PtrModeNames);
+}
+
+ArrayRef<EnumEntry<uint16_t>> getPtrMemberRepNames() {
+  return ArrayRef(PtrMemberRepNames);
+}
+
+ArrayRef<EnumEntry<uint16_t>> getTypeModifierNames() {
+  return ArrayRef(TypeModifierNames);
+}
+
+ArrayRef<EnumEntry<uint8_t>> getCallingConventions() {
+  return ArrayRef(CallingConventions);
+}
+
+ArrayRef<EnumEntry<uint8_t>> getFunctionOptionEnum() {
+  return ArrayRef(FunctionOptionEnum);
+}
+
+ArrayRef<EnumEntry<uint16_t>> getLabelTypeEnum() {
+  return ArrayRef(LabelTypeEnum);
 }
 
 } // end namespace codeview

@@ -1,9 +1,8 @@
 //===-- ARMSystemRegister.td - ARM Register defs -------------*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -107,6 +106,24 @@ def : MClassSysReg<0,    0,    1,    0x894, "control_ns">;
 def : MClassSysReg<0,    0,    1,    0x898, "sp_ns">;
 }
 
+let Requires = [{ {ARM::FeaturePACBTI} }] in {
+def : MClassSysReg<0,    0,    1,    0x820, "pac_key_p_0">;
+def : MClassSysReg<0,    0,    1,    0x821, "pac_key_p_1">;
+def : MClassSysReg<0,    0,    1,    0x822, "pac_key_p_2">;
+def : MClassSysReg<0,    0,    1,    0x823, "pac_key_p_3">;
+def : MClassSysReg<0,    0,    1,    0x824, "pac_key_u_0">;
+def : MClassSysReg<0,    0,    1,    0x825, "pac_key_u_1">;
+def : MClassSysReg<0,    0,    1,    0x826, "pac_key_u_2">;
+def : MClassSysReg<0,    0,    1,    0x827, "pac_key_u_3">;
+def : MClassSysReg<0,    0,    1,    0x8a0, "pac_key_p_0_ns">;
+def : MClassSysReg<0,    0,    1,    0x8a1, "pac_key_p_1_ns">;
+def : MClassSysReg<0,    0,    1,    0x8a2, "pac_key_p_2_ns">;
+def : MClassSysReg<0,    0,    1,    0x8a3, "pac_key_p_3_ns">;
+def : MClassSysReg<0,    0,    1,    0x8a4, "pac_key_u_0_ns">;
+def : MClassSysReg<0,    0,    1,    0x8a5, "pac_key_u_1_ns">;
+def : MClassSysReg<0,    0,    1,    0x8a6, "pac_key_u_2_ns">;
+def : MClassSysReg<0,    0,    1,    0x8a7, "pac_key_u_3_ns">;
+}
 
 // Banked Registers
 //

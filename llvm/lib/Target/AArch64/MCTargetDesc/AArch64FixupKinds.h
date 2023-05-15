@@ -1,9 +1,8 @@
 //===-- AArch64FixupKinds.h - AArch64 Specific Fixup Entries ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -55,9 +54,6 @@ enum Fixups {
   // The high 26 bits of a 28-bit pc-relative immediate. Distinguished from
   // branch26 only on ELF.
   fixup_aarch64_pcrel_call26,
-
-  // zero-space placeholder for the ELF R_AARCH64_TLSDESC_CALL relocation.
-  fixup_aarch64_tlsdesc_call,
 
   // Marker
   LastTargetFixupKind,

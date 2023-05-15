@@ -1,4 +1,4 @@
-// RUN: llvm-mc -filetype=obj -triple arm-eabi %s -o - | llvm-readobj -s -t | FileCheck %s
+// RUN: llvm-mc -filetype=obj -triple arm-eabi %s -o - | llvm-readobj -S --symbols - | FileCheck %s
 // Test that global variables and functions are assigned correct section.
 	.text
 	.syntax unified
@@ -220,7 +220,7 @@ p:
 	.size	p, 4
 
 
-	.ident	"clang version 5.0.0 (http://llvm.org/git/clang.git 254242a3ad440307fb451093a429c71ea9a8c888) (http://llvm.org/git/llvm.git 3c8daefbe3d1672ac1dae775b211f881f0063038)"
+	.ident	"clang version 5.0.0"
 	.section	".note.GNU-stack","",%progbits
 	.eabi_attribute	30, 1	@ Tag_ABI_optimization_goals
 
@@ -326,12 +326,24 @@ p:
 //CHECK:     Section: my_bss.2 (0x12)
 //CHECK:   }
 //CHECK:   Symbol {
-//CHECK:     Name: a
-//CHECK:     Section: my_bss.1 (0xE)
+//CHECK:     Name: foo
+//CHECK:     Section: my_text.1 (0x4)
 //CHECK:   }
 //CHECK:   Symbol {
 //CHECK:     Name: b
 //CHECK:     Section: my_data.1 (0xF)
+//CHECK:   }
+//CHECK:   Symbol {
+//CHECK:     Name: goo
+//CHECK:     Section: my_text.2 (0x8)
+//CHECK:   }
+//CHECK:   Symbol {
+//CHECK:     Name: hoo
+//CHECK:     Section: .text (0x2)
+//CHECK:   }
+//CHECK:   Symbol {
+//CHECK:     Name: a
+//CHECK:     Section: my_bss.1 (0xE)
 //CHECK:   }
 //CHECK:   Symbol {
 //CHECK:     Name: c
@@ -350,20 +362,8 @@ p:
 //CHECK:     Section: my_rodata.1 (0x10)
 //CHECK:   }
 //CHECK:   Symbol {
-//CHECK:     Name: foo
-//CHECK:     Section: my_text.1 (0x4)
-//CHECK:   }
-//CHECK:   Symbol {
-//CHECK:     Name: goo
-//CHECK:     Section: my_text.2 (0x8)
-//CHECK:   }
-//CHECK:   Symbol {
 //CHECK:     Name: h
 //CHECK:     Section: .bss (0x11)
-//CHECK:   }
-//CHECK:   Symbol {
-//CHECK:     Name: hoo
-//CHECK:     Section: .text (0x2)
 //CHECK:   }
 //CHECK:   Symbol {
 //CHECK:     Name: i

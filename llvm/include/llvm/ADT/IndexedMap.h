@@ -1,20 +1,20 @@
 //===- llvm/ADT/IndexedMap.h - An index map implementation ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// This file implements an indexed map. The index map template takes two
-// types. The first is the mapped type and the second is a functor
-// that maps its argument to a size_t. On instantiation a "null" value
-// can be provided to be used as a "does not exist" indicator in the
-// map. A member function grow() is provided that given the value of
-// the maximally indexed key (the argument of the functor) makes sure
-// the map has enough space for it.
-//
+///
+/// \file
+/// This file implements an indexed map. The index map template takes two
+/// types. The first is the mapped type and the second is a functor
+/// that maps its argument to a size_t. On instantiation a "null" value
+/// can be provided to be used as a "does not exist" indicator in the
+/// map. A member function grow() is provided that given the value of
+/// the maximally indexed key (the argument of the functor) makes sure
+/// the map has enough space for it.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ADT_INDEXEDMAP_H

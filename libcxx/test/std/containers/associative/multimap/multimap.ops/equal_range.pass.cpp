@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,10 +18,10 @@
 
 #include "test_macros.h"
 #include "min_allocator.h"
-#include "private_constructor.hpp"
+#include "private_constructor.h"
 #include "is_transparent.h"
 
-int main()
+int main(int, char**)
 {
     typedef std::pair<const int, double> V;
     {
@@ -47,19 +46,19 @@ int main()
         assert(r.second == m.begin());
         r = m.equal_range(5);
         assert(r.first == m.begin());
-        assert(r.second == next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(6);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 3));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(7);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(8);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(9);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 9));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 9));
         r = m.equal_range(10);
         assert(r.first == m.end());
         assert(r.second == m.end());
@@ -84,19 +83,19 @@ int main()
         assert(r.second == m.begin());
         r = m.equal_range(5);
         assert(r.first == m.begin());
-        assert(r.second == next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(6);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 3));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(7);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(8);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(9);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 9));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 9));
         r = m.equal_range(10);
         assert(r.first == m.end());
         assert(r.second == m.end());
@@ -125,19 +124,19 @@ int main()
         assert(r.second == m.begin());
         r = m.equal_range(5);
         assert(r.first == m.begin());
-        assert(r.second == next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(6);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 3));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(7);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(8);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(9);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 9));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 9));
         r = m.equal_range(10);
         assert(r.first == m.end());
         assert(r.second == m.end());
@@ -162,19 +161,19 @@ int main()
         assert(r.second == m.begin());
         r = m.equal_range(5);
         assert(r.first == m.begin());
-        assert(r.second == next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(6);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 3));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 3));
         r = m.equal_range(7);
-        assert(r.first == next(m.begin(), 3));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 3));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(8);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 6));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 6));
         r = m.equal_range(9);
-        assert(r.first == next(m.begin(), 6));
-        assert(r.second == next(m.begin(), 9));
+        assert(r.first == std::next(m.begin(), 6));
+        assert(r.second == std::next(m.begin(), 9));
         r = m.equal_range(10);
         assert(r.first == m.end());
         assert(r.second == m.end());
@@ -204,19 +203,19 @@ int main()
     assert(r.second == m.begin());
     r = m.equal_range(5);
     assert(r.first == m.begin());
-    assert(r.second == next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 3));
     r = m.equal_range(6);
-    assert(r.first == next(m.begin(), 3));
-    assert(r.second == next(m.begin(), 3));
+    assert(r.first == std::next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 3));
     r = m.equal_range(7);
-    assert(r.first == next(m.begin(), 3));
-    assert(r.second == next(m.begin(), 6));
+    assert(r.first == std::next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 6));
     r = m.equal_range(8);
-    assert(r.first == next(m.begin(), 6));
-    assert(r.second == next(m.begin(), 6));
+    assert(r.first == std::next(m.begin(), 6));
+    assert(r.second == std::next(m.begin(), 6));
     r = m.equal_range(9);
-    assert(r.first == next(m.begin(), 6));
-    assert(r.second == next(m.begin(), 9));
+    assert(r.first == std::next(m.begin(), 6));
+    assert(r.second == std::next(m.begin(), 9));
     r = m.equal_range(10);
     assert(r.first == m.end());
     assert(r.second == m.end());
@@ -226,19 +225,19 @@ int main()
     assert(r.second == m.begin());
     r = m.equal_range(C2Int(5));
     assert(r.first == m.begin());
-    assert(r.second == next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 3));
     r = m.equal_range(C2Int(6));
-    assert(r.first == next(m.begin(), 3));
-    assert(r.second == next(m.begin(), 3));
+    assert(r.first == std::next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 3));
     r = m.equal_range(C2Int(7));
-    assert(r.first == next(m.begin(), 3));
-    assert(r.second == next(m.begin(), 6));
+    assert(r.first == std::next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 6));
     r = m.equal_range(C2Int(8));
-    assert(r.first == next(m.begin(), 6));
-    assert(r.second == next(m.begin(), 6));
+    assert(r.first == std::next(m.begin(), 6));
+    assert(r.second == std::next(m.begin(), 6));
     r = m.equal_range(C2Int(9));
-    assert(r.first == next(m.begin(), 6));
-    assert(r.second == next(m.begin(), 9));
+    assert(r.first == std::next(m.begin(), 6));
+    assert(r.second == std::next(m.begin(), 9));
     r = m.equal_range(C2Int(10));
     assert(r.first == m.end());
     assert(r.second == m.end());
@@ -266,22 +265,24 @@ int main()
     assert(r.second == m.begin());
     r = m.equal_range(5);
     assert(r.first == m.begin());
-    assert(r.second == next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 3));
     r = m.equal_range(6);
-    assert(r.first == next(m.begin(), 3));
-    assert(r.second == next(m.begin(), 3));
+    assert(r.first == std::next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 3));
     r = m.equal_range(7);
-    assert(r.first == next(m.begin(), 3));
-    assert(r.second == next(m.begin(), 6));
+    assert(r.first == std::next(m.begin(), 3));
+    assert(r.second == std::next(m.begin(), 6));
     r = m.equal_range(8);
-    assert(r.first == next(m.begin(), 6));
-    assert(r.second == next(m.begin(), 6));
+    assert(r.first == std::next(m.begin(), 6));
+    assert(r.second == std::next(m.begin(), 6));
     r = m.equal_range(9);
-    assert(r.first == next(m.begin(), 6));
-    assert(r.second == next(m.begin(), 9));
+    assert(r.first == std::next(m.begin(), 6));
+    assert(r.second == std::next(m.begin(), 9));
     r = m.equal_range(10);
     assert(r.first == m.end());
     assert(r.second == m.end());
     }
 #endif
+
+  return 0;
 }

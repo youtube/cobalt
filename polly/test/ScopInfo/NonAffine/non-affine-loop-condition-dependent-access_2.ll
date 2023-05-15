@@ -1,13 +1,6 @@
-; RUN: opt %loadPolly -basicaa -polly-scops -polly-allow-nonaffine-branches \
-; RUN:     -polly-allow-nonaffine-loops=false \
-; RUN:     -analyze < %s | FileCheck %s --check-prefix=INNERMOST
-; RUN: opt %loadPolly -basicaa -polly-scops -polly-allow-nonaffine-branches \
-; RUN:     -polly-allow-nonaffine-loops=true \
-; RUN:     -analyze < %s | FileCheck %s --check-prefix=INNERMOST
-; RUN: opt %loadPolly -basicaa -polly-scops -polly-allow-nonaffine \
-; RUN:     -polly-allow-nonaffine-branches -polly-allow-nonaffine-loops=true \
-; RUN:     -analyze < %s | FileCheck %s \
-; RUN:     --check-prefix=ALL
+; RUN: opt %loadPolly -basic-aa -polly-allow-nonaffine-branches -polly-allow-nonaffine-loops=false                       -polly-print-scops -disable-output < %s | FileCheck %s --check-prefix=INNERMOST
+; RUN: opt %loadPolly -basic-aa -polly-allow-nonaffine-branches -polly-allow-nonaffine-loops=true                        -polly-print-scops -disable-output < %s | FileCheck %s --check-prefix=INNERMOST
+; RUN: opt %loadPolly -basic-aa -polly-allow-nonaffine-branches -polly-allow-nonaffine-loops=true -polly-allow-nonaffine -polly-print-scops -disable-output < %s | FileCheck %s --check-prefix=ALL
 ;
 ; Here we have a non-affine loop (in the context of the loop nest)
 ; and also a non-affine access (A[k]). While we can always model the
@@ -26,7 +19,7 @@
 ; INNERMOST-NEXT: [p_0, p_1, p_2] -> {  :  }
 ; INNERMOST-NEXT: Invalid Context:
 ; INNERMOST-NEXT: [p_0, p_1, p_2] -> {  : false }
-; INNERMOST-NEXT: p0: {0,+,{0,+,1}<nuw><nsw><%bb11>}<nuw><nsw><%bb13>
+; INNERMOST:      p0: {0,+,{0,+,1}<nuw><nsw><%bb11>}<nuw><nsw><%bb13>
 ; INNERMOST-NEXT: p1: {0,+,1}<nuw><nsw><%bb11>
 ; INNERMOST-NEXT: p2: {0,+,1}<nuw><nsw><%bb13>
 ; INNERMOST-NEXT: Arrays {
@@ -77,7 +70,7 @@
 ; ALL-NEXT: {  :  }
 ; ALL-NEXT: Invalid Context:
 ; ALL-NEXT: {  : false }
-; ALL-NEXT: Arrays {
+; ALL:      Arrays {
 ; ALL-NEXT:     i32 MemRef_A[*]; // Element size 4
 ; ALL-NEXT: }
 ; ALL-NEXT: Arrays (Bounds as pw_affs) {
@@ -96,9 +89,9 @@
 ; ALL-NEXT:         ReadAccess :=    [Reduction Type: NONE] [Scalar: 0]
 ; ALL-NEXT:             { Stmt_bb15__TO__bb25[i0, i1] -> MemRef_A[i1] };
 ; ALL-NEXT:         ReadAccess :=    [Reduction Type: NONE] [Scalar: 0]
-; ALL-NEXT:             { Stmt_bb15__TO__bb25[i0, i1] -> MemRef_A[o0] : 0 <= o0 <= 2305843009213693951 };
+; ALL-NEXT:             { Stmt_bb15__TO__bb25[i0, i1] -> MemRef_A[o0] };
 ; ALL-NEXT:         MayWriteAccess :=    [Reduction Type: NONE] [Scalar: 0]
-; ALL-NEXT:             { Stmt_bb15__TO__bb25[i0, i1] -> MemRef_A[o0] : 0 <= o0 <= 2305843009213693951 };
+; ALL-NEXT:             { Stmt_bb15__TO__bb25[i0, i1] -> MemRef_A[o0] };
 ; ALL-NEXT: }
 ;
 ;    void f(int *A) {
@@ -110,7 +103,7 @@
 ;
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
-define void @f(i32* %A) {
+define void @f(ptr %A) {
 bb:
   br label %bb11
 
@@ -138,15 +131,15 @@ bb15:                                             ; preds = %bb24, %bb14
   br i1 %exitcond, label %bb16, label %bb25
 
 bb16:                                             ; preds = %bb15
-  %tmp = getelementptr inbounds i32, i32* %A, i64 %indvars.iv8
-  %tmp17 = load i32, i32* %tmp, align 4
-  %tmp18 = getelementptr inbounds i32, i32* %A, i64 %indvars.iv5
-  %tmp19 = load i32, i32* %tmp18, align 4
+  %tmp = getelementptr inbounds i32, ptr %A, i64 %indvars.iv8
+  %tmp17 = load i32, ptr %tmp, align 4
+  %tmp18 = getelementptr inbounds i32, ptr %A, i64 %indvars.iv5
+  %tmp19 = load i32, ptr %tmp18, align 4
   %tmp20 = add nsw i32 %tmp17, %tmp19
-  %tmp21 = getelementptr inbounds i32, i32* %A, i64 %indvars.iv
-  %tmp22 = load i32, i32* %tmp21, align 4
+  %tmp21 = getelementptr inbounds i32, ptr %A, i64 %indvars.iv
+  %tmp22 = load i32, ptr %tmp21, align 4
   %tmp23 = add nsw i32 %tmp22, %tmp20
-  store i32 %tmp23, i32* %tmp21, align 4
+  store i32 %tmp23, ptr %tmp21, align 4
   br label %bb24
 
 bb24:                                             ; preds = %bb16

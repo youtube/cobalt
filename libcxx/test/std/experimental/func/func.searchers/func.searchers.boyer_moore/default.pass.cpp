@@ -1,13 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11
+// UNSUPPORTED: c++03, c++11
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_SEARCHERS
 
 // <functional>
 
@@ -35,7 +35,9 @@
 #include <experimental/algorithm>
 #include <experimental/functional>
 #include <cassert>
+#include <string>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 
 template <typename Iter1, typename Iter2>
@@ -122,7 +124,32 @@ test2()
     do_search(Iter1(ij), Iter1(ij+sj), Iter2(ik), Iter2(ik+sk), Iter1(ij+6));
 }
 
-int main() {
+template <class Iter1, class Iter2>
+void test_large_str() {
+    std::vector<signed char> data(257, 'a');
+    data[254] = 'b';
+    data[255] = 'b';
+    data[256] = 'b';
+    const signed char find[] = {'b', 'b', 'b'};
+    do_search(Iter1(data.data()), Iter1(data.data() + data.size()),
+              Iter2(find), Iter2(find + 3),
+              Iter1(data.data() + 254));
+}
+
+void test_custom_pred() {
+    std::string long_string(1024, '0');
+    auto searcher = std::experimental::make_boyer_moore_searcher(std::begin(long_string), std::end(long_string));
+    const char str[] = "1234";
+    auto ret = searcher(std::begin(str), std::end(str));
+    assert(ret.first == std::end(str));
+    assert(ret.second == std::end(str));
+}
+
+int main(int, char**) {
     test<random_access_iterator<const int*>, random_access_iterator<const int*> >();
     test2<random_access_iterator<const char*>, random_access_iterator<const char*> >();
+    test_large_str<random_access_iterator<const signed char*>, random_access_iterator<const signed char*>>();
+    test_custom_pred();
+
+  return 0;
 }

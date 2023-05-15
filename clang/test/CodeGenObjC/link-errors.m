@@ -10,7 +10,7 @@
 -(id) init;
 @end
 
-@protocol P;
+@protocol P @end
 
 @interface A : Root
 @end
@@ -29,7 +29,7 @@
 @end
 
 
-int main() {
+int main(void) {
   id x = @protocol(P);
   [ A alloc ];
   [ A foo ];

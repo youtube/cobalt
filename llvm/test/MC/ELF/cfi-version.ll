@@ -3,22 +3,22 @@
 ; RUN: %llc_dwarf %s -o - -dwarf-version 4 -filetype=obj | llvm-dwarfdump -v - | FileCheck %s --check-prefix=DWARF4
 ; RUN: %llc_dwarf %s -o - -dwarf-version 5 -filetype=obj | llvm-dwarfdump -v - | FileCheck %s --check-prefix=DWARF4
 
-; .debug_frame is not emitted for targeting Windows x64.
+; .debug_frame is not emitted for targeting Windows x64, aarch64/arm64, or AIX.
 ; REQUIRES: debug_frame
-; REQUIRES: default_triple
+; REQUIRES: object-emission
 
 ; Function Attrs: nounwind
 define i32 @foo() #0 !dbg !4 {
 entry:
-  %call = call i32 bitcast (i32 (...)* @bar to i32 ()*)(), !dbg !12
+  %call = call i32 @bar(), !dbg !12
   %add = add nsw i32 %call, 1, !dbg !12
   ret i32 %add, !dbg !12
 }
 
 declare i32 @bar(...) #1
 
-attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!9, !10}

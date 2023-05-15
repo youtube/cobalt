@@ -5,8 +5,8 @@
 %struct.anon1 = type { i32, i32, i32 }
 %struct.anon2 = type { i32, [32 x i32], i32 }
 
-@arr1 = external global [65 x %struct.anon1], align 16
-@arr2 = external global [65 x %struct.anon2], align 16
+@arr1 = external dso_local global [65 x %struct.anon1], align 16
+@arr2 = external dso_local global [65 x %struct.anon2], align 16
 
 define void @test1(i64 %x) nounwind {
 ; ENABLED-LABEL: test1:
@@ -54,13 +54,13 @@ define void @test1(i64 %x) nounwind {
 ; DISABLED-NEXT:  .LBB0_4: # %sw.epilog
 ; DISABLED-NEXT:    retq
 entry:
-  %a = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 0
-  %tmp = load i32, i32* %a, align 4
-  %b = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 1
-  %tmp1 = load i32, i32* %b, align 4
+  %a = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 0
+  %tmp = load i32, ptr %a, align 4
+  %b = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 1
+  %tmp1 = load i32, ptr %b, align 4
   %sub = sub i32 %tmp, %tmp1
-  %c = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 2
-  %tmp2 = load i32, i32* %c, align 4
+  %c = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 2
+  %tmp2 = load i32, ptr %c, align 4
   %add = add nsw i32 %sub, %tmp2
   switch i32 %add, label %sw.epilog [
     i32 1, label %sw.bb.1
@@ -68,13 +68,13 @@ entry:
   ]
 
 sw.bb.1:                                          ; preds = %entry
-  store i32 111, i32* %b, align 4
-  store i32 222, i32* %c, align 4
+  store i32 111, ptr %b, align 4
+  store i32 222, ptr %c, align 4
   br label %sw.epilog
 
 sw.bb.2:                                          ; preds = %entry
-  store i32 333, i32* %b, align 4
-  store i32 444, i32* %c, align 4
+  store i32 333, ptr %b, align 4
+  store i32 444, ptr %c, align 4
   br label %sw.epilog
 
 sw.epilog:                                        ; preds = %sw.bb.2, %sw.bb.1, %entry
@@ -127,13 +127,13 @@ define void @test2(i64 %x) nounwind optsize {
 ; DISABLED-NEXT:  .LBB1_4: # %sw.epilog
 ; DISABLED-NEXT:    retq
 entry:
-  %a = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 0
-  %tmp = load i32, i32* %a, align 4
-  %b = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 1
-  %tmp1 = load i32, i32* %b, align 4
+  %a = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 0
+  %tmp = load i32, ptr %a, align 4
+  %b = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 1
+  %tmp1 = load i32, ptr %b, align 4
   %sub = sub i32 %tmp, %tmp1
-  %c = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 2
-  %tmp2 = load i32, i32* %c, align 4
+  %c = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 2
+  %tmp2 = load i32, ptr %c, align 4
   %add = add nsw i32 %sub, %tmp2
   switch i32 %add, label %sw.epilog [
     i32 1, label %sw.bb.1
@@ -141,13 +141,13 @@ entry:
   ]
 
 sw.bb.1:                                          ; preds = %entry
-  store i32 111, i32* %b, align 4
-  store i32 222, i32* %c, align 4
+  store i32 111, ptr %b, align 4
+  store i32 222, ptr %c, align 4
   br label %sw.epilog
 
 sw.bb.2:                                          ; preds = %entry
-  store i32 333, i32* %b, align 4
-  store i32 444, i32* %c, align 4
+  store i32 333, ptr %b, align 4
+  store i32 444, ptr %c, align 4
   br label %sw.epilog
 
 sw.epilog:                                        ; preds = %sw.bb.2, %sw.bb.1, %entry
@@ -205,10 +205,10 @@ define void @test3(i64 %x) nounwind optsize {
 ; DISABLED-NEXT:  .LBB2_4: # %sw.epilog
 ; DISABLED-NEXT:    retq
 entry:
-  %a = getelementptr inbounds [65 x %struct.anon2], [65 x %struct.anon2]* @arr2, i64 0, i64 %x, i32 2
-  %tmp = load i32, i32* %a, align 4
-  %b = getelementptr inbounds [65 x %struct.anon2], [65 x %struct.anon2]* @arr2, i64 0, i64 %x, i32 0
-  %tmp1 = load i32, i32* %b, align 4
+  %a = getelementptr inbounds [65 x %struct.anon2], ptr @arr2, i64 0, i64 %x, i32 2
+  %tmp = load i32, ptr %a, align 4
+  %b = getelementptr inbounds [65 x %struct.anon2], ptr @arr2, i64 0, i64 %x, i32 0
+  %tmp1 = load i32, ptr %b, align 4
   %add = add nsw i32 %tmp, %tmp1
   switch i32 %add, label %sw.epilog [
     i32 1, label %sw.bb.1
@@ -216,15 +216,15 @@ entry:
   ]
 
 sw.bb.1:                                          ; preds = %entry
-  store i32 111, i32* %a, align 4
-  store i32 222, i32* %b, align 4
+  store i32 111, ptr %a, align 4
+  store i32 222, ptr %b, align 4
   br label %sw.epilog
 
 sw.bb.2:                                          ; preds = %entry
-  store i32 333, i32* %a, align 4
+  store i32 333, ptr %a, align 4
   ; Make sure the REG3's definition LEA won't be removed as redundant.
-  %cvt = ptrtoint i32* %b to i32
-  store i32 %cvt, i32* %b, align 4
+  %cvt = ptrtoint ptr %b to i32
+  store i32 %cvt, ptr %b, align 4
   br label %sw.epilog
 
 sw.epilog:                                        ; preds = %sw.bb.2, %sw.bb.1, %entry
@@ -281,13 +281,13 @@ define void @test4(i64 %x) nounwind minsize {
 ; DISABLED-NEXT:  .LBB3_4: # %sw.epilog
 ; DISABLED-NEXT:    retq
 entry:
-  %a = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 0
-  %tmp = load i32, i32* %a, align 4
-  %b = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 1
-  %tmp1 = load i32, i32* %b, align 4
+  %a = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 0
+  %tmp = load i32, ptr %a, align 4
+  %b = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 1
+  %tmp1 = load i32, ptr %b, align 4
   %sub = sub i32 %tmp, %tmp1
-  %c = getelementptr inbounds [65 x %struct.anon1], [65 x %struct.anon1]* @arr1, i64 0, i64 %x, i32 2
-  %tmp2 = load i32, i32* %c, align 4
+  %c = getelementptr inbounds [65 x %struct.anon1], ptr @arr1, i64 0, i64 %x, i32 2
+  %tmp2 = load i32, ptr %c, align 4
   %add = add nsw i32 %sub, %tmp2
   switch i32 %add, label %sw.epilog [
     i32 1, label %sw.bb.1
@@ -295,13 +295,13 @@ entry:
   ]
 
 sw.bb.1:                                          ; preds = %entry
-  store i32 111, i32* %b, align 4
-  store i32 222, i32* %c, align 4
+  store i32 111, ptr %b, align 4
+  store i32 222, ptr %c, align 4
   br label %sw.epilog
 
 sw.bb.2:                                          ; preds = %entry
-  store i32 333, i32* %b, align 4
-  store i32 444, i32* %c, align 4
+  store i32 333, ptr %b, align 4
+  store i32 444, ptr %c, align 4
   br label %sw.epilog
 
 sw.epilog:                                        ; preds = %sw.bb.2, %sw.bb.1, %entry
@@ -311,9 +311,9 @@ sw.epilog:                                        ; preds = %sw.bb.2, %sw.bb.1, 
 define  i32 @test5(i32 %x, i32 %y)  #0 {
 ; CHECK-LABEL: test5:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    addl %esi, %esi
-; CHECK-NEXT:    subl %esi, %edi
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    addl %esi, %esi
+; CHECK-NEXT:    subl %esi, %eax
 ; CHECK-NEXT:    retq
 entry:
   %mul = mul nsw i32 %y, -2
@@ -325,9 +325,9 @@ define  i32 @test6(i32 %x, i32 %y)  #0 {
 ; CHECK-LABEL: test6:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    # kill: def $esi killed $esi def $rsi
-; CHECK-NEXT:    leal (%rsi,%rsi,2), %eax
-; CHECK-NEXT:    subl %eax, %edi
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    leal (%rsi,%rsi,2), %ecx
+; CHECK-NEXT:    subl %ecx, %eax
 ; CHECK-NEXT:    retq
 entry:
   %mul = mul nsw i32 %y, -3
@@ -338,9 +338,9 @@ entry:
 define  i32 @test7(i32 %x, i32 %y)  #0 {
 ; CHECK-LABEL: test7:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    shll $2, %esi
-; CHECK-NEXT:    subl %esi, %edi
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    shll $2, %esi
+; CHECK-NEXT:    subl %esi, %eax
 ; CHECK-NEXT:    retq
 entry:
   %mul = mul nsw i32 %y, -4
@@ -365,9 +365,9 @@ entry:
 define  i32 @test9(i32 %x, i32 %y) #0 {
 ; CHECK-LABEL: test9:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    addl %esi, %esi
-; CHECK-NEXT:    subl %esi, %edi
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    addl %esi, %esi
+; CHECK-NEXT:    subl %esi, %eax
 ; CHECK-NEXT:    retq
 entry:
   %mul = mul nsw i32 -2, %y
@@ -379,9 +379,9 @@ define  i32 @test10(i32 %x, i32 %y) #0 {
 ; CHECK-LABEL: test10:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    # kill: def $esi killed $esi def $rsi
-; CHECK-NEXT:    leal (%rsi,%rsi,2), %eax
-; CHECK-NEXT:    subl %eax, %edi
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    leal (%rsi,%rsi,2), %ecx
+; CHECK-NEXT:    subl %ecx, %eax
 ; CHECK-NEXT:    retq
 entry:
   %mul = mul nsw i32 -3, %y
@@ -392,9 +392,9 @@ entry:
 define  i32 @test11(i32 %x, i32 %y) #0 {
 ; CHECK-LABEL: test11:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    shll $2, %esi
-; CHECK-NEXT:    subl %esi, %edi
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    shll $2, %esi
+; CHECK-NEXT:    subl %esi, %eax
 ; CHECK-NEXT:    retq
 entry:
   %mul = mul nsw i32 -4, %y
@@ -418,9 +418,9 @@ entry:
 define  i64 @test13(i64 %x, i64 %y) #0 {
 ; CHECK-LABEL: test13:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    shlq $2, %rsi
-; CHECK-NEXT:    subq %rsi, %rdi
 ; CHECK-NEXT:    movq %rdi, %rax
+; CHECK-NEXT:    shlq $2, %rsi
+; CHECK-NEXT:    subq %rsi, %rax
 ; CHECK-NEXT:    retq
 entry:
   %mul = mul nsw i64 -4, %y
@@ -444,9 +444,10 @@ entry:
 define  zeroext i16 @test15(i16 zeroext %x, i16 zeroext %y) #0 {
 ; CHECK-LABEL: test15:
 ; CHECK:       # %bb.0: # %entry
-; CHECK-NEXT:    shll $3, %esi
-; CHECK-NEXT:    subl %esi, %edi
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    shll $3, %esi
+; CHECK-NEXT:    subl %esi, %eax
+; CHECK-NEXT:    # kill: def $ax killed $ax killed $eax
 ; CHECK-NEXT:    retq
 entry:
   %conv = zext i16 %x to i32

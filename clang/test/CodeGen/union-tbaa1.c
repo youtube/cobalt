@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -triple hexagon-unknown-elf -O2 -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -no-opaque-pointers %s -triple hexagon-unknown-elf -O2 -emit-llvm -o - | FileCheck %s
 
 typedef union __attribute__((aligned(4))) {
   unsigned short uh[2];
@@ -7,7 +7,7 @@ typedef union __attribute__((aligned(4))) {
 
 void bar(vect32 p[][2]);
 
-// CHECK-LABEL: define void @fred
+// CHECK-LABEL: define{{.*}} void @fred
 void fred(unsigned Num, int Vec[2], int *Index, int Arr[4][2]) {
   vect32 Tmp[4][2];
 // Generate tbaa for the load of Index:

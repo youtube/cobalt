@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,7 +16,7 @@
 #include <cassert>
 #include "test_macros.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef char CharT;
@@ -31,6 +30,7 @@ int main()
         assert(sm.compare("") > 0);
         assert(sm.compare("123") == 0);
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         typedef wchar_t CharT;
         typedef std::sub_match<const CharT*> SM;
@@ -43,4 +43,7 @@ int main()
         assert(sm.compare(L"") > 0);
         assert(sm.compare(L"123") == 0);
     }
+#endif
+
+  return 0;
 }

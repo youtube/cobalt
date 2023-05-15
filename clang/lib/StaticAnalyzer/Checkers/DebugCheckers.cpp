@@ -1,9 +1,8 @@
 //==- DebugCheckers.cpp - Debugging Checkers ---------------------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/Analysis/Analyses/Dominators.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/CallGraph.h"
@@ -36,9 +35,9 @@ public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
     if (AnalysisDeclContext *AC = mgr.getAnalysisDeclContext(D)) {
-      DominatorTree dom;
-      dom.buildDominatorTree(*AC);
-      dom.dump();
+      CFGDomTree Dom;
+      Dom.buildDominatorTree(AC->getCFG());
+      Dom.dump();
     }
   }
 };
@@ -46,6 +45,61 @@ public:
 
 void ento::registerDominatorsTreeDumper(CheckerManager &mgr) {
   mgr.registerChecker<DominatorsTreeDumper>();
+}
+
+bool ento::shouldRegisterDominatorsTreeDumper(const CheckerManager &mgr) {
+  return true;
+}
+
+//===----------------------------------------------------------------------===//
+// PostDominatorsTreeDumper
+//===----------------------------------------------------------------------===//
+
+namespace {
+class PostDominatorsTreeDumper : public Checker<check::ASTCodeBody> {
+public:
+  void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
+                        BugReporter &BR) const {
+    if (AnalysisDeclContext *AC = mgr.getAnalysisDeclContext(D)) {
+      CFGPostDomTree Dom;
+      Dom.buildDominatorTree(AC->getCFG());
+      Dom.dump();
+    }
+  }
+};
+}
+
+void ento::registerPostDominatorsTreeDumper(CheckerManager &mgr) {
+  mgr.registerChecker<PostDominatorsTreeDumper>();
+}
+
+bool ento::shouldRegisterPostDominatorsTreeDumper(const CheckerManager &mgr) {
+  return true;
+}
+
+//===----------------------------------------------------------------------===//
+// ControlDependencyTreeDumper
+//===----------------------------------------------------------------------===//
+
+namespace {
+class ControlDependencyTreeDumper : public Checker<check::ASTCodeBody> {
+public:
+  void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
+                        BugReporter &BR) const {
+    if (AnalysisDeclContext *AC = mgr.getAnalysisDeclContext(D)) {
+      ControlDependencyCalculator Dom(AC->getCFG());
+      Dom.dump();
+    }
+  }
+};
+}
+
+void ento::registerControlDependencyTreeDumper(CheckerManager &mgr) {
+  mgr.registerChecker<ControlDependencyTreeDumper>();
+}
+
+bool ento::shouldRegisterControlDependencyTreeDumper(const CheckerManager &mgr) {
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -68,6 +122,33 @@ void ento::registerLiveVariablesDumper(CheckerManager &mgr) {
   mgr.registerChecker<LiveVariablesDumper>();
 }
 
+bool ento::shouldRegisterLiveVariablesDumper(const CheckerManager &mgr) {
+  return true;
+}
+
+//===----------------------------------------------------------------------===//
+// LiveStatementsDumper
+//===----------------------------------------------------------------------===//
+
+namespace {
+class LiveExpressionsDumper : public Checker<check::ASTCodeBody> {
+public:
+  void checkASTCodeBody(const Decl *D, AnalysisManager& Mgr,
+                        BugReporter &BR) const {
+    if (LiveVariables *L = Mgr.getAnalysis<RelaxedLiveVariables>(D))
+      L->dumpExprLiveness(Mgr.getSourceManager());
+  }
+};
+}
+
+void ento::registerLiveExpressionsDumper(CheckerManager &mgr) {
+  mgr.registerChecker<LiveExpressionsDumper>();
+}
+
+bool ento::shouldRegisterLiveExpressionsDumper(const CheckerManager &mgr) {
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 // CFGViewer
 //===----------------------------------------------------------------------===//
@@ -86,6 +167,10 @@ public:
 
 void ento::registerCFGViewer(CheckerManager &mgr) {
   mgr.registerChecker<CFGViewer>();
+}
+
+bool ento::shouldRegisterCFGViewer(const CheckerManager &mgr) {
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -114,6 +199,10 @@ void ento::registerCFGDumper(CheckerManager &mgr) {
   mgr.registerChecker<CFGDumper>();
 }
 
+bool ento::shouldRegisterCFGDumper(const CheckerManager &mgr) {
+  return true;
+}
+
 //===----------------------------------------------------------------------===//
 // CallGraphViewer
 //===----------------------------------------------------------------------===//
@@ -132,6 +221,10 @@ public:
 
 void ento::registerCallGraphViewer(CheckerManager &mgr) {
   mgr.registerChecker<CallGraphViewer>();
+}
+
+bool ento::shouldRegisterCallGraphViewer(const CheckerManager &mgr) {
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -154,6 +247,9 @@ void ento::registerCallGraphDumper(CheckerManager &mgr) {
   mgr.registerChecker<CallGraphDumper>();
 }
 
+bool ento::shouldRegisterCallGraphDumper(const CheckerManager &mgr) {
+  return true;
+}
 
 //===----------------------------------------------------------------------===//
 // ConfigDumper
@@ -182,15 +278,19 @@ public:
 
     llvm::errs() << "[config]\n";
     for (unsigned I = 0, E = Keys.size(); I != E; ++I)
-      llvm::errs() << Keys[I]->getKey() << " = " << Keys[I]->second << '\n';
-
-    llvm::errs() << "[stats]\n" << "num-entries = " << Keys.size() << '\n';
+      llvm::errs() << Keys[I]->getKey() << " = "
+                   << (Keys[I]->second.empty() ? "\"\"" : Keys[I]->second)
+                   << '\n';
   }
 };
 }
 
 void ento::registerConfigDumper(CheckerManager &mgr) {
   mgr.registerChecker<ConfigDumper>();
+}
+
+bool ento::shouldRegisterConfigDumper(const CheckerManager &mgr) {
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -202,7 +302,7 @@ class ExplodedGraphViewer : public Checker< check::EndAnalysis > {
 public:
   ExplodedGraphViewer() {}
   void checkEndAnalysis(ExplodedGraph &G, BugReporter &B,ExprEngine &Eng) const {
-    Eng.ViewGraph(0);
+    Eng.ViewGraph(false);
   }
 };
 
@@ -212,3 +312,38 @@ void ento::registerExplodedGraphViewer(CheckerManager &mgr) {
   mgr.registerChecker<ExplodedGraphViewer>();
 }
 
+bool ento::shouldRegisterExplodedGraphViewer(const CheckerManager &mgr) {
+  return true;
+}
+
+//===----------------------------------------------------------------------===//
+// Emits a report for every Stmt that the analyzer visits.
+//===----------------------------------------------------------------------===//
+
+namespace {
+
+class ReportStmts : public Checker<check::PreStmt<Stmt>> {
+  BuiltinBug BT_stmtLoc{this, "Statement"};
+
+public:
+  void checkPreStmt(const Stmt *S, CheckerContext &C) const {
+    ExplodedNode *Node = C.generateNonFatalErrorNode();
+    if (!Node)
+      return;
+
+    auto Report =
+        std::make_unique<PathSensitiveBugReport>(BT_stmtLoc, "Statement", Node);
+
+    C.emitReport(std::move(Report));
+  }
+};
+
+} // end of anonymous namespace
+
+void ento::registerReportStmts(CheckerManager &mgr) {
+  mgr.registerChecker<ReportStmts>();
+}
+
+bool ento::shouldRegisterReportStmts(const CheckerManager &mgr) {
+  return true;
+}

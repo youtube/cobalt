@@ -1,5 +1,4 @@
-; RUN: llc -mtriple=arm-apple-ios -print-machineinstrs=branch-folder \
-; RUN: %s -o /dev/null 2>&1 | FileCheck %s
+; RUN: llc < %s -mtriple=arm-apple-ios -stop-after=branch-folder | FileCheck %s
 
 ; Branch probability of tailed-merged block:
 ;
@@ -8,26 +7,24 @@
 ; p(L0_L1 -> L3) = p(entry -> L0) * p(L0 -> L3) + p(entry -> L1) * p(L1 -> L3)
 ;                = 0.2 * 0.4 + 0.8 * 0.7 = 0.64
 
-; CHECK: # Machine code for function test0:
 ; CHECK: successors: %bb.{{[0-9]+}}(0x1999999a), %bb.{{[0-9]+}}(0x66666666)
 ; CHECK: bb.{{[0-9]+}}{{[0-9a-zA-Z.]*}}:
 ; CHECK: bb.{{[0-9]+}}{{[0-9a-zA-Z.]*}}:
-; CHECK: # End machine code for function test0.
 
-define i32 @test0(i32 %n, i32 %m, i32* nocapture %a, i32* nocapture %b) {
+define i32 @test0(i32 %n, i32 %m, ptr nocapture %a, ptr nocapture %b) {
 entry:
   %cmp = icmp sgt i32 %n, 0
   br i1 %cmp, label %L0, label %L1, !prof !0
 
 L0:                                          ; preds = %entry
-  store i32 12, i32* %a, align 4
-  store i32 18, i32* %b, align 4
+  store i32 12, ptr %a, align 4
+  store i32 18, ptr %b, align 4
   %cmp1 = icmp eq i32 %m, 8
   br i1 %cmp1, label %L2, label %L3, !prof !1
 
 L1:                                          ; preds = %entry
-  store i32 14, i32* %a, align 4
-  store i32 18, i32* %b, align 4
+  store i32 14, ptr %a, align 4
+  store i32 18, ptr %b, align 4
   %cmp3 = icmp eq i32 %m, 8
   br i1 %cmp3, label %L2, label %L3, !prof !2
 

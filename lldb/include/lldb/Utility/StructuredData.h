@@ -1,43 +1,40 @@
 //===-- StructuredData.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_StructuredData_h_
-#define liblldb_StructuredData_h_
+#ifndef LLDB_UTILITY_STRUCTUREDDATA_H
+#define LLDB_UTILITY_STRUCTUREDDATA_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/JSON.h"
 
 #include "lldb/Utility/ConstString.h"
-#include "lldb/Utility/FileSpec.h"  // for FileSpec
-#include "lldb/lldb-enumerations.h" // for StructuredDataType
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/lldb-enumerations.h"
 
-#include <cassert> // for assert
-#include <cstddef> // for size_t
-#include <cstdint> // for uint64_t
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
-#include <type_traits> // for move
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace lldb_private {
 class Status;
 }
-namespace lldb_private {
-class Stream;
-}
 
 namespace lldb_private {
 
-//----------------------------------------------------------------------
-/// @class StructuredData StructuredData.h "lldb/Utility/StructuredData.h"
+/// \class StructuredData StructuredData.h "lldb/Utility/StructuredData.h"
 /// A class which can hold structured data
 ///
 /// The StructuredData class is designed to hold the data from a JSON or plist
@@ -49,7 +46,6 @@ namespace lldb_private {
 /// data it is holding; it can parse JSON data, for instance, and other parts
 /// of lldb can iterate through the parsed data set to find keys and values
 /// that may be present.
-//----------------------------------------------------------------------
 
 class StructuredData {
 public:
@@ -155,7 +151,18 @@ public:
 
     void DumpToStdout(bool pretty_print = true) const;
 
-    virtual void Dump(Stream &s, bool pretty_print = true) const = 0;
+    virtual void Serialize(llvm::json::OStream &s) const = 0;
+
+    void Dump(lldb_private::Stream &s, bool pretty_print = true) const {
+      llvm::json::OStream jso(s.AsRawOstream(), pretty_print ? 2 : 0);
+      Serialize(jso);
+    }
+
+    virtual void GetDescription(lldb_private::Stream &s) const {
+      s.IndentMore();
+      Dump(s, false);
+      s.IndentLess();
+    }
 
   private:
     lldb::StructuredDataType m_type;
@@ -170,7 +177,7 @@ public:
     bool
     ForEach(std::function<bool(Object *object)> const &foreach_callback) const {
       for (const auto &object_sp : m_items) {
-        if (foreach_callback(object_sp.get()) == false)
+        if (!foreach_callback(object_sp.get()))
           return false;
       }
       return true;
@@ -270,11 +277,13 @@ public:
       return false;
     }
 
-    void Push(ObjectSP item) { m_items.push_back(item); }
+    void Push(const ObjectSP &item) { m_items.push_back(item); }
 
-    void AddItem(ObjectSP item) { m_items.push_back(item); }
+    void AddItem(const ObjectSP &item) { m_items.push_back(item); }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
 
   protected:
     typedef std::vector<ObjectSP> collection;
@@ -292,7 +301,9 @@ public:
 
     uint64_t GetValue() { return m_value; }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
 
   protected:
     uint64_t m_value;
@@ -309,7 +320,9 @@ public:
 
     double GetValue() { return m_value; }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
 
   protected:
     double m_value;
@@ -326,7 +339,9 @@ public:
 
     bool GetValue() { return m_value; }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
 
   protected:
     bool m_value;
@@ -338,11 +353,13 @@ public:
     explicit String(llvm::StringRef S)
         : Object(lldb::eStructuredDataTypeString), m_value(S) {}
 
-    void SetValue(llvm::StringRef S) { m_value = S; }
+    void SetValue(llvm::StringRef S) { m_value = std::string(S); }
 
     llvm::StringRef GetValue() { return m_value; }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
 
   protected:
     std::string m_value;
@@ -350,7 +367,17 @@ public:
 
   class Dictionary : public Object {
   public:
-    Dictionary() : Object(lldb::eStructuredDataTypeDictionary), m_dict() {}
+    Dictionary() : Object(lldb::eStructuredDataTypeDictionary) {}
+
+    Dictionary(ObjectSP obj_sp) : Object(lldb::eStructuredDataTypeDictionary) {
+      if (!obj_sp || obj_sp->GetType() != lldb::eStructuredDataTypeDictionary) {
+        SetType(lldb::eStructuredDataTypeInvalid);
+        return;
+      }
+
+      Dictionary *dict = obj_sp->GetAsDictionary();
+      m_dict = dict->m_dict;
+    }
 
     ~Dictionary() override = default;
 
@@ -359,20 +386,20 @@ public:
     void ForEach(std::function<bool(ConstString key, Object *object)> const
                      &callback) const {
       for (const auto &pair : m_dict) {
-        if (callback(pair.first, pair.second.get()) == false)
+        if (!callback(pair.first, pair.second.get()))
           break;
       }
     }
 
-    ObjectSP GetKeys() const {
-      auto object_sp = std::make_shared<Array>();
+    ArraySP GetKeys() const {
+      auto array_sp = std::make_shared<Array>();
       collection::const_iterator iter;
       for (iter = m_dict.begin(); iter != m_dict.end(); ++iter) {
         auto key_object_sp = std::make_shared<String>();
         key_object_sp->SetValue(iter->first.AsCString());
-        object_sp->Push(key_object_sp);
+        array_sp->Push(key_object_sp);
       }
-      return object_sp;
+      return array_sp;
     }
 
     ObjectSP GetValueForKey(llvm::StringRef key) const {
@@ -492,7 +519,7 @@ public:
 
     void AddItem(llvm::StringRef key, ObjectSP value_sp) {
       ConstString key_cs(key);
-      m_dict[key_cs] = value_sp;
+      m_dict[key_cs] = std::move(value_sp);
     }
 
     void AddIntegerItem(llvm::StringRef key, uint64_t value) {
@@ -511,7 +538,9 @@ public:
       AddItem(key, std::make_shared<Boolean>(value));
     }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
 
   protected:
     typedef std::map<ConstString, ObjectSP> collection;
@@ -526,7 +555,9 @@ public:
 
     bool IsValid() const override { return false; }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
   };
 
   class Generic : public Object {
@@ -540,17 +571,19 @@ public:
 
     bool IsValid() const override { return m_object != nullptr; }
 
-    void Dump(Stream &s, bool pretty_print = true) const override;
+    void Serialize(llvm::json::OStream &s) const override;
+
+    void GetDescription(lldb_private::Stream &s) const override;
 
   private:
     void *m_object;
   };
 
-  static ObjectSP ParseJSON(std::string json_text);
-
+  static ObjectSP ParseJSON(const std::string &json_text);
   static ObjectSP ParseJSONFromFile(const FileSpec &file, Status &error);
+  static bool IsRecordType(const ObjectSP object_sp);
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_StructuredData_h_
+#endif // LLDB_UTILITY_STRUCTUREDDATA_H

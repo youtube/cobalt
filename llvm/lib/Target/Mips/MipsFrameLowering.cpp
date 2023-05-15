@@ -1,9 +1,8 @@
 //===-- MipsFrameLowering.cpp - Mips Frame Information --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -96,15 +95,15 @@ bool MipsFrameLowering::hasFP(const MachineFunction &MF) const {
   const TargetRegisterInfo *TRI = STI.getRegisterInfo();
 
   return MF.getTarget().Options.DisableFramePointerElim(MF) ||
-      MFI.hasVarSizedObjects() || MFI.isFrameAddressTaken() ||
-      TRI->needsStackRealignment(MF);
+         MFI.hasVarSizedObjects() || MFI.isFrameAddressTaken() ||
+         TRI->hasStackRealignment(MF);
 }
 
 bool MipsFrameLowering::hasBP(const MachineFunction &MF) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetRegisterInfo *TRI = STI.getRegisterInfo();
 
-  return MFI.hasVarSizedObjects() && TRI->needsStackRealignment(MF);
+  return MFI.hasVarSizedObjects() && TRI->hasStackRealignment(MF);
 }
 
 // Estimate the size of the stack, including the incoming arguments. We need to

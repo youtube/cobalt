@@ -1,4 +1,4 @@
-; RUN: opt -loop-versioning -S < %s | FileCheck %s
+; RUN: opt -passes=loop-versioning -S < %s | FileCheck %s
 
 ; Make sure all PHIs are properly updated in the exit block.  Based on
 ; PR28037.
@@ -15,18 +15,20 @@ bb6.lr.ph:                                        ; preds = %bb5.preheader
 
 bb6:                                              ; preds = %bb6.lr.ph, %bb6
   %_tmp1423 = phi i64 [ undef, %bb6.lr.ph ], [ %_tmp142, %bb6 ]
-  %_tmp123 = getelementptr [2 x [3 x [5 x i16]]], [2 x [3 x [5 x i16]]]* @x, i16 0, i64 undef
-  %_tmp126 = getelementptr [3 x [5 x i16]], [3 x [5 x i16]]* %_tmp123, i16 0, i64 %_tmp1423
-  %_tmp129 = getelementptr [5 x i16], [5 x i16]* %_tmp126, i16 0, i64 undef
-  %_tmp130 = load i16, i16* %_tmp129
-  store i16 undef, i16* getelementptr ([2 x [3 x [5 x i16]]], [2 x [3 x [5 x i16]]]* @x, i64 0, i64 undef, i64 undef, i64 undef)
+  %_tmp123 = getelementptr [2 x [3 x [5 x i16]]], ptr @x, i16 0, i64 undef
+  %_tmp126 = getelementptr [3 x [5 x i16]], ptr %_tmp123, i16 0, i64 %_tmp1423
+  %_tmp129 = getelementptr [5 x i16], ptr %_tmp126, i16 0, i64 undef
+  %_tmp130 = load i16, ptr %_tmp129
+  store i16 undef, ptr getelementptr ([2 x [3 x [5 x i16]]], ptr @x, i64 0, i64 undef, i64 undef, i64 undef)
   %_tmp142 = add i64 %_tmp1423, 1
   br i1 false, label %bb6, label %loop.exit
 
 loop.exit:                                ; preds = %bb6
   %_tmp142.lcssa = phi i64 [ %_tmp142, %bb6 ]
   %split = phi i16 [ undef, %bb6 ]
-; CHECK: %split = phi i16 [ undef, %bb6 ], [ undef, %bb6.lver.orig ]
+; CHECK: %split.ph = phi i16 [ undef, %bb6.lver.orig ]
+; CHECK: %split.ph3 = phi i16 [ undef, %bb6 ]
+; CHECK: %split = phi i16 [ %split.ph, %loop.exit.loopexit ], [ %split.ph3, %loop.exit.loopexit1 ]
   br label %bb9
 
 bb9:                                              ; preds = %bb9.loopexit, %bb1
@@ -41,18 +43,20 @@ bb6.lr.ph:                                        ; preds = %bb5.preheader
 
 bb6:                                              ; preds = %bb6.lr.ph, %bb6
   %_tmp1423 = phi i64 [ undef, %bb6.lr.ph ], [ %_tmp142, %bb6 ]
-  %_tmp123 = getelementptr [2 x [3 x [5 x i16]]], [2 x [3 x [5 x i16]]]* @x, i16 0, i64 undef
-  %_tmp126 = getelementptr [3 x [5 x i16]], [3 x [5 x i16]]* %_tmp123, i16 0, i64 %_tmp1423
-  %_tmp129 = getelementptr [5 x i16], [5 x i16]* %_tmp126, i16 0, i64 undef
-  %_tmp130 = load i16, i16* %_tmp129
-  store i16 undef, i16* getelementptr ([2 x [3 x [5 x i16]]], [2 x [3 x [5 x i16]]]* @x, i64 0, i64 undef, i64 undef, i64 undef)
+  %_tmp123 = getelementptr [2 x [3 x [5 x i16]]], ptr @x, i16 0, i64 undef
+  %_tmp126 = getelementptr [3 x [5 x i16]], ptr %_tmp123, i16 0, i64 %_tmp1423
+  %_tmp129 = getelementptr [5 x i16], ptr %_tmp126, i16 0, i64 undef
+  %_tmp130 = load i16, ptr %_tmp129
+  store i16 undef, ptr getelementptr ([2 x [3 x [5 x i16]]], ptr @x, i64 0, i64 undef, i64 undef, i64 undef)
   %_tmp142 = add i64 %_tmp1423, 1
   br i1 false, label %bb6, label %loop.exit
 
 loop.exit:                                ; preds = %bb6
   %_tmp142.lcssa = phi i64 [ %_tmp142, %bb6 ]
   %split = phi i16 [ %t, %bb6 ]
-; CHECK: %split = phi i16 [ %t, %bb6 ], [ %t, %bb6.lver.orig ]
+; CHECK: %split.ph = phi i16 [ %t, %bb6.lver.orig ]
+; CHECK: %split.ph3 = phi i16 [ %t, %bb6 ]
+; CHECK: %split = phi i16 [ %split.ph, %loop.exit.loopexit ], [ %split.ph3, %loop.exit.loopexit1 ]
   br label %bb9
 
 bb9:                                              ; preds = %bb9.loopexit, %bb1

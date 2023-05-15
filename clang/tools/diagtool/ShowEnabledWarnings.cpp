@@ -1,9 +1,8 @@
 //===- ShowEnabledWarnings - diagtool tool for printing enabled flags -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -60,15 +59,16 @@ createDiagnostics(unsigned int argc, char **argv) {
   // Buffer diagnostics from argument parsing so that we can output them using a
   // well formed diagnostic object.
   TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
-  IntrusiveRefCntPtr<DiagnosticsEngine> InterimDiags(
-    new DiagnosticsEngine(DiagIDs, new DiagnosticOptions(), DiagsBuffer));
 
   // Try to build a CompilerInvocation.
   SmallVector<const char *, 4> Args;
   Args.push_back("diagtool");
   Args.append(argv, argv + argc);
+  CreateInvocationOptions CIOpts;
+  CIOpts.Diags =
+      new DiagnosticsEngine(DiagIDs, new DiagnosticOptions(), DiagsBuffer);
   std::unique_ptr<CompilerInvocation> Invocation =
-      createInvocationFromCommandLine(Args, InterimDiags);
+      createInvocation(Args, CIOpts);
   if (!Invocation)
     return nullptr;
 

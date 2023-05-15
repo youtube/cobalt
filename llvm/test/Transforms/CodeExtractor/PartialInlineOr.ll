@@ -1,6 +1,4 @@
-; RUN: opt < %s -partial-inliner -skip-partial-inlining-cost-analysis -S | FileCheck %s
 ; RUN: opt < %s -passes=partial-inliner -skip-partial-inlining-cost-analysis -S | FileCheck %s
-; RUN: opt < %s -partial-inliner -max-num-inline-blocks=2 -S | FileCheck --check-prefix=LIMIT %s
 ; RUN: opt < %s -passes=partial-inliner -max-num-inline-blocks=2 -S | FileCheck  --check-prefix=LIMIT %s
 
 ; Function Attrs: nounwind uwtable
@@ -41,7 +39,7 @@ bb:
 ; CHECK-LABEL: @dummy_caller
 ; CHECK: br i1
 ; CHECK: br i1
-; CHECK: call void @bar.2_
+; CHECK: call void @bar.2.
 ; LIMIT-LABEL: @dummy_caller
 ; LIMIT-NOT: br
 ; LIMIT: call i32 @bar(
@@ -74,7 +72,7 @@ bb7:
   tail call void (...) @foo() #1
   br label %bb8
 bb8:
-  ret i32 0 
+  ret i32 0
 
 bb5:                                              ; preds = %bb4, %bb1
   %.0 = phi i32 [ 0, %bb4 ], [ 1, %bb1 ], [0, %bb6]
@@ -84,7 +82,7 @@ bb5:                                              ; preds = %bb4, %bb1
 define i32 @dummy_caller2(i32 %arg) local_unnamed_addr #0 {
 ; CHECK: br i1
 ; CHECK: br i1
-; CHECK: call {{.*}} @bar_multi_ret.1_
+; CHECK: call {{.*}} @bar_multi_ret.1.
   %tmp = tail call i32 @bar_multi_ret(i32 %arg)
   ret i32 %tmp
 }

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +14,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 template <class T, class Allocator>
@@ -26,12 +26,12 @@ test(unsigned n, const T& x, const Allocator& a)
     C d(n, x, a);
     assert(d.get_allocator() == a);
     assert(d.size() == n);
-    assert(static_cast<std::size_t>(distance(d.begin(), d.end())) == d.size());
+    assert(static_cast<std::size_t>(std::distance(d.begin(), d.end())) == d.size());
     for (const_iterator i = d.begin(), e = d.end(); i != e; ++i)
         assert(*i == x);
 }
 
-int main()
+int main(int, char**)
 {
     {
     std::allocator<int> a;
@@ -65,4 +65,6 @@ int main()
     test(4097, 157, a);
     }
 #endif
+
+  return 0;
 }

@@ -1,7 +1,9 @@
+// RUN: not %clangxx -nostdinc %s 2>&1 | FileCheck %s
 // RUN: not %clangxx -nostdinc++ %s 2>&1 | FileCheck %s
-// CHECK: file not found
-#include <vector> 
+// RUN: not %clangxx -nostdlibinc %s 2>&1 | FileCheck %s
+// RUN: not %clangxx --target=x86_64-unknown-unknown-gnu -fsyntax-only -nostdinc -nostdinc++ %s 2>&1 | FileCheck /dev/null --implicit-check-not=-Wunused-command-line-argument
+// CHECK: 'vector' file not found
+#include <vector>
 
-// MSVC has C++ headers in same directory as C headers.
-// REQUIRES: non-ms-sdk
-// REQUIRES: non-ps4-sdk
+// MSVC, PS4, PS5 have C++ headers in the same directory as C headers.
+// UNSUPPORTED: ms-sdk, target={{.*-(ps4|ps5)}}

@@ -1,9 +1,8 @@
 //===-- VPlanDominatorTree.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,6 +16,7 @@
 #define LLVM_TRANSFORMS_VECTORIZE_VPLANDOMINATORTREE_H
 
 #include "VPlan.h"
+#include "VPlanCFG.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/IR/Dominators.h"
 
@@ -31,7 +31,8 @@ using VPDomTreeNode = DomTreeNodeBase<VPBlockBase>;
 /// Template specializations of GraphTraits for VPDomTreeNode.
 template <>
 struct GraphTraits<VPDomTreeNode *>
-    : public DomTreeGraphTraitsBase<VPDomTreeNode, VPDomTreeNode::iterator> {};
+    : public DomTreeGraphTraitsBase<VPDomTreeNode,
+                                    VPDomTreeNode::const_iterator> {};
 
 template <>
 struct GraphTraits<const VPDomTreeNode *>

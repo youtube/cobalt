@@ -1,9 +1,8 @@
 //===- ValueMapper.h - Remapping for constants and metadata -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,7 +22,6 @@ namespace llvm {
 
 class Constant;
 class Function;
-class GlobalAlias;
 class GlobalVariable;
 class Instruction;
 class MDNode;
@@ -90,9 +88,11 @@ enum RemapFlags {
   /// \a MapMetadata() always ignores this flag.
   RF_IgnoreMissingLocals = 2,
 
-  /// Instruct the remapper to move distinct metadata instead of duplicating it
-  /// when there are module-level changes.
-  RF_MoveDistinctMDs = 4,
+  /// Instruct the remapper to reuse and mutate distinct metadata (remapping
+  /// them in place) instead of cloning remapped copies. This flag has no
+  /// effect when when RF_NoModuleLevelChanges, since that implies an identity
+  /// mapping.
+  RF_ReuseAndMutateDistinctMDs = 4,
 
   /// Any global values not in value map are mapped to null instead of mapping
   /// to self.  Illegal if RF_IgnoreMissingLocals is also set.
@@ -121,7 +121,8 @@ inline RemapFlags operator|(RemapFlags LHS, RemapFlags RHS) {
 /// instance:
 /// - \a scheduleMapGlobalInitializer()
 /// - \a scheduleMapAppendingVariable()
-/// - \a scheduleMapGlobalAliasee()
+/// - \a scheduleMapGlobalAlias()
+/// - \a scheduleMapGlobalIFunc()
 /// - \a scheduleRemapFunction()
 ///
 /// Sometimes a callback needs a different mapping context.  Such a context can
@@ -181,8 +182,10 @@ public:
                                     bool IsOldCtorDtor,
                                     ArrayRef<Constant *> NewMembers,
                                     unsigned MappingContextID = 0);
-  void scheduleMapGlobalAliasee(GlobalAlias &GA, Constant &Aliasee,
-                                unsigned MappingContextID = 0);
+  void scheduleMapGlobalAlias(GlobalAlias &GA, Constant &Aliasee,
+                              unsigned MappingContextID = 0);
+  void scheduleMapGlobalIFunc(GlobalIFunc &GI, Constant &Resolver,
+                              unsigned MappingContextID = 0);
   void scheduleRemapFunction(Function &F, unsigned MappingContextID = 0);
 };
 

@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -std=c++11 -verify -fsyntax-only %s
-// RUN: %clang_cc1 -std=c++1y %s -verify -DCXX1Y
+// RUN: %clang_cc1 -std=c++11 -verify=expected,cxx11 -fsyntax-only -pedantic-errors %s
+// RUN: %clang_cc1 -std=c++14 -verify=expected,cxx14 -fsyntax-only -pedantic-errors %s -DCXX1Y
 
 // Explicit member declarations behave as in C++11.
 
@@ -88,13 +88,13 @@ namespace extended_examples {
 
 //expected-error@71 {{cannot overload a member function without a ref-qualifier with a member function with ref-qualifier '&&'}}
 //expected-note@70 {{previous declaration is here}}
-//expected-error@82 {{statement requires expression of integer type ('extended_examples::A2' invalid)}}
-//expected-error@83 {{statement requires expression of integer type ('extended_examples::A3' invalid)}}
-//expected-error@84 {{statement requires expression of integer type ('extended_examples::A4' invalid)}}
+//expected-error@82 {{statement requires expression of integer type ('A2' invalid)}}
+//expected-error@83 {{statement requires expression of integer type ('A3' invalid)}}
+//expected-error@84 {{statement requires expression of integer type ('A4' invalid)}}
 
 #ifdef CXX1Y
-//expected-error@81 {{statement requires expression of integer type ('extended_examples::A1' invalid)}}
-//expected-error@85 {{statement requires expression of integer type ('extended_examples::B2' invalid)}}
+//expected-error@81 {{statement requires expression of integer type ('A1' invalid)}}
+//expected-error@85 {{statement requires expression of integer type ('B2' invalid)}}
 #else
 //expected-error@81 {{'this' argument to member function 'operator int' is an lvalue, but function has rvalue ref-qualifier}} expected-note@54 {{'operator int' declared here}}
 //expected-error@85 {{'this' argument to member function 'operator int' is an lvalue, but function has rvalue ref-qualifier}} expected-note@75 {{'operator int' declared here}}
@@ -144,10 +144,10 @@ namespace extended_examples_cxx1y {
   }
 }
 
-//expected-error@142 {{statement requires expression of integer type ('extended_examples_cxx1y::C' invalid)}}
+//expected-error@142 {{statement requires expression of integer type ('C' invalid)}}
 
 #ifdef CXX1Y
-//expected-error@139 {{statement requires expression of integer type ('extended_examples_cxx1y::A2' invalid)}}
+//expected-error@139 {{statement requires expression of integer type ('A2' invalid)}}
 #else
 //expected-error@138 {{'this' argument to member function 'operator int' is an lvalue, but function has rvalue ref-qualifier}} expected-note@106 {{'operator int' declared here}}
 //expected-error@139 {{'this' argument to member function 'operator int' is an lvalue, but function has rvalue ref-qualifier}} expected-note@111 {{'operator int' declared here}}
@@ -155,23 +155,41 @@ namespace extended_examples_cxx1y {
 #endif
 
 namespace extended_examples_array_bounds {
-  
+
   typedef decltype(sizeof(int)) size_t;
-  
-  struct Foo {
-    operator size_t();   // @162
-    operator unsigned short();  // @163
+
+  struct X {
+    constexpr operator size_t() const { return 1; } // cxx11-note 3{{conversion}}
+    constexpr operator unsigned short() const { return 0; } // cxx11-note 3{{conversion}}
   };
 
-  void bar() {
-    Foo x;
-    int *p = new int[x];        // @168
+  void f() {
+    X x;
+    int *p = new int[x]; // cxx11-error {{ambiguous}}
+
+    int arr[x]; // cxx11-error {{ambiguous}}
+    int (*q)[1] = new int[1][x]; // cxx11-error {{ambiguous}}
+  }
+
+  struct Y {
+    constexpr operator float() const { return 0.0f; } // cxx14-note 3{{candidate}}
+    constexpr operator int() const { return 1; } // cxx14-note 3{{candidate}}
+  };
+
+  void g() {
+    Y y;
+    int *p = new int[y]; // cxx14-error {{ambiguous}}
+
+    int arr[y]; // cxx14-error {{ambiguous}}
+    int (*q)[1] = new int[1][y]; // cxx14-error {{ambiguous}}
+  }
+
+  template<int N> struct Z {
+    constexpr operator int() const { return N; }
+  };
+  void h() {
+    int arrA[Z<1>()];
+    int arrB[Z<0>()]; // expected-error {{zero size array}}
+    int arrC[Z<-1>()]; // expected-error {{'arrC' declared as an array with a negative size}}
   }
 }
-
-#ifdef CXX1Y
-#else
-//expected-error@168 {{ambiguous conversion of array size expression of type 'extended_examples_array_bounds::Foo' to an integral or enumeration type}}
-//expected-note@162 {{conversion to integral type 'extended_examples_array_bounds::size_t'}}
-//expected-note@163 {{conversion to integral type 'unsigned short' declared here}}
-#endif

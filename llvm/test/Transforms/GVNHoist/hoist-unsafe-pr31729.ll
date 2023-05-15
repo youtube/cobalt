@@ -1,4 +1,4 @@
-; RUN: opt -gvn-hoist -S < %s | FileCheck %s
+; RUN: opt -passes=gvn-hoist -S < %s | FileCheck %s
 
 ; Check that urem is not hoisted.
 ; CHECK-LABEL: @main
@@ -22,11 +22,11 @@ entry:
 ; Function Attrs:
 define i32 @main() {
 entry:
-  %0 = load volatile i32, i32* @g_x_s, align 4
-  %1 = load volatile i32, i32* @g_z_s, align 4
-  %2 = load volatile i32, i32* @g_x_u, align 4
-  %3 = load volatile i32, i32* @g_z_u, align 4
-  %4 = load volatile i32, i32* @g_m, align 4
+  %0 = load volatile i32, ptr @g_x_s, align 4
+  %1 = load volatile i32, ptr @g_z_s, align 4
+  %2 = load volatile i32, ptr @g_x_u, align 4
+  %3 = load volatile i32, ptr @g_z_u, align 4
+  %4 = load volatile i32, ptr @g_m, align 4
   %call = call i64 @func() #4
   %conv = sext i32 %1 to i64
   %cmp = icmp ne i64 %call, %conv
@@ -78,4 +78,4 @@ cleanup:
   ret i32 %retval.0
 }
 
-attributes #0 = { minsize noinline nounwind optsize uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { minsize noinline nounwind optsize uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }

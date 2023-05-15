@@ -1,9 +1,8 @@
 //===- PreprocessingRecord.cpp - Record of Preprocessing ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,7 +20,6 @@
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Token.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Capacity.h"
@@ -32,6 +30,7 @@
 #include <cstddef>
 #include <cstring>
 #include <iterator>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -43,7 +42,8 @@ ExternalPreprocessingRecordSource::~ExternalPreprocessingRecordSource() =
 InclusionDirective::InclusionDirective(PreprocessingRecord &PPRec,
                                        InclusionKind Kind, StringRef FileName,
                                        bool InQuotes, bool ImportedModule,
-                                       const FileEntry *File, SourceRange Range)
+                                       OptionalFileEntryRef File,
+                                       SourceRange Range)
     : PreprocessingDirective(InclusionDirectiveKind, Range), InQuotes(InQuotes),
       Kind(Kind), ImportedModule(ImportedModule), File(File) {
   char *Memory = (char *)PPRec.Allocate(FileName.size() + 1, alignof(char));
@@ -112,10 +112,9 @@ bool PreprocessingRecord::isEntityInFileID(iterator PPEI, FileID FID) {
 
     // See if the external source can see if the entity is in the file without
     // deserializing it.
-    Optional<bool> IsInFile =
-        ExternalSource->isPreprocessedEntityInFileID(LoadedIndex, FID);
-    if (IsInFile.hasValue())
-      return IsInFile.getValue();
+    if (std::optional<bool> IsInFile =
+            ExternalSource->isPreprocessedEntityInFileID(LoadedIndex, FID))
+      return *IsInFile;
 
     // The external source did not provide a definite answer, go and deserialize
     // the entity to check it.
@@ -239,16 +238,13 @@ unsigned PreprocessingRecord::findBeginLocalPreprocessedEntity(
   return First - PreprocessedEntities.begin();
 }
 
-unsigned PreprocessingRecord::findEndLocalPreprocessedEntity(
-                                                     SourceLocation Loc) const {
+unsigned
+PreprocessingRecord::findEndLocalPreprocessedEntity(SourceLocation Loc) const {
   if (SourceMgr.isLoadedSourceLocation(Loc))
     return 0;
 
-  std::vector<PreprocessedEntity *>::const_iterator
-  I = std::upper_bound(PreprocessedEntities.begin(),
-                       PreprocessedEntities.end(),
-                       Loc,
-                       PPEntityComp<&SourceRange::getBegin>(SourceMgr));
+  auto I = llvm::upper_bound(PreprocessedEntities, Loc,
+                             PPEntityComp<&SourceRange::getBegin>(SourceMgr));
   return I - PreprocessedEntities.begin();
 }
 
@@ -306,10 +302,9 @@ PreprocessingRecord::addPreprocessedEntity(PreprocessedEntity *Entity) {
   }
 
   // Linear search unsuccessful. Do a binary search.
-  pp_iter I = std::upper_bound(PreprocessedEntities.begin(),
-                               PreprocessedEntities.end(),
-                               BeginLoc,
-                               PPEntityComp<&SourceRange::getBegin>(SourceMgr));
+  pp_iter I =
+      llvm::upper_bound(PreprocessedEntities, BeginLoc,
+                        PPEntityComp<&SourceRange::getBegin>(SourceMgr));
   pp_iter insertI = PreprocessedEntities.insert(I, Entity);
   return getPPEntityID(insertI - PreprocessedEntities.begin(),
                        /*isLoaded=*/false);
@@ -416,8 +411,25 @@ void PreprocessingRecord::Ifdef(SourceLocation Loc, const Token &MacroNameTok,
                       MacroNameTok.getLocation());
 }
 
+void PreprocessingRecord::Elifdef(SourceLocation Loc, const Token &MacroNameTok,
+                                  const MacroDefinition &MD) {
+  // This is not actually a macro expansion but record it as a macro reference.
+  if (MD)
+    addMacroExpansion(MacroNameTok, MD.getMacroInfo(),
+                      MacroNameTok.getLocation());
+}
+
 void PreprocessingRecord::Ifndef(SourceLocation Loc, const Token &MacroNameTok,
                                  const MacroDefinition &MD) {
+  // This is not actually a macro expansion but record it as a macro reference.
+  if (MD)
+    addMacroExpansion(MacroNameTok, MD.getMacroInfo(),
+                      MacroNameTok.getLocation());
+}
+
+void PreprocessingRecord::Elifndef(SourceLocation Loc,
+                                   const Token &MacroNameTok,
+                                   const MacroDefinition &MD) {
   // This is not actually a macro expansion but record it as a macro reference.
   if (MD)
     addMacroExpansion(MacroNameTok, MD.getMacroInfo(),
@@ -463,15 +475,9 @@ void PreprocessingRecord::MacroUndefined(const Token &Id,
 }
 
 void PreprocessingRecord::InclusionDirective(
-    SourceLocation HashLoc,
-    const Token &IncludeTok,
-    StringRef FileName,
-    bool IsAngled,
-    CharSourceRange FilenameRange,
-    const FileEntry *File,
-    StringRef SearchPath,
-    StringRef RelativePath,
-    const Module *Imported,
+    SourceLocation HashLoc, const Token &IncludeTok, StringRef FileName,
+    bool IsAngled, CharSourceRange FilenameRange, OptionalFileEntryRef File,
+    StringRef SearchPath, StringRef RelativePath, const Module *Imported,
     SrcMgr::CharacteristicKind FileType) {
   InclusionDirective::InclusionKind Kind = InclusionDirective::Include;
 

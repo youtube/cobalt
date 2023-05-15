@@ -12,20 +12,22 @@
 ; collision between this LF_BITFIELD and LF_MODIFIER record, so we only emitted
 ; one under the assumption that the other was redundant. Check that we emit both.
 
-; CHECK-LABEL: # BitField ({{.*}}) {
-; CHECK-NEXT: #   TypeLeafKind: LF_BITFIELD (0x1205)
-; CHECK-NEXT: #   Type: unsigned char (0x20)
-; CHECK-NEXT: #   BitSize: 1
-; CHECK-NEXT: #   BitOffset: 0
-; CHECK-NEXT: # }
+; CHECK-LABEL: # BitField (0x1001)
+; CHECK-NEXT: .short	0xa                     # Record length
+; CHECK-NEXT: .short	0x1205                  # Record kind: LF_BITFIELD
+; CHECK-NEXT: .long	0x20                    # Type: unsigned char
+; CHECK-NEXT: .byte	0x1                     # BitSize
+; CHECK-NEXT: .byte	0x0                     # BitOffset
+; CHECK-NEXT: .byte	242
+; CHECK-NEXT: .byte	241
 
-; CHECK-LABEL: # Modifier ({{.*}}) {
-; CHECK-NEXT: #   TypeLeafKind: LF_MODIFIER (0x1001)
-; CHECK-NEXT: #   ModifiedType: unsigned char (0x20)
-; CHECK-NEXT: #   Modifiers [ (0x1)
-; CHECK-NEXT: #     Const (0x1)
-; CHECK-NEXT: #   ]
-; CHECK-NEXT: # }
+; CHECK-LABEL: # Modifier (0x1007)
+; CHECK-NEXT: .short	0xa                     # Record length
+; CHECK-NEXT: .short	0x1001                  # Record kind: LF_MODIFIER
+; CHECK-NEXT: .long	0x20                    # ModifiedType: unsigned char
+; CHECK-NEXT: .short	0x1                     # Modifiers ( Const (0x1) )
+; CHECK-NEXT: .byte	242
+; CHECK-NEXT: .byte	241
 
 ; ModuleID = 't.cpp'
 source_filename = "t.cpp"
@@ -35,7 +37,7 @@ target triple = "x86_64-pc-windows-msvc19.13.26131"
 %struct.Bits = type { i8 }
 
 @"?bits@@3UBits@@A" = dso_local global %struct.Bits zeroinitializer, align 1, !dbg !0
-@"?p_const@@3PEBEEB" = dso_local global i8* null, align 8, !dbg !6
+@"?p_const@@3PEBEEB" = dso_local global ptr null, align 8, !dbg !6
 
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!15, !16, !17, !18}

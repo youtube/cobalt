@@ -4,9 +4,9 @@
 
 class X {
 public:
-  explicit X(const X&); // expected-note {{candidate constructor}}
+  explicit X(const X&); // expected-note 2{{not a candidate}}
   X(int*); // expected-note 3{{candidate constructor}}
-  explicit X(float*); // expected-note {{candidate constructor}}
+  explicit X(float*); // expected-note {{candidate constructor}} expected-note 2{{not a candidate}}
 };
 
 class Y : public X { };
@@ -41,7 +41,7 @@ namespace PR6757 {
   void f(Foo);
 
   void g(Foo foo) {
-    f(Bar()); // expected-error{{no viable constructor copying parameter of type 'const PR6757::Foo'}}
+    f(Bar()); // expected-error{{no viable constructor copying parameter of type 'const Foo'}}
     f(foo);
   }
 }

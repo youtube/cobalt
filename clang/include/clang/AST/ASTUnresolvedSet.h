@@ -1,9 +1,8 @@
 //===- ASTUnresolvedSet.h - Unresolved sets of declarations -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -70,7 +69,12 @@ public:
     return false;
   }
 
-  void erase(unsigned I) { Decls[I] = Decls.pop_back_val(); }
+  void erase(unsigned I) {
+    if (I == Decls.size() - 1)
+      Decls.pop_back();
+    else
+      Decls[I] = Decls.pop_back_val();
+  }
 
   void clear() { Decls.clear(); }
 

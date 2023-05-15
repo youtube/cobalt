@@ -1,13 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+// UNSUPPORTED: no-localization
 
 // <filesystem>
 
@@ -22,7 +22,7 @@
 // operator>>(basic_istream<charT, traits>& is, path& p)
 //
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <sstream>
 #include <cassert>
@@ -30,13 +30,11 @@
 
 #include "test_macros.h"
 #include "test_iterators.h"
-#include "count_new.hpp"
-#include "filesystem_test_helper.hpp"
+#include "count_new.h"
+#include "filesystem_test_helper.h"
 
 MultiStringType InStr =  MKSTR("abcdefg/\"hijklmnop\"/qrstuvwxyz/123456789");
 MultiStringType OutStr = MKSTR("\"abcdefg/\\\"hijklmnop\\\"/qrstuvwxyz/123456789\"");
-
-
 
 template <class CharT>
 void doIOTest() {
@@ -54,7 +52,7 @@ void doIOTest() {
   { // test input
     path p_in;
     auto& ret = ss >> p_in;
-    assert(p_in.native() == (const char*)InStr);
+    assert(p_in.native() == (const path::value_type*)InStr);
     assert(&ret == &ss);
   }
 }
@@ -83,16 +81,24 @@ template <class Stream, class Tp>
 struct is_istreamable : decltype(impl::is_istreamable_imp<Stream, Tp>(0)) {};
 
 void test_LWG2989() {
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
   static_assert(!is_ostreamable<decltype(std::cout), std::wstring>::value, "");
   static_assert(!is_ostreamable<decltype(std::wcout), std::string>::value, "");
   static_assert(!is_istreamable<decltype(std::cin), std::wstring>::value, "");
   static_assert(!is_istreamable<decltype(std::wcin), std::string>::value, "");
+#endif
 }
 
-int main() {
+int main(int, char**) {
   doIOTest<char>();
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
   doIOTest<wchar_t>();
+#endif
+  // TODO(var-const): uncomment when it becomes possible to instantiate a `basic_ostream` object with a sized character
+  // type (see https://llvm.org/PR53119).
   //doIOTest<char16_t>();
   //doIOTest<char32_t>();
   test_LWG2989();
+
+  return 0;
 }

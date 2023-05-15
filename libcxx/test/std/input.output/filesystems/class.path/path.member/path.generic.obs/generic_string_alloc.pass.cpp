@@ -1,13 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// These tests require locale for non-char paths
+// UNSUPPORTED: no-localization
 
 // <filesystem>
 
@@ -18,38 +20,55 @@
 // basic_string<ECharT, Traits, Allocator>
 // generic_string(const Allocator& a = Allocator()) const;
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <cassert>
 
 #include "test_macros.h"
 #include "test_iterators.h"
-#include "count_new.hpp"
+#include "count_new.h"
 #include "min_allocator.h"
-#include "filesystem_test_helper.hpp"
+#include "filesystem_test_helper.h"
 
 MultiStringType longString = MKSTR("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/123456789/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
 
 // generic_string<C, T, A> forwards to string<C, T, A>. Tests for
-// string<C, T, A>() are in "path.native.op/string_alloc.pass.cpp".
+// string<C, T, A>() are in "path.native.obs/string_alloc.pass.cpp".
 // generic_string is minimally tested here.
-int main()
+template <class CharT>
+void doAllocTest()
 {
   using namespace fs;
-  using CharT = wchar_t;
   using Traits = std::char_traits<CharT>;
   using Alloc = malloc_allocator<CharT>;
   using Str = std::basic_string<CharT, Traits, Alloc>;
-  const wchar_t* expect = longString;
+  const CharT* expect = longString;
   const path p((const char*)longString);
   {
-    DisableAllocationGuard g;
+    // On Windows, charset conversions cause allocations outside of the
+    // provided allocator.
+    TEST_NOT_WIN32(DisableAllocationGuard g);
     Alloc a;
     Alloc::disable_default_constructor = true;
-    Str s = p.generic_string<wchar_t, Traits, Alloc>(a);
+    Str s = p.generic_string<CharT, Traits, Alloc>(a);
     assert(s == expect);
     assert(Alloc::alloc_count > 0);
     assert(Alloc::outstanding_alloc() == 1);
+    Alloc::disable_default_constructor = false;
   }
+}
+
+int main(int, char**)
+{
+  doAllocTest<char>();
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+  doAllocTest<wchar_t>();
+#endif
+  doAllocTest<char16_t>();
+  doAllocTest<char32_t>();
+#if TEST_STD_VER > 17 && defined(__cpp_lib_char8_t)
+  doAllocTest<char8_t>();
+#endif
+  return 0;
 }

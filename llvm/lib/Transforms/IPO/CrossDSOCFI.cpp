@@ -1,9 +1,8 @@
 //===-- CrossDSOCFI.cpp - Externalize this module's CFI checks ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,20 +15,16 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalObject.h"
-#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/Operator.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO.h"
 
 using namespace llvm;
@@ -85,18 +80,14 @@ void CrossDSOCFI::buildCFICheck(Module &M) {
   for (GlobalObject &GO : M.global_objects()) {
     Types.clear();
     GO.getMetadata(LLVMContext::MD_type, Types);
-    for (MDNode *Type : Types) {
-      // Sanity check. GO must not be a function declaration.
-      assert(!isa<Function>(&GO) || !cast<Function>(&GO)->isDeclaration());
-
+    for (MDNode *Type : Types)
       if (ConstantInt *TypeId = extractNumericTypeId(Type))
         TypeIds.insert(TypeId->getZExtValue());
-    }
   }
 
   NamedMDNode *CfiFunctionsMD = M.getNamedMetadata("cfi.functions");
   if (CfiFunctionsMD) {
-    for (auto Func : CfiFunctionsMD->operands()) {
+    for (auto *Func : CfiFunctionsMD->operands()) {
       assert(Func->getNumOperands() >= 2);
       for (unsigned I = 2; I < Func->getNumOperands(); ++I)
         if (ConstantInt *TypeId =
@@ -106,14 +97,14 @@ void CrossDSOCFI::buildCFICheck(Module &M) {
   }
 
   LLVMContext &Ctx = M.getContext();
-  Constant *C = M.getOrInsertFunction(
+  FunctionCallee C = M.getOrInsertFunction(
       "__cfi_check", Type::getVoidTy(Ctx), Type::getInt64Ty(Ctx),
       Type::getInt8PtrTy(Ctx), Type::getInt8PtrTy(Ctx));
-  Function *F = dyn_cast<Function>(C);
+  Function *F = cast<Function>(C.getCallee());
   // Take over the existing function. The frontend emits a weak stub so that the
   // linker knows about the symbol; this pass replaces the function body.
   F->deleteBody();
-  F->setAlignment(4096);
+  F->setAlignment(Align(4096));
 
   Triple T(M.getTargetTriple());
   if (T.isARM() || T.isThumb())
@@ -133,9 +124,9 @@ void CrossDSOCFI::buildCFICheck(Module &M) {
 
   BasicBlock *TrapBB = BasicBlock::Create(Ctx, "fail", F);
   IRBuilder<> IRBFail(TrapBB);
-  Constant *CFICheckFailFn = M.getOrInsertFunction(
-      "__cfi_check_fail", Type::getVoidTy(Ctx), Type::getInt8PtrTy(Ctx),
-      Type::getInt8PtrTy(Ctx));
+  FunctionCallee CFICheckFailFn =
+      M.getOrInsertFunction("__cfi_check_fail", Type::getVoidTy(Ctx),
+                            Type::getInt8PtrTy(Ctx), Type::getInt8PtrTy(Ctx));
   IRBFail.CreateCall(CFICheckFailFn, {&CFICheckFailData, &Addr});
   IRBFail.CreateBr(ExitBB);
 

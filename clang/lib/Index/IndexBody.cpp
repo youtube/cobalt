@@ -1,14 +1,18 @@
 //===- IndexBody.cpp - Indexing statements --------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "IndexingContext.h"
+#include "clang/AST/ASTConcept.h"
+#include "clang/AST/ASTLambda.h"
+#include "clang/AST/DeclCXX.h"
+#include "clang/AST/ExprConcepts.h"
 #include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/AST/Type.h"
 
 using namespace clang;
 using namespace clang::index;
@@ -143,7 +147,7 @@ public:
   bool VisitMemberExpr(MemberExpr *E) {
     SourceLocation Loc = E->getMemberLoc();
     if (Loc.isInvalid())
-      Loc = E->getLocStart();
+      Loc = E->getBeginLoc();
     SmallVector<SymbolRelation, 4> Relations;
     SymbolRoleSet Roles = getRolesForRef(E, Relations);
     return IndexCtx.handleReference(E->getMemberDecl(), Loc,
@@ -175,7 +179,7 @@ public:
       return true;
     SourceLocation Loc = NameInfo.getLoc();
     if (Loc.isInvalid())
-      Loc = E->getLocStart();
+      Loc = E->getBeginLoc();
     SmallVector<SymbolRelation, 4> Relations;
     SymbolRoleSet Roles = getRolesForRef(E, Relations);
     return IndexCtx.handleReference(Symbols[0], Loc, Parent, ParentDC, Roles,
@@ -259,8 +263,24 @@ public:
 
       if (isDynamic(E)) {
         Roles |= (unsigned)SymbolRole::Dynamic;
-        if (auto *RecD = E->getReceiverInterface())
-          Relations.emplace_back((unsigned)SymbolRole::RelationReceivedBy, RecD);
+
+        auto addReceivers = [&](const ObjCObjectType *Ty) {
+          if (!Ty)
+            return;
+          if (const auto *clsD = Ty->getInterface()) {
+            Relations.emplace_back((unsigned)SymbolRole::RelationReceivedBy,
+                                   clsD);
+          }
+          for (const auto *protD : Ty->quals()) {
+            Relations.emplace_back((unsigned)SymbolRole::RelationReceivedBy,
+                                   protD);
+          }
+        };
+        QualType recT = E->getReceiverType();
+        if (const auto *Ptr = recT->getAs<ObjCObjectPointerType>())
+          addReceivers(Ptr->getObjectType());
+        else
+          addReceivers(recT->getAs<ObjCObjectType>());
       }
 
       return IndexCtx.handleReference(MD, E->getSelectorStartLoc(),
@@ -270,9 +290,6 @@ public:
   }
 
   bool VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
-    if (E->isClassReceiver())
-      IndexCtx.handleReference(E->getClassReceiver(), E->getReceiverLocation(),
-                               Parent, ParentDC);
     if (E->isExplicitProperty()) {
       SmallVector<SymbolRelation, 2> Relations;
       SymbolRoleSet Roles = getRolesForRef(E, Relations);
@@ -312,8 +329,8 @@ public:
     SmallVector<SymbolRelation, 2> Relations;
     addCallRole(Roles, Relations);
     Roles |= (unsigned)SymbolRole::Implicit;
-    return IndexCtx.handleReference(MD, E->getLocStart(),
-                                    Parent, ParentDC, Roles, Relations, E);
+    return IndexCtx.handleReference(MD, E->getBeginLoc(), Parent, ParentDC,
+                                    Roles, Relations, E);
   }
 
   bool VisitObjCBoxedExpr(ObjCBoxedExpr *E) {
@@ -375,11 +392,13 @@ public:
     if (C->capturesThis() || C->capturesVLAType())
       return true;
 
+    if (!base::TraverseStmt(Init))
+      return false;
+
     if (C->capturesVariable() && IndexCtx.shouldIndexFunctionLocalSymbols())
       return IndexCtx.handleReference(C->getCapturedVar(), C->getLocation(),
                                       Parent, ParentDC, SymbolRoleSet());
 
-    // FIXME: Lambda init-captures.
     return true;
   }
 
@@ -398,7 +417,7 @@ public:
 
     auto visitSyntacticDesignatedInitExpr = [&](DesignatedInitExpr *E) -> bool {
       for (DesignatedInitExpr::Designator &D : llvm::reverse(E->designators())) {
-        if (D.isFieldDesignator())
+        if (D.isFieldDesignator() && D.getField())
           return IndexCtx.handleReference(D.getField(), D.getFieldLoc(),
                                           Parent, ParentDC, SymbolRoleSet(),
                                           {}, E);
@@ -432,11 +451,42 @@ public:
     for (unsigned I = 0, E = S->getNumComponents(); I != E; ++I) {
       const OffsetOfNode &Component = S->getComponent(I);
       if (Component.getKind() == OffsetOfNode::Field)
-        IndexCtx.handleReference(Component.getField(), Component.getLocEnd(),
+        IndexCtx.handleReference(Component.getField(), Component.getEndLoc(),
                                  Parent, ParentDC, SymbolRoleSet(), {});
       // FIXME: Try to resolve dependent field references.
     }
     return true;
+  }
+
+  bool VisitParmVarDecl(ParmVarDecl* D) {
+    // Index the parameters of lambda expression and requires expression.
+    if (IndexCtx.shouldIndexFunctionLocalSymbols()) {
+      const auto *DC = D->getDeclContext();
+      if (DC && (isLambdaCallOperator(DC) || isa<RequiresExprBodyDecl>(DC)))
+        IndexCtx.handleDecl(D);
+    }
+    return true;
+  }
+
+  bool VisitOverloadExpr(OverloadExpr *E) {
+    SmallVector<SymbolRelation, 4> Relations;
+    SymbolRoleSet Roles = getRolesForRef(E, Relations);
+    for (auto *D : E->decls())
+      IndexCtx.handleReference(D, E->getNameLoc(), Parent, ParentDC, Roles,
+                               Relations, E);
+    return true;
+  }
+
+  bool VisitConceptSpecializationExpr(ConceptSpecializationExpr *R) {
+    IndexCtx.handleReference(R->getNamedConcept(), R->getConceptNameLoc(),
+                             Parent, ParentDC);
+    return true;
+  }
+
+  bool TraverseTypeConstraint(const TypeConstraint *C) {
+    IndexCtx.handleReference(C->getNamedConcept(), C->getConceptNameLoc(),
+                             Parent, ParentDC);
+    return RecursiveASTVisitor::TraverseTypeConstraint(C);
   }
 };
 

@@ -1,14 +1,13 @@
 //===-- ApplyReplacements.cpp - Apply and deduplicate replacements --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief This file provides the implementation for deduplicating, detecting
+/// This file provides the implementation for deduplicating, detecting
 /// conflicts in, and applying collections of Replacements.
 ///
 /// FIXME: Use Diagnostics for output instead of llvm::errs().
@@ -20,13 +19,16 @@
 #include "clang/Format/Format.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/Tooling/Core/Diagnostic.h"
 #include "clang/Tooling/DiagnosticsYaml.h"
 #include "clang/Tooling/ReplacementsYaml.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 using namespace llvm;
 using namespace clang;
@@ -124,8 +126,9 @@ std::error_code collectReplacementsFromDirectory(
   return ErrorCode;
 }
 
-/// \brief Extract replacements from collected TranslationUnitReplacements and
-/// TranslationUnitDiagnostics and group them per file.
+/// Extract replacements from collected TranslationUnitReplacements and
+/// TranslationUnitDiagnostics and group them per file. Identical replacements
+/// from diagnostics are deduplicated.
 ///
 /// \param[in] TUs Collection of all found and deserialized
 /// TranslationUnitReplacements.
@@ -138,16 +141,42 @@ std::error_code collectReplacementsFromDirectory(
 static llvm::DenseMap<const FileEntry *, std::vector<tooling::Replacement>>
 groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
                   const clang::SourceManager &SM) {
-  std::set<StringRef> Warned;
+  llvm::StringSet<> Warned;
   llvm::DenseMap<const FileEntry *, std::vector<tooling::Replacement>>
       GroupedReplacements;
 
-  auto AddToGroup = [&](const tooling::Replacement &R) {
+  // Deduplicate identical replacements in diagnostics unless they are from the
+  // same TU.
+  // FIXME: Find an efficient way to deduplicate on diagnostics level.
+  llvm::DenseMap<const FileEntry *,
+                 std::map<tooling::Replacement,
+                          const tooling::TranslationUnitDiagnostics *>>
+      DiagReplacements;
+
+  auto AddToGroup = [&](const tooling::Replacement &R,
+                        const tooling::TranslationUnitDiagnostics *SourceTU,
+                        const std::optional<std::string> BuildDir) {
     // Use the file manager to deduplicate paths. FileEntries are
-    // automatically canonicalized.
-    if (const FileEntry *Entry = SM.getFileManager().getFile(R.getFilePath())) {
-      GroupedReplacements[Entry].push_back(R);
-    } else if (Warned.insert(R.getFilePath()).second) {
+    // automatically canonicalized. Since relative paths can come from different
+    // build directories, make them absolute immediately.
+    SmallString<128> Path = R.getFilePath();
+    if (BuildDir)
+      llvm::sys::fs::make_absolute(*BuildDir, Path);
+    else
+      SM.getFileManager().makeAbsolutePath(Path);
+
+    if (auto Entry = SM.getFileManager().getFile(Path)) {
+      if (SourceTU) {
+        auto &Replaces = DiagReplacements[*Entry];
+        auto It = Replaces.find(R);
+        if (It == Replaces.end())
+          Replaces.emplace(R, SourceTU);
+        else if (It->second != SourceTU)
+          // This replacement is a duplicate of one suggested by another TU.
+          return;
+      }
+      GroupedReplacements[*Entry].push_back(R);
+    } else if (Warned.insert(Path).second) {
       errs() << "Described file '" << R.getFilePath()
              << "' doesn't exist. Ignoring...\n";
     }
@@ -155,19 +184,20 @@ groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
 
   for (const auto &TU : TUs)
     for (const tooling::Replacement &R : TU.Replacements)
-      AddToGroup(R);
+      AddToGroup(R, nullptr, {});
 
   for (const auto &TU : TUDs)
     for (const auto &D : TU.Diagnostics)
-      for (const auto &Fix : D.Fix)
-        for (const tooling::Replacement &R : Fix.second)
-          AddToGroup(R);
+      if (const auto *ChoosenFix = tooling::selectFirstFix(D)) {
+        for (const auto &Fix : *ChoosenFix)
+          for (const tooling::Replacement &R : Fix.second)
+            AddToGroup(R, &TU, D.BuildDirectory);
+      }
 
   // Sort replacements per file to keep consistent behavior when
   // clang-apply-replacements run on differents machine.
   for (auto &FileAndReplacements : GroupedReplacements) {
-    llvm::sort(FileAndReplacements.second.begin(),
-               FileAndReplacements.second.end());
+    llvm::sort(FileAndReplacements.second);
   }
 
   return GroupedReplacements;
@@ -175,7 +205,7 @@ groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
 
 bool mergeAndDeduplicate(const TUReplacements &TUs, const TUDiagnostics &TUDs,
                          FileToChangesMap &FileChanges,
-                         clang::SourceManager &SM) {
+                         clang::SourceManager &SM, bool IgnoreInsertConflict) {
   auto GroupedReplacements = groupReplacements(TUs, TUDs, SM);
   bool ConflictDetected = false;
 
@@ -194,7 +224,7 @@ bool mergeAndDeduplicate(const TUReplacements &TUs, const TUDiagnostics &TUDs,
         // FIXME: This will report conflicts by pair using a file+offset format
         // which is not so much human readable.
         // A first improvement could be to translate offset to line+col. For
-        // this and without loosing error message some modifications arround
+        // this and without loosing error message some modifications around
         // `tooling::ReplacementError` are need (access to
         // `getReplacementErrString`).
         // A better strategy could be to add a pretty printer methods for
@@ -204,7 +234,24 @@ bool mergeAndDeduplicate(const TUReplacements &TUs, const TUDiagnostics &TUDs,
         // For now, printing directly the error reported by `AtomicChange` is
         // the easiest solution.
         errs() << llvm::toString(std::move(Err)) << "\n";
-        ConflictDetected = true;
+        if (IgnoreInsertConflict) {
+          tooling::Replacements &Replacements = FileChange.getReplacements();
+          unsigned NewOffset =
+              Replacements.getShiftedCodePosition(R.getOffset());
+          unsigned NewLength = Replacements.getShiftedCodePosition(
+                                   R.getOffset() + R.getLength()) -
+                               NewOffset;
+          if (NewLength == R.getLength()) {
+            tooling::Replacement RR = tooling::Replacement(
+                R.getFilePath(), NewOffset, NewLength, R.getReplacementText());
+            Replacements = Replacements.merge(tooling::Replacements(RR));
+          } else {
+            llvm::errs()
+                << "Can't resolve conflict, skipping the replacement.\n";
+            ConflictDetected = true;
+          }
+        } else
+          ConflictDetected = true;
       }
     }
     FileChanges.try_emplace(Entry,

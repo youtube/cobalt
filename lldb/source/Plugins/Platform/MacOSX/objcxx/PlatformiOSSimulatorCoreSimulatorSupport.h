@@ -1,35 +1,30 @@
 //===-- PlatformiOSSimulatorCoreSimulatorSupport.h ----------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformiOSSimulatorCoreSimulatorSupport_h_
-#define liblldb_PlatformiOSSimulatorCoreSimulatorSupport_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_OBJCXX_PLATFORMIOSSIMULATORCORESIMULATORSUPPORT_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_OBJCXX_PLATFORMIOSSIMULATORCORESIMULATORSUPPORT_H
 
-// C Includes
-// C++ Includes
 #include <functional>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
-// Other libraries and framework includes
 #ifdef __APPLE__
 #include <objc/objc.h>
 #else
 typedef void *id;
 #endif
-// Project includes
-#include "lldb/Target/ProcessLaunchInfo.h"
+#include "lldb/Host/ProcessLaunchInfo.h"
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Status.h"
 
-#include "llvm/ADT/Optional.h"
 
 // And now the actual magic
 namespace CoreSimulatorSupport {
@@ -98,8 +93,8 @@ public:
   ProductFamilyID GetProductFamilyID();
 
 private:
-  id m_dev;
-  llvm::Optional<ModelIdentifier> m_model_identifier;
+  id m_dev = nullptr;
+  std::optional<ModelIdentifier> m_model_identifier;
 };
 
 class OSVersion {
@@ -134,8 +129,8 @@ public:
   bool IsAvailable();
 
 private:
-  id m_dev;
-  llvm::Optional<OSVersion> m_os_version;
+  id m_dev = nullptr;
+  std::optional<OSVersion> m_os_version;
 };
 
 class Device {
@@ -174,9 +169,9 @@ public:
   Process Spawn(lldb_private::ProcessLaunchInfo &launch_info);
 
 private:
-  id m_dev;
-  llvm::Optional<DeviceType> m_dev_type;
-  llvm::Optional<DeviceRuntime> m_dev_runtime;
+  id m_dev = nullptr;
+  std::optional<DeviceType> m_dev_type;
+  std::optional<DeviceRuntime> m_dev_runtime;
 
   friend class DeviceSet;
 };
@@ -222,4 +217,4 @@ private:
 };
 }
 
-#endif // liblldb_PlatformiOSSimulatorCoreSimulatorSupport_h_
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_OBJCXX_PLATFORMIOSSIMULATORCORESIMULATORSUPPORT_H

@@ -11,25 +11,23 @@
 ; CHECK: sllg [[REG2]], [[REG2]], 32
 ; CHECK: ear [[REG2]], %a1
 ; CHECK: lg [[REG2]], 40([[REG2]])
-; CHECK: sg [[REG2]], {{[0-9]*}}(%r15)
+; CHECK: cg [[REG2]], {{[0-9]*}}(%r15)
 
 define i32 @test_stack_guard() #0 {
 entry:
   %a1 = alloca [256 x i32], align 4
-  %0 = bitcast [256 x i32]* %a1 to i8*
-  call void @llvm.lifetime.start.p0i8(i64 1024, i8* %0)
-  %arraydecay = getelementptr inbounds [256 x i32], [256 x i32]* %a1, i64 0, i64 0
-  call void @foo3(i32* %arraydecay)
-  call void @llvm.lifetime.end.p0i8(i64 1024, i8* %0)
+  call void @llvm.lifetime.start.p0(i64 1024, ptr %a1)
+  call void @foo3(ptr %a1)
+  call void @llvm.lifetime.end.p0(i64 1024, ptr %a1)
   ret i32 0
 }
 
 ; Function Attrs: nounwind
-declare void @llvm.lifetime.start.p0i8(i64, i8* nocapture)
+declare void @llvm.lifetime.start.p0(i64, ptr nocapture)
 
-declare void @foo3(i32*)
+declare void @foo3(ptr)
 
 ; Function Attrs: nounwind
-declare void @llvm.lifetime.end.p0i8(i64, i8* nocapture)
+declare void @llvm.lifetime.end.p0(i64, ptr nocapture)
 
 attributes #0 = { sspstrong }

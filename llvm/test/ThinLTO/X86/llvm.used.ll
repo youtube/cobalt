@@ -8,7 +8,7 @@
 ; CHECK: define available_externally void @globalfunc
 
 
-target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.11.0"
 
 
@@ -16,7 +16,7 @@ target triple = "x86_64-apple-macosx10.11.0"
 define internal void @_ZN12_GLOBAL__N_16Module4dumpEv() {
     ret void
 }
-@llvm.used = appending global [1 x i8*] [i8* bitcast (void ()* @_ZN12_GLOBAL__N_16Module4dumpEv to i8*)], section "llvm.metadata"
+@llvm.used = appending global [1 x ptr] [ptr @_ZN12_GLOBAL__N_16Module4dumpEv], section "llvm.metadata"
 
 
 define void @globalfunc() #0 {

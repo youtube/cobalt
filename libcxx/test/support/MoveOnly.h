@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,44 +11,58 @@
 
 #include "test_macros.h"
 
-#if TEST_STD_VER >= 11
-
 #include <cstddef>
 #include <functional>
 
 class MoveOnly
 {
-    MoveOnly(const MoveOnly&);
-    MoveOnly& operator=(const MoveOnly&);
-
     int data_;
 public:
-    MoveOnly(int data = 1) : data_(data) {}
-    MoveOnly(MoveOnly&& x)
+    TEST_CONSTEXPR MoveOnly(int data = 1) : data_(data) {}
+
+    MoveOnly(const MoveOnly&) = delete;
+    MoveOnly& operator=(const MoveOnly&) = delete;
+
+    TEST_CONSTEXPR_CXX14 MoveOnly(MoveOnly&& x) TEST_NOEXCEPT
         : data_(x.data_) {x.data_ = 0;}
-    MoveOnly& operator=(MoveOnly&& x)
+    TEST_CONSTEXPR_CXX14 MoveOnly& operator=(MoveOnly&& x)
         {data_ = x.data_; x.data_ = 0; return *this;}
 
-    int get() const {return data_;}
+    TEST_CONSTEXPR int get() const {return data_;}
 
-    bool operator==(const MoveOnly& x) const {return data_ == x.data_;}
-    bool operator< (const MoveOnly& x) const {return data_ <  x.data_;}
-    MoveOnly operator+(const MoveOnly& x) const { return MoveOnly{data_ + x.data_}; }
-    MoveOnly operator*(const MoveOnly& x) const { return MoveOnly{data_ * x.data_}; }
+    friend TEST_CONSTEXPR bool operator==(const MoveOnly& x, const MoveOnly& y)
+        { return x.data_ == y.data_; }
+    friend TEST_CONSTEXPR bool operator!=(const MoveOnly& x, const MoveOnly& y)
+        { return x.data_ != y.data_; }
+    friend TEST_CONSTEXPR bool operator< (const MoveOnly& x, const MoveOnly& y)
+        { return x.data_ <  y.data_; }
+    friend TEST_CONSTEXPR bool operator<=(const MoveOnly& x, const MoveOnly& y)
+        { return x.data_ <= y.data_; }
+    friend TEST_CONSTEXPR bool operator> (const MoveOnly& x, const MoveOnly& y)
+        { return x.data_ >  y.data_; }
+    friend TEST_CONSTEXPR bool operator>=(const MoveOnly& x, const MoveOnly& y)
+        { return x.data_ >= y.data_; }
+
+#if TEST_STD_VER > 17
+    friend constexpr auto operator<=>(const MoveOnly&, const MoveOnly&) = default;
+#endif // TEST_STD_VER > 17
+
+    TEST_CONSTEXPR_CXX14 MoveOnly operator+(const MoveOnly& x) const
+        { return MoveOnly(data_ + x.data_); }
+    TEST_CONSTEXPR_CXX14 MoveOnly operator*(const MoveOnly& x) const
+        { return MoveOnly(data_ * x.data_); }
+
+    template<class T, class U>
+    friend void operator,(T t, U u) = delete;
 };
 
-namespace std {
 
 template <>
-struct hash<MoveOnly>
+struct std::hash<MoveOnly>
 {
     typedef MoveOnly argument_type;
     typedef size_t result_type;
-    std::size_t operator()(const MoveOnly& x) const {return x.get();}
+    TEST_CONSTEXPR size_t operator()(const MoveOnly& x) const {return static_cast<size_t>(x.get());}
 };
 
-}
-
-#endif  // TEST_STD_VER >= 11
-
-#endif  // MOVEONLY_H
+#endif // MOVEONLY_H

@@ -1,9 +1,8 @@
-//===-- GDBRemoteCommunicationTest.cpp --------------------------*- C++ -*-===//
+//===-- GDBRemoteCommunicationTest.cpp ------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include "GDBRemoteTestUtils.h"
@@ -18,8 +17,7 @@ namespace {
 
 class TestClient : public GDBRemoteCommunication {
 public:
-  TestClient()
-      : GDBRemoteCommunication("test.client", "test.client.listener") {}
+  TestClient() : GDBRemoteCommunication() {}
 
   PacketResult ReadPacket(StringExtractorGDBRemote &response) {
     return GDBRemoteCommunication::ReadPacket(response, std::chrono::seconds(1),
@@ -30,7 +28,8 @@ public:
 class GDBRemoteCommunicationTest : public GDBRemoteTest {
 public:
   void SetUp() override {
-    ASSERT_THAT_ERROR(Connect(client, server), llvm::Succeeded());
+    ASSERT_THAT_ERROR(GDBRemoteCommunication::ConnectLocally(client, server),
+                      llvm::Succeeded());
   }
 
 protected:
@@ -39,13 +38,15 @@ protected:
 
   bool Write(llvm::StringRef packet) {
     ConnectionStatus status;
-    return server.Write(packet.data(), packet.size(), status, nullptr) ==
+    return server.WriteAll(packet.data(), packet.size(), status, nullptr) ==
            packet.size();
   }
 };
 } // end anonymous namespace
 
-TEST_F(GDBRemoteCommunicationTest, ReadPacket_checksum) {
+// Test that we can decode packets correctly. In particular, verify that
+// checksum calculation works.
+TEST_F(GDBRemoteCommunicationTest, ReadPacket) {
   struct TestCase {
     llvm::StringLiteral Packet;
     llvm::StringLiteral Payload;
@@ -53,8 +54,10 @@ TEST_F(GDBRemoteCommunicationTest, ReadPacket_checksum) {
   static constexpr TestCase Tests[] = {
       {{"$#00"}, {""}},
       {{"$foobar#79"}, {"foobar"}},
-      {{"$}}#fa"}, {"]"}},
-      {{"$x*%#c7"}, {"xxxxxxxxx"}},
+      {{"$}]#da"}, {"}"}},          // Escaped }
+      {{"$x*%#c7"}, {"xxxxxxxxx"}}, // RLE
+      {{"+$#00"}, {""}},            // Spurious ACK
+      {{"-$#00"}, {""}},            // Spurious NAK
   };
   for (const auto &Test : Tests) {
     SCOPED_TRACE(Test.Packet + " -> " + Test.Payload);

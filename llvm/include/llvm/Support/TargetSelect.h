@@ -1,9 +1,8 @@
 //===- TargetSelect.h - Target Selection & Registration ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -42,6 +41,10 @@ extern "C" {
 #define LLVM_DISASSEMBLER(TargetName) \
   void LLVMInitialize##TargetName##Disassembler();
 #include "llvm/Config/Disassemblers.def"
+
+// Declare all of the available TargetMCA initialization functions.
+#define LLVM_TARGETMCA(TargetName) void LLVMInitialize##TargetName##TargetMCA();
+#include "llvm/Config/TargetMCAs.def"
 }
 
 namespace llvm {
@@ -159,6 +162,14 @@ namespace llvm {
 #else
     return true;
 #endif
+  }
+
+  /// InitializeAllTargetMCAs - The main program should call
+  /// this function to initialize the target CustomBehaviour and
+  /// InstrPostProcess classes.
+  inline void InitializeAllTargetMCAs() {
+#define LLVM_TARGETMCA(TargetName) LLVMInitialize##TargetName##TargetMCA();
+#include "llvm/Config/TargetMCAs.def"
   }
 }
 

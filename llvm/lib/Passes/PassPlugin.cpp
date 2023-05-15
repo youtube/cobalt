@@ -1,9 +1,8 @@
 //===- lib/Passes/PassPluginLoader.cpp - Load Plugins for New PM Passes ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,8 +23,11 @@ Expected<PassPlugin> PassPlugin::Load(const std::string &Filename) {
                                    inconvertibleErrorCode());
 
   PassPlugin P{Filename, Library};
+
+  // llvmGetPassPluginInfo should be resolved to the definition from the plugin
+  // we are currently loading.
   intptr_t getDetailsFn =
-      (intptr_t)Library.SearchForAddressOfSymbol("llvmGetPassPluginInfo");
+      (intptr_t)Library.getAddressOfSymbol("llvmGetPassPluginInfo");
 
   if (!getDetailsFn)
     // If the symbol isn't found, this is probably a legacy plugin, which is an

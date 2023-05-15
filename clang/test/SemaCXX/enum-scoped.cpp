@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -pedantic -std=c++11 -verify -triple x86_64-apple-darwin %s
+// RUN: %clang_cc1 -fsyntax-only -pedantic -std=c++17 -verify -triple x86_64-apple-darwin %s
 
 enum class E1 {
   Val1 = 1L
@@ -31,10 +32,22 @@ static_assert(sizeof(E3) == 1, "bad size");
 int x2 = Val2;
 
 int a1[Val2];
-int a2[E1::Val1]; // expected-error{{size of array has non-integer type}}
+int a2[E1::Val1];
+
+#if __cplusplus >= 201703L
+// expected-error@-3 {{type 'E1' is not implicitly convertible to 'unsigned long'}}
+#else
+// expected-error@-5 {{size of array has non-integer type}}
+#endif
 
 int* p1 = new int[Val2];
-int* p2 = new int[E1::Val1]; // expected-error{{array size expression must have integral or unscoped enumeration type, not 'E1'}}
+int* p2 = new int[E1::Val1];
+
+#if __cplusplus >= 201703L
+// expected-error@-3 {{converting 'E1' to incompatible type 'unsigned long'}}
+#else
+// expected-error@-5 {{array size expression must have integral or unscoped enumeration type, not 'E1'}}
+#endif
 
 enum class E4 {
   e1 = -2147483648, // ok
@@ -101,8 +114,7 @@ enum : long {
   long_enum_val = 10000
 };
 
-enum : long x; // expected-error{{unnamed enumeration must be a definition}} \
-// expected-warning{{declaration does not declare anything}}
+enum : long x; // expected-error{{unnamed enumeration must be a definition}}
 
 void PR9333() {
   enum class scoped_enum { yes, no, maybe };
@@ -115,8 +127,8 @@ namespace rdar9366066 {
   enum class X : unsigned { value };
 
   void f(X x) {
-    x % X::value; // expected-error{{invalid operands to binary expression ('rdar9366066::X' and 'rdar9366066::X')}}
-    x % 8; // expected-error{{invalid operands to binary expression ('rdar9366066::X' and 'int')}}
+    x % X::value; // expected-error{{invalid operands to binary expression ('X' and 'rdar9366066::X')}}
+    x % 8; // expected-error{{invalid operands to binary expression ('X' and 'int')}}
   }
 }
 
@@ -149,20 +161,23 @@ namespace PR11484 {
 }
 
 namespace N2764 {
+  enum class E *x0a; // expected-error {{reference to enumeration must use 'enum' not 'enum class'}}
+  enum E2 *x0b; // OK
   enum class E { a, b };
   enum E x1 = E::a; // ok
-  enum class E x2 = E::a; // expected-error {{reference to scoped enumeration must use 'enum' not 'enum class'}}
+  enum class E x2 = E::a; // expected-error {{reference to enumeration must use 'enum' not 'enum class'}}
 
   enum F { a, b };
   enum F y1 = a; // ok
   enum class F y2 = a; // expected-error {{reference to enumeration must use 'enum' not 'enum class'}}
 
   struct S {
-    friend enum class E; // expected-error {{reference to scoped enumeration must use 'enum' not 'enum class'}}
+    friend enum class E; // expected-error {{reference to enumeration must use 'enum' not 'enum class'}}
     friend enum class F; // expected-error {{reference to enumeration must use 'enum' not 'enum class'}}
 
     friend enum G {}; // expected-error {{forward reference}} expected-error {{cannot define a type in a friend declaration}}
-    friend enum class H {}; // expected-error {{cannot define a type in a friend declaration}}
+    friend enum class H {}; // expected-error {{forward reference}} expected-error {{cannot define a type in a friend declaration}}
+    friend enum I : int {}; // expected-error {{forward reference}} expected-error {{cannot define a type in a friend declaration}}
 
     enum A : int;
     A a;
@@ -269,7 +284,7 @@ namespace PR15633 {
 
 namespace PR16900 {
   enum class A;
-  A f(A a) { return -a; } // expected-error {{invalid argument type 'PR16900::A' to unary expression}}
+  A f(A a) { return -a; } // expected-error {{invalid argument type 'A' to unary expression}}
 }
 
 namespace PR18551 {
@@ -298,8 +313,8 @@ namespace PR18044 {
   int E::*p; // expected-error {{does not point into a class}}
   using E::f; // expected-error {{no member named 'f'}}
 
-  using E::a; // expected-error {{using declaration cannot refer to a scoped enumerator}}
-  E b = a; // expected-error {{undeclared}}
+  using E::a; // expected-warning {{using declaration naming a scoped enumerator is a C++20 extension}}
+  E b = a;
 }
 
 namespace test11 {
@@ -307,10 +322,18 @@ namespace test11 {
   typedef E E2;
   E2 f1() { return E::a; }
 
-  bool f() { return !f1(); } // expected-error {{invalid argument type 'test11::E2' (aka 'test11::E') to unary expression}}
+  bool f() { return !f1(); } // expected-error {{invalid argument type 'E2' (aka 'test11::E') to unary expression}}
 }
 
 namespace PR35586 {
-  enum C { R, G, B };
+  enum C { R=-1, G, B };
   enum B { F = (enum C) -1, T}; // this should compile cleanly, it used to assert.
 };
+
+namespace test12 {
+// Check that clang rejects this code without crashing in c++17.
+enum class A;
+enum class B;
+A a;
+B b{a}; // expected-error {{cannot initialize}}
+}

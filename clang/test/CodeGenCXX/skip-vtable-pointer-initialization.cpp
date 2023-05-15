@@ -10,8 +10,8 @@ struct A {
   ~A();
 };
 
-// CHECK-LABEL: define void @_ZN5Test11AD2Ev
-// CHECK-NOT: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test11AE, i64 0, i64 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test11AD2Ev
+// CHECK-NOT: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test11AE, i64 0, i64 2), ptr
 A::~A() 
 {
 }
@@ -26,8 +26,8 @@ struct A {
   ~A();
 };
 
-// CHECK-LABEL: define void @_ZN5Test21AD2Ev
-// CHECK: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test21AE, i32 0, inrange i32 0, i32 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test21AD2Ev
+// CHECK: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test21AE, i32 0, inrange i32 0, i32 2), ptr
 A::~A() {
   f();
 }
@@ -49,8 +49,8 @@ struct A {
   Field field;
 };
 
-// CHECK-LABEL: define void @_ZN5Test31AD2Ev
-// CHECK-NOT: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test31AE, i32 0, inrange i32 0, i32 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test31AD2Ev
+// CHECK-NOT: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test31AE, i32 0, inrange i32 0, i32 2), ptr
 A::~A() {
   
 }
@@ -75,8 +75,8 @@ struct A {
   Field field;
 };
 
-// CHECK-LABEL: define void @_ZN5Test41AD2Ev
-// CHECK: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test41AE, i32 0, inrange i32 0, i32 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test41AD2Ev
+// CHECK: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test41AE, i32 0, inrange i32 0, i32 2), ptr
 A::~A()
 {
 }
@@ -99,8 +99,8 @@ struct A {
   Field field;
 };
 
-// CHECK-LABEL: define void @_ZN5Test51AD2Ev
-// CHECK: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test51AE, i32 0, inrange i32 0, i32 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test51AD2Ev
+// CHECK: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test51AE, i32 0, inrange i32 0, i32 2), ptr
 A::~A()
 {
 }
@@ -127,8 +127,8 @@ struct A {
   Field field;
 };
 
-// CHECK-LABEL: define void @_ZN5Test61AD2Ev
-// CHECK: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test61AE, i32 0, inrange i32 0, i32 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test61AD2Ev
+// CHECK: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test61AE, i32 0, inrange i32 0, i32 2), ptr
 A::~A()
 {
 }
@@ -153,8 +153,8 @@ struct A {
   Field field;
 };
 
-// CHECK-LABEL: define void @_ZN5Test71AD2Ev
-// CHECK: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test71AE, i32 0, inrange i32 0, i32 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test71AD2Ev
+// CHECK: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test71AE, i32 0, inrange i32 0, i32 2), ptr
 A::~A()
 {
 }
@@ -179,8 +179,8 @@ struct A {
   Field field;
 };
 
-// CHECK-LABEL: define void @_ZN5Test81AD2Ev
-// CHECK: store i32 (...)** bitcast (i8** getelementptr inbounds ({ [3 x i8*] }, { [3 x i8*] }* @_ZTVN5Test81AE, i32 0, inrange i32 0, i32 2) to i32 (...)**), i32 (...)***
+// CHECK-LABEL: define{{.*}} void @_ZN5Test81AD2Ev
+// CHECK: store ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTVN5Test81AE, i32 0, inrange i32 0, i32 2), ptr
 A::~A()
 {
 }

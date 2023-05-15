@@ -1,13 +1,11 @@
-//===-- Launcher.cpp --------------------------------------------*- C++ -*-===//
+//===-- darwin-debug.cpp ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-//----------------------------------------------------------------------
 // Darwin launch helper
 //
 // This program was written to allow programs to be launched in a new
@@ -21,18 +19,17 @@
 //
 // Since it uses darwin specific flags this code should not be compiled
 // on other systems.
-//----------------------------------------------------------------------
 #if defined(__APPLE__)
 
-#include <crt_externs.h> // for _NSGetEnviron()
+#include <climits>
+#include <crt_externs.h>
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <getopt.h>
-#include <limits.h>
 #include <mach/machine.h>
-#include <signal.h>
 #include <spawn.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>

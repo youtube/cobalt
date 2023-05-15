@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,8 @@
 
 #include <istream>
 #include <cassert>
+
+#include "test_macros.h"
 
 int sync_called = 0;
 
@@ -50,7 +51,7 @@ protected:
     }
 };
 
-int main()
+int main(int, char**)
 {
     {
         std::istream is((testbuf<char>*)0);
@@ -61,14 +62,6 @@ int main()
         assert(sync_called == 0);
     }
     {
-        std::wistream is((testbuf<wchar_t>*)0);
-        std::wistream::sentry sen(is, true);
-        assert(!(bool)sen);
-        assert(!is.good());
-        assert(is.gcount() == 0);
-        assert(sync_called == 0);
-    }
-    {
         testbuf<char> sb("   123");
         std::istream is(&sb);
         std::istream::sentry sen(is, true);
@@ -79,28 +72,9 @@ int main()
         assert(sb.gptr() == sb.eback());
     }
     {
-        testbuf<wchar_t> sb(L"   123");
-        std::wistream is(&sb);
-        std::wistream::sentry sen(is, true);
-        assert((bool)sen);
-        assert(is.good());
-        assert(is.gcount() == 0);
-        assert(sync_called == 0);
-        assert(sb.gptr() == sb.eback());
-    }
-    {
         testbuf<char> sb("   123");
         std::istream is(&sb);
         std::istream::sentry sen(is);
-        assert((bool)sen);
-        assert(is.good());
-        assert(sync_called == 0);
-        assert(sb.gptr() == sb.eback() + 3);
-    }
-    {
-        testbuf<wchar_t> sb(L"   123");
-        std::wistream is(&sb);
-        std::wistream::sentry sen(is);
         assert((bool)sen);
         assert(is.good());
         assert(sync_called == 0);
@@ -125,4 +99,36 @@ int main()
         assert(sync_called == 0);
         assert(sb.gptr() == sb.eback());
     }
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    {
+        std::wistream is((testbuf<wchar_t>*)0);
+        std::wistream::sentry sen(is, true);
+        assert(!(bool)sen);
+        assert(!is.good());
+        assert(is.gcount() == 0);
+        assert(sync_called == 0);
+    }
+    {
+        testbuf<wchar_t> sb(L"   123");
+        std::wistream is(&sb);
+        std::wistream::sentry sen(is, true);
+        assert((bool)sen);
+        assert(is.good());
+        assert(is.gcount() == 0);
+        assert(sync_called == 0);
+        assert(sb.gptr() == sb.eback());
+    }
+    {
+        testbuf<wchar_t> sb(L"   123");
+        std::wistream is(&sb);
+        std::wistream::sentry sen(is);
+        assert((bool)sen);
+        assert(is.good());
+        assert(sync_called == 0);
+        assert(sb.gptr() == sb.eback() + 3);
+    }
+#endif
+
+    return 0;
 }

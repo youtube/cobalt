@@ -1,9 +1,8 @@
 //===- BlockFrequencyImplInfo.cpp - Block Frequency Info Implementation ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,8 +13,6 @@
 #include "llvm/Analysis/BlockFrequencyInfoImpl.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Function.h"
@@ -23,8 +20,8 @@
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ScaledNumber.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/ScaledNumber.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
@@ -33,6 +30,7 @@
 #include <iterator>
 #include <list>
 #include <numeric>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -40,6 +38,28 @@ using namespace llvm;
 using namespace llvm::bfi_detail;
 
 #define DEBUG_TYPE "block-freq"
+
+namespace llvm {
+cl::opt<bool> CheckBFIUnknownBlockQueries(
+    "check-bfi-unknown-block-queries",
+    cl::init(false), cl::Hidden,
+    cl::desc("Check if block frequency is queried for an unknown block "
+             "for debugging missed BFI updates"));
+
+cl::opt<bool> UseIterativeBFIInference(
+    "use-iterative-bfi-inference", cl::Hidden,
+    cl::desc("Apply an iterative post-processing to infer correct BFI counts"));
+
+cl::opt<unsigned> IterativeBFIMaxIterationsPerBlock(
+    "iterative-bfi-max-iterations-per-block", cl::init(1000), cl::Hidden,
+    cl::desc("Iterative inference: maximum number of update iterations "
+             "per block"));
+
+cl::opt<double> IterativeBFIPrecision(
+    "iterative-bfi-precision", cl::init(1e-12), cl::Hidden,
+    cl::desc("Iterative inference: delta convergence precision; smaller values "
+             "typically lead to better results at the cost of worsen runtime"));
+}
 
 ScaledNumber<uint64_t> BlockMass::toScaled() const {
   if (isFull())
@@ -156,9 +176,9 @@ static void combineWeight(Weight &W, const Weight &OtherW) {
 
 static void combineWeightsBySorting(WeightList &Weights) {
   // Sort so edges to the same node are adjacent.
-  llvm::sort(Weights.begin(), Weights.end(),
-             [](const Weight &L,
-                const Weight &R) { return L.TargetNode < R.TargetNode; });
+  llvm::sort(Weights, [](const Weight &L, const Weight &R) {
+    return L.TargetNode < R.TargetNode;
+  });
 
   // Combine adjacent edges.
   WeightList::iterator O = Weights.begin();
@@ -551,29 +571,43 @@ void BlockFrequencyInfoImplBase::finalizeMetrics() {
 
 BlockFrequency
 BlockFrequencyInfoImplBase::getBlockFreq(const BlockNode &Node) const {
-  if (!Node.isValid())
+  if (!Node.isValid()) {
+#ifndef NDEBUG
+    if (CheckBFIUnknownBlockQueries) {
+      SmallString<256> Msg;
+      raw_svector_ostream OS(Msg);
+      OS << "*** Detected BFI query for unknown block " << getBlockName(Node);
+      report_fatal_error(OS.str());
+    }
+#endif
     return 0;
+  }
   return Freqs[Node.Index].Integer;
 }
 
-Optional<uint64_t>
+std::optional<uint64_t>
 BlockFrequencyInfoImplBase::getBlockProfileCount(const Function &F,
-                                                 const BlockNode &Node) const {
-  return getProfileCountFromFreq(F, getBlockFreq(Node).getFrequency());
+                                                 const BlockNode &Node,
+                                                 bool AllowSynthetic) const {
+  return getProfileCountFromFreq(F, getBlockFreq(Node).getFrequency(),
+                                 AllowSynthetic);
 }
 
-Optional<uint64_t>
+std::optional<uint64_t>
 BlockFrequencyInfoImplBase::getProfileCountFromFreq(const Function &F,
-                                                    uint64_t Freq) const {
-  auto EntryCount = F.getEntryCount();
+                                                    uint64_t Freq,
+                                                    bool AllowSynthetic) const {
+  auto EntryCount = F.getEntryCount(AllowSynthetic);
   if (!EntryCount)
-    return None;
+    return std::nullopt;
   // Use 128 bit APInt to do the arithmetic to avoid overflow.
-  APInt BlockCount(128, EntryCount.getCount());
+  APInt BlockCount(128, EntryCount->getCount());
   APInt BlockFreq(128, Freq);
   APInt EntryFreq(128, getEntryFreq());
   BlockCount *= BlockFreq;
-  BlockCount = BlockCount.udiv(EntryFreq);
+  // Rounded division of BlockCount by EntryFreq. Since EntryFreq is unsigned
+  // lshr by 1 gives EntryFreq/2.
+  BlockCount = (BlockCount + EntryFreq.lshr(1)).udiv(EntryFreq);
   return BlockCount.getLimitedValue();
 }
 
@@ -705,7 +739,7 @@ static void findIrreducibleHeaders(
          "Expected irreducible CFG; -loop-info is likely invalid");
   if (Headers.size() == InSCC.size()) {
     // Every block is a header.
-    llvm::sort(Headers.begin(), Headers.end());
+    llvm::sort(Headers);
     return;
   }
 
@@ -740,8 +774,8 @@ static void findIrreducibleHeaders(
     Others.push_back(Irr.Node);
     LLVM_DEBUG(dbgs() << "  => other = " << BFI.getBlockName(Irr.Node) << "\n");
   }
-  llvm::sort(Headers.begin(), Headers.end());
-  llvm::sort(Others.begin(), Others.end());
+  llvm::sort(Headers);
+  llvm::sort(Others);
 }
 
 static void createIrreducibleLoop(

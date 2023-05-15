@@ -1,9 +1,8 @@
 //===- llvm/unittest/ADT/PointerIntPairTest.cpp - Unit tests --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -62,6 +61,13 @@ TEST(PointerIntPairTest, GetSet) {
   Pair2.setPointerAndInt(&s, E::Case3);
   EXPECT_EQ(&s, Pair2.getPointer());
   EXPECT_EQ(E::Case3, Pair2.getInt());
+
+  auto [Pointer2, Int2] = Pair2;
+  EXPECT_EQ(Pair2.getPointer(), Pointer2);
+  EXPECT_EQ(Pair2.getInt(), Int2);
+
+  static_assert(std::is_trivially_copyable_v<PointerIntPair<S *, 2, E>>,
+                "trivially copyable");
 }
 
 TEST(PointerIntPairTest, DefaultInitialize) {
@@ -70,22 +76,22 @@ TEST(PointerIntPairTest, DefaultInitialize) {
   EXPECT_EQ(0U, Pair.getInt());
 }
 
+// In real code this would be a word-sized integer limited to 31 bits.
+struct Fixnum31 {
+  uintptr_t Value;
+};
+struct FixnumPointerTraits {
+  static inline void *getAsVoidPointer(Fixnum31 Num) {
+    return reinterpret_cast<void *>(Num.Value << NumLowBitsAvailable);
+  }
+  static inline Fixnum31 getFromVoidPointer(void *P) {
+    // In real code this would assert that the value is in range.
+    return {reinterpret_cast<uintptr_t>(P) >> NumLowBitsAvailable};
+  }
+  static constexpr int NumLowBitsAvailable =
+      std::numeric_limits<uintptr_t>::digits - 31;
+};
 TEST(PointerIntPairTest, ManyUnusedBits) {
-  // In real code this would be a word-sized integer limited to 31 bits.
-  struct Fixnum31 {
-    uintptr_t Value;
-  };
-  class FixnumPointerTraits {
-  public:
-    static inline void *getAsVoidPointer(Fixnum31 Num) {
-      return reinterpret_cast<void *>(Num.Value << NumLowBitsAvailable);
-    }
-    static inline Fixnum31 getFromVoidPointer(void *P) {
-      // In real code this would assert that the value is in range.
-      return { reinterpret_cast<uintptr_t>(P) >> NumLowBitsAvailable };
-    }
-    enum { NumLowBitsAvailable = std::numeric_limits<uintptr_t>::digits - 31 };
-  };
 
   PointerIntPair<Fixnum31, 1, bool, FixnumPointerTraits> pair;
   EXPECT_EQ((uintptr_t)0, pair.getPointer().Value);
@@ -96,7 +102,11 @@ TEST(PointerIntPairTest, ManyUnusedBits) {
   EXPECT_TRUE(pair.getInt());
 
   EXPECT_EQ(FixnumPointerTraits::NumLowBitsAvailable - 1,
-            PointerLikeTypeTraits<decltype(pair)>::NumLowBitsAvailable);
+            (int)PointerLikeTypeTraits<decltype(pair)>::NumLowBitsAvailable);
+
+  static_assert(std::is_trivially_copyable_v<
+                    PointerIntPair<Fixnum31, 1, bool, FixnumPointerTraits>>,
+                "trivially copyable");
 }
 
 } // end anonymous namespace

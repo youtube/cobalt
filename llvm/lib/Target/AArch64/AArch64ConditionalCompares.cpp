@@ -1,9 +1,8 @@
 //===-- AArch64ConditionalCompares.cpp --- CCMP formation for AArch64 -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,7 +18,6 @@
 
 #include "AArch64.h"
 #include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
@@ -34,6 +32,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -157,7 +156,7 @@ public:
   MachineInstr *CmpMI;
 
 private:
-  /// The branch condition in Head as determined by AnalyzeBranch.
+  /// The branch condition in Head as determined by analyzeBranch.
   SmallVector<MachineOperand, 4> HeadCond;
 
   /// The condition code that makes Head branch to CmpBB.
@@ -221,7 +220,7 @@ bool SSACCmpConv::trivialTailPHIs() {
     // PHI operands come in (VReg, MBB) pairs.
     for (unsigned oi = 1, oe = I.getNumOperands(); oi != oe; oi += 2) {
       MachineBasicBlock *MBB = I.getOperand(oi + 1).getMBB();
-      unsigned Reg = I.getOperand(oi).getReg();
+      Register Reg = I.getOperand(oi).getReg();
       if (MBB == Head) {
         assert((!HeadReg || HeadReg == Reg) && "Inconsistent PHI operands");
         HeadReg = Reg;
@@ -247,8 +246,8 @@ void SSACCmpConv::updateTailPHIs() {
     for (unsigned oi = I.getNumOperands(); oi > 2; oi -= 2) {
       // PHI operands are (Reg, MBB) at (oi-2, oi-1).
       if (I.getOperand(oi - 1).getMBB() == CmpBB) {
-        I.RemoveOperand(oi - 1);
-        I.RemoveOperand(oi - 2);
+        I.removeOperand(oi - 1);
+        I.removeOperand(oi - 2);
       }
     }
   }
@@ -260,14 +259,14 @@ bool SSACCmpConv::isDeadDef(unsigned DstReg) {
   // Writes to the zero register are dead.
   if (DstReg == AArch64::WZR || DstReg == AArch64::XZR)
     return true;
-  if (!TargetRegisterInfo::isVirtualRegister(DstReg))
+  if (!Register::isVirtualRegister(DstReg))
     return false;
   // A virtual register def without any uses will be marked dead later, and
   // eventually replaced by the zero register.
   return MRI->use_nodbg_empty(DstReg);
 }
 
-// Parse a condition code returned by AnalyzeBranch, and compute the CondCode
+// Parse a condition code returned by analyzeBranch, and compute the CondCode
 // corresponding to TBB.
 // Return
 static bool parseCond(ArrayRef<MachineOperand> Cond, AArch64CC::CondCode &CC) {
@@ -317,7 +316,7 @@ MachineInstr *SSACCmpConv::findConvertibleCompare(MachineBasicBlock *MBB) {
 
   // Now find the instruction controlling the terminator.
   for (MachineBasicBlock::iterator B = MBB->begin(); I != B;) {
-    --I;
+    I = prev_nodbg(I, MBB->begin());
     assert(!I->isTerminator() && "Spurious terminator");
     switch (I->getOpcode()) {
     // cmp is an alias for subs with a dead destination register.
@@ -333,7 +332,7 @@ MachineInstr *SSACCmpConv::findConvertibleCompare(MachineBasicBlock *MBB) {
         ++NumImmRangeRejs;
         return nullptr;
       }
-      LLVM_FALLTHROUGH;
+      [[fallthrough]];
     case AArch64::SUBSWrr:
     case AArch64::SUBSXrr:
     case AArch64::ADDSWrr:
@@ -352,8 +351,7 @@ MachineInstr *SSACCmpConv::findConvertibleCompare(MachineBasicBlock *MBB) {
     }
 
     // Check for flag reads and clobbers.
-    MIOperands::PhysRegInfo PRI =
-        MIOperands(*I).analyzePhysReg(AArch64::NZCV, TRI);
+    PhysRegInfo PRI = AnalyzePhysRegInBundle(*I, AArch64::NZCV, TRI);
 
     if (PRI.Read) {
       // The ccmp doesn't produce exactly the same flags as the original
@@ -510,7 +508,7 @@ bool SSACCmpConv::canConvert(MachineBasicBlock *MBB) {
   // landing pad.
   if (!TBB || HeadCond.empty()) {
     LLVM_DEBUG(
-        dbgs() << "AnalyzeBranch didn't find conditional branch in Head.\n");
+        dbgs() << "analyzeBranch didn't find conditional branch in Head.\n");
     ++NumHeadBranchRejs;
     return false;
   }
@@ -537,7 +535,7 @@ bool SSACCmpConv::canConvert(MachineBasicBlock *MBB) {
 
   if (!TBB || CmpBBCond.empty()) {
     LLVM_DEBUG(
-        dbgs() << "AnalyzeBranch didn't find conditional branch in CmpBB.\n");
+        dbgs() << "analyzeBranch didn't find conditional branch in CmpBB.\n");
     ++NumCmpBranchRejs;
     return false;
   }
@@ -632,7 +630,7 @@ void SSACCmpConv::convert(SmallVectorImpl<MachineBasicBlock *> &RemovedBlocks) {
     }
     const MCInstrDesc &MCID = TII->get(Opc);
     // Create a dummy virtual register for the SUBS def.
-    unsigned DestReg =
+    Register DestReg =
         MRI->createVirtualRegister(TII->getRegClass(MCID, 0, TRI, *MF));
     // Insert a SUBS Rn, #0 instruction instead of the cbz / cbnz.
     BuildMI(*Head, Head->end(), TermDL, MCID)
@@ -711,7 +709,7 @@ void SSACCmpConv::convert(SmallVectorImpl<MachineBasicBlock *> &RemovedBlocks) {
         .add(CmpMI->getOperand(1)); // Branch target.
   }
   CmpMI->eraseFromParent();
-  Head->updateTerminator();
+  Head->updateTerminator(CmpBB->getNextNode());
 
   RemovedBlocks.push_back(CmpBB);
   CmpBB->eraseFromParent();
@@ -829,7 +827,7 @@ void AArch64ConditionalCompares::updateDomTree(
     assert(Node != HeadNode && "Cannot erase the head node");
     assert(Node->getIDom() == HeadNode && "CmpBB should be dominated by Head");
     while (Node->getNumChildren())
-      DomTree->changeImmediateDominator(Node->getChildren().back(), HeadNode);
+      DomTree->changeImmediateDominator(Node->back(), HeadNode);
     DomTree->eraseNode(RemovedMBB);
   }
 }
@@ -941,7 +939,7 @@ bool AArch64ConditionalCompares::runOnMachineFunction(MachineFunction &MF) {
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
   Traces = &getAnalysis<MachineTraceMetrics>();
   MinInstr = nullptr;
-  MinSize = MF.getFunction().optForMinSize();
+  MinSize = MF.getFunction().hasMinSize();
 
   bool Changed = false;
   CmpConv.runOnMachineFunction(MF, MBPI);

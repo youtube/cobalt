@@ -1,9 +1,8 @@
 //===-- ARMAddressingModes.h - ARM Addressing Modes -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/bit.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <cassert>
@@ -30,7 +30,8 @@ namespace ARM_AM {
     lsl,
     lsr,
     ror,
-    rrx
+    rrx,
+    uxtw
   };
 
   enum AddrOpc {
@@ -48,6 +49,7 @@ namespace ARM_AM {
     case ARM_AM::lsr: return "lsr";
     case ARM_AM::ror: return "ror";
     case ARM_AM::rrx: return "rrx";
+    case ARM_AM::uxtw: return "uxtw";
     }
   }
 
@@ -201,6 +203,20 @@ namespace ARM_AM {
     // Take what's left.
     assert(V == (rotr32(255U, getSOImmValRotate(V)) & V));
     return V;
+  }
+
+  /// isSOImmTwoPartValNeg - Return true if the specified value can be obtained
+  /// by two SOImmVal, that -V = First + Second.
+  /// "R+V" can be optimized to (sub (sub R, First), Second).
+  /// "R=V" can be optimized to (sub (mvn R, ~(-First)), Second).
+  inline bool isSOImmTwoPartValNeg(unsigned V) {
+    unsigned First;
+    if (!isSOImmTwoPartVal(-V))
+      return false;
+    // Return false if ~(-First) is not a SoImmval.
+    First = getSOImmTwoPartFirst(-V);
+    First = ~(-First);
+    return !(rotr32(~255U, getSOImmValRotate(First)) & First);
   }
 
   /// getThumbImmValShift - Try to handle Imm with a 8-bit immediate followed
@@ -516,10 +532,10 @@ namespace ARM_AM {
   // Valid alignments depend on the specific instruction.
 
   //===--------------------------------------------------------------------===//
-  // NEON Modified Immediates
+  // NEON/MVE Modified Immediates
   //===--------------------------------------------------------------------===//
   //
-  // Several NEON instructions (e.g., VMOV) take a "modified immediate"
+  // Several NEON and MVE instructions (e.g., VMOV) take a "modified immediate"
   // vector operand, where a small immediate encoded in the instruction
   // specifies a full NEON vector value.  These modified immediates are
   // represented here as encoded integers.  The low 8 bits hold the immediate
@@ -527,20 +543,20 @@ namespace ARM_AM {
   // the "Cmode" field of the instruction.  The interfaces below treat the
   // Op and Cmode values as a single 5-bit value.
 
-  inline unsigned createNEONModImm(unsigned OpCmode, unsigned Val) {
+  inline unsigned createVMOVModImm(unsigned OpCmode, unsigned Val) {
     return (OpCmode << 8) | Val;
   }
-  inline unsigned getNEONModImmOpCmode(unsigned ModImm) {
+  inline unsigned getVMOVModImmOpCmode(unsigned ModImm) {
     return (ModImm >> 8) & 0x1f;
   }
-  inline unsigned getNEONModImmVal(unsigned ModImm) { return ModImm & 0xff; }
+  inline unsigned getVMOVModImmVal(unsigned ModImm) { return ModImm & 0xff; }
 
-  /// decodeNEONModImm - Decode a NEON modified immediate value into the
+  /// decodeVMOVModImm - Decode a NEON/MVE modified immediate value into the
   /// element value and the element size in bits.  (If the element size is
   /// smaller than the vector, it is splatted into all the elements.)
-  inline uint64_t decodeNEONModImm(unsigned ModImm, unsigned &EltBits) {
-    unsigned OpCmode = getNEONModImmOpCmode(ModImm);
-    unsigned Imm8 = getNEONModImmVal(ModImm);
+  inline uint64_t decodeVMOVModImm(unsigned ModImm, unsigned &EltBits) {
+    unsigned OpCmode = getVMOVModImmOpCmode(ModImm);
+    unsigned Imm8 = getVMOVModImmVal(ModImm);
     uint64_t Val = 0;
 
     if (OpCmode == 0xe) {
@@ -570,7 +586,7 @@ namespace ARM_AM {
       }
       EltBits = 64;
     } else {
-      llvm_unreachable("Unsupported NEON immediate");
+      llvm_unreachable("Unsupported VMOV immediate");
     }
     return Val;
   }
@@ -627,27 +643,22 @@ namespace ARM_AM {
   //
   inline float getFPImmFloat(unsigned Imm) {
     // We expect an 8-bit binary encoding of a floating-point number here.
-    union {
-      uint32_t I;
-      float F;
-    } FPUnion;
 
     uint8_t Sign = (Imm >> 7) & 0x1;
     uint8_t Exp = (Imm >> 4) & 0x7;
     uint8_t Mantissa = Imm & 0xf;
 
-    //   8-bit FP    iEEEE Float Encoding
+    //   8-bit FP    IEEE Float Encoding
     //   abcd efgh   aBbbbbbc defgh000 00000000 00000000
     //
     // where B = NOT(b);
-
-    FPUnion.I = 0;
-    FPUnion.I |= Sign << 31;
-    FPUnion.I |= ((Exp & 0x4) != 0 ? 0 : 1) << 30;
-    FPUnion.I |= ((Exp & 0x4) != 0 ? 0x1f : 0) << 25;
-    FPUnion.I |= (Exp & 0x3) << 23;
-    FPUnion.I |= Mantissa << 19;
-    return FPUnion.F;
+    uint32_t I = 0;
+    I |= Sign << 31;
+    I |= ((Exp & 0x4) != 0 ? 0 : 1) << 30;
+    I |= ((Exp & 0x4) != 0 ? 0x1f : 0) << 25;
+    I |= (Exp & 0x3) << 23;
+    I |= Mantissa << 19;
+    return bit_cast<float>(I);
   }
 
   /// getFP16Imm - Return an 8-bit floating-point version of the 16-bit
@@ -674,6 +685,18 @@ namespace ARM_AM {
 
   inline int getFP16Imm(const APFloat &FPImm) {
     return getFP16Imm(FPImm.bitcastToAPInt());
+  }
+
+  /// If this is a FP16Imm encoded as a fp32 value, return the 8-bit encoding
+  /// for it. Otherwise return -1 like getFP16Imm.
+  inline int getFP32FP16Imm(const APInt &Imm) {
+    if (Imm.getActiveBits() > 16)
+      return -1;
+    return ARM_AM::getFP16Imm(Imm.trunc(16));
+  }
+
+  inline int getFP32FP16Imm(const APFloat &FPImm) {
+    return getFP32FP16Imm(FPImm.bitcastToAPInt());
   }
 
   /// getFP32Imm - Return an 8-bit floating-point version of the 32-bit

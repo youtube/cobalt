@@ -1,4 +1,4 @@
-// UNSUPPORTED: windows
+// UNSUPPORTED: target={{.*windows.*}}
 // RUN: %clang_pgogen -o %t.bin %s -DTESTPATH=\"%t.dir\"
 // RUN: rm -rf %t.dir
 // RUN: %run %t.bin
@@ -25,11 +25,16 @@ static int test(unsigned Mode, const char *TestDir) {
   if (Mode != __llvm_profile_get_dir_mode())
     Ret = -1;
   else {
+    // From 'man mkdir':
+    // "If the parent directory has the set-group-ID bit set, then so will the
+    // newly created directory."  So we mask off S_ISGID below; this test cannot
+    // control its parent directory.
     const unsigned Expected = ~umask(0) & Mode;
     struct stat DirSt;
     if (stat(Dir, &DirSt) == -1)
       Ret = -1;
-    else if (DirSt.st_mode != Expected) {
+    // AIX has some extended definition of high order bits for st_mode, avoid trying to comparing those by masking them off.
+    else if (((DirSt.st_mode & ~S_ISGID) & 0xFFFF) != Expected) {
       printf("Modes do not match: Expected %o but found %o (%s)\n", Expected,
              DirSt.st_mode, Dir);
       Ret = -1;

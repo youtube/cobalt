@@ -1,22 +1,8 @@
 /*===---- stdnoreturn.h - Standard header for noreturn macro ---------------===
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
  *===-----------------------------------------------------------------------===
  */
@@ -26,5 +12,18 @@
 
 #define noreturn _Noreturn
 #define __noreturn_is_defined 1
+
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ > 201710L) &&               \
+    !defined(_CLANG_DISABLE_CRT_DEPRECATION_WARNINGS)
+/* The noreturn macro is deprecated in C2x. We do not mark it as such because
+   including the header file in C2x is also deprecated and we do not want to
+   issue a confusing diagnostic for code which includes <stdnoreturn.h>
+   followed by code that writes [[noreturn]]. The issue with such code is not
+   with the attribute, or the use of 'noreturn', but the inclusion of the
+   header. */
+/* FIXME: We should be issuing a deprecation warning here, but cannot yet due
+ * to system headers which include this header file unconditionally.
+ */
+#endif
 
 #endif /* __STDNORETURN_H */

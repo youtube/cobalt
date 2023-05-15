@@ -1,9 +1,8 @@
 //===-- NVPTXISelLowering.h - NVPTX DAG Lowering Interface ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -51,6 +50,7 @@ enum NodeType : unsigned {
   CallSeqBegin,
   CallSeqEnd,
   CallPrototype,
+  ProxyReg,
   FUN_SHFL_CLAMP,
   FUN_SHFR_CLAMP,
   MUL_WIDE_SIGNED,
@@ -451,6 +451,21 @@ public:
                           MachineFunction &MF,
                           unsigned Intrinsic) const override;
 
+  /// getFunctionParamOptimizedAlign - since function arguments are passed via
+  /// .param space, we may want to increase their alignment in a way that
+  /// ensures that we can effectively vectorize their loads & stores. We can
+  /// increase alignment only if the function has internal or has private
+  /// linkage as for other linkage types callers may already rely on default
+  /// alignment. To allow using 128-bit vectorized loads/stores, this function
+  /// ensures that alignment is 16 or greater.
+  Align getFunctionParamOptimizedAlign(const Function *F, Type *ArgTy,
+                                       const DataLayout &DL) const;
+
+  /// Helper for computing alignment of a device function byval parameter.
+  Align getFunctionByValParamAlign(const Function *F, Type *ArgTy,
+                                   Align InitialAlign,
+                                   const DataLayout &DL) const;
+
   /// isLegalAddressingMode - Return true if the addressing mode represented
   /// by AM is legal for this target, for a load/store of the specified type
   /// Used to guide target specific optimizations, like loop strength
@@ -489,10 +504,11 @@ public:
   SDValue LowerCall(CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
 
-  std::string getPrototype(const DataLayout &DL, Type *, const ArgListTy &,
-                           const SmallVectorImpl<ISD::OutputArg> &,
-                           unsigned retAlignment,
-                           ImmutableCallSite CS) const;
+  std::string
+  getPrototype(const DataLayout &DL, Type *, const ArgListTy &,
+               const SmallVectorImpl<ISD::OutputArg> &, MaybeAlign retAlignment,
+               std::optional<std::pair<unsigned, const APInt &>> VAInfo,
+               const CallBase &CB, unsigned UniqueCallSite) const;
 
   SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
@@ -511,7 +527,7 @@ public:
   }
 
   TargetLoweringBase::LegalizeTypeAction
-  getPreferredVectorAction(EVT VT) const override;
+  getPreferredVectorAction(MVT VT) const override;
 
   // Get the degree of precision we want from 32-bit floating point division
   // operations.
@@ -538,7 +554,10 @@ public:
   bool allowFMA(MachineFunction &MF, CodeGenOpt::Level OptLevel) const;
   bool allowUnsafeFPMath(MachineFunction &MF) const;
 
-  bool isFMAFasterThanFMulAndFAdd(EVT) const override { return true; }
+  bool isFMAFasterThanFMulAndFAdd(const MachineFunction &MF,
+                                  EVT) const override {
+    return true;
+  }
 
   bool enableAggressiveFMAFusion(EVT VT) const override { return true; }
 
@@ -546,7 +565,18 @@ public:
   // x == 0 is not undefined behavior) into a branch that checks whether x is 0
   // and avoids calling ctlz in that case.  We have a dedicated ctlz
   // instruction, so we say that ctlz is cheap to speculate.
-  bool isCheapToSpeculateCtlz() const override { return true; }
+  bool isCheapToSpeculateCtlz(Type *Ty) const override { return true; }
+
+  AtomicExpansionKind shouldCastAtomicLoadInIR(LoadInst *LI) const override {
+    return AtomicExpansionKind::None;
+  }
+
+  AtomicExpansionKind shouldCastAtomicStoreInIR(StoreInst *SI) const override {
+    return AtomicExpansionKind::None;
+  }
+
+  AtomicExpansionKind
+  shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override;
 
 private:
   const NVPTXSubtarget &STI; // cache the subtarget here
@@ -555,6 +585,10 @@ private:
   SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerFROUND(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerFROUND32(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerFROUND64(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerLOADi1(SDValue Op, SelectionDAG &DAG) const;
@@ -568,12 +602,15 @@ private:
 
   SDValue LowerSelect(SDValue Op, SelectionDAG &DAG) const;
 
+  SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
+
   void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
                           SelectionDAG &DAG) const override;
   SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
-  unsigned getArgumentAlignment(SDValue Callee, ImmutableCallSite CS, Type *Ty,
-                                unsigned Idx, const DataLayout &DL) const;
+  Align getArgumentAlignment(SDValue Callee, const CallBase *CB, Type *Ty,
+                             unsigned Idx, const DataLayout &DL) const;
 };
 } // namespace llvm
 

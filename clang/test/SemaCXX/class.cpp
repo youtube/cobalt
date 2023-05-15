@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -verify -Wc++11-compat %s 
+// RUN: %clang_cc1 -fsyntax-only -verify -Wc++11-compat %s -std=c++98
 class C {
 public:
   auto int errx; // expected-error {{storage class specified for a member declaration}}
@@ -43,10 +44,10 @@ public:
 
   int i = 0;
 #if __cplusplus <= 199711L
-  // expected-warning@-2 {{in-class initialization of non-static data member is a C++11 extension}}
+  // expected-warning@-2 {{default member initializer for non-static data member is a C++11 extension}}
 #endif
   static int si = 0; // expected-error {{non-const static data member must be initialized out of line}}
-  static const NestedC ci = 0; // expected-error {{static data member of type 'const C::NestedC' must be initialized out of line}}
+  static const NestedC ci = 0; // expected-error {{static data member of type 'const NestedC' must be initialized out of line}}
   static const int nci = vs; // expected-error {{in-class initializer for static data member is not a constant expression}}
   static const int vi = 0;
   static const volatile int cvi = 0; // ok, illegal in C++11
@@ -138,7 +139,7 @@ struct S
 // Don't crash on this bogus code.
 namespace pr6629 {
   template<class T1, class T2> struct foo :
-    bogus<foo<T1,T2> > // expected-error {{unknown template name 'bogus'}}
+    bogus<foo<T1,T2> > // expected-error {{no template named 'bogus'}}
   { };
 
   template<> struct foo<unknown,unknown> { // expected-error {{undeclared identifier 'unknown'}}

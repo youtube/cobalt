@@ -1,14 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: no-threads
+// UNSUPPORTED: c++03
 
 // <future>
 
@@ -19,6 +18,8 @@
 
 #include <future>
 #include <cassert>
+
+#include "test_macros.h"
 
 class A
 {
@@ -40,13 +41,13 @@ int A::n_copies = 0;
 
 int func(int i) { return i; }
 
-int main()
+int main(int, char**)
 {
     {
         std::packaged_task<double(int, char)> p(A(5));
         assert(p.valid());
         std::future<double> f = p.get_future();
-        p(3, 'a');
+        p(3, 97);
         assert(f.get() == 105.0);
         assert(A::n_copies == 0);
         assert(A::n_moves > 0);
@@ -58,7 +59,7 @@ int main()
         std::packaged_task<double(int, char)> p(a);
         assert(p.valid());
         std::future<double> f = p.get_future();
-        p(3, 'a');
+        p(3, 97);
         assert(f.get() == 105.0);
         assert(A::n_copies > 0);
         assert(A::n_moves > 0);
@@ -77,4 +78,6 @@ int main()
         p(4);
         assert(f.get() == 4);
     }
+
+  return 0;
 }

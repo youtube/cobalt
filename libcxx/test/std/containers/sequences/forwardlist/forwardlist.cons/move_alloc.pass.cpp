@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <forward_list>
 
@@ -17,11 +16,12 @@
 #include <cassert>
 #include <iterator>
 
+#include "test_macros.h"
 #include "test_allocator.h"
 #include "MoveOnly.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef MoveOnly T;
@@ -32,7 +32,7 @@ int main()
         C c0(I(std::begin(t)), I(std::end(t)), A(10));
         C c(std::move(c0), A(10));
         unsigned n = 0;
-        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
+        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, (void) ++n)
             assert(*i == n);
         assert(n == static_cast<unsigned>(std::end(t) - std::begin(t)));
         assert(c0.empty());
@@ -47,7 +47,7 @@ int main()
         C c0(I(std::begin(t)), I(std::end(t)), A(10));
         C c(std::move(c0), A(9));
         unsigned n = 0;
-        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
+        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, (void) ++n)
             assert(*i == n);
         assert(n == static_cast<unsigned>(std::end(t) - std::begin(t)));
         assert(!c0.empty());
@@ -62,10 +62,12 @@ int main()
         C c0(I(std::begin(t)), I(std::end(t)), A());
         C c(std::move(c0), A());
         unsigned n = 0;
-        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, ++n)
+        for (C::const_iterator i = c.begin(), e = c.end(); i != e; ++i, (void) ++n)
             assert(*i == n);
         assert(n == static_cast<unsigned>(std::end(t) - std::begin(t)));
         assert(c0.empty());
         assert(c.get_allocator() == A());
     }
+
+  return 0;
 }

@@ -58,7 +58,6 @@ let test_transforms () =
            ++ add_loop_rotation
            ++ add_loop_reroll
            ++ add_loop_unroll
-           ++ add_loop_unswitch
            ++ add_memcpy_opt
            ++ add_partially_inline_lib_calls
            ++ add_lower_switch
@@ -70,7 +69,6 @@ let test_transforms () =
            ++ add_scalar_repl_aggregation_with_threshold 4
            ++ add_lib_call_simplification
            ++ add_tail_call_elimination
-           ++ add_constant_propagation
            ++ add_memory_to_register_demotion
            ++ add_verifier
            ++ add_correlated_value_propagation

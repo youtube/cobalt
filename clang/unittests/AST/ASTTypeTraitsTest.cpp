@@ -1,9 +1,8 @@
 //===- unittest/AST/ASTTypeTraits.cpp - AST type traits unit tests ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===--------------------------------------------------------------------===//
 
@@ -15,7 +14,7 @@
 using namespace clang::ast_matchers;
 
 namespace clang {
-namespace ast_type_traits {
+namespace {
 
 TEST(ASTNodeKind, NoKind) {
   EXPECT_FALSE(ASTNodeKind().isBaseOf(ASTNodeKind()));
@@ -38,6 +37,18 @@ TEST(ASTNodeKind, Bases) {
   EXPECT_FALSE(DNT<VarDecl>().isBaseOf(DNT<Decl>()));
 
   EXPECT_TRUE(DNT<Decl>().isSame(DNT<Decl>()));
+}
+
+TEST(DynTypedNode, Clades) {
+  EXPECT_TRUE(DNT<Stmt>().getCladeKind().isSame(DNT<Stmt>()));
+  EXPECT_TRUE(DNT<Decl>().getCladeKind().isSame(DNT<Decl>()));
+
+  EXPECT_TRUE(DNT<CXXMethodDecl>().getCladeKind().isSame(DNT<Decl>()));
+  EXPECT_TRUE(DNT<CXXMemberCallExpr>().getCladeKind().isSame(DNT<Stmt>()));
+
+  EXPECT_FALSE(DNT<CXXMemberCallExpr>().getCladeKind().isSame(DNT<Decl>()));
+
+  EXPECT_TRUE(ASTNodeKind().getCladeKind().isNone());
 }
 
 TEST(ASTNodeKind, BaseDistances) {
@@ -106,6 +117,47 @@ TEST(ASTNodeKind, UnknownKind) {
   EXPECT_FALSE(DNT<Foo>().isSame(DNT<Foo>()));
 }
 
+template <typename T>
+constexpr bool HasPointerIdentity =
+    ASTNodeKind::getFromNodeKind<T>().hasPointerIdentity();
+
+TEST(ASTNodeKind, ConstexprHasPointerIdentity) {
+  EXPECT_TRUE(HasPointerIdentity<Decl>);
+  EXPECT_TRUE(HasPointerIdentity<Stmt>);
+  EXPECT_FALSE(HasPointerIdentity<TypeLoc>);
+  EXPECT_FALSE(HasPointerIdentity<QualType>);
+  EXPECT_FALSE(HasPointerIdentity<Foo>);
+
+  constexpr bool DefaultConstructedHasPointerIdentity =
+      ASTNodeKind().hasPointerIdentity();
+  EXPECT_FALSE(DefaultConstructedHasPointerIdentity);
+}
+
+template <typename T, typename U>
+constexpr bool NodeKindIsSame =
+    ASTNodeKind::getFromNodeKind<T>().isSame(ASTNodeKind::getFromNodeKind<U>());
+
+TEST(ASTNodeKind, ConstexprIsSame) {
+  EXPECT_TRUE((NodeKindIsSame<Decl, Decl>));
+  EXPECT_FALSE((NodeKindIsSame<Decl, VarDecl>));
+  EXPECT_FALSE((NodeKindIsSame<Foo, Foo>));
+
+  constexpr bool DefaultConstructedIsSameToDefaultConstructed =
+      ASTNodeKind().isSame(ASTNodeKind());
+  EXPECT_FALSE(DefaultConstructedIsSameToDefaultConstructed);
+}
+
+template <typename T>
+constexpr bool NodeKindIsNone = ASTNodeKind::getFromNodeKind<T>().isNone();
+
+TEST(ASTNodeKind, ConstexprIsNone) {
+  EXPECT_FALSE(NodeKindIsNone<Decl>);
+  EXPECT_TRUE(NodeKindIsNone<Foo>);
+
+  constexpr bool DefaultConstructedIsNone = ASTNodeKind().isNone();
+  EXPECT_TRUE(DefaultConstructedIsNone);
+}
+
 TEST(ASTNodeKind, Name) {
   EXPECT_EQ("<None>", ASTNodeKind().asStringRef());
 #define VERIFY_NAME(Node) EXPECT_EQ(#Node, DNT<Node>().asStringRef());
@@ -121,6 +173,7 @@ TEST(ASTNodeKind, Name) {
   VERIFY_NAME(CallExpr);
   VERIFY_NAME(Type);
   VERIFY_NAME(ConstantArrayType);
+  VERIFY_NAME(NonNullAttr);
 #undef VERIFY_NAME
 }
 
@@ -147,6 +200,13 @@ TEST(DynTypedNode, NNSLocSourceRange) {
   Verifier.expectRange(1, 33, 1, 34);
   EXPECT_TRUE(Verifier.match("namespace N { typedef void T; } N::T f() {}",
                              nestedNameSpecifierLoc()));
+}
+
+TEST(DynTypedNode, AttrSourceRange) {
+  RangeVerifier<DynTypedNode> Verifier;
+  Verifier.expectRange(1, 31, 1, 31);
+  EXPECT_TRUE(Verifier.match("void x(char *y __attribute__((nonnull)) );",
+                             ast_matchers::attr()));
 }
 
 TEST(DynTypedNode, DeclDump) {
@@ -180,5 +240,41 @@ TEST(DynTypedNode, QualType) {
   EXPECT_FALSE(Node < Node);
 }
 
-}  // namespace ast_type_traits
+TEST(DynTypedNode, TypeLoc) {
+  std::string code = R"cc(void example() { int abc; })cc";
+  auto AST = clang::tooling::buildASTFromCode(code);
+  auto matches =
+      match(traverse(TK_AsIs,
+                     varDecl(hasName("abc"), hasTypeLoc(typeLoc().bind("tl")))),
+            AST->getASTContext());
+  EXPECT_EQ(matches.size(), 1u);
+
+  const auto &tl = *matches[0].getNodeAs<TypeLoc>("tl");
+  DynTypedNode Node = DynTypedNode::create(tl);
+  EXPECT_TRUE(Node == Node);
+  EXPECT_FALSE(Node < Node);
+}
+
+TEST(DynTypedNode, PointerTypeLoc) {
+  std::string code = R"cc(void example() { int *abc; })cc";
+  auto AST = clang::tooling::buildASTFromCode(code);
+  auto matches =
+      match(traverse(TK_AsIs, varDecl(hasName("abc"),
+                                      hasTypeLoc(typeLoc().bind("ptl")))),
+            AST->getASTContext());
+  EXPECT_EQ(matches.size(), 1u);
+
+  const auto &tl = *matches[0].getNodeAs<TypeLoc>("ptl");
+  DynTypedNode TypeLocNode = DynTypedNode::create(tl);
+  EXPECT_TRUE(TypeLocNode == TypeLocNode);
+  EXPECT_FALSE(TypeLocNode < TypeLocNode);
+
+  const auto &ptl = *matches[0].getNodeAs<PointerTypeLoc>("ptl");
+  EXPECT_EQ(&tl, &ptl);
+  DynTypedNode PointerTypeLocNode = DynTypedNode::create(ptl);
+  EXPECT_TRUE(PointerTypeLocNode == PointerTypeLocNode);
+  EXPECT_FALSE(PointerTypeLocNode < PointerTypeLocNode);
+}
+
+} // namespace
 }  // namespace clang

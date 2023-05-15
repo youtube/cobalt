@@ -1,22 +1,8 @@
 /*===---- cetintrin.h - CET intrinsic --------------------------------------===
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
  *===-----------------------------------------------------------------------===
  */
@@ -33,7 +19,7 @@
   __attribute__((__always_inline__, __nodebug__, __target__("shstk")))
 
 static __inline__ void __DEFAULT_FN_ATTRS _incsspd(int __a) {
-  __builtin_ia32_incsspd(__a);
+  __builtin_ia32_incsspd((unsigned int)__a);
 }
 
 #ifdef __x86_64__
@@ -48,7 +34,7 @@ static __inline__ void __DEFAULT_FN_ATTRS _inc_ssp(unsigned int __a) {
 }
 #else /* __x86_64__ */
 static __inline__ void __DEFAULT_FN_ATTRS _inc_ssp(unsigned int __a) {
-  __builtin_ia32_incsspd((int)__a);
+  __builtin_ia32_incsspd(__a);
 }
 #endif /* __x86_64__ */
 
@@ -56,9 +42,25 @@ static __inline__ unsigned int __DEFAULT_FN_ATTRS _rdsspd(unsigned int __a) {
   return __builtin_ia32_rdsspd(__a);
 }
 
+static __inline__ unsigned int __DEFAULT_FN_ATTRS _rdsspd_i32(void) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+  unsigned int t;
+  return __builtin_ia32_rdsspd(t);
+#pragma clang diagnostic pop
+}
+
 #ifdef __x86_64__
 static __inline__ unsigned long long __DEFAULT_FN_ATTRS _rdsspq(unsigned long long __a) {
   return __builtin_ia32_rdsspq(__a);
+}
+
+static __inline__ unsigned long long __DEFAULT_FN_ATTRS _rdsspq_i64(void) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+  unsigned long long t;
+  return __builtin_ia32_rdsspq(t);
+#pragma clang diagnostic pop
 }
 #endif /* __x86_64__ */
 
@@ -72,7 +74,7 @@ static __inline__ unsigned int __DEFAULT_FN_ATTRS _get_ssp(void) {
 }
 #endif /* __x86_64__ */
 
-static __inline__ void __DEFAULT_FN_ATTRS _saveprevssp() {
+static __inline__ void __DEFAULT_FN_ATTRS _saveprevssp(void) {
   __builtin_ia32_saveprevssp();
 }
 
@@ -100,7 +102,7 @@ static __inline__ void __DEFAULT_FN_ATTRS _wrussq(unsigned long long __a, void *
 }
 #endif /* __x86_64__ */
 
-static __inline__ void __DEFAULT_FN_ATTRS _setssbsy() {
+static __inline__ void __DEFAULT_FN_ATTRS _setssbsy(void) {
   __builtin_ia32_setssbsy();
 }
 

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +14,8 @@
 #include <cmath>
 #include <type_traits>
 #include <cassert>
+
+#include "test_macros.h"
 
 template <class T>
 void
@@ -44,17 +45,18 @@ test()
     test_imp<T>(std::is_floating_point<T>());
 }
 
-int main()
+int main(int, char**)
 {
     test<bool>();
     test<char>();
     test<signed char>();
     test<unsigned char>();
     test<wchar_t>();
-#ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
+#if TEST_STD_VER > 17 && defined(__cpp_char8_t)
+    test<char8_t>();
+#endif
     test<char16_t>();
     test<char32_t>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
     test<short>();
     test<unsigned short>();
     test<int>();
@@ -63,11 +65,13 @@ int main()
     test<unsigned long>();
     test<long long>();
     test<unsigned long long>();
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test<__int128_t>();
     test<__uint128_t>();
 #endif
     test<float>();
     test<double>();
     test<long double>();
+
+  return 0;
 }

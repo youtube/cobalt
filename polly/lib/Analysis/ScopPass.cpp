@@ -1,9 +1,8 @@
 //===- ScopPass.cpp - The base class of Passes that operate on Polly IR ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,13 +12,14 @@
 
 #include "polly/ScopPass.h"
 #include "polly/ScopInfo.h"
-
-#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/GlobalsModRef.h"
+#include "llvm/Analysis/LazyBlockFrequencyInfo.h"
+#include "llvm/Analysis/LazyBranchProbabilityInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include <optional>
 
 using namespace llvm;
 using namespace polly;
@@ -53,6 +53,8 @@ void ScopPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<ScalarEvolutionWrapperPass>();
   AU.addPreserved<SCEVAAWrapperPass>();
   AU.addPreserved<OptimizationRemarkEmitterWrapperPass>();
+  AU.addPreserved<LazyBlockFrequencyInfoPass>();
+  AU.addPreserved<LazyBranchProbabilityInfoPass>();
   AU.addPreserved<RegionInfoPass>();
   AU.addPreserved<ScopInfoRegionPass>();
   AU.addPreserved<TargetTransformInfoWrapperPass>();
@@ -118,7 +120,7 @@ bool ScopAnalysisManagerFunctionProxy::Result::invalidate(
   // Even if all analyses were preserved, we still need to run deferred
   // invalidation
   for (auto &S : *SI) {
-    Optional<PreservedAnalyses> InnerPA;
+    std::optional<PreservedAnalyses> InnerPA;
     auto *scop = S.second.get();
     if (!scop)
       continue;

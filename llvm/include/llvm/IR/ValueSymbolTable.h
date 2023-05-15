@@ -1,9 +1,8 @@
 //===- llvm/ValueSymbolTable.h - Implement a Value Symtab -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -61,18 +60,23 @@ public:
 /// @name Constructors
 /// @{
 
-  ValueSymbolTable() : vmap(0) {}
+  ValueSymbolTable(int MaxNameSize = -1) : vmap(0), MaxNameSize(MaxNameSize) {}
   ~ValueSymbolTable();
 
-/// @}
-/// @name Accessors
-/// @{
+  /// @}
+  /// @name Accessors
+  /// @{
 
   /// This method finds the value with the given \p Name in the
   /// the symbol table.
   /// @returns the value associated with the \p Name
   /// Lookup a named Value.
-  Value *lookup(StringRef Name) const { return vmap.lookup(Name); }
+  Value *lookup(StringRef Name) const {
+    if (MaxNameSize > -1 && Name.size() > (unsigned)MaxNameSize)
+      Name = Name.substr(0, std::max(1u, (unsigned)MaxNameSize));
+
+    return vmap.lookup(Name);
+  }
 
   /// @returns true iff the symbol table is empty
   /// Determine if the symbol table is empty
@@ -129,6 +133,8 @@ private:
   /// @{
 
   ValueMap vmap;                    ///< The map that holds the symbol table.
+  int MaxNameSize; ///< The maximum size for each name. If the limit is
+                   ///< exceeded, the name is capped.
   mutable uint32_t LastUnique = 0;  ///< Counter for tracking unique names
 
 /// @}

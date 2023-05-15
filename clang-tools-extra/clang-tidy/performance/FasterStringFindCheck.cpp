@@ -1,9 +1,8 @@
 //===--- FasterStringFindCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,32 +10,30 @@
 #include "../utils/OptionsUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace performance {
+namespace clang::tidy::performance {
 
 namespace {
 
-llvm::Optional<std::string> MakeCharacterLiteral(const StringLiteral *Literal) {
+std::optional<std::string> makeCharacterLiteral(const StringLiteral *Literal) {
   std::string Result;
   {
     llvm::raw_string_ostream OS(Result);
     Literal->outputString(OS);
   }
   // Now replace the " with '.
-  auto pos = Result.find_first_of('"');
-  if (pos == Result.npos)
-    return llvm::None;
-  Result[pos] = '\'';
-  pos = Result.find_last_of('"');
-  if (pos == Result.npos)
-    return llvm::None;
-  Result[pos] = '\'';
+  auto Pos = Result.find_first_of('"');
+  if (Pos == Result.npos)
+    return std::nullopt;
+  Result[Pos] = '\'';
+  Pos = Result.find_last_of('"');
+  if (Pos == Result.npos)
+    return std::nullopt;
+  Result[Pos] = '\'';
   return Result;
 }
 
@@ -52,7 +49,8 @@ FasterStringFindCheck::FasterStringFindCheck(StringRef Name,
                                              ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
       StringLikeClasses(utils::options::parseStringList(
-          Options.get("StringLikeClasses", "std::basic_string"))) {}
+          Options.get("StringLikeClasses",
+                      "::std::basic_string;::std::basic_string_view"))) {}
 
 void FasterStringFindCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "StringLikeClasses",
@@ -60,9 +58,6 @@ void FasterStringFindCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 }
 
 void FasterStringFindCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   const auto SingleChar =
       expr(ignoringParenCasts(stringLiteral(hasSize(1)).bind("literal")));
   const auto StringFindFunctions =
@@ -74,11 +69,9 @@ void FasterStringFindCheck::registerMatchers(MatchFinder *Finder) {
           callee(functionDecl(StringFindFunctions).bind("func")),
           anyOf(argumentCountIs(1), argumentCountIs(2)),
           hasArgument(0, SingleChar),
-          on(expr(
-              hasType(hasUnqualifiedDesugaredType(recordType(hasDeclaration(
-                  recordDecl(hasAnyName(SmallVector<StringRef, 4>(
-                      StringLikeClasses.begin(), StringLikeClasses.end()))))))),
-              unless(hasSubstitutedType())))),
+          on(expr(hasType(hasUnqualifiedDesugaredType(recordType(hasDeclaration(
+                      recordDecl(hasAnyName(StringLikeClasses)))))),
+                  unless(hasSubstitutedType())))),
       this);
 }
 
@@ -86,19 +79,18 @@ void FasterStringFindCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *Literal = Result.Nodes.getNodeAs<StringLiteral>("literal");
   const auto *FindFunc = Result.Nodes.getNodeAs<FunctionDecl>("func");
 
-  auto Replacement = MakeCharacterLiteral(Literal);
+  auto Replacement = makeCharacterLiteral(Literal);
   if (!Replacement)
     return;
 
-  diag(Literal->getLocStart(), "%0 called with a string literal consisting of "
+  diag(Literal->getBeginLoc(), "%0 called with a string literal consisting of "
                                "a single character; consider using the more "
                                "effective overload accepting a character")
-      << FindFunc << FixItHint::CreateReplacement(
-                         CharSourceRange::getTokenRange(Literal->getLocStart(),
-                                                        Literal->getLocEnd()),
-                         *Replacement);
+      << FindFunc
+      << FixItHint::CreateReplacement(
+             CharSourceRange::getTokenRange(Literal->getBeginLoc(),
+                                            Literal->getEndLoc()),
+             *Replacement);
 }
 
-} // namespace performance
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::performance

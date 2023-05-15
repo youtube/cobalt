@@ -1,9 +1,8 @@
 //===- llvm/ADT/ilist_node_options.h - ilist_node Options -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -87,7 +86,9 @@ struct extract_tag<ilist_tag<Tag>, Options...> {
 };
 template <class Option1, class... Options>
 struct extract_tag<Option1, Options...> : extract_tag<Options...> {};
-template <> struct extract_tag<> { typedef void type; };
+template <> struct extract_tag<> {
+  typedef void type;
+};
 template <class Tag> struct is_valid_option<ilist_tag<Tag>> : std::true_type {};
 
 /// Check whether options are valid.

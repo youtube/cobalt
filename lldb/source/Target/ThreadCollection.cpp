@@ -1,12 +1,11 @@
-//===-- ThreadCollection.cpp ------------------------------------*- C++ -*-===//
+//===-- ThreadCollection.cpp ----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-#include <stdlib.h>
+#include <cstdlib>
 
 #include <algorithm>
 #include <mutex>
@@ -35,10 +34,10 @@ void ThreadCollection::AddThreadSortedByIndexID(const ThreadSP &thread_sp) {
     m_threads.push_back(thread_sp);
   else {
     m_threads.insert(
-        std::upper_bound(m_threads.begin(), m_threads.end(), thread_sp,
-                         [](const ThreadSP &lhs, const ThreadSP &rhs) -> bool {
-                           return lhs->GetIndexID() < rhs->GetIndexID();
-                         }),
+        llvm::upper_bound(m_threads, thread_sp,
+                          [](const ThreadSP &lhs, const ThreadSP &rhs) -> bool {
+                            return lhs->GetIndexID() < rhs->GetIndexID();
+                          }),
         thread_sp);
   }
 }

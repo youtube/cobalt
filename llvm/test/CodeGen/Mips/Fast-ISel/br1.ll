@@ -10,12 +10,12 @@
 ; Function Attrs: nounwind
 define void @br() #0 {
 entry:
-  %0 = load i32, i32* @b, align 4
+  %0 = load i32, ptr @b, align 4
   %tobool = icmp eq i32 %0, 0
   br i1 %tobool, label %if.end, label %if.then
 
 if.then:                                          ; preds = %entry
-  store i32 6754, i32* @i, align 4
+  store i32 6754, ptr @i, align 4
   br label %if.end
 
 if.end:                                           ; preds = %entry, %if.then
@@ -31,4 +31,4 @@ if.end:                                           ; preds = %entry, %if.then
 
 }
 
-attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }

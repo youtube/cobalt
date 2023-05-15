@@ -1,9 +1,8 @@
-//===-- TimeoutTest.cpp -----------------------------------------*- C++ -*-===//
+//===-- TimeoutTest.cpp ---------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,7 +14,7 @@ using namespace lldb_private;
 using namespace std::chrono;
 
 TEST(TimeoutTest, Construction) {
-  EXPECT_FALSE(Timeout<std::micro>(llvm::None));
+  EXPECT_FALSE(Timeout<std::micro>(std::nullopt));
   EXPECT_TRUE(bool(Timeout<std::micro>(seconds(0))));
   EXPECT_EQ(seconds(0), *Timeout<std::micro>(seconds(0)));
   EXPECT_EQ(seconds(3), *Timeout<std::micro>(seconds(3)));
@@ -24,7 +23,7 @@ TEST(TimeoutTest, Construction) {
 
 TEST(TimeoutTest, Format) {
   EXPECT_EQ("<infinite>",
-            llvm::formatv("{0}", Timeout<std::milli>(llvm::None)).str());
+            llvm::formatv("{0}", Timeout<std::milli>(std::nullopt)).str());
   EXPECT_EQ("1000 ms",
             llvm::formatv("{0}", Timeout<std::milli>(seconds(1))).str());
 }

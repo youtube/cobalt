@@ -1,9 +1,8 @@
 //===--- MakeUniqueCheck.cpp - clang-tidy----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,9 +10,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace modernize {
+namespace clang::tidy::modernize {
 
 MakeUniqueCheck::MakeUniqueCheck(StringRef Name,
                                  clang::tidy::ClangTidyContext *Context)
@@ -42,6 +39,6 @@ bool MakeUniqueCheck::isLanguageVersionSupported(
   return RequireCPlusPlus14 ? LangOpts.CPlusPlus14 : LangOpts.CPlusPlus11;
 }
 
-} // namespace modernize
-} // namespace tidy
-} // namespace clang
+// FixItHint is done by MakeSmartPtrCheck
+
+} // namespace clang::tidy::modernize

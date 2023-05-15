@@ -9,16 +9,16 @@ target triple = "mips--linux-gnu"
 ; Function Attrs: nounwind
 define void @foo() #0 {
 entry:
-  %0 = load i32, i32* @i, align 4
+  %0 = load i32, ptr @i, align 4
   %tobool = icmp ne i32 %0, 0
   br i1 %tobool, label %if.then, label %if.else
 
 if.then:                                          ; preds = %entry
-  call void bitcast (void (...)* @goo to void ()*)()
+  call void @goo()
   br label %if.end
 
 if.else:                                          ; preds = %entry
-  call void bitcast (void (...)* @hoo to void ()*)()
+  call void @hoo()
   br label %if.end
 
 if.end:                                           ; preds = %if.else, %if.then
@@ -31,7 +31,7 @@ declare void @goo(...) #1
 
 declare void @hoo(...) #1
 
-attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="true" }
-attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="true" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="true" }
+attributes #1 = { "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="true" }
 
 

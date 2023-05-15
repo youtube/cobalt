@@ -5,7 +5,7 @@
 = Library Structure =
 
 The analyzer library has two layers: a (low-level) static analysis
-engine (GRExprEngine.cpp and friends), and some static checkers
+engine (ExprEngine.cpp and friends), and some static checkers
 (*Checker.cpp).  The latter are built on top of the former via the
 Checker and CheckerVisitor interfaces (Checker.h and
 CheckerVisitor.h).  The Checker interface is designed to be minimal
@@ -58,7 +58,7 @@ ImmutableMaps) which share data between instances.
 
 Finally, individual Checkers work by also manipulating the analysis
 state.  The analyzer engine talks to them via a visitor interface.
-For example, the PreVisitCallExpr() method is called by GRExprEngine
+For example, the PreVisitCallExpr() method is called by ExprEngine
 to tell the Checker that we are about to analyze a CallExpr, and the
 checker is asked to check for any preconditions that might not be
 satisfied.  The checker can do nothing, or it can generate a new
@@ -69,30 +69,30 @@ triggered the problem.
 
 = Notes about C++ =
 
-Since now constructors are seen before the variable that is constructed 
-in the CFG, we create a temporary object as the destination region that 
+Since now constructors are seen before the variable that is constructed
+in the CFG, we create a temporary object as the destination region that
 is constructed into. See ExprEngine::VisitCXXConstructExpr().
 
 In ExprEngine::processCallExit(), we always bind the object region to the
 evaluated CXXConstructExpr. Then in VisitDeclStmt(), we compute the
 corresponding lazy compound value if the variable is not a reference, and
 bind the variable region to the lazy compound value. If the variable
-is a reference, just use the object region as the initilizer value.
+is a reference, just use the object region as the initializer value.
 
 Before entering a C++ method (or ctor/dtor), the 'this' region is bound
-to the object region. In ctors, we synthesize 'this' region with  
+to the object region. In ctors, we synthesize 'this' region with
 CXXRecordDecl*, which means we do not use type qualifiers. In methods, we
-synthesize 'this' region with CXXMethodDecl*, which has getThisType() 
+synthesize 'this' region with CXXMethodDecl*, which has getThisType()
 taking type qualifiers into account. It does not matter we use qualified
 'this' region in one method and unqualified 'this' region in another
-method, because we only need to ensure the 'this' region is consistent 
+method, because we only need to ensure the 'this' region is consistent
 when we synthesize it and create it directly from CXXThisExpr in a single
 method call.
 
 = Working on the Analyzer =
 
 If you are interested in bringing up support for C++ expressions, the
-best place to look is the visitation logic in GRExprEngine, which
+best place to look is the visitation logic in ExprEngine, which
 handles the simulation of individual expressions.  There are plenty of
 examples there of how other expressions are handled.
 

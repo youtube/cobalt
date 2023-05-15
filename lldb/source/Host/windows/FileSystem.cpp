@@ -1,14 +1,14 @@
-//===-- FileSystem.cpp ------------------------------------------*- C++ -*-===//
+//===-- FileSystem.cpp ----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/windows/windows.h"
 
+#include <share.h>
 #include <shellapi.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -30,8 +30,8 @@ const char *FileSystem::PATH_CONVERSION_ERROR =
 Status FileSystem::Symlink(const FileSpec &src, const FileSpec &dst) {
   Status error;
   std::wstring wsrc, wdst;
-  if (!llvm::ConvertUTF8toWide(src.GetCString(), wsrc) ||
-      !llvm::ConvertUTF8toWide(dst.GetCString(), wdst))
+  if (!llvm::ConvertUTF8toWide(src.GetPath(), wsrc) ||
+      !llvm::ConvertUTF8toWide(dst.GetPath(), wdst))
     error.SetErrorString(PATH_CONVERSION_ERROR);
   if (error.Fail())
     return error;
@@ -51,7 +51,7 @@ Status FileSystem::Symlink(const FileSpec &src, const FileSpec &dst) {
 Status FileSystem::Readlink(const FileSpec &src, FileSpec &dst) {
   Status error;
   std::wstring wsrc;
-  if (!llvm::ConvertUTF8toWide(src.GetCString(), wsrc)) {
+  if (!llvm::ConvertUTF8toWide(src.GetPath(), wsrc)) {
     error.SetErrorString(PATH_CONVERSION_ERROR);
     return error;
   }
@@ -75,7 +75,7 @@ Status FileSystem::Readlink(const FileSpec &src, FileSpec &dst) {
   else if (!llvm::convertWideToUTF8(buf.data(), path))
     error.SetErrorString(PATH_CONVERSION_ERROR);
   else
-    dst.SetFile(path, false, FileSpec::Style::native);
+    dst.SetFile(path, FileSpec::Style::native);
 
   ::CloseHandle(h);
   return error;
@@ -95,4 +95,13 @@ FILE *FileSystem::Fopen(const char *path, const char *mode) {
   if (_wfopen_s(&file, wpath.c_str(), wmode.c_str()) != 0)
     return nullptr;
   return file;
+}
+
+int FileSystem::Open(const char *path, int flags, int mode) {
+  std::wstring wpath;
+  if (!llvm::ConvertUTF8toWide(path, wpath))
+    return -1;
+  int result;
+  ::_wsopen_s(&result, wpath.c_str(), flags, _SH_DENYNO, mode);
+  return result;
 }

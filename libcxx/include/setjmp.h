@@ -1,10 +1,9 @@
 // -*- C++ -*-
-//===--------------------------- setjmp.h ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,10 +28,12 @@ void longjmp(jmp_buf env, int val);
 #include <__config>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
-#include_next <setjmp.h>
+#if __has_include_next(<setjmp.h>)
+#  include_next <setjmp.h>
+#endif
 
 #ifdef __cplusplus
 
@@ -42,4 +43,4 @@ void longjmp(jmp_buf env, int val);
 
 #endif // __cplusplus
 
-#endif  // _LIBCPP_SETJMP_H
+#endif // _LIBCPP_SETJMP_H

@@ -1,9 +1,8 @@
 //===- Win32/Signals.cpp - Win32 Signals Implementation ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,101 +23,102 @@
 #include "llvm/Support/raw_ostream.h"
 
 // The Windows.h header must be after LLVM and standard headers.
-#include "WindowsSupport.h"
+#include "llvm/Support/Windows/WindowsSupport.h"
 
 #ifdef __MINGW32__
- #include <imagehlp.h>
+#include <imagehlp.h>
 #else
- #include <crtdbg.h>
- #include <dbghelp.h>
+#include <crtdbg.h>
+#include <dbghelp.h>
 #endif
 #include <psapi.h>
 
 #ifdef _MSC_VER
- #pragma comment(lib, "psapi.lib")
+#pragma comment(lib, "psapi.lib")
 #elif __MINGW32__
- // The version of g++ that comes with MinGW does *not* properly understand
- // the ll format specifier for printf. However, MinGW passes the format
- // specifiers on to the MSVCRT entirely, and the CRT understands the ll
- // specifier. So these warnings are spurious in this case. Since we compile
- // with -Wall, this will generate these warnings which should be ignored. So
- // we will turn off the warnings for this just file. However, MinGW also does
- // not support push and pop for diagnostics, so we have to manually turn it
- // back on at the end of the file.
- #pragma GCC diagnostic ignored "-Wformat"
- #pragma GCC diagnostic ignored "-Wformat-extra-args"
+// The version of g++ that comes with MinGW does *not* properly understand
+// the ll format specifier for printf. However, MinGW passes the format
+// specifiers on to the MSVCRT entirely, and the CRT understands the ll
+// specifier. So these warnings are spurious in this case. Since we compile
+// with -Wall, this will generate these warnings which should be ignored. So
+// we will turn off the warnings for this just file. However, MinGW also does
+// not support push and pop for diagnostics, so we have to manually turn it
+// back on at the end of the file.
+#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wformat-extra-args"
 
- #if !defined(__MINGW64_VERSION_MAJOR)
- // MinGW.org does not have updated support for the 64-bit versions of the
- // DebugHlp APIs. So we will have to load them manually. The structures and
- // method signatures were pulled from DbgHelp.h in the Windows Platform SDK,
- // and adjusted for brevity.
- typedef struct _IMAGEHLP_LINE64 {
-   DWORD    SizeOfStruct;
-   PVOID    Key;
-   DWORD    LineNumber;
-   PCHAR    FileName;
-   DWORD64  Address;
- } IMAGEHLP_LINE64, *PIMAGEHLP_LINE64;
+#if !defined(__MINGW64_VERSION_MAJOR)
+// MinGW.org does not have updated support for the 64-bit versions of the
+// DebugHlp APIs. So we will have to load them manually. The structures and
+// method signatures were pulled from DbgHelp.h in the Windows Platform SDK,
+// and adjusted for brevity.
+typedef struct _IMAGEHLP_LINE64 {
+  DWORD SizeOfStruct;
+  PVOID Key;
+  DWORD LineNumber;
+  PCHAR FileName;
+  DWORD64 Address;
+} IMAGEHLP_LINE64, *PIMAGEHLP_LINE64;
 
- typedef struct _IMAGEHLP_SYMBOL64 {
-   DWORD   SizeOfStruct;
-   DWORD64 Address;
-   DWORD   Size;
-   DWORD   Flags;
-   DWORD   MaxNameLength;
-   CHAR    Name[1];
- } IMAGEHLP_SYMBOL64, *PIMAGEHLP_SYMBOL64;
+typedef struct _IMAGEHLP_SYMBOL64 {
+  DWORD SizeOfStruct;
+  DWORD64 Address;
+  DWORD Size;
+  DWORD Flags;
+  DWORD MaxNameLength;
+  CHAR Name[1];
+} IMAGEHLP_SYMBOL64, *PIMAGEHLP_SYMBOL64;
 
- typedef struct _tagADDRESS64 {
-   DWORD64       Offset;
-   WORD          Segment;
-   ADDRESS_MODE  Mode;
- } ADDRESS64, *LPADDRESS64;
+typedef struct _tagADDRESS64 {
+  DWORD64 Offset;
+  WORD Segment;
+  ADDRESS_MODE Mode;
+} ADDRESS64, *LPADDRESS64;
 
- typedef struct _KDHELP64 {
-   DWORD64   Thread;
-   DWORD   ThCallbackStack;
-   DWORD   ThCallbackBStore;
-   DWORD   NextCallback;
-   DWORD   FramePointer;
-   DWORD64   KiCallUserMode;
-   DWORD64   KeUserCallbackDispatcher;
-   DWORD64   SystemRangeStart;
-   DWORD64   KiUserExceptionDispatcher;
-   DWORD64   StackBase;
-   DWORD64   StackLimit;
-   DWORD64   Reserved[5];
- } KDHELP64, *PKDHELP64;
+typedef struct _KDHELP64 {
+  DWORD64 Thread;
+  DWORD ThCallbackStack;
+  DWORD ThCallbackBStore;
+  DWORD NextCallback;
+  DWORD FramePointer;
+  DWORD64 KiCallUserMode;
+  DWORD64 KeUserCallbackDispatcher;
+  DWORD64 SystemRangeStart;
+  DWORD64 KiUserExceptionDispatcher;
+  DWORD64 StackBase;
+  DWORD64 StackLimit;
+  DWORD64 Reserved[5];
+} KDHELP64, *PKDHELP64;
 
- typedef struct _tagSTACKFRAME64 {
-   ADDRESS64   AddrPC;
-   ADDRESS64   AddrReturn;
-   ADDRESS64   AddrFrame;
-   ADDRESS64   AddrStack;
-   ADDRESS64   AddrBStore;
-   PVOID       FuncTableEntry;
-   DWORD64     Params[4];
-   BOOL        Far;
-   BOOL        Virtual;
-   DWORD64     Reserved[3];
-   KDHELP64    KdHelp;
- } STACKFRAME64, *LPSTACKFRAME64;
- #endif // !defined(__MINGW64_VERSION_MAJOR)
+typedef struct _tagSTACKFRAME64 {
+  ADDRESS64 AddrPC;
+  ADDRESS64 AddrReturn;
+  ADDRESS64 AddrFrame;
+  ADDRESS64 AddrStack;
+  ADDRESS64 AddrBStore;
+  PVOID FuncTableEntry;
+  DWORD64 Params[4];
+  BOOL Far;
+  BOOL Virtual;
+  DWORD64 Reserved[3];
+  KDHELP64 KdHelp;
+} STACKFRAME64, *LPSTACKFRAME64;
+#endif // !defined(__MINGW64_VERSION_MAJOR)
 #endif // __MINGW32__
 
-typedef BOOL (__stdcall *PREAD_PROCESS_MEMORY_ROUTINE64)(HANDLE hProcess,
-                      DWORD64 qwBaseAddress, PVOID lpBuffer, DWORD nSize,
-                      LPDWORD lpNumberOfBytesRead);
+typedef BOOL(__stdcall *PREAD_PROCESS_MEMORY_ROUTINE64)(
+    HANDLE hProcess, DWORD64 qwBaseAddress, PVOID lpBuffer, DWORD nSize,
+    LPDWORD lpNumberOfBytesRead);
 
-typedef PVOID (__stdcall *PFUNCTION_TABLE_ACCESS_ROUTINE64)( HANDLE ahProcess,
-                      DWORD64 AddrBase);
+typedef PVOID(__stdcall *PFUNCTION_TABLE_ACCESS_ROUTINE64)(HANDLE ahProcess,
+                                                           DWORD64 AddrBase);
 
-typedef DWORD64 (__stdcall *PGET_MODULE_BASE_ROUTINE64)(HANDLE hProcess,
-                      DWORD64 Address);
+typedef DWORD64(__stdcall *PGET_MODULE_BASE_ROUTINE64)(HANDLE hProcess,
+                                                       DWORD64 Address);
 
-typedef DWORD64 (__stdcall *PTRANSLATE_ADDRESS_ROUTINE64)(HANDLE hProcess,
-                      HANDLE hThread, LPADDRESS64 lpaddr);
+typedef DWORD64(__stdcall *PTRANSLATE_ADDRESS_ROUTINE64)(HANDLE hProcess,
+                                                         HANDLE hThread,
+                                                         LPADDRESS64 lpaddr);
 
 typedef BOOL(WINAPI *fpMiniDumpWriteDump)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
                                           PMINIDUMP_EXCEPTION_INFORMATION,
@@ -126,63 +126,68 @@ typedef BOOL(WINAPI *fpMiniDumpWriteDump)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE,
                                           PMINIDUMP_CALLBACK_INFORMATION);
 static fpMiniDumpWriteDump fMiniDumpWriteDump;
 
-typedef BOOL (WINAPI *fpStackWalk64)(DWORD, HANDLE, HANDLE, LPSTACKFRAME64,
-                      PVOID, PREAD_PROCESS_MEMORY_ROUTINE64,
-                      PFUNCTION_TABLE_ACCESS_ROUTINE64,
-                      PGET_MODULE_BASE_ROUTINE64,
-                      PTRANSLATE_ADDRESS_ROUTINE64);
+typedef BOOL(WINAPI *fpStackWalk64)(DWORD, HANDLE, HANDLE, LPSTACKFRAME64,
+                                    PVOID, PREAD_PROCESS_MEMORY_ROUTINE64,
+                                    PFUNCTION_TABLE_ACCESS_ROUTINE64,
+                                    PGET_MODULE_BASE_ROUTINE64,
+                                    PTRANSLATE_ADDRESS_ROUTINE64);
 static fpStackWalk64 fStackWalk64;
 
-typedef DWORD64 (WINAPI *fpSymGetModuleBase64)(HANDLE, DWORD64);
+typedef DWORD64(WINAPI *fpSymGetModuleBase64)(HANDLE, DWORD64);
 static fpSymGetModuleBase64 fSymGetModuleBase64;
 
-typedef BOOL (WINAPI *fpSymGetSymFromAddr64)(HANDLE, DWORD64,
-                      PDWORD64, PIMAGEHLP_SYMBOL64);
+typedef BOOL(WINAPI *fpSymGetSymFromAddr64)(HANDLE, DWORD64, PDWORD64,
+                                            PIMAGEHLP_SYMBOL64);
 static fpSymGetSymFromAddr64 fSymGetSymFromAddr64;
 
-typedef BOOL (WINAPI *fpSymGetLineFromAddr64)(HANDLE, DWORD64,
-                      PDWORD, PIMAGEHLP_LINE64);
+typedef BOOL(WINAPI *fpSymGetLineFromAddr64)(HANDLE, DWORD64, PDWORD,
+                                             PIMAGEHLP_LINE64);
 static fpSymGetLineFromAddr64 fSymGetLineFromAddr64;
 
 typedef BOOL(WINAPI *fpSymGetModuleInfo64)(HANDLE hProcess, DWORD64 dwAddr,
                                            PIMAGEHLP_MODULE64 ModuleInfo);
 static fpSymGetModuleInfo64 fSymGetModuleInfo64;
 
-typedef PVOID (WINAPI *fpSymFunctionTableAccess64)(HANDLE, DWORD64);
+typedef PVOID(WINAPI *fpSymFunctionTableAccess64)(HANDLE, DWORD64);
 static fpSymFunctionTableAccess64 fSymFunctionTableAccess64;
 
-typedef DWORD (WINAPI *fpSymSetOptions)(DWORD);
+typedef DWORD(WINAPI *fpSymSetOptions)(DWORD);
 static fpSymSetOptions fSymSetOptions;
 
-typedef BOOL (WINAPI *fpSymInitialize)(HANDLE, PCSTR, BOOL);
+typedef BOOL(WINAPI *fpSymInitialize)(HANDLE, PCSTR, BOOL);
 static fpSymInitialize fSymInitialize;
 
-typedef BOOL (WINAPI *fpEnumerateLoadedModules)(HANDLE,PENUMLOADED_MODULES_CALLBACK64,PVOID);
+typedef BOOL(WINAPI *fpEnumerateLoadedModules)(HANDLE,
+                                               PENUMLOADED_MODULES_CALLBACK64,
+                                               PVOID);
 static fpEnumerateLoadedModules fEnumerateLoadedModules;
+
+static bool isDebugHelpInitialized() {
+  return fStackWalk64 && fSymInitialize && fSymSetOptions && fMiniDumpWriteDump;
+}
 
 static bool load64BitDebugHelp(void) {
   HMODULE hLib = ::LoadLibraryW(L"Dbghelp.dll");
   if (hLib) {
-    fMiniDumpWriteDump = (fpMiniDumpWriteDump)
-                      ::GetProcAddress(hLib, "MiniDumpWriteDump");
-    fStackWalk64 = (fpStackWalk64)
-                      ::GetProcAddress(hLib, "StackWalk64");
-    fSymGetModuleBase64 = (fpSymGetModuleBase64)
-                      ::GetProcAddress(hLib, "SymGetModuleBase64");
-    fSymGetSymFromAddr64 = (fpSymGetSymFromAddr64)
-                      ::GetProcAddress(hLib, "SymGetSymFromAddr64");
-    fSymGetLineFromAddr64 = (fpSymGetLineFromAddr64)
-                      ::GetProcAddress(hLib, "SymGetLineFromAddr64");
-    fSymGetModuleInfo64 = (fpSymGetModuleInfo64)
-                      ::GetProcAddress(hLib, "SymGetModuleInfo64");
-    fSymFunctionTableAccess64 = (fpSymFunctionTableAccess64)
-                     ::GetProcAddress(hLib, "SymFunctionTableAccess64");
+    fMiniDumpWriteDump =
+        (fpMiniDumpWriteDump)::GetProcAddress(hLib, "MiniDumpWriteDump");
+    fStackWalk64 = (fpStackWalk64)::GetProcAddress(hLib, "StackWalk64");
+    fSymGetModuleBase64 =
+        (fpSymGetModuleBase64)::GetProcAddress(hLib, "SymGetModuleBase64");
+    fSymGetSymFromAddr64 =
+        (fpSymGetSymFromAddr64)::GetProcAddress(hLib, "SymGetSymFromAddr64");
+    fSymGetLineFromAddr64 =
+        (fpSymGetLineFromAddr64)::GetProcAddress(hLib, "SymGetLineFromAddr64");
+    fSymGetModuleInfo64 =
+        (fpSymGetModuleInfo64)::GetProcAddress(hLib, "SymGetModuleInfo64");
+    fSymFunctionTableAccess64 = (fpSymFunctionTableAccess64)::GetProcAddress(
+        hLib, "SymFunctionTableAccess64");
     fSymSetOptions = (fpSymSetOptions)::GetProcAddress(hLib, "SymSetOptions");
     fSymInitialize = (fpSymInitialize)::GetProcAddress(hLib, "SymInitialize");
-    fEnumerateLoadedModules = (fpEnumerateLoadedModules)
-      ::GetProcAddress(hLib, "EnumerateLoadedModules64");
+    fEnumerateLoadedModules = (fpEnumerateLoadedModules)::GetProcAddress(
+        hLib, "EnumerateLoadedModules64");
   }
-  return fStackWalk64 && fSymInitialize && fSymSetOptions && fMiniDumpWriteDump;
+  return isDebugHelpInitialized();
 }
 
 using namespace llvm;
@@ -243,7 +248,7 @@ static bool printStackTraceWithLLVMSymbolizer(llvm::raw_ostream &OS,
     if (StackFrame.AddrFrame.Offset == 0)
       break;
     StackTrace[Depth++] = (void *)(uintptr_t)StackFrame.AddrPC.Offset;
-    if (Depth >= array_lengthof(StackTrace))
+    if (Depth >= std::size(StackTrace))
       break;
   }
 
@@ -258,12 +263,11 @@ struct FindModuleData {
   intptr_t *Offsets;
   StringSaver *StrPool;
 };
-}
+} // namespace
 
-static BOOL CALLBACK findModuleCallback(PCSTR ModuleName,
-                                        DWORD64 ModuleBase, ULONG ModuleSize,
-                                        void *VoidData) {
-  FindModuleData *Data = (FindModuleData*)VoidData;
+static BOOL CALLBACK findModuleCallback(PCSTR ModuleName, DWORD64 ModuleBase,
+                                        ULONG ModuleSize, void *VoidData) {
+  FindModuleData *Data = (FindModuleData *)VoidData;
   intptr_t Beg = ModuleBase;
   intptr_t End = Beg + ModuleSize;
   for (int I = 0; I < Data->Depth; I++) {
@@ -297,6 +301,12 @@ static bool findModulesAndOffsets(void **StackTrace, int Depth,
 static void PrintStackTraceForThread(llvm::raw_ostream &OS, HANDLE hProcess,
                                      HANDLE hThread, STACKFRAME64 &StackFrame,
                                      CONTEXT *Context) {
+  // It's possible that DbgHelp.dll hasn't been loaded yet (e.g. if this
+  // function is called before the main program called `llvm::InitLLVM`).
+  // In this case just return, not stacktrace will be printed.
+  if (!isDebugHelpInitialized())
+    return;
+
   // Initialize the symbol handler.
   fSymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
   fSymInitialize(hProcess, NULL, TRUE);
@@ -328,22 +338,22 @@ static void PrintStackTraceForThread(llvm::raw_ostream &OS, HANDLE hProcess,
     OS << format("0x%08lX", static_cast<DWORD>(PC));
 #endif
 
-// Print the parameters.  Assume there are four.
-#if defined(_M_X64) || defined(_M_ARM64)
-    OS << format(" (0x%016llX 0x%016llX 0x%016llX 0x%016llX)",
-            StackFrame.Params[0], StackFrame.Params[1], StackFrame.Params[2],
-            StackFrame.Params[3]);
-#elif defined(_M_IX86) || defined(_M_ARM)
-    OS << format(" (0x%08lX 0x%08lX 0x%08lX 0x%08lX)",
-            static_cast<DWORD>(StackFrame.Params[0]),
-            static_cast<DWORD>(StackFrame.Params[1]),
-            static_cast<DWORD>(StackFrame.Params[2]),
-            static_cast<DWORD>(StackFrame.Params[3]));
-#endif
     // Verify the PC belongs to a module in this process.
     if (!fSymGetModuleBase64(hProcess, PC)) {
       OS << " <unknown module>\n";
       continue;
+    }
+
+    IMAGEHLP_MODULE64 M;
+    memset(&M, 0, sizeof(IMAGEHLP_MODULE64));
+    M.SizeOfStruct = sizeof(IMAGEHLP_MODULE64);
+    if (fSymGetModuleInfo64(hProcess, fSymGetModuleBase64(hProcess, PC), &M)) {
+      DWORD64 const disp = PC - M.BaseOfImage;
+      OS << format(", %s(0x%016llX) + 0x%llX byte(s)",
+                   static_cast<char *>(M.ImageName), M.BaseOfImage,
+                   static_cast<long long>(disp));
+    } else {
+      OS << ", <unknown module>";
     }
 
     // Print the symbol name.
@@ -360,20 +370,16 @@ static void PrintStackTraceForThread(llvm::raw_ostream &OS, HANDLE hProcess,
     }
 
     buffer[511] = 0;
-    if (dwDisp > 0)
-      OS << format(", %s() + 0x%llX bytes(s)", (const char*)symbol->Name,
-                   dwDisp);
-    else
-      OS << format(", %s", (const char*)symbol->Name);
+    OS << format(", %s() + 0x%llX byte(s)", static_cast<char *>(symbol->Name),
+                 static_cast<long long>(dwDisp));
 
     // Print the source file and line number information.
     IMAGEHLP_LINE64 line = {};
     DWORD dwLineDisp;
     line.SizeOfStruct = sizeof(line);
     if (fSymGetLineFromAddr64(hProcess, PC, &dwLineDisp, &line)) {
-      OS << format(", %s, line %lu", line.FileName, line.LineNumber);
-      if (dwLineDisp > 0)
-        OS << format(" + 0x%lX byte(s)", dwLineDisp);
+      OS << format(", %s, line %lu + 0x%lX byte(s)", line.FileName,
+                   line.LineNumber, dwLineDisp);
     }
 
     OS << '\n';
@@ -449,7 +455,7 @@ static void RegisterHandler() {
 }
 
 // The public API
-bool sys::RemoveFileOnSignal(StringRef Filename, std::string* ErrMsg) {
+bool sys::RemoveFileOnSignal(StringRef Filename, std::string *ErrMsg) {
   RegisterHandler();
 
   if (CleanupExecuted) {
@@ -461,7 +467,7 @@ bool sys::RemoveFileOnSignal(StringRef Filename, std::string* ErrMsg) {
   if (FilesToRemove == NULL)
     FilesToRemove = new std::vector<std::string>;
 
-  FilesToRemove->push_back(Filename);
+  FilesToRemove->push_back(std::string(Filename));
 
   LeaveCriticalSection(&CriticalSection);
   return false;
@@ -477,7 +483,7 @@ void sys::DontRemoveFileOnSignal(StringRef Filename) {
   std::vector<std::string>::reverse_iterator I =
       find(reverse(*FilesToRemove), Filename);
   if (I != FilesToRemove->rend())
-    FilesToRemove->erase(I.base()-1);
+    FilesToRemove->erase(I.base() - 1);
 
   LeaveCriticalSection(&CriticalSection);
 }
@@ -514,7 +520,7 @@ void sys::PrintStackTraceOnErrorSignal(StringRef Argv0,
   RegisterHandler();
   LeaveCriticalSection(&CriticalSection);
 }
-}
+} // namespace llvm
 
 #if defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
 // Provide a prototype for RtlCaptureContext, mingw32 from mingw.org is
@@ -522,10 +528,13 @@ void sys::PrintStackTraceOnErrorSignal(StringRef Argv0,
 extern "C" VOID WINAPI RtlCaptureContext(PCONTEXT ContextRecord);
 #endif
 
-void llvm::sys::PrintStackTrace(raw_ostream &OS) {
-  STACKFRAME64 StackFrame = {};
-  CONTEXT Context = {};
-  ::RtlCaptureContext(&Context);
+static void LocalPrintStackTrace(raw_ostream &OS, PCONTEXT C) {
+  STACKFRAME64 StackFrame{};
+  CONTEXT Context{};
+  if (!C) {
+    ::RtlCaptureContext(&Context);
+    C = &Context;
+  }
 #if defined(_M_X64)
   StackFrame.AddrPC.Offset = Context.Rip;
   StackFrame.AddrStack.Offset = Context.Rsp;
@@ -547,9 +556,13 @@ void llvm::sys::PrintStackTrace(raw_ostream &OS) {
   StackFrame.AddrStack.Mode = AddrModeFlat;
   StackFrame.AddrFrame.Mode = AddrModeFlat;
   PrintStackTraceForThread(OS, GetCurrentProcess(), GetCurrentThread(),
-                           StackFrame, &Context);
+                           StackFrame, C);
 }
 
+void llvm::sys::PrintStackTrace(raw_ostream &OS, int Depth) {
+  // FIXME: Handle "Depth" parameter to print stack trace upto specified Depth
+  LocalPrintStackTrace(OS, nullptr);
+}
 
 void llvm::sys::SetInterruptFunction(void (*IF)()) {
   RegisterHandler();
@@ -557,6 +570,17 @@ void llvm::sys::SetInterruptFunction(void (*IF)()) {
   LeaveCriticalSection(&CriticalSection);
 }
 
+void llvm::sys::SetInfoSignalFunction(void (*Handler)()) {
+  // Unimplemented.
+}
+
+void llvm::sys::SetOneShotPipeSignalFunction(void (*Handler)()) {
+  // Unimplemented.
+}
+
+void llvm::sys::DefaultOneShotPipeSignalHandler() {
+  // Unimplemented.
+}
 
 /// Add a function to be called when a signal is delivered to the process. The
 /// handler can have a cookie passed to it to identify what instance of the
@@ -568,7 +592,7 @@ void llvm::sys::AddSignalHandler(sys::SignalHandlerCallback FnPtr,
   LeaveCriticalSection(&CriticalSection);
 }
 
-static void Cleanup() {
+static void Cleanup(bool ExecuteSignalHandlers) {
   if (CleanupExecuted)
     return;
 
@@ -584,7 +608,10 @@ static void Cleanup() {
       llvm::sys::fs::remove(FilesToRemove->back());
       FilesToRemove->pop_back();
     }
-  llvm::sys::RunSignalHandlers();
+
+  if (ExecuteSignalHandlers)
+    llvm::sys::RunSignalHandlers();
+
   LeaveCriticalSection(&CriticalSection);
 }
 
@@ -594,7 +621,7 @@ void llvm::sys::RunInterruptHandlers() {
   // error handler). We must ensure that the critical section is properly
   // initialized.
   InitializeThreading();
-  Cleanup();
+  Cleanup(true);
 }
 
 /// Find the Windows Registry Key for a given location.
@@ -671,8 +698,7 @@ static bool GetDumpType(HKEY Key, MINIDUMP_TYPE &ResultType) {
   DWORD DumpType;
   DWORD TypeSize = sizeof(DumpType);
   if (ERROR_SUCCESS != ::RegGetValueW(Key, NULL, L"DumpType", RRF_RT_REG_DWORD,
-                                      NULL, &DumpType,
-                                      &TypeSize))
+                                      NULL, &DumpType, &TypeSize))
     return false;
 
   switch (DumpType) {
@@ -705,6 +731,11 @@ static bool GetDumpType(HKEY Key, MINIDUMP_TYPE &ResultType) {
 /// otherwise.
 static std::error_code WINAPI
 WriteWindowsDumpFile(PMINIDUMP_EXCEPTION_INFORMATION ExceptionInfo) {
+  struct ScopedCriticalSection {
+    ScopedCriticalSection() { EnterCriticalSection(&CriticalSection); }
+    ~ScopedCriticalSection() { LeaveCriticalSection(&CriticalSection); }
+  } SCS;
+
   using namespace llvm;
   using namespace llvm::sys;
 
@@ -746,16 +777,18 @@ WriteWindowsDumpFile(PMINIDUMP_EXCEPTION_INFORMATION ExceptionInfo) {
     if (!GetDumpType(DefaultLocalDumpsKey, DumpType))
       DumpType = MiniDumpNormal;
 
-  // Look to see if a dump location is specified in the registry; first with the
+  // Look to see if a dump location is specified on the command line.  If not,
+  // look to see if a dump location is specified in the registry; first with the
   // app-specific key and failing that with the global key.  If none are found
   // we'll just create the dump file in the default temporary file location
   // (GetDumpFolder will return false either if the key is NULL or if there is
   // no valid DumpFolder value at its location).
   bool ExplicitDumpDirectorySet = true;
-  SmallString<MAX_PATH> DumpDirectory;
-  if (!GetDumpFolder(AppSpecificKey, DumpDirectory))
-    if (!GetDumpFolder(DefaultLocalDumpsKey, DumpDirectory))
-      ExplicitDumpDirectorySet = false;
+  SmallString<MAX_PATH> DumpDirectory(*CrashDiagnosticsDirectory);
+  if (DumpDirectory.empty())
+    if (!GetDumpFolder(AppSpecificKey, DumpDirectory))
+      if (!GetDumpFolder(DefaultLocalDumpsKey, DumpDirectory))
+        ExplicitDumpDirectorySet = false;
 
   int FD;
   SmallString<MAX_PATH> DumpPath;
@@ -782,8 +815,18 @@ WriteWindowsDumpFile(PMINIDUMP_EXCEPTION_INFORMATION ExceptionInfo) {
   return std::error_code();
 }
 
+void sys::CleanupOnSignal(uintptr_t Context) {
+  LLVMUnhandledExceptionFilter((LPEXCEPTION_POINTERS)Context);
+}
+
 static LONG WINAPI LLVMUnhandledExceptionFilter(LPEXCEPTION_POINTERS ep) {
-  Cleanup();
+  Cleanup(true);
+
+  // Write out the exception code.
+  if (ep && ep->ExceptionRecord)
+    llvm::errs() << format("Exception Code: 0x%08X",
+                           ep->ExceptionRecord->ExceptionCode)
+                 << "\n";
 
   // We'll automatically write a Minidump file here to help diagnose
   // the nasty sorts of crashes that aren't 100% reproducible from a set of
@@ -800,60 +843,36 @@ static LONG WINAPI LLVMUnhandledExceptionFilter(LPEXCEPTION_POINTERS ep) {
                    << "\n";
   }
 
-  // Initialize the STACKFRAME structure.
-  STACKFRAME64 StackFrame = {};
+  // Stack unwinding appears to modify the context. Copy it to preserve the
+  // caller's context.
+  CONTEXT ContextCopy;
+  if (ep)
+    memcpy(&ContextCopy, ep->ContextRecord, sizeof(ContextCopy));
 
-#if defined(_M_X64)
-  StackFrame.AddrPC.Offset = ep->ContextRecord->Rip;
-  StackFrame.AddrPC.Mode = AddrModeFlat;
-  StackFrame.AddrStack.Offset = ep->ContextRecord->Rsp;
-  StackFrame.AddrStack.Mode = AddrModeFlat;
-  StackFrame.AddrFrame.Offset = ep->ContextRecord->Rbp;
-  StackFrame.AddrFrame.Mode = AddrModeFlat;
-#elif defined(_M_IX86)
-  StackFrame.AddrPC.Offset = ep->ContextRecord->Eip;
-  StackFrame.AddrPC.Mode = AddrModeFlat;
-  StackFrame.AddrStack.Offset = ep->ContextRecord->Esp;
-  StackFrame.AddrStack.Mode = AddrModeFlat;
-  StackFrame.AddrFrame.Offset = ep->ContextRecord->Ebp;
-  StackFrame.AddrFrame.Mode = AddrModeFlat;
-#elif defined(_M_ARM64) || defined(_M_ARM)
-  StackFrame.AddrPC.Offset = ep->ContextRecord->Pc;
-  StackFrame.AddrPC.Mode = AddrModeFlat;
-  StackFrame.AddrStack.Offset = ep->ContextRecord->Sp;
-  StackFrame.AddrStack.Mode = AddrModeFlat;
-#if defined(_M_ARM64)
-  StackFrame.AddrFrame.Offset = ep->ContextRecord->Fp;
-#else
-  StackFrame.AddrFrame.Offset = ep->ContextRecord->R11;
-#endif
-  StackFrame.AddrFrame.Mode = AddrModeFlat;
-#endif
+  LocalPrintStackTrace(llvm::errs(), ep ? &ContextCopy : nullptr);
 
-  HANDLE hProcess = GetCurrentProcess();
-  HANDLE hThread = GetCurrentThread();
-  PrintStackTraceForThread(llvm::errs(), hProcess, hThread, StackFrame,
-                           ep->ContextRecord);
-
-  _exit(ep->ExceptionRecord->ExceptionCode);
+  return EXCEPTION_EXECUTE_HANDLER;
 }
 
 static BOOL WINAPI LLVMConsoleCtrlHandler(DWORD dwCtrlType) {
   // We are running in our very own thread, courtesy of Windows.
   EnterCriticalSection(&CriticalSection);
-  Cleanup();
+  // This function is only ever called when a CTRL-C or similar control signal
+  // is fired. Killing a process in this way is normal, so don't trigger the
+  // signal handlers.
+  Cleanup(false);
 
   // If an interrupt function has been set, go and run one it; otherwise,
   // the process dies.
   void (*IF)() = InterruptFunction;
-  InterruptFunction = 0;      // Don't run it on another CTRL-C.
+  InterruptFunction = 0; // Don't run it on another CTRL-C.
 
   if (IF) {
     // Note: if the interrupt function throws an exception, there is nothing
     // to catch it in this thread so it will kill the process.
-    IF();                     // Run it now.
+    IF(); // Run it now.
     LeaveCriticalSection(&CriticalSection);
-    return TRUE;              // Don't kill the process.
+    return TRUE; // Don't kill the process.
   }
 
   // Allow normal processing to take place; i.e., the process dies.
@@ -862,10 +881,12 @@ static BOOL WINAPI LLVMConsoleCtrlHandler(DWORD dwCtrlType) {
 }
 
 #if __MINGW32__
- // We turned these warnings off for this file so that MinGW-g++ doesn't
- // complain about the ll format specifiers used.  Now we are turning the
- // warnings back on.  If MinGW starts to support diagnostic stacks, we can
- // replace this with a pop.
- #pragma GCC diagnostic warning "-Wformat"
- #pragma GCC diagnostic warning "-Wformat-extra-args"
+// We turned these warnings off for this file so that MinGW-g++ doesn't
+// complain about the ll format specifiers used.  Now we are turning the
+// warnings back on.  If MinGW starts to support diagnostic stacks, we can
+// replace this with a pop.
+#pragma GCC diagnostic warning "-Wformat"
+#pragma GCC diagnostic warning "-Wformat-extra-args"
 #endif
+
+void sys::unregisterHandlers() {}

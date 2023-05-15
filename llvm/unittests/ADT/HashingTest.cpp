@@ -1,9 +1,8 @@
 //===- llvm/unittest/ADT/HashingTest.cpp ----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,10 +12,12 @@
 
 #include "llvm/ADT/Hashing.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/HashBuilder.h"
 #include "gtest/gtest.h"
 #include <deque>
 #include <list>
 #include <map>
+#include <optional>
 #include <vector>
 
 namespace llvm {
@@ -102,6 +103,17 @@ TEST(HashingTest, HashValueStdPair) {
             hash_value(std::make_pair(obj1, std::make_pair(obj2, obj3))));
 }
 
+TEST(HashingTest, HashValueStdTuple) {
+  EXPECT_EQ(hash_combine(), hash_value(std::make_tuple()));
+  EXPECT_EQ(hash_combine(42), hash_value(std::make_tuple(42)));
+  EXPECT_EQ(hash_combine(42, 'c'), hash_value(std::make_tuple(42, 'c')));
+
+  EXPECT_NE(hash_combine(43, 42), hash_value(std::make_tuple(42, 43)));
+  EXPECT_NE(hash_combine(42, 43), hash_value(std::make_tuple(42ull, 43ull)));
+  EXPECT_NE(hash_combine(42, 43), hash_value(std::make_tuple(42, 43ull)));
+  EXPECT_NE(hash_combine(42, 43), hash_value(std::make_tuple(42ull, 43)));
+}
+
 TEST(HashingTest, HashValueStdString) {
   std::string s = "Hello World!";
   EXPECT_EQ(hash_combine_range(s.c_str(), s.c_str() + s.size()), hash_value(s));
@@ -117,6 +129,23 @@ TEST(HashingTest, HashValueStdString) {
             hash_value(ws.substr(0, ws.size() - 1)));
   EXPECT_EQ(hash_combine_range(ws.c_str() + 1, ws.c_str() + ws.size() - 1),
             hash_value(ws.substr(1, ws.size() - 2)));
+}
+
+TEST(HashingTest, HashValueStdOptional) {
+  // Check that std::nullopt, false, and true all hash differently.
+  std::optional<bool> B, B0 = false, B1 = true;
+  EXPECT_NE(hash_value(B0), hash_value(B));
+  EXPECT_NE(hash_value(B1), hash_value(B));
+  EXPECT_NE(hash_value(B1), hash_value(B0));
+
+  // Check that std::nullopt, 0, and 1 all hash differently.
+  std::optional<int> I, I0 = 0, I1 = 1;
+  EXPECT_NE(hash_value(I0), hash_value(I));
+  EXPECT_NE(hash_value(I1), hash_value(I));
+  EXPECT_NE(hash_value(I1), hash_value(I0));
+
+  // Check std::nullopt hash the same way regardless of type.
+  EXPECT_EQ(hash_value(B), hash_value(I));
 }
 
 template <typename T, size_t N> T *begin(T (&arr)[N]) { return arr; }
@@ -208,7 +237,7 @@ TEST(HashingTest, HashCombineRangeLengthDiff) {
 
 TEST(HashingTest, HashCombineRangeGoldenTest) {
   struct { const char *s; uint64_t hash; } golden_data[] = {
-#if SIZE_MAX == UINT64_MAX
+#if SIZE_MAX == UINT64_MAX || SIZE_MAX == UINT32_MAX
     { "a",                                0xaeb6f9d5517c61f8ULL },
     { "ab",                               0x7ab1edb96be496b4ULL },
     { "abc",                              0xe38e60bf19c71a3fULL },
@@ -261,59 +290,6 @@ TEST(HashingTest, HashCombineRangeGoldenTest) {
       "abababababababababababababababab"
       "abababababababababababababababab"
       "abababababababababababababababab", 0x840192d129f7a22bULL }
-#elif SIZE_MAX == UINT32_MAX
-    { "a",                                0x000000004605f745ULL },
-    { "ab",                               0x00000000d5f06301ULL },
-    { "abc",                              0x00000000559fe1eeULL },
-    { "abcde",                            0x00000000424028d7ULL },
-    { "abcdefgh",                         0x000000007bb119f8ULL },
-    { "abcdefghijklm",                    0x00000000edbca513ULL },
-    { "abcdefghijklmnopqrstu",            0x000000007c15712eULL },
-    { "abcdefghijklmnopqrstuvwxyzabcdef", 0x000000000b3aad66ULL },
-    { "abcdefghijklmnopqrstuvwxyzabcdef"
-      "abcdefghijklmnopqrstuvwxyzghijkl"
-      "abcdefghijklmnopqrstuvwxyzmnopqr"
-      "abcdefghijklmnopqrstuvwxyzstuvwx"
-      "abcdefghijklmnopqrstuvwxyzyzabcd", 0x000000008c758c8bULL },
-    { "a",                                0x000000004605f745ULL },
-    { "aa",                               0x00000000dc0a52daULL },
-    { "aaa",                              0x00000000b309274fULL },
-    { "aaaaa",                            0x00000000203b5ef6ULL },
-    { "aaaaaaaa",                         0x00000000a429e18fULL },
-    { "aaaaaaaaaaaaa",                    0x000000008662070bULL },
-    { "aaaaaaaaaaaaaaaaaaaaa",            0x000000003f11151cULL },
-    { "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0x000000008600fe20ULL },
-    { "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 0x000000004e0e0804ULL },
-    { "z",                                0x00000000c5e405e9ULL },
-    { "zz",                               0x00000000a8d8a2c6ULL },
-    { "zzz",                              0x00000000fc2af672ULL },
-    { "zzzzz",                            0x0000000047d9efe6ULL },
-    { "zzzzzzzz",                         0x0000000080d77794ULL },
-    { "zzzzzzzzzzzzz",                    0x00000000405f93adULL },
-    { "zzzzzzzzzzzzzzzzzzzzz",            0x00000000fc72838dULL },
-    { "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", 0x000000007ce160f1ULL },
-    { "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
-      "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
-      "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
-      "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
-      "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", 0x00000000aed9ed1bULL },
-    { "a",                                0x000000004605f745ULL },
-    { "ab",                               0x00000000d5f06301ULL },
-    { "aba",                              0x00000000a85cd91bULL },
-    { "ababa",                            0x000000009e3bb52eULL },
-    { "abababab",                         0x000000002709b3b9ULL },
-    { "ababababababa",                    0x000000003a234174ULL },
-    { "ababababababababababa",            0x000000005c63e5ceULL },
-    { "abababababababababababababababab", 0x0000000013f74334ULL },
-    { "abababababababababababababababab"
-      "abababababababababababababababab"
-      "abababababababababababababababab"
-      "abababababababababababababababab"
-      "abababababababababababababababab", 0x00000000c1a6f135ULL },
 #else
 #error This test only supports 64-bit and 32-bit systems.
 #endif
@@ -445,4 +421,36 @@ TEST(HashingTest, HashCombineArgs18) {
 #undef CHECK_SAME
 }
 
+struct StructWithHashBuilderSupport {
+  char C;
+  int I;
+  template <typename HasherT, llvm::support::endianness Endianness>
+  friend void addHash(llvm::HashBuilderImpl<HasherT, Endianness> &HBuilder,
+                      const StructWithHashBuilderSupport &Value) {
+    HBuilder.add(Value.C, Value.I);
+  }
+};
+
+TEST(HashingTest, HashWithHashBuilder) {
+  StructWithHashBuilderSupport S{'c', 1};
+  EXPECT_NE(static_cast<size_t>(llvm::hash_value(S)), static_cast<size_t>(0));
 }
+
+struct StructWithHashBuilderAndHashValueSupport {
+  char C;
+  int I;
+  template <typename HasherT, llvm::support::endianness Endianness>
+  friend void addHash(llvm::HashBuilderImpl<HasherT, Endianness> &HBuilder,
+                      const StructWithHashBuilderAndHashValueSupport &Value) {}
+  friend hash_code
+  hash_value(const StructWithHashBuilderAndHashValueSupport &Value) {
+    return 0xbeef;
+  }
+};
+
+TEST(HashingTest, HashBuilderAndHashValue) {
+  StructWithHashBuilderAndHashValueSupport S{'c', 1};
+  EXPECT_EQ(static_cast<size_t>(hash_value(S)), static_cast<size_t>(0xbeef));
+}
+
+} // namespace

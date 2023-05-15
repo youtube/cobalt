@@ -11,16 +11,16 @@ define i64 @foo(i64 %t, i64 %u) nounwind {
 ; X32-NEXT:    movl %ecx, %eax
 ; X32-NEXT:    mull %esi
 ; X32-NEXT:    imull {{[0-9]+}}(%esp), %ecx
-; X32-NEXT:    addl %ecx, %edx
 ; X32-NEXT:    imull {{[0-9]+}}(%esp), %esi
+; X32-NEXT:    addl %ecx, %esi
 ; X32-NEXT:    addl %esi, %edx
 ; X32-NEXT:    popl %esi
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: foo:
 ; X64:       # %bb.0:
-; X64-NEXT:    imulq %rsi, %rdi
 ; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    imulq %rsi, %rax
 ; X64-NEXT:    retq
   %k = mul i64 %t, %u
   ret i64 %k

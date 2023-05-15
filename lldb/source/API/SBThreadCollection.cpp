@@ -1,26 +1,30 @@
-//===-- SBThreadCollection.cpp ----------------------------------*- C++ -*-===//
+//===-- SBThreadCollection.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBThreadCollection.h"
 #include "lldb/API/SBThread.h"
 #include "lldb/Target/ThreadList.h"
+#include "lldb/Utility/Instrumentation.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBThreadCollection::SBThreadCollection() : m_opaque_sp() {}
+SBThreadCollection::SBThreadCollection() { LLDB_INSTRUMENT_VA(this); }
 
 SBThreadCollection::SBThreadCollection(const SBThreadCollection &rhs)
-    : m_opaque_sp(rhs.m_opaque_sp) {}
+    : m_opaque_sp(rhs.m_opaque_sp) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
 const SBThreadCollection &SBThreadCollection::
 operator=(const SBThreadCollection &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs)
     m_opaque_sp = rhs.m_opaque_sp;
   return *this;
@@ -29,7 +33,7 @@ operator=(const SBThreadCollection &rhs) {
 SBThreadCollection::SBThreadCollection(const ThreadCollectionSP &threads)
     : m_opaque_sp(threads) {}
 
-SBThreadCollection::~SBThreadCollection() {}
+SBThreadCollection::~SBThreadCollection() = default;
 
 void SBThreadCollection::SetOpaque(const lldb::ThreadCollectionSP &threads) {
   m_opaque_sp = threads;
@@ -51,15 +55,27 @@ const lldb::ThreadCollectionSP &SBThreadCollection::operator*() const {
   return m_opaque_sp;
 }
 
-bool SBThreadCollection::IsValid() const { return m_opaque_sp.get() != NULL; }
+bool SBThreadCollection::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBThreadCollection::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return m_opaque_sp.get() != nullptr;
+}
 
 size_t SBThreadCollection::GetSize() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (m_opaque_sp)
     return m_opaque_sp->GetSize();
   return 0;
 }
 
 SBThread SBThreadCollection::GetThreadAtIndex(size_t idx) {
+  LLDB_INSTRUMENT_VA(this, idx);
+
   SBThread thread;
   if (m_opaque_sp && idx < m_opaque_sp->GetSize())
     thread = m_opaque_sp->GetThreadAtIndex(idx);

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,10 +16,11 @@
 #include <set>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_iterators.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::multiset<int> M;
@@ -38,18 +38,18 @@ int main()
             3
         };
         M m;
-        m.insert(input_iterator<const V*>(ar),
-                 input_iterator<const V*>(ar + sizeof(ar)/sizeof(ar[0])));
+        m.insert(cpp17_input_iterator<const V*>(ar),
+                 cpp17_input_iterator<const V*>(ar + sizeof(ar)/sizeof(ar[0])));
         assert(m.size() == 9);
-        assert(*next(m.begin(), 0) == 1);
-        assert(*next(m.begin(), 1) == 1);
-        assert(*next(m.begin(), 2) == 1);
-        assert(*next(m.begin(), 3) == 2);
-        assert(*next(m.begin(), 4) == 2);
-        assert(*next(m.begin(), 5) == 2);
-        assert(*next(m.begin(), 6) == 3);
-        assert(*next(m.begin(), 7) == 3);
-        assert(*next(m.begin(), 8) == 3);
+        assert(*std::next(m.begin(), 0) == 1);
+        assert(*std::next(m.begin(), 1) == 1);
+        assert(*std::next(m.begin(), 2) == 1);
+        assert(*std::next(m.begin(), 3) == 2);
+        assert(*std::next(m.begin(), 4) == 2);
+        assert(*std::next(m.begin(), 5) == 2);
+        assert(*std::next(m.begin(), 6) == 3);
+        assert(*std::next(m.begin(), 7) == 3);
+        assert(*std::next(m.begin(), 8) == 3);
     }
 #if TEST_STD_VER >= 11
     {
@@ -68,18 +68,20 @@ int main()
             3
         };
         M m;
-        m.insert(input_iterator<const V*>(ar),
-                 input_iterator<const V*>(ar + sizeof(ar)/sizeof(ar[0])));
+        m.insert(cpp17_input_iterator<const V*>(ar),
+                 cpp17_input_iterator<const V*>(ar + sizeof(ar)/sizeof(ar[0])));
         assert(m.size() == 9);
-        assert(*next(m.begin(), 0) == 1);
-        assert(*next(m.begin(), 1) == 1);
-        assert(*next(m.begin(), 2) == 1);
-        assert(*next(m.begin(), 3) == 2);
-        assert(*next(m.begin(), 4) == 2);
-        assert(*next(m.begin(), 5) == 2);
-        assert(*next(m.begin(), 6) == 3);
-        assert(*next(m.begin(), 7) == 3);
-        assert(*next(m.begin(), 8) == 3);
+        assert(*std::next(m.begin(), 0) == 1);
+        assert(*std::next(m.begin(), 1) == 1);
+        assert(*std::next(m.begin(), 2) == 1);
+        assert(*std::next(m.begin(), 3) == 2);
+        assert(*std::next(m.begin(), 4) == 2);
+        assert(*std::next(m.begin(), 5) == 2);
+        assert(*std::next(m.begin(), 6) == 3);
+        assert(*std::next(m.begin(), 7) == 3);
+        assert(*std::next(m.begin(), 8) == 3);
     }
 #endif
+
+  return 0;
 }

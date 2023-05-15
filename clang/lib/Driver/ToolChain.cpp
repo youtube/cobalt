@@ -1,23 +1,23 @@
 //===- ToolChain.cpp - Collections of tools for one platform --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/ToolChain.h"
-#include "InputInfo.h"
 #include "ToolChains/Arch/ARM.h"
 #include "ToolChains/Clang.h"
+#include "ToolChains/Flang.h"
+#include "ToolChains/InterfaceStubs.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
-#include "clang/Basic/VirtualFileSystem.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Action.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
@@ -29,16 +29,18 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/MC/MCTargetOptions.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Option/Option.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetParser.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/VersionTuple.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -66,22 +68,52 @@ static ToolChain::RTTIMode CalculateRTTIMode(const ArgList &Args,
       return ToolChain::RM_Disabled;
   }
 
-  // -frtti is default, except for the PS4 CPU.
-  return (Triple.isPS4CPU()) ? ToolChain::RM_Disabled : ToolChain::RM_Enabled;
+  // -frtti is default, except for the PS4/PS5 and DriverKit.
+  bool NoRTTI = Triple.isPS() || Triple.isDriverKit();
+  return NoRTTI ? ToolChain::RM_Disabled : ToolChain::RM_Enabled;
 }
 
 ToolChain::ToolChain(const Driver &D, const llvm::Triple &T,
                      const ArgList &Args)
     : D(D), Triple(T), Args(Args), CachedRTTIArg(GetRTTIArgument(Args)),
       CachedRTTIMode(CalculateRTTIMode(Args, Triple, CachedRTTIArg)) {
-  SmallString<128> P(D.ResourceDir);
-  llvm::sys::path::append(P, D.getTargetTriple(), "lib");
-  if (getVFS().exists(P))
-    getFilePaths().push_back(P.str());
+  auto addIfExists = [this](path_list &List, const std::string &Path) {
+    if (getVFS().exists(Path))
+      List.push_back(Path);
+  };
 
-  std::string CandidateLibPath = getArchSpecificLibPath();
-  if (getVFS().exists(CandidateLibPath))
-    getFilePaths().push_back(CandidateLibPath);
+  for (const auto &Path : getRuntimePaths())
+    addIfExists(getLibraryPaths(), Path);
+  for (const auto &Path : getStdlibPaths())
+    addIfExists(getFilePaths(), Path);
+  addIfExists(getFilePaths(), getArchSpecificLibPath());
+}
+
+llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>>
+ToolChain::executeToolChainProgram(StringRef Executable) const {
+  llvm::SmallString<64> OutputFile;
+  llvm::sys::fs::createTemporaryFile("toolchain-program", "txt", OutputFile);
+  llvm::FileRemover OutputRemover(OutputFile.c_str());
+  std::optional<llvm::StringRef> Redirects[] = {
+      {""},
+      OutputFile.str(),
+      {""},
+  };
+
+  std::string ErrorMessage;
+  if (llvm::sys::ExecuteAndWait(Executable, {}, {}, Redirects,
+                                /* SecondsToWait */ 0,
+                                /*MemoryLimit*/ 0, &ErrorMessage))
+    return llvm::createStringError(std::error_code(),
+                                   Executable + ": " + ErrorMessage);
+
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> OutputBuf =
+      llvm::MemoryBuffer::getFile(OutputFile.c_str());
+  if (!OutputBuf)
+    return llvm::createStringError(OutputBuf.getError(),
+                                   "Failed to read stdout of " + Executable +
+                                       ": " + OutputBuf.getError().message());
+  return std::move(*OutputBuf);
 }
 
 void ToolChain::setTripleEnvironment(llvm::Triple::EnvironmentType Env) {
@@ -92,7 +124,9 @@ void ToolChain::setTripleEnvironment(llvm::Triple::EnvironmentType Env) {
 
 ToolChain::~ToolChain() = default;
 
-vfs::FileSystem &ToolChain::getVFS() const { return getDriver().getVFS(); }
+llvm::vfs::FileSystem &ToolChain::getVFS() const {
+  return getDriver().getVFS();
+}
 
 bool ToolChain::useIntegratedAs() const {
   return Args.hasFlag(options::OPT_fintegrated_as,
@@ -100,20 +134,53 @@ bool ToolChain::useIntegratedAs() const {
                       IsIntegratedAssemblerDefault());
 }
 
+bool ToolChain::useIntegratedBackend() const {
+  assert(
+      ((IsIntegratedBackendDefault() && IsIntegratedBackendSupported()) ||
+       (!IsIntegratedBackendDefault() || IsNonIntegratedBackendSupported())) &&
+      "(Non-)integrated backend set incorrectly!");
+
+  bool IBackend = Args.hasFlag(options::OPT_fintegrated_objemitter,
+                               options::OPT_fno_integrated_objemitter,
+                               IsIntegratedBackendDefault());
+
+  // Diagnose when integrated-objemitter options are not supported by this
+  // toolchain.
+  unsigned DiagID;
+  if ((IBackend && !IsIntegratedBackendSupported()) ||
+      (!IBackend && !IsNonIntegratedBackendSupported()))
+    DiagID = clang::diag::err_drv_unsupported_opt_for_target;
+  else
+    DiagID = clang::diag::warn_drv_unsupported_opt_for_target;
+  Arg *A = Args.getLastArg(options::OPT_fno_integrated_objemitter);
+  if (A && !IsNonIntegratedBackendSupported())
+    D.Diag(DiagID) << A->getAsString(Args) << Triple.getTriple();
+  A = Args.getLastArg(options::OPT_fintegrated_objemitter);
+  if (A && !IsIntegratedBackendSupported())
+    D.Diag(DiagID) << A->getAsString(Args) << Triple.getTriple();
+
+  return IBackend;
+}
+
 bool ToolChain::useRelaxRelocations() const {
   return ENABLE_X86_RELAX_RELOCATIONS;
 }
 
-const SanitizerArgs& ToolChain::getSanitizerArgs() const {
-  if (!SanitizerArguments.get())
-    SanitizerArguments.reset(new SanitizerArgs(*this, Args));
-  return *SanitizerArguments.get();
+bool ToolChain::defaultToIEEELongDouble() const {
+  return PPC_LINUX_DEFAULT_IEEELONGDOUBLE && getTriple().isOSLinux();
+}
+
+SanitizerArgs
+ToolChain::getSanitizerArgs(const llvm::opt::ArgList &JobArgs) const {
+  SanitizerArgs SanArgs(*this, JobArgs, !SanitizerArgsChecked);
+  SanitizerArgsChecked = true;
+  return SanArgs;
 }
 
 const XRayArgs& ToolChain::getXRayArgs() const {
-  if (!XRayArguments.get())
+  if (!XRayArguments)
     XRayArguments.reset(new XRayArgs(*this, Args));
-  return *XRayArguments.get();
+  return *XRayArguments;
 }
 
 namespace {
@@ -142,13 +209,15 @@ static const DriverSuffix *FindDriverSuffix(StringRef ProgName, size_t &Pos) {
       {"cpp", "--driver-mode=cpp"},
       {"cl", "--driver-mode=cl"},
       {"++", "--driver-mode=g++"},
+      {"flang", "--driver-mode=flang"},
+      {"clang-dxc", "--driver-mode=dxc"},
   };
 
-  for (size_t i = 0; i < llvm::array_lengthof(DriverSuffixes); ++i) {
-    StringRef Suffix(DriverSuffixes[i].Suffix);
+  for (const auto &DS : DriverSuffixes) {
+    StringRef Suffix(DS.Suffix);
     if (ProgName.endswith(Suffix)) {
       Pos = ProgName.size() - Suffix.size();
-      return &DriverSuffixes[i];
+      return &DS;
     }
   }
   return nullptr;
@@ -157,11 +226,12 @@ static const DriverSuffix *FindDriverSuffix(StringRef ProgName, size_t &Pos) {
 /// Normalize the program name from argv[0] by stripping the file extension if
 /// present and lower-casing the string on Windows.
 static std::string normalizeProgramName(llvm::StringRef Argv0) {
-  std::string ProgName = llvm::sys::path::stem(Argv0);
-#ifdef _WIN32
-  // Transform to lowercase for case insensitive file systems.
-  std::transform(ProgName.begin(), ProgName.end(), ProgName.begin(), ::tolower);
-#endif
+  std::string ProgName = std::string(llvm::sys::path::filename(Argv0));
+  if (is_style_windows(llvm::sys::path::Style::native)) {
+    // Transform to lowercase for case insensitive file systems.
+    std::transform(ProgName.begin(), ProgName.end(), ProgName.begin(),
+                   ::tolower);
+  }
   return ProgName;
 }
 
@@ -174,6 +244,13 @@ static const DriverSuffix *parseDriverSuffix(StringRef ProgName, size_t &Pos) {
   // prefix "x86_64-linux". If such a target prefix is found, it may be
   // added via -target as implicit first argument.
   const DriverSuffix *DS = FindDriverSuffix(ProgName, Pos);
+
+  if (!DS && ProgName.endswith(".exe")) {
+    // Try again after stripping the executable suffix:
+    // clang++.exe -> clang++
+    ProgName = ProgName.drop_back(StringRef(".exe").size());
+    DS = FindDriverSuffix(ProgName, Pos);
+  }
 
   if (!DS) {
     // Try again after stripping any trailing version number:
@@ -210,18 +287,28 @@ ToolChain::getTargetAndModeFromProgramName(StringRef PN) {
   StringRef Prefix(ProgName);
   Prefix = Prefix.slice(0, LastComponent);
   std::string IgnoredError;
-  bool IsRegistered = llvm::TargetRegistry::lookupTarget(Prefix, IgnoredError);
-  return ParsedClangName{Prefix, ModeSuffix, DS->ModeFlag, IsRegistered};
+  bool IsRegistered =
+      llvm::TargetRegistry::lookupTarget(std::string(Prefix), IgnoredError);
+  return ParsedClangName{std::string(Prefix), ModeSuffix, DS->ModeFlag,
+                         IsRegistered};
 }
 
 StringRef ToolChain::getDefaultUniversalArchName() const {
   // In universal driver terms, the arch name accepted by -arch isn't exactly
   // the same as the ones that appear in the triple. Roughly speaking, this is
-  // an inverse of the darwin::getArchTypeForDarwinArchName() function, but the
-  // only interesting special case is powerpc.
+  // an inverse of the darwin::getArchTypeForDarwinArchName() function.
   switch (Triple.getArch()) {
+  case llvm::Triple::aarch64: {
+    if (getTriple().isArm64e())
+      return "arm64e";
+    return "arm64";
+  }
+  case llvm::Triple::aarch64_32:
+    return "arm64_32";
   case llvm::Triple::ppc:
     return "ppc";
+  case llvm::Triple::ppcle:
+    return "ppcle";
   case llvm::Triple::ppc64:
     return "ppc64";
   case llvm::Triple::ppc64le:
@@ -235,14 +322,21 @@ std::string ToolChain::getInputFilename(const InputInfo &Input) const {
   return Input.getFilename();
 }
 
-bool ToolChain::IsUnwindTablesDefault(const ArgList &Args) const {
-  return false;
+ToolChain::UnwindTableLevel
+ToolChain::getDefaultUnwindTableLevel(const ArgList &Args) const {
+  return UnwindTableLevel::None;
 }
 
 Tool *ToolChain::getClang() const {
   if (!Clang)
-    Clang.reset(new tools::Clang(*this));
+    Clang.reset(new tools::Clang(*this, useIntegratedBackend()));
   return Clang.get();
+}
+
+Tool *ToolChain::getFlang() const {
+  if (!Flang)
+    Flang.reset(new tools::Flang(*this));
+  return Flang.get();
 }
 
 Tool *ToolChain::buildAssembler() const {
@@ -251,6 +345,10 @@ Tool *ToolChain::buildAssembler() const {
 
 Tool *ToolChain::buildLinker() const {
   llvm_unreachable("Linking is not supported by this toolchain");
+}
+
+Tool *ToolChain::buildStaticLibTool() const {
+  llvm_unreachable("Creating static lib is not supported by this toolchain");
 }
 
 Tool *ToolChain::getAssemble() const {
@@ -271,10 +369,34 @@ Tool *ToolChain::getLink() const {
   return Link.get();
 }
 
+Tool *ToolChain::getStaticLibTool() const {
+  if (!StaticLibTool)
+    StaticLibTool.reset(buildStaticLibTool());
+  return StaticLibTool.get();
+}
+
+Tool *ToolChain::getIfsMerge() const {
+  if (!IfsMerge)
+    IfsMerge.reset(new tools::ifstool::Merger(*this));
+  return IfsMerge.get();
+}
+
 Tool *ToolChain::getOffloadBundler() const {
   if (!OffloadBundler)
     OffloadBundler.reset(new tools::OffloadBundler(*this));
   return OffloadBundler.get();
+}
+
+Tool *ToolChain::getOffloadPackager() const {
+  if (!OffloadPackager)
+    OffloadPackager.reset(new tools::OffloadPackager(*this));
+  return OffloadPackager.get();
+}
+
+Tool *ToolChain::getLinkerWrapper() const {
+  if (!LinkerWrapper)
+    LinkerWrapper.reset(new tools::LinkerWrapper(*this, getLink()));
+  return LinkerWrapper.get();
 }
 
 Tool *ToolChain::getTool(Action::ActionClass AC) const {
@@ -282,8 +404,14 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::AssembleJobClass:
     return getAssemble();
 
+  case Action::IfsMergeJobClass:
+    return getIfsMerge();
+
   case Action::LinkJobClass:
     return getLink();
+
+  case Action::StaticLibJobClass:
+    return getStaticLibTool();
 
   case Action::InputClass:
   case Action::BindArchClass:
@@ -296,6 +424,7 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::CompileJobClass:
   case Action::PrecompileJobClass:
   case Action::PreprocessJobClass:
+  case Action::ExtractAPIJobClass:
   case Action::AnalyzeJobClass:
   case Action::MigrateJobClass:
   case Action::VerifyPCHJobClass:
@@ -305,6 +434,11 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::OffloadBundlingJobClass:
   case Action::OffloadUnbundlingJobClass:
     return getOffloadBundler();
+
+  case Action::OffloadPackagerJobClass:
+    return getOffloadPackager();
+  case Action::LinkerWrapperJobClass:
+    return getLinkerWrapper();
   }
 
   llvm_unreachable("Invalid tool kind.");
@@ -315,6 +449,9 @@ static StringRef getArchNameForCompilerRTLib(const ToolChain &TC,
   const llvm::Triple &Triple = TC.getTriple();
   bool IsWindows = Triple.isOSWindows();
 
+  if (TC.isBareMetal())
+    return Triple.getArchName();
+
   if (TC.getArch() == llvm::Triple::arm || TC.getArch() == llvm::Triple::armeb)
     return (arm::getARMFloatABI(TC, Args) == arm::FloatABI::Hard && !IsWindows)
                ? "armhf"
@@ -324,10 +461,16 @@ static StringRef getArchNameForCompilerRTLib(const ToolChain &TC,
   if (TC.getArch() == llvm::Triple::x86 && Triple.isAndroid())
     return "i686";
 
+  if (TC.getArch() == llvm::Triple::x86_64 && Triple.isX32())
+    return "x32";
+
   return llvm::Triple::getArchTypeName(TC.getArch());
 }
 
 StringRef ToolChain::getOSLibName() const {
+  if (Triple.isOSDarwin())
+    return "darwin";
+
   switch (Triple.getOS()) {
   case llvm::Triple::FreeBSD:
     return "freebsd";
@@ -337,6 +480,8 @@ StringRef ToolChain::getOSLibName() const {
     return "openbsd";
   case llvm::Triple::Solaris:
     return "sunos";
+  case llvm::Triple::AIX:
+    return "aix";
   default:
     return getOS();
   }
@@ -344,68 +489,145 @@ StringRef ToolChain::getOSLibName() const {
 
 std::string ToolChain::getCompilerRTPath() const {
   SmallString<128> Path(getDriver().ResourceDir);
-  if (Triple.isOSUnknown()) {
+  if (isBareMetal()) {
+    llvm::sys::path::append(Path, "lib", getOSLibName());
+    Path += SelectedMultilib.gccSuffix();
+  } else if (Triple.isOSUnknown()) {
     llvm::sys::path::append(Path, "lib");
   } else {
     llvm::sys::path::append(Path, "lib", getOSLibName());
   }
-  return Path.str();
+  return std::string(Path.str());
 }
 
-std::string ToolChain::getCompilerRT(const ArgList &Args, StringRef Component,
-                                     bool Shared) const {
+std::string ToolChain::getCompilerRTBasename(const ArgList &Args,
+                                             StringRef Component,
+                                             FileType Type) const {
+  std::string CRTAbsolutePath = getCompilerRT(Args, Component, Type);
+  return llvm::sys::path::filename(CRTAbsolutePath).str();
+}
+
+std::string ToolChain::buildCompilerRTBasename(const llvm::opt::ArgList &Args,
+                                               StringRef Component,
+                                               FileType Type,
+                                               bool AddArch) const {
   const llvm::Triple &TT = getTriple();
   bool IsITANMSVCWindows =
       TT.isWindowsMSVCEnvironment() || TT.isWindowsItaniumEnvironment();
 
-  const char *Prefix = IsITANMSVCWindows ? "" : "lib";
-  const char *Suffix = Shared ? (Triple.isOSWindows() ? ".dll" : ".so")
-                              : (IsITANMSVCWindows ? ".lib" : ".a");
-
-  const Driver &D = getDriver();
-  SmallString<128> P(D.ResourceDir);
-  llvm::sys::path::append(P, D.getTargetTriple(), "lib");
-  if (getVFS().exists(P)) {
-    llvm::sys::path::append(P, Prefix + Twine("clang_rt.") + Component + Suffix);
-    return P.str();
+  const char *Prefix =
+      IsITANMSVCWindows || Type == ToolChain::FT_Object ? "" : "lib";
+  const char *Suffix;
+  switch (Type) {
+  case ToolChain::FT_Object:
+    Suffix = IsITANMSVCWindows ? ".obj" : ".o";
+    break;
+  case ToolChain::FT_Static:
+    Suffix = IsITANMSVCWindows ? ".lib" : ".a";
+    break;
+  case ToolChain::FT_Shared:
+    Suffix = TT.isOSWindows()
+                 ? (TT.isWindowsGNUEnvironment() ? ".dll.a" : ".lib")
+                 : ".so";
+    break;
   }
 
-  StringRef Arch = getArchNameForCompilerRTLib(*this, Args);
-  const char *Env = TT.isAndroid() ? "-android" : "";
+  std::string ArchAndEnv;
+  if (AddArch) {
+    StringRef Arch = getArchNameForCompilerRTLib(*this, Args);
+    const char *Env = TT.isAndroid() ? "-android" : "";
+    ArchAndEnv = ("-" + Arch + Env).str();
+  }
+  return (Prefix + Twine("clang_rt.") + Component + ArchAndEnv + Suffix).str();
+}
+
+std::string ToolChain::getCompilerRT(const ArgList &Args, StringRef Component,
+                                     FileType Type) const {
+  // Check for runtime files in the new layout without the architecture first.
+  std::string CRTBasename =
+      buildCompilerRTBasename(Args, Component, Type, /*AddArch=*/false);
+  for (const auto &LibPath : getLibraryPaths()) {
+    SmallString<128> P(LibPath);
+    llvm::sys::path::append(P, CRTBasename);
+    if (getVFS().exists(P))
+      return std::string(P.str());
+  }
+
+  // Fall back to the old expected compiler-rt name if the new one does not
+  // exist.
+  CRTBasename =
+      buildCompilerRTBasename(Args, Component, Type, /*AddArch=*/true);
   SmallString<128> Path(getCompilerRTPath());
-  llvm::sys::path::append(Path, Prefix + Twine("clang_rt.") + Component + "-" +
-                                    Arch + Env + Suffix);
-  return Path.str();
+  llvm::sys::path::append(Path, CRTBasename);
+  return std::string(Path.str());
 }
 
 const char *ToolChain::getCompilerRTArgString(const llvm::opt::ArgList &Args,
                                               StringRef Component,
-                                              bool Shared) const {
-  return Args.MakeArgString(getCompilerRT(Args, Component, Shared));
+                                              FileType Type) const {
+  return Args.MakeArgString(getCompilerRT(Args, Component, Type));
+}
+
+ToolChain::path_list ToolChain::getRuntimePaths() const {
+  path_list Paths;
+  auto addPathForTriple = [this, &Paths](const llvm::Triple &Triple) {
+    SmallString<128> P(D.ResourceDir);
+    llvm::sys::path::append(P, "lib", Triple.str());
+    Paths.push_back(std::string(P.str()));
+  };
+
+  addPathForTriple(getTriple());
+
+  // Android targets may include an API level at the end. We still want to fall
+  // back on a path without the API level.
+  if (getTriple().isAndroid() &&
+      getTriple().getEnvironmentName() != "android") {
+    llvm::Triple TripleWithoutLevel = getTriple();
+    TripleWithoutLevel.setEnvironmentName("android");
+    addPathForTriple(TripleWithoutLevel);
+  }
+
+  return Paths;
+}
+
+ToolChain::path_list ToolChain::getStdlibPaths() const {
+  path_list Paths;
+  SmallString<128> P(D.Dir);
+  llvm::sys::path::append(P, "..", "lib", getTripleString());
+  Paths.push_back(std::string(P.str()));
+
+  return Paths;
 }
 
 std::string ToolChain::getArchSpecificLibPath() const {
   SmallString<128> Path(getDriver().ResourceDir);
   llvm::sys::path::append(Path, "lib", getOSLibName(),
                           llvm::Triple::getArchTypeName(getArch()));
-  return Path.str();
+  return std::string(Path.str());
 }
 
 bool ToolChain::needsProfileRT(const ArgList &Args) {
-  if (Args.hasFlag(options::OPT_fprofile_arcs, options::OPT_fno_profile_arcs,
-                   false) ||
-      Args.hasArg(options::OPT_fprofile_generate) ||
-      Args.hasArg(options::OPT_fprofile_generate_EQ) ||
-      Args.hasArg(options::OPT_fprofile_instr_generate) ||
-      Args.hasArg(options::OPT_fprofile_instr_generate_EQ) ||
-      Args.hasArg(options::OPT_fcreate_profile) ||
-      Args.hasArg(options::OPT_coverage))
-    return true;
+  if (Args.hasArg(options::OPT_noprofilelib))
+    return false;
 
-  return false;
+  return Args.hasArg(options::OPT_fprofile_generate) ||
+         Args.hasArg(options::OPT_fprofile_generate_EQ) ||
+         Args.hasArg(options::OPT_fcs_profile_generate) ||
+         Args.hasArg(options::OPT_fcs_profile_generate_EQ) ||
+         Args.hasArg(options::OPT_fprofile_instr_generate) ||
+         Args.hasArg(options::OPT_fprofile_instr_generate_EQ) ||
+         Args.hasArg(options::OPT_fcreate_profile) ||
+         Args.hasArg(options::OPT_forder_file_instrumentation);
+}
+
+bool ToolChain::needsGCovInstrumentation(const llvm::opt::ArgList &Args) {
+  return Args.hasArg(options::OPT_coverage) ||
+         Args.hasFlag(options::OPT_fprofile_arcs, options::OPT_fno_profile_arcs,
+                      false);
 }
 
 Tool *ToolChain::SelectTool(const JobAction &JA) const {
+  if (D.IsFlangMode() && getDriver().ShouldUseFlangCompiler(JA)) return getFlang();
   if (getDriver().ShouldUseClangCompiler(JA)) return getClang();
   Action::ActionClass AC = JA.getKind();
   if (AC == Action::AssembleJobClass && useIntegratedAs())
@@ -421,19 +643,56 @@ std::string ToolChain::GetProgramPath(const char *Name) const {
   return D.GetProgramPath(Name, *this);
 }
 
-std::string ToolChain::GetLinkerPath() const {
+std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
+  if (LinkerIsLLD)
+    *LinkerIsLLD = false;
+
+  // Get -fuse-ld= first to prevent -Wunused-command-line-argument. -fuse-ld= is
+  // considered as the linker flavor, e.g. "bfd", "gold", or "lld".
   const Arg* A = Args.getLastArg(options::OPT_fuse_ld_EQ);
   StringRef UseLinker = A ? A->getValue() : CLANG_DEFAULT_LINKER;
+
+  // --ld-path= takes precedence over -fuse-ld= and specifies the executable
+  // name. -B, COMPILER_PATH and PATH and consulted if the value does not
+  // contain a path component separator.
+  // -fuse-ld=lld can be used with --ld-path= to inform clang that the binary
+  // that --ld-path= points to is lld.
+  if (const Arg *A = Args.getLastArg(options::OPT_ld_path_EQ)) {
+    std::string Path(A->getValue());
+    if (!Path.empty()) {
+      if (llvm::sys::path::parent_path(Path).empty())
+        Path = GetProgramPath(A->getValue());
+      if (llvm::sys::fs::can_execute(Path)) {
+        if (LinkerIsLLD)
+          *LinkerIsLLD = UseLinker == "lld";
+        return std::string(Path);
+      }
+    }
+    getDriver().Diag(diag::err_drv_invalid_linker_name) << A->getAsString(Args);
+    return GetProgramPath(getDefaultLinker());
+  }
+  // If we're passed -fuse-ld= with no argument, or with the argument ld,
+  // then use whatever the default system linker is.
+  if (UseLinker.empty() || UseLinker == "ld") {
+    const char *DefaultLinker = getDefaultLinker();
+    if (llvm::sys::path::is_absolute(DefaultLinker))
+      return std::string(DefaultLinker);
+    else
+      return GetProgramPath(DefaultLinker);
+  }
+
+  // Extending -fuse-ld= to an absolute or relative path is unexpected. Checking
+  // for the linker flavor is brittle. In addition, prepending "ld." or "ld64."
+  // to a relative path is surprising. This is more complex due to priorities
+  // among -B, COMPILER_PATH and PATH. --ld-path= should be used instead.
+  if (UseLinker.contains('/'))
+    getDriver().Diag(diag::warn_drv_fuse_ld_path);
 
   if (llvm::sys::path::is_absolute(UseLinker)) {
     // If we're passed what looks like an absolute path, don't attempt to
     // second-guess that.
     if (llvm::sys::fs::can_execute(UseLinker))
-      return UseLinker;
-  } else if (UseLinker.empty() || UseLinker == "ld") {
-    // If we're passed -fuse-ld= with no argument, or with the argument ld,
-    // then use whatever the default system linker is.
-    return GetProgramPath(getDefaultLinker());
+      return std::string(UseLinker);
   } else {
     llvm::SmallString<8> LinkerName;
     if (Triple.isOSDarwin())
@@ -443,8 +702,11 @@ std::string ToolChain::GetLinkerPath() const {
     LinkerName.append(UseLinker);
 
     std::string LinkerPath(GetProgramPath(LinkerName.c_str()));
-    if (llvm::sys::fs::can_execute(LinkerPath))
+    if (llvm::sys::fs::can_execute(LinkerPath)) {
+      if (LinkerIsLLD)
+        *LinkerIsLLD = UseLinker == "lld";
       return LinkerPath;
+    }
   }
 
   if (A)
@@ -453,8 +715,23 @@ std::string ToolChain::GetLinkerPath() const {
   return GetProgramPath(getDefaultLinker());
 }
 
+std::string ToolChain::GetStaticLibToolPath() const {
+  // TODO: Add support for static lib archiving on Windows
+  if (Triple.isOSDarwin())
+    return GetProgramPath("libtool");
+  return GetProgramPath("llvm-ar");
+}
+
 types::ID ToolChain::LookupTypeForExtension(StringRef Ext) const {
-  return types::lookupTypeForExtension(Ext);
+  types::ID id = types::lookupTypeForExtension(Ext);
+
+  // Flang always runs the preprocessor and has no notion of "preprocessed
+  // fortran". Here, TY_PP_Fortran is coerced to TY_Fortran to avoid treating
+  // them differently.
+  if (D.IsFlangMode() && id == types::TY_PP_Fortran)
+    id = types::TY_Fortran;
+
+  return id;
 }
 
 bool ToolChain::HasNativeLLVMSupport() const {
@@ -493,9 +770,7 @@ bool ToolChain::isThreadModelSupported(const StringRef Model) const {
     return Triple.getArch() == llvm::Triple::arm ||
            Triple.getArch() == llvm::Triple::armeb ||
            Triple.getArch() == llvm::Triple::thumb ||
-           Triple.getArch() == llvm::Triple::thumbeb ||
-           Triple.getArch() == llvm::Triple::wasm32 ||
-           Triple.getArch() == llvm::Triple::wasm64;
+           Triple.getArch() == llvm::Triple::thumbeb || Triple.isWasm();
   } else if (Model == "posix")
     return true;
 
@@ -527,97 +802,24 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
     if (!Triple.isOSBinFormatMachO())
       return getTripleString();
 
+    if (Triple.isArm64e())
+      return getTripleString();
+
     // FIXME: older versions of ld64 expect the "arm64" component in the actual
     // triple string and query it to determine whether an LTO file can be
     // handled. Remove this when we don't care any more.
     Triple.setArchName("arm64");
     return Triple.getTriple();
   }
+  case llvm::Triple::aarch64_32:
+    return getTripleString();
   case llvm::Triple::arm:
   case llvm::Triple::armeb:
   case llvm::Triple::thumb:
   case llvm::Triple::thumbeb: {
-    // FIXME: Factor into subclasses.
     llvm::Triple Triple = getTriple();
-    bool IsBigEndian = getTriple().getArch() == llvm::Triple::armeb ||
-                       getTriple().getArch() == llvm::Triple::thumbeb;
-
-    // Handle pseudo-target flags '-mlittle-endian'/'-EL' and
-    // '-mbig-endian'/'-EB'.
-    if (Arg *A = Args.getLastArg(options::OPT_mlittle_endian,
-                                 options::OPT_mbig_endian)) {
-      IsBigEndian = !A->getOption().matches(options::OPT_mlittle_endian);
-    }
-
-    // Thumb2 is the default for V7 on Darwin.
-    //
-    // FIXME: Thumb should just be another -target-feaure, not in the triple.
-    StringRef MCPU, MArch;
-    if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
-      MCPU = A->getValue();
-    if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
-      MArch = A->getValue();
-    std::string CPU =
-        Triple.isOSBinFormatMachO()
-            ? tools::arm::getARMCPUForMArch(MArch, Triple).str()
-            : tools::arm::getARMTargetCPU(MCPU, MArch, Triple);
-    StringRef Suffix =
-      tools::arm::getLLVMArchSuffixForARM(CPU, MArch, Triple);
-    bool IsMProfile = ARM::parseArchProfile(Suffix) == ARM::ProfileKind::M;
-    bool ThumbDefault = IsMProfile || (ARM::parseArchVersion(Suffix) == 7 &&
-                                       getTriple().isOSBinFormatMachO());
-    // FIXME: this is invalid for WindowsCE
-    if (getTriple().isOSWindows())
-      ThumbDefault = true;
-    std::string ArchName;
-    if (IsBigEndian)
-      ArchName = "armeb";
-    else
-      ArchName = "arm";
-
-    // Check if ARM ISA was explicitly selected (using -mno-thumb or -marm) for
-    // M-Class CPUs/architecture variants, which is not supported.
-    bool ARMModeRequested = !Args.hasFlag(options::OPT_mthumb,
-                                          options::OPT_mno_thumb, ThumbDefault);
-    if (IsMProfile && ARMModeRequested) {
-      if (!MCPU.empty())
-        getDriver().Diag(diag::err_cpu_unsupported_isa) << CPU << "ARM";
-       else
-        getDriver().Diag(diag::err_arch_unsupported_isa)
-          << tools::arm::getARMArch(MArch, getTriple()) << "ARM";
-    }
-
-    // Check to see if an explicit choice to use thumb has been made via
-    // -mthumb. For assembler files we must check for -mthumb in the options
-    // passed to the assember via -Wa or -Xassembler.
-    bool IsThumb = false;
-    if (InputType != types::TY_PP_Asm)
-      IsThumb = Args.hasFlag(options::OPT_mthumb, options::OPT_mno_thumb,
-                              ThumbDefault);
-    else {
-      // Ideally we would check for these flags in
-      // CollectArgsForIntegratedAssembler but we can't change the ArchName at
-      // that point. There is no assembler equivalent of -mno-thumb, -marm, or
-      // -mno-arm.
-      for (const auto *A :
-           Args.filtered(options::OPT_Wa_COMMA, options::OPT_Xassembler)) {
-        for (StringRef Value : A->getValues()) {
-          if (Value == "-mthumb")
-            IsThumb = true;
-        }
-      }
-    }
-    // Assembly files should start in ARM mode, unless arch is M-profile, or
-    // -mthumb has been passed explicitly to the assembler. Windows is always
-    // thumb.
-    if (IsThumb || IsMProfile || getTriple().isOSWindows()) {
-      if (IsBigEndian)
-        ArchName = "thumbeb";
-      else
-        ArchName = "thumb";
-    }
-    Triple.setArchName(ArchName + Suffix.str());
-
+    tools::arm::setArchNameInTriple(getDriver(), Args, InputType, Triple);
+    tools::arm::setFloatABIInTriple(getDriver(), Args, Triple);
     return Triple.getTriple();
   }
   }
@@ -626,6 +828,10 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
 std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args,
                                                    types::ID InputType) const {
   return ComputeLLVMTriple(Args, InputType);
+}
+
+std::string ToolChain::computeSysRoot() const {
+  return D.SysRoot;
 }
 
 void ToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
@@ -637,50 +843,104 @@ void ToolChain::addClangTargetOptions(
     const ArgList &DriverArgs, ArgStringList &CC1Args,
     Action::OffloadKind DeviceOffloadKind) const {}
 
+void ToolChain::addClangCC1ASTargetOptions(const ArgList &Args,
+                                           ArgStringList &CC1ASArgs) const {}
+
 void ToolChain::addClangWarningOptions(ArgStringList &CC1Args) const {}
 
 void ToolChain::addProfileRTLibs(const llvm::opt::ArgList &Args,
                                  llvm::opt::ArgStringList &CmdArgs) const {
-  if (!needsProfileRT(Args)) return;
+  if (!needsProfileRT(Args) && !needsGCovInstrumentation(Args))
+    return;
 
   CmdArgs.push_back(getCompilerRTArgString(Args, "profile"));
 }
 
 ToolChain::RuntimeLibType ToolChain::GetRuntimeLibType(
     const ArgList &Args) const {
+  if (runtimeLibType)
+    return *runtimeLibType;
+
   const Arg* A = Args.getLastArg(options::OPT_rtlib_EQ);
   StringRef LibName = A ? A->getValue() : CLANG_DEFAULT_RTLIB;
 
   // Only use "platform" in tests to override CLANG_DEFAULT_RTLIB!
   if (LibName == "compiler-rt")
-    return ToolChain::RLT_CompilerRT;
+    runtimeLibType = ToolChain::RLT_CompilerRT;
   else if (LibName == "libgcc")
-    return ToolChain::RLT_Libgcc;
+    runtimeLibType = ToolChain::RLT_Libgcc;
   else if (LibName == "platform")
-    return GetDefaultRuntimeLibType();
+    runtimeLibType = GetDefaultRuntimeLibType();
+  else {
+    if (A)
+      getDriver().Diag(diag::err_drv_invalid_rtlib_name)
+          << A->getAsString(Args);
 
-  if (A)
-    getDriver().Diag(diag::err_drv_invalid_rtlib_name) << A->getAsString(Args);
+    runtimeLibType = GetDefaultRuntimeLibType();
+  }
 
-  return GetDefaultRuntimeLibType();
+  return *runtimeLibType;
+}
+
+ToolChain::UnwindLibType ToolChain::GetUnwindLibType(
+    const ArgList &Args) const {
+  if (unwindLibType)
+    return *unwindLibType;
+
+  const Arg *A = Args.getLastArg(options::OPT_unwindlib_EQ);
+  StringRef LibName = A ? A->getValue() : CLANG_DEFAULT_UNWINDLIB;
+
+  if (LibName == "none")
+    unwindLibType = ToolChain::UNW_None;
+  else if (LibName == "platform" || LibName == "") {
+    ToolChain::RuntimeLibType RtLibType = GetRuntimeLibType(Args);
+    if (RtLibType == ToolChain::RLT_CompilerRT) {
+      if (getTriple().isAndroid() || getTriple().isOSAIX())
+        unwindLibType = ToolChain::UNW_CompilerRT;
+      else
+        unwindLibType = ToolChain::UNW_None;
+    } else if (RtLibType == ToolChain::RLT_Libgcc)
+      unwindLibType = ToolChain::UNW_Libgcc;
+  } else if (LibName == "libunwind") {
+    if (GetRuntimeLibType(Args) == RLT_Libgcc)
+      getDriver().Diag(diag::err_drv_incompatible_unwindlib);
+    unwindLibType = ToolChain::UNW_CompilerRT;
+  } else if (LibName == "libgcc")
+    unwindLibType = ToolChain::UNW_Libgcc;
+  else {
+    if (A)
+      getDriver().Diag(diag::err_drv_invalid_unwindlib_name)
+          << A->getAsString(Args);
+
+    unwindLibType = GetDefaultUnwindLibType();
+  }
+
+  return *unwindLibType;
 }
 
 ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
+  if (cxxStdlibType)
+    return *cxxStdlibType;
+
   const Arg *A = Args.getLastArg(options::OPT_stdlib_EQ);
   StringRef LibName = A ? A->getValue() : CLANG_DEFAULT_CXX_STDLIB;
 
   // Only use "platform" in tests to override CLANG_DEFAULT_CXX_STDLIB!
   if (LibName == "libc++")
-    return ToolChain::CST_Libcxx;
+    cxxStdlibType = ToolChain::CST_Libcxx;
   else if (LibName == "libstdc++")
-    return ToolChain::CST_Libstdcxx;
+    cxxStdlibType = ToolChain::CST_Libstdcxx;
   else if (LibName == "platform")
-    return GetDefaultCXXStdlibType();
+    cxxStdlibType = GetDefaultCXXStdlibType();
+  else {
+    if (A)
+      getDriver().Diag(diag::err_drv_invalid_stdlib_name)
+          << A->getAsString(Args);
 
-  if (A)
-    getDriver().Diag(diag::err_drv_invalid_stdlib_name) << A->getAsString(Args);
+    cxxStdlibType = GetDefaultCXXStdlibType();
+  }
 
-  return GetDefaultCXXStdlibType();
+  return *cxxStdlibType;
 }
 
 /// Utility function to add a system include directory to CC1 arguments.
@@ -717,10 +977,41 @@ void ToolChain::addExternCSystemIncludeIfExists(const ArgList &DriverArgs,
 /*static*/ void ToolChain::addSystemIncludes(const ArgList &DriverArgs,
                                              ArgStringList &CC1Args,
                                              ArrayRef<StringRef> Paths) {
-  for (const auto Path : Paths) {
+  for (const auto &Path : Paths) {
     CC1Args.push_back("-internal-isystem");
     CC1Args.push_back(DriverArgs.MakeArgString(Path));
   }
+}
+
+/*static*/ std::string ToolChain::concat(StringRef Path, const Twine &A,
+                                         const Twine &B, const Twine &C,
+                                         const Twine &D) {
+  SmallString<128> Result(Path);
+  llvm::sys::path::append(Result, llvm::sys::path::Style::posix, A, B, C, D);
+  return std::string(Result);
+}
+
+std::string ToolChain::detectLibcxxVersion(StringRef IncludePath) const {
+  std::error_code EC;
+  int MaxVersion = 0;
+  std::string MaxVersionString;
+  SmallString<128> Path(IncludePath);
+  llvm::sys::path::append(Path, "c++");
+  for (llvm::vfs::directory_iterator LI = getVFS().dir_begin(Path, EC), LE;
+       !EC && LI != LE; LI = LI.increment(EC)) {
+    StringRef VersionText = llvm::sys::path::filename(LI->path());
+    int Version;
+    if (VersionText[0] == 'v' &&
+        !VersionText.slice(1, StringRef::npos).getAsInteger(10, Version)) {
+      if (Version > MaxVersion) {
+        MaxVersion = Version;
+        MaxVersionString = std::string(VersionText);
+      }
+    }
+  }
+  if (!MaxVersion)
+    return "";
+  return MaxVersionString;
 }
 
 void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
@@ -735,6 +1026,24 @@ void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
   // header search paths with it. Once all systems are overriding this
   // function, the CC1 flag and this line can be removed.
   DriverArgs.AddAllArgs(CC1Args, options::OPT_stdlib_EQ);
+}
+
+void ToolChain::AddClangCXXStdlibIsystemArgs(
+    const llvm::opt::ArgList &DriverArgs,
+    llvm::opt::ArgStringList &CC1Args) const {
+  DriverArgs.ClaimAllArgs(options::OPT_stdlibxx_isystem);
+  // This intentionally only looks at -nostdinc++, and not -nostdinc or
+  // -nostdlibinc. The purpose of -stdlib++-isystem is to support toolchain
+  // setups with non-standard search logic for the C++ headers, while still
+  // allowing users of the toolchain to bring their own C++ headers. Such a
+  // toolchain likely also has non-standard search logic for the C headers and
+  // uses -nostdinc to suppress the default logic, but -stdlib++-isystem should
+  // still work in that case and only be suppressed by an explicit -nostdinc++
+  // in a project using the toolchain.
+  if (!DriverArgs.hasArg(options::OPT_nostdincxx))
+    for (const auto &P :
+         DriverArgs.getAllArgValues(options::OPT_stdlibxx_isystem))
+      addSystemInclude(DriverArgs, CC1Args, P);
 }
 
 bool ToolChain::ShouldLinkCXXStdlib(const llvm::opt::ArgList &Args) const {
@@ -752,6 +1061,8 @@ void ToolChain::AddCXXStdlibLibArgs(const ArgList &Args,
   switch (Type) {
   case ToolChain::CST_Libcxx:
     CmdArgs.push_back("-lc++");
+    if (Args.hasArg(options::OPT_fexperimental_library))
+      CmdArgs.push_back("-lc++experimental");
     break;
 
   case ToolChain::CST_Libstdcxx:
@@ -772,54 +1083,77 @@ void ToolChain::AddCCKextLibArgs(const ArgList &Args,
   CmdArgs.push_back("-lcc_kext");
 }
 
-bool ToolChain::AddFastMathRuntimeIfAvailable(const ArgList &Args,
-                                              ArgStringList &CmdArgs) const {
+bool ToolChain::isFastMathRuntimeAvailable(const ArgList &Args,
+                                           std::string &Path) const {
   // Do not check for -fno-fast-math or -fno-unsafe-math when -Ofast passed
   // (to keep the linker options consistent with gcc and clang itself).
   if (!isOptimizationLevelFast(Args)) {
     // Check if -ffast-math or -funsafe-math.
     Arg *A =
-        Args.getLastArg(options::OPT_ffast_math, options::OPT_fno_fast_math,
-                        options::OPT_funsafe_math_optimizations,
-                        options::OPT_fno_unsafe_math_optimizations);
+      Args.getLastArg(options::OPT_ffast_math, options::OPT_fno_fast_math,
+                      options::OPT_funsafe_math_optimizations,
+                      options::OPT_fno_unsafe_math_optimizations);
 
     if (!A || A->getOption().getID() == options::OPT_fno_fast_math ||
         A->getOption().getID() == options::OPT_fno_unsafe_math_optimizations)
       return false;
   }
   // If crtfastmath.o exists add it to the arguments.
-  std::string Path = GetFilePath("crtfastmath.o");
-  if (Path == "crtfastmath.o") // Not found.
-    return false;
+  Path = GetFilePath("crtfastmath.o");
+  return (Path != "crtfastmath.o"); // Not found.
+}
 
-  CmdArgs.push_back(Args.MakeArgString(Path));
-  return true;
+bool ToolChain::addFastMathRuntimeIfAvailable(const ArgList &Args,
+                                              ArgStringList &CmdArgs) const {
+  std::string Path;
+  if (isFastMathRuntimeAvailable(Args, Path)) {
+    CmdArgs.push_back(Args.MakeArgString(Path));
+    return true;
+  }
+
+  return false;
+}
+
+Expected<SmallVector<std::string>>
+ToolChain::getSystemGPUArchs(const llvm::opt::ArgList &Args) const {
+  return SmallVector<std::string>();
 }
 
 SanitizerMask ToolChain::getSupportedSanitizers() const {
   // Return sanitizers which don't require runtime support and are not
   // platform dependent.
 
-  using namespace SanitizerKind;
-
-  SanitizerMask Res = (Undefined & ~Vptr & ~Function) | (CFI & ~CFIICall) |
-                      CFICastStrict | UnsignedIntegerOverflow |
-                      ImplicitConversion | Nullability | LocalBounds;
+  SanitizerMask Res =
+      (SanitizerKind::Undefined & ~SanitizerKind::Vptr &
+       ~SanitizerKind::Function) |
+      (SanitizerKind::CFI & ~SanitizerKind::CFIICall) |
+      SanitizerKind::CFICastStrict | SanitizerKind::FloatDivideByZero |
+      SanitizerKind::KCFI | SanitizerKind::UnsignedIntegerOverflow |
+      SanitizerKind::UnsignedShiftBase | SanitizerKind::ImplicitConversion |
+      SanitizerKind::Nullability | SanitizerKind::LocalBounds;
   if (getTriple().getArch() == llvm::Triple::x86 ||
       getTriple().getArch() == llvm::Triple::x86_64 ||
-      getTriple().getArch() == llvm::Triple::arm ||
-      getTriple().getArch() == llvm::Triple::aarch64 ||
-      getTriple().getArch() == llvm::Triple::wasm32 ||
-      getTriple().getArch() == llvm::Triple::wasm64)
-    Res |= CFIICall;
+      getTriple().getArch() == llvm::Triple::arm || getTriple().isWasm() ||
+      getTriple().isAArch64() || getTriple().isRISCV())
+    Res |= SanitizerKind::CFIICall;
   if (getTriple().getArch() == llvm::Triple::x86_64 ||
-      getTriple().getArch() == llvm::Triple::aarch64)
-    Res |= ShadowCallStack;
+      getTriple().isAArch64(64) || getTriple().isRISCV())
+    Res |= SanitizerKind::ShadowCallStack;
+  if (getTriple().isAArch64(64))
+    Res |= SanitizerKind::MemTag;
   return Res;
 }
 
 void ToolChain::AddCudaIncludeArgs(const ArgList &DriverArgs,
                                    ArgStringList &CC1Args) const {}
+
+void ToolChain::AddHIPIncludeArgs(const ArgList &DriverArgs,
+                                  ArgStringList &CC1Args) const {}
+
+llvm::SmallVector<ToolChain::BitCodeLibraryInfo, 12>
+ToolChain::getDeviceLibs(const ArgList &DriverArgs) const {
+  return {};
+}
 
 void ToolChain::AddIAMCUIncludeArgs(const ArgList &DriverArgs,
                                     ArgStringList &CC1Args) const {}
@@ -905,8 +1239,10 @@ llvm::opt::DerivedArgList *ToolChain::TranslateOpenMPTargetArgs(
         A->getOption().matches(options::OPT_Xopenmp_target);
 
     if (A->getOption().matches(options::OPT_Xopenmp_target_EQ)) {
+      llvm::Triple TT(getOpenMPTriple(A->getValue(0)));
+
       // Passing device args: -Xopenmp-target=<triple> -opt=val.
-      if (A->getValue(0) == getTripleString())
+      if (TT.getTriple() == getTripleString())
         Index = Args.getBaseArgs().MakeIndex(A->getValue(1));
       else
         continue;
@@ -936,6 +1272,92 @@ llvm::opt::DerivedArgList *ToolChain::TranslateOpenMPTargetArgs(
     AllocatedArgs.push_back(A);
     DAL->append(A);
     Modified = true;
+  }
+
+  if (Modified)
+    return DAL;
+
+  delete DAL;
+  return nullptr;
+}
+
+// TODO: Currently argument values separated by space e.g.
+// -Xclang -mframe-pointer=no cannot be passed by -Xarch_. This should be
+// fixed.
+void ToolChain::TranslateXarchArgs(
+    const llvm::opt::DerivedArgList &Args, llvm::opt::Arg *&A,
+    llvm::opt::DerivedArgList *DAL,
+    SmallVectorImpl<llvm::opt::Arg *> *AllocatedArgs) const {
+  const OptTable &Opts = getDriver().getOpts();
+  unsigned ValuePos = 1;
+  if (A->getOption().matches(options::OPT_Xarch_device) ||
+      A->getOption().matches(options::OPT_Xarch_host))
+    ValuePos = 0;
+
+  unsigned Index = Args.getBaseArgs().MakeIndex(A->getValue(ValuePos));
+  unsigned Prev = Index;
+  std::unique_ptr<llvm::opt::Arg> XarchArg(Opts.ParseOneArg(Args, Index));
+
+  // If the argument parsing failed or more than one argument was
+  // consumed, the -Xarch_ argument's parameter tried to consume
+  // extra arguments. Emit an error and ignore.
+  //
+  // We also want to disallow any options which would alter the
+  // driver behavior; that isn't going to work in our model. We
+  // use options::NoXarchOption to control this.
+  if (!XarchArg || Index > Prev + 1) {
+    getDriver().Diag(diag::err_drv_invalid_Xarch_argument_with_args)
+        << A->getAsString(Args);
+    return;
+  } else if (XarchArg->getOption().hasFlag(options::NoXarchOption)) {
+    auto &Diags = getDriver().getDiags();
+    unsigned DiagID =
+        Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                              "invalid Xarch argument: '%0', not all driver "
+                              "options can be forwared via Xarch argument");
+    Diags.Report(DiagID) << A->getAsString(Args);
+    return;
+  }
+  XarchArg->setBaseArg(A);
+  A = XarchArg.release();
+  if (!AllocatedArgs)
+    DAL->AddSynthesizedArg(A);
+  else
+    AllocatedArgs->push_back(A);
+}
+
+llvm::opt::DerivedArgList *ToolChain::TranslateXarchArgs(
+    const llvm::opt::DerivedArgList &Args, StringRef BoundArch,
+    Action::OffloadKind OFK,
+    SmallVectorImpl<llvm::opt::Arg *> *AllocatedArgs) const {
+  DerivedArgList *DAL = new DerivedArgList(Args.getBaseArgs());
+  bool Modified = false;
+
+  bool IsDevice = OFK != Action::OFK_None && OFK != Action::OFK_Host;
+  for (Arg *A : Args) {
+    bool NeedTrans = false;
+    bool Skip = false;
+    if (A->getOption().matches(options::OPT_Xarch_device)) {
+      NeedTrans = IsDevice;
+      Skip = !IsDevice;
+    } else if (A->getOption().matches(options::OPT_Xarch_host)) {
+      NeedTrans = !IsDevice;
+      Skip = IsDevice;
+    } else if (A->getOption().matches(options::OPT_Xarch__) && IsDevice) {
+      // Do not translate -Xarch_ options for non CUDA/HIP toolchain since
+      // they may need special translation.
+      // Skip this argument unless the architecture matches BoundArch
+      if (BoundArch.empty() || A->getValue(0) != BoundArch)
+        Skip = true;
+      else
+        NeedTrans = true;
+    }
+    if (NeedTrans || Skip)
+      Modified = true;
+    if (NeedTrans)
+      TranslateXarchArgs(Args, A, DAL, AllocatedArgs);
+    if (!Skip)
+      DAL->append(A);
   }
 
   if (Modified)

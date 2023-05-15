@@ -1,15 +1,14 @@
 //===- llvm/unittest/ADT/PackedVectorTest.cpp - PackedVector tests --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // BitVectorTest tests fail on PowerPC for unknown reasons, so disable this
 // as well since it depends on a BitVector.
-#ifndef __ppc__
+#ifndef __powerpc__
 
 #include "llvm/ADT/PackedVector.h"
 #include "gtest/gtest.h"

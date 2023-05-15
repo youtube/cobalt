@@ -36,15 +36,15 @@ struct A {
 
   static int n;
   static type m;
-  static int h(T::type, int); // expected-error{{missing 'typename'}}
-  static int h(T::type x, char); // expected-error{{missing 'typename'}}
+  static int h(T::type, int); // expected-warning{{implicit 'typename' is a C++20 extension}}
+  static int h(T::type x, char); // expected-warning{{implicit 'typename' is a C++20 extension}}
 };
 
 template<typename T>
-A<T>::type g(T t) { return t; } // expected-error{{missing 'typename'}}
+A<T>::type g(T t) { return t; } // expected-warning{{implicit 'typename' is a C++20 extension}}
 
 template<typename T>
-A<T>::type A<T>::f() { return type(); } // expected-error{{missing 'typename'}}
+A<T>::type A<T>::f() { return type(); } // expected-warning{{implicit 'typename' is a C++20 extension}}
 
 template<typename T>
 void f(T::type) { } // expected-error{{missing 'typename'}}
@@ -72,9 +72,7 @@ void f(int, T::type x, char) { } // expected-error{{missing 'typename'}}
 
 int *p;
 
-// FIXME: We should assume that 'undeclared' is a type, not a parameter name
-//        here, and produce an 'unknown type name' diagnostic instead.
-int f1(undeclared, int); // expected-error{{requires a type specifier}}
+int f1(undeclared, int); // expected-error{{unknown type name 'undeclared'}}
 
 int f2(undeclared, 0); // expected-error{{undeclared identifier}}
 
@@ -86,11 +84,11 @@ int *test(UnknownType *fool) { return 0; } // expected-error{{unknown type name 
 
 template<typename T> int A<T>::n(T::value); // ok
 template<typename T>
-A<T>::type // expected-error{{missing 'typename'}}
+A<T>::type // expected-warning {{implicit 'typename' is a C++20 extension}}
 A<T>::m(T::value, 0); // ok
 
-template<typename T> int A<T>::h(T::type, int) {} // expected-error{{missing 'typename'}}
-template<typename T> int A<T>::h(T::type x, char) {} // expected-error{{missing 'typename'}}
+template<typename T> int A<T>::h(T::type, int) {} // expected-warning{{implicit 'typename' is a C++20 extension}}
+template<typename T> int A<T>::h(T::type x, char) {} // expected-warning{{implicit 'typename' is a C++20 extension}}
 
 template<typename T> int h(T::type, int); // expected-error{{missing 'typename'}}
 template<typename T> int h(T::type x, char); // expected-error{{missing 'typename'}}
@@ -118,4 +116,5 @@ template<typename T> int i(T::type, int());
 // FIXME: We know which type specifier should have been specified here. Provide
 //        a fix-it to add 'typename A<T>::type'
 template<typename T>
-A<T>::g() { } // expected-error{{requires a type specifier}}
+A<T>::g() { } // expected-error{{expected unqualified-id}}
+// expected-warning@-1{{implicit 'typename' is a C++20 extension}}

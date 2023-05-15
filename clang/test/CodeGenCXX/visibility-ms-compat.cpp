@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -std=c++11 -triple=x86_64-apple-darwin10 -fvisibility hidden -ftype-visibility default -emit-llvm -o %t
+// RUN: %clang_cc1 %s -std=c++11 -triple=x86_64-apple-darwin10 -fvisibility=hidden -ftype-visibility=default -emit-llvm -o %t
 // RUN: FileCheck %s < %t
 // RUN: FileCheck -check-prefix=CHECK-GLOBAL %s < %t
 
@@ -54,7 +54,7 @@ namespace test2 {
   };
 
   void A::foo() { bar(); }
-  // CHECK-LABEL: define void @_ZN5test21A3fooEv()
+  // CHECK-LABEL: define{{.*}} void @_ZN5test21A3fooEv()
   // CHECK: declare void @_ZN5test21A3barEv()
 
   const std::type_info &ti = typeid(A);

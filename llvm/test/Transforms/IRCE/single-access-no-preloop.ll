@@ -1,9 +1,9 @@
-; RUN: opt -verify-loop-info -irce -S < %s | FileCheck %s
-; RUN: opt -verify-loop-info -passes='require<branch-prob>,loop(irce)' -S < %s | FileCheck %s
+; RUN: opt -verify-loop-info -passes=irce -S < %s | FileCheck %s
+; RUN: opt -verify-loop-info -passes='require<branch-prob>,irce' -S < %s | FileCheck %s
 
-define void @single_access_no_preloop_no_offset(i32 *%arr, i32 *%a_len_ptr, i32 %n) {
+define void @single_access_no_preloop_no_offset(ptr %arr, ptr %a_len_ptr, i32 %n) {
  entry:
-  %len = load i32, i32* %a_len_ptr, !range !0
+  %len = load i32, ptr %a_len_ptr, !range !0
   %first.itr.check = icmp sgt i32 %n, 0
   br i1 %first.itr.check, label %loop, label %exit
 
@@ -14,8 +14,8 @@ define void @single_access_no_preloop_no_offset(i32 *%arr, i32 *%a_len_ptr, i32 
   br i1 %abc, label %in.bounds, label %out.of.bounds, !prof !1
 
  in.bounds:
-  %addr = getelementptr i32, i32* %arr, i32 %idx
-  store i32 0, i32* %addr
+  %addr = getelementptr i32, ptr %arr, i32 %idx
+  store i32 0, ptr %addr
   %next = icmp slt i32 %idx.next, %n
   br i1 %next, label %loop, label %exit
 
@@ -51,15 +51,15 @@ define void @single_access_no_preloop_no_offset(i32 *%arr, i32 *%a_len_ptr, i32 
 ; CHECK-NEXT: br i1 %abc.postloop, label %in.bounds.postloop, label %out.of.bounds
 
 ; CHECK: in.bounds.postloop:
-; CHECK-NEXT: %addr.postloop = getelementptr i32, i32* %arr, i32 %idx.postloop
-; CHECK-NEXT: store i32 0, i32* %addr.postloop
+; CHECK-NEXT: %addr.postloop = getelementptr i32, ptr %arr, i32 %idx.postloop
+; CHECK-NEXT: store i32 0, ptr %addr.postloop
 ; CHECK-NEXT: %next.postloop = icmp slt i32 %idx.next.postloop, %n
 ; CHECK-NEXT: br i1 %next.postloop, label %loop.postloop, label %exit.loopexit
 
 
-define void @single_access_no_preloop_with_offset(i32 *%arr, i32 *%a_len_ptr, i32 %n) {
+define void @single_access_no_preloop_with_offset(ptr %arr, ptr %a_len_ptr, i32 %n) {
  entry:
-  %len = load i32, i32* %a_len_ptr, !range !0
+  %len = load i32, ptr %a_len_ptr, !range !0
   %first.itr.check = icmp sgt i32 %n, 0
   br i1 %first.itr.check, label %loop, label %exit
 
@@ -71,8 +71,8 @@ define void @single_access_no_preloop_with_offset(i32 *%arr, i32 *%a_len_ptr, i3
   br i1 %abc, label %in.bounds, label %out.of.bounds, !prof !1
 
  in.bounds:
-  %addr = getelementptr i32, i32* %arr, i32 %idx.for.abc
-  store i32 0, i32* %addr
+  %addr = getelementptr i32, ptr %arr, i32 %idx.for.abc
+  store i32 0, ptr %addr
   %next = icmp slt i32 %idx.next, %n
   br i1 %next, label %loop, label %exit
 
@@ -86,15 +86,11 @@ define void @single_access_no_preloop_with_offset(i32 *%arr, i32 *%a_len_ptr, i3
 ; CHECK-LABEL: @single_access_no_preloop_with_offset(
 
 ; CHECK: loop.preheader:
-; CHECK: [[not_safe_range_end:[^ ]+]] = sub i32 3, %len
-; CHECK: [[not_n:[^ ]+]] = sub i32 -1, %n
-; CHECK: [[not_exit_main_loop_at_hiclamp_cmp:[^ ]+]] = icmp sgt i32 [[not_safe_range_end]], [[not_n]]
-; CHECK: [[not_exit_main_loop_at_hiclamp:[^ ]+]] = select i1 [[not_exit_main_loop_at_hiclamp_cmp]], i32 [[not_safe_range_end]], i32 [[not_n]]
-; CHECK: [[exit_main_loop_at_hiclamp:[^ ]+]] = sub i32 -1, [[not_exit_main_loop_at_hiclamp]]
-; CHECK: [[exit_main_loop_at_loclamp_cmp:[^ ]+]] = icmp sgt i32 [[exit_main_loop_at_hiclamp]], 0
-; CHECK: [[exit_main_loop_at_loclamp:[^ ]+]] = select i1 [[exit_main_loop_at_loclamp_cmp]], i32 [[exit_main_loop_at_hiclamp]], i32 0
+; CHECK: [[safe_range_end:[^ ]+]] = add nsw i32 %len, -4
+; CHECK: [[exit_main_loop_at_hiclamp:[^ ]+]] = call i32 @llvm.smin.i32(i32 %n, i32 [[safe_range_end]])
+; CHECK: [[exit_main_loop_at_loclamp:[^ ]+]] = call i32 @llvm.smax.i32(i32 [[exit_main_loop_at_hiclamp]], i32 0)
 ; CHECK: [[enter_main_loop:[^ ]+]] = icmp slt i32 0, [[exit_main_loop_at_loclamp]]
-; CHECK: br i1 [[enter_main_loop]], label %loop.preheader2, label %main.pseudo.exit
+; CHECK: br i1 [[enter_main_loop]], label %[[loop_preheader:[^ ,]+]], label %main.pseudo.exit
 
 ; CHECK: loop:
 ; CHECK: br i1 true, label %in.bounds, label %out.of.bounds
@@ -117,9 +113,9 @@ define void @single_access_no_preloop_with_offset(i32 *%arr, i32 *%a_len_ptr, i3
 ; Make sure that we do not do IRCE if we know that the safe iteration range of
 ; the main loop is empty.
 
-define void @single_access_empty_range(i32 *%arr, i32 *%a_len_ptr, i32 %n) {
+define void @single_access_empty_range(ptr %arr, ptr %a_len_ptr, i32 %n) {
  entry:
-  %len = load i32, i32* %a_len_ptr, !range !0
+  %len = load i32, ptr %a_len_ptr, !range !0
   %first.itr.check = icmp sgt i32 %n, 0
   br i1 %first.itr.check, label %loop, label %exit
 
@@ -130,8 +126,8 @@ define void @single_access_empty_range(i32 *%arr, i32 *%a_len_ptr, i32 %n) {
   br i1 %abc, label %in.bounds, label %out.of.bounds, !prof !1
 
  in.bounds:
-  %addr = getelementptr i32, i32* %arr, i32 %idx
-  store i32 0, i32* %addr
+  %addr = getelementptr i32, ptr %arr, i32 %idx
+  store i32 0, ptr %addr
   %next = icmp slt i32 %idx.next, %n
   br i1 %next, label %loop, label %exit
 
@@ -147,9 +143,9 @@ define void @single_access_empty_range(i32 *%arr, i32 *%a_len_ptr, i32 %n) {
 ; CHECK-NOT:   preloop
 ; CHECK-NOT:   postloop
 
-define void @single_access_empty_range_2(i32 *%arr, i32 *%a_len_ptr, i32 %n) {
+define void @single_access_empty_range_2(ptr %arr, ptr %a_len_ptr, i32 %n) {
  entry:
-  %len = load i32, i32* %a_len_ptr, !range !0
+  %len = load i32, ptr %a_len_ptr, !range !0
   %first.itr.check = icmp sgt i32 %n, 0
   br i1 %first.itr.check, label %loop, label %exit
 
@@ -164,8 +160,8 @@ define void @single_access_empty_range_2(i32 *%arr, i32 *%a_len_ptr, i32 %n) {
   br i1 %def, label %in.bounds2, label %out.of.bounds, !prof !1
 
 in.bounds2:
-  %addr = getelementptr i32, i32* %arr, i32 %idx
-  store i32 0, i32* %addr
+  %addr = getelementptr i32, ptr %arr, i32 %idx
+  store i32 0, ptr %addr
   %next = icmp slt i32 %idx.next, %n
   br i1 %next, label %loop, label %exit
 
@@ -180,16 +176,16 @@ in.bounds2:
 ; CHECK-NOT:   br i1 false
 ; CHECK-NOT:   preloop
 
-define void @single_access_no_preloop_no_offset_phi_len(i32 *%arr, i32 *%a_len_ptr, i32 *%b_len_ptr, i32 %n, i1 %unknown_cond) {
+define void @single_access_no_preloop_no_offset_phi_len(ptr %arr, ptr %a_len_ptr, ptr %b_len_ptr, i32 %n, i1 %unknown_cond) {
  entry:
   br i1 %unknown_cond, label %if.true, label %if.false
 
 if.true:
-  %len_a = load i32, i32* %a_len_ptr, !range !0
+  %len_a = load i32, ptr %a_len_ptr, !range !0
   br label %merge
 
 if.false:
-  %len_b = load i32, i32* %b_len_ptr, !range !0
+  %len_b = load i32, ptr %b_len_ptr, !range !0
   br label %merge
 
 merge:
@@ -204,8 +200,8 @@ merge:
   br i1 %abc, label %in.bounds, label %out.of.bounds, !prof !1
 
  in.bounds:
-  %addr = getelementptr i32, i32* %arr, i32 %idx
-  store i32 0, i32* %addr
+  %addr = getelementptr i32, ptr %arr, i32 %idx
+  store i32 0, ptr %addr
   %next = icmp slt i32 %idx.next, %n
   br i1 %next, label %loop, label %exit
 
@@ -241,8 +237,8 @@ merge:
 ; CHECK-NEXT: br i1 %abc.postloop, label %in.bounds.postloop, label %out.of.bounds
 
 ; CHECK: in.bounds.postloop:
-; CHECK-NEXT: %addr.postloop = getelementptr i32, i32* %arr, i32 %idx.postloop
-; CHECK-NEXT: store i32 0, i32* %addr.postloop
+; CHECK-NEXT: %addr.postloop = getelementptr i32, ptr %arr, i32 %idx.postloop
+; CHECK-NEXT: store i32 0, ptr %addr.postloop
 ; CHECK-NEXT: %next.postloop = icmp slt i32 %idx.next.postloop, %n
 ; CHECK-NEXT: br i1 %next.postloop, label %loop.postloop, label %exit.loopexit
 

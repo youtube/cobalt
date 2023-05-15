@@ -1,5 +1,5 @@
-; RUN: llc < %s | FileCheck %s --check-prefix=ASM
-; RUN: llc < %s -filetype=obj | llvm-readobj -codeview | FileCheck %s --check-prefix=OBJ
+; RUN: llc < %s -experimental-debug-variable-locations=true | FileCheck %s --check-prefix=ASM
+; RUN: llc < %s -filetype=obj -experimental-debug-variable-locations=true | llvm-readobj --codeview - | FileCheck %s --check-prefix=OBJ
 
 ; Compile with -O1 as C
 
@@ -40,9 +40,9 @@
 ; ASM: # %bb.2:                                 # %for.body.preheader
 ; ASM:         xorl    %edi, %edi
 ; ASM:         xorl    %esi, %esi
+; ASM: [[oy_ox_start:\.Ltmp[0-9]+]]:
 ; ASM:         .p2align        4, 0x90
 ; ASM: .LBB0_3:                                # %for.body
-; ASM: [[oy_ox_start:\.Ltmp[0-9]+]]:
 ; ASM:        #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 0 32] $edi
 ; ASM:        #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 32 32] $esi
 ; ASM:        .cv_loc 0 1 13 11               # t.c:13:11
@@ -59,22 +59,33 @@
 ; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 32 32] $esi
 ; ASM:         cmpl    n(%rip), %eax
 ; ASM:         jl      .LBB0_3
+; ASM: [[loopskip_start:\.Ltmp[0-9]+]]:
+; ASM:         #DEBUG_VALUE: loop_csr:o <- [DW_OP_LLVM_fragment 0 32] 0
+; ASM:         xorl    %esi, %esi
+; ASM:         xorl    %edi, %edi
 ; ASM: [[oy_end:\.Ltmp[0-9]+]]:
 ; ASM:         addl    %edi, %esi
 ; ASM:         movl    %esi, %eax
 
+; XXX FIXME: the debug value line after loopskip_start should be repeated
+; because both fields of 'o' are zero flowing into this block. However, it
+; appears livedebugvalues doesn't account for fragments.
 
 ; ASM-LABEL: pad_right: # @pad_right
-; ASM:         #DEBUG_VALUE: pad_right:o <- [DW_OP_LLVM_fragment 32 32] $ecx
-; ASM:         movl    %ecx, %eax
+; ASM:         movq    %rcx, %rax
+; ASM: [[pad_right_tmp:\.Ltmp[0-9]+]]:
+; ASM:         #DEBUG_VALUE: pad_right:o <- [DW_OP_LLVM_fragment 32 32] $eax
 ; ASM:         retq
+; ASM: [[pad_right_end:\.Lfunc_end1]]:
 
 
 ; ASM-LABEL: pad_left: # @pad_left
-; ASM:         #DEBUG_VALUE: pad_left:o <- [DW_OP_LLVM_fragment 0 32] $ecx
 ; ASM:         .cv_loc 2 1 24 3                # t.c:24:3
-; ASM:         movl    %ecx, %eax
+; ASM:         movq    %rcx, %rax
+; ASM: [[pad_left_tmp:\.Ltmp[0-9]+]]:
+; ASM:         #DEBUG_VALUE: pad_left:o <- [DW_OP_LLVM_fragment 0 32] $ecx
 ; ASM:         retq
+; ASM: [[pad_left_end:\.Lfunc_end2]]:
 
 
 ; ASM-LABEL: nested: # @nested
@@ -90,44 +101,32 @@
 ; ASM:         callq   g
 ; ASM:         movl    %eax, [[offset_o_x:[0-9]+]](%rsp)          # 4-byte Spill
 ; ASM: [[spill_o_x_start:\.Ltmp[0-9]+]]:
-; ASM:         #DEBUG_VALUE: bitpiece_spill:o <- [DW_OP_plus_uconst [[offset_o_x]], DW_OP_LLVM_fragment 32 32] [$rsp+0]
+; ASM:         #DEBUG_VALUE: bitpiece_spill:o <- [DW_OP_plus_uconst [[offset_o_x]], DW_OP_deref, DW_OP_LLVM_fragment 32 32] $rsp
 ; ASM:         #APP
 ; ASM:         #NO_APP
 ; ASM:         movl    [[offset_o_x]](%rsp), %eax          # 4-byte Reload
-; ASM: [[spill_o_x_end:\.Ltmp[0-9]+]]:
 ; ASM:         retq
+; ASM: [[spill_o_x_end_func:\.Ltmp[0-9]+]]:
+; ASM-NEXT: .Lfunc_end4:
 
 
 ; ASM-LABEL:  .short  4423                    # Record kind: S_GPROC32_ID
 ; ASM:        .asciz  "loop_csr"              # Function name
-; ASM:        .short  4414                    # Record kind: S_LOCAL
+; ASM:        .short	4359                    # Record kind: S_CONSTANT
+; ASM:      	.long	4099                      # Type
+; ASM:        .byte	0x00, 0x00                # Value
 ; ASM:        .asciz  "o"
-; ASM:        .cv_def_range    [[oy_ox_start]] [[ox_start]], "C\021\030\000\000\000\000\000\000\000"
-; ASM:        .cv_def_range    [[oy_ox_start]] [[oy_start]], "C\021\027\000\000\000\004\000\000\000"
-; ASM:        .cv_def_range    [[ox_start]] .Lfunc_end0, "C\021\030\000\000\000\000\000\000\000"
-; ASM:        .cv_def_range    [[oy_start]] [[oy_end]], "C\021\027\000\000\000\004\000\000\000"
 
 
-; OBJ-LABEL: {{.*}}Proc{{.*}}Sym {
+; OBJ-LABEL: GlobalProcIdSym {
 ; OBJ:         Kind: S_GPROC32_ID (0x1147)
 ; OBJ:         DisplayName: loop_csr
 ; OBJ:       }
-; OBJ:       LocalSym {
-; OBJ:         VarName: o
-; OBJ:       }
-; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: CVRegEDI (0x18)
-; OBJ:         MayHaveNoName: 0
-; OBJ:         OffsetInParent: 0
-; OBJ:         LocalVariableAddrRange {
-; OBJ:         }
-; OBJ:       }
-; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: CVRegESI (0x17)
-; OBJ:         MayHaveNoName: 0
-; OBJ:         OffsetInParent: 4
-; OBJ:         LocalVariableAddrRange {
-; OBJ:         }
+; OBJ:       ConstantSym {
+; OBJ:         Kind: S_CONSTANT (0x1107)
+; OBJ:         Type: IntPair (0x1003)
+; OBJ:         Value: 0
+; OBJ:         Name: o
 ; OBJ:       }
 ; OBJ:       ProcEnd {
 ; OBJ:       }
@@ -136,9 +135,9 @@
 ; ASM:        .asciz  "pad_right"             # Function name
 ; ASM:        .short  4414                    # Record kind: S_LOCAL
 ; ASM:        .asciz  "o"
-; ASM:        .cv_def_range    .Lfunc_begin1 .Lfunc_end1, "C\021\022\000\000\000\004\000\000\000"
+; ASM:        .cv_def_range    [[pad_right_tmp]] [[pad_right_end]], subfield_reg, 17, 4
 
-; OBJ-LABEL: {{.*}}Proc{{.*}}Sym {
+; OBJ-LABEL: GlobalProcIdSym {
 ; OBJ:         Kind: S_GPROC32_ID (0x1147)
 ; OBJ:         DisplayName: pad_right
 ; OBJ:       }
@@ -146,7 +145,7 @@
 ; OBJ:         VarName: o
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: CVRegECX (0x12)
+; OBJ:         Register: EAX (0x11)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 4
 ; OBJ:         LocalVariableAddrRange {
@@ -159,9 +158,9 @@
 ; ASM:        .asciz  "pad_left"              # Function name
 ; ASM:        .short  4414                    # Record kind: S_LOCAL
 ; ASM:        .asciz  "o"
-; ASM:        .cv_def_range    .Lfunc_begin2 .Lfunc_end2, "C\021\022\000\000\000\000\000\000\000"
+; ASM:        .cv_def_range    [[pad_left_tmp]] [[pad_left_end]], subfield_reg, 18, 0
 
-; OBJ-LABEL: {{.*}}Proc{{.*}}Sym {
+; OBJ-LABEL: GlobalProcIdSym {
 ; OBJ:         Kind: S_GPROC32_ID (0x1147)
 ; OBJ:         DisplayName: pad_left
 ; OBJ:       }
@@ -169,7 +168,7 @@
 ; OBJ:         VarName: o
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: CVRegECX (0x12)
+; OBJ:         Register: ECX (0x12)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 0
 ; OBJ:         LocalVariableAddrRange {
@@ -182,12 +181,12 @@
 ; ASM:        .asciz  "nested"                # Function name
 ; ASM:        .short  4414                    # Record kind: S_LOCAL
 ; ASM:        .asciz  "o"
-; ASM:        .cv_def_range    .Lfunc_begin3 .Lfunc_end3, "E\021J\001\000\000\000\000\000\000"
+; ASM:        .cv_def_range    .Lfunc_begin3 .Lfunc_end3, reg_rel, 330, 0, 0
 ; ASM:        .short  4414                    # Record kind: S_LOCAL
 ; ASM:        .asciz  "p"
-; ASM:        .cv_def_range    [[p_start]] .Lfunc_end3, "C\021\021\000\000\000\004\000\000\000"
+; ASM:        .cv_def_range    [[p_start]] .Lfunc_end3, subfield_reg, 17, 4
 
-; OBJ-LABEL: {{.*}}Proc{{.*}}Sym {
+; OBJ-LABEL: GlobalProcIdSym {
 ; OBJ:         Kind: S_GPROC32_ID (0x1147)
 ; OBJ:         DisplayName: nested
 ; OBJ:       }
@@ -196,7 +195,7 @@
 ; OBJ:         VarName: o
 ; OBJ:       }
 ; OBJ:       DefRangeRegisterRelSym {
-; OBJ:         BaseRegister: CVRegRCX (0x14A)
+; OBJ:         BaseRegister: RCX (0x14A)
 ; OBJ:         HasSpilledUDTMember: No
 ; OBJ:         OffsetInParent: 0
 ; OBJ:         BasePointerOffset: 0
@@ -207,7 +206,7 @@
 ; OBJ:         VarName: p
 ; OBJ:       }
 ; OBJ:       DefRangeSubfieldRegisterSym {
-; OBJ:         Register: CVRegEAX (0x11)
+; OBJ:         Register: EAX (0x11)
 ; OBJ:         MayHaveNoName: 0
 ; OBJ:         OffsetInParent: 4
 ; OBJ:         LocalVariableAddrRange {
@@ -219,24 +218,20 @@
 
 ; ASM-LABEL:  .short  4423                    # Record kind: S_GPROC32_ID
 ; ASM:        .asciz  "bitpiece_spill"        # Function name
-; ASM:        .short  4414                    # Record kind: S_LOCAL
-; ASM:        .asciz  "o"
-; ASM:        .cv_def_range    [[spill_o_x_start]] [[spill_o_x_end]], "E\021O\001A\000$\000\000\000"
+; ASM:      	.short	4359                    # Record kind: S_CONSTANT
+; ASM:      	.long	4099                      # Type
+; ASM:      	.byte	0x00, 0x00                # Value
+; ASM:        .asciz  "o"                     # Name
 
-; OBJ-LABEL: {{.*}}Proc{{.*}}Sym {
+; OBJ-LABEL: GlobalProcIdSym {
 ; OBJ:         Kind: S_GPROC32_ID (0x1147)
 ; OBJ:         DisplayName: bitpiece_spill
 ; OBJ:       }
-; OBJ:       LocalSym {
-; OBJ:         VarName: o
-; OBJ:       }
-; OBJ:       DefRangeRegisterRelSym {
-; OBJ:         BaseRegister: CVRegRSP (0x14F)
-; OBJ:         HasSpilledUDTMember: Yes
-; OBJ:         OffsetInParent: 4
-; OBJ:         BasePointerOffset: 36
-; OBJ:         LocalVariableAddrRange {
-; OBJ:         }
+; OBJ:       ConstantSym {
+; OBJ:         Kind: S_CONSTANT (0x1107)
+; OBJ:         Type: IntPair (0x1003)
+; OBJ:         Value: 0
+; OBJ:         Name: o
 ; OBJ:       }
 ; OBJ:       ProcEnd {
 ; OBJ:       }
@@ -259,13 +254,13 @@ target triple = "x86_64-pc-windows-msvc19.0.24210"
 ; Function Attrs: nounwind uwtable
 define i32 @loop_csr() local_unnamed_addr #0 !dbg !7 {
 entry:
-  tail call void @llvm.dbg.declare(metadata %struct.IntPair* undef, metadata !12, metadata !17), !dbg !18
+  tail call void @llvm.dbg.declare(metadata ptr undef, metadata !12, metadata !17), !dbg !18
   tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !19), !dbg !18
   tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !20), !dbg !18
   tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !19), !dbg !18
   tail call void @llvm.dbg.value(metadata i32 0, metadata !12, metadata !20), !dbg !18
-  store i32 0, i32* @i, align 4, !dbg !21, !tbaa !24
-  %0 = load i32, i32* @n, align 4, !dbg !28, !tbaa !24
+  store i32 0, ptr @i, align 4, !dbg !21, !tbaa !24
+  %0 = load i32, ptr @n, align 4, !dbg !28, !tbaa !24
   %cmp9 = icmp sgt i32 %0, 0, !dbg !29
   br i1 %cmp9, label %for.body, label %for.end, !dbg !30
 
@@ -278,10 +273,10 @@ for.body:                                         ; preds = %entry, %for.body
   tail call void @llvm.dbg.value(metadata i32 %call, metadata !12, metadata !19), !dbg !18
   %call2 = tail call i32 @g(i32 %o.sroa.5.010) #5, !dbg !33
   tail call void @llvm.dbg.value(metadata i32 %call2, metadata !12, metadata !20), !dbg !18
-  %1 = load i32, i32* @i, align 4, !dbg !21, !tbaa !24
+  %1 = load i32, ptr @i, align 4, !dbg !21, !tbaa !24
   %inc = add nsw i32 %1, 1, !dbg !21
-  store i32 %inc, i32* @i, align 4, !dbg !21, !tbaa !24
-  %2 = load i32, i32* @n, align 4, !dbg !28, !tbaa !24
+  store i32 %inc, ptr @i, align 4, !dbg !21, !tbaa !24
+  %2 = load i32, ptr @n, align 4, !dbg !28, !tbaa !24
   %cmp = icmp slt i32 %inc, %2, !dbg !29
   br i1 %cmp, label %for.body, label %for.end, !dbg !30, !llvm.loop !34
 
@@ -303,7 +298,7 @@ entry:
   %o.sroa.1.0.extract.shift = lshr i64 %o.coerce, 32
   %o.sroa.1.0.extract.trunc = trunc i64 %o.sroa.1.0.extract.shift to i32
   tail call void @llvm.dbg.value(metadata i32 %o.sroa.1.0.extract.trunc, metadata !47, metadata !20), !dbg !48
-  tail call void @llvm.dbg.declare(metadata %struct.PadRight* undef, metadata !47, metadata !17), !dbg !48
+  tail call void @llvm.dbg.declare(metadata ptr undef, metadata !47, metadata !17), !dbg !48
   ret i32 %o.sroa.1.0.extract.trunc, !dbg !49
 }
 
@@ -312,17 +307,17 @@ define i32 @pad_left(i64 %o.coerce) local_unnamed_addr #3 !dbg !50 {
 entry:
   %o.sroa.0.0.extract.trunc = trunc i64 %o.coerce to i32
   tail call void @llvm.dbg.value(metadata i32 %o.sroa.0.0.extract.trunc, metadata !58, metadata !19), !dbg !59
-  tail call void @llvm.dbg.declare(metadata %struct.PadLeft* undef, metadata !58, metadata !17), !dbg !59
+  tail call void @llvm.dbg.declare(metadata ptr undef, metadata !58, metadata !17), !dbg !59
   ret i32 %o.sroa.0.0.extract.trunc, !dbg !60
 }
 
 ; Function Attrs: nounwind readonly uwtable
-define i32 @nested(%struct.Nested* nocapture readonly %o) local_unnamed_addr #4 !dbg !61 {
+define i32 @nested(ptr nocapture readonly %o) local_unnamed_addr #4 !dbg !61 {
 entry:
-  tail call void @llvm.dbg.declare(metadata %struct.Nested* %o, metadata !71, metadata !73), !dbg !74
-  tail call void @llvm.dbg.declare(metadata %struct.PadLeft* undef, metadata !72, metadata !17), !dbg !75
-  %p.sroa.3.0..sroa_idx2 = getelementptr inbounds %struct.Nested, %struct.Nested* %o, i64 0, i32 0, i64 1, i32 1, !dbg !76
-  %p.sroa.3.0.copyload = load i32, i32* %p.sroa.3.0..sroa_idx2, align 4, !dbg !76
+  tail call void @llvm.dbg.declare(metadata ptr %o, metadata !71, metadata !73), !dbg !74
+  tail call void @llvm.dbg.declare(metadata ptr undef, metadata !72, metadata !17), !dbg !75
+  %p.sroa.3.0..sroa_idx2 = getelementptr inbounds %struct.Nested, ptr %o, i64 0, i32 0, i64 1, i32 1, !dbg !76
+  %p.sroa.3.0.copyload = load i32, ptr %p.sroa.3.0..sroa_idx2, align 4, !dbg !76
   tail call void @llvm.dbg.value(metadata i32 %p.sroa.3.0.copyload, metadata !72, metadata !20), !dbg !75
   ret i32 %p.sroa.3.0.copyload, !dbg !77
 }
@@ -330,7 +325,7 @@ entry:
 ; Function Attrs: nounwind uwtable
 define i32 @bitpiece_spill() local_unnamed_addr #0 !dbg !78 {
 entry:
-  tail call void @llvm.dbg.declare(metadata %struct.IntPair* undef, metadata !80, metadata !17), !dbg !81
+  tail call void @llvm.dbg.declare(metadata ptr undef, metadata !80, metadata !17), !dbg !81
   tail call void @llvm.dbg.value(metadata i32 0, metadata !80, metadata !19), !dbg !81
   %call = tail call i32 @g(i32 0) #5, !dbg !82
   tail call void @llvm.dbg.value(metadata i32 %call, metadata !80, metadata !20), !dbg !81
@@ -341,11 +336,11 @@ entry:
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
-attributes #2 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #3 = { nounwind readnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #4 = { nounwind readonly uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #3 = { nounwind readnone uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #4 = { nounwind readonly uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #5 = { nounwind }
 
 !llvm.dbg.cu = !{!0}

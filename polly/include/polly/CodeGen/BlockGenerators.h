@@ -1,9 +1,8 @@
 //===-BlockGenerators.h - Helper to generate code for statements-*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,24 +16,37 @@
 #define POLLY_BLOCK_GENERATORS_H
 
 #include "polly/CodeGen/IRBuilder.h"
-#include "polly/Support/GICHelper.h"
 #include "polly/Support/ScopHelper.h"
-#include "llvm/ADT/MapVector.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
-#include "isl/map.h"
-
-struct isl_ast_build;
-struct isl_id_to_ast_expr;
-
-namespace llvm {
-class Pass;
-class Region;
-class ScalarEvolution;
-} // namespace llvm
+#include "isl/isl-noexceptions.h"
 
 namespace polly {
-using namespace llvm;
-class ScopStmt;
+using llvm::AllocaInst;
+using llvm::ArrayRef;
+using llvm::AssertingVH;
+using llvm::BasicBlock;
+using llvm::BinaryOperator;
+using llvm::CmpInst;
+using llvm::DataLayout;
+using llvm::DenseMap;
+using llvm::DominatorTree;
+using llvm::Function;
+using llvm::Instruction;
+using llvm::LoadInst;
+using llvm::Loop;
+using llvm::LoopInfo;
+using llvm::LoopToScevMapT;
+using llvm::MapVector;
+using llvm::PHINode;
+using llvm::ScalarEvolution;
+using llvm::SetVector;
+using llvm::SmallVector;
+using llvm::StoreInst;
+using llvm::StringRef;
+using llvm::Type;
+using llvm::UnaryInstruction;
+using llvm::Value;
+
 class MemoryAccess;
 class ScopArrayInfo;
 class IslExprBuilder;
@@ -613,7 +625,7 @@ protected:
 /// Generate a new vector basic block for a polyhedral statement.
 ///
 /// The only public function exposed is generate().
-class VectorBlockGenerator : BlockGenerator {
+class VectorBlockGenerator final : BlockGenerator {
 public:
   /// Generate a new vector basic block for a ScoPStmt.
   ///
@@ -674,8 +686,6 @@ private:
 
   Value *getVectorValue(ScopStmt &Stmt, Value *Old, ValueMapT &VectorMap,
                         VectorValueMapT &ScalarMaps, Loop *L);
-
-  Type *getVectorPtrTy(const Value *V, int Width);
 
   /// Load a vector from a set of adjacent scalars
   ///
@@ -793,7 +803,7 @@ private:
 };
 
 /// Generator for new versions of polyhedral region statements.
-class RegionGenerator : public BlockGenerator {
+class RegionGenerator final : BlockGenerator {
 public:
   /// Create a generator for regions.
   ///
@@ -964,7 +974,7 @@ private:
   /// @param BBMap A mapping from old values to their new values in this block.
   /// @param LTS   A mapping from loops virtual canonical induction variable to
   /// their new values.
-  virtual void
+  void
   generateScalarStores(ScopStmt &Stmt, LoopToScevMapT &LTS, ValueMapT &BBMAp,
                        __isl_keep isl_id_to_ast_expr *NewAccesses) override;
 
@@ -978,9 +988,8 @@ private:
   /// @param BBMap     A mapping from old values to their new values
   ///                  (for values recalculated within this basic block).
   /// @param LTS       A map from old loops to new induction variables as SCEVs.
-  virtual void copyPHIInstruction(ScopStmt &Stmt, PHINode *Inst,
-                                  ValueMapT &BBMap,
-                                  LoopToScevMapT &LTS) override;
+  void copyPHIInstruction(ScopStmt &Stmt, PHINode *Inst, ValueMapT &BBMap,
+                          LoopToScevMapT &LTS) override;
 };
 } // namespace polly
 #endif

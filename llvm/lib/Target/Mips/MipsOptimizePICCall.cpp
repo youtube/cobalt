@@ -1,9 +1,8 @@
 //===- MipsOptimizePICCall.cpp - Optimize PIC Calls -----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -128,8 +127,7 @@ static MachineOperand *getCallTargetRegOpnd(MachineInstr &MI) {
 
   MachineOperand &MO = MI.getOperand(0);
 
-  if (!MO.isReg() || !MO.isUse() ||
-      !TargetRegisterInfo::isVirtualRegister(MO.getReg()))
+  if (!MO.isReg() || !MO.isUse() || !MO.getReg().isVirtual())
     return nullptr;
 
   return &MO;
@@ -153,7 +151,7 @@ static void setCallTargetReg(MachineBasicBlock *MBB,
                              MachineBasicBlock::iterator I) {
   MachineFunction &MF = *MBB->getParent();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
-  unsigned SrcReg = I->getOperand(0).getReg();
+  Register SrcReg = I->getOperand(0).getReg();
   unsigned DstReg = getRegTy(SrcReg, MF) == MVT::i32 ? Mips::T9 : Mips::T9_64;
   BuildMI(*MBB, I, I->getDebugLoc(), TII.get(TargetOpcode::COPY), DstReg)
       .addReg(SrcReg);
@@ -172,7 +170,7 @@ static void eraseGPOpnd(MachineInstr &MI) {
   for (unsigned I = 0; I < MI.getNumOperands(); ++I) {
     MachineOperand &MO = MI.getOperand(I);
     if (MO.isReg() && MO.getReg() == Reg) {
-      MI.RemoveOperand(I);
+      MI.removeOperand(I);
       return;
     }
   }
@@ -196,7 +194,7 @@ void MBBInfo::postVisit() {
 
 // OptimizePICCall methods.
 bool OptimizePICCall::runOnMachineFunction(MachineFunction &F) {
-  if (static_cast<const MipsSubtarget &>(F.getSubtarget()).inMips16Mode())
+  if (F.getSubtarget<MipsSubtarget>().inMips16Mode())
     return false;
 
   // Do a pre-order traversal of the dominator tree.
@@ -220,8 +218,7 @@ bool OptimizePICCall::runOnMachineFunction(MachineFunction &F) {
     MBBI.preVisit(ScopedHT);
     Changed |= visitNode(MBBI);
     const MachineDomTreeNode *Node = MBBI.getNode();
-    const std::vector<MachineDomTreeNode *> &Children = Node->getChildren();
-    WorkList.append(Children.begin(), Children.end());
+    WorkList.append(Node->begin(), Node->end());
   }
 
   return Changed;

@@ -1,5 +1,5 @@
-import lit
 import os
+import sys
 
 from setuptools import setup, find_packages
 
@@ -8,6 +8,12 @@ from setuptools import setup, find_packages
 #   python path/to/setup.py install
 # to work (for scripts, etc.)
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ".")
+
+import lit
+
+with open("README.rst", "r", encoding="utf-8") as f:
+    long_description = f.read()
 
 setup(
     name = "lit",
@@ -16,51 +22,18 @@ setup(
     author = lit.__author__,
     author_email = lit.__email__,
     url = 'http://llvm.org',
-    license = 'BSD',
+    license = 'Apache-2.0 with LLVM exception',
+    license_files = ['LICENSE.TXT'],
 
     description = "A Software Testing Tool",
     keywords = 'test C++ automatic discovery',
-    long_description = """\
-*lit*
-+++++
-
-About
-=====
-
-*lit* is a portable tool for executing LLVM and Clang style test suites,
-summarizing their results, and providing indication of failures. *lit* is
-designed to be a lightweight testing tool with as simple a user interface as
-possible.
-
-
-Features
-========
-
- * Portable!
- * Flexible test discovery.
- * Parallel test execution.
- * Support for multiple test formats and test suite designs.
-
-
-Documentation
-=============
-
-The official *lit* documentation is in the man page, available online at the LLVM
-Command Guide: http://llvm.org/cmds/lit.html.
-
-
-Source
-======
-
-The *lit* source is available as part of LLVM, in the LLVM SVN repository:
-http://llvm.org/svn/llvm-project/llvm/trunk/utils/lit.
-""",
+    long_description = long_description,
 
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: University of Illinois/NCSA Open Source License',
+        'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
@@ -71,7 +44,7 @@ http://llvm.org/svn/llvm-project/llvm/trunk/utils/lit.
     packages = find_packages(),
     entry_points = {
         'console_scripts': [
-            'lit = lit:main',
+            'lit = lit.main:main',
             ],
         }
 )

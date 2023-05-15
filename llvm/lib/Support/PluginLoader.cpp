@@ -1,9 +1,8 @@
 //===-- PluginLoader.cpp - Implement -load command line option ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,34 +13,46 @@
 #define DONT_GET_PLUGIN_LOADER_OPTION
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/raw_ostream.h"
 #include <vector>
 using namespace llvm;
 
-static ManagedStatic<std::vector<std::string> > Plugins;
-static ManagedStatic<sys::SmartMutex<true> > PluginsLock;
+namespace {
+
+struct Plugins {
+  sys::SmartMutex<true> Lock;
+  std::vector<std::string> List;
+};
+
+Plugins &getPlugins() {
+  static Plugins P;
+  return P;
+}
+
+} // anonymous namespace
 
 void PluginLoader::operator=(const std::string &Filename) {
-  sys::SmartScopedLock<true> Lock(*PluginsLock);
+  auto &P = getPlugins();
+  sys::SmartScopedLock<true> Lock(P.Lock);
   std::string Error;
   if (sys::DynamicLibrary::LoadLibraryPermanently(Filename.c_str(), &Error)) {
     errs() << "Error opening '" << Filename << "': " << Error
            << "\n  -load request ignored.\n";
   } else {
-    Plugins->push_back(Filename);
+    P.List.push_back(Filename);
   }
 }
 
 unsigned PluginLoader::getNumPlugins() {
-  sys::SmartScopedLock<true> Lock(*PluginsLock);
-  return Plugins.isConstructed() ? Plugins->size() : 0;
+  auto &P = getPlugins();
+  sys::SmartScopedLock<true> Lock(P.Lock);
+  return P.List.size();
 }
 
 std::string &PluginLoader::getPlugin(unsigned num) {
-  sys::SmartScopedLock<true> Lock(*PluginsLock);
-  assert(Plugins.isConstructed() && num < Plugins->size() &&
-         "Asking for an out of bounds plugin");
-  return (*Plugins)[num];
+  auto &P = getPlugins();
+  sys::SmartScopedLock<true> Lock(P.Lock);
+  assert(num < P.List.size() && "Asking for an out of bounds plugin");
+  return P.List[num];
 }

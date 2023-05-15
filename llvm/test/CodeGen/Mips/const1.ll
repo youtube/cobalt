@@ -12,10 +12,10 @@ target triple = "mipsel-unknown-linux"
 ; Function Attrs: nounwind
 define void @t() #0 {
 entry:
-  store i32 -559023410, i32* @i, align 4
-  store i32 -559023410, i32* @j, align 4
-  store i32 -87105875, i32* @k, align 4
-  store i32 262991277, i32* @l, align 4
+  store i32 -559023410, ptr @i, align 4
+  store i32 -559023410, ptr @j, align 4
+  store i32 -87105875, ptr @k, align 4
+  store i32 262991277, ptr @l, align 4
   ret void
 ; CHECK: 	lw	${{[0-9]+}}, $CPI0_0
 ; CHECK:	lw	${{[0-9]+}}, $CPI0_1
@@ -28,7 +28,7 @@ entry:
 ; CHECK:	.4byte	262991277
 }
 
-attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="true" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="true" }
 
 !llvm.ident = !{!0}
 

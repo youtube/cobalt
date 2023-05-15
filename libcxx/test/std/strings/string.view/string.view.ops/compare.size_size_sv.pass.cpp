@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
 
 // <string_view>
 
@@ -13,9 +14,10 @@
 
 #include <string_view>
 #include <cassert>
+#include <stdexcept>
 
 #include "test_macros.h"
-#include "constexpr_char_traits.hpp"
+#include "constexpr_char_traits.h"
 
 int sign ( int x ) { return x > 0 ? 1 : ( x < 0 ? -1 : 0 ); }
 
@@ -354,7 +356,7 @@ void test2()
 }
 
 
-int main () {
+int main(int, char**) {
     test0();
     test1();
     test2();
@@ -366,12 +368,14 @@ int main () {
     test("ABCde", 2, 4, "abcde", -1);
     }
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
     test(L"abcde", 5, 1, L"", 0);
     test(L"abcde", 2, 4, L"", 3);
     test(L"abcde", 2, 4, L"abcde", 2);
     test(L"ABCde", 2, 4, L"abcde", -1);
     }
+#endif
 
 #if TEST_STD_VER >= 11
     {
@@ -395,7 +399,9 @@ int main () {
     constexpr SV  sv1 { "abcde", 5 };
     constexpr SV  sv2 { "abcde", 0 };
     static_assert ( sv1.compare(5, 1, sv2) == 0, "" );
-    static_assert ( sv1.compare(2, 4, sv2) == 1, "" );
+    static_assert ( sv1.compare(2, 4, sv2) > 0, "" );
     }
 #endif
+
+  return 0;
 }

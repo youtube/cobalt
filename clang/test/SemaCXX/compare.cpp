@@ -2,6 +2,7 @@
 // on integer sizes.
 
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -pedantic -verify -Wsign-compare -Wtautological-constant-in-range-compare -std=c++11 %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -pedantic -verify -Wsign-compare -Wtype-limits -std=c++11 %s
 
 int test0(long a, unsigned long b) {
   enum EnumA {A};
@@ -426,11 +427,6 @@ namespace templates {
 
 namespace tautological_enum {
   enum E { a, b, c } e;
-
-  // FIXME: We should warn about constructing this out-of-range numeration value.
-  const E invalid = (E)-1;
-  // ... but we should not warn about comparing against it.
-  bool x = e == invalid;
 
   // We should not warn about relational comparisons for enumerators, even if
   // they're tautological.

@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <map>
 
@@ -18,17 +17,18 @@
 #include <map>
 #include <cassert>
 
+#include "test_macros.h"
 #include "MoveOnly.h"
 #include "../../../test_compare.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::pair<MoveOnly, MoveOnly> V;
         typedef std::pair<const MoveOnly, MoveOnly> VC;
-        typedef test_compare<std::less<MoveOnly> > C;
+        typedef test_less<MoveOnly> C;
         typedef test_allocator<VC> A;
         typedef std::map<MoveOnly, MoveOnly, C, A> M;
         typedef std::move_iterator<V*> I;
@@ -68,7 +68,7 @@ int main()
     {
         typedef std::pair<MoveOnly, MoveOnly> V;
         typedef std::pair<const MoveOnly, MoveOnly> VC;
-        typedef test_compare<std::less<MoveOnly> > C;
+        typedef test_less<MoveOnly> C;
         typedef test_allocator<VC> A;
         typedef std::map<MoveOnly, MoveOnly, C, A> M;
         typedef std::move_iterator<V*> I;
@@ -103,12 +103,12 @@ int main()
         assert(m3 == m2);
         assert(m3.get_allocator() == A(5));
         assert(m3.key_comp() == C(5));
-        assert(m1.empty());
+        LIBCPP_ASSERT(m1.empty());
     }
     {
         typedef std::pair<MoveOnly, MoveOnly> V;
         typedef std::pair<const MoveOnly, MoveOnly> VC;
-        typedef test_compare<std::less<MoveOnly> > C;
+        typedef test_less<MoveOnly> C;
         typedef other_allocator<VC> A;
         typedef std::map<MoveOnly, MoveOnly, C, A> M;
         typedef std::move_iterator<V*> I;
@@ -148,7 +148,7 @@ int main()
     {
         typedef std::pair<MoveOnly, MoveOnly> V;
         typedef std::pair<const MoveOnly, MoveOnly> VC;
-        typedef test_compare<std::less<MoveOnly> > C;
+        typedef test_less<MoveOnly> C;
         typedef min_allocator<VC> A;
         typedef std::map<MoveOnly, MoveOnly, C, A> M;
         typedef std::move_iterator<V*> I;
@@ -185,4 +185,6 @@ int main()
         assert(m3.key_comp() == C(5));
         assert(m1.empty());
     }
+
+  return 0;
 }

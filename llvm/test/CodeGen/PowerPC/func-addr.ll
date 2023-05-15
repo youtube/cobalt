@@ -1,10 +1,10 @@
 ; RUN: llc -relocation-model=static -verify-machineinstrs -mtriple powerpc64-linux < %s | FileCheck %s
 ; RUN: llc -relocation-model=static -verify-machineinstrs -O0 -mtriple powerpc64-linux < %s | FileCheck %s
 
-define void @foo()  {
+define dso_local void @foo()  {
   ret void
 }
-declare i32 @bar(i8*)
+declare i32 @bar(ptr)
 
 ; CHECK-LABEL: {{^}}zed:
 ; CHECK:        addis 3, 2, foo@toc@ha
@@ -12,6 +12,6 @@ declare i32 @bar(i8*)
 ; CHECK-NEXT:   bl bar
 
 define  void @zed() {
-  call i32 @bar(i8* bitcast (void ()* @foo to i8*))
+  call i32 @bar(ptr @foo)
   ret void
 }

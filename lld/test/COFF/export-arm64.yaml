@@ -1,14 +1,13 @@
 # REQUIRES: aarch64
 
-# RUN: yaml2obj < %s > %t.obj
+# RUN: yaml2obj %s -o %t.obj
 # RUN: lld-link /out:%t.dll /dll %t.obj /export:exportfn1 /export:exportfn2 /implib:%t.lib
 # RUN: llvm-objdump -p %t.dll | FileCheck %s
-# RUN: llvm-objdump -r %t.lib | FileCheck %s -check-prefix=RELOCS
+# RUN: llvm-objdump -r %t.lib | FileCheck %s --check-prefix=RELOCS
 
 # CHECK:      Export Table:
 # CHECK:      DLL name: export-arm64.yaml.tmp.dll
 # CHECK:      Ordinal      RVA  Name
-# CHECK-NEXT:       0        0
 # CHECK-NEXT:       1   0x1008  exportfn1
 # CHECK-NEXT:       2   0x1010  exportfn2
 # CHECK-NEXT:       3   0x1018  exportfn3

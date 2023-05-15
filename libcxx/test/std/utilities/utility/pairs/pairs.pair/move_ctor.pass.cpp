@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <utility>
 
@@ -15,9 +14,10 @@
 
 // pair(pair&&) = default;
 
-#include <utility>
-#include <memory>
 #include <cassert>
+#include <memory>
+#include <type_traits>
+#include <utility>
 
 #include "test_macros.h"
 
@@ -26,7 +26,13 @@ struct Dummy {
   Dummy(Dummy &&) = default;
 };
 
-int main()
+struct NotCopyOrMoveConstructible {
+  NotCopyOrMoveConstructible() = default;
+  NotCopyOrMoveConstructible(NotCopyOrMoveConstructible const&) = delete;
+  NotCopyOrMoveConstructible(NotCopyOrMoveConstructible&&) = delete;
+};
+
+int main(int, char**)
 {
     {
         typedef std::pair<int, short> P1;
@@ -41,4 +47,31 @@ int main()
         static_assert(!std::is_copy_constructible<P>::value, "");
         static_assert(std::is_move_constructible<P>::value, "");
     }
+    {
+        // When constructing a pair containing a reference, we only bind the
+        // reference, so it doesn't matter whether the type is or isn't
+        // copy/move constructible.
+        {
+            using P = std::pair<NotCopyOrMoveConstructible&, int>;
+            static_assert(std::is_move_constructible<P>::value, "");
+
+            NotCopyOrMoveConstructible obj;
+            P p2{obj, 3};
+            P p1(std::move(p2));
+            assert(&p1.first == &obj);
+            assert(&p2.first == &obj);
+        }
+        {
+            using P = std::pair<NotCopyOrMoveConstructible&&, int>;
+            static_assert(std::is_move_constructible<P>::value, "");
+
+            NotCopyOrMoveConstructible obj;
+            P p2{std::move(obj), 3};
+            P p1(std::move(p2));
+            assert(&p1.first == &obj);
+            assert(&p2.first == &obj);
+        }
+    }
+
+    return 0;
 }

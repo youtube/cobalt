@@ -1,4 +1,4 @@
-; RUN: opt %loadPolly -polly-dependences -analyze < %s | FileCheck %s
+; RUN: opt %loadPolly -polly-print-dependences -disable-output < %s | FileCheck %s
 
 ;    void manyreductions(long *A) {
 ;      for (long i = 0; i < 1024; i++)
@@ -59,21 +59,21 @@
 ;    }
 
 ; CHECK: 	RAW dependences:
-; CHECK-NEXT: 		{ Stmt_bb150[1023, 1023] -> Stmt_bb162[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb150[i0, i1] -> Stmt_bb162[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb150[1023, 1023] -> Stmt_bb162[0, 0]; Stmt_bb174[1023, 1023] -> Stmt_bb186[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb174[i0, i1] -> Stmt_bb186[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb174[1023, 1023] -> Stmt_bb186[0, 0]; Stmt_bb102[1023, 1023] -> Stmt_bb114[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb102[i0, i1] -> Stmt_bb114[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb102[1023, 1023] -> Stmt_bb114[0, 0]; Stmt_bb42[1023, 1023] -> Stmt_bb54[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb42[i0, i1] -> Stmt_bb54[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb42[1023, 1023] -> Stmt_bb54[0, 0]; Stmt_bb54[1023, 1023] -> Stmt_bb66[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb54[i0, i1] -> Stmt_bb66[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb54[1023, 1023] -> Stmt_bb66[0, 0]; Stmt_bb31[1023, 1023] -> Stmt_bb42[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb31[i0, i1] -> Stmt_bb42[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb31[1023, 1023] -> Stmt_bb42[0, 0]; Stmt_bb162[1023, 1023] -> Stmt_bb174[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb162[i0, i1] -> Stmt_bb174[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb162[1023, 1023] -> Stmt_bb174[0, 0]; Stmt_bb126[1023, 1023] -> Stmt_bb138[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb126[i0, i1] -> Stmt_bb138[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb126[1023, 1023] -> Stmt_bb138[0, 0]; Stmt_bb90[1023, 1023] -> Stmt_bb102[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb90[i0, i1] -> Stmt_bb102[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb90[1023, 1023] -> Stmt_bb102[0, 0]; Stmt_bb138[1023, 1023] -> Stmt_bb150[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb138[i0, i1] -> Stmt_bb150[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb138[1023, 1023] -> Stmt_bb150[0, 0]; Stmt_bb66[1023, 1023] -> Stmt_bb78[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb66[i0, i1] -> Stmt_bb78[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb66[1023, 1023] -> Stmt_bb78[0, 0]; Stmt_bb78[1023, 1023] -> Stmt_bb90[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb78[i0, i1] -> Stmt_bb90[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb78[1023, 1023] -> Stmt_bb90[0, 0]; Stmt_bb114[1023, 1023] -> Stmt_bb126[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb114[i0, i1] -> Stmt_bb126[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb114[1023, 1023] -> Stmt_bb126[0, 0] }
+; CHECK-NEXT: 		{ Stmt_bb90[1023, 1023] -> Stmt_bb102[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb90[i0, i1] -> Stmt_bb102[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb90[1023, 1023] -> Stmt_bb102[0, 0]; Stmt_bb150[1023, 1023] -> Stmt_bb162[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb150[i0, i1] -> Stmt_bb162[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb150[1023, 1023] -> Stmt_bb162[0, 0]; Stmt_bb66[1023, 1023] -> Stmt_bb78[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb66[i0, i1] -> Stmt_bb78[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb66[1023, 1023] -> Stmt_bb78[0, 0]; Stmt_bb126[1023, 1023] -> Stmt_bb138[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb126[i0, i1] -> Stmt_bb138[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb126[1023, 1023] -> Stmt_bb138[0, 0]; Stmt_bb54[1023, 1023] -> Stmt_bb66[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb54[i0, i1] -> Stmt_bb66[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb54[1023, 1023] -> Stmt_bb66[0, 0]; Stmt_bb174[1023, 1023] -> Stmt_bb186[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb174[i0, i1] -> Stmt_bb186[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb174[1023, 1023] -> Stmt_bb186[0, 0]; Stmt_bb114[1023, 1023] -> Stmt_bb126[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb114[i0, i1] -> Stmt_bb126[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb114[1023, 1023] -> Stmt_bb126[0, 0]; Stmt_bb31[1023, 1023] -> Stmt_bb42[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb31[i0, i1] -> Stmt_bb42[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb31[1023, 1023] -> Stmt_bb42[0, 0]; Stmt_bb42[1023, 1023] -> Stmt_bb54[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb42[i0, i1] -> Stmt_bb54[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb42[1023, 1023] -> Stmt_bb54[0, 0]; Stmt_bb78[1023, 1023] -> Stmt_bb90[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb78[i0, i1] -> Stmt_bb90[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb78[1023, 1023] -> Stmt_bb90[0, 0]; Stmt_bb138[1023, 1023] -> Stmt_bb150[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb138[i0, i1] -> Stmt_bb150[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb138[1023, 1023] -> Stmt_bb150[0, 0]; Stmt_bb102[1023, 1023] -> Stmt_bb114[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb102[i0, i1] -> Stmt_bb114[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb102[1023, 1023] -> Stmt_bb114[0, 0]; Stmt_bb162[1023, 1023] -> Stmt_bb174[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb162[i0, i1] -> Stmt_bb174[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb162[1023, 1023] -> Stmt_bb174[0, 0] }
 ; CHECK-NEXT: 	WAR dependences:
-; CHECK-NEXT:     { Stmt_bb150[1023, 1023] -> Stmt_bb162[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb150[i0, i1] -> Stmt_bb162[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb150[1023, 1023] -> Stmt_bb162[0, 0]; Stmt_bb174[1023, 1023] -> Stmt_bb186[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb174[i0, i1] -> Stmt_bb186[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb174[1023, 1023] -> Stmt_bb186[0, 0]; Stmt_bb102[1023, 1023] -> Stmt_bb114[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb102[i0, i1] -> Stmt_bb114[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb102[1023, 1023] -> Stmt_bb114[0, 0]; Stmt_bb42[1023, 1023] -> Stmt_bb54[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb42[i0, i1] -> Stmt_bb54[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb42[1023, 1023] -> Stmt_bb54[0, 0]; Stmt_bb54[1023, 1023] -> Stmt_bb66[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb54[i0, i1] -> Stmt_bb66[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb54[1023, 1023] -> Stmt_bb66[0, 0]; Stmt_bb31[1023, 1023] -> Stmt_bb42[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb31[i0, i1] -> Stmt_bb42[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb31[1023, 1023] -> Stmt_bb42[0, 0]; Stmt_bb162[1023, 1023] -> Stmt_bb174[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb162[i0, i1] -> Stmt_bb174[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb162[1023, 1023] -> Stmt_bb174[0, 0]; Stmt_bb126[1023, 1023] -> Stmt_bb138[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb126[i0, i1] -> Stmt_bb138[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb126[1023, 1023] -> Stmt_bb138[0, 0]; Stmt_bb90[1023, 1023] -> Stmt_bb102[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb90[i0, i1] -> Stmt_bb102[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb90[1023, 1023] -> Stmt_bb102[0, 0]; Stmt_bb138[1023, 1023] -> Stmt_bb150[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb138[i0, i1] -> Stmt_bb150[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb138[1023, 1023] -> Stmt_bb150[0, 0]; Stmt_bb66[1023, 1023] -> Stmt_bb78[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb66[i0, i1] -> Stmt_bb78[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb66[1023, 1023] -> Stmt_bb78[0, 0]; Stmt_bb78[1023, 1023] -> Stmt_bb90[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb78[i0, i1] -> Stmt_bb90[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb78[1023, 1023] -> Stmt_bb90[0, 0]; Stmt_bb114[1023, 1023] -> Stmt_bb126[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb114[i0, i1] -> Stmt_bb126[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb114[1023, 1023] -> Stmt_bb126[0, 0] }
+; CHECK-NEXT:     { Stmt_bb90[1023, 1023] -> Stmt_bb102[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb90[i0, i1] -> Stmt_bb102[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb90[1023, 1023] -> Stmt_bb102[0, 0]; Stmt_bb150[1023, 1023] -> Stmt_bb162[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb150[i0, i1] -> Stmt_bb162[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb150[1023, 1023] -> Stmt_bb162[0, 0]; Stmt_bb66[1023, 1023] -> Stmt_bb78[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb66[i0, i1] -> Stmt_bb78[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb66[1023, 1023] -> Stmt_bb78[0, 0]; Stmt_bb126[1023, 1023] -> Stmt_bb138[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb126[i0, i1] -> Stmt_bb138[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb126[1023, 1023] -> Stmt_bb138[0, 0]; Stmt_bb54[1023, 1023] -> Stmt_bb66[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb54[i0, i1] -> Stmt_bb66[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb54[1023, 1023] -> Stmt_bb66[0, 0]; Stmt_bb174[1023, 1023] -> Stmt_bb186[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb174[i0, i1] -> Stmt_bb186[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb174[1023, 1023] -> Stmt_bb186[0, 0]; Stmt_bb114[1023, 1023] -> Stmt_bb126[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb114[i0, i1] -> Stmt_bb126[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb114[1023, 1023] -> Stmt_bb126[0, 0]; Stmt_bb31[1023, 1023] -> Stmt_bb42[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb31[i0, i1] -> Stmt_bb42[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb31[1023, 1023] -> Stmt_bb42[0, 0]; Stmt_bb42[1023, 1023] -> Stmt_bb54[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb42[i0, i1] -> Stmt_bb54[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb42[1023, 1023] -> Stmt_bb54[0, 0]; Stmt_bb78[1023, 1023] -> Stmt_bb90[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb78[i0, i1] -> Stmt_bb90[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb78[1023, 1023] -> Stmt_bb90[0, 0]; Stmt_bb138[1023, 1023] -> Stmt_bb150[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb138[i0, i1] -> Stmt_bb150[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb138[1023, 1023] -> Stmt_bb150[0, 0]; Stmt_bb102[1023, 1023] -> Stmt_bb114[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb102[i0, i1] -> Stmt_bb114[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb102[1023, 1023] -> Stmt_bb114[0, 0]; Stmt_bb162[1023, 1023] -> Stmt_bb174[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb162[i0, i1] -> Stmt_bb174[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb162[1023, 1023] -> Stmt_bb174[0, 0] }
 ; CHECK-NEXT: 	WAW dependences:
-; CHECK-NEXT: 		{ Stmt_bb150[1023, 1023] -> Stmt_bb162[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb150[i0, i1] -> Stmt_bb162[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb150[1023, 1023] -> Stmt_bb162[0, 0]; Stmt_bb174[1023, 1023] -> Stmt_bb186[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb174[i0, i1] -> Stmt_bb186[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb174[1023, 1023] -> Stmt_bb186[0, 0]; Stmt_bb102[1023, 1023] -> Stmt_bb114[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb102[i0, i1] -> Stmt_bb114[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb102[1023, 1023] -> Stmt_bb114[0, 0]; Stmt_bb42[1023, 1023] -> Stmt_bb54[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb42[i0, i1] -> Stmt_bb54[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb42[1023, 1023] -> Stmt_bb54[0, 0]; Stmt_bb54[1023, 1023] -> Stmt_bb66[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb54[i0, i1] -> Stmt_bb66[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb54[1023, 1023] -> Stmt_bb66[0, 0]; Stmt_bb31[1023, 1023] -> Stmt_bb42[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb31[i0, i1] -> Stmt_bb42[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb31[1023, 1023] -> Stmt_bb42[0, 0]; Stmt_bb162[1023, 1023] -> Stmt_bb174[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb162[i0, i1] -> Stmt_bb174[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb162[1023, 1023] -> Stmt_bb174[0, 0]; Stmt_bb126[1023, 1023] -> Stmt_bb138[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb126[i0, i1] -> Stmt_bb138[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb126[1023, 1023] -> Stmt_bb138[0, 0]; Stmt_bb90[1023, 1023] -> Stmt_bb102[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb90[i0, i1] -> Stmt_bb102[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb90[1023, 1023] -> Stmt_bb102[0, 0]; Stmt_bb138[1023, 1023] -> Stmt_bb150[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb138[i0, i1] -> Stmt_bb150[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb138[1023, 1023] -> Stmt_bb150[0, 0]; Stmt_bb66[1023, 1023] -> Stmt_bb78[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb66[i0, i1] -> Stmt_bb78[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb66[1023, 1023] -> Stmt_bb78[0, 0]; Stmt_bb78[1023, 1023] -> Stmt_bb90[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb78[i0, i1] -> Stmt_bb90[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb78[1023, 1023] -> Stmt_bb90[0, 0]; Stmt_bb114[1023, 1023] -> Stmt_bb126[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb114[i0, i1] -> Stmt_bb126[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb114[1023, 1023] -> Stmt_bb126[0, 0] }
+; CHECK-NEXT: 		{ Stmt_bb90[1023, 1023] -> Stmt_bb102[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb90[i0, i1] -> Stmt_bb102[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb90[1023, 1023] -> Stmt_bb102[0, 0]; Stmt_bb150[1023, 1023] -> Stmt_bb162[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb150[i0, i1] -> Stmt_bb162[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb150[1023, 1023] -> Stmt_bb162[0, 0]; Stmt_bb66[1023, 1023] -> Stmt_bb78[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb66[i0, i1] -> Stmt_bb78[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb66[1023, 1023] -> Stmt_bb78[0, 0]; Stmt_bb126[1023, 1023] -> Stmt_bb138[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb126[i0, i1] -> Stmt_bb138[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb126[1023, 1023] -> Stmt_bb138[0, 0]; Stmt_bb54[1023, 1023] -> Stmt_bb66[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb54[i0, i1] -> Stmt_bb66[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb54[1023, 1023] -> Stmt_bb66[0, 0]; Stmt_bb174[1023, 1023] -> Stmt_bb186[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb174[i0, i1] -> Stmt_bb186[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb174[1023, 1023] -> Stmt_bb186[0, 0]; Stmt_bb114[1023, 1023] -> Stmt_bb126[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb114[i0, i1] -> Stmt_bb126[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb114[1023, 1023] -> Stmt_bb126[0, 0]; Stmt_bb31[1023, 1023] -> Stmt_bb42[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb31[i0, i1] -> Stmt_bb42[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb31[1023, 1023] -> Stmt_bb42[0, 0]; Stmt_bb42[1023, 1023] -> Stmt_bb54[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb42[i0, i1] -> Stmt_bb54[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb42[1023, 1023] -> Stmt_bb54[0, 0]; Stmt_bb78[1023, 1023] -> Stmt_bb90[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb78[i0, i1] -> Stmt_bb90[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb78[1023, 1023] -> Stmt_bb90[0, 0]; Stmt_bb138[1023, 1023] -> Stmt_bb150[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb138[i0, i1] -> Stmt_bb150[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb138[1023, 1023] -> Stmt_bb150[0, 0]; Stmt_bb102[1023, 1023] -> Stmt_bb114[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb102[i0, i1] -> Stmt_bb114[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb102[1023, 1023] -> Stmt_bb114[0, 0]; Stmt_bb162[1023, 1023] -> Stmt_bb174[o0, o1] : o0 <= 1023 and o1 >= 0 and -1024o0 < o1 <= 1023; Stmt_bb162[i0, i1] -> Stmt_bb174[0, 0] : i0 >= 0 and 0 <= i1 <= 1048574 - 1024i0 and i1 <= 1023; Stmt_bb162[1023, 1023] -> Stmt_bb174[0, 0] }
 ; CHECK-NEXT: 	Reduction dependences:
-; CHECK-NEXT: 		{ Stmt_bb102[i0, i1] -> Stmt_bb102[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb102[i0, 1023] -> Stmt_bb102[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb90[i0, i1] -> Stmt_bb90[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb90[i0, 1023] -> Stmt_bb90[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb186[i0, i1] -> Stmt_bb186[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb186[i0, 1023] -> Stmt_bb186[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb66[i0, i1] -> Stmt_bb66[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb66[i0, 1023] -> Stmt_bb66[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb31[i0, i1] -> Stmt_bb31[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb31[i0, 1023] -> Stmt_bb31[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb138[i0, i1] -> Stmt_bb138[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb138[i0, 1023] -> Stmt_bb138[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb126[i0, i1] -> Stmt_bb126[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb126[i0, 1023] -> Stmt_bb126[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb42[i0, i1] -> Stmt_bb42[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb42[i0, 1023] -> Stmt_bb42[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb150[i0, i1] -> Stmt_bb150[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb150[i0, 1023] -> Stmt_bb150[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb78[i0, i1] -> Stmt_bb78[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb78[i0, 1023] -> Stmt_bb78[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb174[i0, i1] -> Stmt_bb174[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb174[i0, 1023] -> Stmt_bb174[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb114[i0, i1] -> Stmt_bb114[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb114[i0, 1023] -> Stmt_bb114[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb162[i0, i1] -> Stmt_bb162[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb162[i0, 1023] -> Stmt_bb162[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb54[i0, i1] -> Stmt_bb54[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb54[i0, 1023] -> Stmt_bb54[1 + i0, 0] : 0 <= i0 <= 1022 }
+; CHECK-NEXT: 		{ Stmt_bb162[i0, i1] -> Stmt_bb162[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb162[i0, 1023] -> Stmt_bb162[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb90[i0, i1] -> Stmt_bb90[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb90[i0, 1023] -> Stmt_bb90[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb150[i0, i1] -> Stmt_bb150[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb150[i0, 1023] -> Stmt_bb150[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb186[i0, i1] -> Stmt_bb186[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb186[i0, 1023] -> Stmt_bb186[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb66[i0, i1] -> Stmt_bb66[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb66[i0, 1023] -> Stmt_bb66[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb31[i0, i1] -> Stmt_bb31[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb31[i0, 1023] -> Stmt_bb31[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb102[i0, i1] -> Stmt_bb102[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb102[i0, 1023] -> Stmt_bb102[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb138[i0, i1] -> Stmt_bb138[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb138[i0, 1023] -> Stmt_bb138[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb54[i0, i1] -> Stmt_bb54[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb54[i0, 1023] -> Stmt_bb54[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb174[i0, i1] -> Stmt_bb174[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb174[i0, 1023] -> Stmt_bb174[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb78[i0, i1] -> Stmt_bb78[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb78[i0, 1023] -> Stmt_bb78[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb126[i0, i1] -> Stmt_bb126[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb126[i0, 1023] -> Stmt_bb126[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb114[i0, i1] -> Stmt_bb114[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb114[i0, 1023] -> Stmt_bb114[1 + i0, 0] : 0 <= i0 <= 1022; Stmt_bb42[i0, i1] -> Stmt_bb42[i0, 1 + i1] : 0 <= i0 <= 1023 and 0 <= i1 <= 1022; Stmt_bb42[i0, 1023] -> Stmt_bb42[1 + i0, 0] : 0 <= i0 <= 1022 }
 
 ; CHECK-NEXT: 	Transitive closure of reduction dependences:
-; CHECK-NEXT:  { Stmt_bb102[i0, i1] -> Stmt_bb102[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb90[i0, i1] -> Stmt_bb90[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb186[i0, i1] -> Stmt_bb186[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb66[i0, i1] -> Stmt_bb66[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb31[i0, i1] -> Stmt_bb31[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb138[i0, i1] -> Stmt_bb138[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb126[i0, i1] -> Stmt_bb126[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb42[i0, i1] -> Stmt_bb42[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb150[i0, i1] -> Stmt_bb150[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb78[i0, i1] -> Stmt_bb78[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb174[i0, i1] -> Stmt_bb174[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb114[i0, i1] -> Stmt_bb114[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb162[i0, i1] -> Stmt_bb162[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb54[i0, i1] -> Stmt_bb54[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)) }
+; CHECK-NEXT:  { Stmt_bb162[i0, i1] -> Stmt_bb162[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb90[i0, i1] -> Stmt_bb90[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb150[i0, i1] -> Stmt_bb150[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb186[i0, i1] -> Stmt_bb186[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb66[i0, i1] -> Stmt_bb66[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb31[i0, i1] -> Stmt_bb31[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb102[i0, i1] -> Stmt_bb102[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb138[i0, i1] -> Stmt_bb138[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb54[i0, i1] -> Stmt_bb54[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb174[i0, i1] -> Stmt_bb174[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb78[i0, i1] -> Stmt_bb78[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb126[i0, i1] -> Stmt_bb126[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb114[i0, i1] -> Stmt_bb114[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)); Stmt_bb42[i0, i1] -> Stmt_bb42[o0, o1] : 0 <= i1 <= 1023 and 0 <= o1 <= 1023 and ((i0 >= 0 and o0 <= 1023 and o1 > 1024i0 + i1 - 1024o0) or (i0 <= 1023 and o0 >= 0 and o1 < 1024i0 + i1 - 1024o0)) }
 
 ;
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
-define void @manyreductions(i64* %A) {
+define void @manyreductions(ptr %A) {
 bb:
   br label %bb28
 
@@ -91,9 +91,9 @@ bb30:                                             ; preds = %bb33, %bb29
   br i1 %exitcond26, label %bb31, label %bb35
 
 bb31:                                             ; preds = %bb30
-  %tmp = load i64, i64* %A, align 8
+  %tmp = load i64, ptr %A, align 8
   %tmp32 = add nsw i64 %tmp, 42
-  store i64 %tmp32, i64* %A, align 8
+  store i64 %tmp32, ptr %A, align 8
   br label %bb33
 
 bb33:                                             ; preds = %bb31
@@ -124,9 +124,9 @@ bb41:                                             ; preds = %bb45, %bb40
   br i1 %exitcond24, label %bb42, label %bb47
 
 bb42:                                             ; preds = %bb41
-  %tmp43 = load i64, i64* %A, align 8
+  %tmp43 = load i64, ptr %A, align 8
   %tmp44 = add nsw i64 %tmp43, 42
-  store i64 %tmp44, i64* %A, align 8
+  store i64 %tmp44, ptr %A, align 8
   br label %bb45
 
 bb45:                                             ; preds = %bb42
@@ -157,9 +157,9 @@ bb53:                                             ; preds = %bb57, %bb52
   br i1 %exitcond22, label %bb54, label %bb59
 
 bb54:                                             ; preds = %bb53
-  %tmp55 = load i64, i64* %A, align 8
+  %tmp55 = load i64, ptr %A, align 8
   %tmp56 = add nsw i64 %tmp55, 42
-  store i64 %tmp56, i64* %A, align 8
+  store i64 %tmp56, ptr %A, align 8
   br label %bb57
 
 bb57:                                             ; preds = %bb54
@@ -190,9 +190,9 @@ bb65:                                             ; preds = %bb69, %bb64
   br i1 %exitcond20, label %bb66, label %bb71
 
 bb66:                                             ; preds = %bb65
-  %tmp67 = load i64, i64* %A, align 8
+  %tmp67 = load i64, ptr %A, align 8
   %tmp68 = add nsw i64 %tmp67, 42
-  store i64 %tmp68, i64* %A, align 8
+  store i64 %tmp68, ptr %A, align 8
   br label %bb69
 
 bb69:                                             ; preds = %bb66
@@ -223,9 +223,9 @@ bb77:                                             ; preds = %bb81, %bb76
   br i1 %exitcond18, label %bb78, label %bb83
 
 bb78:                                             ; preds = %bb77
-  %tmp79 = load i64, i64* %A, align 8
+  %tmp79 = load i64, ptr %A, align 8
   %tmp80 = add nsw i64 %tmp79, 42
-  store i64 %tmp80, i64* %A, align 8
+  store i64 %tmp80, ptr %A, align 8
   br label %bb81
 
 bb81:                                             ; preds = %bb78
@@ -256,9 +256,9 @@ bb89:                                             ; preds = %bb93, %bb88
   br i1 %exitcond16, label %bb90, label %bb95
 
 bb90:                                             ; preds = %bb89
-  %tmp91 = load i64, i64* %A, align 8
+  %tmp91 = load i64, ptr %A, align 8
   %tmp92 = add nsw i64 %tmp91, 42
-  store i64 %tmp92, i64* %A, align 8
+  store i64 %tmp92, ptr %A, align 8
   br label %bb93
 
 bb93:                                             ; preds = %bb90
@@ -289,9 +289,9 @@ bb101:                                            ; preds = %bb105, %bb100
   br i1 %exitcond14, label %bb102, label %bb107
 
 bb102:                                            ; preds = %bb101
-  %tmp103 = load i64, i64* %A, align 8
+  %tmp103 = load i64, ptr %A, align 8
   %tmp104 = add nsw i64 %tmp103, 42
-  store i64 %tmp104, i64* %A, align 8
+  store i64 %tmp104, ptr %A, align 8
   br label %bb105
 
 bb105:                                            ; preds = %bb102
@@ -322,9 +322,9 @@ bb113:                                            ; preds = %bb117, %bb112
   br i1 %exitcond12, label %bb114, label %bb119
 
 bb114:                                            ; preds = %bb113
-  %tmp115 = load i64, i64* %A, align 8
+  %tmp115 = load i64, ptr %A, align 8
   %tmp116 = add nsw i64 %tmp115, 42
-  store i64 %tmp116, i64* %A, align 8
+  store i64 %tmp116, ptr %A, align 8
   br label %bb117
 
 bb117:                                            ; preds = %bb114
@@ -355,9 +355,9 @@ bb125:                                            ; preds = %bb129, %bb124
   br i1 %exitcond10, label %bb126, label %bb131
 
 bb126:                                            ; preds = %bb125
-  %tmp127 = load i64, i64* %A, align 8
+  %tmp127 = load i64, ptr %A, align 8
   %tmp128 = add nsw i64 %tmp127, 42
-  store i64 %tmp128, i64* %A, align 8
+  store i64 %tmp128, ptr %A, align 8
   br label %bb129
 
 bb129:                                            ; preds = %bb126
@@ -388,9 +388,9 @@ bb137:                                            ; preds = %bb141, %bb136
   br i1 %exitcond8, label %bb138, label %bb143
 
 bb138:                                            ; preds = %bb137
-  %tmp139 = load i64, i64* %A, align 8
+  %tmp139 = load i64, ptr %A, align 8
   %tmp140 = add nsw i64 %tmp139, 42
-  store i64 %tmp140, i64* %A, align 8
+  store i64 %tmp140, ptr %A, align 8
   br label %bb141
 
 bb141:                                            ; preds = %bb138
@@ -421,9 +421,9 @@ bb149:                                            ; preds = %bb153, %bb148
   br i1 %exitcond6, label %bb150, label %bb155
 
 bb150:                                            ; preds = %bb149
-  %tmp151 = load i64, i64* %A, align 8
+  %tmp151 = load i64, ptr %A, align 8
   %tmp152 = add nsw i64 %tmp151, 42
-  store i64 %tmp152, i64* %A, align 8
+  store i64 %tmp152, ptr %A, align 8
   br label %bb153
 
 bb153:                                            ; preds = %bb150
@@ -454,9 +454,9 @@ bb161:                                            ; preds = %bb165, %bb160
   br i1 %exitcond4, label %bb162, label %bb167
 
 bb162:                                            ; preds = %bb161
-  %tmp163 = load i64, i64* %A, align 8
+  %tmp163 = load i64, ptr %A, align 8
   %tmp164 = add nsw i64 %tmp163, 42
-  store i64 %tmp164, i64* %A, align 8
+  store i64 %tmp164, ptr %A, align 8
   br label %bb165
 
 bb165:                                            ; preds = %bb162
@@ -487,9 +487,9 @@ bb173:                                            ; preds = %bb177, %bb172
   br i1 %exitcond2, label %bb174, label %bb179
 
 bb174:                                            ; preds = %bb173
-  %tmp175 = load i64, i64* %A, align 8
+  %tmp175 = load i64, ptr %A, align 8
   %tmp176 = add nsw i64 %tmp175, 42
-  store i64 %tmp176, i64* %A, align 8
+  store i64 %tmp176, ptr %A, align 8
   br label %bb177
 
 bb177:                                            ; preds = %bb174
@@ -520,9 +520,9 @@ bb185:                                            ; preds = %bb189, %bb184
   br i1 %exitcond, label %bb186, label %bb191
 
 bb186:                                            ; preds = %bb185
-  %tmp187 = load i64, i64* %A, align 8
+  %tmp187 = load i64, ptr %A, align 8
   %tmp188 = add nsw i64 %tmp187, 42
-  store i64 %tmp188, i64* %A, align 8
+  store i64 %tmp188, ptr %A, align 8
   br label %bb189
 
 bb189:                                            ; preds = %bb186

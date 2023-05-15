@@ -10,12 +10,9 @@ until exit or a crash takes place, and the number of events seen by LLDB is
 verified to match the expected number of events.
 """
 
-from __future__ import print_function
 
 
 import unittest2
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -77,9 +74,7 @@ class ConcurrentEventsBase(TestBase):
         bpno = lldbutil.run_break_set_by_file_and_line(
             self, self.filename, line, num_expected_locations=-1)
         bp = self.inferior_target.FindBreakpointByID(bpno)
-        descriptions.append(
-            ": file = 'main.cpp', line = %d" %
-            self.finish_breakpoint_line)
+        descriptions.append(": file = 'main.cpp', line = %d" % line)
         return bp
 
     def inferior_done(self):

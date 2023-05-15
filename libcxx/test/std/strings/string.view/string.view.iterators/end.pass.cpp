@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
 
 // <string_view>
 
@@ -49,40 +50,65 @@ test(S s)
 }
 
 
-int main()
+int main(int, char**)
 {
     typedef std::string_view    string_view;
+#ifndef TEST_HAS_NO_CHAR8_T
+    typedef std::u8string_view  u8string_view;
+#endif
     typedef std::u16string_view u16string_view;
     typedef std::u32string_view u32string_view;
-    typedef std::wstring_view   wstring_view;
 
     test(string_view   ());
     test(u16string_view());
     test(u32string_view());
-    test(wstring_view  ());
     test(string_view   ( "123"));
-    test(wstring_view  (L"123"));
+#ifndef TEST_HAS_NO_CHAR8_T
+    test(u8string_view{u8"123"});
+#endif
 #if TEST_STD_VER >= 11
     test(u16string_view{u"123"});
     test(u32string_view{U"123"});
 #endif
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    typedef std::wstring_view   wstring_view;
+    test(wstring_view  ());
+    test(wstring_view  (L"123"));
+#endif
+
 #if TEST_STD_VER > 11
     {
     constexpr string_view       sv { "123", 3 };
+#  ifndef TEST_HAS_NO_CHAR8_T
+    constexpr u8string_view u8sv  {u8"123", 3 };
+#endif
     constexpr u16string_view u16sv {u"123", 3 };
     constexpr u32string_view u32sv {U"123", 3 };
-    constexpr wstring_view     wsv {L"123", 3 };
 
     static_assert (    sv.begin() !=    sv.end(), "" );
+#  ifndef TEST_HAS_NO_CHAR8_T
+    static_assert (  u8sv.begin() !=  u8sv.end(), "" );
+#endif
     static_assert ( u16sv.begin() != u16sv.end(), "" );
     static_assert ( u32sv.begin() != u32sv.end(), "" );
-    static_assert (   wsv.begin() !=   wsv.end(), "" );
 
     static_assert (    sv.begin() !=    sv.cend(), "" );
+#  ifndef TEST_HAS_NO_CHAR8_T
+    static_assert (  u8sv.begin() !=  u8sv.cend(), "" );
+#endif
     static_assert ( u16sv.begin() != u16sv.cend(), "" );
     static_assert ( u32sv.begin() != u32sv.cend(), "" );
-    static_assert (   wsv.begin() !=   wsv.cend(), "" );
-    }
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+        {
+            constexpr wstring_view     wsv {L"123", 3 };
+            static_assert (   wsv.begin() !=   wsv.end(), "" );
+            static_assert (   wsv.begin() !=   wsv.cend(), "" );
+        }
 #endif
+    }
+#endif // TEST_STD_VER > 11
+
+  return 0;
 }

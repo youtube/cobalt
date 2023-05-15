@@ -3,16 +3,20 @@
 
 ; widen v8i8 to v16i8 (checks even power of 2 widening with add & and)
 
-define void @update(i64* %dst_i, i64* %src_i, i32 %n) nounwind {
+define void @update(ptr %dst_i, ptr %src_i, i32 %n) nounwind {
 ; CHECK-LABEL: update:
 ; CHECK:       # %bb.0: # %entry
 ; CHECK-NEXT:    subl $12, %esp
 ; CHECK-NEXT:    movl $0, (%esp)
 ; CHECK-NEXT:    pcmpeqd %xmm0, %xmm0
-; CHECK-NEXT:    movdqa {{.*#+}} xmm1 = [4,4,4,4,4,4,4,4]
-; CHECK-NEXT:    jmp .LBB0_1
+; CHECK-NEXT:    movdqa {{.*#+}} xmm1 = <4,4,4,4,4,4,4,4,u,u,u,u,u,u,u,u>
 ; CHECK-NEXT:    .p2align 4, 0x90
-; CHECK-NEXT:  .LBB0_2: # %forbody
+; CHECK-NEXT:  .LBB0_1: # %forcond
+; CHECK-NEXT:    # =>This Inner Loop Header: Depth=1
+; CHECK-NEXT:    movl (%esp), %eax
+; CHECK-NEXT:    cmpl {{[0-9]+}}(%esp), %eax
+; CHECK-NEXT:    jge .LBB0_3
+; CHECK-NEXT:  # %bb.2: # %forbody
 ; CHECK-NEXT:    # in Loop: Header=BB0_1 Depth=1
 ; CHECK-NEXT:    movl (%esp), %eax
 ; CHECK-NEXT:    leal (,%eax,8), %ecx
@@ -21,66 +25,59 @@ define void @update(i64* %dst_i, i64* %src_i, i32 %n) nounwind {
 ; CHECK-NEXT:    movl %edx, {{[0-9]+}}(%esp)
 ; CHECK-NEXT:    addl {{[0-9]+}}(%esp), %ecx
 ; CHECK-NEXT:    movl %ecx, {{[0-9]+}}(%esp)
-; CHECK-NEXT:    pmovzxbw {{.*#+}} xmm2 = mem[0],zero,mem[1],zero,mem[2],zero,mem[3],zero,mem[4],zero,mem[5],zero,mem[6],zero,mem[7],zero
-; CHECK-NEXT:    psubw %xmm0, %xmm2
+; CHECK-NEXT:    movq {{.*#+}} xmm2 = mem[0],zero
+; CHECK-NEXT:    psubb %xmm0, %xmm2
 ; CHECK-NEXT:    pand %xmm1, %xmm2
-; CHECK-NEXT:    packuswb %xmm0, %xmm2
 ; CHECK-NEXT:    movq %xmm2, (%edx,%eax,8)
 ; CHECK-NEXT:    incl (%esp)
-; CHECK-NEXT:  .LBB0_1: # %forcond
-; CHECK-NEXT:    # =>This Inner Loop Header: Depth=1
-; CHECK-NEXT:    movl (%esp), %eax
-; CHECK-NEXT:    cmpl {{[0-9]+}}(%esp), %eax
-; CHECK-NEXT:    jl .LBB0_2
-; CHECK-NEXT:  # %bb.3: # %afterfor
+; CHECK-NEXT:    jmp .LBB0_1
+; CHECK-NEXT:  .LBB0_3: # %afterfor
 ; CHECK-NEXT:    addl $12, %esp
 ; CHECK-NEXT:    retl
 entry:
-	%dst_i.addr = alloca i64*
-	%src_i.addr = alloca i64*
+	%dst_i.addr = alloca ptr
+	%src_i.addr = alloca ptr
 	%n.addr = alloca i32
 	%i = alloca i32, align 4
-	%dst = alloca <8 x i8>*, align 4
-	%src = alloca <8 x i8>*, align 4
-	store i64* %dst_i, i64** %dst_i.addr
-	store i64* %src_i, i64** %src_i.addr
-	store i32 %n, i32* %n.addr
-	store i32 0, i32* %i
+	%dst = alloca ptr, align 4
+	%src = alloca ptr, align 4
+	store ptr %dst_i, ptr %dst_i.addr
+	store ptr %src_i, ptr %src_i.addr
+	store i32 %n, ptr %n.addr
+	store i32 0, ptr %i
 	br label %forcond
 
 forcond:
-	%tmp = load i32, i32* %i
-	%tmp1 = load i32, i32* %n.addr
+	%tmp = load i32, ptr %i
+	%tmp1 = load i32, ptr %n.addr
 	%cmp = icmp slt i32 %tmp, %tmp1
 	br i1 %cmp, label %forbody, label %afterfor
 
 forbody:
-	%tmp2 = load i32, i32* %i
-	%tmp3 = load i64*, i64** %dst_i.addr
-	%arrayidx = getelementptr i64, i64* %tmp3, i32 %tmp2
-	%conv = bitcast i64* %arrayidx to <8 x i8>*
-	store <8 x i8>* %conv, <8 x i8>** %dst
-	%tmp4 = load i32, i32* %i
-	%tmp5 = load i64*, i64** %src_i.addr
-	%arrayidx6 = getelementptr i64, i64* %tmp5, i32 %tmp4
-	%conv7 = bitcast i64* %arrayidx6 to <8 x i8>*
-	store <8 x i8>* %conv7, <8 x i8>** %src
-	%tmp8 = load i32, i32* %i
-	%tmp9 = load <8 x i8>*, <8 x i8>** %dst
-	%arrayidx10 = getelementptr <8 x i8>, <8 x i8>* %tmp9, i32 %tmp8
-	%tmp11 = load i32, i32* %i
-	%tmp12 = load <8 x i8>*, <8 x i8>** %src
-	%arrayidx13 = getelementptr <8 x i8>, <8 x i8>* %tmp12, i32 %tmp11
-	%tmp14 = load <8 x i8>, <8 x i8>* %arrayidx13
+	%tmp2 = load i32, ptr %i
+	%tmp3 = load ptr, ptr %dst_i.addr
+	%arrayidx = getelementptr i64, ptr %tmp3, i32 %tmp2
+	store ptr %arrayidx, ptr %dst
+	%tmp4 = load i32, ptr %i
+	%tmp5 = load ptr, ptr %src_i.addr
+	%arrayidx6 = getelementptr i64, ptr %tmp5, i32 %tmp4
+	store ptr %arrayidx6, ptr %src
+	%tmp8 = load i32, ptr %i
+	%tmp9 = load ptr, ptr %dst
+	%arrayidx10 = getelementptr <8 x i8>, ptr %tmp9, i32 %tmp8
+	%tmp11 = load i32, ptr %i
+	%tmp12 = load ptr, ptr %src
+	%arrayidx13 = getelementptr <8 x i8>, ptr %tmp12, i32 %tmp11
+	%tmp14 = load <8 x i8>, ptr %arrayidx13
 	%add = add <8 x i8> %tmp14, < i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1 >
 	%and = and <8 x i8> %add, < i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4 >
-	store <8 x i8> %and, <8 x i8>* %arrayidx10
+	store <8 x i8> %and, ptr %arrayidx10
 	br label %forinc
 
 forinc:
-	%tmp15 = load i32, i32* %i
+	%tmp15 = load i32, ptr %i
 	%inc = add i32 %tmp15, 1
-	store i32 %inc, i32* %i
+	store i32 %inc, ptr %i
 	br label %forcond
 
 afterfor:

@@ -2,9 +2,9 @@
 # RUN: llc -mtriple=x86_64-linux-gnux32 -run-pass=instruction-select -verify-machineinstrs %s -o - | FileCheck %s --check-prefix=CHECK
 
 --- |
-  define i32* @allocai32() {
+  define ptr @allocai32() {
     %ptr1 = alloca i32
-    ret i32* %ptr1
+    ret ptr %ptr1
   }
 
 ...
@@ -18,7 +18,7 @@ registers:
 fixedStack:
 stack:
   - { id: 0, name: ptr1, type: default, offset: 0, size: 4, alignment: 4,
-      stack-id: 0, callee-saved-register: '', callee-saved-restored: true,
+      stack-id: default, callee-saved-register: '', callee-saved-restored: true,
       debug-info-variable: '', debug-info-expression: '',
       debug-info-location: '' }
 

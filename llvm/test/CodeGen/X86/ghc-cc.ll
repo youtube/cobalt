@@ -2,10 +2,10 @@
 
 ; Test the GHC call convention works (x86-32)
 
-@base = external global i32 ; assigned to register: ebx
-@sp   = external global i32 ; assigned to register: ebp
-@hp   = external global i32 ; assigned to register: edi
-@r1   = external global i32 ; assigned to register: esi
+@base = external dso_local global i32 ; assigned to register: ebx
+@sp   = external dso_local global i32 ; assigned to register: ebp
+@hp   = external dso_local global i32 ; assigned to register: edi
+@r1   = external dso_local global i32 ; assigned to register: esi
 
 define void @zap(i32 %a, i32 %b) nounwind {
 entry:
@@ -32,10 +32,10 @@ entry:
   ; CHECK-NEXT: movl hp, %edi
   ; CHECK-NEXT: movl sp, %ebp
   ; CHECK-NEXT: movl base, %ebx
-  %0 = load i32, i32* @r1
-  %1 = load i32, i32* @hp
-  %2 = load i32, i32* @sp
-  %3 = load i32, i32* @base
+  %0 = load i32, ptr @r1
+  %1 = load i32, ptr @hp
+  %2 = load i32, ptr @sp
+  %3 = load i32, ptr @base
   ; CHECK: jmp bar
   tail call ghccc void @bar( i32 %3, i32 %2, i32 %1, i32 %0 ) nounwind
   ret void

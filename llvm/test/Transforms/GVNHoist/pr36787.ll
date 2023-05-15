@@ -1,6 +1,6 @@
-; RUN: opt < %s -gvn-hoist -S | FileCheck %s
+; RUN: opt < %s -passes=gvn-hoist -S | FileCheck %s
 
-@g = external constant i8*
+@g = external constant ptr
 
 declare i32 @gxx_personality(...)
 declare void @f0()
@@ -12,65 +12,65 @@ declare void @f2()
 
 ;CHECK-LABEL: @func
 
-define void @func() personality i8* bitcast (i32 (...)* @gxx_personality to i8*) {
+define void @func() personality ptr @gxx_personality {
   invoke void @f0()
           to label %3 unwind label %1
 
-; <label>:1:
-  %2 = landingpad { i8*, i32 }
-          catch i8* bitcast (i8** @g to i8*)
-          catch i8* null
+1:
+  %2 = landingpad { ptr, i32 }
+          catch ptr @g
+          catch ptr null
   br label %16
 
-; <label>:3:
+3:
   br i1 undef, label %4, label %10
 
-;CHECK:       <label>:4
-;CHECK-NEXT:    %5 = load i32*, i32** undef, align 8
+;CHECK:       4:
+;CHECK-NEXT:    %5 = load ptr, ptr undef, align 8
 ;CHECK-NEXT:    invoke void @f1()
 
-; <label>:4:
-  %5 = load i32*, i32** undef, align 8
+4:
+  %5 = load ptr, ptr undef, align 8
   invoke void @f1()
           to label %6 unwind label %1
 
-;CHECK:       <label>:6
-;CHECK-NEXT:    %7 = load i32*, i32** undef, align 8
-;CHECK-NEXT:    %8 = load i32*, i32** undef, align 8
+;CHECK:       6:
+;CHECK-NEXT:    %7 = load ptr, ptr undef, align 8
+;CHECK-NEXT:    %8 = load ptr, ptr undef, align 8
 
-; <label>:6:
-  %7 = load i32*, i32** undef, align 8
-  %8 = load i32*, i32** undef, align 8
+6:
+  %7 = load ptr, ptr undef, align 8
+  %8 = load ptr, ptr undef, align 8
   br i1 true, label %9, label %17
 
-; <label>:9:
+9:
   invoke void @f0()
           to label %10 unwind label %1
 
-; <label>:10:
+10:
   invoke void @f2()
           to label %11 unwind label %1
 
-; <label>:11:
-  %12 = invoke signext i32 undef(i32* null, i32 signext undef, i1 zeroext undef)
+11:
+  %12 = invoke signext i32 undef(ptr null, i32 signext undef, i1 zeroext undef)
           to label %13 unwind label %14
 
-; <label>:13:
+13:
   unreachable
 
-; <label>:14:
-  %15 = landingpad { i8*, i32 }
-          catch i8* bitcast (i8** @g to i8*)
-          catch i8* null
+14:
+  %15 = landingpad { ptr, i32 }
+          catch ptr @g
+          catch ptr null
   br label %16
 
-; <label>:16:
+16:
   unreachable
 
-; <label>:17:
+17:
   ret void
 
 ; uselistorder directives
-  uselistorder void ()* @f0, { 1, 0 }
+  uselistorder ptr @f0, { 1, 0 }
   uselistorder label %1, { 0, 3, 1, 2 }
 }

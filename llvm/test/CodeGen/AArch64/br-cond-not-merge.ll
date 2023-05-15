@@ -64,18 +64,18 @@ bb3:
 ; OPT: b.gt [[L:\.LBB[0-9_]+]]
 ; OPT: tbz w1, #0, [[L]]
 ;
+; NOOPT: str w1, [sp, #[[SLOT2:[0-9]+]]]
 ; NOOPT: subs w{{[0-9]+}}, w{{[0-9]+}}, #0
 ; NOOPT: cset [[R1:w[0-9]+]], gt
-; NOOPT: str w1, [sp, #[[SLOT2:[0-9]+]]]
 ; NOOPT: str [[R1]], [sp, #[[SLOT1:[0-9]+]]]
 ; NOOPT: b .LBB
 ; NOOPT: ldr [[R2:w[0-9]+]], [sp, #[[SLOT1]]]
 ; NOOPT: tbnz [[R2]], #0, [[L:\.LBB[0-9_]+]]
 ; NOOPT: ldr [[R3:w[0-9]+]], [sp, #[[SLOT2]]]
 ; NOOPT: tbz [[R3]], #0, [[L]]
-define void @test_cmp_other_block(i32* %p, i1 %c) {
+define void @test_cmp_other_block(ptr %p, i1 %c) {
 entry:
-  %l = load i32, i32* %p
+  %l = load i32, ptr %p
   %cmp = icmp sgt i32 %l, 0
   br label %bb1
 

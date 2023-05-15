@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,7 +31,7 @@ struct D3 {
 };
 
 template <bool IsArray>
-void test_basic() {
+TEST_CONSTEXPR_CXX23 void test_basic() {
   typedef typename std::conditional<IsArray, int[], int>::type VT;
   {
     typedef std::unique_ptr<VT> P;
@@ -55,7 +54,18 @@ void test_basic() {
 #endif
 }
 
-int main() {
+TEST_CONSTEXPR_CXX23 bool test() {
   test_basic</*IsArray*/ false>();
   test_basic<true>();
+
+  return true;
+}
+
+int main(int, char**) {
+  test();
+#if TEST_STD_VER >= 23
+  static_assert(test());
+#endif
+
+  return 0;
 }

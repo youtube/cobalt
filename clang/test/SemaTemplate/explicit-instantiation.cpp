@@ -1,5 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -fexceptions -fcxx-exceptions %s
-// RUN: %clang_cc1 -fsyntax-only -verify -fexceptions -fcxx-exceptions -std=c++11 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -fexceptions -fcxx-exceptions -Wno-dynamic-exception-spec %std_cxx11- %s
 
 template void *; // expected-error{{expected unqualified-id}}
 
@@ -179,4 +178,10 @@ struct B : A<0> {
   virtual void foo() override; // expected-error{{declaration of 'foo' overrides a 'final' function}}
 };
 }
+
+template<typename T> struct LambdaInDefaultMemberInitInExplicitInstantiation {
+  int a = [this] { return a; }();
+};
+template struct LambdaInDefaultMemberInitInExplicitInstantiation<int>;
+LambdaInDefaultMemberInitInExplicitInstantiation<float> x;
 #endif

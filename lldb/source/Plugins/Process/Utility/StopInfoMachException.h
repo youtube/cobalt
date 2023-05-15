@@ -1,30 +1,34 @@
 //===-- StopInfoMachException.h ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_StopInfoMachException_h_
-#define liblldb_StopInfoMachException_h_
+#ifndef LLDB_SOURCE_PLUGINS_PROCESS_UTILITY_STOPINFOMACHEXCEPTION_H
+#define LLDB_SOURCE_PLUGINS_PROCESS_UTILITY_STOPINFOMACHEXCEPTION_H
 
-// C Includes
-// C++ Includes
+#include <optional>
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/StopInfo.h"
+
+#if defined(__APPLE__)
+// Needed for the EXC_* defines
+#include <mach/exception.h>
+#endif
 
 namespace lldb_private {
 
 class StopInfoMachException : public StopInfo {
+  /// Determine the pointer-authentication related failure that caused this
+  /// exception. Returns true and fills out the failure description if there
+  /// is auth-related failure, and returns false otherwise.
+  bool DeterminePtrauthFailure(ExecutionContext &exe_ctx);
+
 public:
-  //------------------------------------------------------------------
   // Constructors and Destructors
-  //------------------------------------------------------------------
   StopInfoMachException(Thread &thread, uint32_t exc_type,
                         uint32_t exc_data_count, uint64_t exc_code,
                         uint64_t exc_subcode)
@@ -38,6 +42,13 @@ public:
   }
 
   const char *GetDescription() override;
+
+#if defined(__APPLE__)
+  struct MachException {
+    static const char *Name(exception_type_t exc_type);
+    static std::optional<exception_type_t> ExceptionCode(const char *name);
+  };
+#endif
 
   // Since some mach exceptions will be reported as breakpoints, signals,
   // or trace, we use this static accessor which will translate the mach
@@ -55,4 +66,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_StopInfoMachException_h_
+#endif // LLDB_SOURCE_PLUGINS_PROCESS_UTILITY_STOPINFOMACHEXCEPTION_H

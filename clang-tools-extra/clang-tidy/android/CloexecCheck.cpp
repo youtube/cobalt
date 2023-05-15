@@ -1,9 +1,8 @@
 //===--- CloexecCheck.cpp - clang-tidy-------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,9 +14,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace android {
+namespace clang::tidy::android {
 
 namespace {
 // Helper function to form the correct string mode for Type3.
@@ -25,7 +22,7 @@ namespace {
 // end of the string. Else, add <Mode>.
 std::string buildFixMsgForStringFlag(const Expr *Arg, const SourceManager &SM,
                                      const LangOptions &LangOpts, char Mode) {
-  if (Arg->getLocStart().isMacroID())
+  if (Arg->getBeginLoc().isMacroID())
     return (Lexer::getSourceText(
                 CharSourceRange::getTokenRange(Arg->getSourceRange()), SM,
                 LangOpts) +
@@ -64,7 +61,7 @@ void CloexecCheck::insertMacroFlag(const MatchFinder::MatchResult &Result,
     return;
 
   SourceLocation EndLoc =
-      Lexer::getLocForEndOfToken(SM.getFileLoc(FlagArg->getLocEnd()), 0, SM,
+      Lexer::getLocForEndOfToken(SM.getFileLoc(FlagArg->getEndLoc()), 0, SM,
                                  Result.Context->getLangOpts());
 
   diag(EndLoc, "%0 should use %1 where possible")
@@ -75,7 +72,7 @@ void CloexecCheck::insertMacroFlag(const MatchFinder::MatchResult &Result,
 void CloexecCheck::replaceFunc(const MatchFinder::MatchResult &Result,
                                StringRef WarningMsg, StringRef FixMsg) {
   const auto *MatchedCall = Result.Nodes.getNodeAs<CallExpr>(FuncBindingStr);
-  diag(MatchedCall->getLocStart(), WarningMsg)
+  diag(MatchedCall->getBeginLoc(), WarningMsg)
       << FixItHint::CreateReplacement(MatchedCall->getSourceRange(), FixMsg);
 }
 
@@ -88,13 +85,13 @@ void CloexecCheck::insertStringFlag(
 
   // Check if the <Mode> may be in the mode string.
   const auto *ModeStr = dyn_cast<StringLiteral>(ModeArg->IgnoreParenCasts());
-  if (!ModeStr || (ModeStr->getString().find(Mode) != StringRef::npos))
+  if (!ModeStr || ModeStr->getString().contains(Mode))
     return;
 
-  const std::string &ReplacementText = buildFixMsgForStringFlag(
+  std::string ReplacementText = buildFixMsgForStringFlag(
       ModeArg, *Result.SourceManager, Result.Context->getLangOpts(), Mode);
 
-  diag(ModeArg->getLocStart(), "use %0 mode '%1' to set O_CLOEXEC")
+  diag(ModeArg->getBeginLoc(), "use %0 mode '%1' to set O_CLOEXEC")
       << FD << std::string(1, Mode)
       << FixItHint::CreateReplacement(ModeArg->getSourceRange(),
                                       ReplacementText);
@@ -109,6 +106,4 @@ StringRef CloexecCheck::getSpellingArg(const MatchFinder::MatchResult &Result,
       SM, Result.Context->getLangOpts());
 }
 
-} // namespace android
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::android

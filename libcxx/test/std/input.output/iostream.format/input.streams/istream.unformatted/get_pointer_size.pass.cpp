@@ -1,19 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: with_system_cxx_lib=macosx10.13
-// XFAIL: with_system_cxx_lib=macosx10.12
-// XFAIL: with_system_cxx_lib=macosx10.11
-// XFAIL: with_system_cxx_lib=macosx10.10
-// XFAIL: with_system_cxx_lib=macosx10.9
-// XFAIL: with_system_cxx_lib=macosx10.8
-// XFAIL: with_system_cxx_lib=macosx10.7
+// In macosx10.9 to macosx10.14, streams are provided in the dylib AND they
+// have a bug in how they handle null-termination in case of errors (see D40677).
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12|13|14}}
 
 // <istream>
 
@@ -48,7 +43,7 @@ public:
     CharT* egptr() const {return base::egptr();}
 };
 
-int main()
+int main(int, char**)
 {
     {
         testbuf<char> sb("  \n    \n ");
@@ -84,26 +79,7 @@ int main()
         assert(std::string(s) == "");
         assert(is.gcount() == 0);
     }
-#ifndef TEST_HAS_NO_EXCEPTIONS
-    {
-        testbuf<char> sb(" ");
-        std::istream is(&sb);
-        char s[5] = "test";
-        is.exceptions(std::istream::eofbit | std::istream::badbit);
-        try
-        {
-            is.get(s, 5);
-            assert(false);
-        }
-        catch (std::ios_base::failure&)
-        {
-        }
-        assert( is.eof());
-        assert( is.fail());
-        assert(std::string(s) == " ");
-        assert(is.gcount() == 1);
-    }
-#endif
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         testbuf<wchar_t> sb(L"  \n    \n ");
         std::wistream is(&sb);
@@ -138,24 +114,86 @@ int main()
         assert(std::wstring(s) == L"");
         assert(is.gcount() == 0);
     }
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
 #ifndef TEST_HAS_NO_EXCEPTIONS
     {
-        testbuf<wchar_t> sb(L" ");
-        std::wistream is(&sb);
-        wchar_t s[5] = L"test";
-        is.exceptions(std::wistream::eofbit | std::wistream::badbit);
-        try
-        {
+        testbuf<char> sb(" ");
+        std::basic_istream<char> is(&sb);
+        char s[5] = "test";
+        is.exceptions(std::ios_base::eofbit);
+        bool threw = false;
+        try {
             is.get(s, 5);
-            assert(false);
+        } catch (std::ios_base::failure&) {
+            threw = true;
         }
-        catch (std::ios_base::failure&)
-        {
-        }
+        assert(!is.bad());
         assert( is.eof());
-        assert( is.fail());
+        assert(!is.fail());
+        assert(threw);
+        assert(std::string(s) == " ");
+        assert(is.gcount() == 1);
+    }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    {
+        testbuf<wchar_t> sb(L" ");
+        std::basic_istream<wchar_t> is(&sb);
+        wchar_t s[5] = L"test";
+        is.exceptions(std::ios_base::eofbit);
+        bool threw = false;
+        try {
+            is.get(s, 5);
+        } catch (std::ios_base::failure&) {
+            threw = true;
+        }
+        assert(!is.bad());
+        assert( is.eof());
+        assert(!is.fail());
+        assert(threw);
         assert(std::wstring(s) == L" ");
         assert(is.gcount() == 1);
     }
-#endif
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
+
+    {
+        testbuf<char> sb;
+        std::basic_istream<char> is(&sb);
+        char s[5] = "test";
+        is.exceptions(std::ios_base::failbit);
+        bool threw = false;
+        try {
+            is.get(s, 5);
+        } catch (std::ios_base::failure&) {
+            threw = true;
+        }
+        assert(!is.bad());
+        assert( is.eof());
+        assert( is.fail());
+        assert(threw);
+        assert(std::basic_string<char>(s) == "");
+        assert(is.gcount() == 0);
+    }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    {
+        testbuf<wchar_t> sb;
+        std::basic_istream<wchar_t> is(&sb);
+        wchar_t s[5] = L"test";
+        is.exceptions(std::ios_base::failbit);
+        bool threw = false;
+        try {
+            is.get(s, 5);
+        } catch (std::ios_base::failure&) {
+            threw = true;
+        }
+        assert(!is.bad());
+        assert( is.eof());
+        assert( is.fail());
+        assert(threw);
+        assert(std::basic_string<wchar_t>(s) == L"");
+        assert(is.gcount() == 0);
+    }
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
+#endif // TEST_HAS_NO_EXCEPTIONS
+
+  return 0;
 }

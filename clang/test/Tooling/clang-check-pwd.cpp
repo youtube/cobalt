@@ -4,10 +4,10 @@
 // RUN: cp "%s" "%t/test.cpp"
 // RUN: ln -sf %t %t.foobar
 // RUN: cd %t
-// RUN: not env PWD="%t.foobar" clang-check -p "%t" "test.cpp" 2>&1|FileCheck %s
+// RUN: env PWD="%t.foobar" not clang-check -p "%t" "test.cpp" 2>&1|FileCheck %s
 // FIXME: Make the above easier.
 
-// CHECK: C++ requires
+// CHECK: a type specifier is required
 // CHECK: .foobar/test.cpp
 invalid;
 

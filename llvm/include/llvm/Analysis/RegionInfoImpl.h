@@ -1,9 +1,8 @@
 //===- RegionInfoImpl.h - SESE region detection analysis --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // Detects single entry single exit regions in the control flow graph.
@@ -16,8 +15,6 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/iterator_range.h"
-#include "llvm/Analysis/DominanceFrontier.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/RegionInfo.h"
@@ -25,7 +22,6 @@
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
 #include <iterator>
@@ -38,6 +34,7 @@
 #define DEBUG_TYPE "region"
 
 namespace llvm {
+class raw_ostream;
 
 //===----------------------------------------------------------------------===//
 /// RegionBase Implementation
@@ -162,20 +159,14 @@ typename Tr::LoopT *RegionBase<Tr>::outermostLoopInRegion(LoopInfoT *LI,
 
 template <class Tr>
 typename RegionBase<Tr>::BlockT *RegionBase<Tr>::getEnteringBlock() const {
+  auto isEnteringBlock = [&](BlockT *Pred, bool AllowRepeats) -> BlockT * {
+    assert(!AllowRepeats && "Unexpected parameter value.");
+    return DT->getNode(Pred) && !contains(Pred) ? Pred : nullptr;
+  };
   BlockT *entry = getEntry();
-  BlockT *enteringBlock = nullptr;
-
-  for (BlockT *Pred : make_range(InvBlockTraits::child_begin(entry),
-                                 InvBlockTraits::child_end(entry))) {
-    if (DT->getNode(Pred) && !contains(Pred)) {
-      if (enteringBlock)
-        return nullptr;
-
-      enteringBlock = Pred;
-    }
-  }
-
-  return enteringBlock;
+  return find_singleton<BlockT>(make_range(InvBlockTraits::child_begin(entry),
+                                           InvBlockTraits::child_end(entry)),
+                                isEnteringBlock);
 }
 
 template <class Tr>
@@ -204,22 +195,16 @@ bool RegionBase<Tr>::getExitingBlocks(
 template <class Tr>
 typename RegionBase<Tr>::BlockT *RegionBase<Tr>::getExitingBlock() const {
   BlockT *exit = getExit();
-  BlockT *exitingBlock = nullptr;
-
   if (!exit)
     return nullptr;
 
-  for (BlockT *Pred : make_range(InvBlockTraits::child_begin(exit),
-                                 InvBlockTraits::child_end(exit))) {
-    if (contains(Pred)) {
-      if (exitingBlock)
-        return nullptr;
-
-      exitingBlock = Pred;
-    }
-  }
-
-  return exitingBlock;
+  auto isContained = [&](BlockT *Pred, bool AllowRepeats) -> BlockT * {
+    assert(!AllowRepeats && "Unexpected parameter value.");
+    return contains(Pred) ? Pred : nullptr;
+  };
+  return find_singleton<BlockT>(make_range(InvBlockTraits::child_begin(exit),
+                                           InvBlockTraits::child_end(exit)),
+                                isContained);
 }
 
 template <class Tr>
@@ -237,7 +222,7 @@ std::string RegionBase<Tr>::getNameStr() const {
 
     getEntry()->printAsOperand(OS, false);
   } else
-    entryName = getEntry()->getName();
+    entryName = std::string(getEntry()->getName());
 
   if (getExit()) {
     if (getExit()->getName().empty()) {
@@ -245,7 +230,7 @@ std::string RegionBase<Tr>::getNameStr() const {
 
       getExit()->printAsOperand(OS, false);
     } else
-      exitName = getExit()->getName();
+      exitName = std::string(getExit()->getName());
   } else
     exitName = "<Function Return>";
 
@@ -366,7 +351,7 @@ typename Tr::RegionNodeT *RegionBase<Tr>::getBBNode(BlockT *BB) const {
     auto Deconst = const_cast<RegionBase<Tr> *>(this);
     typename BBNodeMapT::value_type V = {
         BB,
-        llvm::make_unique<RegionNodeT>(static_cast<RegionT *>(Deconst), BB)};
+        std::make_unique<RegionNodeT>(static_cast<RegionT *>(Deconst), BB)};
     at = BBNodeMap.insert(std::move(V)).first;
   }
   return at->second.get();
@@ -393,10 +378,10 @@ void RegionBase<Tr>::transferChildrenTo(RegionT *To) {
 template <class Tr>
 void RegionBase<Tr>::addSubRegion(RegionT *SubRegion, bool moveChildren) {
   assert(!SubRegion->parent && "SubRegion already has a parent!");
-  assert(llvm::find_if(*this,
+  assert(llvm::none_of(*this,
                        [&](const std::unique_ptr<RegionT> &R) {
                          return R.get() == SubRegion;
-                       }) == children.end() &&
+                       }) &&
          "Subregion already exists!");
 
   SubRegion->parent = static_cast<RegionT *>(this);
@@ -586,10 +571,8 @@ bool RegionInfoBase<Tr>::isRegion(BlockT *entry, BlockT *exit) const {
   // Exit is the header of a loop that contains the entry. In this case,
   // the dominance frontier must only contain the exit.
   if (!DT->dominates(entry, exit)) {
-    for (typename DST::iterator SI = entrySuccs->begin(),
-                                SE = entrySuccs->end();
-         SI != SE; ++SI) {
-      if (*SI != exit && *SI != entry)
+    for (BlockT *successor : *entrySuccs) {
+      if (successor != exit && successor != entry)
         return false;
     }
 
@@ -725,7 +708,7 @@ void RegionInfoBase<Tr>::findRegionsWithEntry(BlockT *entry,
 
 template <class Tr>
 void RegionInfoBase<Tr>::scanForRegions(FuncT &F, BBtoBBMap *ShortCut) {
-  using FuncPtrT = typename std::add_pointer<FuncT>::type;
+  using FuncPtrT = std::add_pointer_t<FuncT>;
 
   BlockT *entry = GraphTraits<FuncPtrT>::getEntryNode(&F);
   DomTreeNodeT *N = DT->getNode(entry);
@@ -795,12 +778,12 @@ template <class Tr>
 void RegionInfoBase<Tr>::dump() const { print(dbgs()); }
 #endif
 
-template <class Tr>
-void RegionInfoBase<Tr>::releaseMemory() {
+template <class Tr> void RegionInfoBase<Tr>::releaseMemory() {
   BBtoRegion.clear();
-  if (TopLevelRegion)
+  if (TopLevelRegion) {
     delete TopLevelRegion;
-  TopLevelRegion = nullptr;
+    TopLevelRegion = nullptr;
+  }
 }
 
 template <class Tr>
@@ -818,8 +801,7 @@ void RegionInfoBase<Tr>::verifyAnalysis() const {
 // Region pass manager support.
 template <class Tr>
 typename Tr::RegionT *RegionInfoBase<Tr>::getRegionFor(BlockT *BB) const {
-  typename BBtoRegionMap::const_iterator I = BBtoRegion.find(BB);
-  return I != BBtoRegion.end() ? I->second : nullptr;
+  return BBtoRegion.lookup(BB);
 }
 
 template <class Tr>
@@ -890,8 +872,7 @@ typename Tr::RegionT *RegionInfoBase<Tr>::getCommonRegion(RegionT *A,
 template <class Tr>
 typename Tr::RegionT *
 RegionInfoBase<Tr>::getCommonRegion(SmallVectorImpl<RegionT *> &Regions) const {
-  RegionT *ret = Regions.back();
-  Regions.pop_back();
+  RegionT *ret = Regions.pop_back_val();
 
   for (RegionT *R : Regions)
     ret = getCommonRegion(ret, R);
@@ -913,7 +894,7 @@ RegionInfoBase<Tr>::getCommonRegion(SmallVectorImpl<BlockT *> &BBs) const {
 
 template <class Tr>
 void RegionInfoBase<Tr>::calculate(FuncT &F) {
-  using FuncPtrT = typename std::add_pointer<FuncT>::type;
+  using FuncPtrT = std::add_pointer_t<FuncT>;
 
   // ShortCut a function where for every BB the exit of the largest region
   // starting with BB is stored. These regions can be threated as single BBS.

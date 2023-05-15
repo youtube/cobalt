@@ -16,7 +16,7 @@
 # RUN:           .foo : {*(.foo)} :foo \
 # RUN:       }" > %t.script
 # RUN: ld.lld -o %t --script %t.script %t.o
-# RUN: llvm-readelf -s -l %t | FileCheck %s
+# RUN: llvm-readelf -S -l %t | FileCheck %s
 # RUN: llvm-readobj -l %t | FileCheck --check-prefix=PHDR %s
 
 # CHECK: Program Headers:
@@ -29,7 +29,7 @@
 # CHECK-NEXT:   00     .text
 # CHECK-NEXT:   01     .foo
 
-# PHDR: Type:  (0x12345678)
+# PHDR:      Type: Unknown (0x12345678)
 # PHDR-NEXT: Offset: 0x1004
 # PHDR-NEXT: VirtualAddress
 # PHDR-NEXT: PhysicalAddress

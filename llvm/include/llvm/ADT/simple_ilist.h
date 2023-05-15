@@ -1,9 +1,8 @@
 //===- llvm/ADT/simple_ilist.h - Simple Intrusive List ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,8 +28,8 @@ namespace llvm {
 /// This is a simple intrusive list for a \c T that inherits from \c
 /// ilist_node<T>.  The list never takes ownership of anything inserted in it.
 ///
-/// Unlike \a iplist<T> and \a ilist<T>, \a simple_ilist<T> never allocates or
-/// deletes values, and has no callback traits.
+/// Unlike \a iplist<T> and \a ilist<T>, \a simple_ilist<T> never deletes
+/// values, and has no callback traits.
 ///
 /// The API for adding nodes include \a push_front(), \a push_back(), and \a
 /// insert().  These all take values by reference (not by pointer), except for
@@ -53,7 +52,7 @@ namespace llvm {
 /// to calling \a std::for_each() on the range to be discarded.
 ///
 /// The currently available \p Options customize the nodes in the list.  The
-/// same options must be specified in the \a ilist_node instantation for
+/// same options must be specified in the \a ilist_node instantiation for
 /// compatibility (although the order is irrelevant).
 /// \li Use \a ilist_tag to designate which ilist_node for a given \p T this
 /// list should use.  This is useful if a type \p T is part of multiple,
@@ -129,12 +128,10 @@ public:
   }
 
   /// Check if the list is empty in constant time.
-  LLVM_NODISCARD bool empty() const { return Sentinel.empty(); }
+  [[nodiscard]] bool empty() const { return Sentinel.empty(); }
 
   /// Calculate the size of the list in linear time.
-  LLVM_NODISCARD size_type size() const {
-    return std::distance(begin(), end());
-  }
+  [[nodiscard]] size_type size() const { return std::distance(begin(), end()); }
 
   reference front() { return *begin(); }
   const_reference front() const { return *begin(); }

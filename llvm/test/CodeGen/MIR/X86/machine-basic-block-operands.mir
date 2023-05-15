@@ -40,16 +40,16 @@ body: |
 
     $eax = MOV32rm $rdi, 1, _, 0, _
     ; CHECK:      CMP32ri8 $eax, 10
-    ; CHECK-NEXT: JG_1 %bb.2
+    ; CHECK-NEXT: JCC_1 %bb.2, 15
     CMP32ri8 $eax, 10, implicit-def $eflags
-    JG_1 %bb.2, implicit $eflags
+    JCC_1 %bb.2, 15, implicit $eflags
   ; CHECK: bb.1.less:
 
   bb.1.less:
     $eax = MOV32r0 implicit-def $eflags
 
   bb.2.exit:
-    RETQ $eax
+    RET64 $eax
 ...
 ---
 # CHECK: name: bar
@@ -61,13 +61,13 @@ body: |
 
     $eax = MOV32rm $rdi, 1, _, 0, _
     ; CHECK:      CMP32ri8 $eax, 10
-    ; CHECK-NEXT: JG_1 %bb.2
+    ; CHECK-NEXT: JCC_1 %bb.2, 15
     CMP32ri8 $eax, 10, implicit-def $eflags
-    JG_1 %bb.3, implicit $eflags
+    JCC_1 %bb.3, 15, implicit $eflags
 
   bb.1:
     $eax = MOV32r0 implicit-def $eflags
 
   bb.3:
-    RETQ $eax
+    RET64 $eax
 ...

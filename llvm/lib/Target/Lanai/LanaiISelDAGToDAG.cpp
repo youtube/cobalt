@@ -1,9 +1,8 @@
 //===-- LanaiISelDAGToDAG.cpp - A dag to dag inst selector for Lanai ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Lanai.h"
+#include "LanaiAluCode.h"
 #include "LanaiMachineFunctionInfo.h"
 #include "LanaiRegisterInfo.h"
 #include "LanaiSubtarget.h"
@@ -35,6 +34,7 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "lanai-isel"
+#define PASS_NAME "Lanai DAG->DAG Pattern Instruction Selection"
 
 //===----------------------------------------------------------------------===//
 // Instruction Selector Implementation
@@ -48,16 +48,15 @@ namespace {
 
 class LanaiDAGToDAGISel : public SelectionDAGISel {
 public:
+  static char ID;
+
+  LanaiDAGToDAGISel() = delete;
+
   explicit LanaiDAGToDAGISel(LanaiTargetMachine &TargetMachine)
-      : SelectionDAGISel(TargetMachine) {}
+      : SelectionDAGISel(ID, TargetMachine) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override {
     return SelectionDAGISel::runOnMachineFunction(MF);
-  }
-
-  // Pass Name
-  StringRef getPassName() const override {
-    return "Lanai DAG->DAG Pattern Instruction Selection";
   }
 
   bool SelectInlineAsmMemoryOperand(const SDValue &Op, unsigned ConstraintCode,
@@ -98,6 +97,10 @@ bool canBeRepresentedAsSls(const ConstantSDNode &CN) {
 }
 
 } // namespace
+
+char LanaiDAGToDAGISel::ID = 0;
+
+INITIALIZE_PASS(LanaiDAGToDAGISel, DEBUG_TYPE, PASS_NAME, false, false)
 
 // Helper functions for ComplexPattern used on LanaiInstrInfo
 // Used on Lanai Load/Store instructions.
@@ -288,14 +291,14 @@ void LanaiDAGToDAGISel::Select(SDNode *Node) {
       ConstantSDNode *ConstNode = cast<ConstantSDNode>(Node);
       // Materialize zero constants as copies from R0. This allows the coalescer
       // to propagate these into other instructions.
-      if (ConstNode->isNullValue()) {
+      if (ConstNode->isZero()) {
         SDValue New = CurDAG->getCopyFromReg(CurDAG->getEntryNode(),
                                              SDLoc(Node), Lanai::R0, MVT::i32);
         return ReplaceNode(Node, New.getNode());
       }
       // Materialize all ones constants as copies from R1. This allows the
       // coalescer to propagate these into other instructions.
-      if (ConstNode->isAllOnesValue()) {
+      if (ConstNode->isAllOnes()) {
         SDValue New = CurDAG->getCopyFromReg(CurDAG->getEntryNode(),
                                              SDLoc(Node), Lanai::R1, MVT::i32);
         return ReplaceNode(Node, New.getNode());

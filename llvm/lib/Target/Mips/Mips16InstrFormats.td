@@ -1,9 +1,8 @@
 //===- Mips16InstrFormats.td - Mips Instruction Formats ----*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -337,7 +336,7 @@ class FI8_MOVR3216<dag outs, dag ins, string asmstr,
                    list<dag> pattern, InstrItinClass itin>:
   MipsInst16<outs, ins, asmstr, pattern, itin>
 {
-
+  // FIXME: this seems wrong? 'ry' should be 3 bits, and 'r32' 5?
   bits<4> ry;
   bits<4> r32;
 

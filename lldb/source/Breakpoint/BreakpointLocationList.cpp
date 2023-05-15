@@ -1,16 +1,11 @@
-//===-- BreakpointLocationList.cpp ------------------------------*- C++ -*-===//
+//===-- BreakpointLocationList.cpp ----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointLocationList.h"
 
 #include "lldb/Breakpoint/Breakpoint.h"
@@ -25,8 +20,7 @@ using namespace lldb;
 using namespace lldb_private;
 
 BreakpointLocationList::BreakpointLocationList(Breakpoint &owner)
-    : m_owner(owner), m_locations(), m_address_to_location(), m_mutex(),
-      m_next_id(0), m_new_location_recorder(nullptr) {}
+    : m_owner(owner), m_next_id(0), m_new_location_recorder(nullptr) {}
 
 BreakpointLocationList::~BreakpointLocationList() = default;
 
@@ -75,7 +69,7 @@ BreakpointLocationList::FindByID(lldb::break_id_t break_id) const {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
   collection::const_iterator end = m_locations.end();
   collection::const_iterator pos =
-      std::lower_bound(m_locations.begin(), end, break_id, Compare);
+      llvm::lower_bound(m_locations, break_id, Compare);
   if (pos != end && (*pos)->GetID() == break_id)
     return *(pos);
   else
@@ -134,7 +128,7 @@ void BreakpointLocationList::Dump(Stream *s) const {
   s->IndentMore();
   collection::const_iterator pos, end = m_locations.end();
   for (pos = m_locations.begin(); pos != end; ++pos)
-    (*pos).get()->Dump(s);
+    (*pos)->Dump(s);
   s->IndentLess();
 }
 
@@ -180,6 +174,12 @@ uint32_t BreakpointLocationList::GetHitCount() const {
   for (pos = m_locations.begin(); pos != end; ++pos)
     hit_count += (*pos)->GetHitCount();
   return hit_count;
+}
+
+void BreakpointLocationList::ResetHitCount() {
+  std::lock_guard<std::recursive_mutex> guard(m_mutex);
+  for (auto &loc : m_locations)
+    loc->ResetHitCount();
 }
 
 size_t BreakpointLocationList::GetNumResolvedLocations() const {

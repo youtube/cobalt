@@ -1,25 +1,25 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // <optional>
 
-// optional<T>& operator=(optional<T>&& rhs)
+// constexpr optional<T>& operator=(optional<T>&& rhs)
 //     noexcept(is_nothrow_move_assignable<T>::value &&
 //              is_nothrow_move_constructible<T>::value);
 
 #include <optional>
-#include <type_traits>
 #include <cassert>
+#include <type_traits>
+#include <utility>
 
 #include "test_macros.h"
-#include "archetypes.hpp"
+#include "archetypes.h"
 
 using std::optional;
 
@@ -51,7 +51,22 @@ struct Y {};
 bool X::throw_now = false;
 int X::alive = 0;
 
-int main()
+
+template <class Tp>
+constexpr bool assign_empty(optional<Tp>&& lhs) {
+    optional<Tp> rhs;
+    lhs = std::move(rhs);
+    return !lhs.has_value() && !rhs.has_value();
+}
+
+template <class Tp>
+constexpr bool assign_value(optional<Tp>&& lhs) {
+    optional<Tp> rhs(101);
+    lhs = std::move(rhs);
+    return lhs.has_value() && rhs.has_value() && *lhs == Tp{101};
+}
+
+int main(int, char**)
 {
     {
         static_assert(std::is_nothrow_move_assignable<optional<int>>::value, "");
@@ -96,6 +111,20 @@ int main()
         static_assert(*opt2 == 2, "");
         assert(static_cast<bool>(opt) == static_cast<bool>(opt2));
         assert(*opt == *opt2);
+    }
+    {
+        using O = optional<int>;
+        static_assert(assign_empty(O{42}));
+        static_assert(assign_value(O{42}));
+        assert(assign_empty(O{42}));
+        assert(assign_value(O{42}));
+    }
+    {
+        using O = optional<TrivialTestTypes::TestType>;
+        static_assert(assign_empty(O{42}));
+        static_assert(assign_value(O{42}));
+        assert(assign_empty(O{42}));
+        assert(assign_value(O{42}));
     }
 #ifndef TEST_HAS_NO_EXCEPTIONS
     {
@@ -171,4 +200,5 @@ int main()
         };
         static_assert(std::is_nothrow_move_assignable<optional<NoThrowMove>>::value, "");
     }
+    return 0;
 }

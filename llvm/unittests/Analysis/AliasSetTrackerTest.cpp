@@ -1,14 +1,15 @@
 //=======- AliasSetTrackerTest.cpp - Unit test for the Alias Set Tracker  -===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AliasSetTracker.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TypeBasedAliasAnalysis.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/LLVMContext.h"
@@ -67,7 +68,8 @@ TEST(AliasSetTracker, AliasUnknownInst) {
   // Initialize the alias set tracker for the @test function.
   Function *Test = M->getFunction("test");
   ASSERT_NE(Test, nullptr);
-  AliasSetTracker AST(AA);
+  BatchAAResults BAA(AA);
+  AliasSetTracker AST(BAA);
   for (auto &BB : *Test)
     AST.add(BB);
   // There should be 2 disjoint alias sets. 1 from each call. 
@@ -75,10 +77,13 @@ TEST(AliasSetTracker, AliasUnknownInst) {
 
   // Directly test aliasesUnknownInst.
   // Now every call instruction should only alias one alias set.
+  BatchAAResults BatchAA(AA);
   for (auto &Inst : *Test->begin()) {
     bool FoundAS = false;
     for (AliasSet &AS : AST) {
-      if (!AS.aliasesUnknownInst(&Inst, AA))
+      if (!Inst.mayReadOrWriteMemory())
+        continue;
+      if (!isModOrRefSet(AS.aliasesUnknownInst(&Inst, BatchAA)))
         continue;
       ASSERT_NE(FoundAS, true);
       FoundAS = true;

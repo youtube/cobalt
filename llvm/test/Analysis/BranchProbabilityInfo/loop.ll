@@ -1,5 +1,4 @@
 ; Test the static branch probability heuristics for no-return functions.
-; RUN: opt < %s -analyze -branch-prob | FileCheck %s
 ; RUN: opt < %s -passes='print<branch-prob>' --disable-output 2>&1 | FileCheck %s
 
 declare void @g1()
@@ -82,7 +81,7 @@ for.end6:
   ret void
 }
 
-define void @test3(i32 %a, i32 %b, i32* %c) {
+define void @test3(i32 %a, i32 %b, ptr %c) {
 entry:
   br label %do.body
 ; CHECK: edge entry -> do.body probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
@@ -90,7 +89,7 @@ entry:
 do.body:
   %i.0 = phi i32 [ 0, %entry ], [ %inc4, %if.end ]
   call void @g1()
-  %0 = load i32, i32* %c, align 4
+  %0 = load i32, ptr %c, align 4
   %cmp = icmp slt i32 %0, 42
   br i1 %cmp, label %do.body1, label %if.end
 ; CHECK: edge do.body -> do.body1 probability is 0x40000000 / 0x80000000 = 50.00%
@@ -118,7 +117,7 @@ do.end6:
   ret void
 }
 
-define void @test4(i32 %a, i32 %b, i32* %c) {
+define void @test4(i32 %a, i32 %b, ptr %c) {
 entry:
   br label %do.body
 ; CHECK: edge entry -> do.body probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
@@ -126,7 +125,7 @@ entry:
 do.body:
   %i.0 = phi i32 [ 0, %entry ], [ %inc4, %do.end ]
   call void @g1()
-  %0 = load i32, i32* %c, align 4
+  %0 = load i32, ptr %c, align 4
   %cmp = icmp slt i32 %0, 42
   br i1 %cmp, label %return, label %do.body1
 ; CHECK: edge do.body -> return probability is 0x04000000 / 0x80000000 = 3.12%
@@ -158,7 +157,7 @@ return:
   ret void
 }
 
-define void @test5(i32 %a, i32 %b, i32* %c) {
+define void @test5(i32 %a, i32 %b, ptr %c) {
 entry:
   br label %do.body
 ; CHECK: edge entry -> do.body probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
@@ -171,7 +170,7 @@ do.body:
 
 do.body1:
   %j.0 = phi i32 [ 0, %do.body ], [ %inc, %if.end ]
-  %0 = load i32, i32* %c, align 4
+  %0 = load i32, ptr %c, align 4
   %cmp = icmp slt i32 %0, 42
   br i1 %cmp, label %return, label %if.end
 ; CHECK: edge do.body1 -> return probability is 0x04000000 / 0x80000000 = 3.12%
@@ -202,7 +201,7 @@ return:
   ret void
 }
 
-define void @test6(i32 %a, i32 %b, i32* %c) {
+define void @test6(i32 %a, i32 %b, ptr %c) {
 entry:
   br label %do.body
 ; CHECK: edge entry -> do.body probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
@@ -216,7 +215,7 @@ do.body:
 do.body1:
   %j.0 = phi i32 [ 0, %do.body ], [ %inc, %do.cond ]
   call void @g2()
-  %0 = load i32, i32* %c, align 4
+  %0 = load i32, ptr %c, align 4
   %cmp = icmp slt i32 %0, 42
   br i1 %cmp, label %return, label %do.cond
 ; CHECK: edge do.body1 -> return probability is 0x04000000 / 0x80000000 = 3.12%
@@ -246,7 +245,7 @@ return:
   ret void
 }
 
-define void @test7(i32 %a, i32 %b, i32* %c) {
+define void @test7(i32 %a, i32 %b, ptr %c) {
 entry:
   %cmp10 = icmp sgt i32 %a, 0
   br i1 %cmp10, label %for.body.lr.ph, label %for.end7
@@ -260,7 +259,7 @@ for.body.lr.ph:
 
 for.body:
   %i.011 = phi i32 [ 0, %for.body.lr.ph ], [ %inc6, %for.inc5 ]
-  %0 = load i32, i32* %c, align 4
+  %0 = load i32, ptr %c, align 4
   %cmp1 = icmp eq i32 %0, %i.011
   br i1 %cmp1, label %for.inc5, label %if.end
 ; CHECK: edge for.body -> for.inc5 probability is 0x40000000 / 0x80000000 = 50.00%
@@ -298,7 +297,7 @@ for.end7:
   ret void
 }
 
-define void @test8(i32 %a, i32 %b, i32* %c) {
+define void @test8(i32 %a, i32 %b, ptr %c) {
 entry:
   %cmp18 = icmp sgt i32 %a, 0
   br i1 %cmp18, label %for.body.lr.ph, label %for.end15
@@ -307,8 +306,8 @@ entry:
 
 for.body.lr.ph:
   %cmp216 = icmp sgt i32 %b, 0
-  %arrayidx5 = getelementptr inbounds i32, i32* %c, i64 1
-  %arrayidx9 = getelementptr inbounds i32, i32* %c, i64 2
+  %arrayidx5 = getelementptr inbounds i32, ptr %c, i64 1
+  %arrayidx9 = getelementptr inbounds i32, ptr %c, i64 2
   br label %for.body
 ; CHECK: edge for.body.lr.ph -> for.body probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
 
@@ -321,21 +320,21 @@ for.body:
 
 for.body3:
   %j.017 = phi i32 [ 0, %for.body ], [ %inc, %for.inc ]
-  %0 = load i32, i32* %c, align 4
+  %0 = load i32, ptr %c, align 4
   %cmp4 = icmp eq i32 %0, %j.017
   br i1 %cmp4, label %for.inc, label %if.end
 ; CHECK: edge for.body3 -> for.inc probability is 0x40000000 / 0x80000000 = 50.00%
 ; CHECK: edge for.body3 -> if.end probability is 0x40000000 / 0x80000000 = 50.00%
 
 if.end:
-  %1 = load i32, i32* %arrayidx5, align 4
+  %1 = load i32, ptr %arrayidx5, align 4
   %cmp6 = icmp eq i32 %1, %j.017
   br i1 %cmp6, label %for.inc, label %if.end8
 ; CHECK: edge if.end -> for.inc probability is 0x40000000 / 0x80000000 = 50.00%
 ; CHECK: edge if.end -> if.end8 probability is 0x40000000 / 0x80000000 = 50.00%
 
 if.end8:
-  %2 = load i32, i32* %arrayidx9, align 4
+  %2 = load i32, ptr %arrayidx9, align 4
   %cmp10 = icmp eq i32 %2, %j.017
   br i1 %cmp10, label %for.inc, label %if.end12
 ; CHECK: edge if.end8 -> for.inc probability is 0x40000000 / 0x80000000 = 50.00%
@@ -404,7 +403,7 @@ end:
 
 ; Check that the for.body -> if.then edge is considered unlikely due to making
 ; the if-condition false for the next iteration of the loop.
-define i32 @test10(i32 %n, i32* %p) {
+define i32 @test10(i32 %n, ptr %p) {
 entry:
   br label %for.cond
 ; CHECK: edge entry -> for.cond probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
@@ -422,17 +421,16 @@ for.cond.cleanup:
   ret i32 %sum.0
 
 for.body:
-  %arrayidx = getelementptr inbounds i32, i32* %p, i32 %i.0
-  %0 = load i32, i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, ptr %p, i32 %i.0
+  %0 = load i32, ptr %arrayidx, align 4
   %add = add nsw i32 %sum.0, %0
   %inc = add nsw i32 %count.0, 1
   %cmp1 = icmp sgt i32 %count.0, 6
   br i1 %cmp1, label %if.then, label %for.inc
-; CHECK: edge for.body -> if.then probability is 0x2aaaaaab / 0x80000000 = 33.33%
-; CHECK: edge for.body -> for.inc probability is 0x55555555 / 0x80000000 = 66.67%
-
+; CHECK: edge for.body -> if.then probability is 0x2aaaa8e4 / 0x80000000 = 33.33%
+; CHECK: edge for.body -> for.inc probability is 0x5555571c / 0x80000000 = 66.67%
 if.then:
-  store i32 %add, i32* %arrayidx, align 4
+  store i32 %add, ptr %arrayidx, align 4
   br label %for.inc
 ; CHECK: edge if.then -> for.inc probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
 
@@ -446,7 +444,7 @@ for.inc:
 
 ; Each successor to for.body makes itself not be taken in the next iteration, so
 ; both should be equally likely
-define i32 @test11(i32 %n, i32* %p) {
+define i32 @test11(i32 %n, ptr %p) {
 entry:
   br label %for.cond
 ; CHECK: edge entry -> for.cond probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
@@ -465,15 +463,15 @@ for.cond.cleanup:
 
 for.body:
   %tobool = icmp eq i32 %flip.0, 0
-  %arrayidx1 = getelementptr inbounds i32, i32* %p, i32 %i.0
-  %0 = load i32, i32* %arrayidx1, align 4
+  %arrayidx1 = getelementptr inbounds i32, ptr %p, i32 %i.0
+  %0 = load i32, ptr %arrayidx1, align 4
   br i1 %tobool, label %if.else, label %if.then
 ; CHECK: edge for.body -> if.else probability is 0x40000000 / 0x80000000 = 50.00%
 ; CHECK: edge for.body -> if.then probability is 0x40000000 / 0x80000000 = 50.00%
 
 if.then:
   %add = add nsw i32 %0, %sum.0
-  store i32 %add, i32* %arrayidx1, align 4
+  store i32 %add, ptr %arrayidx1, align 4
   br label %for.inc
 ; CHECK: edge if.then -> for.inc probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
 
@@ -512,7 +510,7 @@ invoke.cont:
 ; CHECK: edge invoke.cont -> exit probability is 0x04000000 / 0x80000000 = 3.12%
 
 lpad:
-  %ll = landingpad { i8*, i32 }
+  %ll = landingpad { ptr, i32 }
           cleanup
   br label %exit
 
@@ -521,3 +519,207 @@ exit:
 }
 
 declare i32 @InvokeCall()
+declare void @cold() cold
+
+; If loop has single exit and it leads to 'cold' block then edge leading to loop enter
+; should be considered 'cold' as well.
+define void @test13() {
+; CHECK: edge entry -> loop probability is 0x078780e3 / 0x80000000 = 5.88%
+; CHECK: edge entry -> exit probability is 0x78787f1d / 0x80000000 = 94.12% [HOT edge]
+; CHECK: edge loop -> loop probability is 0x7fbe1203 / 0x80000000 = 99.80% [HOT edge]
+; CHECK: edge loop -> cold probability is 0x0041edfd / 0x80000000 = 0.20%
+; CHECK: edge cold -> exit probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+
+entry:
+  br i1 undef, label %loop, label %exit
+
+loop:
+  %i.0 = phi i32 [ 0, %entry ], [ %inc, %loop ]
+  %inc = add nsw i32 %i.0, 1
+  br i1 undef, label %loop, label %cold
+
+cold:
+  call void @cold()
+  br label %exit
+
+exit:
+  ret void
+}
+
+; This is the same case as test13 but with additional loop 'preheader' block.
+define void @test14() {
+; CHECK: edge entry -> preheader probability is 0x078780e3 / 0x80000000 = 5.88%
+; CHECK: edge entry -> exit probability is 0x78787f1d / 0x80000000 = 94.12% [HOT edge]
+; CHECK: edge preheader -> loop probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+; CHECK: edge loop -> loop probability is 0x7fbe1203 / 0x80000000 = 99.80% [HOT edge]
+; CHECK: edge loop -> cold probability is 0x0041edfd / 0x80000000 = 0.20%
+; CHECK: edge cold -> exit probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+
+entry:
+  br i1 undef, label %preheader, label %exit
+
+preheader:
+  br label %loop
+
+loop:
+  %i.0 = phi i32 [ 0, %preheader ], [ %inc, %loop ]
+  %inc = add nsw i32 %i.0, 1
+  br i1 undef, label %loop, label %cold
+
+cold:
+  call void @cold()
+  br label %exit
+
+exit:
+  ret void
+}
+
+; If loop has multiple low probability exits then edge leading to loop enter
+; should be considered low probable as well.
+define void @test15() {
+; CHECK: edge entry -> loop probability is 0x078780e3 / 0x80000000 = 5.88%
+; CHECK: edge entry -> exit probability is 0x78787f1d / 0x80000000 = 94.12% [HOT edge]
+; CHECK: edge loop -> cont probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+; CHECK: edge loop -> unreached probability is 0x00000000 / 0x80000000 = 0.00%
+; CHECK: edge cont -> loop probability is 0x7fbe1203 / 0x80000000 = 99.80% [HOT edge]
+; CHECK: edge cont -> cold probability is 0x0041edfd / 0x80000000 = 0.20%
+; CHECK: edge cold -> exit probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+
+entry:
+  br i1 undef, label %loop, label %exit
+
+loop:
+  %i.0 = phi i32 [ 0, %entry ], [ %inc, %cont ]
+  %inc = add nsw i32 %i.0, 1
+  br i1 undef, label %cont, label %unreached
+
+cont:
+  br i1 undef, label %loop, label %cold
+
+unreached:
+  unreachable
+
+
+cold:
+  call void @cold()
+  br label %exit
+
+exit:
+  ret void
+}
+
+; This is the same case as test15 but with additional loop 'preheader' block.
+define void @test16() {
+; CHECK: edge entry -> preheader probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+; CHECK: edge preheader -> loop probability is 0x078780e3 / 0x80000000 = 5.88%
+; CHECK: edge preheader -> exit probability is 0x78787f1d / 0x80000000 = 94.12% [HOT edge]
+; CHECK: edge loop -> cont probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+; CHECK: edge loop -> unreached probability is 0x00000000 / 0x80000000 = 0.00%
+; CHECK: edge cont -> loop probability is 0x7fbe1203 / 0x80000000 = 99.80% [HOT edge]
+; CHECK: edge cont -> cold probability is 0x0041edfd / 0x80000000 = 0.20%
+; CHECK: edge cold -> exit probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+
+entry:
+  br label %preheader
+
+preheader:
+  br i1 undef, label %loop, label %exit
+
+loop:
+  %i.0 = phi i32 [ 0, %preheader ], [ %inc, %cont ]
+  %inc = add nsw i32 %i.0, 1
+  br i1 undef, label %cont, label %unreached
+
+cont:
+  br i1 undef, label %loop, label %cold
+
+unreached:
+  unreachable
+
+
+cold:
+  call void @cold()
+  br label %exit
+
+exit:
+  ret void
+}
+
+declare void @abort() noreturn
+
+; Check that 'preheader' has 50/50 probability since there is one 'normal' exit.
+; Check that exit to 'cold' and 'noreturn' has lower probability than 'normal' exit.
+define void @test17() {
+; CHECK: edge entry -> preheader probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+; CHECK: edge preheader -> loop probability is 0x40000000 / 0x80000000 = 50.00%
+; CHECK: edge preheader -> exit probability is 0x40000000 / 0x80000000 = 50.00%
+; CHECK: edge loop -> cont probability is 0x7ffff800 / 0x80000000 = 100.00% [HOT edge]
+; CHECK: edge loop -> noreturn probability is 0x00000800 / 0x80000000 = 0.00%
+; CHECK: edge cont -> cont2 probability is 0x7fbe1203 / 0x80000000 = 99.80% [HOT edge]
+; CHECK: edge cont -> cold probability is 0x0041edfd / 0x80000000 = 0.20%
+; CHECK: edge cont2 -> loop probability is 0x7c000000 / 0x80000000 = 96.88% [HOT edge]
+; CHECK: edge cont2 -> exit probability is 0x04000000 / 0x80000000 = 3.12%
+; CHECK: edge cold -> exit probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+entry:
+  br label %preheader
+
+preheader:
+  br i1 undef, label %loop, label %exit
+
+loop:
+  %i.0 = phi i32 [ 0, %preheader ], [ %inc, %cont2 ]
+  %inc = add nsw i32 %i.0, 1
+  br i1 undef, label %cont, label %noreturn
+
+cont:
+  br i1 undef, label %cont2, label %cold
+
+cont2:
+  br i1 undef, label %loop, label %exit
+
+noreturn:
+  call void @abort()
+  unreachable
+
+cold:
+  call void @cold()
+  br label %exit
+
+exit:
+  ret void
+}
+
+
+; This is case with two loops where one nested into another. Nested loop has
+; low probable exit what encreases robability to take exit in the top level loop.
+define void @test18() {
+; CHECK: edge entry -> top.loop probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+; CHECK: edge top.loop -> loop probability is 0x546cd4b7 / 0x80000000 = 65.96%
+; CHECK: edge top.loop -> exit probability is 0x2b932b49 / 0x80000000 = 34.04%
+; CHECK: edge loop -> loop probability is 0x7fbe1203 / 0x80000000 = 99.80% [HOT edge]
+; CHECK: edge loop -> cold probability is 0x0041edfd / 0x80000000 = 0.20%
+; CHECK: edge cold -> top.loop probability is 0x80000000 / 0x80000000 = 100.00% [HOT edge]
+
+entry:
+ br label %top.loop 
+
+top.loop:
+  %j.0 = phi i32 [ 0, %entry ], [ %j.inc, %cold ]
+  br i1 undef, label %loop, label %exit
+
+loop:
+  %i.0 = phi i32 [ %j.0, %top.loop ], [ %inc, %loop ]
+  %inc = add nsw i32 %i.0, 1
+  br i1 undef, label %loop, label %cold
+
+cold:
+  call void @cold()
+  %j.inc = add nsw i32 %j.0, 1
+  br label %top.loop
+
+exit:
+  ret void
+}
+
+
+

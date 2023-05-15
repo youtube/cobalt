@@ -1,9 +1,8 @@
 //===- llvm/Analysis/IVUsers.h - Induction Variable Users -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,12 +23,9 @@ namespace llvm {
 
 class AssumptionCache;
 class DominatorTree;
-class Instruction;
-class Value;
 class ScalarEvolution;
 class SCEV;
 class IVUsers;
-class DataLayout;
 
 /// IVStrideUse - Keep track of one use of a strided induction variable.
 /// The Expr member keeps track of the expression, User is the actual user
@@ -158,9 +154,6 @@ public:
 
   /// dump - This method is used for debugging.
   void dump() const;
-
-protected:
-  bool AddUsersImpl(Instruction *I, SmallPtrSetImpl<Loop*> &SimpleLoopNests);
 };
 
 Pass *createIVUsersPass();

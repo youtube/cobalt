@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,9 +15,10 @@
 #include <map>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::multimap<int, double> M;
@@ -41,44 +41,44 @@ int main()
         I i = m.erase(2);
         assert(m.size() == 6);
         assert(i == 3);
-        assert(next(m.begin(), 0)->first == 1);
-        assert(next(m.begin(), 0)->second == 1);
-        assert(next(m.begin(), 1)->first == 1);
-        assert(next(m.begin(), 1)->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
-        assert(next(m.begin(), 3)->first == 3);
-        assert(next(m.begin(), 3)->second == 1);
-        assert(next(m.begin(), 4)->first == 3);
-        assert(next(m.begin(), 4)->second == 1.5);
-        assert(next(m.begin(), 5)->first == 3);
-        assert(next(m.begin(), 5)->second == 2);
+        assert(std::next(m.begin(), 0)->first == 1);
+        assert(std::next(m.begin(), 0)->second == 1);
+        assert(std::next(m.begin(), 1)->first == 1);
+        assert(std::next(m.begin(), 1)->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 3)->first == 3);
+        assert(std::next(m.begin(), 3)->second == 1);
+        assert(std::next(m.begin(), 4)->first == 3);
+        assert(std::next(m.begin(), 4)->second == 1.5);
+        assert(std::next(m.begin(), 5)->first == 3);
+        assert(std::next(m.begin(), 5)->second == 2);
 
         i = m.erase(2);
         assert(m.size() == 6);
         assert(i == 0);
-        assert(next(m.begin(), 0)->first == 1);
-        assert(next(m.begin(), 0)->second == 1);
-        assert(next(m.begin(), 1)->first == 1);
-        assert(next(m.begin(), 1)->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
-        assert(next(m.begin(), 3)->first == 3);
-        assert(next(m.begin(), 3)->second == 1);
-        assert(next(m.begin(), 4)->first == 3);
-        assert(next(m.begin(), 4)->second == 1.5);
-        assert(next(m.begin(), 5)->first == 3);
-        assert(next(m.begin(), 5)->second == 2);
+        assert(std::next(m.begin(), 0)->first == 1);
+        assert(std::next(m.begin(), 0)->second == 1);
+        assert(std::next(m.begin(), 1)->first == 1);
+        assert(std::next(m.begin(), 1)->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 3)->first == 3);
+        assert(std::next(m.begin(), 3)->second == 1);
+        assert(std::next(m.begin(), 4)->first == 3);
+        assert(std::next(m.begin(), 4)->second == 1.5);
+        assert(std::next(m.begin(), 5)->first == 3);
+        assert(std::next(m.begin(), 5)->second == 2);
 
         i = m.erase(3);
         assert(i == 3);
         assert(m.size() == 3);
-        assert(next(m.begin(), 0)->first == 1);
-        assert(next(m.begin(), 0)->second == 1);
-        assert(next(m.begin(), 1)->first == 1);
-        assert(next(m.begin(), 1)->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 0)->first == 1);
+        assert(std::next(m.begin(), 0)->second == 1);
+        assert(std::next(m.begin(), 1)->first == 1);
+        assert(std::next(m.begin(), 1)->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
 
         i = m.erase(1);
         assert(m.size() == 0);
@@ -106,48 +106,50 @@ int main()
         I i = m.erase(2);
         assert(m.size() == 6);
         assert(i == 3);
-        assert(next(m.begin(), 0)->first == 1);
-        assert(next(m.begin(), 0)->second == 1);
-        assert(next(m.begin(), 1)->first == 1);
-        assert(next(m.begin(), 1)->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
-        assert(next(m.begin(), 3)->first == 3);
-        assert(next(m.begin(), 3)->second == 1);
-        assert(next(m.begin(), 4)->first == 3);
-        assert(next(m.begin(), 4)->second == 1.5);
-        assert(next(m.begin(), 5)->first == 3);
-        assert(next(m.begin(), 5)->second == 2);
+        assert(std::next(m.begin(), 0)->first == 1);
+        assert(std::next(m.begin(), 0)->second == 1);
+        assert(std::next(m.begin(), 1)->first == 1);
+        assert(std::next(m.begin(), 1)->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 3)->first == 3);
+        assert(std::next(m.begin(), 3)->second == 1);
+        assert(std::next(m.begin(), 4)->first == 3);
+        assert(std::next(m.begin(), 4)->second == 1.5);
+        assert(std::next(m.begin(), 5)->first == 3);
+        assert(std::next(m.begin(), 5)->second == 2);
 
         i = m.erase(2);
         assert(m.size() == 6);
         assert(i == 0);
-        assert(next(m.begin(), 0)->first == 1);
-        assert(next(m.begin(), 0)->second == 1);
-        assert(next(m.begin(), 1)->first == 1);
-        assert(next(m.begin(), 1)->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
-        assert(next(m.begin(), 3)->first == 3);
-        assert(next(m.begin(), 3)->second == 1);
-        assert(next(m.begin(), 4)->first == 3);
-        assert(next(m.begin(), 4)->second == 1.5);
-        assert(next(m.begin(), 5)->first == 3);
-        assert(next(m.begin(), 5)->second == 2);
+        assert(std::next(m.begin(), 0)->first == 1);
+        assert(std::next(m.begin(), 0)->second == 1);
+        assert(std::next(m.begin(), 1)->first == 1);
+        assert(std::next(m.begin(), 1)->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 3)->first == 3);
+        assert(std::next(m.begin(), 3)->second == 1);
+        assert(std::next(m.begin(), 4)->first == 3);
+        assert(std::next(m.begin(), 4)->second == 1.5);
+        assert(std::next(m.begin(), 5)->first == 3);
+        assert(std::next(m.begin(), 5)->second == 2);
 
         i = m.erase(3);
         assert(i == 3);
         assert(m.size() == 3);
-        assert(next(m.begin(), 0)->first == 1);
-        assert(next(m.begin(), 0)->second == 1);
-        assert(next(m.begin(), 1)->first == 1);
-        assert(next(m.begin(), 1)->second == 1.5);
-        assert(next(m.begin(), 2)->first == 1);
-        assert(next(m.begin(), 2)->second == 2);
+        assert(std::next(m.begin(), 0)->first == 1);
+        assert(std::next(m.begin(), 0)->second == 1);
+        assert(std::next(m.begin(), 1)->first == 1);
+        assert(std::next(m.begin(), 1)->second == 1.5);
+        assert(std::next(m.begin(), 2)->first == 1);
+        assert(std::next(m.begin(), 2)->second == 2);
 
         i = m.erase(1);
         assert(m.size() == 0);
         assert(i == 3);
     }
 #endif
+
+  return 0;
 }

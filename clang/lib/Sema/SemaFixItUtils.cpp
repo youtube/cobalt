@@ -1,9 +1,8 @@
 //===--- SemaFixItUtils.cpp - Sema FixIts ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -125,7 +124,7 @@ bool ConversionFixItGenerator::tryToFixConversion(const Expr *FullExpr,
 
   // Check if the pointer to the argument needs to be passed:
   //   (type -> type *) or (type & -> type *).
-  if (isa<PointerType>(ToQTy)) {
+  if (const auto *ToPtrTy = dyn_cast<PointerType>(ToQTy)) {
     bool CanConvert = false;
     OverloadFixItKind FixKind = OFIK_TakeAddress;
 
@@ -133,8 +132,12 @@ bool ConversionFixItGenerator::tryToFixConversion(const Expr *FullExpr,
     if (!Expr->isLValue() || Expr->getObjectKind() != OK_Ordinary)
       return false;
 
-    CanConvert = CompareTypes(S.Context.getPointerType(FromQTy), ToQTy,
-                              S, Begin, VK_RValue);
+    // Do no take address of const pointer to get void*
+    if (isa<PointerType>(FromQTy) && ToPtrTy->isVoidPointerType())
+      return false;
+
+    CanConvert = CompareTypes(S.Context.getPointerType(FromQTy), ToQTy, S,
+                              Begin, VK_PRValue);
     if (CanConvert) {
 
       if (const UnaryOperator *UO = dyn_cast<UnaryOperator>(Expr)) {

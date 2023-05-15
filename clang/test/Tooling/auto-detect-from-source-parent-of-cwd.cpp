@@ -4,9 +4,9 @@
 // RUN: cp "%s" "%t/abc/def/ijk/qwe/test.cpp"
 // RUN: ln -sf %t/abc/def %t/abc/def2
 // RUN: cd %t/abc/def2
-// RUN: not env PWD="%t/abc/def" clang-check "ijk/qwe/test.cpp" 2>&1 | FileCheck %s
+// RUN: env PWD="%t/abc/def" not clang-check "ijk/qwe/test.cpp" 2>&1 | FileCheck %s
 
-// CHECK: C++ requires
+// CHECK: a type specifier is required
 // CHECK: /abc/def/ijk/qwe/test.cpp
 invalid;
 

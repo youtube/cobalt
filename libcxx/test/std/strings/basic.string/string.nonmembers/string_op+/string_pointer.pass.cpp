@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,11 +10,11 @@
 
 // template<class charT, class traits, class Allocator>
 //   basic_string<charT,traits,Allocator>
-//   operator+(const basic_string<charT,traits,Allocator>& lhs, const charT* rhs);
+//   operator+(const basic_string<charT,traits,Allocator>& lhs, const charT* rhs); // constexpr since C++20
 
 // template<class charT, class traits, class Allocator>
 //   basic_string<charT,traits,Allocator>&&
-//   operator+(basic_string<charT,traits,Allocator>&& lhs, const charT* rhs);
+//   operator+(basic_string<charT,traits,Allocator>&& lhs, const charT* rhs); // constexpr since C++20
 
 #include <string>
 #include <utility>
@@ -25,18 +24,18 @@
 #include "min_allocator.h"
 
 template <class S>
-void test0(const S& lhs, const typename S::value_type* rhs, const S& x) {
+TEST_CONSTEXPR_CXX20 void test0(const S& lhs, const typename S::value_type* rhs, const S& x) {
   assert(lhs + rhs == x);
 }
 
 #if TEST_STD_VER >= 11
 template <class S>
-void test1(S&& lhs, const typename S::value_type* rhs, const S& x) {
-  assert(move(lhs) + rhs == x);
+TEST_CONSTEXPR_CXX20 void test1(S&& lhs, const typename S::value_type* rhs, const S& x) {
+  assert(std::move(lhs) + rhs == x);
 }
 #endif
 
-int main() {
+TEST_CONSTEXPR_CXX20 bool test() {
   {
     typedef std::string S;
     test0(S(""), "", S(""));
@@ -127,4 +126,15 @@ int main() {
           S("abcdefghijklmnopqrst12345678901234567890"));
   }
 #endif
+
+  return true;
+}
+
+int main(int, char**) {
+  test();
+#if TEST_STD_VER > 17
+  static_assert(test());
+#endif
+
+  return 0;
 }

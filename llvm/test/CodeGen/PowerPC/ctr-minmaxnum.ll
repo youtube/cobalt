@@ -1,5 +1,4 @@
 ; RUN: llc -mtriple=powerpc64-unknown-linux-gnu -verify-machineinstrs -mcpu=pwr7 < %s | FileCheck %s
-; RUN: llc -mtriple=powerpc64-unknown-linux-gnu -verify-machineinstrs -mcpu=a2q < %s | FileCheck %s --check-prefix=QPX
 
 declare float @fabsf(float)
 
@@ -18,14 +17,14 @@ declare <4 x double> @llvm.minnum.v4f64(<4 x double>, <4 x double>)
 declare <4 x float> @llvm.maxnum.v4f32(<4 x float>, <4 x float>)
 declare <4 x double> @llvm.maxnum.v4f64(<4 x double>, <4 x double>)
 
-define void @test1(float %f, float* %fp) {
+define void @test1(float %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call float @llvm.minnum.f32(float %f, float 1.0)
-  store float %0, float* %fp, align 4
+  store float %0, ptr %fp, align 4
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -36,19 +35,19 @@ loop_exit:
 
 ; CHECK-LABEL: test1:
 ; CHECK-NOT: mtctr
-; CHECK: bl fminf
-; CHECK-NOT: bl fminf
+; CHECK: xsmindp
+; CHECK-NOT: xsmindp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 
-define void @test1v(<4 x float> %f, <4 x float>* %fp) {
+define void @test1v(<4 x float> %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call <4 x float> @llvm.minnum.v4f32(<4 x float> %f, <4 x float> <float 1.0, float 1.0, float 1.0, float 1.0>)
-  store <4 x float> %0, <4 x float>* %fp, align 16
+  store <4 x float> %0, ptr %fp, align 16
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 4
   br i1 %2, label %loop_exit, label %loop_body
@@ -58,29 +57,20 @@ loop_exit:
 }
 
 ; CHECK-LABEL: test1v:
-; CHECK: bl fminf
-; CHECK-NOT: mtctr
-; CHECK: bl fminf
-; CHECK-NOT: mtctr
-; CHECK: bl fminf
-; CHECK-NOT: mtctr
-; CHECK: bl fminf
-; CHECK-NOT: bl fminf
+; CHECK: xvminsp
+; CHECK-NOT: xsmindp
+; CHECK: mtctr
+; CHECK-NOT: xsmindp
 ; CHECK: blr
 
-; QPX-LABEL: test1v:
-; QPX: mtctr
-; QPX-NOT: bl fminf
-; QPX: blr
-
-define void @test1a(float %f, float* %fp) {
+define void @test1a(float %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call float @fminf(float %f, float 1.0) readnone
-  store float %0, float* %fp, align 4
+  store float %0, ptr %fp, align 4
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -91,19 +81,19 @@ loop_exit:
 
 ; CHECK-LABEL: test1a:
 ; CHECK-NOT: mtctr
-; CHECK: bl fminf
-; CHECK-NOT: bl fminf
+; CHECK: xsmindp
+; CHECK-NOT: xsmindp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 
-define void @test2(float %f, float* %fp) {
+define void @test2(float %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call float @llvm.maxnum.f32(float %f, float 1.0)
-  store float %0, float* %fp, align 4
+  store float %0, ptr %fp, align 4
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -114,19 +104,19 @@ loop_exit:
 
 ; CHECK-LABEL: test2:
 ; CHECK-NOT: mtctr
-; CHECK: bl fmaxf
-; CHECK-NOT: bl fmaxf
+; CHECK: xsmaxdp
+; CHECK-NOT: xsmaxdp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 
-define void @test2v(<4 x double> %f, <4 x double>* %fp) {
+define void @test2v(<4 x double> %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call <4 x double> @llvm.maxnum.v4f64(<4 x double> %f, <4 x double> <double 1.0, double 1.0, double 1.0, double 1.0>)
-  store <4 x double> %0, <4 x double>* %fp, align 16
+  store <4 x double> %0, ptr %fp, align 16
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 4
   br i1 %2, label %loop_exit, label %loop_body
@@ -136,29 +126,21 @@ loop_exit:
 }
 
 ; CHECK-LABEL: test2v:
-; CHECK: bl fmax
-; CHECK-NOT: mtctr
-; CHECK: bl fmax
-; CHECK-NOT: mtctr
-; CHECK: bl fmax
-; CHECK-NOT: mtctr
-; CHECK: bl fmax
-; CHECK-NOT: bl fmax
+; CHECK: xvmaxdp
+; CHECK: xvmaxdp
+; CHECK-NOT: xsmaxdp
+; CHECK: mtctr
+; CHECK-NOT: xsmaxdp
 ; CHECK: blr
 
-; QPX-LABEL: test2v:
-; QPX: mtctr
-; QPX-NOT: bl fmax
-; QPX: blr
-
-define void @test2a(float %f, float* %fp) {
+define void @test2a(float %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call float @fmaxf(float %f, float 1.0) readnone
-  store float %0, float* %fp, align 4
+  store float %0, ptr %fp, align 4
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -169,19 +151,19 @@ loop_exit:
 
 ; CHECK-LABEL: test2a:
 ; CHECK-NOT: mtctr
-; CHECK: bl fmaxf
-; CHECK-NOT: bl fmaxf
+; CHECK: xsmaxdp
+; CHECK-NOT: xsmaxdp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 
-define void @test3(double %f, double* %fp) {
+define void @test3(double %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call double @llvm.minnum.f64(double %f, double 1.0)
-  store double %0, double* %fp, align 8
+  store double %0, ptr %fp, align 8
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -192,19 +174,19 @@ loop_exit:
 
 ; CHECK-LABEL: test3:
 ; CHECK-NOT: mtctr
-; CHECK: bl fmin
-; CHECK-NOT: bl fmin
+; CHECK: xsmindp
+; CHECK-NOT: xsmindp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 
-define void @test3a(double %f, double* %fp) {
+define void @test3a(double %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call double @fmin(double %f, double 1.0) readnone
-  store double %0, double* %fp, align 8
+  store double %0, ptr %fp, align 8
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -215,19 +197,19 @@ loop_exit:
 
 ; CHECK-LABEL: test3a:
 ; CHECK-NOT: mtctr
-; CHECK: bl fmin
-; CHECK-NOT: bl fmin
+; CHECK: xsmindp
+; CHECK-NOT: xsmindp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 
-define void @test4(double %f, double* %fp) {
+define void @test4(double %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call double @llvm.maxnum.f64(double %f, double 1.0)
-  store double %0, double* %fp, align 8
+  store double %0, ptr %fp, align 8
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -238,19 +220,19 @@ loop_exit:
 
 ; CHECK-LABEL: test4:
 ; CHECK-NOT: mtctr
-; CHECK: bl fmax
-; CHECK-NOT: bl fmax
+; CHECK: xsmaxdp
+; CHECK-NOT: xsmaxdp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 
-define void @test4a(double %f, double* %fp) {
+define void @test4a(double %f, ptr %fp) {
 entry:
   br label %loop_body
 
 loop_body:
   %invar_address.dim.0.01 = phi i64 [ 0, %entry ], [ %1, %loop_body ]
   %0 = call double @fmax(double %f, double 1.0) readnone
-  store double %0, double* %fp, align 8
+  store double %0, ptr %fp, align 8
   %1 = add i64 %invar_address.dim.0.01, 1
   %2 = icmp eq i64 %1, 2
   br i1 %2, label %loop_exit, label %loop_body
@@ -261,8 +243,8 @@ loop_exit:
 
 ; CHECK-LABEL: test4a:
 ; CHECK-NOT: mtctr
-; CHECK: bl fmax
-; CHECK-NOT: bl fmax
+; CHECK: xsmaxdp
+; CHECK-NOT: xsmaxdp
 ; CHECK-NOT: mtctr
 ; CHECK: blr
 

@@ -1,4 +1,5 @@
-; RUN: llc -mtriple=x86_64-windows-msvc < %s -filetype=obj -o - | llvm-readobj - -codeview | FileCheck %s
+; RUN: llc -mtriple=x86_64-windows-msvc < %s -filetype=obj -o - | llvm-readobj - --codeview | FileCheck %s
+; RUN: llc -mtriple=x86_64-windows-msvc < %s -o - | llvm-mc -filetype=obj --triple=x86_64-windows | llvm-readobj - --codeview | FileCheck %s
 
 ; We should only get one func id record, and both inlinees should point to it,
 ; even though there are two DISubprograms.
@@ -33,9 +34,9 @@
 target datalayout = "e-m:w-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-windows-msvc"
 
-define void @main(i32* %i.i) !dbg !16 {
-  store volatile i32 3, i32* %i.i, !dbg !6
-  store volatile i32 3, i32* %i.i, !dbg !19
+define void @main(ptr %i.i) !dbg !16 {
+  store volatile i32 3, ptr %i.i, !dbg !6
+  store volatile i32 3, ptr %i.i, !dbg !19
   ret void
 }
 

@@ -1,9 +1,8 @@
 //===--- VirtualInheritanceCheck.cpp - clang-tidy--------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,9 +12,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace fuchsia {
+namespace clang::tidy::fuchsia {
 
 namespace {
 AST_MATCHER(CXXRecordDecl, hasDirectVirtualBaseClass) {
@@ -35,9 +32,7 @@ void VirtualInheritanceCheck::registerMatchers(MatchFinder *Finder) {
 
 void VirtualInheritanceCheck::check(const MatchFinder::MatchResult &Result) {
   if (const auto *D = Result.Nodes.getNodeAs<CXXRecordDecl>("decl"))
-    diag(D->getLocStart(), "direct virtual inheritance is disallowed");
+    diag(D->getBeginLoc(), "direct virtual inheritance is disallowed");
 }
 
-}  // namespace fuchsia
-}  // namespace tidy
-}  // namespace clang
+} // namespace clang::tidy::fuchsia

@@ -1,9 +1,8 @@
 //===-- NVPTXMCAsmInfo.cpp - NVPTX asm properties -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,7 +17,8 @@ using namespace llvm;
 
 void NVPTXMCAsmInfo::anchor() {}
 
-NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Triple &TheTriple) {
+NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Triple &TheTriple,
+                               const MCTargetOptions &Options) {
   if (TheTriple.getArch() == Triple::nvptx64) {
     CodePointerSize = CalleeSaveStackSlotSize = 8;
   }
@@ -38,18 +38,31 @@ NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Triple &TheTriple) {
   HiddenDeclarationVisibilityAttr = HiddenVisibilityAttr = MCSA_Invalid;
   ProtectedVisibilityAttr = MCSA_Invalid;
 
-  // FIXME: remove comment once debug info is properly supported.
-  Data8bitsDirective = "// .b8 ";
+  Data8bitsDirective = ".b8 ";
   Data16bitsDirective = nullptr; // not supported
-  Data32bitsDirective = "// .b32 ";
-  Data64bitsDirective = "// .b64 ";
-  ZeroDirective = "// .b8";
+  Data32bitsDirective = ".b32 ";
+  Data64bitsDirective = ".b64 ";
+  ZeroDirective = ".b8";
   AsciiDirective = nullptr; // not supported
   AscizDirective = nullptr; // not supported
   SupportsQuotedNames = false;
   SupportsExtendedDwarfLocDirective = false;
+  SupportsSignedData = false;
+
+  PrivateGlobalPrefix = "$L__";
+  PrivateLabelPrefix = PrivateGlobalPrefix;
 
   // @TODO: Can we just disable this?
   WeakDirective = "\t// .weak\t";
   GlobalDirective = "\t// .globl\t";
+
+  UseIntegratedAssembler = false;
+
+  // Avoid using parens for identifiers starting with $ - ptxas does
+  // not expect them.
+  UseParensForDollarSignNames = false;
+
+  // ptxas does not support DWARF `.file fileno directory filename'
+  // syntax as of v11.X.
+  EnableDwarfFileDirectoryDefault = false;
 }

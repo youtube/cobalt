@@ -1,9 +1,8 @@
 //===-- MipsSchedule.td - Mips Scheduling Definitions ------*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,7 +26,9 @@ def II_ADDIUPC          : InstrItinClass;
 def II_ADD              : InstrItinClass;
 def II_ADDU             : InstrItinClass;
 def II_ADD_D            : InstrItinClass;
+def II_ADD_PS           : InstrItinClass;
 def II_ADD_S            : InstrItinClass;
+def II_ADDR_PS          : InstrItinClass;
 def II_ALIGN            : InstrItinClass;
 def II_AND              : InstrItinClass;
 def II_ANDI             : InstrItinClass;
@@ -154,6 +155,7 @@ def II_DERET            : InstrItinClass;
 def II_ERETNC           : InstrItinClass;
 def II_EHB              : InstrItinClass;
 def II_SDBBP            : InstrItinClass;
+def II_SIGRIE           : InstrItinClass;
 def II_SSNOP            : InstrItinClass;
 def II_SYSCALL          : InstrItinClass;
 def II_PAUSE            : InstrItinClass;
@@ -278,6 +280,8 @@ def II_MUL              : InstrItinClass;
 def II_MUH              : InstrItinClass;
 def II_MUHU             : InstrItinClass;
 def II_MULU             : InstrItinClass;
+def II_MUL_PS           : InstrItinClass;
+def II_MULR_PS          : InstrItinClass;
 def II_MULT             : InstrItinClass;
 def II_MULTU            : InstrItinClass;
 def II_MUL_D            : InstrItinClass;
@@ -339,6 +343,7 @@ def II_SRLV             : InstrItinClass;
 def II_SUB              : InstrItinClass;
 def II_SUBU             : InstrItinClass;
 def II_SUB_D            : InstrItinClass;
+def II_SUB_PS           : InstrItinClass;
 def II_SUB_S            : InstrItinClass;
 def II_SUXC1            : InstrItinClass;
 def II_SW               : InstrItinClass;
@@ -546,6 +551,7 @@ def MipsGenericItineraries : ProcessorItineraries<[ALU, IMULDIV], [], [
   InstrItinData<II_ERETNC          , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_EHB             , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_SDBBP           , [InstrStage<1,  [ALU]>]>,
+  InstrItinData<II_SIGRIE          , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_SSNOP           , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_SYSCALL         , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_PAUSE           , [InstrStage<1,  [ALU]>]>,

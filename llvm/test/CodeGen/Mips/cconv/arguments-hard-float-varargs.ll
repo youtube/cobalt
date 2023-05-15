@@ -1,14 +1,22 @@
-; RUN: llc -march=mips -relocation-model=static < %s | FileCheck -allow-deprecated-dag-overlap --check-prefixes=ALL,SYM32,O32,O32BE %s
-; RUN: llc -march=mipsel -relocation-model=static < %s | FileCheck -allow-deprecated-dag-overlap --check-prefixes=ALL,SYM32,O32,O32LE %s
+; RUN: llc -mtriple=mips -relocation-model=static < %s \
+; RUN:   | FileCheck --check-prefixes=ALL,SYM32,O32,O32BE %s
+; RUN: llc -mtriple=mipsel -relocation-model=static < %s \
+; RUN:   | FileCheck --check-prefixes=ALL,SYM32,O32,O32LE %s
 
-; RUN-TODO: llc -march=mips64 -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefixes=ALL,SYM32,O32 %s
-; RUN-TODO: llc -march=mips64el -relocation-model=static -target-abi o32 < %s | FileCheck --check-prefixes=ALL,SYM32,O32 %s
+; RUN-TODO: llc -mtriple=mips64 -relocation-model=static -target-abi o32 < %s \
+; RUN-TODO:   | FileCheck --check-prefixes=ALL,SYM32,O32 %s
+; RUN-TODO: llc -mtriple=mips64el -relocation-model=static -target-abi o32 < %s \
+; RUN-TODO:   | FileCheck --check-prefixes=ALL,SYM32,O32 %s
 
-; RUN: llc -march=mips64 -relocation-model=static -target-abi n32 < %s | FileCheck -allow-deprecated-dag-overlap --check-prefixes=ALL,SYM32,N32,NEW,NEWBE %s
-; RUN: llc -march=mips64el -relocation-model=static -target-abi n32 < %s | FileCheck -allow-deprecated-dag-overlap --check-prefixes=ALL,SYM32,N32,NEW,NEWLE %s
+; RUN: llc -mtriple=mips64 -relocation-model=static -target-abi n32 < %s \
+; RUN:   | FileCheck --check-prefixes=ALL,SYM32,N32,NEW,NEWBE %s
+; RUN: llc -mtriple=mips64el -relocation-model=static -target-abi n32 < %s \
+; RUN:   | FileCheck --check-prefixes=ALL,SYM32,N32,NEW,NEWLE %s
 
-; RUN: llc -march=mips64 -relocation-model=static -target-abi n64 < %s | FileCheck -allow-deprecated-dag-overlap --check-prefixes=ALL,SYM64,N64,NEW,NEWBE %s
-; RUN: llc -march=mips64el -relocation-model=static -target-abi n64 < %s | FileCheck -allow-deprecated-dag-overlap --check-prefixes=ALL,SYM64,N64,NEW,NEWLE %s
+; RUN: llc -mtriple=mips64 -relocation-model=static -target-abi n64 < %s \
+; RUN:   | FileCheck --check-prefixes=ALL,SYM64,N64,NEW,NEWBE %s
+; RUN: llc -mtriple=mips64el -relocation-model=static -target-abi n64 < %s \
+; RUN:   | FileCheck --check-prefixes=ALL,SYM64,N64,NEW,NEWLE %s
 
 ; Test the effect of varargs on floating point types in the non-variable part
 ; of the argument list as specified by section 2 of the MIPSpro N32 Handbook.
@@ -25,16 +33,15 @@
 define void @double_args(double %a, ...)
                          nounwind {
 entry:
-        %0 = getelementptr [11 x double], [11 x double]* @doubles, i32 0, i32 1
-        store volatile double %a, double* %0
+        %0 = getelementptr [11 x double], ptr @doubles, i32 0, i32 1
+        store volatile double %a, ptr %0
 
-        %ap = alloca i8*
-        %ap2 = bitcast i8** %ap to i8*
-        call void @llvm.va_start(i8* %ap2)
-        %b = va_arg i8** %ap, double
-        %1 = getelementptr [11 x double], [11 x double]* @doubles, i32 0, i32 2
-        store volatile double %b, double* %1
-        call void @llvm.va_end(i8* %ap2)
+        %ap = alloca ptr
+        call void @llvm.va_start(ptr %ap)
+        %b = va_arg ptr %ap, double
+        %1 = getelementptr [11 x double], ptr @doubles, i32 0, i32 2
+        store volatile double %b, ptr %1
+        call void @llvm.va_end(ptr %ap)
         ret void
 }
 
@@ -79,27 +86,23 @@ entry:
 ; LLVM will rebind the load to the stack pointer instead of the varargs pointer
 ; during lowering. This is fine and doesn't change the behaviour.
 ; O32-DAG:           addiu [[VAPTR]], [[VAPTR]], 8
-; O32-DAG:           sw [[VAPTR]], 4($sp)
 ; N32-DAG:           addiu [[VAPTR]], [[VAPTR]], 8
-; N32-DAG:           sw [[VAPTR]], 4($sp)
 ; N64-DAG:           daddiu [[VAPTR]], [[VAPTR]], 8
-; N64-DAG:           sd [[VAPTR]], 0($sp)
 ; O32-DAG:           ldc1 [[FTMP1:\$f[0-9]+]], 16($sp)
 ; NEW-DAG:           ldc1 [[FTMP1:\$f[0-9]+]], 8($sp)
 ; ALL-DAG:           sdc1 [[FTMP1]], 16([[R2]])
 
 define void @float_args(float %a, ...) nounwind {
 entry:
-        %0 = getelementptr [11 x float], [11 x float]* @floats, i32 0, i32 1
-        store volatile float %a, float* %0
+        %0 = getelementptr [11 x float], ptr @floats, i32 0, i32 1
+        store volatile float %a, ptr %0
 
-        %ap = alloca i8*
-        %ap2 = bitcast i8** %ap to i8*
-        call void @llvm.va_start(i8* %ap2)
-        %b = va_arg i8** %ap, float
-        %1 = getelementptr [11 x float], [11 x float]* @floats, i32 0, i32 2
-        store volatile float %b, float* %1
-        call void @llvm.va_end(i8* %ap2)
+        %ap = alloca ptr
+        call void @llvm.va_start(ptr %ap)
+        %b = va_arg ptr %ap, float
+        %1 = getelementptr [11 x float], ptr @floats, i32 0, i32 2
+        store volatile float %b, ptr %1
+        call void @llvm.va_end(ptr %ap)
         ret void
 }
 
@@ -111,7 +114,8 @@ entry:
 
 ; The first four arguments are the same in O32/N32/N64.
 ; The non-variable portion should be unaffected.
-; O32-DAG:           sw $4, 4([[R2]])
+; O32-DAG:           mtc1 $4, $f0
+; O32-DAG:           swc1 $f0, 4([[R2]])
 ; NEW-DAG:           swc1 $f12, 4([[R2]])
 
 ; The varargs portion is dumped to stack
@@ -146,16 +150,13 @@ entry:
 ; correct half of the argument slot.
 ;
 ; O32-DAG:           addiu [[VAPTR]], [[VAPTR]], 4
-; O32-DAG:           sw [[VAPTR]], 4($sp)
 ; N32-DAG:           addiu [[VAPTR]], [[VAPTR]], 8
-; N32-DAG:           sw [[VAPTR]], 4($sp)
 ; N64-DAG:           daddiu [[VAPTR]], [[VAPTR]], 8
-; N64-DAG:           sd [[VAPTR]], 0($sp)
 ; O32-DAG:           lwc1 [[FTMP1:\$f[0-9]+]], 12($sp)
 ; NEWLE-DAG:         lwc1 [[FTMP1:\$f[0-9]+]], 8($sp)
 ; NEWBE-DAG:         lwc1 [[FTMP1:\$f[0-9]+]], 12($sp)
 ; ALL-DAG:           swc1 [[FTMP1]], 8([[R2]])
 
-declare void @llvm.va_start(i8*)
-declare void @llvm.va_copy(i8*, i8*)
-declare void @llvm.va_end(i8*)
+declare void @llvm.va_start(ptr)
+declare void @llvm.va_copy(ptr, ptr)
+declare void @llvm.va_end(ptr)

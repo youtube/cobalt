@@ -3,7 +3,7 @@
 // CHECK: .lazy_reference .objc_class_name_J0
 
 // CHECK: @OBJC_METH_VAR_TYPE_{{.*}} = private unnamed_addr constant {{.*}}section "__TEXT,__cstring,cstring_literals", align 1
-// CHECK: @"\01l_OBJC_PROTOCOLEXT_P" = private global {{.*}}}, align
+// CHECK: @_OBJC_PROTOCOLEXT_P = internal global {{.*}}}, align
 // CHECK: @OBJC_CLASS_NAME_{{[0-9]*}} = private unnamed_addr constant {{.*}}section "__TEXT,__cstring,cstring_literals", align 1
 // CHECK: @OBJC_METH_VAR_NAME_{{.*}} = private unnamed_addr constant {{.*}}section "__TEXT,__cstring,cstring_literals", align 1
 // CHECK: @OBJC_PROTOCOL_INSTANCE_METHODS_P = private global {{.*}}section "__OBJC,__cat_inst_meth,regular,no_dead_strip", align 4
@@ -15,7 +15,7 @@
 // CHECK: @OBJC_INSTANCE_VARIABLES_A = private global {{.*}}section "__OBJC,__instance_vars,regular,no_dead_strip", align 4
 // CHECK: @OBJC_INSTANCE_METHODS_A = private global {{.*}}section "__OBJC,__inst_meth,regular,no_dead_strip", align 4
 // CHECK: @OBJC_PROP_NAME_ATTR_{{[0-9]*}} = private unnamed_addr constant {{.*}}section "__TEXT,__cstring,cstring_literals", align 1
-// CHECK: @"\01l_OBJC_$_PROP_LIST_A" = private global {{.*}}section "__OBJC,__property,regular,no_dead_strip", align 4
+// CHECK: @"_OBJC_$_PROP_LIST_A" = private global {{.*}}section "__OBJC,__property,regular,no_dead_strip", align 4
 // CHECK: @OBJC_CLASSEXT_A = private global {{.*}}section "__OBJC,__class_ext,regular,no_dead_strip", align 4
 // CHECK: @OBJC_CLASS_A = private global {{.*}}section "__OBJC,__class,regular,no_dead_strip", align 4
 // CHECK: @OBJC_CATEGORY_INSTANCE_METHODS_A_Cat = private global {{.*}}section "__OBJC,__cat_inst_meth,regular,no_dead_strip", align 4
@@ -80,7 +80,7 @@ llvm-gcc -m32 -emit-llvm -S -o - metadata-symbols-32.m | \
 
 @implementation J0(Category) @end
 
-void *f0() {
+void *f0(void) {
    [B im0];
    [C im1];
 }

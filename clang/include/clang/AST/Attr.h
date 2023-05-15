@@ -1,9 +1,8 @@
 //===--- Attr.h - Classes for representing attributes ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,16 +13,17 @@
 #ifndef LLVM_CLANG_AST_ATTR_H
 #define LLVM_CLANG_AST_ATTR_H
 
+#include "clang/AST/ASTFwd.h"
 #include "clang/AST/AttrIterator.h"
 #include "clang/AST/Decl.h"
-#include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/AttrKinds.h"
+#include "clang/Basic/AttributeCommonInfo.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/OpenMPKinds.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Basic/SourceLocation.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/raw_ostream.h"
@@ -31,24 +31,19 @@
 #include <cassert>
 
 namespace clang {
-  class ASTContext;
-  class IdentifierInfo;
-  class ObjCInterfaceDecl;
-  class Expr;
-  class QualType;
-  class FunctionDecl;
-  class TypeSourceInfo;
+class ASTContext;
+class AttributeCommonInfo;
+class FunctionDecl;
+class OMPTraitInfo;
 
 /// Attr - This represents one attribute.
-class Attr {
+class Attr : public AttributeCommonInfo {
 private:
-  SourceRange Range;
   unsigned AttrKind : 16;
 
 protected:
   /// An index into the spelling list of an
   /// attribute defined in Attr.td file.
-  unsigned SpellingListIndex : 4;
   unsigned Inherited : 1;
   unsigned IsPackExpansion : 1;
   unsigned Implicit : 1;
@@ -75,24 +70,21 @@ public:
   }
 
 protected:
-  Attr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
-       bool IsLateParsed)
-    : Range(R), AttrKind(AK), SpellingListIndex(SpellingListIndex),
-      Inherited(false), IsPackExpansion(false), Implicit(false),
-      IsLateParsed(IsLateParsed), InheritEvenIfAlreadyPresent(false) {}
+  Attr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+       attr::Kind AK, bool IsLateParsed)
+      : AttributeCommonInfo(CommonInfo), AttrKind(AK), Inherited(false),
+        IsPackExpansion(false), Implicit(false), IsLateParsed(IsLateParsed),
+        InheritEvenIfAlreadyPresent(false) {}
 
 public:
+  attr::Kind getKind() const { return static_cast<attr::Kind>(AttrKind); }
 
-  attr::Kind getKind() const {
-    return static_cast<attr::Kind>(AttrKind);
+  unsigned getSpellingListIndex() const {
+    return getAttributeSpellingListIndex();
   }
-
-  unsigned getSpellingListIndex() const { return SpellingListIndex; }
   const char *getSpelling() const;
 
-  SourceLocation getLocation() const { return Range.getBegin(); }
-  SourceRange getRange() const { return Range; }
-  void setRange(SourceRange R) { Range = R; }
+  SourceLocation getLocation() const { return getRange().getBegin(); }
 
   bool isInherited() const { return Inherited; }
 
@@ -111,13 +103,28 @@ public:
 
   // Pretty print this attribute.
   void printPretty(raw_ostream &OS, const PrintingPolicy &Policy) const;
+
+  static StringRef getDocumentation(attr::Kind);
+};
+
+class TypeAttr : public Attr {
+protected:
+  TypeAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+           attr::Kind AK, bool IsLateParsed)
+      : Attr(Context, CommonInfo, AK, IsLateParsed) {}
+
+public:
+  static bool classof(const Attr *A) {
+    return A->getKind() >= attr::FirstTypeAttr &&
+           A->getKind() <= attr::LastTypeAttr;
+  }
 };
 
 class StmtAttr : public Attr {
 protected:
-  StmtAttr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
-                  bool IsLateParsed)
-      : Attr(AK, R, SpellingListIndex, IsLateParsed) {}
+  StmtAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+           attr::Kind AK, bool IsLateParsed)
+      : Attr(Context, CommonInfo, AK, IsLateParsed) {}
 
 public:
   static bool classof(const Attr *A) {
@@ -128,9 +135,10 @@ public:
 
 class InheritableAttr : public Attr {
 protected:
-  InheritableAttr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
-                  bool IsLateParsed, bool InheritEvenIfAlreadyPresent)
-      : Attr(AK, R, SpellingListIndex, IsLateParsed) {
+  InheritableAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+                  attr::Kind AK, bool IsLateParsed,
+                  bool InheritEvenIfAlreadyPresent)
+      : Attr(Context, CommonInfo, AK, IsLateParsed) {
     this->InheritEvenIfAlreadyPresent = InheritEvenIfAlreadyPresent;
   }
 
@@ -150,11 +158,27 @@ public:
   }
 };
 
+class DeclOrStmtAttr : public InheritableAttr {
+protected:
+  DeclOrStmtAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+                 attr::Kind AK, bool IsLateParsed,
+                 bool InheritEvenIfAlreadyPresent)
+      : InheritableAttr(Context, CommonInfo, AK, IsLateParsed,
+                        InheritEvenIfAlreadyPresent) {}
+
+public:
+  static bool classof(const Attr *A) {
+    return A->getKind() >= attr::FirstDeclOrStmtAttr &&
+           A->getKind() <= attr::LastDeclOrStmtAttr;
+  }
+};
+
 class InheritableParamAttr : public InheritableAttr {
 protected:
-  InheritableParamAttr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
+  InheritableParamAttr(ASTContext &Context,
+                       const AttributeCommonInfo &CommonInfo, attr::Kind AK,
                        bool IsLateParsed, bool InheritEvenIfAlreadyPresent)
-      : InheritableAttr(AK, R, SpellingListIndex, IsLateParsed,
+      : InheritableAttr(Context, CommonInfo, AK, IsLateParsed,
                         InheritEvenIfAlreadyPresent) {}
 
 public:
@@ -165,21 +189,39 @@ public:
   }
 };
 
+class HLSLAnnotationAttr : public InheritableAttr {
+protected:
+  HLSLAnnotationAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+                     attr::Kind AK, bool IsLateParsed,
+                     bool InheritEvenIfAlreadyPresent)
+      : InheritableAttr(Context, CommonInfo, AK, IsLateParsed,
+                        InheritEvenIfAlreadyPresent) {}
+
+public:
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Attr *A) {
+    return A->getKind() >= attr::FirstHLSLAnnotationAttr &&
+           A->getKind() <= attr::LastHLSLAnnotationAttr;
+  }
+};
+
 /// A parameter attribute which changes the argument-passing ABI rule
 /// for the parameter.
 class ParameterABIAttr : public InheritableParamAttr {
 protected:
-  ParameterABIAttr(attr::Kind AK, SourceRange R,
-                   unsigned SpellingListIndex, bool IsLateParsed,
+  ParameterABIAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+                   attr::Kind AK, bool IsLateParsed,
                    bool InheritEvenIfAlreadyPresent)
-    : InheritableParamAttr(AK, R, SpellingListIndex, IsLateParsed,
-                           InheritEvenIfAlreadyPresent) {}
+      : InheritableParamAttr(Context, CommonInfo, AK, IsLateParsed,
+                             InheritEvenIfAlreadyPresent) {}
 
 public:
   ParameterABI getABI() const {
     switch (getKind()) {
     case attr::SwiftContext:
       return ParameterABI::SwiftContext;
+    case attr::SwiftAsyncContext:
+      return ParameterABI::SwiftAsyncContext;
     case attr::SwiftErrorResult:
       return ParameterABI::SwiftErrorResult;
     case attr::SwiftIndirectResult:
@@ -246,7 +288,10 @@ public:
 
   /// Construct from a result from \c serialize.
   static ParamIdx deserialize(SerialType S) {
-    ParamIdx P(*reinterpret_cast<ParamIdx *>(&S));
+    // Using this two-step static_cast via void * instead of reinterpret_cast
+    // silences a -Wstrict-aliasing false positive from GCC7 and earlier.
+    void *ParamIdxPtr = static_cast<void *>(&S);
+    ParamIdx P(*static_cast<ParamIdx *>(ParamIdxPtr));
     assert((!P.IsValid || P.Idx >= 1) && "valid Idx must be one-origin");
     return P;
   }
@@ -319,18 +364,10 @@ static_assert(sizeof(ParamIdx) == sizeof(ParamIdx::SerialType),
 
 #include "clang/AST/Attrs.inc"
 
-inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                           const Attr *At) {
-  DB.AddTaggedVal(reinterpret_cast<intptr_t>(At),
-                  DiagnosticsEngine::ak_attr);
+inline const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
+                                             const Attr *At) {
+  DB.AddTaggedVal(reinterpret_cast<uint64_t>(At), DiagnosticsEngine::ak_attr);
   return DB;
-}
-
-inline const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
-                                           const Attr *At) {
-  PD.AddTaggedVal(reinterpret_cast<intptr_t>(At),
-                  DiagnosticsEngine::ak_attr);
-  return PD;
 }
 }  // end namespace clang
 

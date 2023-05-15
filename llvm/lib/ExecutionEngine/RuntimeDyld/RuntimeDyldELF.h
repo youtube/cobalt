@@ -1,9 +1,8 @@
 //===-- RuntimeDyldELF.h - Run-time dynamic linker for MC-JIT ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -61,7 +60,7 @@ class RuntimeDyldELF : public RuntimeDyldImpl {
   void resolveBPFRelocation(const SectionEntry &Section, uint64_t Offset,
                             uint64_t Value, uint32_t Type, int64_t Addend);
 
-  unsigned getMaxStubSize() override {
+  unsigned getMaxStubSize() const override {
     if (Arch == Triple::aarch64 || Arch == Triple::aarch64_be)
       return 20; // movz; movk; movk; movk; br
     if (Arch == Triple::arm || Arch == Triple::thumb)
@@ -80,21 +79,22 @@ class RuntimeDyldELF : public RuntimeDyldImpl {
       return 0;
   }
 
-  unsigned getStubAlignment() override {
+  Align getStubAlignment() override {
     if (Arch == Triple::systemz)
-      return 8;
+      return Align(8);
     else
-      return 1;
+      return Align(1);
   }
 
   void setMipsABI(const ObjectFile &Obj) override;
 
-  Error findPPC64TOCSection(const ELFObjectFileBase &Obj,
+  Error findPPC64TOCSection(const object::ELFObjectFileBase &Obj,
                             ObjSectionToIDMap &LocalSections,
                             RelocationValueRef &Rel);
-  Error findOPDEntrySection(const ELFObjectFileBase &Obj,
+  Error findOPDEntrySection(const object::ELFObjectFileBase &Obj,
                             ObjSectionToIDMap &LocalSections,
                             RelocationValueRef &Rel);
+
 protected:
   size_t getGOTEntrySize() override;
 
@@ -158,8 +158,54 @@ private:
   // Map between GOT relocation value and corresponding GOT offset
   std::map<RelocationValueRef, uint64_t> GOTOffsetMap;
 
+  /// The ID of the current IFunc stub section
+  unsigned IFuncStubSectionID = 0;
+  /// The current offset into the IFunc stub section
+  uint64_t IFuncStubOffset = 0;
+
+  /// A IFunc stub and its original symbol
+  struct IFuncStub {
+    /// The offset of this stub in the IFunc stub section
+    uint64_t StubOffset;
+    /// The symbol table entry of the original symbol
+    SymbolTableEntry OriginalSymbol;
+  };
+
+  /// The IFunc stubs
+  SmallVector<IFuncStub, 2> IFuncStubs;
+
+  /// Create the code for the IFunc resolver at the given address. This code
+  /// works together with the stubs created in createIFuncStub() to call the
+  /// resolver function and then jump to the real function address.
+  /// It must not be larger than 64B.
+  void createIFuncResolver(uint8_t *Addr) const;
+  /// Create the code for an IFunc stub for the IFunc that is defined in
+  /// section IFuncSectionID at offset IFuncOffset. The IFunc resolver created
+  /// by createIFuncResolver() is defined in the section IFuncStubSectionID at
+  /// offset IFuncResolverOffset. The code should be written into the section
+  /// with the id IFuncStubSectionID at the offset IFuncStubOffset.
+  void createIFuncStub(unsigned IFuncStubSectionID,
+                       uint64_t IFuncResolverOffset, uint64_t IFuncStubOffset,
+                       unsigned IFuncSectionID, uint64_t IFuncOffset);
+  /// Return the maximum size of a stub created by createIFuncStub()
+  unsigned getMaxIFuncStubSize() const;
+
+  void processNewSymbol(const SymbolRef &ObjSymbol,
+                        SymbolTableEntry &Entry) override;
   bool relocationNeedsGot(const RelocationRef &R) const override;
   bool relocationNeedsStub(const RelocationRef &R) const override;
+
+  // Process a GOTTPOFF TLS relocation for x86-64
+  // NOLINTNEXTLINE(readability-identifier-naming)
+  void processX86_64GOTTPOFFRelocation(unsigned SectionID, uint64_t Offset,
+                                       RelocationValueRef Value,
+                                       int64_t Addend);
+  // Process a TLSLD/TLSGD relocation for x86-64
+  // NOLINTNEXTLINE(readability-identifier-naming)
+  void processX86_64TLSRelocation(unsigned SectionID, uint64_t Offset,
+                                  uint64_t RelType, RelocationValueRef Value,
+                                  int64_t Addend,
+                                  const RelocationRef &GetAddrRelocation);
 
 public:
   RuntimeDyldELF(RuntimeDyld::MemoryManager &MemMgr,

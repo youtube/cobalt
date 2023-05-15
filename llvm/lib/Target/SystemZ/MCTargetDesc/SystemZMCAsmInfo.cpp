@@ -1,9 +1,8 @@
 //===-- SystemZMCAsmInfo.cpp - SystemZ asm properties ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,17 +12,39 @@
 
 using namespace llvm;
 
-SystemZMCAsmInfo::SystemZMCAsmInfo(const Triple &TT) {
-  CodePointerSize = 8;
+SystemZMCAsmInfoELF::SystemZMCAsmInfoELF(const Triple &TT) {
+  AssemblerDialect = AD_ATT;
   CalleeSaveStackSlotSize = 8;
-  IsLittleEndian = false;
-
-  CommentString = "#";
-  ZeroDirective = "\t.space\t";
+  CodePointerSize = 8;
   Data64bitsDirective = "\t.quad\t";
-  UsesELFSectionDirectiveForBSS = true;
-  SupportsDebugInformation = true;
   ExceptionsType = ExceptionHandling::DwarfCFI;
+  IsLittleEndian = false;
+  MaxInstLength = 6;
+  SupportsDebugInformation = true;
+  UsesELFSectionDirectiveForBSS = true;
+  ZeroDirective = "\t.space\t";
+}
 
-  UseIntegratedAssembler = true;
+SystemZMCAsmInfoGOFF::SystemZMCAsmInfoGOFF(const Triple &TT) {
+  AllowAdditionalComments = false;
+  AllowAtInName = true;
+  AllowAtAtStartOfIdentifier = true;
+  AllowDollarAtStartOfIdentifier = true;
+  AllowHashAtStartOfIdentifier = true;
+  AssemblerDialect = AD_HLASM;
+  CalleeSaveStackSlotSize = 8;
+  CodePointerSize = 8;
+  CommentString = "*";
+  DotIsPC = false;
+  EmitGNUAsmStartIndentationMarker = false;
+  EmitLabelsInUpperCase = true;
+  IsLittleEndian = false;
+  MaxInstLength = 6;
+  RestrictCommentStringToStartOfStatement = true;
+  StarIsPC = true;
+  SupportsDebugInformation = true;
+}
+
+bool SystemZMCAsmInfoGOFF::isAcceptableChar(char C) const {
+  return MCAsmInfo::isAcceptableChar(C) || C == '#';
 }

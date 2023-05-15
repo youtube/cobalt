@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +14,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 template <class C>
@@ -47,7 +47,7 @@ test(C& c1)
     std::size_t c1_osize = c1.size();
     c1.pop_front();
     assert(c1.size() == c1_osize - 1);
-    assert(static_cast<std::size_t>(distance(c1.begin(), c1.end())) == c1.size());
+    assert(static_cast<std::size_t>(std::distance(c1.begin(), c1.end())) == c1.size());
     I i = c1.begin();
     for (int j = 1; static_cast<std::size_t>(j) < c1.size(); ++j, ++i)
         assert(*i == j);
@@ -64,7 +64,7 @@ testN(int start, int N)
     }
 }
 
-int main()
+int main(int, char**)
 {
     {
     int rng[] = {0, 1, 2, 3, 1023, 1024, 1025, 2047, 2048, 2049};
@@ -82,4 +82,6 @@ int main()
             testN<std::deque<int, min_allocator<int>> >(rng[i], rng[j]);
     }
 #endif
+
+  return 0;
 }

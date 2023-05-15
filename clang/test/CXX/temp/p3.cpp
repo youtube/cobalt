@@ -7,12 +7,10 @@ template<typename T> struct S {
 template<typename T> int S<T>::a, S<T>::b; // expected-error {{can only declare a single entity}}
 
 template<typename T> struct A { static A a; } A<T>::a; // expected-error {{expected ';' after struct}} \
-                                                          expected-error {{use of undeclared identifier 'T'}} \
-                                                          expected-error {{no member named 'a'}} \
-                                                          expected-warning {{extra qualification}}
+                                                          expected-error {{use of undeclared identifier 'T'}}
 
 template<typename T> struct B { } f(); // expected-error {{expected ';' after struct}} \
-                                          expected-error {{requires a type specifier}}
+                                          expected-error {{a type specifier is required}}
 
 template<typename T> struct C { } // expected-error {{expected ';' after struct}}
 

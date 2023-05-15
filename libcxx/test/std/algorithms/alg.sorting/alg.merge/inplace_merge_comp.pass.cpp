@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -54,10 +53,10 @@ struct S {
     };
 
 
-#endif  // TEST_STD_VER >= 11
+#endif // TEST_STD_VER >= 11
 
 #include "test_iterators.h"
-#include "counting_predicates.hpp"
+#include "counting_predicates.h"
 
 std::mt19937 randomness;
 
@@ -80,7 +79,9 @@ test_one(unsigned N, unsigned M)
         assert(ia[0] == static_cast<int>(N)-1);
         assert(ia[N-1] == 0);
         assert(std::is_sorted(ia, ia+N, std::greater<value_type>()));
+#ifndef _LIBCPP_ENABLE_DEBUG_MODE
         assert(pred.count() <= (N-1));
+#endif
     }
     delete [] ia;
 }
@@ -136,7 +137,7 @@ void test_PR31166 ()
     }
 }
 
-int main()
+int main(int, char**)
 {
     test<bidirectional_iterator<int*> >();
     test<random_access_iterator<int*> >();
@@ -165,7 +166,9 @@ int main()
     }
     delete [] ia;
     }
-#endif  // TEST_STD_VER >= 11
+#endif // TEST_STD_VER >= 11
 
     test_PR31166();
+
+  return 0;
 }

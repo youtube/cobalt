@@ -1,9 +1,8 @@
 //===--- StmtCXX.cpp - Classes for representing C++ statements ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -45,7 +44,7 @@ CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
   std::copy(handlers.begin(), handlers.end(), Stmts + 1);
 }
 
-CXXForRangeStmt::CXXForRangeStmt(DeclStmt *Range,
+CXXForRangeStmt::CXXForRangeStmt(Stmt *Init, DeclStmt *Range,
                                  DeclStmt *BeginStmt, DeclStmt *EndStmt,
                                  Expr *Cond, Expr *Inc, DeclStmt *LoopVar,
                                  Stmt *Body, SourceLocation FL,
@@ -53,6 +52,7 @@ CXXForRangeStmt::CXXForRangeStmt(DeclStmt *Range,
                                  SourceLocation RPL)
     : Stmt(CXXForRangeStmtClass), ForLoc(FL), CoawaitLoc(CAL), ColonLoc(CL),
       RParenLoc(RPL) {
+  SubExprs[INIT] = Init;
   SubExprs[RANGE] = Range;
   SubExprs[BEGINSTMT] = BeginStmt;
   SubExprs[ENDSTMT] = EndStmt;
@@ -118,7 +118,6 @@ CoroutineBodyStmt::CoroutineBodyStmt(CoroutineBodyStmt::CtorArgs const &Args)
   SubStmts[CoroutineBodyStmt::Allocate] = Args.Allocate;
   SubStmts[CoroutineBodyStmt::Deallocate] = Args.Deallocate;
   SubStmts[CoroutineBodyStmt::ReturnValue] = Args.ReturnValue;
-  SubStmts[CoroutineBodyStmt::ResultDecl] = Args.ResultDecl;
   SubStmts[CoroutineBodyStmt::ReturnStmt] = Args.ReturnStmt;
   SubStmts[CoroutineBodyStmt::ReturnStmtOnAllocFailure] =
       Args.ReturnStmtOnAllocFailure;

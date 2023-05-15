@@ -32,28 +32,28 @@ target triple = "x86_64-pc-windows-msvc18.0.0"
 @imported = external dllimport global i32, align 4
 
 ; Function Attrs: uwtable
-define void @global_array(i32 %idx1, i32 %idx2, i32 %idx3) #0 personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*) {
+define void @global_array(i32 %idx1, i32 %idx2, i32 %idx3) #0 personality ptr @__CxxFrameHandler3 {
 entry:
   %idxprom = sext i32 %idx1 to i64
-  %arrayidx = getelementptr inbounds [4 x i32], [4 x i32]* @array, i64 0, i64 %idxprom
-  store i32 111, i32* %arrayidx, align 4, !tbaa !2
-  invoke void @_CxxThrowException(i8* null, %eh.ThrowInfo* null) #1
+  %arrayidx = getelementptr inbounds [4 x i32], ptr @array, i64 0, i64 %idxprom
+  store i32 111, ptr %arrayidx, align 4, !tbaa !2
+  invoke void @_CxxThrowException(ptr null, ptr null) #1
           to label %unreachable unwind label %catch.dispatch
 
 catch.dispatch:                                   ; preds = %entry
   %cs1 = catchswitch within none [label %catch] unwind to caller
 
 catch:                                            ; preds = %catch.dispatch
-  %0 = catchpad within %cs1 [i8* null, i32 64, i8* null]
+  %0 = catchpad within %cs1 [ptr null, i32 64, ptr null]
   %idxprom1 = sext i32 %idx2 to i64
-  %arrayidx2 = getelementptr inbounds [4 x i32], [4 x i32]* @array, i64 0, i64 %idxprom1
-  store i32 222, i32* %arrayidx2, align 4, !tbaa !2
+  %arrayidx2 = getelementptr inbounds [4 x i32], ptr @array, i64 0, i64 %idxprom1
+  store i32 222, ptr %arrayidx2, align 4, !tbaa !2
   catchret from %0 to label %try.cont
 
 try.cont:                                         ; preds = %catch
   %idxprom3 = sext i32 %idx3 to i64
-  %arrayidx4 = getelementptr inbounds [4 x i32], [4 x i32]* @array, i64 0, i64 %idxprom3
-  store i32 333, i32* %arrayidx4, align 4, !tbaa !2
+  %arrayidx4 = getelementptr inbounds [4 x i32], ptr @array, i64 0, i64 %idxprom3
+  store i32 333, ptr %arrayidx4, align 4, !tbaa !2
   ret void
 
 unreachable:                                      ; preds = %entry
@@ -75,7 +75,7 @@ unreachable:                                      ; preds = %entry
 ; CHECK: popq %rbp
 ; CHECK: retq
 
-; CHECK: "?catch$2@?0?global_array@4HA":
+; CHECK: "?catch${{[0-9]+}}@?0?global_array@4HA":
 ; CHECK: pushq   %rbp
 ; CHECK: movslq  {{.*}}, %[[idx:[^ ]*]]
 ; CHECK: leaq    array(%rip), %[[base:[^ ]*]]
@@ -83,27 +83,27 @@ unreachable:                                      ; preds = %entry
 ; CHECK: popq    %rbp
 ; CHECK: retq                            # CATCHRET
 
-declare void @_CxxThrowException(i8*, %eh.ThrowInfo*)
+declare void @_CxxThrowException(ptr, ptr)
 
 declare i32 @__CxxFrameHandler3(...)
 
 ; Function Attrs: uwtable
-define void @access_imported() #0 personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*) {
+define void @access_imported() #0 personality ptr @__CxxFrameHandler3 {
 entry:
-  store i32 111, i32* @imported, align 4, !tbaa !2
-  invoke void @_CxxThrowException(i8* null, %eh.ThrowInfo* null) #1
+  store i32 111, ptr @imported, align 4, !tbaa !2
+  invoke void @_CxxThrowException(ptr null, ptr null) #1
           to label %unreachable unwind label %catch.dispatch
 
 catch.dispatch:                                   ; preds = %entry
   %cs1 = catchswitch within none [label %catch] unwind to caller
 
 catch:                                            ; preds = %catch.dispatch
-  %0 = catchpad within %cs1 [i8* null, i32 64, i8* null]
-  store i32 222, i32* @imported, align 4, !tbaa !2
+  %0 = catchpad within %cs1 [ptr null, i32 64, ptr null]
+  store i32 222, ptr @imported, align 4, !tbaa !2
   catchret from %0 to label %try.cont
 
 try.cont:                                         ; preds = %catch
-  store i32 333, i32* @imported, align 4, !tbaa !2
+  store i32 333, ptr @imported, align 4, !tbaa !2
   ret void
 
 unreachable:                                      ; preds = %entry
@@ -122,7 +122,7 @@ unreachable:                                      ; preds = %entry
 ; CHECK: popq %rbp
 ; CHECK: retq
 
-; CHECK: "?catch$2@?0?access_imported@4HA":
+; CHECK: "?catch${{[0-9]+}}@?0?access_imported@4HA":
 ; CHECK: pushq   %rbp
 ; CHECK: movq    __imp_imported(%rip), %[[base:[^ ]*]]
 ; CHECK: movl    $222, (%[[base]])
@@ -130,7 +130,7 @@ unreachable:                                      ; preds = %entry
 ; CHECK: retq                            # CATCHRET
 
 
-attributes #0 = { uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { noreturn }
 
 !llvm.module.flags = !{!0}

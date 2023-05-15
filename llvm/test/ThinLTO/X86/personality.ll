@@ -14,7 +14,7 @@
 ; RUN:   -r %t1.bc,personality_routine3,l \
 ; RUN:   -r %t1.bc,main,xp \
 ; RUN:   -r %t1.bc,bar,l
-; RUN: llvm-readobj -t %t.o.2 | FileCheck %s --check-prefix=BINDING
+; RUN: llvm-readobj --symbols %t.o.2 | FileCheck %s --check-prefix=BINDING
 
 ; BINDING:     Symbol {
 ; BINDING:       Name: personality_routine
@@ -42,31 +42,31 @@
 
 ; BINDING-NOT:  Name: personality_routine3
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
-declare protected i32 @personality_routine(i32, i32, i64, i8*, i8*)
-declare protected i32 @personality_routine2(i32, i32, i64, i8*, i8*)
-declare protected i32 @personality_routine3(i32, i32, i64, i8*, i8*)
+declare protected i32 @personality_routine(i32, i32, i64, ptr, ptr)
+declare protected i32 @personality_routine2(i32, i32, i64, ptr, ptr)
+declare protected i32 @personality_routine3(i32, i32, i64, ptr, ptr)
 declare void @bar()
 
-define void @foo() personality i32 (i32, i32, i64, i8*, i8*)* @personality_routine {
+define void @foo() personality ptr @personality_routine {
   ret void
 }
 
-define internal void @foo2b() personality i8* bitcast (i32 (i32, i32, i64, i8*, i8*)* @personality_routine2 to i8*) {
+define internal void @foo2b() personality ptr @personality_routine2 {
   ret void
 }
 
-define internal void @foo2a() prologue void ()* @foo2b {
+define internal void @foo2a() prologue ptr @foo2b {
   ret void
 }
 
-define void @foo2() prefix void ()* @foo2a {
+define void @foo2() prefix ptr @foo2a {
   ret void
 }
 
-define void @foo3() personality i8* bitcast (i32 (i32, i32, i64, i8*, i8*)* @personality_routine3 to i8*) {
+define void @foo3() personality ptr @personality_routine3 {
   ret void
 }
 

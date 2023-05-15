@@ -1,8 +1,8 @@
-; RUN: llc -march=mipsel -mcpu=mips32 -mattr=+fp64,+msa,-nooddspreg \
-; RUN:   -no-integrated-as -relocation-model=pic < %s | \
+; RUN: llc -march=mipsel -mcpu=mips32r5 -mattr=+fp64,+msa,-nooddspreg \
+; RUN:   -verify-machineinstrs -no-integrated-as -relocation-model=pic < %s | \
 ; RUN:   FileCheck %s -check-prefixes=ALL,ODDSPREG
-; RUN: llc -march=mipsel -mcpu=mips32 -mattr=+fp64,+msa,+nooddspreg \
-; RUN:   -no-integrated-as -relocation-model=pic < %s | \
+; RUN: llc -march=mipsel -mcpu=mips32r5 -mattr=+fp64,+msa,+nooddspreg \
+; RUN:   -verify-machineinstrs -no-integrated-as -relocation-model=pic < %s | \
 ; RUN:   FileCheck %s -check-prefixes=ALL,NOODDSPREG
 
 @v4f32 = global <4 x float> zeroinitializer
@@ -12,7 +12,7 @@ entry:
   ; Force the float into an odd-numbered register using named registers and
   ; load the vector.
   %b = call float asm sideeffect "mov.s $0, $1", "={$f13},{$f12}" (float %a)
-  %0 = load volatile <4 x float>, <4 x float>* @v4f32
+  %0 = load volatile <4 x float>, ptr @v4f32
 
   ; Clobber all except $f12/$w12 and $f13
   ;
@@ -25,15 +25,15 @@ entry:
   ; vector.
   call void asm sideeffect "teqi $$zero, 1", "~{$f0},~{$f1},~{$f2},~{$f3},~{$f4},~{$f5},~{$f6},~{$f7},~{$f8},~{$f9},~{$f10},~{$f11},~{$f14},~{$f15},~{$f16},~{$f17},~{$f18},~{$f19},~{$f20},~{$f21},~{$f22},~{$f23},~{$f24},~{$f25},~{$f26},~{$f27},~{$f28},~{$f29},~{$f30},~{$f31}"()
   %1 = insertelement <4 x float> %0, float %b, i32 0
-  store <4 x float> %1, <4 x float>* @v4f32
+  store <4 x float> %1, ptr @v4f32
   ret void
 }
 
 ; ALL-LABEL:  msa_insert_0:
 ; ALL:            mov.s $f13, $f12
+; NOODDSPREG:     mov.s $f[[F0:[0-9]+]], $f13
 ; ALL:            lw $[[R0:[0-9]+]], %got(v4f32)(
 ; ALL:            ld.w $w[[W0:[0-9]+]], 0($[[R0]])
-; NOODDSPREG:     mov.s $f[[F0:[0-9]+]], $f13
 ; NOODDSPREG:     insve.w $w[[W0]][0], $w[[F0]][0]
 ; ODDSPREG:       insve.w $w[[W0]][0], $w13[0]
 ; ALL:            teqi $zero, 1
@@ -46,7 +46,7 @@ entry:
   ; Force the float into an odd-numbered register using named registers and
   ; load the vector.
   %b = call float asm sideeffect "mov.s $0, $1", "={$f13},{$f12}" (float %a)
-  %0 = load volatile <4 x float>, <4 x float>* @v4f32
+  %0 = load volatile <4 x float>, ptr @v4f32
 
   ; Clobber all except $f12/$w12 and $f13
   ;
@@ -59,15 +59,15 @@ entry:
   ; vector.
   call void asm sideeffect "teqi $$zero, 1", "~{$f0},~{$f1},~{$f2},~{$f3},~{$f4},~{$f5},~{$f6},~{$f7},~{$f8},~{$f9},~{$f10},~{$f11},~{$f14},~{$f15},~{$f16},~{$f17},~{$f18},~{$f19},~{$f20},~{$f21},~{$f22},~{$f23},~{$f24},~{$f25},~{$f26},~{$f27},~{$f28},~{$f29},~{$f30},~{$f31}"()
   %1 = insertelement <4 x float> %0, float %b, i32 1
-  store <4 x float> %1, <4 x float>* @v4f32
+  store <4 x float> %1, ptr @v4f32
   ret void
 }
 
 ; ALL-LABEL:  msa_insert_1:
 ; ALL:            mov.s $f13, $f12
+; NOODDSPREG:     mov.s $f[[F0:[0-9]+]], $f13
 ; ALL:            lw $[[R0:[0-9]+]], %got(v4f32)(
 ; ALL:            ld.w $w[[W0:[0-9]+]], 0($[[R0]])
-; NOODDSPREG:     mov.s $f[[F0:[0-9]+]], $f13
 ; NOODDSPREG:     insve.w $w[[W0]][1], $w[[F0]][0]
 ; ODDSPREG:       insve.w $w[[W0]][1], $w13[0]
 ; ALL:            teqi $zero, 1
@@ -77,7 +77,7 @@ entry:
 
 define float @msa_extract_0() {
 entry:
-  %0 = load volatile <4 x float>, <4 x float>* @v4f32
+  %0 = load volatile <4 x float>, ptr @v4f32
   %1 = call <4 x float> asm sideeffect "move.v $0, $1", "={$w13},{$w12}" (<4 x float> %0)
 
   ; Clobber all except $f12, and $f13
@@ -105,7 +105,7 @@ entry:
 
 define float @msa_extract_1() {
 entry:
-  %0 = load volatile <4 x float>, <4 x float>* @v4f32
+  %0 = load volatile <4 x float>, ptr @v4f32
   %1 = call <4 x float> asm sideeffect "move.v $0, $1", "={$w13},{$w12}" (<4 x float> %0)
 
   ; Clobber all except $f13

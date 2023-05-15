@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,12 +10,13 @@
 
 // iterator insert (const_iterator p, value_type&& v);
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 #include <deque>
 #include <cassert>
 #include <cstddef>
 
+#include "test_macros.h"
 #include "MoveOnly.h"
 #include "min_allocator.h"
 
@@ -52,13 +52,13 @@ test(int P, C& c1, int x)
     CI i = c1.insert(c1.begin() + P, MoveOnly(x));
     assert(i == c1.begin() + P);
     assert(c1.size() == c1_osize + 1);
-    assert(static_cast<std::size_t>(distance(c1.begin(), c1.end())) == c1.size());
+    assert(static_cast<std::size_t>(std::distance(c1.begin(), c1.end())) == c1.size());
     i = c1.begin();
-    for (int j = 0; j < P; ++j, ++i)
+    for (int j = 0; j < P; ++j, (void) ++i)
         assert(*i == MoveOnly(j));
     assert(*i == MoveOnly(x));
     ++i;
-    for (int j = P; static_cast<std::size_t>(j) < c1_osize; ++j, ++i)
+    for (int j = P; static_cast<std::size_t>(j) < c1_osize; ++j, (void) ++i)
         assert(*i == MoveOnly(j));
 }
 
@@ -92,7 +92,7 @@ testN(int start, int N)
     }
 }
 
-int main()
+int main(int, char**)
 {
     {
     int rng[] = {0, 1, 2, 3, 1023, 1024, 1025, 2047, 2048, 2049};
@@ -108,4 +108,6 @@ int main()
         for (int j = 0; j < N; ++j)
             testN<std::deque<MoveOnly, min_allocator<MoveOnly>> >(rng[i], rng[j]);
     }
+
+  return 0;
 }

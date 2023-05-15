@@ -5,35 +5,35 @@
 ; RUN: llc < %s -mtriple=arm-eabi  -arm-global-merge -relocation-model=pic           | FileCheck %s --check-prefixes=CHECK,CHECK-NO-MERGE
 ; RUN: llc < %s -mtriple=thumbv7-win32 -arm-global-merge                             | FileCheck %s --check-prefixes=CHECK-WIN32
 
-@x = global i32 0, align 4
-@y = global i32 0, align 4
-@z = global i32 0, align 4
+@x = dso_local global i32 0, align 4
+@y = dso_local global i32 0, align 4
+@z = dso_local global i32 0, align 4
 
-define void @f1(i32 %a1, i32 %a2) {
+define dso_local void @f1(i32 %a1, i32 %a2) {
 ;CHECK:          f1:
 ;CHECK:          ldr {{r[0-9]+}}, [[LABEL1:\.?LCPI[0-9]+_[0-9]]]
 ;CHECK:          [[LABEL1]]:
 ;CHECK-MERGE:    .long .L_MergedGlobals
-;CHECK-NO-MERGE: .long {{_?x}}
+;CHECK-NO-MERGE: .long {{_?x|.L_MergedGlobals}}
 ;CHECK-WIN32:    f1:
 ;CHECK-WIN32:    movw [[REG1:r[0-9]+]], :lower16:.L_MergedGlobals
 ;CHECK-WIN32:    movt [[REG1]], :upper16:.L_MergedGlobals
-  store i32 %a1, i32* @x, align 4
-  store i32 %a2, i32* @y, align 4
+  store i32 %a1, ptr @x, align 4
+  store i32 %a2, ptr @y, align 4
   ret void
 }
 
-define void @g1(i32 %a1, i32 %a2) {
+define dso_local void @g1(i32 %a1, i32 %a2) {
 ;CHECK:          g1:
 ;CHECK:          ldr {{r[0-9]+}}, [[LABEL2:\.?LCPI[0-9]+_[0-9]]]
 ;CHECK:          [[LABEL2]]:
 ;CHECK-MERGE:    .long .L_MergedGlobals
-;CHECK-NO-MERGE: .long {{_?y}}
+;CHECK-NO-MERGE: .long {{_?y|.L_MergedGlobals}}
 ;CHECK-WIN32:    g1:
 ;CHECK-WIN32:    movw [[REG2:r[0-9]+]], :lower16:.L_MergedGlobals
 ;CHECK-WIN32:    movt [[REG2]], :upper16:.L_MergedGlobals
-  store i32 %a1, i32* @y, align 4
-  store i32 %a2, i32* @z, align 4
+  store i32 %a1, ptr @y, align 4
+  store i32 %a2, ptr @z, align 4
   ret void
 }
 

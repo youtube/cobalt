@@ -1,9 +1,8 @@
 //===- CommonOptionsParser.h - common options for clang tools -*- C++ -*-=====//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -64,21 +63,8 @@ namespace tooling {
 /// }
 /// \endcode
 class CommonOptionsParser {
-public:
-  /// Parses command-line, initializes a compilation database.
-  ///
-  /// This constructor can change argc and argv contents, e.g. consume
-  /// command-line options used for creating FixedCompilationDatabase.
-  ///
-  /// All options not belonging to \p Category become hidden.
-  ///
-  /// This constructor exits program in case of error.
-  CommonOptionsParser(int &argc, const char **argv,
-                      llvm::cl::OptionCategory &Category,
-                      const char *Overview = nullptr)
-      : CommonOptionsParser(argc, argv, Category, llvm::cl::OneOrMore,
-                            Overview) {}
 
+protected:
   /// Parses command-line, initializes a compilation database.
   ///
   /// This constructor can change argc and argv contents, e.g. consume
@@ -87,16 +73,17 @@ public:
   /// All options not belonging to \p Category become hidden.
   ///
   /// It also allows calls to set the required number of positional parameters.
-  CommonOptionsParser(int &argc, const char **argv,
-                      llvm::cl::OptionCategory &Category,
-                      llvm::cl::NumOccurrencesFlag OccurrencesFlag,
-                      const char *Overview = nullptr);
+  CommonOptionsParser(
+      int &argc, const char **argv, llvm::cl::OptionCategory &Category,
+      llvm::cl::NumOccurrencesFlag OccurrencesFlag = llvm::cl::OneOrMore,
+      const char *Overview = nullptr);
 
+public:
   /// A factory method that is similar to the above constructor, except
   /// this returns an error instead exiting the program on error.
   static llvm::Expected<CommonOptionsParser>
   create(int &argc, const char **argv, llvm::cl::OptionCategory &Category,
-         llvm::cl::NumOccurrencesFlag OccurrencesFlag,
+         llvm::cl::NumOccurrencesFlag OccurrencesFlag = llvm::cl::OneOrMore,
          const char *Overview = nullptr);
 
   /// Returns a reference to the loaded compilations database.
@@ -154,4 +141,4 @@ private:
 }  // namespace tooling
 }  // namespace clang
 
-#endif  // LLVM_TOOLS_CLANG_INCLUDE_CLANG_TOOLING_COMMONOPTIONSPARSER_H
+#endif // LLVM_CLANG_TOOLING_COMMONOPTIONSPARSER_H

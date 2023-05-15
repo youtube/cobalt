@@ -1,13 +1,13 @@
 //===-- LineEditor.cpp - line editor --------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/LineEditor/LineEditor.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/Path.h"
@@ -25,26 +25,24 @@ std::string LineEditor::getDefaultHistoryPath(StringRef ProgName) {
   SmallString<32> Path;
   if (sys::path::home_directory(Path)) {
     sys::path::append(Path, "." + ProgName + "-history");
-    return Path.str();
+    return std::string(Path.str());
   }
   return std::string();
 }
 
-LineEditor::CompleterConcept::~CompleterConcept() {}
-LineEditor::ListCompleterConcept::~ListCompleterConcept() {}
+LineEditor::CompleterConcept::~CompleterConcept() = default;
+LineEditor::ListCompleterConcept::~ListCompleterConcept() = default;
 
 std::string LineEditor::ListCompleterConcept::getCommonPrefix(
     const std::vector<Completion> &Comps) {
   assert(!Comps.empty());
 
   std::string CommonPrefix = Comps[0].TypedText;
-  for (std::vector<Completion>::const_iterator I = Comps.begin() + 1,
-                                               E = Comps.end();
-       I != E; ++I) {
-    size_t Len = std::min(CommonPrefix.size(), I->TypedText.size());
+  for (const Completion &C : llvm::drop_begin(Comps)) {
+    size_t Len = std::min(CommonPrefix.size(), C.TypedText.size());
     size_t CommonLen = 0;
     for (; CommonLen != Len; ++CommonLen) {
-      if (CommonPrefix[CommonLen] != I->TypedText[CommonLen])
+      if (CommonPrefix[CommonLen] != C.TypedText[CommonLen])
         break;
     }
     CommonPrefix.resize(CommonLen);
@@ -70,9 +68,8 @@ LineEditor::ListCompleterConcept::complete(StringRef Buffer, size_t Pos) const {
   // common prefix will then be empty.
   if (CommonPrefix.empty()) {
     Action.Kind = CompletionAction::AK_ShowCompletions;
-    for (std::vector<Completion>::iterator I = Comps.begin(), E = Comps.end();
-         I != E; ++I)
-      Action.Completions.push_back(I->DisplayText);
+    for (const Completion &Comp : Comps)
+      Action.Completions.push_back(Comp.DisplayText);
   } else {
     Action.Kind = CompletionAction::AK_Insert;
     Action.Text = CommonPrefix;
@@ -171,11 +168,8 @@ unsigned char ElCompletionFn(EditLine *EL, int ch) {
         OS << "\n";
 
         // Emit the completions.
-        for (std::vector<std::string>::iterator I = Action.Completions.begin(),
-                                                E = Action.Completions.end();
-             I != E; ++I) {
-          OS << *I << "\n";
-        }
+        for (const std::string &Completion : Action.Completions)
+          OS << Completion << "\n";
 
         // Fool libedit into thinking nothing has changed. Reprint its prompt
         // and the user input. Note that the cursor will remain at the end of
@@ -198,7 +192,7 @@ unsigned char ElCompletionFn(EditLine *EL, int ch) {
 
 LineEditor::LineEditor(StringRef ProgName, StringRef HistoryPath, FILE *In,
                        FILE *Out, FILE *Err)
-    : Prompt((ProgName + "> ").str()), HistoryPath(HistoryPath),
+    : Prompt((ProgName + "> ").str()), HistoryPath(std::string(HistoryPath)),
       Data(new InternalData) {
   if (HistoryPath.empty())
     this->HistoryPath = getDefaultHistoryPath(ProgName);
@@ -254,14 +248,14 @@ void LineEditor::loadHistory() {
   }
 }
 
-Optional<std::string> LineEditor::readLine() const {
+std::optional<std::string> LineEditor::readLine() const {
   // Call el_gets to prompt the user and read the user's input.
   int LineLen = 0;
   const char *Line = ::el_gets(Data->EL, &LineLen);
 
   // Either of these may mean end-of-file.
   if (!Line || LineLen == 0)
-    return Optional<std::string>();
+    return std::nullopt;
 
   // Strip any newlines off the end of the string.
   while (LineLen > 0 &&
@@ -298,7 +292,7 @@ LineEditor::~LineEditor() {
 void LineEditor::saveHistory() {}
 void LineEditor::loadHistory() {}
 
-Optional<std::string> LineEditor::readLine() const {
+std::optional<std::string> LineEditor::readLine() const {
   ::fprintf(Data->Out, "%s", Prompt.c_str());
 
   std::string Line;
@@ -307,7 +301,7 @@ Optional<std::string> LineEditor::readLine() const {
     char *Res = ::fgets(Buf, sizeof(Buf), Data->In);
     if (!Res) {
       if (Line.empty())
-        return Optional<std::string>();
+        return std::nullopt;
       else
         return Line;
     }

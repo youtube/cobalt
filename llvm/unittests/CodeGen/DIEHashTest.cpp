@@ -1,19 +1,21 @@
 //===- llvm/unittest/CodeGen/DIEHashTest.cpp ------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "../lib/CodeGen/AsmPrinter/DIEHash.h"
+#include "TestAsmPrinter.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/DIE.h"
 #include "llvm/CodeGen/DwarfStringPoolEntry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Testing/Support/Error.h"
 #include "gtest/gtest.h"
 
 using namespace llvm;
@@ -27,12 +29,26 @@ public:
 
 private:
   StringMap<DwarfStringPoolEntry> Pool;
+  std::unique_ptr<TestAsmPrinter> TestPrinter;
+
+  void setupTestPrinter() {
+    auto ExpectedTestPrinter = TestAsmPrinter::create(
+        sys::getDefaultTargetTriple(), /*DwarfVersion=*/4, dwarf::DWARF32);
+    ASSERT_THAT_EXPECTED(ExpectedTestPrinter, Succeeded());
+    TestPrinter = std::move(ExpectedTestPrinter.get());
+  }
 
 public:
   DIEString getString(StringRef S) {
     DwarfStringPoolEntry Entry = {nullptr, 1, 1};
     return DIEString(
         DwarfStringPoolEntryRef(*Pool.insert(std::make_pair(S, Entry)).first));
+  }
+
+  AsmPrinter *getAsmPrinter() {
+    if (!TestPrinter)
+      setupTestPrinter();
+    return TestPrinter ? TestPrinter->getAP() : nullptr;
   }
 };
 
@@ -57,7 +73,7 @@ TEST_F(DIEHashTest, TrivialType) {
   uint64_t MD5Res = DIEHash().computeTypeSignature(Unnamed);
 
   // The exact same hash GCC produces for this DIE.
-  ASSERT_EQ(0x715305ce6cfd9ad1ULL, MD5Res);
+  ASSERT_EQ(0x715305CE6CFD9AD1ULL, MD5Res);
 }
 
 // struct foo { };
@@ -71,7 +87,7 @@ TEST_F(DIEHashTest, NamedType) {
   uint64_t MD5Res = DIEHash().computeTypeSignature(Foo);
 
   // The exact same hash GCC produces for this DIE.
-  ASSERT_EQ(0xd566dbd2ca5265ffULL, MD5Res);
+  ASSERT_EQ(0xD566DBD2CA5265FFULL, MD5Res);
 }
 
 // namespace space { struct foo { }; }
@@ -590,7 +606,7 @@ TEST_F(DIEHashTest, MemberFuncFlag) {
   uint64_t MD5Res = DIEHash().computeTypeSignature(A);
 
   // The exact same hash GCC produces for this DIE.
-  ASSERT_EQ(0x8f78211ddce3df10ULL, MD5Res);
+  ASSERT_EQ(0x8F78211DDCE3DF10ULL, MD5Res);
 }
 
 // Derived from:
@@ -636,7 +652,7 @@ TEST_F(DIEHashTest, MemberSdata) {
   A.addChild(std::move(PI));
 
   uint64_t MD5Res = DIEHash().computeTypeSignature(A);
-  ASSERT_EQ(0x9a216000dd3788a7ULL, MD5Res);
+  ASSERT_EQ(0x9A216000DD3788A7ULL, MD5Res);
 }
 
 // Derived from:
@@ -645,6 +661,9 @@ TEST_F(DIEHashTest, MemberSdata) {
 // };
 // A a;
 TEST_F(DIEHashTest, MemberBlock) {
+  if (!this->getAsmPrinter())
+    GTEST_SKIP();
+
   DIE &A = *DIE::get(Alloc, dwarf::DW_TAG_structure_type);
   DIEInteger One(1);
   DIEString AStr = getString("A");
@@ -693,7 +712,7 @@ TEST_F(DIEHashTest, MemberBlock) {
 
   A.addChild(std::move(PI));
 
-  uint64_t MD5Res = DIEHash().computeTypeSignature(A);
-  ASSERT_EQ(0x493af53ad3d3f651ULL, MD5Res);
+  uint64_t MD5Res = DIEHash(this->getAsmPrinter()).computeTypeSignature(A);
+  ASSERT_EQ(0x493AF53AD3D3F651ULL, MD5Res);
 }
 }

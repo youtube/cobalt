@@ -1,9 +1,8 @@
 //==-- SystemZSchedule.td - SystemZ Scheduling Definitions ----*- tblgen -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,11 +11,13 @@
 // These resources are used to express decoder grouping rules.  The number of
 // decoder slots needed by an instructions is normally one, but there are
 // exceptions.
-def NormalGr   : SchedWrite;
-def Cracked    : SchedWrite;
-def GroupAlone : SchedWrite;
-def BeginGroup : SchedWrite;
-def EndGroup   : SchedWrite;
+def NormalGr    : SchedWrite;
+def Cracked     : SchedWrite;
+def GroupAlone  : SchedWrite;
+def GroupAlone2 : SchedWrite;
+def GroupAlone3 : SchedWrite;
+def BeginGroup  : SchedWrite;
+def EndGroup    : SchedWrite;
 
 // A SchedWrite added to other SchedWrites to make LSU latency parameterizable.
 def LSULatency : SchedWrite;
@@ -52,12 +53,15 @@ foreach Num = ["", "2", "3", "4", "5", "6"] in {
   def "DFU"#Num : SchedWrite;
 }
 
-def VecFPd : SchedWrite; // Blocking BFP div/sqrt unit.
+def VecFPd   : SchedWrite; // Blocking BFP div/sqrt unit (30 cycles).
+def VecFPd20 : SchedWrite; // Blocking BFP div/sqrt unit, 20 cycles.
 
 def VBU : SchedWrite; // Virtual branching unit
 
 def MCD : SchedWrite; // Millicode
 
+include "SystemZScheduleZ16.td"
+include "SystemZScheduleZ15.td"
 include "SystemZScheduleZ14.td"
 include "SystemZScheduleZ13.td"
 include "SystemZScheduleZEC12.td"

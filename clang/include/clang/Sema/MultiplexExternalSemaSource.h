@@ -1,9 +1,8 @@
 //===--- MultiplexExternalSemaSource.h - External Sema Interface-*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -37,27 +36,28 @@ namespace clang {
 /// external AST sources that also provide information for semantic
 /// analysis.
 class MultiplexExternalSemaSource : public ExternalSemaSource {
+  /// LLVM-style RTTI.
+  static char ID;
 
 private:
-  SmallVector<ExternalSemaSource *, 2> Sources; // doesn't own them.
+  SmallVector<ExternalSemaSource *, 2> Sources;
 
 public:
-
-  ///Constructs a new multiplexing external sema source and appends the
+  /// Constructs a new multiplexing external sema source and appends the
   /// given element to it.
   ///
-  ///\param[in] s1 - A non-null (old) ExternalSemaSource.
-  ///\param[in] s2 - A non-null (new) ExternalSemaSource.
+  ///\param[in] S1 - A non-null (old) ExternalSemaSource.
+  ///\param[in] S2 - A non-null (new) ExternalSemaSource.
   ///
-  MultiplexExternalSemaSource(ExternalSemaSource& s1, ExternalSemaSource& s2);
+  MultiplexExternalSemaSource(ExternalSemaSource *S1, ExternalSemaSource *S2);
 
   ~MultiplexExternalSemaSource() override;
 
-  ///Appends new source to the source list.
+  /// Appends new source to the source list.
   ///
-  ///\param[in] source - An ExternalSemaSource.
+  ///\param[in] Source - An ExternalSemaSource.
   ///
-  void addSource(ExternalSemaSource &source);
+  void AddSource(ExternalSemaSource *Source);
 
   //===--------------------------------------------------------------------===//
   // ExternalASTSource.
@@ -151,8 +151,6 @@ public:
 
   /// Retrieve the module that corresponds to the given module ID.
   Module *getModule(unsigned ID) override;
-
-  bool DeclIsFromPCHWithObjectFile(const Decl *D) override;
 
   /// Perform layout on the given record.
   ///
@@ -331,6 +329,15 @@ public:
       llvm::MapVector<const FunctionDecl *, std::unique_ptr<LateParsedTemplate>>
           &LPTMap) override;
 
+  /// Read the set of decls to be checked for deferred diags.
+  ///
+  /// The external source should append its own potentially emitted function
+  /// and variable decls which may cause deferred diags. Note that this routine
+  /// may be invoked multiple times; the external source should take care not to
+  /// introduce the same declarations repeatedly.
+  void ReadDeclsToCheckForDeferredDiags(
+      llvm::SmallSetVector<Decl *, 4> &Decls) override;
+
   /// \copydoc ExternalSemaSource::CorrectTypo
   /// \note Returns the first nonempty correction.
   TypoCorrection CorrectTypo(const DeclarationNameInfo &Typo,
@@ -353,9 +360,13 @@ public:
   bool MaybeDiagnoseMissingCompleteType(SourceLocation Loc,
                                         QualType T) override;
 
-  // isa/cast/dyn_cast support
-  static bool classof(const MultiplexExternalSemaSource*) { return true; }
-  //static bool classof(const ExternalSemaSource*) { return true; }
+  /// LLVM-style RTTI.
+  /// \{
+  bool isA(const void *ClassID) const override {
+    return ClassID == &ID || ExternalSemaSource::isA(ClassID);
+  }
+  static bool classof(const ExternalASTSource *S) { return S->isA(&ID); }
+  /// \}
 };
 
 } // end namespace clang

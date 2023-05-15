@@ -1,5 +1,5 @@
-// RUN: %clang_analyze_cc1 -std=c99 -Dbool=_Bool -analyzer-checker=core,alpha.core.TestAfterDivZero -analyzer-output=text -verify %s
-// RUN: %clang_analyze_cc1 -x c++ -analyzer-checker=core,alpha.core.TestAfterDivZero -analyzer-output=text -verify %s
+// RUN: %clang_analyze_cc1 -std=c99 -Dbool=_Bool -analyzer-checker=core,alpha.core.TestAfterDivZero -analyzer-output=text -verify -analyzer-config eagerly-assume=false %s
+// RUN: %clang_analyze_cc1 -x c++ -analyzer-checker=core,alpha.core.TestAfterDivZero -analyzer-output=text -verify -analyzer-config eagerly-assume=false %s
 
 int var;
 
@@ -136,7 +136,7 @@ void ok_pif(int x) {
 
 int getValue(bool *isPositive);
 void use(int a);
-void foo() {
+void foo(void) {
   bool isPositive;
   int x = getValue(&isPositive);
   if (isPositive) {
@@ -147,8 +147,8 @@ void foo() {
   }
 }
 
-int getValue2();
-void foo2() {
+int getValue2(void);
+void foo2(void) {
   int x = getValue2();
   int y = x;
 

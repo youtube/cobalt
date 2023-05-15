@@ -1,20 +1,20 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11
+// UNSUPPORTED: c++03, c++11
 // <utility>
 
 // exchange
 
 // template<class T, class U=T>
 //    constexpr T            // constexpr after C++17
-//    exchange(T& obj, U&& new_value);
+//    exchange(T& obj, U&& new_value)
+//      noexcept(is_nothrow_move_constructible<T>::value && is_nothrow_assignable<T&, U>::value);
 
 #include <utility>
 #include <cassert>
@@ -38,9 +38,38 @@ TEST_CONSTEXPR bool test_constexpr() {
     }
 #endif
 
+template<bool Move, bool Assign>
+struct TestNoexcept {
+    TestNoexcept() = default;
+    TestNoexcept(const TestNoexcept&);
+    TestNoexcept(TestNoexcept&&) noexcept(Move);
+    TestNoexcept& operator=(const TestNoexcept&);
+    TestNoexcept& operator=(TestNoexcept&&) noexcept(Assign);
+};
 
+constexpr bool test_noexcept() {
+  {
+    int x = 42;
+    ASSERT_NOEXCEPT(std::exchange(x, 42));
+  }
+  {
+    TestNoexcept<true, true> x;
+    ASSERT_NOEXCEPT(std::exchange(x, std::move(x)));
+    ASSERT_NOT_NOEXCEPT(std::exchange(x, x)); // copy-assignment is not noexcept
+  }
+  {
+    TestNoexcept<true, false> x;
+    ASSERT_NOT_NOEXCEPT(std::exchange(x, std::move(x)));
+  }
+  {
+    TestNoexcept<false, true> x;
+    ASSERT_NOT_NOEXCEPT(std::exchange(x, std::move(x)));
+  }
 
-int main()
+  return true;
+}
+
+int main(int, char**)
 {
     {
     int v = 12;
@@ -81,4 +110,8 @@ int main()
 #if TEST_STD_VER > 17
     static_assert(test_constexpr());
 #endif
+
+    static_assert(test_noexcept(), "");
+
+  return 0;
 }

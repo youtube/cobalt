@@ -1,10 +1,9 @@
 // -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,14 +12,14 @@
 
 namespace std {
 
-exception_ptr::~exception_ptr() _NOEXCEPT
+exception_ptr::~exception_ptr() noexcept
 {
 #  warning exception_ptr not yet implemented
   fprintf(stderr, "exception_ptr not yet implemented\n");
   ::abort();
 }
 
-exception_ptr::exception_ptr(const exception_ptr& other) _NOEXCEPT
+exception_ptr::exception_ptr(const exception_ptr& other) noexcept
     : __ptr_(other.__ptr_)
 {
 #  warning exception_ptr not yet implemented
@@ -28,21 +27,21 @@ exception_ptr::exception_ptr(const exception_ptr& other) _NOEXCEPT
   ::abort();
 }
 
-exception_ptr& exception_ptr::operator=(const exception_ptr& other) _NOEXCEPT
+exception_ptr& exception_ptr::operator=(const exception_ptr& other) noexcept
 {
 #  warning exception_ptr not yet implemented
   fprintf(stderr, "exception_ptr not yet implemented\n");
   ::abort();
 }
 
-nested_exception::nested_exception() _NOEXCEPT
+nested_exception::nested_exception() noexcept
     : __ptr_(current_exception())
 {
 }
 
 #if !defined(__GLIBCXX__)
 
-nested_exception::~nested_exception() _NOEXCEPT
+nested_exception::~nested_exception() noexcept
 {
 }
 
@@ -62,7 +61,7 @@ nested_exception::rethrow_nested() const
 #endif // FIXME
 }
 
-exception_ptr current_exception() _NOEXCEPT
+exception_ptr current_exception() noexcept
 {
 #  warning exception_ptr not yet implemented
   fprintf(stderr, "exception_ptr not yet implemented\n");

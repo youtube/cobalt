@@ -1,11 +1,8 @@
 //===------- QualTypeNames.cpp - Generate Complete QualType Names ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-//===----------------------------------------------------------------------===//
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -83,8 +80,12 @@ static bool getFullyQualifiedTemplateName(const ASTContext &Ctx,
         Ctx, ArgTDecl, true, WithGlobalNsPrefix);
   }
   if (NNS) {
-    TName = Ctx.getQualifiedTemplateName(NNS,
-                                         /*TemplateKeyword=*/false, ArgTDecl);
+    TemplateName UnderlyingTN(ArgTDecl);
+    if (UsingShadowDecl *USD = TName.getAsUsingShadowDecl())
+      UnderlyingTN = TemplateName(USD);
+    TName =
+        Ctx.getQualifiedTemplateName(NNS,
+                                     /*TemplateKeyword=*/false, UnderlyingTN);
     Changed = true;
   }
   return Changed;
@@ -128,11 +129,9 @@ static const Type *getFullyQualifiedTemplateType(const ASTContext &Ctx,
   if (const auto *TST = dyn_cast<const TemplateSpecializationType>(TypePtr)) {
     bool MightHaveChanged = false;
     SmallVector<TemplateArgument, 4> FQArgs;
-    for (TemplateSpecializationType::iterator I = TST->begin(), E = TST->end();
-         I != E; ++I) {
-      // Cheap to copy and potentially modified by
-      // getFullyQualifedTemplateArgument.
-      TemplateArgument Arg(*I);
+    // Cheap to copy and potentially modified by
+    // getFullyQualifedTemplateArgument.
+    for (TemplateArgument Arg : TST->template_arguments()) {
       MightHaveChanged |= getFullyQualifiedTemplateArgument(
           Ctx, Arg, WithGlobalNsPrefix);
       FQArgs.push_back(Arg);
@@ -195,7 +194,7 @@ static NestedNameSpecifier *createOuterNNS(const ASTContext &Ctx, const Decl *D,
       // Ignore inline namespace;
       NS = dyn_cast<NamespaceDecl>(NS->getDeclContext());
     }
-    if (NS->getDeclName()) {
+    if (NS && NS->getDeclName()) {
       return createNestedNameSpecifier(Ctx, NS, WithGlobalNsPrefix);
     }
     return nullptr;  // no starting '::', no anonymous
@@ -299,7 +298,7 @@ static NestedNameSpecifier *createNestedNameSpecifierForScopeOf(
     } else if (const auto *TD = dyn_cast<TagDecl>(Outer)) {
       return createNestedNameSpecifier(
           Ctx, TD, FullyQualified, WithGlobalNsPrefix);
-    } else if (dyn_cast<TranslationUnitDecl>(Outer)) {
+    } else if (isa<TranslationUnitDecl>(Outer)) {
       // Context is the TU. Nothing needs to be done.
       return nullptr;
     } else {
@@ -359,11 +358,19 @@ NestedNameSpecifier *createNestedNameSpecifier(const ASTContext &Ctx,
                                                const TypeDecl *TD,
                                                bool FullyQualify,
                                                bool WithGlobalNsPrefix) {
+  const Type *TypePtr = TD->getTypeForDecl();
+  if (isa<const TemplateSpecializationType>(TypePtr) ||
+      isa<const RecordType>(TypePtr)) {
+    // We are asked to fully qualify and we have a Record Type (which
+    // may point to a template specialization) or Template
+    // Specialization Type. We need to fully qualify their arguments.
+
+    TypePtr = getFullyQualifiedTemplateType(Ctx, TypePtr, WithGlobalNsPrefix);
+  }
+
   return NestedNameSpecifier::Create(
-      Ctx,
-      createOuterNNS(Ctx, TD, FullyQualify, WithGlobalNsPrefix),
-      false /*No TemplateKeyword*/,
-      TD->getTypeForDecl());
+      Ctx, createOuterNNS(Ctx, TD, FullyQualify, WithGlobalNsPrefix),
+      false /*No TemplateKeyword*/, TypePtr);
 }
 
 /// Return the fully qualified type, including fully-qualified
@@ -377,6 +384,19 @@ QualType getFullyQualifiedType(QualType QT, const ASTContext &Ctx,
     Qualifiers Quals = QT.getQualifiers();
     QT = getFullyQualifiedType(QT->getPointeeType(), Ctx, WithGlobalNsPrefix);
     QT = Ctx.getPointerType(QT);
+    // Add back the qualifiers.
+    QT = Ctx.getQualifiedType(QT, Quals);
+    return QT;
+  }
+
+  if (auto *MPT = dyn_cast<MemberPointerType>(QT.getTypePtr())) {
+    // Get the qualifiers.
+    Qualifiers Quals = QT.getQualifiers();
+    // Fully qualify the pointee and class types.
+    QT = getFullyQualifiedType(QT->getPointeeType(), Ctx, WithGlobalNsPrefix);
+    QualType Class = getFullyQualifiedType(QualType(MPT->getClass(), 0), Ctx,
+                                           WithGlobalNsPrefix);
+    QT = Ctx.getMemberPointerType(QT, Class.getTypePtr());
     // Add back the qualifiers.
     QT = Ctx.getQualifiedType(QT, Quals);
     return QT;
@@ -426,6 +446,14 @@ QualType getFullyQualifiedType(QualType QT, const ASTContext &Ctx,
     assert(!QT.hasLocalQualifiers());
     Keyword = ETypeInput->getKeyword();
   }
+
+  // We don't consider the alias introduced by `using a::X` as a new type.
+  // The qualified name is still a::X.
+  if (const auto *UT = QT->getAs<UsingType>()) {
+    QT = Ctx.getQualifiedType(UT->getUnderlyingType(), PrefixQualifiers);
+    return getFullyQualifiedType(QT, Ctx, WithGlobalNsPrefix);
+  }
+
   // Create a nested name specifier if needed.
   Prefix = createNestedNameSpecifierForScopeOf(Ctx, QT.getTypePtr(),
                                                true /*FullyQualified*/,

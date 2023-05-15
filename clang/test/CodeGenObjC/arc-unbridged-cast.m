@@ -25,11 +25,11 @@ typedef const struct __CFString * CFStringRef;
 @end
 
 // rdar://9544832
-CFStringRef SomeOtherFunc() __attribute__((cf_returns_retained));
-id MMM()
+CFStringRef SomeOtherFunc(void) __attribute__((cf_returns_retained));
+id MMM(void)
 {
   id obj = (id)((CFStringRef) __builtin___CFStringMakeConstantString ("" "Some CF String" ""));
   return 0;
 }
 
-// CHECK-NOT: call i8* @objc_retainAutoreleasedReturnValue
+// CHECK-NOT: call i8* @llvm.objc.retainAutoreleasedReturnValue

@@ -2,12 +2,28 @@
 // RUN: %clang_cc1 -std=c++11 -triple x86_64-unknown-unknown %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++14 -triple x86_64-unknown-unknown %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++17 -triple x86_64-unknown-unknown %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++20 -triple x86_64-unknown-unknown %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 
 namespace dr100 { // dr100: yes
-  template<const char *> struct A {}; // expected-note 0-1{{declared here}}
+  template<const char (*)[4]> struct A {}; // expected-note 0-1{{declared here}}
   template<const char (&)[4]> struct B {}; // expected-note 0-1{{declared here}}
-  A<"foo"> a; // expected-error {{does not refer to any declaration}}
-  B<"bar"> b; // expected-error {{does not refer to any declaration}}
+  template<const char *> struct C {}; // expected-note 0-1{{declared here}}
+  template<const char &> struct D {}; // expected-note 0-1{{declared here}}
+  A<&"foo"> a; // #100a
+  B<"bar"> b; // #100b
+  C<"baz"> c; // #100c
+  D<*"quux"> d; // #100d
+#if __cplusplus < 201703L
+  // expected-error@#100a {{does not refer to any declaration}}
+  // expected-error@#100b {{does not refer to any declaration}}
+  // expected-error@#100c {{does not refer to any declaration}}
+  // expected-error@#100d {{does not refer to any declaration}}
+#else
+  // expected-error@#100a {{pointer to string literal is not allowed in a template argument}}
+  // expected-error@#100b {{reference to string literal is not allowed in a template argument}}
+  // expected-error@#100c {{pointer to subobject of string literal is not allowed in a template argument}}
+  // expected-error@#100d {{reference to subobject of string literal is not allowed in a template argument}}
+#endif
 }
 
 namespace dr101 { // dr101: 3.5
@@ -58,7 +74,10 @@ namespace dr107 { // dr107: yes
 namespace dr108 { // dr108: yes
   template<typename T> struct A {
     struct B { typedef int X; };
-    B::X x; // expected-error {{missing 'typename'}}
+    B::X x;
+#if __cplusplus <= 201703L
+    // expected-error@-2 {{implicit 'typename' is a C++20 extension}}
+#endif
     struct C : B { X x; }; // expected-error {{unknown type name}}
   };
   template<> struct A<int>::B { int X; };
@@ -355,13 +374,10 @@ namespace dr128 { // dr128: yes
 // dr129: dup 616
 // dr130: na
 
-namespace dr131 { // dr131: yes
+namespace dr131 { // dr131: sup P1949
   const char *a_with_\u0e8c = "\u0e8c";
   const char *b_with_\u0e8d = "\u0e8d";
   const char *c_with_\u0e8e = "\u0e8e";
-#if __cplusplus < 201103L
-  // expected-error@-4 {{expected ';'}} expected-error@-2 {{expected ';'}}
-#endif
 }
 
 namespace dr132 { // dr132: no
@@ -398,16 +414,15 @@ namespace dr136 { // dr136: 3.4
   void q() {
     j(A(), A()); // ok, has default argument
   }
-  extern "C" void k(int, int, int, int); // expected-note {{previous declaration is here}}
+  extern "C" void k(int, int, int, int); // expected-note 2{{previous declaration is here}}
   namespace NSA {
   struct A {
-    friend void dr136::k(int, int, int, int = 0); // expected-error {{friend declaration specifying a default argument must be the only declaration}} \
-                                                  // expected-note {{previous declaration is here}}
+    friend void dr136::k(int, int, int, int = 0); // expected-error {{friend declaration specifying a default argument must be the only declaration}}
   };
   }
   namespace NSB {
   struct A {
-    friend void dr136::k(int, int, int = 0, int); // expected-error {{friend declaration specifying a default argument must be the only declaration}}
+    friend void dr136::k(int, int, int = 0, int); // expected-error {{missing default argument on parameter}} expected-error {{must be the only declaration}}
   };
   }
   struct B {
@@ -466,7 +481,7 @@ namespace dr140 { // dr140: yes
 
 namespace dr141 { // dr141: yes
   template<typename T> void f();
-  template<typename T> struct S { int n; };
+  template<typename T> struct S { int n; }; // expected-note {{'::dr141::S<int>::n' declared here}}
   struct A : S<int> {
     template<typename T> void f();
     template<typename T> struct S {};
@@ -474,7 +489,7 @@ namespace dr141 { // dr141: yes
   struct B : S<int> {} b;
   void g() {
     a.f<int>();
-    (void)a.S<int>::n; // expected-error {{no member named 'n'}}
+    (void)a.S<int>::n; // expected-error {{no member named 'n' in 'dr141::A::S<int>'; did you mean '::dr141::S<int>::n'?}}
 #if __cplusplus < 201103L
     // expected-error@-2 {{ambiguous}}
     // expected-note@-11 {{lookup from the current scope}}
@@ -514,7 +529,7 @@ namespace dr142 { // dr142: yes
     void f();
   };
   void DD::f() {
-    mi = 3; // expected-error {{private base class}} expected-error {{private member}}
+    mi = 3; // expected-error {{private member}}
     si = 3; // expected-error {{private member}}
     B b_old; // expected-error {{private member}}
     dr142::B b;
@@ -601,7 +616,7 @@ namespace dr151 { // dr151: yes
 namespace dr152 { // dr152: yes
   struct A {
     A(); // expected-note 0-2{{not viable}}
-    explicit A(const A&);
+    explicit A(const A&); // expected-note 1-2{{not a candidate}}
   };
   A a1 = A();
 #if __cplusplus <= 201402L
@@ -854,8 +869,8 @@ namespace dr176 { // dr176: yes
 namespace dr177 { // dr177: yes
   struct B {};
   struct A {
-    A(A &); // expected-note 0-1{{not viable: expects an l-value}}
-    A(const B &); // expected-note 0-1{{not viable: no known conversion from 'dr177::A' to}}
+    A(A &); // expected-note 0-1{{not viable: expects an lvalue}}
+    A(const B &); // expected-note 0-1{{not viable: no known conversion from 'A' to}}
   };
   B b;
   A a = b;
@@ -863,11 +878,11 @@ namespace dr177 { // dr177: yes
   // expected-error@-2 {{no viable constructor copying variable}}
 #endif
 
-  struct C { C(C&); }; // expected-note {{not viable: no known conversion from 'dr177::D' to 'dr177::C &'}}
+  struct C { C(C&); }; // expected-note {{not viable: expects an lvalue for 1st argument}}
   struct D : C {};
   struct E { operator D(); };
   E e;
-  C c = e; // expected-error {{no viable constructor copying variable of type 'dr177::D'}}
+  C c = e; // expected-error {{no viable constructor copying variable of type 'D'}}
 }
 
 namespace dr178 { // dr178: yes
@@ -920,12 +935,12 @@ namespace dr182 { // dr182: yes
   template <class T> void C<T>::g() {}
 
   class A {
-    class B {}; // expected-note {{here}}
+    class B {};
     void f();
   };
 
   template void C<A::B>::f();
-  template <> void C<A::B>::g(); // expected-error {{private}}
+  template <> void C<A::B>::g();
 
   void A::f() {
     C<B> cb;

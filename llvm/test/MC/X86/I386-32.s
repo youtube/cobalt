@@ -1,5 +1,13 @@
 // RUN: llvm-mc -triple i386-unknown-unknown --show-encoding %s | FileCheck %s
 
+// CHECK: bsfw %ax, %ax 
+// CHECK: encoding: [0x66,0x0f,0xbc,0xc0]        
+bsfw %ax, %ax 
+
+// CHECK: bsrw %ax, %ax 
+// CHECK: encoding: [0x66,0x0f,0xbd,0xc0]        
+bsrw %ax, %ax 
+
 // CHECK: bsfl %eax, %eax 
 // CHECK: encoding: [0x0f,0xbc,0xc0]        
 bsfl %eax, %eax 
@@ -8,9 +16,81 @@ bsfl %eax, %eax
 // CHECK: encoding: [0x0f,0xbd,0xc0]        
 bsrl %eax, %eax 
 
+// CHECK: btcw $0, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xf8,0x00]        
+btcw $0, %ax 
+
+// CHECK: btcw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xf8,0xff]        
+btcw $-1, %ax 
+
+// CHECK: btcw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xf8,0xff]        
+btcw $255, %ax 
+
+// CHECK: btcw %ax, %ax 
+// CHECK: encoding: [0x66,0x0f,0xbb,0xc0]        
+btcw %ax, %ax 
+
+// CHECK: btw $0, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xe0,0x00]        
+btw $0, %ax 
+
+// CHECK: btw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xe0,0xff]        
+btw $-1, %ax 
+
+// CHECK: btw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xe0,0xff]        
+btw $255, %ax 
+
+// CHECK: btw %ax, %ax 
+// CHECK: encoding: [0x66,0x0f,0xa3,0xc0]        
+btw %ax, %ax 
+
+// CHECK: btrw $0, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xf0,0x00]        
+btrw $0, %ax 
+
+// CHECK: btrw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xf0,0xff]        
+btrw $-1, %ax 
+
+// CHECK: btrw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xf0,0xff]        
+btrw $255, %ax 
+
+// CHECK: btrw %ax, %ax 
+// CHECK: encoding: [0x66,0x0f,0xb3,0xc0]        
+btrw %ax, %ax 
+
+// CHECK: btsw $0, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xe8,0x00]        
+btsw $0, %ax 
+
+// CHECK: btsw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xe8,0xff]        
+btsw $-1, %ax 
+
+// CHECK: btsw $255, %ax 
+// CHECK: encoding: [0x66,0x0f,0xba,0xe8,0xff]        
+btsw $255, %ax 
+
+// CHECK: btsw %ax, %ax 
+// CHECK: encoding: [0x66,0x0f,0xab,0xc0]        
+btsw %ax, %ax 
+
 // CHECK: btcl $0, %eax 
 // CHECK: encoding: [0x0f,0xba,0xf8,0x00]        
 btcl $0, %eax 
+
+// CHECK: btcl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xf8,0xff]        
+btcl $-1, %eax 
+
+// CHECK: btcl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xf8,0xff]        
+btcl $255, %eax 
 
 // CHECK: btcl %eax, %eax 
 // CHECK: encoding: [0x0f,0xbb,0xc0]        
@@ -20,6 +100,14 @@ btcl %eax, %eax
 // CHECK: encoding: [0x0f,0xba,0xe0,0x00]        
 btl $0, %eax 
 
+// CHECK: btl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xe0,0xff]        
+btl $-1, %eax 
+
+// CHECK: btl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xe0,0xff]        
+btl $255, %eax 
+
 // CHECK: btl %eax, %eax 
 // CHECK: encoding: [0x0f,0xa3,0xc0]        
 btl %eax, %eax 
@@ -27,6 +115,14 @@ btl %eax, %eax
 // CHECK: btrl $0, %eax 
 // CHECK: encoding: [0x0f,0xba,0xf0,0x00]        
 btrl $0, %eax 
+
+// CHECK: btrl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xf0,0xff]        
+btrl $-1, %eax 
+
+// CHECK: btrl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xf0,0xff]        
+btrl $255, %eax 
 
 // CHECK: btrl %eax, %eax 
 // CHECK: encoding: [0x0f,0xb3,0xc0]        
@@ -36,13 +132,17 @@ btrl %eax, %eax
 // CHECK: encoding: [0x0f,0xba,0xe8,0x00]        
 btsl $0, %eax 
 
+// CHECK: btsl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xe8,0xff]        
+btsl $-1, %eax 
+
+// CHECK: btsl $255, %eax 
+// CHECK: encoding: [0x0f,0xba,0xe8,0xff]        
+btsl $255, %eax 
+
 // CHECK: btsl %eax, %eax 
 // CHECK: encoding: [0x0f,0xab,0xc0]        
 btsl %eax, %eax 
-
-// CHECK: cltd 
-// CHECK: encoding: [0x99]          
-cltd 
 
 // CHECK: cmpsb %es:(%edi), %es:(%esi) 
 // CHECK: encoding: [0x26,0xa6]        
@@ -53,16 +153,8 @@ cmpsb %es:(%edi), %es:(%esi)
 cmpsl %es:(%edi), %es:(%esi) 
 
 // CHECK: cmpsw %es:(%edi), %es:(%esi) 
-// CHECK: encoding: [0x66,0x26,0xa7]        
+// CHECK: encoding: [0x26,0x66,0xa7]        
 cmpsw %es:(%edi), %es:(%esi) 
-
-// CHECK: cwtd 
-// CHECK: encoding: [0x66,0x99]          
-cwtd 
-
-// CHECK: cwtl 
-// CHECK: encoding: [0x98]          
-cwtl 
 
 // CHECK: insb %dx, %es:(%edi) 
 // CHECK: encoding: [0x6c]        
@@ -101,7 +193,7 @@ movsb %es:(%esi), %es:(%edi)
 movsl %es:(%esi), %es:(%edi) 
 
 // CHECK: movsw %es:(%esi), %es:(%edi) 
-// CHECK: encoding: [0x66,0x26,0xa5]        
+// CHECK: encoding: [0x26,0x66,0xa5]        
 movsw %es:(%esi), %es:(%edi) 
 
 // CHECK: outsb %es:(%esi), %dx 
@@ -113,7 +205,7 @@ outsb %es:(%esi), %dx
 outsl %es:(%esi), %dx 
 
 // CHECK: outsw %es:(%esi), %dx 
-// CHECK: encoding: [0x66,0x26,0x6f]        
+// CHECK: encoding: [0x26,0x66,0x6f]        
 outsw %es:(%esi), %dx 
 
 // CHECK: popal 
@@ -157,7 +249,7 @@ rep cmpsb %es:(%edi), %es:(%esi)
 rep cmpsl %es:(%edi), %es:(%esi) 
 
 // CHECK: rep cmpsw %es:(%edi), %es:(%esi) 
-// CHECK: encoding: [0xf3,0x66,0x26,0xa7]       
+// CHECK: encoding: [0xf3,0x26,0x66,0xa7]       
 rep cmpsw %es:(%edi), %es:(%esi) 
 
 // CHECK: rep insb %dx, %es:(%edi) 
@@ -185,7 +277,7 @@ rep movsb %es:(%esi), %es:(%edi)
 rep movsl %es:(%esi), %es:(%edi) 
 
 // CHECK: rep movsw %es:(%esi), %es:(%edi) 
-// CHECK: encoding: [0xf3,0x66,0x26,0xa5]       
+// CHECK: encoding: [0xf3,0x26,0x66,0xa5]       
 rep movsw %es:(%esi), %es:(%edi) 
 
 // CHECK: repne cmpsb %es:(%edi), %es:(%esi) 
@@ -197,7 +289,7 @@ repne cmpsb %es:(%edi), %es:(%esi)
 repne cmpsl %es:(%edi), %es:(%esi) 
 
 // CHECK: repne cmpsw %es:(%edi), %es:(%esi) 
-// CHECK: encoding: [0xf2,0x66,0x26,0xa7]       
+// CHECK: encoding: [0xf2,0x26,0x66,0xa7]       
 repne cmpsw %es:(%edi), %es:(%esi) 
 
 // CHECK: repne insb %dx, %es:(%edi) 
@@ -225,7 +317,7 @@ repne movsb %es:(%esi), %es:(%edi)
 repne movsl %es:(%esi), %es:(%edi) 
 
 // CHECK: repne movsw %es:(%esi), %es:(%edi) 
-// CHECK: encoding: [0xf2,0x66,0x26,0xa5]       
+// CHECK: encoding: [0xf2,0x26,0x66,0xa5]       
 repne movsw %es:(%esi), %es:(%edi) 
 
 // CHECK: repne outsb %es:(%esi), %dx 
@@ -237,7 +329,7 @@ repne outsb %es:(%esi), %dx
 repne outsl %es:(%esi), %dx 
 
 // CHECK: repne outsw %es:(%esi), %dx 
-// CHECK: encoding: [0xf2,0x66,0x26,0x6f]       
+// CHECK: encoding: [0xf2,0x26,0x66,0x6f]       
 repne outsw %es:(%esi), %dx 
 
 // CHECK: repne scasl %es:(%edi), %eax 
@@ -257,7 +349,7 @@ rep outsb %es:(%esi), %dx
 rep outsl %es:(%esi), %dx 
 
 // CHECK: rep outsw %es:(%esi), %dx 
-// CHECK: encoding: [0xf3,0x66,0x26,0x6f]       
+// CHECK: encoding: [0xf3,0x26,0x66,0x6f]       
 rep outsw %es:(%esi), %dx 
 
 // CHECK: rep scasl %es:(%edi), %eax 

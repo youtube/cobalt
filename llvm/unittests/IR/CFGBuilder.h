@@ -1,9 +1,8 @@
 //===- CFGBuilder.h - CFG building and updating utility ----------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -16,12 +15,12 @@
 #define LLVM_UNITTESTS_CFG_BUILDER_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Debug.h"
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <tuple>
 #include <vector>
@@ -73,8 +72,8 @@ public:
              std::vector<Update> Updates);
 
   BasicBlock *getOrAddBlock(StringRef BlockName);
-  Optional<Update> getNextUpdate() const;
-  Optional<Update> applyUpdate();
+  std::optional<Update> getNextUpdate() const;
+  std::optional<Update> applyUpdate();
   void dump(raw_ostream &OS = dbgs()) const;
 
 private:

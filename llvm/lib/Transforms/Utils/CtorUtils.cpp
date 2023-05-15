@@ -1,9 +1,8 @@
 //===- CtorUtils.cpp - Helpers for working with global_ctors ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,14 +18,14 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include <numeric>
 
 #define DEBUG_TYPE "ctor_utils"
 
-namespace llvm {
+using namespace llvm;
 
-namespace {
 /// Given a specified llvm.global_ctors list, remove the listed elements.
-void removeGlobalCtors(GlobalVariable *GCL, const BitVector &CtorsToRemove) {
+static void removeGlobalCtors(GlobalVariable *GCL, const BitVector &CtorsToRemove) {
   // Filter out the initializer elements to remove.
   ConstantArray *OldCA = cast<ConstantArray>(GCL->getInitializer());
   SmallVector<Constant *, 10> CAList;
@@ -64,22 +63,21 @@ void removeGlobalCtors(GlobalVariable *GCL, const BitVector &CtorsToRemove) {
 
 /// Given a llvm.global_ctors list that we can understand,
 /// return a list of the functions and null terminator as a vector.
-std::vector<Function *> parseGlobalCtors(GlobalVariable *GV) {
-  if (GV->getInitializer()->isNullValue())
-    return std::vector<Function *>();
+static std::vector<std::pair<uint32_t, Function *>>
+parseGlobalCtors(GlobalVariable *GV) {
   ConstantArray *CA = cast<ConstantArray>(GV->getInitializer());
-  std::vector<Function *> Result;
+  std::vector<std::pair<uint32_t, Function *>> Result;
   Result.reserve(CA->getNumOperands());
   for (auto &V : CA->operands()) {
     ConstantStruct *CS = cast<ConstantStruct>(V);
-    Result.push_back(dyn_cast<Function>(CS->getOperand(1)));
+    Result.emplace_back(cast<ConstantInt>(CS->getOperand(0))->getZExtValue(),
+                        dyn_cast<Function>(CS->getOperand(1)));
   }
   return Result;
 }
 
-/// Find the llvm.global_ctors list, verifying that all initializers have an
-/// init priority of 65535.
-GlobalVariable *findGlobalCtors(Module &M) {
+/// Find the llvm.global_ctors list.
+static GlobalVariable *findGlobalCtors(Module &M) {
   GlobalVariable *GV = M.getGlobalVariable("llvm.global_ctors");
   if (!GV)
     return nullptr;
@@ -89,9 +87,11 @@ GlobalVariable *findGlobalCtors(Module &M) {
   if (!GV->hasUniqueInitializer())
     return nullptr;
 
-  if (isa<ConstantAggregateZero>(GV->getInitializer()))
-    return GV;
-  ConstantArray *CA = cast<ConstantArray>(GV->getInitializer());
+  // If there are no ctors, then the initializer might be null/undef/poison.
+  // Ignore anything but an array.
+  ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer());
+  if (!CA)
+    return nullptr;
 
   for (auto &V : CA->operands()) {
     if (isa<ConstantAggregateZero>(V))
@@ -100,55 +100,47 @@ GlobalVariable *findGlobalCtors(Module &M) {
     if (isa<ConstantPointerNull>(CS->getOperand(1)))
       continue;
 
-    // Must have a function or null ptr.
-    if (!isa<Function>(CS->getOperand(1)))
-      return nullptr;
-
-    // Init priority must be standard.
-    ConstantInt *CI = cast<ConstantInt>(CS->getOperand(0));
-    if (CI->getZExtValue() != 65535)
+    // Can only handle global constructors with no arguments.
+    Function *F = dyn_cast<Function>(CS->getOperand(1));
+    if (!F || F->arg_size() != 0)
       return nullptr;
   }
-
   return GV;
 }
-} // namespace
 
 /// Call "ShouldRemove" for every entry in M's global_ctor list and remove the
 /// entries for which it returns true.  Return true if anything changed.
-bool optimizeGlobalCtorsList(Module &M,
-                             function_ref<bool(Function *)> ShouldRemove) {
+bool llvm::optimizeGlobalCtorsList(
+    Module &M, function_ref<bool(uint32_t, Function *)> ShouldRemove) {
   GlobalVariable *GlobalCtors = findGlobalCtors(M);
   if (!GlobalCtors)
     return false;
 
-  std::vector<Function *> Ctors = parseGlobalCtors(GlobalCtors);
+  std::vector<std::pair<uint32_t, Function *>> Ctors =
+      parseGlobalCtors(GlobalCtors);
   if (Ctors.empty())
     return false;
 
   bool MadeChange = false;
-
   // Loop over global ctors, optimizing them when we can.
-  unsigned NumCtors = Ctors.size();
-  BitVector CtorsToRemove(NumCtors);
-  for (unsigned i = 0; i != Ctors.size() && NumCtors > 0; ++i) {
-    Function *F = Ctors[i];
-    // Found a null terminator in the middle of the list, prune off the rest of
-    // the list.
+  BitVector CtorsToRemove(Ctors.size());
+  std::vector<size_t> CtorsByPriority(Ctors.size());
+  std::iota(CtorsByPriority.begin(), CtorsByPriority.end(), 0);
+  stable_sort(CtorsByPriority, [&](size_t LHS, size_t RHS) {
+    return Ctors[LHS].first < Ctors[RHS].first;
+  });
+  for (unsigned CtorIndex : CtorsByPriority) {
+    const uint32_t Priority = Ctors[CtorIndex].first;
+    Function *F = Ctors[CtorIndex].second;
     if (!F)
       continue;
 
     LLVM_DEBUG(dbgs() << "Optimizing Global Constructor: " << *F << "\n");
 
-    // We cannot simplify external ctor functions.
-    if (F->empty())
-      continue;
-
     // If we can evaluate the ctor at compile time, do.
-    if (ShouldRemove(F)) {
-      Ctors[i] = nullptr;
-      CtorsToRemove.set(i);
-      NumCtors--;
+    if (ShouldRemove(Priority, F)) {
+      Ctors[CtorIndex].second = nullptr;
+      CtorsToRemove.set(CtorIndex);
       MadeChange = true;
       continue;
     }
@@ -160,5 +152,3 @@ bool optimizeGlobalCtorsList(Module &M,
   removeGlobalCtors(GlobalCtors, CtorsToRemove);
   return true;
 }
-
-} // End llvm namespace

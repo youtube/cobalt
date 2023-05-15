@@ -1,25 +1,24 @@
 //===-- DWARFCallFrameInfo.h ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_DWARFCallFrameInfo_h_
-#define liblldb_DWARFCallFrameInfo_h_
+#ifndef LLDB_SYMBOL_DWARFCALLFRAMEINFO_H
+#define LLDB_SYMBOL_DWARFCALLFRAMEINFO_H
 
 #include <map>
 #include <mutex>
+#include <optional>
 
 #include "lldb/Core/AddressRange.h"
-#include "lldb/Utility/Flags.h"
-
-#include "lldb/Core/RangeMap.h"
 #include "lldb/Core/dwarf.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/UnwindPlan.h"
+#include "lldb/Utility/Flags.h"
+#include "lldb/Utility/RangeMap.h"
 #include "lldb/Utility/VMRange.h"
 #include "lldb/lldb-private.h"
 
@@ -45,13 +44,18 @@ public:
   // address.
   bool GetAddressRange(Address addr, AddressRange &range);
 
-  // Return an UnwindPlan based on the call frame information encoded in the
-  // FDE of this DWARFCallFrameInfo section.
-  bool GetUnwindPlan(Address addr, UnwindPlan &unwind_plan);
+  /// Return an UnwindPlan based on the call frame information encoded in the
+  /// FDE of this DWARFCallFrameInfo section. The returned plan will be valid
+  /// (at least) for the given address.
+  bool GetUnwindPlan(const Address &addr, UnwindPlan &unwind_plan);
+
+  /// Return an UnwindPlan based on the call frame information encoded in the
+  /// FDE of this DWARFCallFrameInfo section. The returned plan will be valid
+  /// (at least) for some address in the given range.
+  bool GetUnwindPlan(const AddressRange &range, UnwindPlan &unwind_plan);
 
   typedef RangeVector<lldb::addr_t, uint32_t> FunctionAddressAndSizeVector;
 
-  //------------------------------------------------------------------
   // Build a vector of file address and size for all functions in this Module
   // based on the eh_frame FDE entries.
   //
@@ -61,7 +65,7 @@ public:
   // functions in the Module.  But the eh_frame can help to give the addresses
   // of these stripped symbols, at least.
   //
-  // @param[out] function_info
+  // \param[out] function_info
   //      A vector provided by the caller is filled out.  May be empty if no
   //      FDEs/no eh_frame
   //      is present in this Module.
@@ -103,8 +107,9 @@ private:
     CIE(dw_offset_t offset)
         : cie_offset(offset), version(-1), code_align(0), data_align(0),
           return_addr_reg_num(LLDB_INVALID_REGNUM), inst_offset(0),
-          inst_length(0), ptr_encoding(0), lsda_addr_encoding(DW_EH_PE_omit),
-          personality_loc(LLDB_INVALID_ADDRESS), initial_row() {}
+          inst_length(0), ptr_encoding(0),
+          lsda_addr_encoding(llvm::dwarf::DW_EH_PE_omit),
+          personality_loc(LLDB_INVALID_ADDRESS) {}
   };
 
   typedef std::shared_ptr<CIE> CIESP;
@@ -118,8 +123,8 @@ private:
 
   bool IsEHFrame() const;
 
-  bool GetFDEEntryByFileAddress(lldb::addr_t file_offset,
-                                FDEEntryMap::Entry &fde_entry);
+  std::optional<FDEEntryMap::Entry>
+  GetFirstFDEEntryInRange(const AddressRange &range);
 
   void GetFDEIndex();
 
@@ -163,4 +168,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_DWARFCallFrameInfo_h_
+#endif // LLDB_SYMBOL_DWARFCALLFRAMEINFO_H

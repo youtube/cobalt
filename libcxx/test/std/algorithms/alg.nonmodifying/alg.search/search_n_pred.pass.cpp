@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,7 +18,7 @@
 
 #include "test_macros.h"
 #include "test_iterators.h"
-#include "user_defined_integral.hpp"
+#include "user_defined_integral.h"
 
 #if TEST_STD_VER > 17
 TEST_CONSTEXPR bool eq(int a, int b) { return a == b; }
@@ -159,13 +158,38 @@ test()
     count_equal::count = 0;
 }
 
-int main()
+class A {
+public:
+  A(int x, int y) : x_(x), y_(y) {}
+  int x() const { return x_; }
+  int y() const { return y_; }
+
+private:
+  int x_;
+  int y_;
+};
+
+struct Pred {
+  bool operator()(const A& l, int r) const { return l.x() == r; }
+};
+
+int main(int, char**)
 {
     test<forward_iterator<const int*> >();
     test<bidirectional_iterator<const int*> >();
     test<random_access_iterator<const int*> >();
 
+    // test bug reported in https://reviews.llvm.org/D124079?#3661721
+    {
+        A a[]       = {A(1, 2), A(2, 3), A(2, 4)};
+        int value   = 2;
+        auto result = std::search_n(a, a + 3, 1, value, Pred());
+        assert(result == a + 1);
+    }
+
 #if TEST_STD_VER > 17
     static_assert(test_constexpr());
 #endif
+
+  return 0;
 }

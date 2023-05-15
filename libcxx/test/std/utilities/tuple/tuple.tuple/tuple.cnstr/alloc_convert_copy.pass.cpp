@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,15 +11,18 @@
 // template <class... Types> class tuple;
 
 // template <class Alloc, class... UTypes>
+// constexpr                                        // since c++20
 //   tuple(allocator_arg_t, const Alloc& a, const tuple<UTypes...>&);
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 #include <tuple>
 #include <memory>
 #include <cassert>
 
+#include "test_macros.h"
 #include "allocators.h"
+#include "test_allocator.h"
 #include "../alloc_first.h"
 #include "../alloc_last.h"
 
@@ -34,7 +36,16 @@ struct Implicit {
   Implicit(int x) : value(x) {}
 };
 
-int main()
+#if TEST_STD_VER > 17
+constexpr bool alloc_copy_constructor_is_constexpr() {
+  const std::tuple<int> t1 = 1;
+  std::tuple<int> t2 = {std::allocator_arg, test_allocator<int>{}, t1};
+  assert(std::get<0>(t2) == 1);
+  return true;
+}
+#endif
+
+int main(int, char**)
 {
     {
         typedef std::tuple<long> T0;
@@ -79,12 +90,24 @@ int main()
     }
     {
         const std::tuple<int> t1(42);
-        std::tuple<Explicit> t2{std::allocator_arg, std::allocator<void>{},  t1};
+        std::tuple<Explicit> t2{std::allocator_arg, std::allocator<int>{},  t1};
         assert(std::get<0>(t2).value == 42);
     }
     {
         const std::tuple<int> t1(42);
-        std::tuple<Implicit> t2 = {std::allocator_arg, std::allocator<void>{}, t1};
+        std::tuple<Implicit> t2 = {std::allocator_arg, std::allocator<int>{}, t1};
         assert(std::get<0>(t2).value == 42);
     }
+    {
+        // Test that we can use a tag derived from allocator_arg_t
+        struct DerivedFromAllocatorArgT : std::allocator_arg_t { };
+        DerivedFromAllocatorArgT derived;
+        std::tuple<long> from(3l);
+        std::tuple<long long> t0(derived, A1<int>(), from);
+    }
+
+#if TEST_STD_VER > 17
+    static_assert(alloc_copy_constructor_is_constexpr());
+#endif
+    return 0;
 }

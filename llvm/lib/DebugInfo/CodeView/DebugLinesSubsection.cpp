@@ -1,9 +1,8 @@
 //===- DebugLinesSubsection.cpp -------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -124,11 +123,11 @@ Error DebugLinesSubsection::commit(BinaryStreamWriter &Writer) const {
     if (auto EC = Writer.writeObject(BlockHeader))
       return EC;
 
-    if (auto EC = Writer.writeArray(makeArrayRef(B.Lines)))
+    if (auto EC = Writer.writeArray(ArrayRef(B.Lines)))
       return EC;
 
     if (hasColumnInfo()) {
-      if (auto EC = Writer.writeArray(makeArrayRef(B.Columns)))
+      if (auto EC = Writer.writeArray(ArrayRef(B.Columns)))
         return EC;
     }
   }

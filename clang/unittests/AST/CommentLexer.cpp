@@ -1,9 +1,8 @@
 //===- unittests/AST/CommentLexer.cpp ------ Comment lexer tests ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -92,7 +91,7 @@ TEST_F(CommentLexerTest, Basic2) {
   const char *Sources[] = {
     "//", "///", "//!", "///<", "//!<"
   };
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -108,7 +107,7 @@ TEST_F(CommentLexerTest, Basic3) {
   const char *Sources[] = {
     "/**/", "/***/", "/*!*/", "/**<*/", "/*!<*/"
   };
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -127,7 +126,7 @@ TEST_F(CommentLexerTest, Basic4) {
     "// Meow\n", "// Meow\r\n", "//! Meow\r",
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -147,7 +146,7 @@ TEST_F(CommentLexerTest, Basic5) {
     "/* Meow*/", "/** Meow*/",  "/*! Meow*/"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -170,7 +169,7 @@ TEST_F(CommentLexerTest, Basic6) {
     "// Aaa\\\r"   " Bbb\\ \r"   " Ccc?" "?/\r"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -249,7 +248,7 @@ TEST_F(CommentLexerTest, Basic7) {
 // A command marker followed by comment end.
 TEST_F(CommentLexerTest, DoxygenCommand1) {
   const char *Sources[] = { "//@", "///@", "//!@" };
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -266,7 +265,7 @@ TEST_F(CommentLexerTest, DoxygenCommand1) {
 // A command marker followed by comment end.
 TEST_F(CommentLexerTest, DoxygenCommand2) {
   const char *Sources[] = { "/*@*/", "/**@*/", "/*!@*/"};
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -284,7 +283,7 @@ TEST_F(CommentLexerTest, DoxygenCommand2) {
 // A command marker followed by comment end.
 TEST_F(CommentLexerTest, DoxygenCommand3) {
   const char *Sources[] = { "/*\\*/", "/**\\*/" };
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -312,12 +311,12 @@ TEST_F(CommentLexerTest, DoxygenCommand4) {
     "::", ""
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
 
-    ASSERT_EQ(array_lengthof(Text), Toks.size());
+    ASSERT_EQ(std::size(Text), Toks.size());
 
     for (size_t j = 0, e = Toks.size(); j != e; j++) {
       if(Toks[j].is(tok::text)) {
@@ -579,7 +578,7 @@ TEST_F(CommentLexerTest, VerbatimBlock1) {
     "/** \\verbatim\\endverbatim*/"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -646,7 +645,7 @@ TEST_F(CommentLexerTest, VerbatimBlock4) {
     "/** Meow \\verbatim aaa \\endverbatim*/"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -677,7 +676,7 @@ TEST_F(CommentLexerTest, VerbatimBlock5) {
     "/** Meow \\verbatim aaa */"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -837,12 +836,12 @@ TEST_F(CommentLexerTest, VerbatimBlock8) {
 // LaTeX verbatim blocks.
 TEST_F(CommentLexerTest, VerbatimBlock9) {
   const char *Source =
-    "/// \\f$ Aaa \\f$ \\f[ Bbb \\f] \\f{ Ccc \\f}";
+    "/// \\f$ Aaa \\f$ \\f[ Bbb \\f] \\f{ Ccc \\f} \\f( Ddd \\f)";
   std::vector<Token> Toks;
 
   lexString(Source, Toks);
 
-  ASSERT_EQ(13U, Toks.size());
+  ASSERT_EQ(17U, Toks.size());
 
   ASSERT_EQ(tok::text,                 Toks[0].getKind());
   ASSERT_EQ(StringRef(" "),            Toks[0].getText());
@@ -880,7 +879,19 @@ TEST_F(CommentLexerTest, VerbatimBlock9) {
   ASSERT_EQ(tok::verbatim_block_end,   Toks[11].getKind());
   ASSERT_EQ(StringRef("f}"),           getVerbatimBlockName(Toks[11]));
 
-  ASSERT_EQ(tok::newline,              Toks[12].getKind());
+  ASSERT_EQ(tok::text,                 Toks[12].getKind());
+  ASSERT_EQ(StringRef(" "),            Toks[12].getText());
+
+  ASSERT_EQ(tok::verbatim_block_begin, Toks[13].getKind());
+  ASSERT_EQ(StringRef("f("),           getVerbatimBlockName(Toks[13]));
+
+  ASSERT_EQ(tok::verbatim_block_line,  Toks[14].getKind());
+  ASSERT_EQ(StringRef(" Ddd "),        Toks[14].getVerbatimBlockText());
+
+  ASSERT_EQ(tok::verbatim_block_end,   Toks[15].getKind());
+  ASSERT_EQ(StringRef("f)"),           getVerbatimBlockName(Toks[15]));
+
+  ASSERT_EQ(tok::newline,              Toks[16].getKind());
 }
 
 // Empty verbatim line.
@@ -890,7 +901,7 @@ TEST_F(CommentLexerTest, VerbatimLine1) {
     "/** \\fn*/"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -915,7 +926,7 @@ TEST_F(CommentLexerTest, VerbatimLine2) {
     "/** \\fn void *foo(const char *zzz = \"\\$\");*/"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1041,7 +1052,7 @@ TEST_F(CommentLexerTest, HTML4) {
     "// <img "
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1158,7 +1169,7 @@ TEST_F(CommentLexerTest, HTML9) {
     "// <img src "
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1184,7 +1195,7 @@ TEST_F(CommentLexerTest, HTML10) {
     "// <img src ="
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1214,7 +1225,7 @@ TEST_F(CommentLexerTest, HTML11) {
     "// <img src = \'"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1273,7 +1284,7 @@ TEST_F(CommentLexerTest, HTML13) {
     "// <img src=\'val\\\"\\'val\'"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1304,7 +1315,7 @@ TEST_F(CommentLexerTest, HTML14) {
     "// <img src=\'val\\\"\\'val\'>"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1337,7 +1348,7 @@ TEST_F(CommentLexerTest, HTML15) {
     "// <img />"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1362,7 +1373,7 @@ TEST_F(CommentLexerTest, HTML16) {
     "// <img / Aaa"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);
@@ -1786,7 +1797,7 @@ TEST_F(CommentLexerTest, HTMLCharacterReferences16) {
     "// &#X3D;"
   };
 
-  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+  for (size_t i = 0, e = std::size(Sources); i != e; i++) {
     std::vector<Token> Toks;
 
     lexString(Sources[i], Toks);

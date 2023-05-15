@@ -1,17 +1,14 @@
-; RUN: llc %s -o - | FileCheck %s
+; RUN: llc -mtriple=x86_64-apple-darwin10.6 < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-linux < %s | FileCheck %s --check-prefix=NOCOMPACTUNWIND
 ;
 ; Note: This test cannot be merged with the shrink-wrapping tests
 ; because the booleans set on the command line take precedence on
 ; the target logic that disable shrink-wrapping.
-target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
-target triple = "x86_64-apple-macosx"
 
-
-; This test checks that we do not use shrink-wrapping when
-; the function does not have any frame pointer and may unwind.
-; This is a workaround for a limitation in the emission of
-; the CFI directives, that are not correct in such case.
-; PR25614
+; The current compact unwind scheme does not work when the prologue is not at
+; the start (the instructions before the prologue cannot be described).
+; Currently we choose to not perform shrink-wrapping for functions without FP
+; not marked as nounwind. PR25614
 ;
 ; No shrink-wrapping should occur here, until the CFI information are fixed.
 ; CHECK-LABEL: framelessUnwind:
@@ -41,14 +38,20 @@ target triple = "x86_64-apple-macosx"
 ; CHECK-NEXT: popq
 ;
 ; CHECK-NEXT: retq
+
+; On a platform which does not support compact unwind, shrink wrapping is enabled.
+; NOCOMPACTUNWIND-LABEL: framelessUnwind:
+; NOCOMPACTUNWIND-NOT:     pushq
+; NOCOMPACTUNWIND:       # %bb.1:
+; NOCOMPACTUNWIND-NEXT:    pushq %rax
 define i32 @framelessUnwind(i32 %a, i32 %b) #0 {
   %tmp = alloca i32, align 4
   %tmp2 = icmp slt i32 %a, %b
   br i1 %tmp2, label %true, label %false
 
 true:
-  store i32 %a, i32* %tmp, align 4
-  %tmp4 = call i32 @doSomething(i32 0, i32* %tmp)
+  store i32 %a, ptr %tmp, align 4
+  %tmp4 = call i32 @doSomething(i32 0, ptr %tmp)
   br label %false
 
 false:
@@ -56,9 +59,9 @@ false:
   ret i32 %tmp.0
 }
 
-declare i32 @doSomething(i32, i32*)
+declare i32 @doSomething(i32, ptr)
 
-attributes #0 = { "no-frame-pointer-elim"="false" }
+attributes #0 = { "frame-pointer"="none" }
 
 ; Shrink-wrapping should occur here. We have a frame pointer.
 ; CHECK-LABEL: frameUnwind:
@@ -95,8 +98,8 @@ define i32 @frameUnwind(i32 %a, i32 %b) #1 {
   br i1 %tmp2, label %true, label %false
 
 true:
-  store i32 %a, i32* %tmp, align 4
-  %tmp4 = call i32 @doSomething(i32 0, i32* %tmp)
+  store i32 %a, ptr %tmp, align 4
+  %tmp4 = call i32 @doSomething(i32 0, ptr %tmp)
   br label %false
 
 false:
@@ -104,7 +107,7 @@ false:
   ret i32 %tmp.0
 }
 
-attributes #1 = { "no-frame-pointer-elim"="true" }
+attributes #1 = { "frame-pointer"="all" }
 
 ; Shrink-wrapping should occur here. We do not have to unwind.
 ; CHECK-LABEL: framelessnoUnwind:
@@ -141,8 +144,8 @@ define i32 @framelessnoUnwind(i32 %a, i32 %b) #2 {
   br i1 %tmp2, label %true, label %false
 
 true:
-  store i32 %a, i32* %tmp, align 4
-  %tmp4 = call i32 @doSomething(i32 0, i32* %tmp)
+  store i32 %a, ptr %tmp, align 4
+  %tmp4 = call i32 @doSomething(i32 0, ptr %tmp)
   br label %false
 
 false:
@@ -150,7 +153,7 @@ false:
   ret i32 %tmp.0
 }
 
-attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
+attributes #2 = { "frame-pointer"="none" nounwind }
 
 
 ; Check that we generate correct code for segmented stack.
@@ -160,14 +163,7 @@ attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
 ;
 ; CHECK-LABEL: segmentedStack:
 ; CHECK: cmpq
-; CHECK-NEXT: ja [[ENTRY_LABEL:LBB[0-9_]+]]
-;
-; CHECK: callq ___morestack
-; CHECK-NEXT: retq
-;
-; CHECK: [[ENTRY_LABEL]]:
-; Prologue
-; CHECK: push
+; CHECK-NEXT: jbe [[ENTRY_LABEL:LBB[0-9_]+]]
 ;
 ; In PR26107, we use to drop these two basic blocks, because
 ; the segmentedStack entry block was jumping directly to
@@ -186,30 +182,32 @@ attributes #2 = { "no-frame-pointer-elim"="false" nounwind }
 ;
 ; CHECK: [[STRINGS_EQUAL]]
 ; CHECK: popq
-define zeroext i1 @segmentedStack(i8* readonly %vk1, i8* readonly %vk2, i64 %key_size) #5 {
+;
+; CHECK: [[ENTRY_LABEL]]:
+; CHECK: callq ___morestack
+; CHECK-NEXT: retq
+;
+
+define zeroext i1 @segmentedStack(ptr readonly %vk1, ptr readonly %vk2, i64 %key_size) #5 {
 entry:
-  %cmp.i = icmp eq i8* %vk1, null
-  %cmp1.i = icmp eq i8* %vk2, null
+  %cmp.i = icmp eq ptr %vk1, null
+  %cmp1.i = icmp eq ptr %vk2, null
   %brmerge.i = or i1 %cmp.i, %cmp1.i
   %cmp1.mux.i = and i1 %cmp.i, %cmp1.i
   br i1 %brmerge.i, label %__go_ptr_strings_equal.exit, label %if.end4.i
 
 if.end4.i:                                        ; preds = %entry
-  %tmp = getelementptr inbounds i8, i8* %vk1, i64 8
-  %tmp1 = bitcast i8* %tmp to i64*
-  %tmp2 = load i64, i64* %tmp1, align 8
-  %tmp3 = getelementptr inbounds i8, i8* %vk2, i64 8
-  %tmp4 = bitcast i8* %tmp3 to i64*
-  %tmp5 = load i64, i64* %tmp4, align 8
+  %tmp = getelementptr inbounds i8, ptr %vk1, i64 8
+  %tmp2 = load i64, ptr %tmp, align 8
+  %tmp3 = getelementptr inbounds i8, ptr %vk2, i64 8
+  %tmp5 = load i64, ptr %tmp3, align 8
   %cmp.i.i = icmp eq i64 %tmp2, %tmp5
   br i1 %cmp.i.i, label %land.rhs.i.i, label %__go_ptr_strings_equal.exit
 
 land.rhs.i.i:                                     ; preds = %if.end4.i
-  %tmp6 = bitcast i8* %vk2 to i8**
-  %tmp7 = load i8*, i8** %tmp6, align 8
-  %tmp8 = bitcast i8* %vk1 to i8**
-  %tmp9 = load i8*, i8** %tmp8, align 8
-  %call.i.i = tail call i32 @memcmp(i8* %tmp9, i8* %tmp7, i64 %tmp2) #5
+  %tmp7 = load ptr, ptr %vk2, align 8
+  %tmp9 = load ptr, ptr %vk1, align 8
+  %call.i.i = tail call i32 @memcmp(ptr %tmp9, ptr %tmp7, i64 %tmp2) #5
   %cmp4.i.i = icmp eq i32 %call.i.i, 0
   br label %__go_ptr_strings_equal.exit
 
@@ -219,7 +217,7 @@ __go_ptr_strings_equal.exit:                      ; preds = %land.rhs.i.i, %if.e
 }
 
 ; Function Attrs: nounwind readonly
-declare i32 @memcmp(i8* nocapture, i8* nocapture, i64) #5
+declare i32 @memcmp(ptr nocapture, ptr nocapture, i64) #5
 
 attributes #5 = { nounwind readonly ssp uwtable "split-stack" }
 
@@ -256,7 +254,7 @@ attributes #5 = { nounwind readonly ssp uwtable "split-stack" }
 ; Epilogue on the landing pad
 ; CHECK: popq
 ; CHECK-NEXT: retq
-define void @with_nounwind(i1 %cond) nounwind personality i32 (...)* @my_personality {
+define void @with_nounwind(i1 %cond) nounwind personality ptr @my_personality {
 entry:
   br i1 %cond, label %throw, label %return
 
@@ -268,8 +266,8 @@ unreachable:
   unreachable
 
 landing:
-  %pad = landingpad { i8*, i32 }
-          catch i8* null
+  %pad = landingpad { ptr, i32 }
+          catch ptr null
   ret void
 
 return:
@@ -302,7 +300,7 @@ return:
 ; CHECK: LBB{{[0-9_]+}}:
 ; Landing pad jumps to fallthrough
 ; CHECK: jmp [[FALLTHROUGH_LABEL]]
-define void @with_nounwind_same_succ(i1 %cond) nounwind personality i32 (...)* @my_personality2 {
+define void @with_nounwind_same_succ(i1 %cond) nounwind personality ptr @my_personality2 {
 entry:
   br i1 %cond, label %throw, label %return
 
@@ -310,8 +308,8 @@ throw:
   invoke void @throw_exception()
           to label %fallthrough unwind label %landing
 landing:
-  %pad = landingpad { i8*, i32 }
-          catch i8* null
+  %pad = landingpad { ptr, i32 }
+          catch ptr null
   br label %fallthrough
 
 fallthrough:

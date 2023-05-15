@@ -1,9 +1,8 @@
 //===- MipsAnalyzeImmediate.cpp - Analyze Immediates ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,8 +25,8 @@ void MipsAnalyzeImmediate::AddInstr(InstSeqLs &SeqLs, const Inst &I) {
     return;
   }
 
-  for (InstSeqLs::iterator Iter = SeqLs.begin(); Iter != SeqLs.end(); ++Iter)
-    Iter->push_back(I);
+  for (auto &S : SeqLs)
+    S.push_back(I);
 }
 
 void MipsAnalyzeImmediate::GetInstSeqLsADDiu(uint64_t Imm, unsigned RemSize,

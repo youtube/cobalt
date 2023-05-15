@@ -1,9 +1,8 @@
 //===- BinaryStreamReader.cpp - Reads objects from a binary stream --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 
 #include "llvm/Support/BinaryStreamError.h"
 #include "llvm/Support/BinaryStreamRef.h"
+#include "llvm/Support/LEB128.h"
 
 using namespace llvm;
 using endianness = llvm::support::endianness;
@@ -41,11 +41,41 @@ Error BinaryStreamReader::readBytes(ArrayRef<uint8_t> &Buffer, uint32_t Size) {
   return Error::success();
 }
 
+Error BinaryStreamReader::readULEB128(uint64_t &Dest) {
+  SmallVector<uint8_t, 10> EncodedBytes;
+  ArrayRef<uint8_t> NextByte;
+
+  // Copy the encoded ULEB into the buffer.
+  do {
+    if (auto Err = readBytes(NextByte, 1))
+      return Err;
+    EncodedBytes.push_back(NextByte[0]);
+  } while (NextByte[0] & 0x80);
+
+  Dest = decodeULEB128(EncodedBytes.begin(), nullptr, EncodedBytes.end());
+  return Error::success();
+}
+
+Error BinaryStreamReader::readSLEB128(int64_t &Dest) {
+  SmallVector<uint8_t, 10> EncodedBytes;
+  ArrayRef<uint8_t> NextByte;
+
+  // Copy the encoded ULEB into the buffer.
+  do {
+    if (auto Err = readBytes(NextByte, 1))
+      return Err;
+    EncodedBytes.push_back(NextByte[0]);
+  } while (NextByte[0] & 0x80);
+
+  Dest = decodeSLEB128(EncodedBytes.begin(), nullptr, EncodedBytes.end());
+  return Error::success();
+}
+
 Error BinaryStreamReader::readCString(StringRef &Dest) {
-  uint32_t OriginalOffset = getOffset();
-  uint32_t FoundOffset = 0;
+  uint64_t OriginalOffset = getOffset();
+  uint64_t FoundOffset = 0;
   while (true) {
-    uint32_t ThisOffset = getOffset();
+    uint64_t ThisOffset = getOffset();
     ArrayRef<uint8_t> Buffer;
     if (auto EC = readLongestContiguousChunk(Buffer))
       return EC;
@@ -70,8 +100,8 @@ Error BinaryStreamReader::readCString(StringRef &Dest) {
 }
 
 Error BinaryStreamReader::readWideString(ArrayRef<UTF16> &Dest) {
-  uint32_t Length = 0;
-  uint32_t OriginalOffset = getOffset();
+  uint64_t Length = 0;
+  uint64_t OriginalOffset = getOffset();
   const UTF16 *C;
   while (true) {
     if (auto EC = readObject(C))
@@ -80,7 +110,7 @@ Error BinaryStreamReader::readWideString(ArrayRef<UTF16> &Dest) {
       break;
     ++Length;
   }
-  uint32_t NewOffset = getOffset();
+  uint64_t NewOffset = getOffset();
   setOffset(OriginalOffset);
 
   if (auto EC = readArray(Dest, Length))
@@ -109,13 +139,13 @@ Error BinaryStreamReader::readStreamRef(BinaryStreamRef &Ref, uint32_t Length) {
   return Error::success();
 }
 
-Error BinaryStreamReader::readSubstream(BinarySubstreamRef &Stream,
-                                        uint32_t Size) {
-  Stream.Offset = getOffset();
-  return readStreamRef(Stream.StreamData, Size);
+Error BinaryStreamReader::readSubstream(BinarySubstreamRef &Ref,
+                                        uint32_t Length) {
+  Ref.Offset = getOffset();
+  return readStreamRef(Ref.StreamData, Length);
 }
 
-Error BinaryStreamReader::skip(uint32_t Amount) {
+Error BinaryStreamReader::skip(uint64_t Amount) {
   if (Amount > bytesRemaining())
     return make_error<BinaryStreamError>(stream_error_code::stream_too_short);
   Offset += Amount;
@@ -136,7 +166,7 @@ uint8_t BinaryStreamReader::peek() const {
 }
 
 std::pair<BinaryStreamReader, BinaryStreamReader>
-BinaryStreamReader::split(uint32_t Off) const {
+BinaryStreamReader::split(uint64_t Off) const {
   assert(getLength() >= Off);
 
   BinaryStreamRef First = Stream.drop_front(Offset);

@@ -1,42 +1,52 @@
-//===-- SBEvent.cpp ---------------------------------------------*- C++ -*-===//
+//===-- SBEvent.cpp -------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBBroadcaster.h"
 #include "lldb/API/SBStream.h"
+#include "lldb/Utility/Instrumentation.h"
 
 #include "lldb/Breakpoint/Breakpoint.h"
-#include "lldb/Core/Event.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Event.h"
 #include "lldb/Utility/Stream.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBEvent::SBEvent() : m_event_sp(), m_opaque_ptr(NULL) {}
+SBEvent::SBEvent() { LLDB_INSTRUMENT_VA(this); }
 
 SBEvent::SBEvent(uint32_t event_type, const char *cstr, uint32_t cstr_len)
     : m_event_sp(new Event(event_type, new EventDataBytes(cstr, cstr_len))),
-      m_opaque_ptr(m_event_sp.get()) {}
+      m_opaque_ptr(m_event_sp.get()) {
+  LLDB_INSTRUMENT_VA(this, event_type, cstr, cstr_len);
+}
 
 SBEvent::SBEvent(EventSP &event_sp)
-    : m_event_sp(event_sp), m_opaque_ptr(event_sp.get()) {}
+    : m_event_sp(event_sp), m_opaque_ptr(event_sp.get()) {
+  LLDB_INSTRUMENT_VA(this, event_sp);
+}
 
-SBEvent::SBEvent(Event *event_ptr) : m_event_sp(), m_opaque_ptr(event_ptr) {}
+SBEvent::SBEvent(Event *event_ptr) : m_opaque_ptr(event_ptr) {
+  LLDB_INSTRUMENT_VA(this, event_ptr);
+}
 
 SBEvent::SBEvent(const SBEvent &rhs)
-    : m_event_sp(rhs.m_event_sp), m_opaque_ptr(rhs.m_opaque_ptr) {}
+    : m_event_sp(rhs.m_event_sp), m_opaque_ptr(rhs.m_opaque_ptr) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+}
 
 const SBEvent &SBEvent::operator=(const SBEvent &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
   if (this != &rhs) {
     m_event_sp = rhs.m_event_sp;
     m_opaque_ptr = rhs.m_opaque_ptr;
@@ -44,41 +54,35 @@ const SBEvent &SBEvent::operator=(const SBEvent &rhs) {
   return *this;
 }
 
-SBEvent::~SBEvent() {}
+SBEvent::~SBEvent() = default;
 
 const char *SBEvent::GetDataFlavor() {
+  LLDB_INSTRUMENT_VA(this);
+
   Event *lldb_event = get();
   if (lldb_event) {
     EventData *event_data = lldb_event->GetData();
     if (event_data)
       return lldb_event->GetData()->GetFlavor().AsCString();
   }
-  return NULL;
+  return nullptr;
 }
 
 uint32_t SBEvent::GetType() const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(this);
 
   const Event *lldb_event = get();
   uint32_t event_type = 0;
   if (lldb_event)
     event_type = lldb_event->GetType();
 
-  if (log) {
-    StreamString sstr;
-    if (lldb_event && lldb_event->GetBroadcaster() &&
-        lldb_event->GetBroadcaster()->GetEventNames(sstr, event_type, true))
-      log->Printf("SBEvent(%p)::GetType () => 0x%8.8x (%s)",
-                  static_cast<void *>(get()), event_type, sstr.GetData());
-    else
-      log->Printf("SBEvent(%p)::GetType () => 0x%8.8x",
-                  static_cast<void *>(get()), event_type);
-  }
 
   return event_type;
 }
 
 SBBroadcaster SBEvent::GetBroadcaster() const {
+  LLDB_INSTRUMENT_VA(this);
+
   SBBroadcaster broadcaster;
   const Event *lldb_event = get();
   if (lldb_event)
@@ -87,6 +91,8 @@ SBBroadcaster SBEvent::GetBroadcaster() const {
 }
 
 const char *SBEvent::GetBroadcasterClass() const {
+  LLDB_INSTRUMENT_VA(this);
+
   const Event *lldb_event = get();
   if (lldb_event)
     return lldb_event->GetBroadcaster()->GetBroadcasterClass().AsCString();
@@ -95,28 +101,28 @@ const char *SBEvent::GetBroadcasterClass() const {
 }
 
 bool SBEvent::BroadcasterMatchesPtr(const SBBroadcaster *broadcaster) {
+  LLDB_INSTRUMENT_VA(this, broadcaster);
+
   if (broadcaster)
     return BroadcasterMatchesRef(*broadcaster);
   return false;
 }
 
 bool SBEvent::BroadcasterMatchesRef(const SBBroadcaster &broadcaster) {
+  LLDB_INSTRUMENT_VA(this, broadcaster);
 
   Event *lldb_event = get();
   bool success = false;
   if (lldb_event)
     success = lldb_event->BroadcasterIs(broadcaster.get());
 
-  // For logging, this gets a little chatty so only enable this when verbose
-  // logging is on
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
-  LLDB_LOGV(log, "({0}) (SBBroadcaster({1}): {2}) => {3}", get(),
-            broadcaster.get(), broadcaster.GetName(), success);
 
   return success;
 }
 
 void SBEvent::Clear() {
+  LLDB_INSTRUMENT_VA(this);
+
   Event *lldb_event = get();
   if (lldb_event)
     lldb_event->Clear();
@@ -146,25 +152,27 @@ void SBEvent::reset(Event *event_ptr) {
 }
 
 bool SBEvent::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBEvent::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
   // Do NOT use m_opaque_ptr directly!!! Must use the SBEvent::get() accessor.
   // See comments in SBEvent::get()....
-  return SBEvent::get() != NULL;
+  return SBEvent::get() != nullptr;
 }
 
 const char *SBEvent::GetCStringFromEvent(const SBEvent &event) {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
+  LLDB_INSTRUMENT_VA(event);
 
-  if (log)
-    log->Printf("SBEvent(%p)::GetCStringFromEvent () => \"%s\"",
-                static_cast<void *>(event.get()),
-                reinterpret_cast<const char *>(
-                    EventDataBytes::GetBytesFromEvent(event.get())));
-
-  return reinterpret_cast<const char *>(
+  return static_cast<const char *>(
       EventDataBytes::GetBytesFromEvent(event.get()));
 }
 
 bool SBEvent::GetDescription(SBStream &description) {
+  LLDB_INSTRUMENT_VA(this, description);
+
   Stream &strm = description.ref();
 
   if (get()) {
@@ -176,6 +184,8 @@ bool SBEvent::GetDescription(SBStream &description) {
 }
 
 bool SBEvent::GetDescription(SBStream &description) const {
+  LLDB_INSTRUMENT_VA(this, description);
+
   Stream &strm = description.ref();
 
   if (get()) {

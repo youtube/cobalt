@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify=expected,precxx17 %std_cxx11-14 %s
+// RUN: %clang_cc1 -fsyntax-only -verify=expected,cxx17 %std_cxx17- %s
 
 void f(int i, int j, int k = 3);
 void f(int i, int j, int k);
@@ -105,16 +106,22 @@ void test_Z(const Z& z) {
 struct ZZ {
   static ZZ g(int = 17);
 
-  void f(ZZ z = g()); // expected-error{{no matching constructor for initialization}} \
-  // expected-note{{passing argument to parameter 'z' here}}
+  void f(ZZ z = g()); // precxx17-error{{no matching constructor for initialization}} \
+  // precxx17-note{{passing argument to parameter 'z' here}}
 
-  ZZ(ZZ&, int = 17); // expected-note{{candidate constructor}}
+  ZZ(ZZ&, int = 17); // precxx17-note{{candidate constructor}}
 };
 
 // http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_active.html#325
 class C2 {
   static void g(int = f()); // expected-error{{use of default argument to function 'f' that is declared later in class 'C2'}}
   static int f(int = 10); // expected-note{{default argument declared here}}
+};
+
+template <typename T> class C3;
+template <> class C3<int> {
+  static void g(int = f()); // expected-error {{use of default argument to function 'f' that is declared later in class 'C3<int>'}}
+  static int f(int = 10); // expected-note {{default argument declared here}}
 };
 
 // Make sure we actually parse the default argument for an inline definition
@@ -130,5 +137,8 @@ template <int I1 = I2, int I2 = 1> struct T {};  // expected-error-re {{use of u
 T<0, 1> t;
 
 struct PR28105 {
-  PR28105 (int = 0, int = 0, PR28105 = 0);  // expected-error{{recursive evaluation of default argument}}
+  PR28105 (int = 0, int = 0,
+      PR28105  // expected-error{{recursive evaluation of default argument}}
+      =
+      0); // expected-note {{default argument used here}}
 };

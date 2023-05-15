@@ -1,15 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <string>
 
-// basic_string(const charT* s, const Allocator& a = Allocator());
+// basic_string(const charT* s, const Allocator& a = Allocator()); // constexpr since C++20
 
 #include <string>
 #include <stdexcept>
@@ -22,7 +21,7 @@
 #include "min_allocator.h"
 
 template <class charT>
-void
+TEST_CONSTEXPR_CXX20 void
 test(const charT* s)
 {
     typedef std::basic_string<charT, std::char_traits<charT>, test_allocator<charT> > S;
@@ -38,7 +37,7 @@ test(const charT* s)
 }
 
 template <class charT, class A>
-void
+TEST_CONSTEXPR_CXX20 void
 test(const charT* s, const A& a)
 {
     typedef std::basic_string<charT, std::char_traits<charT>, A> S;
@@ -52,8 +51,7 @@ test(const charT* s, const A& a)
     assert(s2.capacity() >= s2.size());
 }
 
-int main()
-{
+TEST_CONSTEXPR_CXX20 bool test() {
     {
     typedef test_allocator<char> A;
 
@@ -86,4 +84,16 @@ int main()
     test("123456798012345679801234567980123456798012345679801234567980", A());
     }
 #endif
+
+  return true;
+}
+
+int main(int, char**)
+{
+  test();
+#if TEST_STD_VER > 17
+  static_assert(test());
+#endif
+
+  return 0;
 }

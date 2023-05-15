@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 %s -fsyntax-only -verify -pedantic
+// RUN: %clang_cc1 %s -fsyntax-only -verify -verify=c2x -pedantic -Wno-strict-prototypes
 
 // PR1892, PR11354
-void f(double a[restrict][5]) { __typeof(a) x = 10; } // expected-warning {{(aka 'double (*restrict)[5]')}}
+void f(double a[restrict][5]) { __typeof(a) x = 10; } // expected-error {{(aka 'double (*restrict)[5]')}}
 
 int foo (__const char *__path);
 int foo(__const char *__restrict __file);
@@ -18,7 +18,7 @@ void h (const char *fmt, ...) {} // expected-error{{conflicting types for 'h'}}
 
 // PR1965
 int t5(b);          // expected-error {{parameter list without types}}
-int t6(int x, g);   // expected-warning {{type specifier missing, defaults to 'int'}}
+int t6(int x, g);   // expected-error {{type specifier missing, defaults to 'int'}}
 
 int t7(, );       // expected-error {{expected parameter declarator}} expected-error {{expected parameter declarator}}
 int t8(, int a);  // expected-error {{expected parameter declarator}}
@@ -30,7 +30,7 @@ void t10(){}
 void t11(){t10(1);} // expected-warning{{too many arguments}}
 
 // PR3208
-void t12(int) {}  // expected-error{{parameter name omitted}}
+void t12(int) {}  // c2x-warning{{omitting the parameter name in a function definition is a C2x extension}}
 
 // PR2790
 void t13() {
@@ -41,8 +41,8 @@ int t14() {
 }
 
 // <rdar://problem/6097326>
-y(y) { return y; } // expected-warning{{parameter 'y' was not declared, defaulting to type 'int'}} \
-                   // expected-warning{{type specifier missing, defaults to 'int'}}
+y(y) { return y; } // expected-error{{parameter 'y' was not declared, defaults to 'int'; ISO C99 and later do not support implicit int}} \
+                   // expected-error{{type specifier missing, defaults to 'int'}}
 
 
 // PR3137, <rdar://problem/6127293>
@@ -80,7 +80,8 @@ typedef void fn_t(void);
 fn_t t17;
 
 // PR4049
-unknown_type t18(void*) {   // expected-error {{unknown type name 'unknown_type'}} expected-error{{parameter name omitted}}
+unknown_type t18(void*) {   // expected-error {{unknown type name 'unknown_type'}} \
+                            // c2x-warning {{omitting the parameter name in a function definition is a C2x extension}}
 }
 
 unknown_type t19(int* P) {   // expected-error {{unknown type name 'unknown_type'}}

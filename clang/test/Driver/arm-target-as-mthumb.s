@@ -5,13 +5,19 @@
 // RUN: %clang -target armv7a-linux-gnueabi -### -c -mthumb %s 2>&1 | \
 // RUN: FileCheck -check-prefix=TRIPLE-ARM %s
 // RUN: %clang -target armv7a-linux-gnueabi -### -c -Wa,-mthumb \
-// RUN: %S/Inputs/wildcard1.c  2>&1 | FileCheck -check-prefix=TRIPLE-ARM %s
+// RUN: %S/Inputs/wildcard1.c 2>&1 | FileCheck -check-prefix=TRIPLE-ARM %s
+// RUN: %clang -target armv7a-linux-gnueabi -### -c -Wa,-mcpu=cortex-a8,-mthumb \
+// RUN: %S/Inputs/wildcard1.c 2>&1 | FileCheck -check-prefix=TRIPLE-ARM %s
 
-// TRIPLE-ARM: "-triple" "armv7--linux-gnueabi"
+// TRIPLE-ARM: "-triple" "armv7-unknown-linux-gnueabi"
 
 // RUN: %clang -target armv7a-linux-gnueabi -### -c -Wa,-mthumb %s 2>&1 | \
+// RUN: FileCheck -check-prefix=TRIPLE-THUMB %s
+// RUN: %clang -target armv7a-linux-gnueabi -### -c -Wa,-mcpu=cortex-a8,-mthumb %s 2>&1 | \
+// RUN: FileCheck -check-prefix=TRIPLE-THUMB %s
+// RUN: %clang -target armv7a-linux-gnueabi -### -c -Wa,-mcpu=cortex-a8 -Wa,-mthumb %s 2>&1 | \
 // RUN: FileCheck -check-prefix=TRIPLE-THUMB %s
 // RUN: %clang -target armv7a-linux-gnueabi -### -c -Xassembler -mthumb %s \
 // RUN: 2>&1 | FileCheck -check-prefix=TRIPLE-THUMB %s
 
-// TRIPLE-THUMB: "-triple" "thumbv7--linux-gnueabi"
+// TRIPLE-THUMB: "-triple" "thumbv7-unknown-linux-gnueabi"

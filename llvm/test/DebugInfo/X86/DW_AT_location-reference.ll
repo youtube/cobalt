@@ -1,9 +1,18 @@
 ; RUN: llc -O1 -filetype=obj -mtriple=x86_64-apple-darwin < %s > %t
-; RUN: llvm-dwarfdump -v %t  | FileCheck %s
-; RUN: llvm-objdump -r %t | FileCheck -check-prefix=DARWIN %s
+; RUN: llvm-dwarfdump -v %t | FileCheck %s --check-prefixes=CHECK,DWARFv4
+; RUN: llvm-objdump -r %t | FileCheck --check-prefix=DARWIN %s
+
 ; RUN: llc -O1 -filetype=obj -mtriple=x86_64-pc-linux-gnu < %s > %t
-; RUN: llvm-dwarfdump -v %t  | FileCheck %s
-; RUN: llvm-objdump -r %t | FileCheck -check-prefix=LINUX %s
+; RUN: llvm-dwarfdump -v %t | FileCheck %s --check-prefixes=CHECK,DWARFv4
+; RUN: llvm-objdump -r %t | FileCheck --check-prefix=LINUX %s
+
+; RUN: llc -dwarf-version=3 -O1 -filetype=obj -mtriple=x86_64-pc-linux-gnu < %s > %t
+; RUN: llvm-dwarfdump -debug-info -v %t | FileCheck %s --check-prefixes=CHECK,DWARF32v3
+; RUN: llvm-objdump -r %t | FileCheck --check-prefix=LINUX %s
+
+; RUN: llc -dwarf64 -dwarf-version=3 -O1 -filetype=obj -mtriple=x86_64-pc-linux-gnu < %s > %t
+; RUN: llvm-dwarfdump -debug-info -v %t | FileCheck %s --check-prefixes=CHECK,DWARF64v3
+; RUN: llvm-objdump -r %t | FileCheck --check-prefix=LINUX %s
 
 ; PR9493
 ; Adapted from the original test case in r127757.
@@ -31,13 +40,14 @@
 ; // The 'x' variable and its symbol reference location
 ; CHECK: .debug_info contents:
 ; CHECK:      DW_TAG_variable
-; CHECK-NEXT:   DW_AT_location [DW_FORM_sec_offset] (0x00000000
-; Check that the location contains only 4 ranges - this verifies that the 4th
-; and 5th ranges were successfully merged into a single range.
-; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}):
-; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}):
-; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}):
-; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}): {{.*}})
+; DWARF32v3-NEXT: DW_AT_location [DW_FORM_data4] (0x00000000
+; DWARF64v3-NEXT: DW_AT_location [DW_FORM_data8] (0x00000000
+; DWARFv4-NEXT:   DW_AT_location [DW_FORM_sec_offset] (0x00000000
+; Check that the location contains only 4 ranges.
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}})
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}})
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}})
+; CHECK-NEXT:   [0x{{[0-9a-f]*}}, 0x{{[0-9a-f]*}}){{.*}})
 ; CHECK-NEXT:   DW_AT_name {{.*}} "x"
 ; CHECK-NEXT:   DW_AT_decl_file
 ; CHECK-NEXT:   DW_AT_decl_line
@@ -47,7 +57,7 @@
 ; DARWIN-NOT: X86_64_RELOC{{.*}} __debug_loc
 
 ; Check we have a relocation for the debug_loc entry in Linux output.
-; LINUX: RELOCATION RECORDS FOR [.rela.debug_info]
+; LINUX: RELOCATION RECORDS FOR [.debug_info]
 ; LINUX-NOT: RELOCATION RECORDS
 ; LINUX: R_X86_64{{.*}} .debug_loc
 
@@ -59,7 +69,7 @@ target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 define void @f() nounwind !dbg !0 {
 entry:
   %call = tail call i32 @g(i32 0, i32 0) nounwind, !dbg !8
-  store i32 %call, i32* @a, align 4, !dbg !8
+  store i32 %call, ptr @a, align 4, !dbg !8
   tail call void @llvm.dbg.value(metadata i32 1, metadata !5, metadata !DIExpression()), !dbg !13
   br label %while.body
 
@@ -73,7 +83,7 @@ while.body:                                       ; preds = %entry, %while.body
 while.end:                                        ; preds = %while.body
   tail call void @llvm.dbg.value(metadata i32 %mul, metadata !5, metadata !DIExpression()), !dbg !14
   %call4 = tail call i32 @g(i32 %mul, i32 0) nounwind, !dbg !15
-  store i32 %call4, i32* @a, align 4, !dbg !15
+  store i32 %call4, ptr @a, align 4, !dbg !15
   tail call void @llvm.dbg.value(metadata i32 2, metadata !5, metadata !DIExpression()), !dbg !17
   br label %while.body9
 
@@ -87,7 +97,7 @@ while.body9:                                      ; preds = %while.end, %while.b
 while.end13:                                      ; preds = %while.body9
   tail call void @llvm.dbg.value(metadata i32 %mul12, metadata !5, metadata !DIExpression()), !dbg !18
   %call15 = tail call i32 @g(i32 0, i32 %mul12) nounwind, !dbg !19
-  store i32 %call15, i32* @a, align 4, !dbg !19
+  store i32 %call15, ptr @a, align 4, !dbg !19
   ret void, !dbg !20
 }
 

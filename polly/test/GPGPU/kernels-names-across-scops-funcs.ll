@@ -4,14 +4,14 @@
 
 ; REQUIRES: pollyacc
 
-; KERNEL: define ptx_kernel void @FUNC_foo_SCOP_0_KERNEL_0(i8 addrspace(1)* %MemRef_arg1, i32 %arg) #0 {
-; KERNEL: define ptx_kernel void @FUNC_foo_SCOP_1_KERNEL_0(i8 addrspace(1)* %MemRef_arg1, i32 %arg) #0 {
-; KERNEL: define ptx_kernel void @FUNC_foo2_SCOP_0_KERNEL_0(i8 addrspace(1)* %MemRef_arg1, i32 %arg) #0 {
+; KERNEL: define ptx_kernel void @FUNC_foo_SCOP_0_KERNEL_0(ptr addrspace(1) %MemRef_arg1, i32 %arg) #0 {
+; KERNEL: define ptx_kernel void @FUNC_foo_SCOP_1_KERNEL_0(ptr addrspace(1) %MemRef_arg1, i32 %arg) #0 {
+; KERNEL: define ptx_kernel void @FUNC_foo2_SCOP_0_KERNEL_0(ptr addrspace(1) %MemRef_arg1, i32 %arg) #0 {
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
 ; Function Attrs: nounwind uwtable
-define void @foo(i32 %arg, i32* %arg1) #0 {
+define void @foo(i32 %arg, ptr %arg1) #0 {
 bb:
   br label %bb2
 
@@ -24,10 +24,10 @@ bb3:                                              ; preds = %bb2
 
 bb4:                                              ; preds = %bb4, %bb3
   %tmp5 = phi i64 [ 0, %bb3 ], [ %tmp9, %bb4 ]
-  %tmp6 = getelementptr inbounds i32, i32* %arg1, i64 %tmp5
-  %tmp7 = load i32, i32* %tmp6, align 4, !tbaa !2
+  %tmp6 = getelementptr inbounds i32, ptr %arg1, i64 %tmp5
+  %tmp7 = load i32, ptr %tmp6, align 4, !tbaa !2
   %tmp8 = add nsw i32 %tmp7, 1
-  store i32 %tmp8, i32* %tmp6, align 4, !tbaa !2
+  store i32 %tmp8, ptr %tmp6, align 4, !tbaa !2
   %tmp9 = add nuw nsw i64 %tmp5, 1
   %tmp10 = zext i32 %arg to i64
   %tmp11 = icmp ne i64 %tmp9, %tmp10
@@ -50,10 +50,10 @@ bb18:                                             ; preds = %bb16
 
 bb19:                                             ; preds = %bb19, %bb18
   %tmp20 = phi i64 [ 0, %bb18 ], [ %tmp24, %bb19 ]
-  %tmp21 = getelementptr inbounds i32, i32* %arg1, i64 %tmp20
-  %tmp22 = load i32, i32* %tmp21, align 4, !tbaa !2
+  %tmp21 = getelementptr inbounds i32, ptr %arg1, i64 %tmp20
+  %tmp22 = load i32, ptr %tmp21, align 4, !tbaa !2
   %tmp23 = add nsw i32 %tmp22, 1
-  store i32 %tmp23, i32* %tmp21, align 4, !tbaa !2
+  store i32 %tmp23, ptr %tmp21, align 4, !tbaa !2
   %tmp24 = add nuw nsw i64 %tmp20, 1
   %tmp25 = zext i32 %arg to i64
   %tmp26 = icmp ne i64 %tmp24, %tmp25
@@ -70,16 +70,16 @@ bb29:                                             ; preds = %bb28, %bb13
 }
 
 ; Function Attrs: argmemonly nounwind
-declare void @llvm.lifetime.start.p0i8(i64, i8* nocapture) #1
+declare void @llvm.lifetime.start.p0(i64, ptr nocapture) #1
 
 ; Function Attrs: nounwind
 declare i64 @clock() #2
 
 ; Function Attrs: argmemonly nounwind
-declare void @llvm.lifetime.end.p0i8(i64, i8* nocapture) #1
+declare void @llvm.lifetime.end.p0(i64, ptr nocapture) #1
 
 ; Function Attrs: nounwind uwtable
-define void @foo2(i32 %arg, i32* %arg1) #0 {
+define void @foo2(i32 %arg, ptr %arg1) #0 {
 bb:
   br label %bb2
 
@@ -92,10 +92,10 @@ bb3:                                              ; preds = %bb2
 
 bb4:                                              ; preds = %bb4, %bb3
   %tmp5 = phi i64 [ 0, %bb3 ], [ %tmp9, %bb4 ]
-  %tmp6 = getelementptr inbounds i32, i32* %arg1, i64 %tmp5
-  %tmp7 = load i32, i32* %tmp6, align 4, !tbaa !2
+  %tmp6 = getelementptr inbounds i32, ptr %arg1, i64 %tmp5
+  %tmp7 = load i32, ptr %tmp6, align 4, !tbaa !2
   %tmp8 = add nsw i32 %tmp7, 1
-  store i32 %tmp8, i32* %tmp6, align 4, !tbaa !2
+  store i32 %tmp8, ptr %tmp6, align 4, !tbaa !2
   %tmp9 = add nuw nsw i64 %tmp5, 1
   %tmp10 = zext i32 %arg to i64
   %tmp11 = icmp ne i64 %tmp9, %tmp10
@@ -108,16 +108,16 @@ bb13:                                             ; preds = %bb12, %bb2
   ret void
 }
 
-attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { argmemonly nounwind }
-attributes #2 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #3 = { nounwind }
 
 !llvm.module.flags = !{!0}
 !llvm.ident = !{!1}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
-!1 = !{!"clang version 5.0.0 (http://llvm.org/git/clang 98cf823022d1d71065c71e9338226ebf8bfa36ba) (http://llvm.org/git/llvm.git 4efa61f12928015bad233274ffa2e60c918e9a10)"}
+!1 = !{!"clang version 5.0.0"}
 !2 = !{!3, !3, i64 0}
 !3 = !{!"int", !4, i64 0}
 !4 = !{!"omnipotent char", !5, i64 0}

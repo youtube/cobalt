@@ -1,19 +1,18 @@
 //===-- llvm/LineEditor/LineEditor.h - line editor --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LINEEDITOR_LINEEDITOR_H
 #define LLVM_LINEEDITOR_LINEEDITOR_H
 
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include <cstdio>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -37,8 +36,8 @@ public:
 
   /// Reads a line.
   ///
-  /// \return The line, or llvm::Optional<std::string>() on EOF.
-  llvm::Optional<std::string> readLine() const;
+  /// \return The line, or std::optional<std::string>() on EOF.
+  std::optional<std::string> readLine() const;
 
   void saveHistory();
   void loadHistory();
@@ -65,7 +64,7 @@ public:
 
   /// A possible completion at a given cursor position.
   struct Completion {
-    Completion() {}
+    Completion() = default;
     Completion(const std::string &TypedText, const std::string &DisplayText)
         : TypedText(TypedText), DisplayText(DisplayText) {}
 

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,6 +17,7 @@
 #include <fstream>
 #include <utility>
 #include <cassert>
+#include "test_macros.h"
 #include "platform_support.h"
 
 
@@ -38,7 +38,7 @@ std::pair<std::string, std::string> get_temp_file_names() {
   return names;
 }
 
-int main()
+int main(int, char**)
 {
     std::pair<std::string, std::string> temp_files = get_temp_file_names();
     std::string& temp1 = temp_files.first;
@@ -67,6 +67,8 @@ int main()
     }
     std::remove(temp1.c_str());
     std::remove(temp2.c_str());
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wfstream fs1(temp1.c_str(), std::ios_base::in | std::ios_base::out
                                                    | std::ios_base::trunc);
@@ -90,4 +92,7 @@ int main()
     }
     std::remove(temp1.c_str());
     std::remove(temp2.c_str());
+#endif
+
+  return 0;
 }

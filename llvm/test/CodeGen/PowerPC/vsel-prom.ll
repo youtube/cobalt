@@ -1,4 +1,4 @@
-; RUN: llc -mcpu=pwr7 < %s | FileCheck %s
+; RUN: llc -mcpu=pwr7 < %s -verify-machineinstrs | FileCheck %s
 target datalayout = "E-m:e-i64:64-n32:64"
 target triple = "powerpc64-unknown-linux-gnu"
 
@@ -13,7 +13,7 @@ if.then:                                          ; preds = %entry
 if.end:                                           ; preds = %entry
   %0 = select i1 undef, <2 x double> undef, <2 x double> zeroinitializer
   %1 = extractelement <2 x double> %0, i32 1
-  store double %1, double* undef, align 8
+  store double %1, ptr undef, align 8
   ret void
 
 ; CHECK-LABEL: @Compute_Lateral

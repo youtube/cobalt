@@ -1,24 +1,27 @@
 //===--- ObjCTidyModule.cpp - clang-tidy --------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "../ClangTidy.h"
 #include "../ClangTidyModule.h"
 #include "../ClangTidyModuleRegistry.h"
+#include "AssertEquals.h"
 #include "AvoidNSErrorInitCheck.h"
-#include "AvoidSpinlockCheck.h"
+#include "DeallocInCategoryCheck.h"
 #include "ForbiddenSubclassingCheck.h"
+#include "MissingHashCheck.h"
+#include "NSDateFormatterCheck.h"
+#include "NSInvocationArgumentLifetimeCheck.h"
 #include "PropertyDeclarationCheck.h"
+#include "SuperSelfCheck.h"
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
+namespace clang::tidy {
 namespace objc {
 
 class ObjCModule : public ClangTidyModule {
@@ -26,12 +29,21 @@ public:
   void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
     CheckFactories.registerCheck<AvoidNSErrorInitCheck>(
         "objc-avoid-nserror-init");
-    CheckFactories.registerCheck<AvoidSpinlockCheck>(
-        "objc-avoid-spinlock");
+    CheckFactories.registerCheck<AssertEquals>("objc-assert-equals");
+
+    CheckFactories.registerCheck<DeallocInCategoryCheck>(
+        "objc-dealloc-in-category");
     CheckFactories.registerCheck<ForbiddenSubclassingCheck>(
         "objc-forbidden-subclassing");
+    CheckFactories.registerCheck<MissingHashCheck>(
+        "objc-missing-hash");
+    CheckFactories.registerCheck<NSDateFormatterCheck>("objc-nsdate-formatter");
+    CheckFactories.registerCheck<NSInvocationArgumentLifetimeCheck>(
+        "objc-nsinvocation-argument-lifetime");
     CheckFactories.registerCheck<PropertyDeclarationCheck>(
         "objc-property-declaration");
+    CheckFactories.registerCheck<SuperSelfCheck>(
+        "objc-super-self");
   }
 };
 
@@ -46,5 +58,4 @@ static ClangTidyModuleRegistry::Add<ObjCModule> X(
 // and thus register the ObjCModule.
 volatile int ObjCModuleAnchorSource = 0;
 
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy

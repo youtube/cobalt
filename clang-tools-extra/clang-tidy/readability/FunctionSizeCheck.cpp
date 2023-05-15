@@ -1,21 +1,19 @@
-//===--- FunctionSize.cpp - clang-tidy ------------------------------------===//
+//===-- FunctionSizeCheck.cpp - clang-tidy --------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "FunctionSizeCheck.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "llvm/ADT/BitVector.h"
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace readability {
+namespace clang::tidy::readability {
 namespace {
 
 class FunctionASTVisitor : public RecursiveASTVisitor<FunctionASTVisitor> {
@@ -52,7 +50,7 @@ public:
     case Stmt::ForStmtClass:
     case Stmt::SwitchStmtClass:
       ++Info.Branches;
-      LLVM_FALLTHROUGH;
+      [[fallthrough]];
     case Stmt::CompoundStmtClass:
       TrackedParent.push_back(true);
       break;
@@ -73,7 +71,7 @@ public:
     // is already nested NestingThreshold levels deep, record the start location
     // of this new compound statement.
     if (CurrentNestingLevel == Info.NestingThreshold)
-      Info.NestingThresholders.push_back(Node->getLocStart());
+      Info.NestingThresholders.push_back(Node->getBeginLoc());
 
     ++CurrentNestingLevel;
     Base::TraverseCompoundStmt(Node);
@@ -119,7 +117,7 @@ public:
     std::vector<SourceLocation> NestingThresholders;
   };
   FunctionInfo Info;
-  std::vector<bool> TrackedParent;
+  llvm::BitVector TrackedParent;
   unsigned StructNesting = 0;
   unsigned CurrentNestingLevel = 0;
 };
@@ -145,7 +143,12 @@ void FunctionSizeCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 }
 
 void FunctionSizeCheck::registerMatchers(MatchFinder *Finder) {
-  Finder->addMatcher(functionDecl(unless(isInstantiated())).bind("func"), this);
+  // Lambdas ignored - historically considered part of enclosing function.
+  // FIXME: include them instead? Top-level lambdas are currently never counted.
+  Finder->addMatcher(functionDecl(unless(isInstantiated()),
+                                  unless(cxxMethodDecl(ofClass(isLambda()))))
+                         .bind("func"),
+                     this);
 }
 
 void FunctionSizeCheck::check(const MatchFinder::MatchResult &Result) {
@@ -162,9 +165,9 @@ void FunctionSizeCheck::check(const MatchFinder::MatchResult &Result) {
   // Count the lines including whitespace and comments. Really simple.
   if (const Stmt *Body = Func->getBody()) {
     SourceManager *SM = Result.SourceManager;
-    if (SM->isWrittenInSameFile(Body->getLocStart(), Body->getLocEnd())) {
-      FI.Lines = SM->getSpellingLineNumber(Body->getLocEnd()) -
-                 SM->getSpellingLineNumber(Body->getLocStart());
+    if (SM->isWrittenInSameFile(Body->getBeginLoc(), Body->getEndLoc())) {
+      FI.Lines = SM->getSpellingLineNumber(Body->getEndLoc()) -
+                 SM->getSpellingLineNumber(Body->getBeginLoc());
     }
   }
 
@@ -216,6 +219,4 @@ void FunctionSizeCheck::check(const MatchFinder::MatchResult &Result) {
   }
 }
 
-} // namespace readability
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::readability

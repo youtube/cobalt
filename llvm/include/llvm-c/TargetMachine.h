@@ -1,9 +1,9 @@
 /*===-- llvm-c/TargetMachine.h - Target Machine Library C Interface - C++ -*-=*\
 |*                                                                            *|
-|*                     The LLVM Compiler Infrastructure                       *|
-|*                                                                            *|
-|* This file is distributed under the University of Illinois Open Source      *|
-|* License. See LICENSE.TXT for details.                                      *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
 |*                                                                            *|
 |*===----------------------------------------------------------------------===*|
 |*                                                                            *|
@@ -19,12 +19,18 @@
 #ifndef LLVM_C_TARGETMACHINE_H
 #define LLVM_C_TARGETMACHINE_H
 
+#include "llvm-c/ExternC.h"
 #include "llvm-c/Target.h"
 #include "llvm-c/Types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+LLVM_C_EXTERN_C_BEGIN
+
+/**
+ * @addtogroup LLVMCTarget
+ *
+ * @{
+ */
+
 typedef struct LLVMOpaqueTargetMachine *LLVMTargetMachineRef;
 typedef struct LLVMTarget *LLVMTargetRef;
 
@@ -39,12 +45,16 @@ typedef enum {
     LLVMRelocDefault,
     LLVMRelocStatic,
     LLVMRelocPIC,
-    LLVMRelocDynamicNoPic
+    LLVMRelocDynamicNoPic,
+    LLVMRelocROPI,
+    LLVMRelocRWPI,
+    LLVMRelocROPI_RWPI
 } LLVMRelocMode;
 
 typedef enum {
     LLVMCodeModelDefault,
     LLVMCodeModelJITDefault,
+    LLVMCodeModelTiny,
     LLVMCodeModelSmall,
     LLVMCodeModelKernel,
     LLVMCodeModelMedium,
@@ -126,7 +136,9 @@ void LLVMSetTargetMachineAsmVerbosity(LLVMTargetMachineRef T,
   wraps several c++ only classes (among them a file stream). Returns any
   error in ErrorMessage. Use LLVMDisposeMessage to dispose the message. */
 LLVMBool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef T, LLVMModuleRef M,
-  char *Filename, LLVMCodeGenFileType codegen, char **ErrorMessage);
+                                     const char *Filename,
+                                     LLVMCodeGenFileType codegen,
+                                     char **ErrorMessage);
 
 /** Compile the LLVM IR stored in \p M and store the result in \p OutMemBuf. */
 LLVMBool LLVMTargetMachineEmitToMemoryBuffer(LLVMTargetMachineRef T, LLVMModuleRef M,
@@ -152,8 +164,10 @@ char* LLVMGetHostCPUFeatures(void);
 /** Adds the target-specific analysis passes to the pass manager. */
 void LLVMAddAnalysisPasses(LLVMTargetMachineRef T, LLVMPassManagerRef PM);
 
-#ifdef __cplusplus
-}
-#endif
+/**
+ * @}
+ */
+
+LLVM_C_EXTERN_C_END
 
 #endif

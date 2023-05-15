@@ -1,9 +1,8 @@
 //===--- NewDeleteOverloadsCheck.cpp - clang-tidy--------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,9 +12,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace misc {
+namespace clang::tidy::misc {
 
 namespace {
 
@@ -130,9 +127,6 @@ bool hasCorrespondingOverloadInBaseClass(const CXXMethodDecl *MD,
 } // anonymous namespace
 
 void NewDeleteOverloadsCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   // Match all operator new and operator delete overloads (including the array
   // forms). Do not match implicit operators, placement operators, or
   // deleted/private operators.
@@ -208,6 +202,4 @@ void NewDeleteOverloadsCheck::onEndOfTranslationUnit() {
         << FD << getOperatorName(getCorrespondingOverload(FD));
 }
 
-} // namespace misc
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::misc

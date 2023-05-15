@@ -1,4 +1,4 @@
-; RUN: opt -sink -S < %s | FileCheck %s
+; RUN: opt -passes=sink -S < %s | FileCheck %s
 
 ; Verify that IR sinking does not move convergent operations to
 ; blocks that are not control equivalent.
@@ -10,7 +10,7 @@
 
 define i32 @foo(i1 %arg) {
 entry:
-  %c = call i32 @bar() readonly convergent
+  %c = call i32 @bar() nounwind readonly convergent
   br i1 %arg, label %then, label %end
 
 then:
@@ -20,4 +20,4 @@ end:
   ret i32 0
 }
 
-declare i32 @bar() readonly convergent
+declare i32 @bar() nounwind readonly convergent

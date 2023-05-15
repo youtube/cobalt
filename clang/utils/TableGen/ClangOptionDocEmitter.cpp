@@ -1,14 +1,14 @@
 //===- ClangOptionDocEmitter.cpp - Documentation for command line flags ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // FIXME: Once this has stabilized, consider moving it to LLVM.
 //
 //===----------------------------------------------------------------------===//
 
+#include "TableGenBackends.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
@@ -22,8 +22,6 @@
 
 using namespace llvm;
 
-namespace clang {
-namespace docs {
 namespace {
 struct DocumentedOption {
   Record *Option;
@@ -50,7 +48,7 @@ Documentation extractDocumentation(RecordKeeper &Records) {
 
   std::map<std::string, Record*> OptionsByName;
   for (Record *R : Records.getAllDerivedDefinitions("Option"))
-    OptionsByName[R->getValueAsString("Name")] = R;
+    OptionsByName[std::string(R->getValueAsString("Name"))] = R;
 
   auto Flatten = [](Record *R) {
     return R->getValue("DocFlatten") && R->getValueAsBit("DocFlatten");
@@ -83,7 +81,7 @@ Documentation extractDocumentation(RecordKeeper &Records) {
     }
 
     // Pretend no-X and Xno-Y options are aliases of X and XY.
-    std::string Name = R->getValueAsString("Name");
+    std::string Name = std::string(R->getValueAsString("Name"));
     if (Name.size() >= 4) {
       if (Name.substr(0, 3) == "no-" && OptionsByName[Name.substr(3)]) {
         Aliases[OptionsByName[Name.substr(3)]].push_back(R);
@@ -111,7 +109,7 @@ Documentation extractDocumentation(RecordKeeper &Records) {
 
   auto DocumentationForOption = [&](Record *R) -> DocumentedOption {
     auto &A = Aliases[R];
-    llvm::sort(A.begin(), A.end(), CompareByName);
+    llvm::sort(A, CompareByName);
     return {R, std::move(A)};
   };
 
@@ -120,7 +118,7 @@ Documentation extractDocumentation(RecordKeeper &Records) {
     Documentation D;
 
     auto &Groups = GroupsInGroup[R];
-    llvm::sort(Groups.begin(), Groups.end(), CompareByLocation);
+    llvm::sort(Groups, CompareByLocation);
     for (Record *G : Groups) {
       D.Groups.emplace_back();
       D.Groups.back().Group = G;
@@ -129,7 +127,7 @@ Documentation extractDocumentation(RecordKeeper &Records) {
     }
 
     auto &Options = OptionsInGroup[R];
-    llvm::sort(Options.begin(), Options.end(), CompareByName);
+    llvm::sort(Options, CompareByName);
     for (Record *O : Options)
       D.Options.push_back(DocumentationForOption(O));
 
@@ -167,6 +165,29 @@ bool hasFlag(const Record *OptionOrGroup, StringRef OptionFlag) {
   for (const Record *Flag : OptionOrGroup->getValueAsListOfDefs("Flags"))
     if (Flag->getName() == OptionFlag)
       return true;
+  return false;
+}
+
+bool isIncluded(const Record *OptionOrGroup, const Record *DocInfo) {
+  assert(DocInfo->getValue("IncludedFlags") && "Missing includeFlags");
+  for (StringRef Inclusion : DocInfo->getValueAsListOfStrings("IncludedFlags"))
+    if (hasFlag(OptionOrGroup, Inclusion))
+      return true;
+  return false;
+}
+
+bool isGroupIncluded(const DocumentedGroup &Group, const Record *DocInfo) {
+  if (isIncluded(Group.Group, DocInfo))
+    return true;
+  for (auto &O : Group.Options)
+    if (isIncluded(O.Option, DocInfo))
+      return true;
+  for (auto &G : Group.Groups) {
+    if (isIncluded(G.Group, DocInfo))
+      return true;
+    if (isGroupIncluded(G, DocInfo))
+      return true;
+  }
   return false;
 }
 
@@ -219,13 +240,11 @@ std::string getRSTStringWithTextFallback(const Record *R, StringRef Primary,
       StringRef Value;
       if (auto *SV = dyn_cast_or_null<StringInit>(V->getValue()))
         Value = SV->getValue();
-      else if (auto *CV = dyn_cast_or_null<CodeInit>(V->getValue()))
-        Value = CV->getValue();
       if (!Value.empty())
         return Field == Primary ? Value.str() : escapeRST(Value);
     }
   }
-  return StringRef();
+  return std::string(StringRef());
 }
 
 void emitOptionWithArgs(StringRef Prefix, const Record *Option,
@@ -242,6 +261,8 @@ void emitOptionWithArgs(StringRef Prefix, const Record *Option,
   }
 }
 
+constexpr StringLiteral DefaultMetaVarName = "<arg>";
+
 void emitOptionName(StringRef Prefix, const Record *Option, raw_ostream &OS) {
   // Find the arguments to list after the option.
   unsigned NumArgs = getNumArgsForKind(Option->getValueAsDef("Kind"), Option);
@@ -249,9 +270,9 @@ void emitOptionName(StringRef Prefix, const Record *Option, raw_ostream &OS) {
 
   std::vector<std::string> Args;
   if (HasMetaVarName)
-    Args.push_back(Option->getValueAsString("MetaVarName"));
+    Args.push_back(std::string(Option->getValueAsString("MetaVarName")));
   else if (NumArgs == 1)
-    Args.push_back("<arg>");
+    Args.push_back(DefaultMetaVarName.str());
 
   // Fill up arguments if this option didn't provide a meta var name or it
   // supports an unlimited number of arguments. We can't see how many arguments
@@ -306,6 +327,8 @@ void emitOption(const DocumentedOption &Option, const Record *DocInfo,
                 raw_ostream &OS) {
   if (isExcluded(Option.Option, DocInfo))
     return;
+  if (DocInfo->getValue("IncludedFlags") && !isIncluded(Option.Option, DocInfo))
+    return;
   if (Option.Option->getValueAsDef("Kind")->getName() == "KIND_UNKNOWN" ||
       Option.Option->getValueAsDef("Kind")->getName() == "KIND_INPUT")
     return;
@@ -318,8 +341,8 @@ void emitOption(const DocumentedOption &Option, const Record *DocInfo,
   std::vector<std::string> SphinxOptionIDs;
   forEachOptionName(Option, DocInfo, [&](const Record *Option) {
     for (auto &Prefix : Option->getValueAsListOfStrings("Prefixes"))
-      SphinxOptionIDs.push_back(
-          getSphinxOptionID((Prefix + Option->getValueAsString("Name")).str()));
+      SphinxOptionIDs.push_back(std::string(getSphinxOptionID(
+          (Prefix + Option->getValueAsString("Name")).str())));
   });
   assert(!SphinxOptionIDs.empty() && "no flags for option");
   static std::map<std::string, int> NextSuffix;
@@ -345,8 +368,30 @@ void emitOption(const DocumentedOption &Option, const Record *DocInfo,
   OS << "\n\n";
 
   // Emit the description, if we have one.
+  const Record *R = Option.Option;
   std::string Description =
-      getRSTStringWithTextFallback(Option.Option, "DocBrief", "HelpText");
+      getRSTStringWithTextFallback(R, "DocBrief", "HelpText");
+
+  if (!isa<UnsetInit>(R->getValueInit("Values"))) {
+    if (!Description.empty() && Description.back() != '.')
+      Description.push_back('.');
+
+    StringRef MetaVarName;
+    if (!isa<UnsetInit>(R->getValueInit("MetaVarName")))
+      MetaVarName = R->getValueAsString("MetaVarName");
+    else
+      MetaVarName = DefaultMetaVarName;
+
+    SmallVector<StringRef> Values;
+    SplitString(R->getValueAsString("Values"), Values, ",");
+    Description += (" " + MetaVarName + " must be '").str();
+    if (Values.size() > 1) {
+      Description += join(Values.begin(), Values.end() - 1, "', '");
+      Description += "' or '";
+    }
+    Description += (Values.back() + "'.").str();
+  }
+
   if (!Description.empty())
     OS << Description << "\n\n";
 }
@@ -357,6 +402,9 @@ void emitDocumentation(int Depth, const Documentation &Doc,
 void emitGroup(int Depth, const DocumentedGroup &Group, const Record *DocInfo,
                raw_ostream &OS) {
   if (isExcluded(Group.Group, DocInfo))
+    return;
+
+  if (DocInfo->getValue("IncludedFlags") && !isGroupIncluded(Group, DocInfo))
     return;
 
   emitHeading(Depth,
@@ -381,11 +429,8 @@ void emitDocumentation(int Depth, const Documentation &Doc,
 }
 
 }  // namespace
-}  // namespace docs
 
-void EmitClangOptDocs(RecordKeeper &Records, raw_ostream &OS) {
-  using namespace docs;
-
+void clang::EmitClangOptDocs(RecordKeeper &Records, raw_ostream &OS) {
   const Record *DocInfo = Records.getDef("GlobalDocumentation");
   if (!DocInfo) {
     PrintFatalError("The GlobalDocumentation top-level definition is missing, "
@@ -397,4 +442,3 @@ void EmitClangOptDocs(RecordKeeper &Records, raw_ostream &OS) {
 
   emitDocumentation(0, extractDocumentation(Records), DocInfo, OS);
 }
-} // end namespace clang

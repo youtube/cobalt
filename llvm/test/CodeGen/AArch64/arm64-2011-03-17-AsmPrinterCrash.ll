@@ -14,8 +14,8 @@ if.then24:                                        ; preds = %entry
   unreachable
 
 if.else295:                                       ; preds = %entry
-  call void @llvm.dbg.declare(metadata i32* %do_tab_convert, metadata !14, metadata !16), !dbg !17
-  store i32 0, i32* %do_tab_convert, align 4, !dbg !18
+  call void @llvm.dbg.declare(metadata ptr %do_tab_convert, metadata !14, metadata !16), !dbg !17
+  store i32 0, ptr %do_tab_convert, align 4, !dbg !18
   unreachable
 }
 
@@ -28,7 +28,7 @@ attributes #1 = { nounwind readnone }
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!9, !10}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.0 (http://llvm.org/git/clang.git git:/git/puzzlebox/clang.git/ c4d1aea01c4444eb81bdbf391f1be309127c3cf1)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, globals: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.0", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, globals: !2)
 !1 = !DIFile(filename: "print.i", directory: "/Volumes/Ebi/echeng/radars/r9146594")
 !2 = !{!3}
 !3 = !DIGlobalVariableExpression(var: !4, expr: !DIExpression())

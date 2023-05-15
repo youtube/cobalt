@@ -1,6 +1,6 @@
 ; Test that coverage instrumentation does not lose debug location.
 
-; RUN: opt < %s -sancov -sanitizer-coverage-level=1 -S | FileCheck %s
+; RUN: opt < %s -passes='module(sancov-module)' -sanitizer-coverage-level=1 -S | FileCheck %s
 
 ; C++ source:
 ; 1: struct A {
@@ -15,7 +15,7 @@
 ; and add sanitize_address to @_ZN1A1fEv
 
 ; Test that __sanitizer_cov_trace_pc_guard call has !dbg pointing to the opening { of A::f().
-; CHECK: call void @__sanitizer_cov_trace_pc_guard(i32*{{.*}}), !dbg [[A:!.*]]
+; CHECK: call void @__sanitizer_cov_trace_pc_guard(ptr{{.*}}) #{{.*}}, !dbg [[A:!.*]]
 ; CHECK: [[A]] = !DILocation(line: 6, scope: !{{.*}})
 
 
@@ -25,18 +25,17 @@ target triple = "x86_64-unknown-linux-gnu"
 %struct.A = type { i32 }
 
 ; Function Attrs: nounwind readonly uwtable
-define i32 @_ZN1A1fEv(%struct.A* nocapture readonly %this) #0 align 2 !dbg !13 {
+define i32 @_ZN1A1fEv(ptr nocapture readonly %this) #0 align 2 !dbg !13 {
 entry:
-  tail call void @llvm.dbg.value(metadata %struct.A* %this, i64 0, metadata !15, metadata !DIExpression()), !dbg !20
-  %x = getelementptr inbounds %struct.A, %struct.A* %this, i64 0, i32 0, !dbg !21
-  %0 = load i32, i32* %x, align 4, !dbg !21
+  tail call void @llvm.dbg.value(metadata ptr %this, i64 0, metadata !15, metadata !DIExpression()), !dbg !20
+  %0 = load i32, ptr %this, align 4, !dbg !21
   ret i32 %0, !dbg !21
 }
 
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
 
-attributes #0 = { sanitize_address nounwind readonly uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { sanitize_address nounwind readonly uwtable "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

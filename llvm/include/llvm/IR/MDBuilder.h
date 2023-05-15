@@ -1,9 +1,8 @@
 //===---- llvm/MDBuilder.h - Builder for LLVM metadata ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 #define LLVM_IR_MDBUILDER_H
 
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/DataTypes.h"
@@ -28,6 +28,7 @@ template <typename T> class ArrayRef;
 class LLVMContext;
 class Constant;
 class ConstantAsMetadata;
+class Function;
 class MDNode;
 class MDString;
 class Metadata;
@@ -76,6 +77,13 @@ public:
   /// Return metadata containing the section prefix for a function.
   MDNode *createFunctionSectionPrefix(StringRef Prefix);
 
+  /// Return metadata containing the pseudo probe descriptor for a function.
+  MDNode *createPseudoProbeDesc(uint64_t GUID, uint64_t Hash, Function *F);
+
+  /// Return metadata containing llvm statistics.
+  MDNode *
+  createLLVMStats(ArrayRef<std::pair<StringRef, uint64_t>> LLVMStatsVec);
+
   //===------------------------------------------------------------------===//
   // Range metadata.
   //===------------------------------------------------------------------===//
@@ -93,6 +101,31 @@ public:
   /// Return metadata indicating the possible callees of indirect
   /// calls.
   MDNode *createCallees(ArrayRef<Function *> Callees);
+
+  //===------------------------------------------------------------------===//
+  // Callback metadata.
+  //===------------------------------------------------------------------===//
+
+  /// Return metadata describing a callback (see llvm::AbstractCallSite).
+  MDNode *createCallbackEncoding(unsigned CalleeArgNo, ArrayRef<int> Arguments,
+                                 bool VarArgsArePassed);
+
+  /// Merge the new callback encoding \p NewCB into \p ExistingCallbacks.
+  MDNode *mergeCallbackEncodings(MDNode *ExistingCallbacks, MDNode *NewCB);
+
+  /// Return metadata feeding to the CodeGen about how to generate a function
+  /// prologue for the "function" santizier.
+  MDNode *createRTTIPointerPrologue(Constant *PrologueSig, Constant *RTTI);
+
+  //===------------------------------------------------------------------===//
+  // PC sections metadata.
+  //===------------------------------------------------------------------===//
+
+  /// A pair of PC section name with auxilliary constant data.
+  using PCSection = std::pair<StringRef, SmallVector<Constant *>>;
+
+  /// Return metadata for PC sections.
+  MDNode *createPCSections(ArrayRef<PCSection> Sections);
 
   //===------------------------------------------------------------------===//
   // AA metadata.

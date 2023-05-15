@@ -1,31 +1,26 @@
 //===- InfoStream.h - PDB Info Stream (Stream 1) Access ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGINFO_PDB_RAW_PDBINFOSTREAM_H
-#define LLVM_DEBUGINFO_PDB_RAW_PDBINFOSTREAM_H
+#ifndef LLVM_DEBUGINFO_PDB_NATIVE_INFOSTREAM_H
+#define LLVM_DEBUGINFO_PDB_NATIVE_INFOSTREAM_H
 
-#include "llvm/ADT/BitmaskEnum.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/DebugInfo/CodeView/GUID.h"
-#include "llvm/DebugInfo/MSF/MappedBlockStream.h"
 #include "llvm/DebugInfo/PDB/Native/NamedStreamMap.h"
 #include "llvm/DebugInfo/PDB/Native/RawConstants.h"
-#include "llvm/DebugInfo/PDB/PDBTypes.h"
+#include "llvm/Support/BinaryStream.h"
+#include "llvm/Support/BinaryStreamRef.h"
 
-#include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
 
 namespace llvm {
 namespace pdb {
-class InfoStreamBuilder;
-class PDBFile;
-
+struct InfoStreamHeader;
 class InfoStream {
   friend class InfoStreamBuilder;
 

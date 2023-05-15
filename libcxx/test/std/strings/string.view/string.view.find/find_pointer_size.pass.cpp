@@ -1,13 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// <string>
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
+
+// <string_view>
 
 // constexpr size_type find(const charT* s, size_type pos = 0) const;
 
@@ -15,13 +16,14 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "constexpr_char_traits.hpp"
+#include "constexpr_char_traits.h"
 
 template <class S>
 void
 test(const S& s, const typename S::value_type* str, typename S::size_type pos,
      typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find(str, pos));
     assert(s.find(str, pos) == x);
     if (x != S::npos)
     {
@@ -34,6 +36,7 @@ template <class S>
 void
 test(const S& s, const typename S::value_type* str, typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find(str));
     assert(s.find(str) == x);
     if (x != S::npos)
     {
@@ -148,7 +151,7 @@ void test1()
     test(S("abcdeabcdeabcdeabcde"), "abcdeabcdeabcdeabcde", 0);
 }
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::string_view S;
@@ -169,4 +172,6 @@ int main()
     static_assert (sv2.find( "abcde", 1) == SV::npos, "" );
     }
 #endif
+
+  return 0;
 }

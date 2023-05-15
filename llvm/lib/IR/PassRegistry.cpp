@@ -1,9 +1,8 @@
 //===- PassRegistry.cpp - Pass Registration Implementation ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,23 +13,17 @@
 
 #include "llvm/PassRegistry.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Pass.h"
 #include "llvm/PassInfo.h"
-#include "llvm/PassSupport.h"
-#include "llvm/Support/ManagedStatic.h"
 #include <cassert>
 #include <memory>
 #include <utility>
 
 using namespace llvm;
 
-// FIXME: We use ManagedStatic to erase the pass registrar on shutdown.
-// Unfortunately, passes are registered with static ctors, and having
-// llvm_shutdown clear this map prevents successful resurrection after
-// llvm_shutdown is run.  Ideally we should find a solution so that we don't
-// leak the map, AND can still resurrect after shutdown.
-static ManagedStatic<PassRegistry> PassRegistryObj;
 PassRegistry *PassRegistry::getPassRegistry() {
-  return &*PassRegistryObj;
+  static PassRegistry PassRegistryObj;
+  return &PassRegistryObj;
 }
 
 //===----------------------------------------------------------------------===//
@@ -41,14 +34,12 @@ PassRegistry::~PassRegistry() = default;
 
 const PassInfo *PassRegistry::getPassInfo(const void *TI) const {
   sys::SmartScopedReader<true> Guard(Lock);
-  MapType::const_iterator I = PassInfoMap.find(TI);
-  return I != PassInfoMap.end() ? I->second : nullptr;
+  return PassInfoMap.lookup(TI);
 }
 
 const PassInfo *PassRegistry::getPassInfo(StringRef Arg) const {
   sys::SmartScopedReader<true> Guard(Lock);
-  StringMapType::const_iterator I = PassInfoStringMap.find(Arg);
-  return I != PassInfoStringMap.end() ? I->second : nullptr;
+  return PassInfoStringMap.lookup(Arg);
 }
 
 //===----------------------------------------------------------------------===//

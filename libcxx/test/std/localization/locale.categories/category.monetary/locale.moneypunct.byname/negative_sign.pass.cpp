@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,6 +21,7 @@
 #include <limits>
 #include <cassert>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
 class Fnf
@@ -40,6 +40,7 @@ public:
         : std::moneypunct_byname<char, true>(nm, refs) {}
 };
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
 class Fwf
     : public std::moneypunct_byname<wchar_t, false>
 {
@@ -55,8 +56,9 @@ public:
     explicit Fwt(const std::string& nm, std::size_t refs = 0)
         : std::moneypunct_byname<wchar_t, true>(nm, refs) {}
 };
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
 
-int main()
+int main(int, char**)
 {
     {
         Fnf f("C", 1);
@@ -66,6 +68,7 @@ int main()
         Fnt f("C", 1);
         assert(f.negative_sign() == std::string());
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         Fwf f("C", 1);
         assert(f.negative_sign() == std::wstring());
@@ -74,23 +77,42 @@ int main()
         Fwt f("C", 1);
         assert(f.negative_sign() == std::wstring());
     }
+#endif
 
     {
         Fnf f(LOCALE_en_US_UTF_8, 1);
+#if defined(_WIN32)
+        assert(f.negative_sign() == "()");
+#else
         assert(f.negative_sign() == "-");
+#endif
     }
     {
         Fnt f(LOCALE_en_US_UTF_8, 1);
+#if defined(_WIN32)
+        assert(f.negative_sign() == "()");
+#else
         assert(f.negative_sign() == "-");
+#endif
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         Fwf f(LOCALE_en_US_UTF_8, 1);
+#if defined(_WIN32)
+        assert(f.negative_sign() == L"()");
+#else
         assert(f.negative_sign() == L"-");
+#endif
     }
     {
         Fwt f(LOCALE_en_US_UTF_8, 1);
+#if defined(_WIN32)
+        assert(f.negative_sign() == L"()");
+#else
         assert(f.negative_sign() == L"-");
+#endif
     }
+#endif
 
     {
         Fnf f(LOCALE_fr_FR_UTF_8, 1);
@@ -100,6 +122,7 @@ int main()
         Fnt f(LOCALE_fr_FR_UTF_8, 1);
         assert(f.negative_sign() == "-");
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         Fwf f(LOCALE_fr_FR_UTF_8, 1);
         assert(f.negative_sign() == L"-");
@@ -108,6 +131,7 @@ int main()
         Fwt f(LOCALE_fr_FR_UTF_8, 1);
         assert(f.negative_sign() == L"-");
     }
+#endif
 
     {
         Fnf f(LOCALE_ru_RU_UTF_8, 1);
@@ -117,6 +141,7 @@ int main()
         Fnt f(LOCALE_ru_RU_UTF_8, 1);
         assert(f.negative_sign() == "-");
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         Fwf f(LOCALE_ru_RU_UTF_8, 1);
         assert(f.negative_sign() == L"-");
@@ -125,6 +150,7 @@ int main()
         Fwt f(LOCALE_ru_RU_UTF_8, 1);
         assert(f.negative_sign() == L"-");
     }
+#endif
 
     {
         Fnf f(LOCALE_zh_CN_UTF_8, 1);
@@ -134,6 +160,7 @@ int main()
         Fnt f(LOCALE_zh_CN_UTF_8, 1);
         assert(f.negative_sign() == "-");
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         Fwf f(LOCALE_zh_CN_UTF_8, 1);
         assert(f.negative_sign() == L"-");
@@ -142,4 +169,7 @@ int main()
         Fwt f(LOCALE_zh_CN_UTF_8, 1);
         assert(f.negative_sign() == L"-");
     }
+#endif
+
+  return 0;
 }

@@ -1,16 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads
-// UNSUPPORTED: c++98, c++03
-// REQUIRES: c++11 || c++14
+// UNSUPPORTED: no-threads
+
 // packaged_task allocator support was removed in C++17 (LWG 2921)
+// REQUIRES: c++11 || c++14
 
 // <future>
 
@@ -22,6 +21,7 @@
 #include <future>
 #include <cassert>
 
+#include "test_macros.h"
 #include "test_allocator.h"
 #include "min_allocator.h"
 
@@ -45,12 +45,13 @@ int A::n_copies = 0;
 
 int func(int i) { return i; }
 
-int main()
+int main(int, char**)
 {
+    test_allocator_statistics alloc_stats;
     {
         std::packaged_task<double(int, char)> p(std::allocator_arg,
-                                                test_allocator<A>(), A(5));
-        assert(test_alloc_base::alloc_count > 0);
+                                                test_allocator<A>(&alloc_stats), A(5));
+        assert(alloc_stats.alloc_count > 0);
         assert(p.valid());
         std::future<double> f = p.get_future();
         p(3, 'a');
@@ -58,14 +59,14 @@ int main()
         assert(A::n_copies == 0);
         assert(A::n_moves > 0);
     }
-    assert(test_alloc_base::alloc_count == 0);
+    assert(alloc_stats.alloc_count == 0);
     A::n_copies = 0;
     A::n_moves  = 0;
     {
         A a(5);
         std::packaged_task<double(int, char)> p(std::allocator_arg,
-                                                test_allocator<A>(), a);
-        assert(test_alloc_base::alloc_count > 0);
+                                                test_allocator<A>(&alloc_stats), a);
+        assert(alloc_stats.alloc_count > 0);
         assert(p.valid());
         std::future<double> f = p.get_future();
         p(3, 'a');
@@ -73,31 +74,31 @@ int main()
         assert(A::n_copies > 0);
         assert(A::n_moves >= 0);
     }
-    assert(test_alloc_base::alloc_count == 0);
+    assert(alloc_stats.alloc_count == 0);
     A::n_copies = 0;
     A::n_moves  = 0;
     {
         A a(5);
-        std::packaged_task<int(int)> p(std::allocator_arg, test_allocator<A>(), &func);
-        assert(test_alloc_base::alloc_count > 0);
+        std::packaged_task<int(int)> p(std::allocator_arg, test_allocator<A>(&alloc_stats), &func);
+        assert(alloc_stats.alloc_count > 0);
         assert(p.valid());
         std::future<int> f = p.get_future();
         p(4);
         assert(f.get() == 4);
     }
-    assert(test_alloc_base::alloc_count == 0);
+    assert(alloc_stats.alloc_count == 0);
     A::n_copies = 0;
     A::n_moves  = 0;
     {
         A a(5);
-        std::packaged_task<int(int)> p(std::allocator_arg, test_allocator<A>(), func);
-        assert(test_alloc_base::alloc_count > 0);
+        std::packaged_task<int(int)> p(std::allocator_arg, test_allocator<A>(&alloc_stats), func);
+        assert(alloc_stats.alloc_count > 0);
         assert(p.valid());
         std::future<int> f = p.get_future();
         p(4);
         assert(f.get() == 4);
     }
-    assert(test_alloc_base::alloc_count == 0);
+    assert(alloc_stats.alloc_count == 0);
     A::n_copies = 0;
     A::n_moves  = 0;
     {
@@ -124,4 +125,6 @@ int main()
     }
     A::n_copies = 0;
     A::n_moves  = 0;
+
+  return 0;
 }

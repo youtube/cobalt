@@ -1,4 +1,3 @@
-; RUN: opt -rewrite-statepoints-for-gc -S < %s | FileCheck %s
 ; RUN: opt -passes=rewrite-statepoints-for-gc -S < %s | FileCheck %s
 
 ; Test to make sure we destroy LCSSA's single entry phi nodes before
@@ -29,7 +28,7 @@ next:                                             ; preds = %entry
 define void @test7() gc "statepoint-example" {
 ; CHECK-LABEL: test7
 ; CHECK-NOT: gc.statepoint
-; Need to delete unreachable gc.statepoint invoke - tested seperately given
+; Need to delete unreachable gc.statepoint invoke - tested separately given
 ; a correct implementation could only remove the instructions, not the block
   ret void
 

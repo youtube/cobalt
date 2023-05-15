@@ -1,9 +1,8 @@
 //===- MipsTargetMachine.h - Define TargetMachine for Mips ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,12 +15,12 @@
 
 #include "MCTargetDesc/MipsABIInfo.h"
 #include "MipsSubtarget.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Target/TargetMachine.h"
 #include <memory>
+#include <optional>
 
 namespace llvm {
 
@@ -30,7 +29,7 @@ class MipsTargetMachine : public LLVMTargetMachine {
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
   // Selected ABI
   MipsABIInfo ABI;
-  MipsSubtarget *Subtarget;
+  const MipsSubtarget *Subtarget;
   MipsSubtarget DefaultSubtarget;
   MipsSubtarget NoMips16Subtarget;
   MipsSubtarget Mips16Subtarget;
@@ -40,11 +39,12 @@ class MipsTargetMachine : public LLVMTargetMachine {
 public:
   MipsTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                     StringRef FS, const TargetOptions &Options,
-                    Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
-                    CodeGenOpt::Level OL, bool JIT, bool isLittle);
+                    std::optional<Reloc::Model> RM,
+                    std::optional<CodeModel::Model> CM, CodeGenOpt::Level OL,
+                    bool JIT, bool isLittle);
   ~MipsTargetMachine() override;
 
-  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+  TargetTransformInfo getTargetTransformInfo(const Function &F) const override;
 
   const MipsSubtarget *getSubtargetImpl() const {
     if (Subtarget)
@@ -64,12 +64,20 @@ public:
     return TLOF.get();
   }
 
+  MachineFunctionInfo *
+  createMachineFunctionInfo(BumpPtrAllocator &Allocator, const Function &F,
+                            const TargetSubtargetInfo *STI) const override;
+
+  /// Returns true if a cast between SrcAS and DestAS is a noop.
+  bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override {
+    // Mips doesn't have any special address spaces so we just reserve
+    // the first 256 for software use (e.g. OpenCL) and treat casts
+    // between them as noops.
+    return SrcAS < 256 && DestAS < 256;
+  }
+
   bool isLittleEndian() const { return isLittle; }
   const MipsABIInfo &getABI() const { return ABI; }
-
-  bool isMachineVerifierClean() const override {
-    return false;
-  }
 };
 
 /// Mips32/64 big endian target machine.
@@ -80,8 +88,9 @@ class MipsebTargetMachine : public MipsTargetMachine {
 public:
   MipsebTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                       StringRef FS, const TargetOptions &Options,
-                      Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
-                      CodeGenOpt::Level OL, bool JIT);
+                      std::optional<Reloc::Model> RM,
+                      std::optional<CodeModel::Model> CM, CodeGenOpt::Level OL,
+                      bool JIT);
 };
 
 /// Mips32/64 little endian target machine.
@@ -92,8 +101,9 @@ class MipselTargetMachine : public MipsTargetMachine {
 public:
   MipselTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                       StringRef FS, const TargetOptions &Options,
-                      Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
-                      CodeGenOpt::Level OL, bool JIT);
+                      std::optional<Reloc::Model> RM,
+                      std::optional<CodeModel::Model> CM, CodeGenOpt::Level OL,
+                      bool JIT);
 };
 
 } // end namespace llvm

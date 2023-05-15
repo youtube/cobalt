@@ -1,16 +1,18 @@
-//===--------------------- catch_pointer_nullptr.cpp ----------------------===//
+//===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, libcxxabi-no-exceptions
+// UNSUPPORTED: c++03
+// UNSUPPORTED: no-exceptions
 
 #include <cassert>
+#include <cstddef>
 #include <cstdlib>
+#include <type_traits>
 
 struct A {};
 
@@ -25,15 +27,15 @@ static void catch_nullptr_test() {
   }
 }
 
-int main()
+int main(int, char**)
 {
-  using nullptr_t = decltype(nullptr);
+  static_assert(std::is_same<std::nullptr_t, decltype(nullptr)>::value, "");
 
   // A reference to nullptr_t can catch nullptr.
-  catch_nullptr_test<nullptr_t, true>();
-  catch_nullptr_test<const nullptr_t, true>();
-  catch_nullptr_test<volatile nullptr_t, true>();
-  catch_nullptr_test<const volatile nullptr_t, true>();
+  catch_nullptr_test<std::nullptr_t, true>();
+  catch_nullptr_test<const std::nullptr_t, true>();
+  catch_nullptr_test<volatile std::nullptr_t, true>();
+  catch_nullptr_test<const volatile std::nullptr_t, true>();
 
   // No other reference type can.
 #if 0
@@ -46,4 +48,6 @@ int main()
   catch_nullptr_test<int A::*, false>();
   catch_nullptr_test<int (A::*)(), false>();
 #endif
+
+  return 0;
 }

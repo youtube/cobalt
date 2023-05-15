@@ -2,7 +2,13 @@
 // RUN: %clang_cc1 -fmodules -fimplicit-module-maps -fmodules-cache-path=%t -I%S/Inputs/submodule-visibility -verify %s -DALLOW_NAME_LEAKAGE
 // RUN: %clang_cc1 -fmodules -fimplicit-module-maps -fmodules-local-submodule-visibility -fmodules-cache-path=%t -I%S/Inputs/submodule-visibility -verify %s -DIMPORT
 // RUN: %clang_cc1 -fmodules -fimplicit-module-maps -fmodules-local-submodule-visibility -fmodules-cache-path=%t -fmodule-name=x -I%S/Inputs/submodule-visibility -verify %s
-// RUN: %clang_cc1 -fimplicit-module-maps -fmodules-local-submodule-visibility -fmodules-cache-path=%t -I%S/Inputs/submodule-visibility -verify %s
+// RUN: %clang_cc1 -fimplicit-module-maps -fmodules-local-submodule-visibility -I%S/Inputs/submodule-visibility -verify %s
+// RUN: %clang_cc1 -fmodule-map-file=%S/Inputs/submodule-visibility/module.modulemap -fmodules-local-submodule-visibility -I%S/Inputs/submodule-visibility -verify %s
+//
+// Ensure the driver forwards the relevant flags when -fmodules is disabled.
+// FIXME: -fdelayed-template-parsing doesn't properly interact with module visibility yet.
+// RUN: %clang -fimplicit-module-maps -Xclang -fmodules-local-submodule-visibility -I%S/Inputs/submodule-visibility -fsyntax-only -Xclang -verify %s -fno-delayed-template-parsing
+// RUN: %clang -fmodule-map-file=%S/Inputs/submodule-visibility/module.modulemap -Xclang -fmodules-local-submodule-visibility -I%S/Inputs/submodule-visibility -fsyntax-only -Xclang -verify %s -fno-delayed-template-parsing
 //
 // Explicit module builds.
 // RUN: %clang_cc1 -fmodules -fmodules-local-submodule-visibility -emit-module -x c++-module-map %S/Inputs/submodule-visibility/module.modulemap -fmodule-name=other -o %t/other.pcm
@@ -22,7 +28,7 @@
 // The use of -fmodule-name=x causes us to textually include the above headers.
 // The submodule visibility rules are still applied in this case.
 //
-// expected-error@b.h:1 {{declaration of 'n' must be imported from module 'x.a'}}
+// expected-error@b.h:1 {{missing '#include "a.h"'; 'n' must be declared}}
 // expected-note@a.h:1 {{here}}
 #endif
 

@@ -1,9 +1,8 @@
 //===-- SparcInstrFormats.td - Sparc Instruction Formats ---*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,7 +24,7 @@ class InstSP<dag outs, dag ins, string asmstr, list<dag> pattern,
 
   let DecoderNamespace = "Sparc";
   field bits<32> SoftFail = 0;
-  
+
   let Itinerary = itin;
 }
 
@@ -225,20 +224,20 @@ class F3_Si<bits<2> opVal, bits<6> op3val, bit xVal, dag outs, dag ins,
 
 // Define rr and ri shift instructions with patterns.
 multiclass F3_S<string OpcStr, bits<6> Op3Val, bit XVal, SDNode OpNode,
-                ValueType VT, RegisterClass RC,
+                ValueType VT, Operand SIT, RegisterClass RC,
                 InstrItinClass itin = IIC_iu_instr> {
   def rr : F3_Sr<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs1, IntRegs:$rs2),
                  !strconcat(OpcStr, " $rs1, $rs2, $rd"),
                  [(set VT:$rd, (OpNode VT:$rs1, i32:$rs2))],
                  itin>;
-  def ri : F3_Si<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs1, i32imm:$shcnt),
+  def ri : F3_Si<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs1, SIT:$shcnt),
                  !strconcat(OpcStr, " $rs1, $shcnt, $rd"),
                  [(set VT:$rd, (OpNode VT:$rs1, (i32 imm:$shcnt)))],
                  itin>;
 }
 
 class F4<bits<6> op3, dag outs, dag ins, string asmstr, list<dag> pattern,
-           InstrItinClass itin = NoItinerary>
+         InstrItinClass itin = NoItinerary>
    : InstSP<outs, ins, asmstr, pattern, itin> {
   bits<5> rd;
 
@@ -297,12 +296,13 @@ class F4_3<bits<6> op3, bits<6> opf_low, dag outs, dag ins,
   let Inst{4-0}    = rs2;
 }
 
-class F4_4r<bits<6> op3, bits<5> opf_low, bits<3> rcond, dag outs, dag ins,
+class F4_4r<bits<6> op3, bits<5> opf_low, dag outs, dag ins,
             string asmstr, list<dag> pattern,
             InstrItinClass itin = NoItinerary>
    : F4<op3, outs, ins, asmstr, pattern, itin> {
-  bits <5> rs1;
-  bits <5> rs2;
+  bits<5> rs1;
+  bits<5> rs2;
+  bits<3> rcond;
   let Inst{18-14} = rs1;
   let Inst{13}    = 0;  // IsImm
   let Inst{12-10} = rcond;
@@ -311,12 +311,13 @@ class F4_4r<bits<6> op3, bits<5> opf_low, bits<3> rcond, dag outs, dag ins,
 }
 
 
-class F4_4i<bits<6> op3, bits<3> rcond, dag outs, dag ins,
+class F4_4i<bits<6> op3, dag outs, dag ins,
             string asmstr, list<dag> pattern,
            InstrItinClass itin = NoItinerary>
    : F4<op3, outs, ins, asmstr, pattern, itin> {
-  bits<5> rs1;
+  bits<5>  rs1;
   bits<10> simm10;
+  bits<3>  rcond;
   let Inst{18-14} = rs1;
   let Inst{13}    = 1;  // IsImm
   let Inst{12-10} = rcond;

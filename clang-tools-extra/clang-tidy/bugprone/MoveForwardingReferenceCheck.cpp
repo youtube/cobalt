@@ -1,9 +1,8 @@
 //===--- MoveForwardingReferenceCheck.cpp - clang-tidy --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,9 +14,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace bugprone {
+namespace clang::tidy::bugprone {
 
 static void replaceMoveWithForward(const UnresolvedLookupExpr *Callee,
                                    const ParmVarDecl *ParmVar,
@@ -29,12 +26,12 @@ static void replaceMoveWithForward(const UnresolvedLookupExpr *Callee,
 
   CharSourceRange CallRange =
       Lexer::makeFileCharRange(CharSourceRange::getTokenRange(
-                                   Callee->getLocStart(), Callee->getLocEnd()),
+                                   Callee->getBeginLoc(), Callee->getEndLoc()),
                                SM, LangOpts);
 
   if (CallRange.isValid()) {
     const std::string TypeName =
-        TypeParmDecl->getIdentifier()
+        (TypeParmDecl->getIdentifier() && !TypeParmDecl->isImplicit())
             ? TypeParmDecl->getName().str()
             : (llvm::Twine("decltype(") + ParmVar->getName() + ")").str();
 
@@ -68,9 +65,6 @@ static void replaceMoveWithForward(const UnresolvedLookupExpr *Callee,
 }
 
 void MoveForwardingReferenceCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus11)
-    return;
-
   // Matches a ParmVarDecl for a forwarding reference, i.e. a non-const rvalue
   // reference of a function template parameter type.
   auto ForwardingReferenceParmMatcher =
@@ -116,7 +110,7 @@ void MoveForwardingReferenceCheck::check(
   // template as the function parameter of that type. (This implies that type
   // deduction will happen on the type.)
   const TemplateParameterList *Params = FuncTemplate->getTemplateParameters();
-  if (!std::count(Params->begin(), Params->end(), TypeParmDecl))
+  if (!llvm::is_contained(*Params, TypeParmDecl))
     return;
 
   auto Diag = diag(CallMove->getExprLoc(),
@@ -128,6 +122,4 @@ void MoveForwardingReferenceCheck::check(
                          *Result.Context);
 }
 
-} // namespace bugprone
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::bugprone

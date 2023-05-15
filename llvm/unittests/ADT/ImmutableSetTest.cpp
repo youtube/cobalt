@@ -1,9 +1,8 @@
 //===----------- ImmutableSetTest.cpp - ImmutableSet unit tests ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -137,41 +136,6 @@ TEST_F(ImmutableSetTest, RemoveIntSetTest) {
   EXPECT_TRUE(S4.contains(5));
 }
 
-TEST_F(ImmutableSetTest, CallbackCharSetTest) {
-  ImmutableSet<char>::Factory f;
-  ImmutableSet<char> S = f.getEmptySet();
-
-  ImmutableSet<char> S2 = f.add(f.add(f.add(S, 'a'), 'e'), 'i');
-  ImmutableSet<char> S3 = f.add(f.add(S2, 'o'), 'u');
-
-  S3.foreach<MyIter>();
-
-  ASSERT_STREQ("aeiou", buffer);
-}
-
-TEST_F(ImmutableSetTest, Callback2CharSetTest) {
-  ImmutableSet<char>::Factory f;
-  ImmutableSet<char> S = f.getEmptySet();
-
-  ImmutableSet<char> S2 = f.add(f.add(f.add(S, 'b'), 'c'), 'd');
-  ImmutableSet<char> S3 = f.add(f.add(f.add(S2, 'f'), 'g'), 'h');
-
-  MyIter obj;
-  S3.foreach<MyIter>(obj);
-  ASSERT_STREQ("bcdfgh", buffer);
-  ASSERT_EQ(6, obj.counter);
-
-  MyIter obj2;
-  S2.foreach<MyIter>(obj2);
-  ASSERT_STREQ("bcd", buffer);
-  ASSERT_EQ(3, obj2.counter);
-
-  MyIter obj3;
-  S.foreach<MyIter>(obj);
-  ASSERT_STREQ("", buffer);
-  ASSERT_EQ(0, obj3.counter);
-}
-
 TEST_F(ImmutableSetTest, IterLongSetTest) {
   ImmutableSet<long>::Factory f;
   ImmutableSet<long> S = f.getEmptySet();
@@ -181,7 +145,6 @@ TEST_F(ImmutableSetTest, IterLongSetTest) {
 
   int i = 0;
   for (ImmutableSet<long>::iterator I = S.begin(), E = S.end(); I != E; ++I) {
-    ASSERT_EQ(i, *I);
     i++;
   }
   ASSERT_EQ(0, i);

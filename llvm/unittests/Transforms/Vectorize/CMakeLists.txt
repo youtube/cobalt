@@ -3,11 +3,13 @@ set(LLVM_LINK_COMPONENTS
   Core
   Vectorize
   AsmParser
+  TargetParser
   )
 
 add_llvm_unittest(VectorizeTests
-  VPlanDominatorTreeTest.cpp
-  VPlanLoopInfoTest.cpp
   VPlanTest.cpp
   VPlanHCFGTest.cpp
+  VPlanSlpTest.cpp
   )
+
+set_property(TARGET VectorizeTests PROPERTY FOLDER "Tests/UnitTests/TransformsTests")

@@ -1,9 +1,8 @@
 //===- VersionTuple.cpp - Version Number Handling ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,8 +10,11 @@
 // the form major[.minor[.subminor]].
 //
 //===----------------------------------------------------------------------===//
+
 #include "llvm/Support/VersionTuple.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cassert>
 
 using namespace llvm;
 
@@ -27,11 +29,11 @@ std::string VersionTuple::getAsString() const {
 
 raw_ostream &llvm::operator<<(raw_ostream &Out, const VersionTuple &V) {
   Out << V.getMajor();
-  if (Optional<unsigned> Minor = V.getMinor())
+  if (std::optional<unsigned> Minor = V.getMinor())
     Out << '.' << *Minor;
-  if (Optional<unsigned> Subminor = V.getSubminor())
+  if (std::optional<unsigned> Subminor = V.getSubminor())
     Out << '.' << *Subminor;
-  if (Optional<unsigned> Build = V.getBuild())
+  if (std::optional<unsigned> Build = V.getBuild())
     Out << '.' << *Build;
   return Out;
 }

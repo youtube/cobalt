@@ -1,22 +1,18 @@
 //===- DbiStream.h - PDB Dbi Stream (Stream 3) Access -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGINFO_PDB_RAW_PDBDBISTREAM_H
-#define LLVM_DEBUGINFO_PDB_RAW_PDBDBISTREAM_H
+#ifndef LLVM_DEBUGINFO_PDB_NATIVE_DBISTREAM_H
+#define LLVM_DEBUGINFO_PDB_NATIVE_DBISTREAM_H
 
-#include "llvm/DebugInfo/CodeView/DebugSubsection.h"
-#include "llvm/DebugInfo/MSF/MappedBlockStream.h"
-#include "llvm/DebugInfo/PDB/Native/DbiModuleDescriptor.h"
+#include "llvm/DebugInfo/CodeView/DebugFrameDataSubsection.h"
 #include "llvm/DebugInfo/PDB/Native/DbiModuleList.h"
 #include "llvm/DebugInfo/PDB/Native/PDBStringTable.h"
 #include "llvm/DebugInfo/PDB/Native/RawConstants.h"
-#include "llvm/DebugInfo/PDB/Native/RawTypes.h"
 #include "llvm/DebugInfo/PDB/PDBTypes.h"
 #include "llvm/Support/BinaryStreamArray.h"
 #include "llvm/Support/BinaryStreamRef.h"
@@ -24,13 +20,19 @@
 #include "llvm/Support/Error.h"
 
 namespace llvm {
+class BinaryStream;
 namespace object {
 struct FpoData;
 struct coff_section;
 }
-
+namespace msf {
+class MappedBlockStream;
+}
 namespace pdb {
-class DbiStreamBuilder;
+struct DbiStreamHeader;
+struct SecMapEntry;
+struct SectionContrib2;
+struct SectionContrib;
 class PDBFile;
 class ISectionContribVisitor;
 
@@ -78,9 +80,12 @@ public:
 
   const DbiModuleList &modules() const;
 
-  FixedStreamArray<object::coff_section> getSectionHeaders();
+  FixedStreamArray<object::coff_section> getSectionHeaders() const;
 
-  FixedStreamArray<object::FpoData> getFpoRecords();
+  bool hasOldFpoRecords() const;
+  FixedStreamArray<object::FpoData> getOldFpoRecords() const;
+  bool hasNewFpoRecords() const;
+  const codeview::DebugFrameDataSubsectionRef &getNewFpoRecords() const;
 
   FixedStreamArray<SecMapEntry> getSectionMap() const;
   void visitSectionContributions(ISectionContribVisitor &Visitor) const;
@@ -91,7 +96,11 @@ private:
   Error initializeSectionContributionData();
   Error initializeSectionHeadersData(PDBFile *Pdb);
   Error initializeSectionMapData();
-  Error initializeFpoRecords(PDBFile *Pdb);
+  Error initializeOldFpoRecords(PDBFile *Pdb);
+  Error initializeNewFpoRecords(PDBFile *Pdb);
+
+  Expected<std::unique_ptr<msf::MappedBlockStream>>
+  createIndexedStreamForHeaderType(PDBFile *Pdb, DbgHeaderType Type) const;
 
   std::unique_ptr<BinaryStream> Stream;
 
@@ -117,8 +126,11 @@ private:
   std::unique_ptr<msf::MappedBlockStream> SectionHeaderStream;
   FixedStreamArray<object::coff_section> SectionHeaders;
 
-  std::unique_ptr<msf::MappedBlockStream> FpoStream;
-  FixedStreamArray<object::FpoData> FpoRecords;
+  std::unique_ptr<msf::MappedBlockStream> OldFpoStream;
+  FixedStreamArray<object::FpoData> OldFpoRecords;
+  
+  std::unique_ptr<msf::MappedBlockStream> NewFpoStream;
+  codeview::DebugFrameDataSubsectionRef NewFpoRecords;
 
   const DbiStreamHeader *Header;
 };

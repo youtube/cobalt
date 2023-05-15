@@ -1,18 +1,21 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <locale>
 
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
+
 // wstring_convert<Codecvt, Elem, Wide_alloc, Byte_alloc>
 
 // wstring_convert(const byte_string& byte_err,
 //                 const wide_string& wide_err = wide_string());
+
+// XFAIL: no-wide-characters
 
 #include <locale>
 #include <codecvt>
@@ -20,7 +23,7 @@
 
 #include "test_macros.h"
 
-int main()
+int main(int, char**)
 {
     typedef std::codecvt_utf8<wchar_t> Codecvt;
     typedef std::wstring_convert<Codecvt> Myconv;
@@ -71,4 +74,6 @@ int main()
         std::wstring ws = myconv.from_bytes('\xA5');
         assert(ws == L"wide error");
     }
+
+  return 0;
 }

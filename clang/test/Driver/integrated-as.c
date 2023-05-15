@@ -12,4 +12,5 @@
 
 // NOFIAS-NOT: cc1as
 // NOFIAS: -cc1
+// NOFIAS: "-fno-verbose-asm"
 // NOFIAS: -no-integrated-as

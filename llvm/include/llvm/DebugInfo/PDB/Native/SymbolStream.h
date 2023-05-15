@@ -1,16 +1,15 @@
 //===- SymbolStream.cpp - PDB Symbol Stream Access --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DEBUGINFO_PDB_RAW_PDBSYMBOLSTREAM_H
-#define LLVM_DEBUGINFO_PDB_RAW_PDBSYMBOLSTREAM_H
+#ifndef LLVM_DEBUGINFO_PDB_NATIVE_SYMBOLSTREAM_H
+#define LLVM_DEBUGINFO_PDB_NATIVE_SYMBOLSTREAM_H
 
-#include "llvm/DebugInfo/CodeView/SymbolRecord.h"
+#include "llvm/DebugInfo/CodeView/CVRecord.h"
 
 #include "llvm/Support/Error.h"
 
@@ -19,7 +18,6 @@ namespace msf {
 class MappedBlockStream;
 }
 namespace pdb {
-class PDBFile;
 
 class SymbolStream {
 public:
@@ -42,7 +40,7 @@ private:
   codeview::CVSymbolArray SymbolRecords;
   std::unique_ptr<msf::MappedBlockStream> Stream;
 };
-}
+} // namespace pdb
 }
 
 #endif

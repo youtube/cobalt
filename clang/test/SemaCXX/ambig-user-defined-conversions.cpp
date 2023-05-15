@@ -13,14 +13,14 @@ namespace test0 {
   extern B f(); 
   B b1;
 
-  void func(const int ci, const char cc); // expected-note {{candidate function}}
+  void func(const int ci, const char cc);
   void func(const char ci, const B b); // expected-note {{candidate function}}
   void func(const B b, const int ci); // expected-note {{candidate function}}
 
   const int Test1() {
 
     func(b1, f()); // expected-error {{call to 'func' is ambiguous}}
-    return f(); // expected-error {{conversion from 'test0::B' to 'const int' is ambiguous}}
+    return f(); // expected-error {{conversion from 'B' to 'const int' is ambiguous}}
   }
 
   // This used to crash when comparing the two operands.
@@ -63,7 +63,7 @@ namespace rdar8876150 {
   struct C : A { };
   struct D : B, C { };
 
-  bool f(D d) { return !d; } // expected-error{{ambiguous conversion from derived class 'rdar8876150::D' to base class 'rdar8876150::A':}}
+  bool f(D d) { return !d; } // expected-error{{ambiguous conversion from derived class 'D' to base class 'rdar8876150::A':}}
 }
 
 namespace assignment {

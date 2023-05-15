@@ -88,14 +88,14 @@ void noexcept_true() noexcept(true);
 Val<decltype(&noexcept_false), &noexcept_true> remove_noexcept;
 Val<decltype(&noexcept_true), &noexcept_false> add_noexcept;
 #if __cplusplus > 201402L
-// expected-error@-2 {{value of type 'void (*)() noexcept(false)' is not implicitly convertible to 'void (*)() noexcept'}}
+// expected-error@-2 {{value of type 'void (*)() noexcept(false)' is not implicitly convertible to 'decltype(&noexcept_true)' (aka 'void (*)() noexcept(true)')}}
 #endif
 
 // (no other conversions are permitted)
 using Int = A<1.0>; // expected-error {{conversion from 'double' to 'unsigned char' is not allowed in a converted constant expression}}
 enum B : bool {
   True = &a, // expected-error {{conversion from 'bool (*)(int)' to 'bool' is not allowed in a converted constant expression}}
-  False = nullptr // expected-error {{conversion from 'nullptr_t' to 'bool' is not allowed in a converted constant expression}}
+  False = 0.0, // expected-error {{conversion from 'double' to 'bool' is not allowed in a converted constant expression}}
 };
 void c() {
   // Note, promoted type of switch is 'int'.

@@ -1,16 +1,15 @@
 //===--- LockFileManager.h - File-level locking utility ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_SUPPORT_LOCKFILEMANAGER_H
 #define LLVM_SUPPORT_LOCKFILEMANAGER_H
 
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallString.h"
+#include <optional>
 #include <system_error>
 #include <utility> // for std::pair
 
@@ -55,14 +54,14 @@ private:
   SmallString<128> LockFileName;
   SmallString<128> UniqueLockFileName;
 
-  Optional<std::pair<std::string, int> > Owner;
+  std::optional<std::pair<std::string, int>> Owner;
   std::error_code ErrorCode;
   std::string ErrorDiagMsg;
 
   LockFileManager(const LockFileManager &) = delete;
   LockFileManager &operator=(const LockFileManager &) = delete;
 
-  static Optional<std::pair<std::string, int> >
+  static std::optional<std::pair<std::string, int>>
   readLockFile(StringRef LockFileName);
 
   static bool processStillExecuting(StringRef Hostname, int PID);
@@ -78,7 +77,9 @@ public:
   operator LockFileState() const { return getState(); }
 
   /// For a shared lock, wait until the owner releases the lock.
-  WaitForUnlockResult waitForUnlock();
+  /// Total timeout for the file to appear is ~1.5 minutes.
+  /// \param MaxSeconds the maximum total wait time in seconds.
+  WaitForUnlockResult waitForUnlock(const unsigned MaxSeconds = 90);
 
   /// Remove the lock file.  This may delete a different lock file than
   /// the one previously read if there is a race.

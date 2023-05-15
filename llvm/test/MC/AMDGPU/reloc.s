@@ -1,26 +1,20 @@
-// RUN: llvm-mc -filetype=obj -triple amdgcn-- -mcpu=kaveri -show-encoding %s | llvm-readobj -relocations | FileCheck %s
+// RUN: llvm-mc -filetype=obj -triple amdgcn-- -mcpu=kaveri -show-encoding %s | llvm-readobj -r - | FileCheck %s
 
 // CHECK: Relocations [
 // CHECK: .rel.text {
-// CHECK: R_AMDGPU_ABS32_LO SCRATCH_RSRC_DWORD0 0x0
-// CHECK: R_AMDGPU_ABS32_HI SCRATCH_RSRC_DWORD1 0x0
-// CHECK: R_AMDGPU_GOTPCREL global_var0 0x0
-// CHECK: R_AMDGPU_GOTPCREL32_LO global_var1 0x0
-// CHECK: R_AMDGPU_GOTPCREL32_HI global_var2 0x0
-// CHECK: R_AMDGPU_REL32_LO global_var3 0x0
-// CHECK: R_AMDGPU_REL32_HI global_var4 0x0
-// CHECK: R_AMDGPU_ABS32_LO SCRATCH_RSRC_DWORD0 0x0
-// CHECK: R_AMDGPU_ABS32_HI SCRATCH_RSRC_DWORD1 0x0
-// CHECK: R_AMDGPU_GOTPCREL global_var0 0x0
-// CHECK: R_AMDGPU_GOTPCREL32_LO global_var1 0x0
-// CHECK: R_AMDGPU_GOTPCREL32_HI global_var2 0x0
-// CHECK: R_AMDGPU_REL32_LO global_var3 0x0
-// CHECK: R_AMDGPU_REL32_HI global_var4 0x0
-// CHECK: R_AMDGPU_ABS32 var 0x0
+// CHECK: R_AMDGPU_ABS32_LO SCRATCH_RSRC_DWORD0
+// CHECK: R_AMDGPU_ABS32_LO SCRATCH_RSRC_DWORD1
+// CHECK: R_AMDGPU_GOTPCREL global_var0
+// CHECK: R_AMDGPU_GOTPCREL32_LO global_var1
+// CHECK: R_AMDGPU_GOTPCREL32_HI global_var2
+// CHECK: R_AMDGPU_REL32_LO global_var3
+// CHECK: R_AMDGPU_REL32_HI global_var4
+// CHECK: R_AMDGPU_REL16 .text.unlikely
+// CHECK: R_AMDGPU_ABS32 var
 // CHECK: }
 // CHECK: .rel.data {
-// CHECK: R_AMDGPU_ABS64 temp 0x0
-// CHECK: R_AMDGPU_REL64 temp 0x0
+// CHECK: R_AMDGPU_ABS64 temp
+// CHECK: R_AMDGPU_REL64 temp
 // CHECK: }
 // CHECK: ]
 
@@ -32,14 +26,11 @@ kernel:
   s_mov_b32 s4, global_var2@gotpcrel32@hi
   s_mov_b32 s5, global_var3@rel32@lo
   s_mov_b32 s6, global_var4@rel32@hi
+  s_branch cold
 
-  v_mov_b32 v0, SCRATCH_RSRC_DWORD0
-  v_mov_b32 v1, SCRATCH_RSRC_DWORD1
-  v_mov_b32 v2, global_var0@GOTPCREL
-  v_mov_b32 v3, global_var1@gotpcrel32@lo
-  v_mov_b32 v4, global_var2@gotpcrel32@hi
-  v_mov_b32 v5, global_var3@rel32@lo
-  v_mov_b32 v6, global_var4@rel32@hi
+  .section .text.unlikely
+cold:
+  s_add_i32 s15, s15, 1
 
 .globl global_var0
 .globl global_var1

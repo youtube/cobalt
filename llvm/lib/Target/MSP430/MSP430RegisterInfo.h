@@ -1,9 +1,8 @@
 //===-- MSP430RegisterInfo.h - MSP430 Register Information Impl -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -33,12 +32,12 @@ public:
   getPointerRegClass(const MachineFunction &MF,
                      unsigned Kind = 0) const override;
 
-  void eliminateFrameIndex(MachineBasicBlock::iterator II,
+  bool eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, unsigned FIOperandNum,
                            RegScavenger *RS = nullptr) const override;
 
   // Debug information queries.
-  unsigned getFrameRegister(const MachineFunction &MF) const override;
+  Register getFrameRegister(const MachineFunction &MF) const override;
 };
 
 } // end namespace llvm

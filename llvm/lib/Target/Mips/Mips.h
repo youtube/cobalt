@@ -1,9 +1,8 @@
 //===-- Mips.h - Top-level interface for Mips representation ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,33 +18,40 @@
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
-  class MipsTargetMachine;
-  class ModulePass;
-  class FunctionPass;
-  class MipsRegisterBankInfo;
-  class MipsSubtarget;
-  class MipsTargetMachine;
-  class InstructionSelector;
-  class PassRegistry;
+class FunctionPass;
+class InstructionSelector;
+class MipsRegisterBankInfo;
+class MipsSubtarget;
+class MipsTargetMachine;
+class MipsTargetMachine;
+class ModulePass;
+class PassRegistry;
 
-  ModulePass *createMipsOs16Pass();
-  ModulePass *createMips16HardFloatPass();
+ModulePass *createMipsOs16Pass();
+ModulePass *createMips16HardFloatPass();
 
-  FunctionPass *createMipsModuleISelDagPass();
-  FunctionPass *createMipsOptimizePICCallPass();
-  FunctionPass *createMipsDelaySlotFillerPass();
-  FunctionPass *createMipsBranchExpansion();
-  FunctionPass *createMipsConstantIslandPass();
-  FunctionPass *createMicroMipsSizeReducePass();
-  FunctionPass *createMipsExpandPseudoPass();
+FunctionPass *createMipsModuleISelDagPass();
+FunctionPass *createMipsOptimizePICCallPass();
+FunctionPass *createMipsDelaySlotFillerPass();
+FunctionPass *createMipsBranchExpansion();
+FunctionPass *createMipsConstantIslandPass();
+FunctionPass *createMicroMipsSizeReducePass();
+FunctionPass *createMipsExpandPseudoPass();
+FunctionPass *createMipsPreLegalizeCombiner();
+FunctionPass *createMipsPostLegalizeCombiner(bool IsOptNone);
+FunctionPass *createMipsMulMulBugPass();
 
-  InstructionSelector *createMipsInstructionSelector(const MipsTargetMachine &,
-                                                     MipsSubtarget &,
-                                                     MipsRegisterBankInfo &);
+InstructionSelector *createMipsInstructionSelector(const MipsTargetMachine &,
+                                                   MipsSubtarget &,
+                                                   MipsRegisterBankInfo &);
 
-  void initializeMipsDelaySlotFillerPass(PassRegistry &);
-  void initializeMipsBranchExpansionPass(PassRegistry &);
-  void initializeMicroMipsSizeReducePass(PassRegistry &);
-} // end namespace llvm;
+void initializeMicroMipsSizeReducePass(PassRegistry &);
+void initializeMipsBranchExpansionPass(PassRegistry &);
+void initializeMipsDAGToDAGISelPass(PassRegistry &);
+void initializeMipsDelaySlotFillerPass(PassRegistry &);
+void initializeMipsMulMulBugFixPass(PassRegistry &);
+void initializeMipsPostLegalizerCombinerPass(PassRegistry &);
+void initializeMipsPreLegalizerCombinerPass(PassRegistry &);
+} // namespace llvm
 
 #endif

@@ -5,12 +5,12 @@ define i64 @test1(i32 %xx, i32 %test) nounwind {
 ; CHECK-LABEL: test1:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %edx
-; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %cl
+; CHECK-NEXT:    movzbl {{[0-9]+}}(%esp), %ecx
 ; CHECK-NEXT:    andb $7, %cl
 ; CHECK-NEXT:    movl %edx, %eax
 ; CHECK-NEXT:    shll %cl, %eax
 ; CHECK-NEXT:    shrl %edx
-; CHECK-NEXT:    xorb $31, %cl
+; CHECK-NEXT:    notb %cl
 ; CHECK-NEXT:    shrl %cl, %edx
 ; CHECK-NEXT:    retl
   %conv = zext i32 %xx to i64
@@ -26,7 +26,7 @@ define i64 @test2(i64 %xx, i32 %test) nounwind {
 ; CHECK-NEXT:    pushl %esi
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %esi
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %edx
-; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %cl
+; CHECK-NEXT:    movzbl {{[0-9]+}}(%esp), %ecx
 ; CHECK-NEXT:    andb $7, %cl
 ; CHECK-NEXT:    movl %esi, %eax
 ; CHECK-NEXT:    shll %cl, %eax
@@ -44,7 +44,7 @@ define i64 @test3(i64 %xx, i32 %test) nounwind {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %eax
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %edx
-; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %cl
+; CHECK-NEXT:    movzbl {{[0-9]+}}(%esp), %ecx
 ; CHECK-NEXT:    andb $7, %cl
 ; CHECK-NEXT:    shrdl %cl, %edx, %eax
 ; CHECK-NEXT:    shrl %cl, %edx
@@ -60,7 +60,7 @@ define i64 @test4(i64 %xx, i32 %test) nounwind {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %eax
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %edx
-; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %cl
+; CHECK-NEXT:    movzbl {{[0-9]+}}(%esp), %ecx
 ; CHECK-NEXT:    andb $7, %cl
 ; CHECK-NEXT:    shrdl %cl, %edx, %eax
 ; CHECK-NEXT:    sarl %cl, %edx
@@ -88,6 +88,8 @@ define <2 x i64> @test5(<2 x i64> %A, <2 x i64> %B) {
 ; CHECK-NEXT:    .cfi_offset %ebx, -12
 ; CHECK-NEXT:    .cfi_offset %ebp, -8
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %eax
+; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %ch
+; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %edx
 ; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %cl
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %ebx
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %esi
@@ -101,12 +103,11 @@ define <2 x i64> @test5(<2 x i64> %A, <2 x i64> %B) {
 ; CHECK-NEXT:    movl %edi, %esi
 ; CHECK-NEXT:    xorl %edi, %edi
 ; CHECK-NEXT:  .LBB4_2:
-; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %edx
 ; CHECK-NEXT:    movl %edx, %ebx
-; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %cl
+; CHECK-NEXT:    movb %ch, %cl
 ; CHECK-NEXT:    shll %cl, %ebx
 ; CHECK-NEXT:    shldl %cl, %edx, %ebp
-; CHECK-NEXT:    testb $32, %cl
+; CHECK-NEXT:    testb $32, %ch
 ; CHECK-NEXT:    je .LBB4_4
 ; CHECK-NEXT:  # %bb.3:
 ; CHECK-NEXT:    movl %ebx, %ebp
@@ -142,9 +143,9 @@ define i32 @test6() {
 ; CHECK-NEXT:    subl $16, %esp
 ; CHECK-NEXT:    movl $1, {{[0-9]+}}(%esp)
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %eax
-; CHECK-NEXT:    xorl %eax, %eax
-; CHECK-NEXT:    orl $0, %eax
-; CHECK-NEXT:    je .LBB5_3
+; CHECK-NEXT:    movb $1, %al
+; CHECK-NEXT:    testb %al, %al
+; CHECK-NEXT:    jne .LBB5_3
 ; CHECK-NEXT:  # %bb.1: # %if.then
 ; CHECK-NEXT:    movl $1, %eax
 ; CHECK-NEXT:    jmp .LBB5_2
@@ -157,8 +158,8 @@ define i32 @test6() {
 ; CHECK-NEXT:    retl
   %x = alloca i32, align 4
   %t = alloca i64, align 8
-  store volatile i32 1, i32* %x, align 4
-  %load = load volatile i32, i32* %x, align 4
+  store volatile i32 1, ptr %x, align 4
+  %load = load volatile i32, ptr %x, align 4
   %shl = shl i32 %load, 8
   %add = add i32 %shl, -224
   %sh_prom = zext i32 %add to i64

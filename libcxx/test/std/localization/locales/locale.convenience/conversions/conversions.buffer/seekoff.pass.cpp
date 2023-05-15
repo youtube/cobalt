@@ -1,13 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <locale>
+
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
 
 // wbuffer_convert<Codecvt, Elem, Tr>
 
@@ -17,6 +18,11 @@
 //                  ios_base::openmode which = ios_base::in | ios_base::out);
 
 // This test is not entirely portable
+
+// XFAIL: no-wide-characters
+
+// TODO: Avoid using <fstream> in this test.
+// XFAIL: no-fstream
 
 #include <locale>
 #include <codecvt>
@@ -32,7 +38,7 @@ public:
     ~test_codecvt() {}
 };
 
-int main()
+int main(int, char**)
 {
     {
         wchar_t buf[10];
@@ -55,4 +61,6 @@ int main()
         assert(f.sgetc() == L'l');
     }
     std::remove("seekoff.dat");
+
+  return 0;
 }

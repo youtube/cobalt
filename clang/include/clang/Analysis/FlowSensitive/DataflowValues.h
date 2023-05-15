@@ -1,9 +1,8 @@
 //===--- DataflowValues.h - Data structure for dataflow values --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,13 +19,14 @@
 #include "clang/Analysis/ProgramPoint.h"
 #include "llvm/ADT/DenseMap.h"
 
+namespace clang {
+
 //===----------------------------------------------------------------------===//
 /// Dataflow Directional Tag Classes.  These are used for tag dispatching
 ///  within the dataflow solver/transfer functions to determine what direction
 ///  a dataflow analysis flows.
 //===----------------------------------------------------------------------===//
 
-namespace clang {
 namespace dataflow {
   struct forward_analysis_tag {};
   struct backward_analysis_tag {};
@@ -134,7 +134,7 @@ public:
   /// getBlockDataMap - Retrieves the internal map between CFGBlocks and
   /// dataflow values.  If the dataflow analysis operates in the forward
   /// direction, the values correspond to the dataflow values at the start
-  /// of the block.  Otherwise, for a backward analysis, the values correpsond
+  /// of the block.  Otherwise, for a backward analysis, the values correspond
   /// to the dataflow values at the end of the block.
   BlockDataMapTy& getBlockDataMap() { return BlockDataMap; }
   const BlockDataMapTy& getBlockDataMap() const { return BlockDataMap; }
@@ -169,4 +169,4 @@ protected:
 };
 
 } // end namespace clang
-#endif
+#endif // LLVM_CLANG_ANALYSES_DATAFLOW_VALUES

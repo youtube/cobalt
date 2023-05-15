@@ -1,5 +1,3 @@
-; REQUIRES: object-emission
-
 ; RUN: %llc_dwarf -O0 -filetype=obj < %s > %t
 ; RUN: llvm-dwarfdump -v %t | FileCheck %s
 
@@ -17,20 +15,20 @@
 ; 4294967295.
 
 ; CHECK: DW_TAG_subprogram [
-; CHECK: DW_AT_vtable_elem_location [DW_FORM_exprloc]  (<0x2> 10 00 )
+; CHECK: DW_AT_vtable_elem_location [DW_FORM_exprloc]  (DW_OP_constu 0x0)
 
 ; CHECK: DW_TAG_subprogram [
 ; CHECK-NOT: DW_AT_vtable_elem_location
 
-%struct.A = type { i32 (...)** }
+%struct.A = type { ptr }
 
-@_ZTV1A = unnamed_addr constant [4 x i8*] [i8* null, i8* null, i8* bitcast (void (%struct.A*)* @_ZN1A1fEv to i8*), i8* bitcast (void (%struct.A*)* @_ZN1A1gEv to i8*)], align 8
+@_ZTV1A = unnamed_addr constant [4 x ptr] [ptr null, ptr null, ptr @_ZN1A1fEv, ptr @_ZN1A1gEv], align 8
 
-define void @_ZN1A1fEv(%struct.A* %this) unnamed_addr !dbg !18 {
+define void @_ZN1A1fEv(ptr %this) unnamed_addr !dbg !18 {
   ret void
 }
 
-define void @_ZN1A1gEv(%struct.A* %this) unnamed_addr !dbg !19 {
+define void @_ZN1A1gEv(ptr %this) unnamed_addr !dbg !19 {
   ret void
 }
 

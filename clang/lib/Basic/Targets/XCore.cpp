@@ -1,9 +1,8 @@
 //===--- XCore.cpp - Implement XCore target feature support ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,7 +18,7 @@
 using namespace clang;
 using namespace clang::targets;
 
-const Builtin::Info XCoreTargetInfo::BuiltinInfo[] = {
+static constexpr Builtin::Info BuiltinInfo[] = {
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
   {#ID, TYPE, ATTRS, nullptr, ALL_LANGUAGES, nullptr},
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER)                                    \
@@ -29,10 +28,11 @@ const Builtin::Info XCoreTargetInfo::BuiltinInfo[] = {
 
 void XCoreTargetInfo::getTargetDefines(const LangOptions &Opts,
                                        MacroBuilder &Builder) const {
+  Builder.defineMacro("__xcore__");
   Builder.defineMacro("__XS1B__");
 }
 
 ArrayRef<Builtin::Info> XCoreTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, clang::XCore::LastTSBuiltin -
-                                             Builtin::FirstTSBuiltin);
+  return llvm::ArrayRef(BuiltinInfo,
+                        clang::XCore::LastTSBuiltin - Builtin::FirstTSBuiltin);
 }

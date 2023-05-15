@@ -1,9 +1,8 @@
 //===- llvm/IR/TypeFinder.h - Class to find used struct types ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,6 +14,7 @@
 #define LLVM_IR_TYPEFINDER_H
 
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/IR/Attributes.h"
 #include <cstddef>
 #include <vector>
 
@@ -33,6 +33,7 @@ class TypeFinder {
   // objects, we keep several helper maps.
   DenseSet<const Value*> VisitedConstants;
   DenseSet<const MDNode *> VisitedMetadata;
+  DenseSet<AttributeList> VisitedAttributes;
   DenseSet<Type*> VisitedTypes;
 
   std::vector<StructType*> StructTypes;
@@ -75,6 +76,9 @@ private:
   /// incorporateMDNode - This method is used to walk the operands of an MDNode
   /// to find types hiding within.
   void incorporateMDNode(const MDNode *V);
+
+  /// Incorporate types referenced by attributes.
+  void incorporateAttributes(AttributeList AL);
 };
 
 } // end namespace llvm

@@ -1,9 +1,8 @@
 //===--- TypeLocBuilder.h - Type Source Info collector ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -40,18 +39,17 @@ class TypeLocBuilder {
 
   /// The inline buffer.
   enum { BufferMaxAlignment = alignof(void *) };
-  llvm::AlignedCharArray<BufferMaxAlignment, InlineCapacity> InlineBuffer;
-  unsigned NumBytesAtAlign4, NumBytesAtAlign8;
+  alignas(BufferMaxAlignment) char InlineBuffer[InlineCapacity];
+  unsigned NumBytesAtAlign4;
+  bool AtAlign8;
 
- public:
+public:
   TypeLocBuilder()
-    : Buffer(InlineBuffer.buffer), Capacity(InlineCapacity),
-      Index(InlineCapacity), NumBytesAtAlign4(0), NumBytesAtAlign8(0)
-  {
-  }
+      : Buffer(InlineBuffer), Capacity(InlineCapacity), Index(InlineCapacity),
+        NumBytesAtAlign4(0), AtAlign8(false) {}
 
   ~TypeLocBuilder() {
-    if (Buffer != InlineBuffer.buffer)
+    if (Buffer != InlineBuffer)
       delete[] Buffer;
   }
 
@@ -65,6 +63,10 @@ class TypeLocBuilder {
   /// Pushes a copy of the given TypeLoc onto this builder.  The builder
   /// must be empty for this to work.
   void pushFullCopy(TypeLoc L);
+
+  /// Pushes 'T' with all locations pointing to 'Loc'.
+  /// The builder must be empty for this to work.
+  void pushTrivial(ASTContext &Context, QualType T, SourceLocation Loc);
 
   /// Pushes space for a typespec TypeLoc.  Invalidates any TypeLocs
   /// previously retrieved from this builder.
@@ -80,7 +82,8 @@ class TypeLocBuilder {
     LastTy = QualType();
 #endif
     Index = Capacity;
-    NumBytesAtAlign4 = NumBytesAtAlign8 = 0;
+    NumBytesAtAlign4 = 0;
+    AtAlign8 = false;
   }
 
   /// Tell the TypeLocBuilder that the type it is storing has been

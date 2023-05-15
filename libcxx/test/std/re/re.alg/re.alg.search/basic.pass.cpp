@@ -1,13 +1,11 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
-// REQUIRES: locale.cs_CZ.ISO8859-2
+//
 
 // <regex>
 
@@ -18,17 +16,12 @@
 //                  const basic_regex<charT, traits>& e,
 //                  regex_constants::match_flag_type flags = regex_constants::match_default);
 
-// TODO: investigation needed
-// XFAIL: linux-gnu
-
 #include <regex>
 #include <cassert>
 #include "test_macros.h"
 #include "test_iterators.h"
 
-#include "platform_support.h" // locale name macros
-
-int main()
+int main(int, char**)
 {
     {
         std::cmatch m;
@@ -693,47 +686,6 @@ int main()
                                                  std::regex_constants::basic)));
         assert(m.size() == 0);
     }
-    std::locale::global(std::locale(LOCALE_cs_CZ_ISO8859_2));
-    {
-        std::cmatch m;
-        const char s[] = "m";
-        assert(std::regex_search(s, m, std::regex("[a[=M=]z]",
-                                                 std::regex_constants::basic)));
-        assert(m.size() == 1);
-        assert(!m.prefix().matched);
-        assert(m.prefix().first == s);
-        assert(m.prefix().second == m[0].first);
-        assert(!m.suffix().matched);
-        assert(m.suffix().first == m[0].second);
-        assert(m.suffix().second == m[0].second);
-        assert(m.length(0) >= 0 && static_cast<size_t>(m.length(0)) == std::char_traits<char>::length(s));
-        assert(m.position(0) == 0);
-        assert(m.str(0) == s);
-    }
-    {
-        std::cmatch m;
-        const char s[] = "Ch";
-        assert(std::regex_search(s, m, std::regex("[a[.ch.]z]",
-                   std::regex_constants::basic | std::regex_constants::icase)));
-        assert(m.size() == 1);
-        assert(!m.prefix().matched);
-        assert(m.prefix().first == s);
-        assert(m.prefix().second == m[0].first);
-        assert(!m.suffix().matched);
-        assert(m.suffix().first == m[0].second);
-        assert(m.suffix().second == m[0].second);
-        assert(m.length(0) >= 0 && static_cast<size_t>(m.length(0)) == std::char_traits<char>::length(s));
-        assert(m.position(0) == 0);
-        assert(m.str(0) == s);
-    }
-    std::locale::global(std::locale("C"));
-    {
-        std::cmatch m;
-        const char s[] = "m";
-        assert(!std::regex_search(s, m, std::regex("[a[=M=]z]",
-                                                 std::regex_constants::basic)));
-        assert(m.size() == 0);
-    }
     {
         std::cmatch m;
         const char s[] = "01a45cef9";
@@ -788,6 +740,7 @@ int main()
         assert(m.str(0) == s);
     }
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wcmatch m;
         assert(!std::regex_search(L"a", m, std::wregex()));
@@ -1451,47 +1404,6 @@ int main()
                                                  std::regex_constants::basic)));
         assert(m.size() == 0);
     }
-    std::locale::global(std::locale(LOCALE_cs_CZ_ISO8859_2));
-    {
-        std::wcmatch m;
-        const wchar_t s[] = L"m";
-        assert(std::regex_search(s, m, std::wregex(L"[a[=M=]z]",
-                                                 std::regex_constants::basic)));
-        assert(m.size() == 1);
-        assert(!m.prefix().matched);
-        assert(m.prefix().first == s);
-        assert(m.prefix().second == m[0].first);
-        assert(!m.suffix().matched);
-        assert(m.suffix().first == m[0].second);
-        assert(m.suffix().second == m[0].second);
-        assert(m.length(0) >= 0 && static_cast<size_t>(m.length(0)) == std::char_traits<wchar_t>::length(s));
-        assert(m.position(0) == 0);
-        assert(m.str(0) == s);
-    }
-    {
-        std::wcmatch m;
-        const wchar_t s[] = L"Ch";
-        assert(std::regex_search(s, m, std::wregex(L"[a[.ch.]z]",
-                   std::regex_constants::basic | std::regex_constants::icase)));
-        assert(m.size() == 1);
-        assert(!m.prefix().matched);
-        assert(m.prefix().first == s);
-        assert(m.prefix().second == m[0].first);
-        assert(!m.suffix().matched);
-        assert(m.suffix().first == m[0].second);
-        assert(m.suffix().second == m[0].second);
-        assert(m.length(0) >= 0 && static_cast<size_t>(m.length(0)) == std::char_traits<wchar_t>::length(s));
-        assert(m.position(0) == 0);
-        assert(m.str(0) == s);
-    }
-    std::locale::global(std::locale("C"));
-    {
-        std::wcmatch m;
-        const wchar_t s[] = L"m";
-        assert(!std::regex_search(s, m, std::wregex(L"[a[=M=]z]",
-                                                 std::regex_constants::basic)));
-        assert(m.size() == 0);
-    }
     {
         std::wcmatch m;
         const wchar_t s[] = L"01a45cef9";
@@ -1545,4 +1457,32 @@ int main()
         assert(m.position(0) == 0);
         assert(m.str(0) == s);
     }
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
+
+    { // LWG 2273
+        std::regex re("Foo|FooBar");
+        std::cmatch m;
+        {
+            assert(std::regex_search("FooBar", m, re));
+            assert(m.size() == 1);
+            assert(m[0] == "Foo");
+        }
+        {
+            assert(std::regex_search("Foo", m, re));
+            assert(m.size() == 1);
+            assert(m[0] == "Foo");
+        }
+        {
+            assert(std::regex_search("FooBarBaz", m, re));
+            assert(m.size() == 1);
+            assert(m[0] == "Foo");
+        }
+        {
+            assert(std::regex_search("FooBa", m, re));
+            assert(m.size() == 1);
+            assert(m[0] == "Foo");
+        }
+    }
+
+  return 0;
 }

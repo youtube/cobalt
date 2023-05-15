@@ -1,13 +1,10 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-
-// UNSUPPORTED: c++98, c++03
 
 // <fstream>
 
@@ -18,15 +15,16 @@
 
 #include <fstream>
 #include <cassert>
+#include "test_macros.h"
 #include "platform_support.h"
 
-int main()
+int main(int, char**)
 {
     std::string temp = get_temp_file_name();
     {
         std::fstream fso(temp, std::ios_base::in | std::ios_base::out
                                                  | std::ios_base::trunc);
-        std::fstream fs = move(fso);
+        std::fstream fs = std::move(fso);
         double x = 0;
         fs << 3.25;
         fs.seekg(0);
@@ -34,10 +32,12 @@ int main()
         assert(x == 3.25);
     }
     std::remove(temp.c_str());
+
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wfstream fso(temp, std::ios_base::in | std::ios_base::out
                                                   | std::ios_base::trunc);
-        std::wfstream fs = move(fso);
+        std::wfstream fs = std::move(fso);
         double x = 0;
         fs << 3.25;
         fs.seekg(0);
@@ -45,4 +45,7 @@ int main()
         assert(x == 3.25);
     }
     std::remove(temp.c_str());
+#endif
+
+  return 0;
 }

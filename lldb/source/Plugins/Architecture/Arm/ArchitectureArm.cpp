@@ -1,9 +1,8 @@
-//===-- ArchitectureArm.cpp -------------------------------------*- C++ -*-===//
+//===-- ArchitectureArm.cpp -----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,9 +17,7 @@
 using namespace lldb_private;
 using namespace lldb;
 
-ConstString ArchitectureArm::GetPluginNameStatic() {
-  return ConstString("arm");
-}
+LLDB_PLUGIN_DEFINE(ArchitectureArm)
 
 void ArchitectureArm::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -37,9 +34,6 @@ std::unique_ptr<Architecture> ArchitectureArm::Create(const ArchSpec &arch) {
     return nullptr;
   return std::unique_ptr<Architecture>(new ArchitectureArm());
 }
-
-ConstString ArchitectureArm::GetPluginName() { return GetPluginNameStatic(); }
-uint32_t ArchitectureArm::GetPluginVersion() { return 1; }
 
 void ArchitectureArm::OverrideStopInfo(Thread &thread) const {
   // We need to check if we are stopped in Thumb mode in a IT instruction and
@@ -125,4 +119,34 @@ void ArchitectureArm::OverrideStopInfo(Thread &thread) const {
       }
     }
   }
+}
+
+addr_t ArchitectureArm::GetCallableLoadAddress(addr_t code_addr,
+                                               AddressClass addr_class) const {
+  bool is_alternate_isa = false;
+
+  switch (addr_class) {
+  case AddressClass::eData:
+  case AddressClass::eDebug:
+    return LLDB_INVALID_ADDRESS;
+  case AddressClass::eCodeAlternateISA:
+    is_alternate_isa = true;
+    break;
+  default: break;
+  }
+
+  if ((code_addr & 2u) || is_alternate_isa)
+    return code_addr | 1u;
+  return code_addr;
+}
+
+addr_t ArchitectureArm::GetOpcodeLoadAddress(addr_t opcode_addr,
+                                             AddressClass addr_class) const {
+  switch (addr_class) {
+  case AddressClass::eData:
+  case AddressClass::eDebug:
+    return LLDB_INVALID_ADDRESS;
+  default: break;
+  }
+  return opcode_addr & ~(1ull);
 }

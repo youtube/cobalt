@@ -1,9 +1,8 @@
 //===- SparsePropagation.h - Sparse Conditional Property Propagation ------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,6 +14,8 @@
 #ifndef LLVM_ANALYSIS_SPARSEPROPAGATION_H
 #define LLVM_ANALYSIS_SPARSEPROPAGATION_H
 
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/Debug.h"
 #include <set>
@@ -189,12 +190,12 @@ private:
 
   /// getFeasibleSuccessors - Return a vector of booleans to indicate which
   /// successors are reachable from a given terminator instruction.
-  void getFeasibleSuccessors(TerminatorInst &TI, SmallVectorImpl<bool> &Succs,
+  void getFeasibleSuccessors(Instruction &TI, SmallVectorImpl<bool> &Succs,
                              bool AggressiveUndef);
 
   void visitInst(Instruction &I);
   void visitPHINode(PHINode &I);
-  void visitTerminatorInst(TerminatorInst &TI);
+  void visitTerminator(Instruction &TI);
 };
 
 //===----------------------------------------------------------------------===//
@@ -286,7 +287,7 @@ void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::markEdgeExecutable(
 
 template <class LatticeKey, class LatticeVal, class KeyInfo>
 void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::getFeasibleSuccessors(
-    TerminatorInst &TI, SmallVectorImpl<bool> &Succs, bool AggressiveUndef) {
+    Instruction &TI, SmallVectorImpl<bool> &Succs, bool AggressiveUndef) {
   Succs.resize(TI.getNumSuccessors());
   if (TI.getNumSuccessors() == 0)
     return;
@@ -330,12 +331,8 @@ void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::getFeasibleSuccessors(
     return;
   }
 
-  if (TI.isExceptional()) {
-    Succs.assign(Succs.size(), true);
-    return;
-  }
-
-  if (isa<IndirectBrInst>(TI)) {
+  if (!isa<SwitchInst>(TI)) {
+    // Unknown termintor, assume all successors are feasible.
     Succs.assign(Succs.size(), true);
     return;
   }
@@ -374,7 +371,7 @@ template <class LatticeKey, class LatticeVal, class KeyInfo>
 bool SparseSolver<LatticeKey, LatticeVal, KeyInfo>::isEdgeFeasible(
     BasicBlock *From, BasicBlock *To, bool AggressiveUndef) {
   SmallVector<bool, 16> SuccFeasible;
-  TerminatorInst *TI = From->getTerminator();
+  Instruction *TI = From->getTerminator();
   getFeasibleSuccessors(*TI, SuccFeasible, AggressiveUndef);
 
   for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i)
@@ -385,8 +382,8 @@ bool SparseSolver<LatticeKey, LatticeVal, KeyInfo>::isEdgeFeasible(
 }
 
 template <class LatticeKey, class LatticeVal, class KeyInfo>
-void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::visitTerminatorInst(
-    TerminatorInst &TI) {
+void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::visitTerminator(
+    Instruction &TI) {
   SmallVector<bool, 16> SuccFeasible;
   getFeasibleSuccessors(TI, SuccFeasible, true);
 
@@ -465,8 +462,8 @@ void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::visitInst(Instruction &I) {
     if (ChangedValue.second != LatticeFunc->getUntrackedVal())
       UpdateState(ChangedValue.first, ChangedValue.second);
 
-  if (TerminatorInst *TI = dyn_cast<TerminatorInst>(&I))
-    visitTerminatorInst(*TI);
+  if (I.isTerminator())
+    visitTerminator(I);
 }
 
 template <class LatticeKey, class LatticeVal, class KeyInfo>
@@ -475,8 +472,7 @@ void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::Solve() {
   while (!BBWorkList.empty() || !ValueWorkList.empty()) {
     // Process the value work list.
     while (!ValueWorkList.empty()) {
-      Value *V = ValueWorkList.back();
-      ValueWorkList.pop_back();
+      Value *V = ValueWorkList.pop_back_val();
 
       LLVM_DEBUG(dbgs() << "\nPopped off V-WL: " << *V << "\n");
 
@@ -490,8 +486,7 @@ void SparseSolver<LatticeKey, LatticeVal, KeyInfo>::Solve() {
 
     // Process the basic block work list.
     while (!BBWorkList.empty()) {
-      BasicBlock *BB = BBWorkList.back();
-      BBWorkList.pop_back();
+      BasicBlock *BB = BBWorkList.pop_back_val();
 
       LLVM_DEBUG(dbgs() << "\nPopped off BBWL: " << *BB);
 
