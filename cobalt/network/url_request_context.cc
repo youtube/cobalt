@@ -70,7 +70,7 @@ const char kQUICToggleCommandLongHelp[] =
 URLRequestContext::URLRequestContext(
     storage::StorageManager* storage_manager, const std::string& custom_proxy,
     net::NetLog* net_log, bool ignore_certificate_errors,
-    scoped_refptr<base::SingleThreadTaskRunner> network_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> network_task_runner,
     persistent_storage::PersistentSettings* persistent_settings)
     : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this))
 #if defined(ENABLE_DEBUGGER)
@@ -230,7 +230,7 @@ void URLRequestContext::SetProxy(const std::string& proxy_rules) {
 }
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   storage_.http_network_session()->SetEnableQuic(enable_quic);
 }
 

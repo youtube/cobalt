@@ -15,6 +15,7 @@
 #include "cobalt/network/persistent_cookie_store.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -30,7 +31,7 @@ const base::TimeDelta kMaxCookieLifetime = base::TimeDelta::FromDays(365 * 2);
 
 void CookieStorageInit(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
-    scoped_refptr<base::SingleThreadTaskRunner> loaded_callback_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
   TRACE_EVENT0("cobalt::network", "PersistentCookieStore::CookieStorageInit()");
 
@@ -79,7 +80,7 @@ void CookieStorageDeleteCookie(const net::CanonicalCookie& cc,
 
 void SendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
-    scoped_refptr<base::SingleThreadTaskRunner> loaded_callback_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
   loaded_callback_task_runner->PostTask(
       FROM_HERE,
@@ -96,7 +97,7 @@ void SendEmptyCookieList(
 
 PersistentCookieStore::PersistentCookieStore(
     storage::StorageManager* storage,
-    scoped_refptr<base::SingleThreadTaskRunner> network_task_runner)
+    scoped_refptr<base::SequencedTaskRunner> network_task_runner)
     : storage_(storage), loaded_callback_task_runner_(network_task_runner) {}
 
 PersistentCookieStore::~PersistentCookieStore() {}

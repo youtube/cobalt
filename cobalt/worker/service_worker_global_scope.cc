@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
-#include "base/single_thread_task_runner.h"
+#include "base/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
@@ -196,7 +196,7 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
 void ServiceWorkerGlobalScope::StartFetch(
     const GURL& url, bool main_resource,
     const net::HttpRequestHeaders& request_headers,
-    scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     base::OnceCallback<void(std::unique_ptr<std::string>)> callback,
     base::OnceCallback<void(const net::LoadTimingInfo&)>
         report_load_timing_info,

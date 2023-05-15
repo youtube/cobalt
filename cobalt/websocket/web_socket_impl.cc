@@ -42,7 +42,7 @@ WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
 }
 
 void WebSocketImpl::ResetWebSocketEventDelegate() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   delegate_ = NULL;
 
   delegate_task_runner_->PostTask(
@@ -58,7 +58,7 @@ void WebSocketImpl::Connect(const std::string &origin, const GURL &url,
     return;
   }
   DCHECK(network_module_->url_request_context_getter());
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   origin_ = origin;
 
   DLOG(INFO) << "Connecting to websocket at " << url.spec();
@@ -89,7 +89,7 @@ void WebSocketImpl::Connect(const std::string &origin, const GURL &url,
 void WebSocketImpl::DoConnect(
     scoped_refptr<cobalt::network::URLRequestContextGetter> context,
     const GURL &url, base::WaitableEvent *channel_created_event) {
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
   DCHECK(url.is_valid());
   DCHECK(channel_created_event);
   DCHECK(context->GetURLRequestContext());
@@ -122,7 +122,7 @@ void WebSocketImpl::DoClose(const CloseInfo &close_info) {
   if (!websocket_channel_) {
     return;
   }
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
 
   auto channel_state = websocket_channel_->StartClosingHandshake(
       close_info.code, close_info.reason);
@@ -133,7 +133,7 @@ void WebSocketImpl::DoClose(const CloseInfo &close_info) {
 }
 
 void WebSocketImpl::ResetChannel() {
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
   websocket_channel_.reset();
 }
 
@@ -171,7 +171,7 @@ void WebSocketImpl::OnFlowControl(int64_t quota) {
 
 void WebSocketImpl::OnWebSocketConnected(
     const std::string &selected_subprotocol) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (delegate_) {
     delegate_->OnConnected(selected_subprotocol);
@@ -180,7 +180,7 @@ void WebSocketImpl::OnWebSocketConnected(
 
 void WebSocketImpl::OnWebSocketDisconnected(bool was_clean, uint16 code,
                                             const std::string &reason) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (delegate_) {
     delegate_->OnDisconnected(was_clean, code, reason);
   }
@@ -188,14 +188,14 @@ void WebSocketImpl::OnWebSocketDisconnected(bool was_clean, uint16 code,
 
 void WebSocketImpl::OnWebSocketReceivedData(
     bool is_text_frame, scoped_refptr<net::IOBufferWithSize> data) {
-  if (!owner_task_runner_->BelongsToCurrentThread()) {
+  if (!owner_task_runner_->RunsTasksInCurrentSequence()) {
     owner_task_runner_->PostTask(
         FROM_HERE, base::Bind(&WebSocketImpl::OnWebSocketReceivedData, this,
                               is_text_frame, data));
     return;
   }
 
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (delegate_) {
     delegate_->OnReceivedData(is_text_frame, data);
   }
@@ -203,7 +203,7 @@ void WebSocketImpl::OnWebSocketReceivedData(
 
 void WebSocketImpl::OnClose(bool was_clean, int error_code,
                             const std::string &close_reason) {
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
 
   std::uint16_t close_code = static_cast<std::uint16_t>(error_code);
 
@@ -244,7 +244,7 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader::OpCode op_code,
   scoped_refptr<net::IOBuffer> io_buffer(new net::IOBuffer(length));
   memcpy(io_buffer->data(), data, length);
 
-  if (delegate_task_runner_->BelongsToCurrentThread()) {
+  if (delegate_task_runner_->RunsTasksInCurrentSequence()) {
     SendOnDelegateThread(op_code, std::move(io_buffer), length);
   } else {
     base::Closure do_send_closure(
@@ -260,7 +260,7 @@ bool WebSocketImpl::SendHelper(const net::WebSocketFrameHeader::OpCode op_code,
 void WebSocketImpl::SendOnDelegateThread(
     const net::WebSocketFrameHeader::OpCode op_code,
     scoped_refptr<net::IOBuffer> io_buffer, std::size_t length) {
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
 
   if (!websocket_channel_) {
     DLOG(WARNING) << "Attempt to send over a closed channel.";
@@ -272,7 +272,7 @@ void WebSocketImpl::SendOnDelegateThread(
 }
 
 void WebSocketImpl::ProcessSendQueue() {
-  DCHECK(delegate_task_runner_->BelongsToCurrentThread());
+  DCHECK(delegate_task_runner_->RunsTasksInCurrentSequence());
   while (current_quota_ > 0 && !send_queue_.empty()) {
     SendQueueMessage message = send_queue_.front();
     size_t current_message_length = message.length - sent_size_of_top_message_;

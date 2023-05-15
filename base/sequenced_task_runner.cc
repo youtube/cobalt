@@ -3,12 +3,48 @@
 // found in the LICENSE file.
 
 #include "base/sequenced_task_runner.h"
+#include "base/message_loop/message_loop.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/trace_event/trace_event.h"
 
 #include <utility>
 
 #include "base/bind.h"
 
 namespace base {
+#if defined(STARBOARD)
+namespace {
+
+// Runs the given task, and then signals the given WaitableEvent.
+void RunAndSignal(const base::Closure& task, base::WaitableEvent* event) {
+  TRACE_EVENT0("task", "RunAndSignal");
+  task.Run();
+  event->Signal();
+}
+}  // namespace
+
+void SequencedTaskRunner::PostBlockingTask(const base::Location& from_here,
+                                              const base::Closure& task) {
+  TRACE_EVENT0("task", "MessageLoop::PostBlockingTask");
+  DCHECK(!RunsTasksInCurrentSequence())
+      << "PostBlockingTask can't be called from the MessageLoop's own thread. "
+      << from_here.ToString();
+  DCHECK(!task.is_null()) << from_here.ToString();
+
+  base::WaitableEvent task_finished(
+      base::WaitableEvent::ResetPolicy::MANUAL,
+      base::WaitableEvent::InitialState::NOT_SIGNALED);
+  bool task_may_run = PostTask(from_here,
+           base::Bind(&RunAndSignal, task, base::Unretained(&task_finished)));
+  DCHECK(task_may_run)
+      << "Task that will never run posted with PostBlockingTask.";
+
+  if (task_may_run) {
+    // Wait for the task to complete before proceeding.
+    task_finished.Wait();
+  }
+}
+#endif
 
 bool SequencedTaskRunner::PostNonNestableTask(const Location& from_here,
                                               OnceClosure task) {
