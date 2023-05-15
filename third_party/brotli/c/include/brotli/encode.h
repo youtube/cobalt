@@ -27,6 +27,11 @@ extern "C" {
  * @note equal to @c BROTLI_MAX_DISTANCE_BITS constant.
  */
 #define BROTLI_MAX_WINDOW_BITS 24
+/**
+ * Maximal value for ::BROTLI_PARAM_LGWIN parameter
+ * in "Large Window Brotli" (32-bit).
+ */
+#define BROTLI_LARGE_MAX_WINDOW_BITS 30
 /** Minimal value for ::BROTLI_PARAM_LGBLOCK parameter. */
 #define BROTLI_MIN_INPUT_BLOCK_BITS 16
 /** Maximal value for ::BROTLI_PARAM_LGBLOCK parameter. */
@@ -176,7 +181,43 @@ typedef enum BrotliEncoderParameter {
    *
    * The default value is 0, which means that the total input size is unknown.
    */
-  BROTLI_PARAM_SIZE_HINT = 5
+  BROTLI_PARAM_SIZE_HINT = 5,
+  /**
+   * Flag that determines if "Large Window Brotli" is used.
+   */
+  BROTLI_PARAM_LARGE_WINDOW = 6,
+  /**
+   * Recommended number of postfix bits (NPOSTFIX).
+   *
+   * Encoder may change this value.
+   *
+   * Range is from 0 to ::BROTLI_MAX_NPOSTFIX.
+   */
+  BROTLI_PARAM_NPOSTFIX = 7,
+  /**
+   * Recommended number of direct distance codes (NDIRECT).
+   *
+   * Encoder may change this value.
+   *
+   * Range is from 0 to (15 << NPOSTFIX) in steps of (1 << NPOSTFIX).
+   */
+  BROTLI_PARAM_NDIRECT = 8,
+  /**
+   * Number of bytes of input stream already processed by a different instance.
+   *
+   * @note It is important to configure all the encoder instances with same
+   *       parameters (except this one) in order to allow all the encoded parts
+   *       obey the same restrictions implied by header.
+   *
+   * If offset is not 0, then stream header is omitted.
+   * In any case output start is byte aligned, so for proper streams stitching
+   * "predecessor" stream must be flushed.
+   *
+   * Range is not artificially limited, but all the values greater or equal to
+   * maximal window size have the same effect. Values greater than 2**30 are not
+   * allowed.
+   */
+  BROTLI_PARAM_STREAM_OFFSET = 9
 } BrotliEncoderParameter;
 
 /**
@@ -248,6 +289,11 @@ BROTLI_ENC_API size_t BrotliEncoderMaxCompressedSize(size_t input_size);
  *
  * @note If ::BrotliEncoderMaxCompressedSize(@p input_size) returns non-zero
  *       value, then output is guaranteed to be no longer than that.
+ *
+ * @note If @p lgwin is greater than ::BROTLI_MAX_WINDOW_BITS then resulting
+ *       stream might be incompatible with RFC 7932; to decode such streams,
+ *       decoder should be configured with
+ *       ::BROTLI_DECODER_PARAM_LARGE_WINDOW = @c 1
  *
  * @param quality quality parameter value, e.g. ::BROTLI_DEFAULT_QUALITY
  * @param lgwin lgwin parameter value, e.g. ::BROTLI_DEFAULT_WINDOW
