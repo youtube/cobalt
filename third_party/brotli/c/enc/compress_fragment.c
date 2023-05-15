@@ -14,7 +14,11 @@
 
 #include "./compress_fragment.h"
 
+#if !defined(STARBOARD)
 #include <string.h>  /* memcmp, memcpy, memset */
+#else
+#include "starboard/client_porting/poem/string_poem.h"
+#endif
 
 #include "../common/constants.h"
 #include "../common/platform.h"
