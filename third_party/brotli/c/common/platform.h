@@ -9,8 +9,7 @@
 #ifndef BROTLI_COMMON_PLATFORM_H_
 #define BROTLI_COMMON_PLATFORM_H_
 
-#include <string.h>  /* memcpy*/
-#define MEMCPY_PLATFORM memcpy
+#include <string.h>  /* memcpy */
 
 #include <brotli/port.h>
 #include <brotli/types.h>
@@ -140,14 +139,6 @@
 #define brotli_reg_t uint32_t
 #endif
 
-#if defined(STARBOARD)
-#include "starboard/configuration.h"
-#if SB_IS(BIG_ENDIAN)
-#define BROTLI_BIG_ENDIAN 1
-#else
-#define BROTLI_LITTLE_ENDIAN 1
-#endif
-#else  /* not defined STARBOARD */
 #if defined(BROTLI_BUILD_BIG_ENDIAN)
 #define BROTLI_BIG_ENDIAN 1
 #elif defined(BROTLI_BUILD_LITTLE_ENDIAN)
@@ -168,7 +159,6 @@
 #define BROTLI_BIG_ENDIAN 1
 #endif
 #endif  /* BROTLI_X_BYTE_ORDER */
-#endif  /* STARBOARD */
 
 #if !defined(BROTLI_LITTLE_ENDIAN)
 #define BROTLI_LITTLE_ENDIAN 0
@@ -198,21 +188,21 @@
 /* Portable unaligned memory access: read / write values via memcpy. */
 static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
   uint16_t t;
-  MEMCPY_PLATFORM(&t, p, sizeof t);
+  memcpy(&t, p, sizeof t);
   return t;
 }
 static BROTLI_INLINE uint32_t BrotliUnalignedRead32(const void* p) {
   uint32_t t;
-  MEMCPY_PLATFORM(&t, p, sizeof t);
+  memcpy(&t, p, sizeof t);
   return t;
 }
 static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
   uint64_t t;
-  MEMCPY_PLATFORM(&t, p, sizeof t);
+  memcpy(&t, p, sizeof t);
   return t;
 }
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
-  MEMCPY_PLATFORM(p, &v, sizeof v);
+  memcpy(p, &v, sizeof v);
 }
 #else /* BROTLI_ALIGNED_READ */
 /* Unaligned memory access is allowed: just cast pointer to requested type. */
@@ -424,7 +414,5 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(brotli_min_uint8_t);
   BROTLI_UNUSED(brotli_max_uint8_t);
 }
-
-#undef MEMCPY_PLATFORM
 
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */

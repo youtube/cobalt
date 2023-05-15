@@ -10,13 +10,8 @@
 #include <arm_neon.h>
 #endif
 
-#if !defined(STARBOARD)
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
-#else
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"

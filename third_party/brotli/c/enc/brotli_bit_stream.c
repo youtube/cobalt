@@ -10,11 +10,7 @@
 
 #include "./brotli_bit_stream.h"
 
-#if !defined(STARBOARD)
 #include <string.h>  /* memcpy, memset */
-#else
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 #include "../common/constants.h"
 #include "../common/platform.h"

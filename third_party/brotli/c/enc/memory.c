@@ -9,13 +9,8 @@
 
 #include "./memory.h"
 
-#if !defined(STARBOARD)
-#include <stdlib.h>  /* free, malloc, exit */
-#include <string.h>  /* memcpy, memset */
-#else
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
+#include <stdlib.h>  /* exit, free, malloc */
+#include <string.h>  /* memcpy */
 
 #include "../common/platform.h"
 #include <brotli/types.h>

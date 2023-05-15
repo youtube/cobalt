@@ -220,7 +220,6 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       }
     }
   }
-  BROTLI_UNUSED(min_score);  /* Calm down MSVC. */
   if (USE_DICTIONARY && min_score == out->score) {
     SearchInStaticDictionary(dictionary, dictionary_hash,
         handle, &data[cur_ix_masked], max_length, max_backward + gap, out,
