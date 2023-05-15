@@ -4,11 +4,23 @@ branches:
 
 environment:
   matrix:
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    BUILD_SYSTEM: CMake
+    GENERATOR: Visual Studio 15 2017 Win64
+    CONFIG: Release
+
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    BUILD_SYSTEM: CMake
+    GENERATOR: Visual Studio 15 2017 Win64
+    CONFIG: Debug
+
   - BUILD_SYSTEM: CMake
     GENERATOR: Visual Studio 14 2015 Win64
+    CONFIG: Debug
 
   - BUILD_SYSTEM: CMake
     GENERATOR: Visual Studio 14 2015
+    CONFIG: Debug
 
   - BUILD_SYSTEM: Python
     PYTHON: "C:\\Python27"
@@ -31,18 +43,18 @@ environment:
 install:
 - IF "%BUILD_SYSTEM%"=="Python" (
     SET "PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%" &&
-    pip install --disable-pip-version-check --user --upgrade pip &&
+    python -m pip install --upgrade pip &&
     pip install --upgrade setuptools
   )
 - IF "%BUILD_SYSTEM%"=="make" (
     IF "%ARCH%"=="i686" (
       SET "TOOLCHAIN=i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32"
     ) ELSE (
-      SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
+      SET "TOOLCHAIN=x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64"
     )
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/0.10.0/bazel-0.10.0-windows-x86_64.exe -FileName bazel.exe
+    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/2.2.0/bazel-2.2.0-windows-x86_64.exe -FileName bazel.exe
   )
 
 before_build:
@@ -53,9 +65,10 @@ before_build:
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%PATH%" &&
     COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
   )
+- SET "ROOT=%APPVEYOR_BUILD_FOLDER%"
 
 build_script:
-- IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config Debug )
+- IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config %CONFIG% )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py build_ext )
 - IF "%BUILD_SYSTEM%"=="make" (
     sh -c "make brotli" &&
@@ -63,17 +76,25 @@ build_script:
     appveyor PushArtifact brotli-win-%ARCH%-%RELEASE_DATE%.zip && cd ..
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    bazel --batch build -c opt java/org/brotli/wrapper/...:all &&
-    python scripts/fix-win-bazel-build.py &&
-    cd bazel-bin && 7z a -tzip -mx9 brotli-win-bazel-jni-%RELEASE_DATE%.zip brotli_jni.dll &&
-    appveyor PushArtifact brotli-win-bazel-jni-%RELEASE_DATE%.zip && cd ..
+    cd java &&
+      %ROOT%\bazel.exe --batch build -c opt org/brotli/wrapper/...:all &&
+      python %ROOT%\scripts\fix-win-bazel-build.py &&
+      cd bazel-bin &&
+        7z a -tzip -mx9 brotli-win-bazel-jni-%RELEASE_DATE%.zip brotli_jni.dll &&
+        appveyor PushArtifact brotli-win-bazel-jni-%RELEASE_DATE%.zip &&
+      cd .. &&
+    cd ..
   )
 
 test_script:
-- IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
+- IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C %CONFIG% )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
 - IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
-- IF "%BUILD_SYSTEM%"=="bazel" ( bazel --batch test -c opt --test_output streamed java/org/brotli/wrapper/...:all )
+- IF "%BUILD_SYSTEM%"=="bazel" (
+    cd java &&
+      %ROOT%\bazel.exe --batch test -c opt --test_output streamed org/brotli/wrapper/...:all &&
+    cd ..
+  )
 
 deploy:
 - provider: BinTray
@@ -85,6 +106,6 @@ deploy:
   subject: eustas
   repo: brotli
   package: bin
-  version: snapshot
+  version: latest
   publish: true
   override: true
