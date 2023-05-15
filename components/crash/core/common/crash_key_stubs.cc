@@ -8,7 +8,7 @@
 #include "build/build_config.h"
 #include "components/crash/core/common/crash_key.h"
 
-#if !BUILDFLAG(USE_CRASH_KEY_STUBS)
+#if !defined(STARBOARD) && !BUILDFLAG(USE_CRASH_KEY_STUBS)
 #error "This file should only be compiled when using stubs."
 #endif
 
