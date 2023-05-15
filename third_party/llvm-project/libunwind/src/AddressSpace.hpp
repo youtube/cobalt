@@ -23,6 +23,11 @@
 #include "EHHeaderParser.hpp"
 #include "Registers.hpp"
 
+#if defined(STARBOARD_IMPLEMENTATION)
+#include "starboard/memory.h"
+#include "starboard/elf_loader/evergreen_info.h"  // nogncheck
+#endif
+
 #ifndef _LIBUNWIND_USE_DLADDR
   #if !(defined(_LIBUNWIND_IS_BAREMETAL) || defined(_WIN32) || defined(_AIX))
     #define _LIBUNWIND_USE_DLADDR 1
@@ -482,9 +487,33 @@ static int findUnwindSectionsByPhdr(struct dl_phdr_info *pinfo,
 
 #endif  // defined(_LIBUNWIND_USE_DL_ITERATE_PHDR)
 
+#if defined(STARBOARD_IMPLEMENTATION)
+int evergreen_dl_iterate_phdr(
+                 int (*callback) (struct dl_phdr_info *info,
+                                  size_t size, void *data),
+                 void *data) {
+  bool ret = false;
+  EvergreenInfo evergreen_info;
+  if(GetEvergreenInfo(&evergreen_info)) {
+    struct dl_phdr_info info;
+    info.dlpi_addr =  evergreen_info.base_address;
+    info.dlpi_name = evergreen_info.file_path_buf;
+    info.dlpi_phdr = reinterpret_cast<Elf_Phdr*>(evergreen_info.phdr_table);
+    info.dlpi_phnum = evergreen_info.phdr_table_num;
+    ret = callback(&info, sizeof(info), data);
+  }
+
+  return ret || ::dl_iterate_phdr(callback, data);
+}
+#endif
 
 inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
                                                   UnwindInfoSections &info) {
+
+#if defined(STARBOARD) && !defined(STARBOARD_IMPLEMENTATION)
+  return false;
+#endif
+
 #ifdef __APPLE__
   dyld_unwind_sections dyldInfo;
   if (_dyld_find_unwind_sections((void *)targetAddr, &dyldInfo)) {
@@ -630,7 +659,12 @@ inline bool LocalAddressSpace::findUnwindSections(pint_t targetAddr,
   }
 #endif
   dl_iterate_cb_data cb_data = {this, &info, targetAddr};
-  int found = dl_iterate_phdr(findUnwindSectionsByPhdr, &cb_data);
+#if defined(STARBOARD_IMPLEMENTATION)
+  int found = evergreen_dl_iterate_phdr(
+#else
+  int found = dl_iterate_phdr(
+#endif
+      findUnwindSectionsByPhdr, &cb_data);
   return static_cast<bool>(found);
 #endif
 
@@ -647,6 +681,7 @@ inline bool LocalAddressSpace::findOtherFDE(pint_t targetAddr, pint_t &fde) {
 inline bool LocalAddressSpace::findFunctionName(pint_t addr, char *buf,
                                                 size_t bufLen,
                                                 unw_word_t *offset) {
+#if !defined(STARBOARD)
 #if _LIBUNWIND_USE_DLADDR
   Dl_info dyldInfo;
   if (dladdr((void *)addr, &dyldInfo)) {
@@ -668,6 +703,7 @@ inline bool LocalAddressSpace::findFunctionName(pint_t addr, char *buf,
   (void)buf;
   (void)bufLen;
   (void)offset;
+#endif
 #endif
   return false;
 }

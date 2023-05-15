@@ -1,0 +1,17 @@
+name: "llvm-project"
+description:
+  "Subtree at third_party/llvm-project."
+
+third_party {
+  url {
+    type: GIT
+    value: "https://github.com/llvm/llvm-project.git"
+  }
+  version: "39da55e8f548a11f7dadefa73ea73d809a5f1729"
+  last_upgrade_date {
+    year: 2023
+    month: 1
+    day: 17
+  }
+  license_type: NOTICE
+}
