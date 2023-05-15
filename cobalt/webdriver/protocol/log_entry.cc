@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/protocol/log_entry.h"
+
+#include <memory>
 
 #include "base/logging.h"
 
@@ -48,7 +48,7 @@ std::unique_ptr<base::Value> LogEntry::ToValue(const LogEntry& log_entry) {
   std::unique_ptr<base::DictionaryValue> log_entry_value(
       new base::DictionaryValue());
   // Format of the Log Entry object can be found here:
-  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Log-Entry-JSON-Object
+  // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#log-entry-json-object
   // timestamp is in milliseconds since the Unix Epoch.
   log_entry_value->SetInteger("timestamp",
                               log_entry.timestamp_.InMilliseconds());

@@ -27,9 +27,9 @@ namespace protocol {
 
 // Represents the JSON parameters passed to the click, buttondown, and buttonup
 // WebDriver commands.
-// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidelementidclick
-// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidbuttondown
-// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidbuttonup
+// https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidelementidclick
+// https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidbuttondown
+// https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidbuttonup
 class Button {
  public:
   static std::unique_ptr<base::Value> ToValue(const Button& button);

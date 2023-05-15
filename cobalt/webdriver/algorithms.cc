@@ -455,7 +455,7 @@ std::string GetElementText(dom::Element* element) {
 }
 
 // There is a spec for "displayedness" available:
-//   https://w3c.github.io/webdriver/webdriver-spec.html#element-displayedness
+//   https://www.w3.org/TR/2015/WD-webdriver-20150808/#element-displayedness
 // However, the algorithm described in the spec does not match existing
 // implementations of WebDriver.
 // IsDisplayed will match the existing implementations, using the implementation
