@@ -1,11 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// https://llvm.org/PR41018
+// XFAIL: windows-dll && msvc
 
 // <locale>
 
@@ -16,7 +18,9 @@
 #include <locale>
 #include <cassert>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
     {
         std::locale l;
@@ -25,10 +29,14 @@ int main()
             std::string s3("BaaaaaA");
             assert(l(s3, s2));
         }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
         {
             std::wstring s2(L"aaaaaaA");
             std::wstring s3(L"BaaaaaA");
             assert(l(s3, s2));
         }
+#endif
     }
+
+  return 0;
 }

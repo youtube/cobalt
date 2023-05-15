@@ -1,10 +1,15 @@
 set(LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
+  AllTargetsAsmParsers
+  AllTargetsDescs
+  AllTargetsInfos
+  BinaryFormat
   Core
   DlltoolDriver
   LibDriver
   Object
   Support
+  TargetParser
+  TextAPI
   )
 
 add_llvm_tool(llvm-ar
@@ -12,6 +17,7 @@ add_llvm_tool(llvm-ar
 
   DEPENDS
   intrinsics_gen
+  GENERATE_DRIVER
   )
 
 add_llvm_tool_symlink(llvm-ranlib llvm-ar)

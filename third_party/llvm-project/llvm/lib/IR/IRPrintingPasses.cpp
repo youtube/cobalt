@@ -1,73 +1,60 @@
 //===--- IRPrintingPasses.cpp - Module and Function printing passes -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// PrintModulePass and PrintFunctionPass implementations.
+// PrintModulePass and PrintFunctionPass implementations for the legacy pass
+// manager.
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/IRPrintingPasses.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/PassManager.h"
+#include "llvm/IR/PrintPasses.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+
 using namespace llvm;
-
-PrintModulePass::PrintModulePass() : OS(dbgs()) {}
-PrintModulePass::PrintModulePass(raw_ostream &OS, const std::string &Banner,
-                                 bool ShouldPreserveUseListOrder)
-    : OS(OS), Banner(Banner),
-      ShouldPreserveUseListOrder(ShouldPreserveUseListOrder) {}
-
-PreservedAnalyses PrintModulePass::run(Module &M, ModuleAnalysisManager &) {
-  OS << Banner;
-  if (llvm::isFunctionInPrintList("*"))
-    M.print(OS, nullptr, ShouldPreserveUseListOrder);
-  else {
-    for(const auto &F : M.functions())
-      if (llvm::isFunctionInPrintList(F.getName()))
-        F.print(OS);
-  }
-  return PreservedAnalyses::all();
-}
-
-PrintFunctionPass::PrintFunctionPass() : OS(dbgs()) {}
-PrintFunctionPass::PrintFunctionPass(raw_ostream &OS, const std::string &Banner)
-    : OS(OS), Banner(Banner) {}
-
-PreservedAnalyses PrintFunctionPass::run(Function &F,
-                                         FunctionAnalysisManager &) {
-  if (isFunctionInPrintList(F.getName())) {
-    if (forcePrintModuleIR())
-      OS << Banner << " (function: " << F.getName() << ")\n" << *F.getParent();
-    else
-      OS << Banner << static_cast<Value &>(F);
-  }
-  return PreservedAnalyses::all();
-}
 
 namespace {
 
 class PrintModulePassWrapper : public ModulePass {
-  PrintModulePass P;
+  raw_ostream &OS;
+  std::string Banner;
+  bool ShouldPreserveUseListOrder;
 
 public:
   static char ID;
-  PrintModulePassWrapper() : ModulePass(ID) {}
+  PrintModulePassWrapper() : ModulePass(ID), OS(dbgs()) {}
   PrintModulePassWrapper(raw_ostream &OS, const std::string &Banner,
                          bool ShouldPreserveUseListOrder)
-      : ModulePass(ID), P(OS, Banner, ShouldPreserveUseListOrder) {}
+      : ModulePass(ID), OS(OS), Banner(Banner),
+        ShouldPreserveUseListOrder(ShouldPreserveUseListOrder) {}
 
   bool runOnModule(Module &M) override {
-    ModuleAnalysisManager DummyMAM;
-    P.run(M, DummyMAM);
+    if (llvm::isFunctionInPrintList("*")) {
+      if (!Banner.empty())
+        OS << Banner << "\n";
+      M.print(OS, nullptr, ShouldPreserveUseListOrder);
+    } else {
+      bool BannerPrinted = false;
+      for (const auto &F : M.functions()) {
+        if (llvm::isFunctionInPrintList(F.getName())) {
+          if (!BannerPrinted && !Banner.empty()) {
+            OS << Banner << "\n";
+            BannerPrinted = true;
+          }
+          F.print(OS);
+        }
+      }
+    }
     return false;
   }
 
@@ -79,18 +66,24 @@ public:
 };
 
 class PrintFunctionPassWrapper : public FunctionPass {
-  PrintFunctionPass P;
+  raw_ostream &OS;
+  std::string Banner;
 
 public:
   static char ID;
-  PrintFunctionPassWrapper() : FunctionPass(ID) {}
+  PrintFunctionPassWrapper() : FunctionPass(ID), OS(dbgs()) {}
   PrintFunctionPassWrapper(raw_ostream &OS, const std::string &Banner)
-      : FunctionPass(ID), P(OS, Banner) {}
+      : FunctionPass(ID), OS(OS), Banner(Banner) {}
 
   // This pass just prints a banner followed by the function as it's processed.
   bool runOnFunction(Function &F) override {
-    FunctionAnalysisManager DummyFAM;
-    P.run(F, DummyFAM);
+    if (isFunctionInPrintList(F.getName())) {
+      if (forcePrintModuleIR())
+        OS << Banner << " (function: " << F.getName() << ")\n"
+           << *F.getParent();
+      else
+        OS << Banner << '\n' << static_cast<Value &>(F);
+    }
     return false;
   }
 
@@ -101,29 +94,7 @@ public:
   StringRef getPassName() const override { return "Print Function IR"; }
 };
 
-class PrintBasicBlockPass : public BasicBlockPass {
-  raw_ostream &Out;
-  std::string Banner;
-
-public:
-  static char ID;
-  PrintBasicBlockPass() : BasicBlockPass(ID), Out(dbgs()) {}
-  PrintBasicBlockPass(raw_ostream &Out, const std::string &Banner)
-      : BasicBlockPass(ID), Out(Out), Banner(Banner) {}
-
-  bool runOnBasicBlock(BasicBlock &BB) override {
-    Out << Banner << BB;
-    return false;
-  }
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.setPreservesAll();
-  }
-
-  StringRef getPassName() const override { return "Print BasicBlock IR"; }
-};
-
-}
+} // namespace
 
 char PrintModulePassWrapper::ID = 0;
 INITIALIZE_PASS(PrintModulePassWrapper, "print-module",
@@ -131,9 +102,6 @@ INITIALIZE_PASS(PrintModulePassWrapper, "print-module",
 char PrintFunctionPassWrapper::ID = 0;
 INITIALIZE_PASS(PrintFunctionPassWrapper, "print-function",
                 "Print function to stderr", false, true)
-char PrintBasicBlockPass::ID = 0;
-INITIALIZE_PASS(PrintBasicBlockPass, "print-bb", "Print BB to stderr", false,
-                true)
 
 ModulePass *llvm::createPrintModulePass(llvm::raw_ostream &OS,
                                         const std::string &Banner,
@@ -146,15 +114,9 @@ FunctionPass *llvm::createPrintFunctionPass(llvm::raw_ostream &OS,
   return new PrintFunctionPassWrapper(OS, Banner);
 }
 
-BasicBlockPass *llvm::createPrintBasicBlockPass(llvm::raw_ostream &OS,
-                                                const std::string &Banner) {
-  return new PrintBasicBlockPass(OS, Banner);
-}
-
 bool llvm::isIRPrintingPass(Pass *P) {
-  const char *PID = (const char*)P->getPassID();
+  const char *PID = (const char *)P->getPassID();
 
-  return (PID == &PrintModulePassWrapper::ID)
-      || (PID == &PrintFunctionPassWrapper::ID)
-      || (PID == &PrintBasicBlockPass::ID);
+  return (PID == &PrintModulePassWrapper::ID) ||
+         (PID == &PrintFunctionPassWrapper::ID);
 }

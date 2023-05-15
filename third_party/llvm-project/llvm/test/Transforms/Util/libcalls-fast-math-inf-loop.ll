@@ -1,4 +1,4 @@
-; RUN: opt -S -instcombine -o - %s | FileCheck %s
+; RUN: opt -S -passes=instcombine -o - %s | FileCheck %s
 
 ; Test that fast math lib call simplification of double math function to float
 ; equivalent doesn't occur when the calling function matches the float
@@ -23,8 +23,8 @@ define float @fn(float %f) #0 {
 ; CHECK: define float @fn(
 ; CHECK: call fast float @expf(
   %f.addr = alloca float, align 4
-  store float %f, float* %f.addr, align 4, !tbaa !1
-  %1 = load float, float* %f.addr, align 4, !tbaa !1
+  store float %f, ptr %f.addr, align 4, !tbaa !1
+  %1 = load float, ptr %f.addr, align 4, !tbaa !1
   %call = call fast float @expf(float %1) #3
   ret float %call
 }
@@ -36,8 +36,8 @@ define available_externally float @expf(float %x) #1 {
 ; CHECK: call fast double @exp(
 ; CHECK: fptrunc double
   %x.addr = alloca float, align 4
-  store float %x, float* %x.addr, align 4, !tbaa !1
-  %1 = load float, float* %x.addr, align 4, !tbaa !1
+  store float %x, ptr %x.addr, align 4, !tbaa !1
+  %1 = load float, ptr %x.addr, align 4, !tbaa !1
   %conv = fpext float %1 to double
   %call = call fast double @exp(double %conv) #3
   %conv1 = fptrunc double %call to float
@@ -47,8 +47,8 @@ define available_externally float @expf(float %x) #1 {
 ; Function Attrs: nounwind readnone
 declare double @exp(double) #2
 
-attributes #0 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-features"="+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { inlinehint nounwind readnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-features"="+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-features"="+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { inlinehint nounwind readnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-features"="+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { nounwind readnone }
 
 !llvm.ident = !{!0}

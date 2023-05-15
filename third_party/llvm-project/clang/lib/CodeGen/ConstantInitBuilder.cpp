@@ -1,9 +1,8 @@
 //===--- ConstantInitBuilder.cpp - Global initializer builder -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -80,7 +79,7 @@ ConstantInitBuilderBase::createGlobal(llvm::Constant *initializer,
                                      /*insert before*/ nullptr,
                                      llvm::GlobalValue::NotThreadLocal,
                                      addressSpace);
-  GV->setAlignment(alignment.getQuantity());
+  GV->setAlignment(alignment.getAsAlign());
   resolveSelfReferences(GV);
   return GV;
 }
@@ -115,7 +114,7 @@ void ConstantInitBuilderBase::abandon(size_t newEnd) {
   if (newEnd == 0) {
     for (auto &entry : SelfReferences) {
       auto dummy = entry.Dummy;
-      dummy->replaceAllUsesWith(llvm::UndefValue::get(dummy->getType()));
+      dummy->replaceAllUsesWith(llvm::PoisonValue::get(dummy->getType()));
       dummy->eraseFromParent();
     }
     SelfReferences.clear();
@@ -129,8 +128,14 @@ void ConstantAggregateBuilderBase::addSize(CharUnits size) {
 llvm::Constant *
 ConstantAggregateBuilderBase::getRelativeOffset(llvm::IntegerType *offsetType,
                                                 llvm::Constant *target) {
+  return getRelativeOffsetToPosition(offsetType, target,
+                                     Builder.Buffer.size() - Begin);
+}
+
+llvm::Constant *ConstantAggregateBuilderBase::getRelativeOffsetToPosition(
+    llvm::IntegerType *offsetType, llvm::Constant *target, size_t position) {
   // Compute the address of the relative-address slot.
-  auto base = getAddrOfCurrentPosition(offsetType);
+  auto base = getAddrOfPosition(offsetType, position);
 
   // Subtract.
   base = llvm::ConstantExpr::getPtrToInt(base, Builder.CGM.IntPtrTy);
@@ -143,6 +148,20 @@ ConstantAggregateBuilderBase::getRelativeOffset(llvm::IntegerType *offsetType,
   }
 
   return offset;
+}
+
+llvm::Constant *
+ConstantAggregateBuilderBase::getAddrOfPosition(llvm::Type *type,
+                                                size_t position) {
+  // Make a global variable.  We will replace this with a GEP to this
+  // position after installing the initializer.
+  auto dummy = new llvm::GlobalVariable(Builder.CGM.getModule(), type, true,
+                                        llvm::GlobalVariable::PrivateLinkage,
+                                        nullptr, "");
+  Builder.SelfReferences.emplace_back(dummy);
+  auto &entry = Builder.SelfReferences.back();
+  (void)getGEPIndicesTo(entry.Indices, position + Begin);
+  return dummy;
 }
 
 llvm::Constant *
@@ -190,8 +209,7 @@ ConstantAggregateBuilderBase::addPlaceholderWithSize(llvm::Type *type) {
   // Advance the offset past that field.
   auto &layout = Builder.CGM.getDataLayout();
   if (!Packed)
-    offset = offset.alignTo(CharUnits::fromQuantity(
-                                layout.getABITypeAlignment(type)));
+    offset = offset.alignTo(CharUnits::fromQuantity(layout.getABITypeAlign(type)));
   offset += CharUnits::fromQuantity(layout.getTypeStoreSize(type));
 
   CachedOffsetEnd = Builder.Buffer.size();
@@ -230,8 +248,8 @@ CharUnits ConstantAggregateBuilderBase::getOffsetFromGlobalTo(size_t end) const{
              "cannot compute offset when a placeholder is present");
       llvm::Type *elementType = element->getType();
       if (!Packed)
-        offset = offset.alignTo(CharUnits::fromQuantity(
-                                  layout.getABITypeAlignment(elementType)));
+        offset = offset.alignTo(
+            CharUnits::fromQuantity(layout.getABITypeAlign(elementType)));
       offset += CharUnits::fromQuantity(layout.getTypeStoreSize(elementType));
     } while (++cacheEnd != end);
   }
@@ -249,7 +267,7 @@ llvm::Constant *ConstantAggregateBuilderBase::finishArray(llvm::Type *eltTy) {
   assert((Begin < buffer.size() ||
           (Begin == buffer.size() && eltTy))
          && "didn't add any array elements without element type");
-  auto elts = llvm::makeArrayRef(buffer).slice(Begin);
+  auto elts = llvm::ArrayRef(buffer).slice(Begin);
   if (!eltTy) eltTy = elts[0]->getType();
   auto type = llvm::ArrayType::get(eltTy, elts.size());
   auto constant = llvm::ConstantArray::get(type, elts);
@@ -262,7 +280,7 @@ ConstantAggregateBuilderBase::finishStruct(llvm::StructType *ty) {
   markFinished();
 
   auto &buffer = getBuffer();
-  auto elts = llvm::makeArrayRef(buffer).slice(Begin);
+  auto elts = llvm::ArrayRef(buffer).slice(Begin);
 
   if (ty == nullptr && elts.empty())
     ty = llvm::StructType::get(Builder.CGM.getLLVMContext(), {}, Packed);

@@ -1,29 +1,27 @@
-//===-- ThreadLauncher.h -----------------------------------------*- C++
-//-*-===//
+//===-- ThreadLauncher.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_Host_ThreadLauncher_h_
-#define lldb_Host_ThreadLauncher_h_
+#ifndef LLDB_HOST_THREADLAUNCHER_H
+#define LLDB_HOST_THREADLAUNCHER_H
 
 #include "lldb/Host/HostThread.h"
-#include "lldb/Utility/Status.h"
 #include "lldb/lldb-types.h"
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Error.h"
 
 namespace lldb_private {
 
 class ThreadLauncher {
 public:
-  static HostThread
-  LaunchThread(llvm::StringRef name, lldb::thread_func_t thread_function,
-               lldb::thread_arg_t thread_arg, Status *error_ptr,
+  static llvm::Expected<HostThread>
+  LaunchThread(llvm::StringRef name,
+               std::function<lldb::thread_result_t()> thread_function,
                size_t min_stack_byte_size = 0); // Minimum stack size in bytes,
                                                 // set stack size to zero for
                                                 // default platform thread stack
@@ -31,12 +29,11 @@ public:
 
   struct HostThreadCreateInfo {
     std::string thread_name;
-    lldb::thread_func_t thread_fptr;
-    lldb::thread_arg_t thread_arg;
+    std::function<lldb::thread_result_t()> impl;
 
-    HostThreadCreateInfo(const char *name, lldb::thread_func_t fptr,
-                         lldb::thread_arg_t arg)
-        : thread_name(name ? name : ""), thread_fptr(fptr), thread_arg(arg) {}
+    HostThreadCreateInfo(std::string thread_name,
+                         std::function<lldb::thread_result_t()> impl)
+        : thread_name(std::move(thread_name)), impl(std::move(impl)) {}
   };
 };
 }

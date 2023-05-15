@@ -1,9 +1,8 @@
 //===--- LoopWidening.cpp - Widen loops -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -46,8 +45,7 @@ ProgramStateRef getWidenedLoopState(ProgramStateRef PrevState,
                                     const LocationContext *LCtx,
                                     unsigned BlockCount, const Stmt *LoopStmt) {
 
-  assert(isa<ForStmt>(LoopStmt) || isa<WhileStmt>(LoopStmt) ||
-         isa<DoStmt>(LoopStmt));
+  assert((isa<ForStmt, WhileStmt, DoStmt>(LoopStmt)));
 
   // Invalidate values in the current state.
   // TODO Make this more conservative by only invalidating values that might
@@ -68,8 +66,10 @@ ProgramStateRef getWidenedLoopState(ProgramStateRef PrevState,
   }
 
   // References should not be invalidated.
-  auto Matches = match(findAll(stmt(hasDescendant(varDecl(hasType(referenceType())).bind(MatchRef)))),
-                       *LCtx->getDecl()->getBody(), ASTCtx);
+  auto Matches = match(
+      findAll(stmt(hasDescendant(
+          varDecl(hasType(hasCanonicalType(referenceType()))).bind(MatchRef)))),
+      *LCtx->getDecl()->getBody(), ASTCtx);
   for (BoundNodes Match : Matches) {
     const VarDecl *VD = Match.getNodeAs<VarDecl>(MatchRef);
     assert(VD);
@@ -81,11 +81,12 @@ ProgramStateRef getWidenedLoopState(ProgramStateRef PrevState,
 
   // 'this' pointer is not an lvalue, we should not invalidate it. If the loop
   // is located in a method, constructor or destructor, the value of 'this'
-  // pointer shoule remain unchanged.
-  if (const CXXMethodDecl *CXXMD = dyn_cast<CXXMethodDecl>(STC->getDecl())) {
-    const CXXThisRegion *ThisR = MRMgr.getCXXThisRegion(
-        CXXMD->getThisType(STC->getAnalysisDeclContext()->getASTContext()),
-        STC);
+  // pointer should remain unchanged.  Ignore static methods, since they do not
+  // have 'this' pointers.
+  const CXXMethodDecl *CXXMD = dyn_cast<CXXMethodDecl>(STC->getDecl());
+  if (CXXMD && !CXXMD->isStatic()) {
+    const CXXThisRegion *ThisR =
+        MRMgr.getCXXThisRegion(CXXMD->getThisType(), STC);
     ITraits.setTrait(ThisR,
                      RegionAndSymbolInvalidationTraits::TK_PreserveContents);
   }

@@ -1,5 +1,8 @@
 set(LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
+  AllTargetsAsmParsers
+  AllTargetsCodeGens
+  AllTargetsDescs
+  AllTargetsInfos
   Analysis
   BitReader
   BitWriter
@@ -11,12 +14,14 @@ set(LLVM_LINK_COMPONENTS
   AggressiveInstCombine
   InstCombine
   Instrumentation
+  FuzzerCLI
   FuzzMutate
   MC
   ObjCARCOpts
   ScalarOpts
   Support
   Target
+  TargetParser
   TransformUtils
   Vectorize
   Passes

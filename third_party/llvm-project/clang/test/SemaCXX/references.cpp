@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
-// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -std=c++11 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -std=c++14 -fsyntax-only -verify %s
 int g(int);
 
 void f() {
@@ -55,13 +56,13 @@ void test4() {
 void test5() {
   //  const double& rcd2 = 2; // rcd2 refers to temporary with value 2.0
   const volatile int cvi = 1;
-  const int& r = cvi; // expected-error{{binding value of type 'const volatile int' to reference to type 'const int' drops 'volatile' qualifier}}
+  const int& r = cvi; // expected-error{{binding reference of type 'const int' to value of type 'const volatile int' drops 'volatile' qualifier}}
 
 #if __cplusplus >= 201103L
-  const int& r2{cvi}; // expected-error{{binding value of type 'const volatile int' to reference to type 'const int' drops 'volatile' qualifier}}
+  const int& r2{cvi}; // expected-error{{binding reference of type 'const int' to value of type 'const volatile int' drops 'volatile' qualifier}}
 
   const int a = 2;
-  int& r3{a}; // expected-error{{binding value of type 'const int' to reference to type 'int' drops 'const'}}
+  int& r3{a}; // expected-error{{binding reference of type 'int' to value of type 'const int' drops 'const' qualifier}}
 
   const int&& r4{a}; // expected-error{{rvalue reference to type 'const int' cannot bind to lvalue of type 'const int'}}
 
@@ -89,7 +90,7 @@ class Test6 { // expected-warning{{class 'Test6' does not declare any constructo
   int& okay; // expected-note{{reference member 'okay' will never be initialized}}
 };
 
-struct C : B, A { }; // expected-warning {{direct base 'A' is inaccessible due to ambiguity:\n    struct C -> struct B -> struct A\nstruct C -> struct A}}
+struct C : B, A { }; // expected-warning {{direct base 'A' is inaccessible due to ambiguity:\n    struct C -> B -> A\nstruct C -> A}}
 
 void test7(C& c) {
   A& a1 = c; // expected-error {{ambiguous conversion from derived class 'C' to base class 'A':}}
@@ -113,6 +114,14 @@ void test8(int& const,// expected-error{{'const' qualifier may not be applied to
   void restrict_ref(__restrict intref); // ok
   void restrict_ref(int &__restrict); // ok
 }
+
+namespace var_template {
+#if __cplusplus >= 201402L
+int i;
+template <typename> int &ref = i; // ok
+template <> int &ref<float>;      // expected-error {{declaration of reference variable 'ref<float>' requires an initializer}}
+#endif
+} // namespace var_template
 
 template<typename T> int const_param(const T) {}
 int const_ref_param = const_param<int&>(const_ref_param); // no-warning
@@ -171,7 +180,7 @@ namespace ExplicitRefInit {
   // This is invalid: we can't copy-initialize an 'A' temporary using an
   // explicit constructor.
   struct A { explicit A(int); };
-  const A &a(0); // expected-error {{reference to type 'const ExplicitRefInit::A' could not bind to an rvalue of type 'int'}}
+  const A &a(0); // expected-error {{reference to type 'const A' could not bind to an rvalue of type 'int'}}
 }
 
 namespace RefCollapseTypePrinting {
@@ -200,4 +209,10 @@ namespace RefCollapseTypePrinting {
   template void add_rref<int&&>(); // expected-note {{instantiation of}}
   template void add_rref<const int&>(); // expected-note {{instantiation of}}
   template void add_rref<const int&&>(); // expected-note {{instantiation of}}
+}
+
+namespace PR45521 {
+  struct a { template<class b> a(const b * const&); };
+  int *d;
+  const a &r = d;
 }

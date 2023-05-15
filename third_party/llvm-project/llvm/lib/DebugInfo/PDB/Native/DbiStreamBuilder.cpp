@@ -1,9 +1,8 @@
 //===- DbiStreamBuilder.cpp - PDB Dbi Stream Creation -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,13 +10,14 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/BinaryFormat/COFF.h"
+#include "llvm/DebugInfo/CodeView/DebugFrameDataSubsection.h"
 #include "llvm/DebugInfo/MSF/MSFBuilder.h"
 #include "llvm/DebugInfo/MSF/MappedBlockStream.h"
 #include "llvm/DebugInfo/PDB/Native/DbiModuleDescriptorBuilder.h"
-#include "llvm/DebugInfo/PDB/Native/DbiStream.h"
 #include "llvm/DebugInfo/PDB/Native/RawError.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Support/BinaryStreamWriter.h"
+#include "llvm/Support/Parallel.h"
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -29,7 +29,7 @@ DbiStreamBuilder::DbiStreamBuilder(msf::MSFBuilder &Msf)
       PdbDllVersion(0), PdbDllRbld(0), Flags(0), MachineType(PDB_Machine::x86),
       Header(nullptr) {}
 
-DbiStreamBuilder::~DbiStreamBuilder() {}
+DbiStreamBuilder::~DbiStreamBuilder() = default;
 
 void DbiStreamBuilder::setVersionHeader(PdbRaw_DbiVer V) { VerHeader = V; }
 
@@ -58,10 +58,6 @@ void DbiStreamBuilder::setMachineType(COFF::MachineTypes M) {
   MachineType = static_cast<pdb::PDB_Machine>(static_cast<unsigned>(M));
 }
 
-void DbiStreamBuilder::setSectionMap(ArrayRef<SecMapEntry> SecMap) {
-  SectionMap = SecMap;
-}
-
 void DbiStreamBuilder::setGlobalsStreamIndex(uint32_t Index) {
   GlobalsStreamIndex = Index;
 }
@@ -74,10 +70,27 @@ void DbiStreamBuilder::setPublicsStreamIndex(uint32_t Index) {
   PublicsStreamIndex = Index;
 }
 
+void DbiStreamBuilder::addNewFpoData(const codeview::FrameData &FD) {
+  if (!NewFpoData)
+    NewFpoData.emplace(false);
+
+  NewFpoData->addFrameData(FD);
+}
+
+void DbiStreamBuilder::addOldFpoData(const object::FpoData &FD) {
+  OldFpoData.push_back(FD);
+}
+
 Error DbiStreamBuilder::addDbgStream(pdb::DbgHeaderType Type,
                                      ArrayRef<uint8_t> Data) {
-  DbgStreams[(int)Type].emplace();
-  DbgStreams[(int)Type]->Data = Data;
+  assert(Type != DbgHeaderType::NewFPO &&
+         "NewFPO data should be written via addFrameData()!");
+
+  DbgStreams[(int)Type] = DebugStream{};
+  DbgStreams[(int)Type]->Size = Data.size();
+  DbgStreams[(int)Type]->WriteFn = [Data](BinaryStreamWriter &Writer) {
+    return Writer.writeArray(Data);
+  };
   return Error::success();
 }
 
@@ -97,7 +110,7 @@ Expected<DbiModuleDescriptorBuilder &>
 DbiStreamBuilder::addModuleInfo(StringRef ModuleName) {
   uint32_t Index = ModiList.size();
   ModiList.push_back(
-      llvm::make_unique<DbiModuleDescriptorBuilder>(ModuleName, Index, Msf));
+      std::make_unique<DbiModuleDescriptorBuilder>(ModuleName, Index, Msf));
   return *ModiList.back();
 }
 
@@ -272,10 +285,30 @@ Error DbiStreamBuilder::finalize() {
 }
 
 Error DbiStreamBuilder::finalizeMsfLayout() {
+  if (NewFpoData) {
+    DbgStreams[(int)DbgHeaderType::NewFPO] = DebugStream{};
+    DbgStreams[(int)DbgHeaderType::NewFPO]->Size =
+        NewFpoData->calculateSerializedSize();
+    DbgStreams[(int)DbgHeaderType::NewFPO]->WriteFn =
+        [this](BinaryStreamWriter &Writer) {
+          return NewFpoData->commit(Writer);
+        };
+  }
+
+  if (!OldFpoData.empty()) {
+    DbgStreams[(int)DbgHeaderType::FPO] = DebugStream{};
+    DbgStreams[(int)DbgHeaderType::FPO]->Size =
+        sizeof(object::FpoData) * OldFpoData.size();
+    DbgStreams[(int)DbgHeaderType::FPO]->WriteFn =
+        [this](BinaryStreamWriter &Writer) {
+          return Writer.writeArray(ArrayRef(OldFpoData));
+        };
+  }
+
   for (auto &S : DbgStreams) {
-    if (!S.hasValue())
+    if (!S)
       continue;
-    auto ExpectedIndex = Msf.addStream(S->Data.size());
+    auto ExpectedIndex = Msf.addStream(S->Size);
     if (!ExpectedIndex)
       return ExpectedIndex.takeError();
     S->StreamNumber = *ExpectedIndex;
@@ -300,8 +333,6 @@ static uint16_t toSecMapFlags(uint32_t Flags) {
     Ret |= static_cast<uint16_t>(OMFSegDescFlags::Write);
   if (Flags & COFF::IMAGE_SCN_MEM_EXECUTE)
     Ret |= static_cast<uint16_t>(OMFSegDescFlags::Execute);
-  if (Flags & COFF::IMAGE_SCN_MEM_EXECUTE)
-    Ret |= static_cast<uint16_t>(OMFSegDescFlags::Execute);
   if (!(Flags & COFF::IMAGE_SCN_MEM_16BIT))
     Ret |= static_cast<uint16_t>(OMFSegDescFlags::AddressIs32Bit);
 
@@ -311,19 +342,18 @@ static uint16_t toSecMapFlags(uint32_t Flags) {
   return Ret;
 }
 
-// A utility function to create a Section Map for a given list of COFF sections.
+// Populate the Section Map from COFF section headers.
 //
 // A Section Map seem to be a copy of a COFF section list in other format.
 // I don't know why a PDB file contains both a COFF section header and
 // a Section Map, but it seems it must be present in a PDB.
-std::vector<SecMapEntry> DbiStreamBuilder::createSectionMap(
+void DbiStreamBuilder::createSectionMap(
     ArrayRef<llvm::object::coff_section> SecHdrs) {
-  std::vector<SecMapEntry> Ret;
   int Idx = 0;
 
   auto Add = [&]() -> SecMapEntry & {
-    Ret.emplace_back();
-    auto &Entry = Ret.back();
+    SectionMap.emplace_back();
+    auto &Entry = SectionMap.back();
     memset(&Entry, 0, sizeof(Entry));
 
     Entry.Frame = Idx + 1;
@@ -347,8 +377,6 @@ std::vector<SecMapEntry> DbiStreamBuilder::createSectionMap(
   Entry.Flags = static_cast<uint16_t>(OMFSegDescFlags::AddressIs32Bit) |
                 static_cast<uint16_t>(OMFSegDescFlags::IsAbsoluteAddress);
   Entry.SecByteLength = UINT32_MAX;
-
-  return Ret;
 }
 
 Error DbiStreamBuilder::commit(const msf::MSFLayout &Layout,
@@ -364,14 +392,21 @@ Error DbiStreamBuilder::commit(const msf::MSFLayout &Layout,
     return EC;
 
   for (auto &M : ModiList) {
-    if (auto EC = M->commit(Writer, Layout, MsfBuffer))
+    if (auto EC = M->commit(Writer))
       return EC;
   }
+
+  // Commit symbol streams. This is a lot of data, so do it in parallel.
+  if (auto EC = parallelForEachError(
+          ModiList, [&](std::unique_ptr<DbiModuleDescriptorBuilder> &M) {
+            return M->commitSymbolStream(Layout, MsfBuffer);
+          }))
+    return EC;
 
   if (!SectionContribs.empty()) {
     if (auto EC = Writer.writeEnum(DbiSecContribVer60))
       return EC;
-    if (auto EC = Writer.writeArray(makeArrayRef(SectionContribs)))
+    if (auto EC = Writer.writeArray(ArrayRef(SectionContribs)))
       return EC;
   }
 
@@ -380,7 +415,7 @@ Error DbiStreamBuilder::commit(const msf::MSFLayout &Layout,
     SecMapHeader SMHeader = {Size, Size};
     if (auto EC = Writer.writeObject(SMHeader))
       return EC;
-    if (auto EC = Writer.writeArray(SectionMap))
+    if (auto EC = Writer.writeArray(ArrayRef(SectionMap)))
       return EC;
   }
 
@@ -392,21 +427,22 @@ Error DbiStreamBuilder::commit(const msf::MSFLayout &Layout,
 
   for (auto &Stream : DbgStreams) {
     uint16_t StreamNumber = kInvalidStreamIndex;
-    if (Stream.hasValue())
+    if (Stream)
       StreamNumber = Stream->StreamNumber;
     if (auto EC = Writer.writeInteger(StreamNumber))
       return EC;
   }
 
   for (auto &Stream : DbgStreams) {
-    if (!Stream.hasValue())
+    if (!Stream)
       continue;
     assert(Stream->StreamNumber != kInvalidStreamIndex);
 
     auto WritableStream = WritableMappedBlockStream::createIndexedStream(
         Layout, MsfBuffer, Stream->StreamNumber, Allocator);
     BinaryStreamWriter DbgStreamWriter(*WritableStream);
-    if (auto EC = DbgStreamWriter.writeArray(Stream->Data))
+
+    if (auto EC = Stream->WriteFn(DbgStreamWriter))
       return EC;
   }
 

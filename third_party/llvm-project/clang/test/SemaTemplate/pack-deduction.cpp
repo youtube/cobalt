@@ -5,8 +5,8 @@ template<typename ...T> struct X {};
 template<typename T, typename U> struct P {};
 
 namespace Nested {
-  template<typename ...T> int f1(X<T, T...>... a); // expected-note +{{conflicting types for parameter 'T'}}
-  template<typename ...T> int f2(P<X<T...>, T> ...a); // expected-note +{{conflicting types for parameter 'T'}}
+  template<typename ...T> int f1(X<T, T...>... a); // expected-note +{{packs of different lengths for parameter 'T'}}
+  template<typename ...T> int f2(P<X<T...>, T> ...a); // expected-note +{{packs of different lengths for parameter 'T'}}
 
   int a1 = f1(X<int, int, double>(), X<double, int, double>());
   int a2 = f1(X<int, int>());
@@ -134,14 +134,14 @@ namespace partial_full_mix {
   template<typename ...T> struct tuple {};
   template<typename ...T> struct A {
     template<typename ...U> static pair<tuple<T...>, tuple<U...>> f(pair<T, U> ...p);
-    // expected-note@-1 {{[with U = <char, double, long>]: pack expansion contains parameter pack 'U' that has a different length (2 vs. 3) from outer parameter packs}}
+    // expected-note@-1 {{[with U = <char, double, long>]: pack expansion contains parameter packs 'T' and 'U' that have different lengths (2 vs. 3)}}
     // expected-note@-2 {{[with U = <char, double, void>]: pack expansion contains parameter pack 'U' that has a different length (at least 3 vs. 2) from outer parameter packs}}
 
     template<typename ...U> static pair<tuple<T...>, tuple<U...>> g(pair<T, U> ...p, ...);
-    // expected-note@-1 {{[with U = <char, double, long>]: pack expansion contains parameter pack 'U' that has a different length (2 vs. 3) from outer parameter packs}}
+    // expected-note@-1 {{[with U = <char, double, long>]: pack expansion contains parameter packs 'T' and 'U' that have different lengths (2 vs. 3)}}
 
     template<typename ...U> static tuple<U...> h(tuple<pair<T, U>..., pair<int, int>>);
-    // expected-note@-1 {{[with U = <int [2]>]: pack expansion contains parameter pack 'U' that has a different length (2 vs. 1) from outer parameter packs}}
+    // expected-note@-1 {{[with U = <int[2]>]: pack expansion contains parameter packs 'T' and 'U' that have different lengths (2 vs. 1)}}
   };
 
   pair<tuple<int, float>, tuple<char, double>> k1 = A<int, float>().f<char>(pair<int, char>(), pair<float, double>());
@@ -165,4 +165,23 @@ namespace substitution_vs_function_deduction {
     // FIXME: We fail to decay the parameter to a pointer type.
     A<int>().g(f); // expected-error {{no match}}
   }
+}
+
+namespace Nested_Explicit_Specialization {
+template <typename>
+struct Outer {
+
+  template <int>
+  struct Inner;
+
+  template <>
+  struct Inner<0> {
+    template <typename... Args>
+    void Test(Args...) {}
+  };
+};
+
+void Run() {
+  Outer<void>::Inner<0>().Test(1,1);
+}
 }

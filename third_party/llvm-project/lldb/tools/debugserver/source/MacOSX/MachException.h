@@ -1,9 +1,8 @@
 //===-- MachException.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __MachException_h__
-#define __MachException_h__
+#ifndef LLDB_TOOLS_DEBUGSERVER_SOURCE_MACOSX_MACHEXCEPTION_H
+#define LLDB_TOOLS_DEBUGSERVER_SOURCE_MACOSX_MACHEXCEPTION_H
 
 #include <mach/mach.h>
 #include <vector>
@@ -128,6 +127,7 @@ public:
     uint8_t flags; // Action flags describing what to do with the exception
   };
   static const char *Name(exception_type_t exc_type);
+  static exception_mask_t ExceptionMask(const char *name);
 };
 
 #endif

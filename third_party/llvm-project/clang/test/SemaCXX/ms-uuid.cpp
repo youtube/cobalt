@@ -2,10 +2,10 @@
 // RUN: %clang_cc1 -fsyntax-only -std=c++17 -verify -fms-extensions %s -Wno-deprecated-declarations
 
 typedef struct _GUID {
-  unsigned long Data1;
-  unsigned short Data2;
-  unsigned short Data3;
-  unsigned char Data4[8];
+  __UINT32_TYPE__ Data1;
+  __UINT16_TYPE__ Data2;
+  __UINT16_TYPE__ Data3;
+  __UINT8_TYPE__ Data4[8];
 } GUID;
 
 namespace {
@@ -62,14 +62,14 @@ class __declspec(uuid("110000A0-0000-0000-C000-000000000049")) C2_2;
 [uuid("220000A0-0000-0000-C000-000000000049")] class C4 {};
 
 // Both cl and clang-cl error out on this:
-// expected-note@+1 {{previous uuid specified here}}
-class __declspec(uuid("000000A0-0000-0000-C000-000000000049"))
 // expected-error@+1 {{uuid does not match previous declaration}}
+class __declspec(uuid("000000A0-0000-0000-C000-000000000049"))
+// expected-note@+1 {{previous uuid specified here}}
       __declspec(uuid("110000A0-0000-0000-C000-000000000049")) C5;
 
-// expected-note@+1 {{previous uuid specified here}}
-[uuid("000000A0-0000-0000-C000-000000000049"),
 // expected-error@+1 {{uuid does not match previous declaration}}
+[uuid("000000A0-0000-0000-C000-000000000049"),
+// expected-note@+1 {{previous uuid specified here}}
  uuid("110000A0-0000-0000-C000-000000000049")] class C6;
 
 // cl doesn't diagnose having one uuid each as []-style attributes and as
@@ -105,4 +105,30 @@ void F2() {
   F1<&__uuidof(C1)>();
 }
 
+}
+
+// Test class/struct redeclaration where the subsequent
+// declaration has a uuid attribute
+struct X{};
+
+struct __declspec(uuid("00000000-0000-0000-0000-000000000000")) X;
+
+namespace ConstantEvaluation {
+  class __declspec(uuid("1babb1ed-feed-c01d-1ced-decafc0ffee5")) Request;
+  constexpr GUID a = __uuidof(Request);
+  static_assert(a.Data1 == 0x1babb1ed, "");
+  static_assert(__uuidof(Request).Data1 == 0x1babb1ed, "");
+  static_assert(a.Data2 == 0xfeed, "");
+  static_assert(__uuidof(Request).Data2 == 0xfeed, "");
+  static_assert(a.Data3 == 0xc01d, "");
+  static_assert(__uuidof(Request).Data3 == 0xc01d, "");
+  static_assert(a.Data4[0] == 0x1c, "");
+  static_assert(__uuidof(Request).Data4[0] == 0x1c, "");
+  static_assert(a.Data4[1] == 0xed, "");
+  static_assert(__uuidof(Request).Data4[1] == 0xed, "");
+  static_assert(a.Data4[2] == 0xde, "");
+  static_assert(__uuidof(Request).Data4[2] == 0xde, "");
+  static_assert(a.Data4[7] == 0xe5, "");
+  static_assert(__uuidof(Request).Data4[7] == 0xe5, "");
+  constexpr int k = __uuidof(Request).Data4[8]; // expected-error {{constant expression}} expected-note {{past-the-end}}
 }

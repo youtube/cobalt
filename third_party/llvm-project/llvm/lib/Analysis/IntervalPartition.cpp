@@ -1,9 +1,8 @@
 //===- IntervalPartition.cpp - Interval Partition module code -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,6 +14,7 @@
 #include "llvm/Analysis/IntervalPartition.h"
 #include "llvm/Analysis/Interval.h"
 #include "llvm/Analysis/IntervalIterator.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include <cassert>
 #include <utility>
@@ -22,6 +22,10 @@
 using namespace llvm;
 
 char IntervalPartition::ID = 0;
+
+IntervalPartition::IntervalPartition() : FunctionPass(ID) {
+  initializeIntervalPartitionPass(*PassRegistry::getPassRegistry());
+}
 
 INITIALIZE_PASS(IntervalPartition, "intervals",
                 "Interval Partition Construction", true, true)
@@ -32,16 +36,16 @@ INITIALIZE_PASS(IntervalPartition, "intervals",
 
 // releaseMemory - Reset state back to before function was analyzed
 void IntervalPartition::releaseMemory() {
-  for (unsigned i = 0, e = Intervals.size(); i != e; ++i)
-    delete Intervals[i];
+  for (Interval *I : Intervals)
+    delete I;
   IntervalMap.clear();
   Intervals.clear();
   RootInterval = nullptr;
 }
 
 void IntervalPartition::print(raw_ostream &O, const Module*) const {
-  for(unsigned i = 0, e = Intervals.size(); i != e; ++i)
-    Intervals[i]->print(O);
+  for (const Interval *I : Intervals)
+    I->print(O);
 }
 
 // addIntervalToPartition - Add an interval to the internal list of intervals,
@@ -83,8 +87,8 @@ bool IntervalPartition::runOnFunction(Function &F) {
 
   // Now that we know all of the successor information, propagate this to the
   // predecessors for each block.
-  for (unsigned i = 0, e = Intervals.size(); i != e; ++i)
-    updatePredecessors(Intervals[i]);
+  for (Interval *I : Intervals)
+    updatePredecessors(I);
   return false;
 }
 
@@ -109,6 +113,6 @@ IntervalPartition::IntervalPartition(IntervalPartition &IP, bool)
 
   // Now that we know all of the successor information, propagate this to the
   // predecessors for each block.
-  for (unsigned i = 0, e = Intervals.size(); i != e; ++i)
-    updatePredecessors(Intervals[i]);
+  for (Interval *I : Intervals)
+    updatePredecessors(I);
 }

@@ -26,8 +26,8 @@ if.then17:                                        ; preds = %while.end
   unreachable
 
 if.end:                                           ; preds = %while.end
-  %arrayidx21 = getelementptr inbounds [4096 x i8], [4096 x i8]* undef, i32 0, i32 8
-  store i8 undef, i8* %arrayidx21, align 4, !tbaa !1
+  %arrayidx21 = getelementptr inbounds [4096 x i8], ptr undef, i32 0, i32 8
+  store i8 undef, ptr %arrayidx21, align 4, !tbaa !1
   br i1 undef, label %for.body42.preheader6, label %min.iters.checked
 
 for.body42.preheader6:                            ; preds = %vector.body.preheader, %min.iters.checked, %if.end
@@ -49,8 +49,8 @@ min.iters.checked595:                             ; preds = %for.body61.lr.ph
   br i1 undef, label %for.body61, label %vector.memcheck608
 
 vector.memcheck608:                               ; preds = %min.iters.checked595
-  %scevgep600 = getelementptr [4096 x i8], [4096 x i8]* undef, i32 0, i32 %add
-  %bound0604 = icmp ule i8* %scevgep600, undef
+  %scevgep600 = getelementptr [4096 x i8], ptr undef, i32 0, i32 %add
+  %bound0604 = icmp ule ptr %scevgep600, undef
   %memcheck.conflict607 = and i1 undef, %bound0604
   br i1 %memcheck.conflict607, label %for.body61, label %vector.body590
 
@@ -75,7 +75,7 @@ if.else:                                          ; preds = %entry
   unreachable
 }
 
-attributes #0 = { nounwind "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.module.flags = !{!0}
 

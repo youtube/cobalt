@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -34,7 +33,7 @@ test(InputIterator f, InputIterator l, const Allocator& a)
     C d(f, l, a);
     assert(d.get_allocator() == a);
     assert(d.size() == static_cast<std::size_t>(std::distance(f, l)));
-    assert(static_cast<std::size_t>(distance(d.begin(), d.end())) == d.size());
+    assert(static_cast<std::size_t>(std::distance(d.begin(), d.end())) == d.size());
     for (const_iterator i = d.begin(), e = d.end(); i != e; ++i, ++f)
         assert(*i == *f);
 }
@@ -43,12 +42,12 @@ void basic_test()
 {
     int ab[] = {3, 4, 2, 8, 0, 1, 44, 34, 45, 96, 80, 1, 13, 31, 45};
     int* an = ab + sizeof(ab)/sizeof(ab[0]);
-    test(input_iterator<const int*>(ab), input_iterator<const int*>(an), test_allocator<int>(3));
+    test(cpp17_input_iterator<const int*>(ab), cpp17_input_iterator<const int*>(an), test_allocator<int>(3));
     test(forward_iterator<const int*>(ab), forward_iterator<const int*>(an), test_allocator<int>(4));
     test(bidirectional_iterator<const int*>(ab), bidirectional_iterator<const int*>(an), test_allocator<int>(5));
     test(random_access_iterator<const int*>(ab), random_access_iterator<const int*>(an), test_allocator<int>(6));
 #if TEST_STD_VER >= 11
-    test(input_iterator<const int*>(ab), input_iterator<const int*>(an), min_allocator<int>());
+    test(cpp17_input_iterator<const int*>(ab), cpp17_input_iterator<const int*>(an), min_allocator<int>());
     test(forward_iterator<const int*>(ab), forward_iterator<const int*>(an), min_allocator<int>());
     test(bidirectional_iterator<const int*>(ab), bidirectional_iterator<const int*>(an), min_allocator<int>());
     test(random_access_iterator<const int*>(ab), random_access_iterator<const int*>(an), min_allocator<int>());
@@ -77,7 +76,7 @@ void test_emplacable_concept() {
   }
   {
     using T = EmplaceConstructibleAndMoveable<int>;
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     std::allocator<T> a;
     {
       std::deque<T> v(It(arr1), It(std::end(arr1)), a);
@@ -97,7 +96,9 @@ void test_emplacable_concept() {
 #endif
 }
 
-int main() {
+int main(int, char**) {
   basic_test();
   test_emplacable_concept();
+
+  return 0;
 }

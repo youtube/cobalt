@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 %s -triple=i686-apple-darwin9 -verify -DVERIFY
-// RUN: %clang_cc1 %s -E -triple=i686-apple-darwin9
+// RUN: %clang_cc1 %s -triple=i686-apple-darwin9 -target-cpu pentium4 -verify -DVERIFY
+// RUN: %clang_cc1 %s -E -triple=i686-apple-darwin9 -target-cpu pentium4
 #ifndef __has_feature
 #error Should have __has_feature
 #endif
@@ -14,9 +14,27 @@
      !__has_builtin(__builtin_convertvector) || \
      !__has_builtin(__builtin_trap) || \
      !__has_builtin(__c11_atomic_init) || \
+     !__has_builtin(__builtin_launder) || \
      !__has_feature(attribute_analyzer_noreturn) || \
      !__has_feature(attribute_overloadable)
 #error Clang should have these
+#endif
+
+// These are technically implemented as keywords, but __has_builtin should
+// still return true.
+#if !__has_builtin(__builtin_LINE) || \
+    !__has_builtin(__builtin_FILE) || \
+    !__has_builtin(__builtin_FUNCTION) || \
+    !__has_builtin(__builtin_COLUMN) || \
+    !__has_builtin(__builtin_types_compatible_p)
+#error Clang should have these
+#endif
+
+// These are C++-only builtins.
+#if __has_builtin(__array_rank) || \
+    __has_builtin(__underlying_type) || \
+    __has_builtin(__is_trivial)
+#error Clang should not have these in C mode
 #endif
 
 #if __has_builtin(__builtin_insanity)

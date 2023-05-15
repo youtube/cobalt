@@ -1,9 +1,8 @@
 //=-- LanaiMCInstLower.cpp - Convert Lanai MachineInstr to an MCInst --------=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -94,9 +93,7 @@ MCOperand LanaiMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
 void LanaiMCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   OutMI.setOpcode(MI->getOpcode());
 
-  for (unsigned I = 0, E = MI->getNumOperands(); I != E; ++I) {
-    const MachineOperand &MO = MI->getOperand(I);
-
+  for (const MachineOperand &MO : MI->operands()) {
     MCOperand MCOp;
     switch (MO.getType()) {
     case MachineOperand::MO_Register:

@@ -1,10 +1,9 @@
 
 //===--- CommandLineSourceLoc.h - Parsing for source locations-*- C++ -*---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +17,7 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 namespace clang {
 
@@ -39,7 +39,7 @@ public:
     // If both tail splits were valid integers, return success.
     if (!ColSplit.second.getAsInteger(10, PSL.Column) &&
         !LineSplit.second.getAsInteger(10, PSL.Line)) {
-      PSL.FileName = LineSplit.first;
+      PSL.FileName = std::string(LineSplit.first);
 
       // On the command-line, stdin may be specified via "-". Inside the
       // compiler, stdin is called "<stdin>".
@@ -48,6 +48,13 @@ public:
     }
 
     return PSL;
+  }
+
+  /// Serialize ParsedSourceLocation back to a string.
+  std::string ToString() const {
+    return (llvm::Twine(FileName == "<stdin>" ? "-" : FileName) + ":" +
+            Twine(Line) + ":" + Twine(Column))
+        .str();
   }
 };
 
@@ -61,8 +68,8 @@ struct ParsedSourceRange {
   /// second element is the column.
   std::pair<unsigned, unsigned> End;
 
-  /// Returns a parsed source range from a string or None if the string is
-  /// invalid.
+  /// Returns a parsed source range from a string or std::nullopt if the string
+  /// is invalid.
   ///
   /// These source string has the following format:
   ///
@@ -70,7 +77,7 @@ struct ParsedSourceRange {
   ///
   /// If the end line and column are omitted, the starting line and columns
   /// are used as the end values.
-  static Optional<ParsedSourceRange> fromString(StringRef Str) {
+  static std::optional<ParsedSourceRange> fromString(StringRef Str) {
     std::pair<StringRef, StringRef> RangeSplit = Str.rsplit('-');
     unsigned EndLine, EndColumn;
     bool HasEndLoc = false;
@@ -87,7 +94,7 @@ struct ParsedSourceRange {
     }
     auto Begin = ParsedSourceLocation::FromString(RangeSplit.first);
     if (Begin.FileName.empty())
-      return None;
+      return std::nullopt;
     if (!HasEndLoc) {
       EndLine = Begin.Line;
       EndColumn = Begin.Column;

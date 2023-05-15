@@ -1,9 +1,8 @@
 // MmapWriteExecChecker.cpp - Check for the prot argument -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,17 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallDescription.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 
 using namespace clang;
 using namespace ento;
-using llvm::APSInt;
 
 namespace {
 class MmapWriteExecChecker : public Checker<check::PreCall> {
@@ -34,7 +33,7 @@ class MmapWriteExecChecker : public Checker<check::PreCall> {
   static int ProtRead;
   mutable std::unique_ptr<BugType> BT;
 public:
-  MmapWriteExecChecker() : MmapFn("mmap", 6), MprotectFn("mprotect", 3) {}
+  MmapWriteExecChecker() : MmapFn({"mmap"}, 6), MprotectFn({"mprotect"}, 3) {}
   void checkPreCall(const CallEvent &Call, CheckerContext &C) const;
   int ProtExecOv;
   int ProtReadOv;
@@ -47,10 +46,10 @@ int MmapWriteExecChecker::ProtRead  = 0x01;
 
 void MmapWriteExecChecker::checkPreCall(const CallEvent &Call,
                                          CheckerContext &C) const {
-  if (Call.isCalled(MmapFn) || Call.isCalled(MprotectFn)) {
+  if (matchesAny(Call, MmapFn, MprotectFn)) {
     SVal ProtVal = Call.getArgSVal(2);
-    Optional<nonloc::ConcreteInt> ProtLoc = ProtVal.getAs<nonloc::ConcreteInt>();
-    int64_t Prot = ProtLoc->getValue().getSExtValue();
+    auto ProtLoc = ProtVal.castAs<nonloc::ConcreteInt>();
+    int64_t Prot = ProtLoc.getValue().getSExtValue();
     if (ProtExecOv != ProtExec)
       ProtExec = ProtExecOv;
     if (ProtReadOv != ProtRead)
@@ -68,7 +67,7 @@ void MmapWriteExecChecker::checkPreCall(const CallEvent &Call,
       if (!N)
         return;
 
-      auto Report = llvm::make_unique<BugReport>(
+      auto Report = std::make_unique<PathSensitiveBugReport>(
           *BT, "Both PROT_WRITE and PROT_EXEC flags are set. This can "
                "lead to exploitable memory regions, which could be overwritten "
                "with malicious code", N);
@@ -82,7 +81,13 @@ void ento::registerMmapWriteExecChecker(CheckerManager &mgr) {
   MmapWriteExecChecker *Mwec =
       mgr.registerChecker<MmapWriteExecChecker>();
   Mwec->ProtExecOv =
-    mgr.getAnalyzerOptions().getOptionAsInteger("MmapProtExec", 0x04, Mwec);
+    mgr.getAnalyzerOptions()
+      .getCheckerIntegerOption(Mwec, "MmapProtExec");
   Mwec->ProtReadOv =
-    mgr.getAnalyzerOptions().getOptionAsInteger("MmapProtRead", 0x01, Mwec);
+    mgr.getAnalyzerOptions()
+      .getCheckerIntegerOption(Mwec, "MmapProtRead");
+}
+
+bool ento::shouldRegisterMmapWriteExecChecker(const CheckerManager &mgr) {
+  return true;
 }

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,21 +16,23 @@ extern "C" int __sanitizer_verify_contiguous_container
      ( const void *beg, const void *mid, const void *end );
 
 template <typename T, typename Alloc>
-bool is_contiguous_container_asan_correct ( const std::vector<T, Alloc> &c )
+TEST_CONSTEXPR bool is_contiguous_container_asan_correct ( const std::vector<T, Alloc> &c )
 {
-    if ( std::is_same<Alloc, std::allocator<T> >::value && c.data() != NULL)
-        return __sanitizer_verify_contiguous_container (
+    if (std::__libcpp_is_constant_evaluated())
+        return true;
+    if (std::is_same<Alloc, std::allocator<T> >::value && c.data() != NULL)
+        return __sanitizer_verify_contiguous_container(
             c.data(), c.data() + c.size(), c.data() + c.capacity()) != 0;
     return true;
 }
 
 #else
 template <typename T, typename Alloc>
-bool is_contiguous_container_asan_correct ( const std::vector<T, Alloc> &)
+TEST_CONSTEXPR bool is_contiguous_container_asan_correct ( const std::vector<T, Alloc> &)
 {
     return true;
 }
 #endif
 
 
-#endif  // ASAN_TESTING_H
+#endif // ASAN_TESTING_H

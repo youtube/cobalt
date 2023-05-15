@@ -1,4 +1,4 @@
-; RUN: opt < %s -analyze -scalar-evolution | FileCheck %s
+; RUN: opt < %s -disable-output "-passes=print<scalar-evolution>" 2>&1 | FileCheck %s
 
 declare void @foo()
 
@@ -26,5 +26,5 @@ for.end:                                          ; preds = %for.cond
 
 ; CHECK-LABEL: @test1
 ; CHECK: Loop %for.cond: backedge-taken count is 2
-; CHECK: Loop %for.cond: max backedge-taken count is 2
+; CHECK: Loop %for.cond: constant max backedge-taken count is 2
 }

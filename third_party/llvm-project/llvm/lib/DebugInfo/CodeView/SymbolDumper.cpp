@@ -1,14 +1,13 @@
 //===-- SymbolDumper.cpp - CodeView symbol info dumper ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/CodeView/SymbolDumper.h"
-#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/DebugInfo/CodeView/CVSymbolVisitor.h"
 #include "llvm/DebugInfo/CodeView/DebugStringTableSubsection.h"
 #include "llvm/DebugInfo/CodeView/EnumTables.h"
@@ -21,8 +20,6 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ScopedPrinter.h"
 
-#include <system_error>
-
 using namespace llvm;
 using namespace llvm::codeview;
 
@@ -32,8 +29,8 @@ namespace {
 class CVSymbolDumperImpl : public SymbolVisitorCallbacks {
 public:
   CVSymbolDumperImpl(TypeCollection &Types, SymbolDumpDelegate *ObjDelegate,
-                     ScopedPrinter &W, bool PrintRecordBytes)
-      : Types(Types), ObjDelegate(ObjDelegate), W(W),
+                     ScopedPrinter &W, CPUType CPU, bool PrintRecordBytes)
+      : Types(Types), ObjDelegate(ObjDelegate), W(W), CompilationCPUType(CPU),
         PrintRecordBytes(PrintRecordBytes), InFunctionScope(false) {}
 
 /// CVSymbolVisitor overrides.
@@ -46,6 +43,8 @@ public:
   Error visitSymbolEnd(CVSymbol &Record) override;
   Error visitUnknownSymbol(CVSymbol &Record) override;
 
+  CPUType getCompilationCPUType() const { return CompilationCPUType; }
+
 private:
   void printLocalVariableAddrRange(const LocalVariableAddrRange &Range,
                                    uint32_t RelocationOffset);
@@ -55,6 +54,9 @@ private:
   TypeCollection &Types;
   SymbolDumpDelegate *ObjDelegate;
   ScopedPrinter &W;
+
+  /// Save the machine or CPU type when dumping a compile symbols.
+  CPUType CompilationCPUType = CPUType::X64;
 
   bool PrintRecordBytes;
   bool InFunctionScope;
@@ -97,10 +99,10 @@ void CVSymbolDumperImpl::printTypeIndex(StringRef FieldName, TypeIndex TI) {
 }
 
 Error CVSymbolDumperImpl::visitSymbolBegin(CVSymbol &CVR) {
-  W.startLine() << getSymbolKindName(CVR.Type);
+  W.startLine() << getSymbolKindName(CVR.kind());
   W.getOStream() << " {\n";
   W.indent();
-  W.printEnum("Kind", unsigned(CVR.Type), getSymbolTypeNames());
+  W.printEnum("Kind", unsigned(CVR.kind()), getSymbolTypeNames());
   return Error::success();
 }
 
@@ -235,6 +237,7 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
   W.printEnum("Language", Compile2.getLanguage(), getSourceLanguageNames());
   W.printFlags("Flags", Compile2.getFlags(), getCompileSym2FlagNames());
   W.printEnum("Machine", unsigned(Compile2.Machine), getCPUTypeNames());
+  CompilationCPUType = Compile2.Machine;
   std::string FrontendVersion;
   {
     raw_string_ostream Out(FrontendVersion);
@@ -255,9 +258,11 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
 
 Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
                                            Compile3Sym &Compile3) {
-  W.printEnum("Language", Compile3.getLanguage(), getSourceLanguageNames());
-  W.printFlags("Flags", Compile3.getFlags(), getCompileSym3FlagNames());
+  W.printEnum("Language", uint8_t(Compile3.getLanguage()), getSourceLanguageNames());
+  W.printFlags("Flags", uint32_t(Compile3.getFlags()),
+               getCompileSym3FlagNames());
   W.printEnum("Machine", unsigned(Compile3.Machine), getCPUTypeNames());
+  CompilationCPUType = Compile3.Machine;
   std::string FrontendVersion;
   {
     raw_string_ostream Out(FrontendVersion);
@@ -308,7 +313,7 @@ Error CVSymbolDumperImpl::visitKnownRecord(
 
 Error CVSymbolDumperImpl::visitKnownRecord(
     CVSymbol &CVR, DefRangeFramePointerRelSym &DefRangeFramePointerRel) {
-  W.printNumber("Offset", DefRangeFramePointerRel.Offset);
+  W.printNumber("Offset", DefRangeFramePointerRel.Hdr.Offset);
   printLocalVariableAddrRange(DefRangeFramePointerRel.Range,
                               DefRangeFramePointerRel.getRelocationOffset());
   printLocalVariableAddrGap(DefRangeFramePointerRel.Gaps);
@@ -318,7 +323,7 @@ Error CVSymbolDumperImpl::visitKnownRecord(
 Error CVSymbolDumperImpl::visitKnownRecord(
     CVSymbol &CVR, DefRangeRegisterRelSym &DefRangeRegisterRel) {
   W.printEnum("BaseRegister", uint16_t(DefRangeRegisterRel.Hdr.Register),
-              getRegisterNames());
+              getRegisterNames(CompilationCPUType));
   W.printBoolean("HasSpilledUDTMember",
                  DefRangeRegisterRel.hasSpilledUDTMember());
   W.printNumber("OffsetInParent", DefRangeRegisterRel.offsetInParent());
@@ -332,7 +337,7 @@ Error CVSymbolDumperImpl::visitKnownRecord(
 Error CVSymbolDumperImpl::visitKnownRecord(
     CVSymbol &CVR, DefRangeRegisterSym &DefRangeRegister) {
   W.printEnum("Register", uint16_t(DefRangeRegister.Hdr.Register),
-              getRegisterNames());
+              getRegisterNames(CompilationCPUType));
   W.printNumber("MayHaveNoName", DefRangeRegister.Hdr.MayHaveNoName);
   printLocalVariableAddrRange(DefRangeRegister.Range,
                               DefRangeRegister.getRelocationOffset());
@@ -343,7 +348,7 @@ Error CVSymbolDumperImpl::visitKnownRecord(
 Error CVSymbolDumperImpl::visitKnownRecord(
     CVSymbol &CVR, DefRangeSubfieldRegisterSym &DefRangeSubfieldRegister) {
   W.printEnum("Register", uint16_t(DefRangeSubfieldRegister.Hdr.Register),
-              getRegisterNames());
+              getRegisterNames(CompilationCPUType));
   W.printNumber("MayHaveNoName", DefRangeSubfieldRegister.Hdr.MayHaveNoName);
   W.printNumber("OffsetInParent", DefRangeSubfieldRegister.Hdr.OffsetInParent);
   printLocalVariableAddrRange(DefRangeSubfieldRegister.Range,
@@ -396,7 +401,8 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
                                      FrameCookie.getRelocationOffset(),
                                      FrameCookie.CodeOffset, &LinkageName);
   }
-  W.printEnum("Register", uint16_t(FrameCookie.Register), getRegisterNames());
+  W.printEnum("Register", uint16_t(FrameCookie.Register),
+              getRegisterNames(CompilationCPUType));
   W.printEnum("CookieKind", uint16_t(FrameCookie.CookieKind),
               getFrameCookieKindNames());
   W.printHex("Flags", FrameCookie.Flags);
@@ -415,6 +421,12 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
              FrameProc.SectionIdOfExceptionHandler);
   W.printFlags("Flags", static_cast<uint32_t>(FrameProc.Flags),
                getFrameProcSymFlagNames());
+  W.printEnum("LocalFramePtrReg",
+              uint16_t(FrameProc.getLocalFramePtrReg(CompilationCPUType)),
+              getRegisterNames(CompilationCPUType));
+  W.printEnum("ParamFramePtrReg",
+              uint16_t(FrameProc.getParamFramePtrReg(CompilationCPUType)),
+              getRegisterNames(CompilationCPUType));
   return Error::success();
 }
 
@@ -492,7 +504,8 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
 Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
                                            RegisterSym &Register) {
   printTypeIndex("Type", Register.Index);
-  W.printEnum("Seg", uint16_t(Register.Register), getRegisterNames());
+  W.printEnum("Seg", uint16_t(Register.Register),
+              getRegisterNames(CompilationCPUType));
   W.printString("Name", Register.Name);
   return Error::success();
 }
@@ -586,7 +599,8 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
                                            RegRelativeSym &RegRel) {
   W.printHex("Offset", RegRel.Offset);
   printTypeIndex("Type", RegRel.Type);
-  W.printEnum("Register", uint16_t(RegRel.Register), getRegisterNames());
+  W.printEnum("Register", uint16_t(RegRel.Register),
+              getRegisterNames(CompilationCPUType));
   W.printString("VarName", RegRel.Name);
   return Error::success();
 }
@@ -617,6 +631,18 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
   return Error::success();
 }
 
+Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
+                                           AnnotationSym &Annot) {
+  W.printHex("Offset", Annot.CodeOffset);
+  W.printHex("Segment", Annot.Segment);
+
+  ListScope S(W, "Strings");
+  for (StringRef Str : Annot.Strings)
+    W.printString(Str);
+
+  return Error::success();
+}
+
 Error CVSymbolDumperImpl::visitUnknownSymbol(CVSymbol &CVR) {
   W.printNumber("Length", CVR.length());
   return Error::success();
@@ -625,21 +651,27 @@ Error CVSymbolDumperImpl::visitUnknownSymbol(CVSymbol &CVR) {
 Error CVSymbolDumper::dump(CVRecord<SymbolKind> &Record) {
   SymbolVisitorCallbackPipeline Pipeline;
   SymbolDeserializer Deserializer(ObjDelegate.get(), Container);
-  CVSymbolDumperImpl Dumper(Types, ObjDelegate.get(), W, PrintRecordBytes);
+  CVSymbolDumperImpl Dumper(Types, ObjDelegate.get(), W, CompilationCPUType,
+                            PrintRecordBytes);
 
   Pipeline.addCallbackToPipeline(Deserializer);
   Pipeline.addCallbackToPipeline(Dumper);
   CVSymbolVisitor Visitor(Pipeline);
-  return Visitor.visitSymbolRecord(Record);
+  auto Err = Visitor.visitSymbolRecord(Record);
+  CompilationCPUType = Dumper.getCompilationCPUType();
+  return Err;
 }
 
 Error CVSymbolDumper::dump(const CVSymbolArray &Symbols) {
   SymbolVisitorCallbackPipeline Pipeline;
   SymbolDeserializer Deserializer(ObjDelegate.get(), Container);
-  CVSymbolDumperImpl Dumper(Types, ObjDelegate.get(), W, PrintRecordBytes);
+  CVSymbolDumperImpl Dumper(Types, ObjDelegate.get(), W, CompilationCPUType,
+                            PrintRecordBytes);
 
   Pipeline.addCallbackToPipeline(Deserializer);
   Pipeline.addCallbackToPipeline(Dumper);
   CVSymbolVisitor Visitor(Pipeline);
-  return Visitor.visitSymbolStream(Symbols);
+  auto Err = Visitor.visitSymbolStream(Symbols);
+  CompilationCPUType = Dumper.getCompilationCPUType();
+  return Err;
 }

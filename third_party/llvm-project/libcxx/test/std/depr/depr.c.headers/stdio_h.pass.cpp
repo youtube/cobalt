@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -99,12 +98,10 @@
 
 #include <cstdarg>
 
-#if defined(__GNUC__) || defined(__clang__)
-#pragma GCC diagnostic ignored "-Wformat-zero-length"
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations" // for tmpnam
-#endif
+TEST_CLANG_DIAGNOSTIC_IGNORED("-Wformat-zero-length")
+TEST_GCC_DIAGNOSTIC_IGNORED("-Wformat-zero-length")
 
-int main()
+int main(int, char**)
 {
     FILE* fp = 0;
     fpos_t fpos = fpos_t();
@@ -121,7 +118,11 @@ int main()
     static_assert((std::is_same<decltype(remove("")), int>::value), "");
     static_assert((std::is_same<decltype(rename("","")), int>::value), "");
     static_assert((std::is_same<decltype(tmpfile()), FILE*>::value), "");
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(tmpnam(cp)), char*>::value), "");
+    TEST_DIAGNOSTIC_POP
     static_assert((std::is_same<decltype(fclose(fp)), int>::value), "");
     static_assert((std::is_same<decltype(fflush(fp)), int>::value), "");
     static_assert((std::is_same<decltype(fopen("", "")), FILE*>::value), "");
@@ -133,14 +134,22 @@ int main()
     static_assert((std::is_same<decltype(printf("\n")), int>::value), "");
     static_assert((std::is_same<decltype(scanf("\n")), int>::value), "");
     static_assert((std::is_same<decltype(snprintf(cp,0,"p")), int>::value), "");
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(sprintf(cp," ")), int>::value), "");
+    TEST_DIAGNOSTIC_POP
     static_assert((std::is_same<decltype(sscanf("","")), int>::value), "");
     static_assert((std::is_same<decltype(vfprintf(fp,"",va)), int>::value), "");
     static_assert((std::is_same<decltype(vfscanf(fp,"",va)), int>::value), "");
     static_assert((std::is_same<decltype(vprintf(" ",va)), int>::value), "");
     static_assert((std::is_same<decltype(vscanf("",va)), int>::value), "");
     static_assert((std::is_same<decltype(vsnprintf(cp,0," ",va)), int>::value), "");
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(vsprintf(cp," ",va)), int>::value), "");
+    TEST_DIAGNOSTIC_POP
     static_assert((std::is_same<decltype(vsscanf("","",va)), int>::value), "");
     static_assert((std::is_same<decltype(fgetc(fp)), int>::value), "");
     static_assert((std::is_same<decltype(fgets(cp,0,fp)), char*>::value), "");
@@ -149,7 +158,11 @@ int main()
     static_assert((std::is_same<decltype(getc(fp)), int>::value), "");
     static_assert((std::is_same<decltype(getchar()), int>::value), "");
 #if TEST_STD_VER < 14
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(gets(cp)), char*>::value), "");
+    TEST_DIAGNOSTIC_POP
 #endif
     static_assert((std::is_same<decltype(putc(0,fp)), int>::value), "");
     static_assert((std::is_same<decltype(putchar(0)), int>::value), "");
@@ -157,13 +170,19 @@ int main()
     static_assert((std::is_same<decltype(ungetc(0,fp)), int>::value), "");
     static_assert((std::is_same<decltype(fread((void*)0,0,0,fp)), size_t>::value), "");
     static_assert((std::is_same<decltype(fwrite((const void*)arr,1,0,fp)), size_t>::value), "");
+#ifndef TEST_HAS_NO_FGETPOS_FSETPOS
     static_assert((std::is_same<decltype(fgetpos(fp, &fpos)), int>::value), "");
+#endif
     static_assert((std::is_same<decltype(fseek(fp, 0,0)), int>::value), "");
+#ifndef TEST_HAS_NO_FGETPOS_FSETPOS
     static_assert((std::is_same<decltype(fsetpos(fp, &fpos)), int>::value), "");
+#endif
     static_assert((std::is_same<decltype(ftell(fp)), long>::value), "");
     static_assert((std::is_same<decltype(rewind(fp)), void>::value), "");
     static_assert((std::is_same<decltype(clearerr(fp)), void>::value), "");
     static_assert((std::is_same<decltype(feof(fp)), int>::value), "");
     static_assert((std::is_same<decltype(ferror(fp)), int>::value), "");
     static_assert((std::is_same<decltype(perror("")), void>::value), "");
+
+  return 0;
 }

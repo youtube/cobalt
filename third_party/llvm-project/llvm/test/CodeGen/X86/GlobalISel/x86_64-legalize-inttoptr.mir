@@ -3,16 +3,16 @@
 
 --- |
 
-  define i64* @inttoptr_p0_s64(i64 %val) {
+  define ptr @inttoptr_p0_s64(i64 %val) {
   entry:
-    %0 = inttoptr i64 %val to i64*
-    ret i64* %0
+    %0 = inttoptr i64 %val to ptr
+    ret ptr %0
   }
 
 ...
 ---
 name:            inttoptr_p0_s64
-alignment:       4
+alignment:       16
 tracksRegLiveness: true
 registers:
   - { id: 0, class: _ }

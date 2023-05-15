@@ -1,9 +1,8 @@
 //===- unittest/Format/FormatTestUtils.h - Formatting unit tests ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,7 +19,10 @@ namespace clang {
 namespace format {
 namespace test {
 
-inline std::string messUp(llvm::StringRef Code) {
+// When HandleHash is false, preprocessor directives starting with hash will not
+// be on separate lines.  This is needed because Verilog uses hash for other
+// purposes.
+inline std::string messUp(llvm::StringRef Code, bool HandleHash = true) {
   std::string MessedUp(Code.str());
   bool InComment = false;
   bool InPreprocessorDirective = false;
@@ -30,7 +32,7 @@ inline std::string messUp(llvm::StringRef Code) {
       if (JustReplacedNewline)
         MessedUp[i - 1] = '\n';
       InComment = true;
-    } else if (MessedUp[i] == '#' &&
+    } else if (HandleHash && MessedUp[i] == '#' &&
                (JustReplacedNewline || i == 0 || MessedUp[i - 1] == '\n')) {
       if (i != 0)
         MessedUp[i - 1] = '\n';
@@ -54,10 +56,9 @@ inline std::string messUp(llvm::StringRef Code) {
   std::string WithoutWhitespace;
   if (MessedUp[0] != ' ')
     WithoutWhitespace.push_back(MessedUp[0]);
-  for (unsigned i = 1, e = MessedUp.size(); i != e; ++i) {
+  for (unsigned i = 1, e = MessedUp.size(); i != e; ++i)
     if (MessedUp[i] != ' ' || MessedUp[i - 1] != ' ')
       WithoutWhitespace.push_back(MessedUp[i]);
-  }
   return WithoutWhitespace;
 }
 

@@ -1,29 +1,28 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <tuple>
 
 // template <class... Types> class tuple;
 
-// template <class TupleLike>
-//   tuple(TupleLike&&);
-// template <class Alloc, class TupleLike>
-//   tuple(std::allocator_arg_t, Alloc const&, TupleLike&&);
-
 // Check that the tuple-like ctors are properly disabled when the UTypes...
-// constructor should be selected. See PR22806.
+// constructor should be selected.
+//
+// See https://llvm.org/PR22806.
 
-#include <tuple>
-#include <memory>
 #include <cassert>
+#include <memory>
+#include <tuple>
+#include <type_traits>
+
+#include "test_macros.h"
 
 template <class Tp>
 using uncvref_t = typename std::remove_cv<typename std::remove_reference<Tp>::type>::type;
@@ -79,7 +78,7 @@ struct ConvertibleFromInt {
   ConvertibleFromInt(int) : state(FromInt) {}
 };
 
-int main()
+int main(int, char**)
 {
     // Test for the creation of dangling references when a tuple is used to
     // store a reference to another tuple as its only element.
@@ -89,7 +88,7 @@ int main()
     // when both #1 and #2 participate in partial ordering #2 will always
     // be chosen over #1.
     // See PR22806  and LWG issue #2549 for more information.
-    // (https://bugs.llvm.org/show_bug.cgi?id=22806)
+    // (https://llvm.org/PR22806)
     using T = std::tuple<int>;
     std::allocator<int> A;
     { // rvalue reference
@@ -175,4 +174,6 @@ int main()
         std::tuple<VT> t2 = {t1};
         assert(std::get<0>(t2).state == VT::FromInt);
     }
+
+  return 0;
 }

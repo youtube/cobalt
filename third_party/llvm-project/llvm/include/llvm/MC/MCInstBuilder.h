@@ -1,9 +1,8 @@
 //===-- llvm/MC/MCInstBuilder.h - Simplify creation of MCInsts --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -40,9 +39,15 @@ public:
     return *this;
   }
 
+  /// Add a new single floating point immediate operand.
+  MCInstBuilder &addSFPImm(uint32_t Val) {
+    Inst.addOperand(MCOperand::createSFPImm(Val));
+    return *this;
+  }
+
   /// Add a new floating point immediate operand.
-  MCInstBuilder &addFPImm(double Val) {
-    Inst.addOperand(MCOperand::createFPImm(Val));
+  MCInstBuilder &addDFPImm(uint64_t Val) {
+    Inst.addOperand(MCOperand::createDFPImm(Val));
     return *this;
   }
 

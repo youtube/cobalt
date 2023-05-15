@@ -1,10 +1,8 @@
-//===-- FormatClasses.cpp ----------------------------------------*- C++
-//-*-===//
+//===-- FormatClasses.cpp -------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,13 +10,9 @@
 
 #include "lldb/DataFormatters/FormatManager.h"
 
-// C Includes
 
-// C++ Includes
 
-// Other libraries and framework includes
 
-// Project includes
 
 using namespace lldb;
 using namespace lldb_private;
@@ -29,7 +23,8 @@ FormattersMatchData::FormattersMatchData(ValueObject &valobj,
       m_formatters_match_vector({}, false), m_type_for_cache(),
       m_candidate_languages() {
   m_type_for_cache = FormatManager::GetTypeForCache(valobj, use_dynamic);
-  m_candidate_languages = FormatManager::GetCandidateLanguages(valobj);
+  m_candidate_languages =
+      FormatManager::GetCandidateLanguages(valobj.GetObjectRuntimeLanguage());
 }
 
 FormattersMatchVector FormattersMatchData::GetMatchesVector() {

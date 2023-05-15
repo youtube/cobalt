@@ -1,7 +1,9 @@
-; RUN: llvm-pdbutil dump -all %p/Inputs/empty.pdb | FileCheck -check-prefix=ALL %s
+; RUN: llvm-pdbutil dump -all -dont-resolve-forward-refs %p/Inputs/empty.pdb \
+; RUN:   | FileCheck -check-prefix=ALL %s
 ; RUN: llvm-pdbutil dump -summary -modules -files \
 ; RUN:              %p/Inputs/big-read.pdb | FileCheck -check-prefix=BIG %s
-; RUN: not llvm-pdbutil dump -summary %p/Inputs/bad-block-size.pdb 2>&1 | FileCheck -check-prefix=BAD-BLOCK-SIZE %s
+; RUN: not llvm-pdbutil dump -summary %p/Inputs/bad-block-size.pdb 2>&1 \
+; RUN:   | FileCheck -check-prefix=BAD-BLOCK-SIZE %s
 
 ALL:                                Summary
 ALL-NEXT: ============================================================
@@ -10,7 +12,7 @@ ALL-NEXT:   Number of blocks: 25
 ALL-NEXT:   Number of streams: 17
 ALL-NEXT:   Signature: 1424295906
 ALL-NEXT:   Age: 1
-ALL-NEXT:   GUID: {0B355641-86A0-A249-896F-9988FAE52FF0}
+ALL-NEXT:   GUID: {4156350B-A086-49A2-896F-9988FAE52FF0}
 ALL-NEXT:   Features: 0x1
 ALL-NEXT:   Has Debug Info: true
 ALL-NEXT:   Has Types: true
@@ -487,6 +489,7 @@ ALL-NEXT:          type = `0x1001 (int ())`, debug start = 3, debug end = 8, fla
 ALL-NEXT:    164 | S_FRAMEPROC [size = 32]
 ALL-NEXT:          size = 0, padding size = 0, offset to padding = 0
 ALL-NEXT:          bytes of callee saved registers = 0, exception handler addr = 0000:0000
+ALL-NEXT:          local fp reg = EBP, param fp reg = EBP
 ALL-NEXT:          flags = has async eh | opt speed
 ALL-NEXT:    196 | S_END [size = 4]
 ALL-NEXT:    200 | S_BUILDINFO [size = 8] BuildId = `0x100E`
@@ -598,7 +601,7 @@ BIG-NEXT:   Number of blocks: 99
 BIG-NEXT:   Number of streams: 64
 BIG-NEXT:   Signature: 1461714535
 BIG-NEXT:   Age: 1
-BIG-NEXT:   GUID: {880ECC89-DF81-0B4F-839C-58CBD052E937}
+BIG-NEXT:   GUID: {89CC0E88-81DF-4F0B-839C-58CBD052E937}
 BIG-NEXT:   Features: 0x1
 BIG-NEXT:   Has Debug Info: true
 BIG-NEXT:   Has Types: true
@@ -1167,4 +1170,4 @@ BIG-NEXT:   Mod 0045 | `Import:api-ms-win-crt-heap-l1-1-0.dll`:
 BIG-NEXT:   Mod 0046 | `api-ms-win-crt-heap-l1-1-0.dll`:
 BIG-NEXT:   Mod 0047 | `* Linker *`:
 
-BAD-BLOCK-SIZE: Native PDB Error: The PDB file is corrupt. Does not contain superblock
+BAD-BLOCK-SIZE: The PDB file is corrupt. MSF superblock is missing

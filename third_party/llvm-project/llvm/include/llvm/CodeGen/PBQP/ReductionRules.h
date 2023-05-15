@@ -1,9 +1,8 @@
 //===- ReductionRules.h - Reduction Rules -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -191,7 +190,7 @@ namespace PBQP {
 
       RawVector v = G.getNodeCosts(NId);
 
-#ifndef NDEBUG
+#if LLVM_ENABLE_ABI_BREAKING_CHECKS
       // Although a conservatively allocatable node can be allocated to a register,
       // spilling it may provide a lower cost solution. Assert here that spilling
       // is done by choice, not because there were no register available.

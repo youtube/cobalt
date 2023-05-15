@@ -1,9 +1,8 @@
 //===- CodeViewYAMLSymbols.cpp - CodeView YAMLIO Symbol implementation ----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,10 +25,12 @@
 #include "llvm/ObjectYAML/YAML.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/YAMLTraits.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -108,7 +109,7 @@ void ScalarBitSetTraits<ExportFlags>::bitset(IO &io, ExportFlags &Flags) {
 }
 
 void ScalarBitSetTraits<PublicSymFlags>::bitset(IO &io, PublicSymFlags &Flags) {
-  auto FlagNames = getProcSymFlagNames();
+  auto FlagNames = getPublicSymFlagNames();
   for (const auto &E : FlagNames) {
     io.bitSetCase(Flags, E.Name.str().c_str(),
                   static_cast<PublicSymFlags>(E.Value));
@@ -148,7 +149,31 @@ void ScalarEnumerationTraits<CPUType>::enumeration(IO &io, CPUType &Cpu) {
 }
 
 void ScalarEnumerationTraits<RegisterId>::enumeration(IO &io, RegisterId &Reg) {
-  auto RegNames = getRegisterNames();
+  const auto *Header = static_cast<COFF::header *>(io.getContext());
+  assert(Header && "The IO context is not initialized");
+
+  std::optional<CPUType> CpuType;
+  ArrayRef<EnumEntry<uint16_t>> RegNames;
+
+  switch (Header->Machine) {
+  case COFF::IMAGE_FILE_MACHINE_I386:
+    CpuType = CPUType::Pentium3;
+    break;
+  case COFF::IMAGE_FILE_MACHINE_AMD64:
+    CpuType = CPUType::X64;
+    break;
+  case COFF::IMAGE_FILE_MACHINE_ARMNT:
+    CpuType = CPUType::ARMNT;
+    break;
+  case COFF::IMAGE_FILE_MACHINE_ARM64:
+  case COFF::IMAGE_FILE_MACHINE_ARM64EC:
+    CpuType = CPUType::ARM64;
+    break;
+  }
+
+  if (CpuType)
+    RegNames = getRegisterNames(*CpuType);
+
   for (const auto &E : RegNames) {
     io.enumCase(Reg, E.Name.str().c_str(), static_cast<RegisterId>(E.Value));
   }
@@ -249,7 +274,7 @@ struct UnknownSymbolRecord : public SymbolRecordBase {
     uint8_t *Buffer = Allocator.Allocate<uint8_t>(TotalLen);
     ::memcpy(Buffer, &Prefix, sizeof(RecordPrefix));
     ::memcpy(Buffer + sizeof(RecordPrefix), Data.data(), Data.size());
-    return CVSymbol(Kind, ArrayRef<uint8_t>(Buffer, TotalLen));
+    return CVSymbol(ArrayRef<uint8_t>(Buffer, TotalLen));
   }
 
   Error fromCodeViewSymbol(CVSymbol CVS) override {
@@ -392,7 +417,7 @@ template <> void SymbolRecordImpl<DefRangeRegisterSym>::map(IO &IO) {
 }
 
 template <> void SymbolRecordImpl<DefRangeFramePointerRelSym>::map(IO &IO) {
-  IO.mapRequired("Offset", Symbol.Offset);
+  IO.mapRequired("Offset", Symbol.Hdr.Offset);
   IO.mapRequired("Range", Symbol.Range);
   IO.mapRequired("Gaps", Symbol.Gaps);
 }
@@ -552,6 +577,12 @@ template <> void SymbolRecordImpl<ThreadLocalDataSym>::map(IO &IO) {
 
 template <> void SymbolRecordImpl<UsingNamespaceSym>::map(IO &IO) {
   IO.mapRequired("Namespace", Symbol.Name);
+}
+
+template <> void SymbolRecordImpl<AnnotationSym>::map(IO &IO) {
+  IO.mapOptional("Offset", Symbol.CodeOffset, 0U);
+  IO.mapOptional("Segment", Symbol.Segment, uint16_t(0));
+  IO.mapRequired("Strings", Symbol.Strings);
 }
 
 } // end namespace detail

@@ -1,9 +1,8 @@
 //===- SSAUpdaterBulk.h - Unstructured SSA Update Tool ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,7 +14,6 @@
 #define LLVM_TRANSFORMS_UTILS_SSAUPDATERBULK_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/PredIteratorCache.h"
 
@@ -44,7 +42,7 @@ class SSAUpdaterBulk {
     SmallVector<Use *, 4> Uses;
     StringRef Name;
     Type *Ty;
-    RewriteInfo(){};
+    RewriteInfo() = default;
     RewriteInfo(StringRef &N, Type *T) : Name(N), Ty(T){};
   };
   SmallVector<RewriteInfo, 4> Rewrites;
@@ -54,10 +52,10 @@ class SSAUpdaterBulk {
   Value *computeValueAt(BasicBlock *BB, RewriteInfo &R, DominatorTree *DT);
 
 public:
-  explicit SSAUpdaterBulk(){};
+  explicit SSAUpdaterBulk() = default;
   SSAUpdaterBulk(const SSAUpdaterBulk &) = delete;
   SSAUpdaterBulk &operator=(const SSAUpdaterBulk &) = delete;
-  ~SSAUpdaterBulk(){};
+  ~SSAUpdaterBulk() = default;
 
   /// Add a new variable to the SSA rewriter. This needs to be called before
   /// AddAvailableValue or AddUse calls. The return value is the variable ID,
@@ -71,10 +69,6 @@ public:
   /// Record a use of the symbolic value. This use will be updated with a
   /// rewritten value when RewriteAllUses is called.
   void AddUse(unsigned Var, Use *U);
-
-  /// Return true if the SSAUpdater already has a value for the specified
-  /// variable in the specified block.
-  bool HasValueForBlock(unsigned Var, BasicBlock *BB);
 
   /// Perform all the necessary updates, including new PHI-nodes insertion and
   /// the requested uses update.

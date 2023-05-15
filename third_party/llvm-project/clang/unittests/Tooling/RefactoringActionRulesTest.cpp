@@ -1,9 +1,8 @@
 //===- unittest/Tooling/RefactoringTestActionRulesTest.cpp ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,6 +16,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/Errc.h"
 #include "gtest/gtest.h"
+#include <optional>
 
 using namespace clang;
 using namespace tooling;
@@ -48,7 +48,7 @@ createReplacements(const std::unique_ptr<RefactoringActionRule> &Rule,
     }
 
   public:
-    Optional<Expected<AtomicChanges>> Result;
+    std::optional<Expected<AtomicChanges>> Result;
   };
 
   Consumer C;
@@ -117,9 +117,9 @@ TEST_F(RefactoringActionRulesTest, MyFirstRefactoringRule) {
                  "Key:             'input.cpp:30'\n"
                  "FilePath:        input.cpp\n"
                  "Error:           ''\n"
-                 "InsertedHeaders: \n"
-                 "RemovedHeaders:  \n"
-                 "Replacements:    \n" // Extra whitespace here!
+                 "InsertedHeaders: []\n"
+                 "RemovedHeaders:  []\n"
+                 "Replacements:\n"
                  "  - FilePath:        input.cpp\n"
                  "    Offset:          30\n"
                  "    Length:          1\n"
@@ -176,8 +176,8 @@ TEST_F(RefactoringActionRulesTest, ReturnError) {
   EXPECT_EQ(Message, "Error");
 }
 
-Optional<SymbolOccurrences> findOccurrences(RefactoringActionRule &Rule,
-                                            RefactoringRuleContext &Context) {
+std::optional<SymbolOccurrences>
+findOccurrences(RefactoringActionRule &Rule, RefactoringRuleContext &Context) {
   class Consumer final : public RefactoringResultConsumer {
     void handleError(llvm::Error) override {}
     void handle(SymbolOccurrences Occurrences) override {
@@ -188,7 +188,7 @@ Optional<SymbolOccurrences> findOccurrences(RefactoringActionRule &Rule,
     }
 
   public:
-    Optional<SymbolOccurrences> Result;
+    std::optional<SymbolOccurrences> Result;
   };
 
   Consumer C;
@@ -225,7 +225,7 @@ TEST_F(RefactoringActionRulesTest, ReturnSymbolOccurrences) {
   SourceLocation Cursor =
       Context.Sources.getLocForStartOfFile(Context.Sources.getMainFileID());
   RefContext.setSelectionRange({Cursor, Cursor});
-  Optional<SymbolOccurrences> Result = findOccurrences(*Rule, RefContext);
+  std::optional<SymbolOccurrences> Result = findOccurrences(*Rule, RefContext);
 
   ASSERT_FALSE(!Result);
   SymbolOccurrences Occurrences = std::move(*Result);

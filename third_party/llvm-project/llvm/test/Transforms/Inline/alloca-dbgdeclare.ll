@@ -1,17 +1,17 @@
-; RUN: opt -inline -S < %s | FileCheck %s
+; RUN: opt -passes=inline -S < %s | FileCheck %s
 ; RUN: opt -passes='cgscc(inline)' -S < %s | FileCheck %s
 ; struct A {
 ;   int arg0;
 ;   double arg1[2];
 ; } a, b;
-;  
+;
 ; void fn3(A p1) {
 ;   if (p1.arg0)
 ;     a = p1;
 ; }
-;  
+;
 ; void fn4() { fn3(b); }
-;  
+;
 ; void fn5() {
 ;   while (1)
 ;     fn4();
@@ -42,6 +42,10 @@ entry:
 ; CHECK: define void @_Z3fn5v()
 ; CHECK-NEXT: entry:
 ; CHECK-NEXT:   %agg.tmp.sroa.3.i = alloca [20 x i8], align 4
+; CHECK-NEXT:   br label %while.body
+; CHECK:      while.body:
+; CHECK-NEXT:   bitcast
+; CHECK-NEXT:   llvm.lifetime.start
 ; CHECK-NEXT:   call void @llvm.dbg.declare(metadata [20 x i8]* %agg.tmp.sroa.3.i,
   %agg.tmp.sroa.3 = alloca [20 x i8], align 4
   tail call void @llvm.dbg.declare(metadata [20 x i8]* %agg.tmp.sroa.3, metadata !25, metadata !30), !dbg !31

@@ -13,17 +13,17 @@ union U1 {
   S2 s2;
 };
 
-// CHECK-LABEL: define void @{{.*}}f1
+// CHECK-LABEL: define{{.*}} void @{{.*}}f1
 void f1(int *p) {
   U1 u;
 
-  // CHECK: [[ICMP:%.*]] = icmp ne i32* {{.*}}, null, !nosanitize
+  // CHECK: [[ICMP:%.*]] = icmp ne ptr {{.*}}, null, !nosanitize
   // CHECK-NEXT: br i1 [[ICMP]], {{.*}}, !nosanitize
   // CHECK: call void @__ubsan_handle_type_mismatch{{.*}} !nosanitize
   // CHECK: store
   u.s1.p = p;
 
-  // CHECK: [[ICMP:%.*]] = icmp ne i32* {{.*}}, null, !nosanitize
+  // CHECK: [[ICMP:%.*]] = icmp ne ptr {{.*}}, null, !nosanitize
   // CHECK-NEXT: br i1 [[ICMP]], {{.*}}, !nosanitize
   // CHECK: call void @__ubsan_handle_type_mismatch{{.*}} !nosanitize
   // CHECK: store

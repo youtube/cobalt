@@ -1,11 +1,13 @@
 /*===- InstrProfiling.c - Support library for PGO instrumentation ---------===*\
 |*
-|*                     The LLVM Compiler Infrastructure
-|*
-|* This file is distributed under the University of Illinois Open Source
-|* License. See LICENSE.TXT for details.
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+|* See https://llvm.org/LICENSE.txt for license information.
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 |*
 \*===----------------------------------------------------------------------===*/
+
+// Note: This is linked into the Darwin kernel, and must remain compatible
+// with freestanding compilation. See `darwin_add_builtin_libraries`.
 
 #include <limits.h>
 #include <stdio.h>
@@ -16,24 +18,15 @@
 #include "InstrProfilingInternal.h"
 
 #define INSTR_PROF_VALUE_PROF_DATA
-#include "InstrProfData.inc"
-
-
-COMPILER_RT_WEAK uint64_t INSTR_PROF_RAW_VERSION_VAR = INSTR_PROF_RAW_VERSION;
+#include "profile/InstrProfData.inc"
 
 COMPILER_RT_VISIBILITY uint64_t __llvm_profile_get_magic(void) {
   return sizeof(void *) == sizeof(uint64_t) ? (INSTR_PROF_RAW_MAGIC_64)
                                             : (INSTR_PROF_RAW_MAGIC_32);
 }
 
-static unsigned ProfileDumped = 0;
-
-COMPILER_RT_VISIBILITY unsigned lprofProfileDumped() {
-  return ProfileDumped;
-}
-
-COMPILER_RT_VISIBILITY void lprofSetProfileDumped() {
-  ProfileDumped = 1;
+COMPILER_RT_VISIBILITY void __llvm_profile_set_dumped(void) {
+  lprofSetProfileDumped(1);
 }
 
 /* Return the number of bytes needed to add to SizeInBytes to make it
@@ -45,14 +38,16 @@ __llvm_profile_get_num_padding_bytes(uint64_t SizeInBytes) {
 }
 
 COMPILER_RT_VISIBILITY uint64_t __llvm_profile_get_version(void) {
-  return __llvm_profile_raw_version;
+  return INSTR_PROF_RAW_VERSION_VAR;
 }
 
 COMPILER_RT_VISIBILITY void __llvm_profile_reset_counters(void) {
-  uint64_t *I = __llvm_profile_begin_counters();
-  uint64_t *E = __llvm_profile_end_counters();
+  char *I = __llvm_profile_begin_counters();
+  char *E = __llvm_profile_end_counters();
 
-  memset(I, 0, sizeof(uint64_t) * (E - I));
+  char ResetValue =
+      (__llvm_profile_get_version() & VARIANT_MASK_BYTE_COVERAGE) ? 0xFF : 0;
+  memset(I, ResetValue, E - I);
 
   const __llvm_profile_data *DataBegin = __llvm_profile_begin_data();
   const __llvm_profile_data *DataEnd = __llvm_profile_end_data();
@@ -69,13 +64,13 @@ COMPILER_RT_VISIBILITY void __llvm_profile_reset_counters(void) {
       CurrentVSiteCount += DI->NumValueSites[VKI];
 
     for (i = 0; i < CurrentVSiteCount; ++i) {
-      ValueProfNode *CurrentVNode = ValueCounters[i];
+      ValueProfNode *CurrVNode = ValueCounters[i];
 
-      while (CurrentVNode) {
-        CurrentVNode->Count = 0;
-        CurrentVNode = CurrentVNode->Next;
+      while (CurrVNode) {
+        CurrVNode->Count = 0;
+        CurrVNode = CurrVNode->Next;
       }
     }
   }
-  ProfileDumped = 0;
+  lprofSetProfileDumped(0);
 }

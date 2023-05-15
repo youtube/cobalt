@@ -1,9 +1,8 @@
 //===--- AArch64StorePairSuppress.cpp --- Suppress store pair formation ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -89,7 +88,7 @@ bool AArch64StorePairSuppress::shouldAddSTPToBlock(const MachineBasicBlock *BB) 
 
   // If a subtarget does not define resources for STPQi, bail here.
   if (SCDesc->isValid() && !SCDesc->isVariant()) {
-    unsigned ResLenWithSTP = BBTrace.getResourceLength(None, SCDesc);
+    unsigned ResLenWithSTP = BBTrace.getResourceLength(std::nullopt, SCDesc);
     if (ResLenWithSTP > ResLength) {
       LLVM_DEBUG(dbgs() << "  Suppress STP in BB: " << BB->getNumber()
                         << " resources " << ResLength << " -> " << ResLenWithSTP
@@ -120,7 +119,7 @@ bool AArch64StorePairSuppress::isNarrowFPStore(const MachineInstr &MI) {
 }
 
 bool AArch64StorePairSuppress::runOnMachineFunction(MachineFunction &MF) {
-  if (skipFunction(MF.getFunction()))
+  if (skipFunction(MF.getFunction()) || MF.getFunction().hasOptSize())
     return false;
 
   const TargetSubtargetInfo &ST = MF.getSubtarget();
@@ -148,9 +147,13 @@ bool AArch64StorePairSuppress::runOnMachineFunction(MachineFunction &MF) {
     for (auto &MI : MBB) {
       if (!isNarrowFPStore(MI))
         continue;
-      unsigned BaseReg;
+      const MachineOperand *BaseOp;
       int64_t Offset;
-      if (TII->getMemOpBaseRegImmOfs(MI, BaseReg, Offset, TRI)) {
+      bool OffsetIsScalable;
+      if (TII->getMemOperandWithOffset(MI, BaseOp, Offset, OffsetIsScalable,
+                                       TRI) &&
+          BaseOp->isReg()) {
+        Register BaseReg = BaseOp->getReg();
         if (PrevBaseReg == BaseReg) {
           // If this block can take STPs, skip ahead to the next block.
           if (!SuppressSTP && shouldAddSTPToBlock(MI.getParent()))

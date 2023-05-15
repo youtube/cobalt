@@ -1,13 +1,13 @@
 ; RUN: llc -mtriple i686-windows-itanium -filetype asm -o - %s | FileCheck %s -check-prefix CHECK-ASM
-; RUN: llc -mtriple i686-windows-itanium -filetype obj -o - %s | llvm-readobj -relocations - | FileCheck %s -check-prefix CHECK-OBJ
+; RUN: llc -mtriple i686-windows-itanium -filetype obj -o - %s | llvm-readobj -r - | FileCheck %s -check-prefix CHECK-OBJ
 
 @get_count_incremented.count = internal thread_local unnamed_addr global i32 0, align 4
 
 define i32 @get_count_incremented() {
 entry:
-  %0 = load i32, i32* @get_count_incremented.count, align 4
+  %0 = load i32, ptr @get_count_incremented.count, align 4
   %inc = add i32 %0, 1
-  store i32 %inc, i32* @get_count_incremented.count, align 4
+  store i32 %inc, ptr @get_count_incremented.count, align 4
   ret i32 %inc
 }
 

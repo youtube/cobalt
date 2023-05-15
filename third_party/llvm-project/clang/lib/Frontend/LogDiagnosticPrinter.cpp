@@ -1,9 +1,8 @@
 //===--- LogDiagnosticPrinter.cpp - Log Diagnostic Printer ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -119,9 +118,8 @@ void LogDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
     const SourceManager &SM = Info.getSourceManager();
     FileID FID = SM.getMainFileID();
     if (FID.isValid()) {
-      const FileEntry *FE = SM.getFileEntryForID(FID);
-      if (FE && FE->isValid())
-        MainFilename = FE->getName();
+      if (const FileEntry *FE = SM.getFileEntryForID(FID))
+        MainFilename = std::string(FE->getName());
     }
   }
 
@@ -130,12 +128,13 @@ void LogDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
   DE.DiagnosticID = Info.getID();
   DE.DiagnosticLevel = Level;
 
-  DE.WarningOption = DiagnosticIDs::getWarningOptionForDiag(DE.DiagnosticID);
+  DE.WarningOption =
+      std::string(DiagnosticIDs::getWarningOptionForDiag(DE.DiagnosticID));
 
   // Format the message.
   SmallString<100> MessageStr;
   Info.FormatDiagnostic(MessageStr);
-  DE.Message = MessageStr.str();
+  DE.Message = std::string(MessageStr.str());
 
   // Set the location information.
   DE.Filename = "";
@@ -148,9 +147,8 @@ void LogDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
       // At least print the file name if available:
       FileID FID = SM.getFileID(Info.getLocation());
       if (FID.isValid()) {
-        const FileEntry *FE = SM.getFileEntryForID(FID);
-        if (FE && FE->isValid())
-          DE.Filename = FE->getName();
+        if (const FileEntry *FE = SM.getFileEntryForID(FID))
+          DE.Filename = std::string(FE->getName());
       }
     } else {
       DE.Filename = PLoc.getFilename();

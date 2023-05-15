@@ -1,9 +1,8 @@
 //===- ThreadSafetyTIL.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT in the llvm repository for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -51,8 +50,6 @@
 #include "clang/Analysis/Analyses/ThreadSafetyUtil.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
@@ -61,6 +58,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -76,7 +74,7 @@ namespace til {
 class BasicBlock;
 
 /// Enum for the different distinct classes of SExpr
-enum TIL_Opcode {
+enum TIL_Opcode : unsigned char {
 #define TIL_OPCODE_DEF(X) COP_##X,
 #include "ThreadSafetyOps.def"
 #undef TIL_OPCODE_DEF
@@ -279,7 +277,7 @@ class SExpr {
 public:
   SExpr() = delete;
 
-  TIL_Opcode opcode() const { return static_cast<TIL_Opcode>(Opcode); }
+  TIL_Opcode opcode() const { return Opcode; }
 
   // Subclasses of SExpr must define the following:
   //
@@ -322,7 +320,7 @@ protected:
   SExpr(TIL_Opcode Op) : Opcode(Op) {}
   SExpr(const SExpr &E) : Opcode(E.Opcode), Flags(E.Flags) {}
 
-  const unsigned char Opcode;
+  const TIL_Opcode Opcode;
   unsigned char Reserved = 0;
   unsigned short Flags = 0;
   unsigned SExprID = 0;
@@ -333,7 +331,7 @@ protected:
 namespace ThreadSafetyTIL {
 
 inline bool isTrivial(const SExpr *E) {
-  unsigned Op = E->opcode();
+  TIL_Opcode Op = E->opcode();
   return Op == COP_Variable || Op == COP_Literal || Op == COP_LiteralPtr;
 }
 
@@ -642,6 +640,7 @@ public:
 
   // The clang declaration for the value that this pointer points to.
   const ValueDecl *clangDecl() const { return Cvdecl; }
+  void setClangDecl(const ValueDecl *VD) { Cvdecl = VD; }
 
   template <class V>
   typename V::R_SExpr traverse(V &Vs, typename V::R_Ctx Ctx) {
@@ -650,6 +649,8 @@ public:
 
   template <class C>
   typename C::CType compare(const LiteralPtr* E, C& Cmp) const {
+    if (!Cvdecl || !E->Cvdecl)
+      return Cmp.comparePointers(this, E);
     return Cmp.comparePointers(Cvdecl, E->Cvdecl);
   }
 
@@ -956,7 +957,7 @@ public:
 
 private:
   SExpr* Rec;
-  mutable llvm::Optional<std::string> SlotName;
+  mutable std::optional<std::string> SlotName;
   const ValueDecl *Cvdecl;
 };
 
@@ -1429,9 +1430,7 @@ public:
   BasicBlock *elseBlock() { return Branches[1]; }
 
   /// Return the list of basic blocks that this terminator can branch to.
-  ArrayRef<BasicBlock*> successors() {
-    return llvm::makeArrayRef(Branches);
-  }
+  ArrayRef<BasicBlock *> successors() { return llvm::ArrayRef(Branches); }
 
   template <class V>
   typename V::R_SExpr traverse(V &Vs, typename V::R_Ctx Ctx) {
@@ -1462,7 +1461,7 @@ public:
   static bool classof(const SExpr *E) { return E->opcode() == COP_Return; }
 
   /// Return an empty list.
-  ArrayRef<BasicBlock *> successors() { return None; }
+  ArrayRef<BasicBlock *> successors() { return std::nullopt; }
 
   SExpr *returnValue() { return Retval; }
   const SExpr *returnValue() const { return Retval; }
@@ -1488,7 +1487,7 @@ inline ArrayRef<BasicBlock*> Terminator::successors() {
     case COP_Branch: return cast<Branch>(this)->successors();
     case COP_Return: return cast<Return>(this)->successors();
     default:
-      return None;
+      return std::nullopt;
   }
 }
 
@@ -1605,7 +1604,7 @@ public:
 
   /// Return the index of BB, or Predecessors.size if BB is not a predecessor.
   unsigned findPredecessorIndex(const BasicBlock *BB) const {
-    auto I = std::find(Predecessors.cbegin(), Predecessors.cend(), BB);
+    auto I = llvm::find(Predecessors, BB);
     return std::distance(Predecessors.cbegin(), I);
   }
 
@@ -1643,10 +1642,10 @@ private:
   friend class SCFG;
 
   // assign unique ids to all instructions
-  int renumberInstrs(int id);
+  unsigned renumberInstrs(unsigned id);
 
-  int topologicalSort(SimpleArray<BasicBlock *> &Blocks, int ID);
-  int topologicalFinalSort(SimpleArray<BasicBlock *> &Blocks, int ID);
+  unsigned topologicalSort(SimpleArray<BasicBlock *> &Blocks, unsigned ID);
+  unsigned topologicalFinalSort(SimpleArray<BasicBlock *> &Blocks, unsigned ID);
   void computeDominator();
   void computePostDominator();
 
@@ -1657,7 +1656,7 @@ private:
   SCFG *CFGPtr = nullptr;
 
   // Unique ID for this BB in the containing CFG. IDs are in topological order.
-  int BlockID : 31;
+  unsigned BlockID : 31;
 
   // Bit to determine if a block has been visited during a traversal.
   bool Visited : 1;

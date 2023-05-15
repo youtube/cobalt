@@ -46,10 +46,10 @@ static inline TypeLeafKind getTypeLeafKind(ContinuationRecordKind CK) {
 ContinuationRecordBuilder::ContinuationRecordBuilder()
     : SegmentWriter(Buffer), Mapping(SegmentWriter) {}
 
-ContinuationRecordBuilder::~ContinuationRecordBuilder() {}
+ContinuationRecordBuilder::~ContinuationRecordBuilder() = default;
 
 void ContinuationRecordBuilder::begin(ContinuationRecordKind RecordKind) {
-  assert(!Kind.hasValue());
+  assert(!Kind);
   Kind = RecordKind;
   Buffer.clear();
   SegmentWriter.setOffset(0);
@@ -66,20 +66,17 @@ void ContinuationRecordBuilder::begin(ContinuationRecordKind RecordKind) {
   InjectedSegmentBytes =
       ArrayRef<uint8_t>(FLIB, FLIB + sizeof(SegmentInjection));
 
-  CVType Type;
-  Type.Type = getTypeLeafKind(RecordKind);
+  // Seed the first record with an appropriate record prefix.
+  RecordPrefix Prefix(getTypeLeafKind(RecordKind));
+  CVType Type(&Prefix, sizeof(Prefix));
   cantFail(Mapping.visitTypeBegin(Type));
 
-  // Seed the first trecord with an appropriate record prefix.
-  RecordPrefix Prefix;
-  Prefix.RecordLen = 0;
-  Prefix.RecordKind = Type.Type;
   cantFail(SegmentWriter.writeObject(Prefix));
 }
 
 template <typename RecordType>
 void ContinuationRecordBuilder::writeMemberType(RecordType &Record) {
-  assert(Kind.hasValue());
+  assert(Kind);
 
   uint32_t OriginalOffset = SegmentWriter.getOffset();
   CVMemberRecord CVMR;
@@ -106,7 +103,7 @@ void ContinuationRecordBuilder::writeMemberType(RecordType &Record) {
   if (getCurrentSegmentLength() > MaxSegmentLength) {
     // We need to inject some bytes before the member we just wrote but after
     // the previous member.  Save off the length of the member we just wrote so
-    // that we can do some sanity checking on it.
+    // that we can do validate it.
     uint32_t MemberLength = SegmentWriter.getOffset() - OriginalOffset;
     (void) MemberLength;
     insertSegmentEnd(OriginalOffset);
@@ -150,23 +147,18 @@ void ContinuationRecordBuilder::insertSegmentEnd(uint32_t Offset) {
 }
 
 CVType ContinuationRecordBuilder::createSegmentRecord(
-    uint32_t OffBegin, uint32_t OffEnd, Optional<TypeIndex> RefersTo) {
+    uint32_t OffBegin, uint32_t OffEnd, std::optional<TypeIndex> RefersTo) {
   assert(OffEnd - OffBegin <= USHRT_MAX);
 
   MutableArrayRef<uint8_t> Data = Buffer.data();
   Data = Data.slice(OffBegin, OffEnd - OffBegin);
 
-  CVType Type;
-  Type.Type = getTypeLeafKind(*Kind);
-  Type.RecordData = Data;
-
   // Write the length to the RecordPrefix, making sure it does not include
   // sizeof(RecordPrefix.Length)
   RecordPrefix *Prefix = reinterpret_cast<RecordPrefix *>(Data.data());
-  assert(Prefix->RecordKind == Type.Type);
   Prefix->RecordLen = Data.size() - sizeof(RecordPrefix::RecordLen);
 
-  if (RefersTo.hasValue()) {
+  if (RefersTo) {
     auto Continuation = Data.take_back(ContinuationLength);
     ContinuationRecord *CR =
         reinterpret_cast<ContinuationRecord *>(Continuation.data());
@@ -175,12 +167,12 @@ CVType ContinuationRecordBuilder::createSegmentRecord(
     CR->IndexRef = RefersTo->getIndex();
   }
 
-  return Type;
+  return CVType(Data);
 }
 
 std::vector<CVType> ContinuationRecordBuilder::end(TypeIndex Index) {
-  CVType Type;
-  Type.Type = getTypeLeafKind(*Kind);
+  RecordPrefix Prefix(getTypeLeafKind(*Kind));
+  CVType Type(&Prefix, sizeof(Prefix));
   cantFail(Mapping.visitTypeEnd(Type));
 
   // We're now done, and we have a series of segments each beginning at an
@@ -232,11 +224,11 @@ std::vector<CVType> ContinuationRecordBuilder::end(TypeIndex Index) {
   std::vector<CVType> Types;
   Types.reserve(SegmentOffsets.size());
 
-  auto SO = makeArrayRef(SegmentOffsets);
+  ArrayRef SO = SegmentOffsets;
 
   uint32_t End = SegmentWriter.getOffset();
 
-  Optional<TypeIndex> RefersTo;
+  std::optional<TypeIndex> RefersTo;
   for (uint32_t Offset : reverse(SO)) {
     Types.push_back(createSegmentRecord(Offset, End, RefersTo));
 

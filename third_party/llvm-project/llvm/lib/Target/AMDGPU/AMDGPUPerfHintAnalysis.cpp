@@ -1,9 +1,8 @@
 //===- AMDGPUPerfHintAnalysis.cpp - analysis of functions memory traffic --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,16 +17,15 @@
 #include "Utils/AMDGPUBaseInfo.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/ValueMap.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -72,14 +70,14 @@ public:
                  const TargetLowering *TLI_)
       : FIM(FIM_), DL(nullptr), TLI(TLI_) {}
 
-  void runOnFunction(Function &F);
+  bool runOnFunction(Function &F);
 
 private:
   struct MemAccessInfo {
-    const Value *V;
-    const Value *Base;
-    int64_t Offset;
-    MemAccessInfo() : V(nullptr), Base(nullptr), Offset(0) {}
+    const Value *V = nullptr;
+    const Value *Base = nullptr;
+    int64_t Offset = 0;
+    MemAccessInfo() = default;
     bool isLargeStride(MemAccessInfo &Reference) const;
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
     Printable print() const {
@@ -99,11 +97,9 @@ private:
 
   const DataLayout *DL;
 
-  AMDGPUAS AS;
-
   const TargetLowering *TLI;
 
-  void visit(const Function &F);
+  AMDGPUPerfHintAnalysis::FuncInfo *visit(const Function &F);
   static bool isMemBound(const AMDGPUPerfHintAnalysis::FuncInfo &F);
   static bool needLimitWave(const AMDGPUPerfHintAnalysis::FuncInfo &F);
 
@@ -120,34 +116,30 @@ private:
 
   bool isGlobalAddr(const Value *V) const;
   bool isLocalAddr(const Value *V) const;
-  bool isConstantAddr(const Value *V) const;
+  bool isGlobalLoadUsedInBB(const Instruction &) const;
 };
 
-static const Value *getMemoryInstrPtr(const Instruction *Inst) {
-  if (auto LI = dyn_cast<LoadInst>(Inst)) {
-    return LI->getPointerOperand();
-  }
-  if (auto SI = dyn_cast<StoreInst>(Inst)) {
-    return SI->getPointerOperand();
-  }
-  if (auto AI = dyn_cast<AtomicCmpXchgInst>(Inst)) {
-    return AI->getPointerOperand();
-  }
-  if (auto AI = dyn_cast<AtomicRMWInst>(Inst)) {
-    return AI->getPointerOperand();
-  }
-  if (auto MI = dyn_cast<AnyMemIntrinsic>(Inst)) {
-    return MI->getRawDest();
-  }
+static std::pair<const Value *, const Type *> getMemoryInstrPtrAndType(
+    const Instruction *Inst) {
+  if (auto LI = dyn_cast<LoadInst>(Inst))
+    return {LI->getPointerOperand(), LI->getType()};
+  if (auto SI = dyn_cast<StoreInst>(Inst))
+    return {SI->getPointerOperand(), SI->getValueOperand()->getType()};
+  if (auto AI = dyn_cast<AtomicCmpXchgInst>(Inst))
+    return {AI->getPointerOperand(), AI->getCompareOperand()->getType()};
+  if (auto AI = dyn_cast<AtomicRMWInst>(Inst))
+    return {AI->getPointerOperand(), AI->getValOperand()->getType()};
+  if (auto MI = dyn_cast<AnyMemIntrinsic>(Inst))
+    return {MI->getRawDest(), Type::getInt8Ty(MI->getContext())};
 
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 bool AMDGPUPerfHint::isIndirectAccess(const Instruction *Inst) const {
   LLVM_DEBUG(dbgs() << "[isIndirectAccess] " << *Inst << '\n');
   SmallSet<const Value *, 32> WorkSet;
   SmallSet<const Value *, 32> Visited;
-  if (const Value *MO = getMemoryInstrPtr(Inst)) {
+  if (const Value *MO = getMemoryInstrPtrAndType(Inst).first) {
     if (isGlobalAddr(MO))
       WorkSet.insert(MO);
   }
@@ -161,7 +153,7 @@ bool AMDGPUPerfHint::isIndirectAccess(const Instruction *Inst) const {
 
     if (auto LD = dyn_cast<LoadInst>(V)) {
       auto M = LD->getPointerOperand();
-      if (isGlobalAddr(M) || isLocalAddr(M) || isConstantAddr(M)) {
+      if (isGlobalAddr(M)) {
         LLVM_DEBUG(dbgs() << "    is IA\n");
         return true;
       }
@@ -205,45 +197,64 @@ bool AMDGPUPerfHint::isIndirectAccess(const Instruction *Inst) const {
   return false;
 }
 
-void AMDGPUPerfHint::visit(const Function &F) {
-  auto FIP = FIM.insert(std::make_pair(&F, AMDGPUPerfHintAnalysis::FuncInfo()));
-  if (!FIP.second)
-    return;
+// Returns true if the global load `I` is used in its own basic block.
+bool AMDGPUPerfHint::isGlobalLoadUsedInBB(const Instruction &I) const {
+  const auto *Ld = dyn_cast<LoadInst>(&I);
+  if (!Ld)
+    return false;
+  if (!isGlobalAddr(Ld->getPointerOperand()))
+    return false;
 
-  AMDGPUPerfHintAnalysis::FuncInfo &FI = FIP.first->second;
+  for (const User *Usr : Ld->users()) {
+    if (const Instruction *UsrInst = dyn_cast<Instruction>(Usr)) {
+      if (UsrInst->getParent() == I.getParent())
+        return true;
+    }
+  }
+
+  return false;
+}
+
+AMDGPUPerfHintAnalysis::FuncInfo *AMDGPUPerfHint::visit(const Function &F) {
+  AMDGPUPerfHintAnalysis::FuncInfo &FI = FIM[&F];
 
   LLVM_DEBUG(dbgs() << "[AMDGPUPerfHint] process " << F.getName() << '\n');
 
   for (auto &B : F) {
     LastAccess = MemAccessInfo();
+    unsigned UsedGlobalLoadsInBB = 0;
     for (auto &I : B) {
-      if (getMemoryInstrPtr(&I)) {
+      if (const Type *Ty = getMemoryInstrPtrAndType(&I).second) {
+        unsigned Size = divideCeil(Ty->getPrimitiveSizeInBits(), 32);
+        // TODO: Check if the global load and its user are close to each other
+        // instead (Or do this analysis in GCNSchedStrategy?).
+        if (isGlobalLoadUsedInBB(I))
+          UsedGlobalLoadsInBB += Size;
         if (isIndirectAccess(&I))
-          ++FI.IAMInstCount;
+          FI.IAMInstCost += Size;
         if (isLargeStride(&I))
-          ++FI.LSMInstCount;
-        ++FI.MemInstCount;
-        ++FI.InstCount;
+          FI.LSMInstCost += Size;
+        FI.MemInstCost += Size;
+        FI.InstCost += Size;
         continue;
       }
-      CallSite CS(const_cast<Instruction *>(&I));
-      if (CS) {
-        Function *Callee = CS.getCalledFunction();
+      if (auto *CB = dyn_cast<CallBase>(&I)) {
+        Function *Callee = CB->getCalledFunction();
         if (!Callee || Callee->isDeclaration()) {
-          ++FI.InstCount;
+          ++FI.InstCost;
           continue;
         }
         if (&F == Callee) // Handle immediate recursion
           continue;
 
-        visit(*Callee);
         auto Loc = FIM.find(Callee);
+        if (Loc == FIM.end())
+          continue;
 
-        assert(Loc != FIM.end() && "No func info");
-        FI.MemInstCount += Loc->second.MemInstCount;
-        FI.InstCount += Loc->second.InstCount;
-        FI.IAMInstCount += Loc->second.IAMInstCount;
-        FI.LSMInstCount += Loc->second.LSMInstCount;
+        FI.MemInstCost += Loc->second.MemInstCost;
+        FI.InstCost += Loc->second.InstCost;
+        FI.IAMInstCost += Loc->second.IAMInstCost;
+        FI.LSMInstCost += Loc->second.LSMInstCost;
       } else if (auto *GEP = dyn_cast<GetElementPtrInst>(&I)) {
         TargetLoweringBase::AddrMode AM;
         auto *Ptr = GetPointerBaseWithConstantOffset(GEP, AM.BaseOffs, *DL);
@@ -253,67 +264,87 @@ void AMDGPUPerfHint::visit(const Function &F) {
                                        GEP->getPointerAddressSpace()))
           // Offset will likely be folded into load or store
           continue;
-        ++FI.InstCount;
+        ++FI.InstCost;
       } else {
-        ++FI.InstCount;
+        ++FI.InstCost;
+      }
+    }
+
+    if (!FI.HasDenseGlobalMemAcc) {
+      unsigned GlobalMemAccPercentage = UsedGlobalLoadsInBB * 100 / B.size();
+      if (GlobalMemAccPercentage > 50) {
+        LLVM_DEBUG(dbgs() << "[HasDenseGlobalMemAcc] Set to true since "
+                          << B.getName() << " has " << GlobalMemAccPercentage
+                          << "% global memory access\n");
+        FI.HasDenseGlobalMemAcc = true;
       }
     }
   }
+
+  return &FI;
 }
 
-void AMDGPUPerfHint::runOnFunction(Function &F) {
-  if (FIM.find(&F) != FIM.end())
-    return;
-
+bool AMDGPUPerfHint::runOnFunction(Function &F) {
   const Module &M = *F.getParent();
   DL = &M.getDataLayout();
-  AS = AMDGPU::getAMDGPUAS(M);
 
-  visit(F);
-  auto Loc = FIM.find(&F);
+  if (F.hasFnAttribute("amdgpu-wave-limiter") &&
+      F.hasFnAttribute("amdgpu-memory-bound"))
+    return false;
 
-  assert(Loc != FIM.end() && "No func info");
-  LLVM_DEBUG(dbgs() << F.getName() << " MemInst: " << Loc->second.MemInstCount
+  const AMDGPUPerfHintAnalysis::FuncInfo *Info = visit(F);
+
+  LLVM_DEBUG(dbgs() << F.getName() << " MemInst cost: " << Info->MemInstCost
                     << '\n'
-                    << " IAMInst: " << Loc->second.IAMInstCount << '\n'
-                    << " LSMInst: " << Loc->second.LSMInstCount << '\n'
-                    << " TotalInst: " << Loc->second.InstCount << '\n');
+                    << " IAMInst cost: " << Info->IAMInstCost << '\n'
+                    << " LSMInst cost: " << Info->LSMInstCost << '\n'
+                    << " TotalInst cost: " << Info->InstCost << '\n');
 
-  auto &FI = Loc->second;
+  bool Changed = false;
 
-  if (isMemBound(FI)) {
+  if (isMemBound(*Info)) {
     LLVM_DEBUG(dbgs() << F.getName() << " is memory bound\n");
     NumMemBound++;
+    F.addFnAttr("amdgpu-memory-bound", "true");
+    Changed = true;
   }
 
-  if (AMDGPU::isEntryFunctionCC(F.getCallingConv()) && needLimitWave(FI)) {
+  if (AMDGPU::isEntryFunctionCC(F.getCallingConv()) && needLimitWave(*Info)) {
     LLVM_DEBUG(dbgs() << F.getName() << " needs limit wave\n");
     NumLimitWave++;
+    F.addFnAttr("amdgpu-wave-limiter", "true");
+    Changed = true;
   }
+
+  return Changed;
 }
 
 bool AMDGPUPerfHint::isMemBound(const AMDGPUPerfHintAnalysis::FuncInfo &FI) {
-  return FI.MemInstCount * 100 / FI.InstCount > MemBoundThresh;
+  // Reverting optimal scheduling in favour of occupancy with basic block(s)
+  // having dense global memory access can potentially hurt performance.
+  if (FI.HasDenseGlobalMemAcc)
+    return true;
+
+  return FI.MemInstCost * 100 / FI.InstCost > MemBoundThresh;
 }
 
 bool AMDGPUPerfHint::needLimitWave(const AMDGPUPerfHintAnalysis::FuncInfo &FI) {
-  return ((FI.MemInstCount + FI.IAMInstCount * IAWeight +
-           FI.LSMInstCount * LSWeight) *
-          100 / FI.InstCount) > LimitWaveThresh;
+  return ((FI.MemInstCost + FI.IAMInstCost * IAWeight +
+           FI.LSMInstCost * LSWeight) * 100 / FI.InstCost) > LimitWaveThresh;
 }
 
 bool AMDGPUPerfHint::isGlobalAddr(const Value *V) const {
   if (auto PT = dyn_cast<PointerType>(V->getType())) {
     unsigned As = PT->getAddressSpace();
     // Flat likely points to global too.
-    return As == AS.GLOBAL_ADDRESS || As == AS.FLAT_ADDRESS;
+    return As == AMDGPUAS::GLOBAL_ADDRESS || As == AMDGPUAS::FLAT_ADDRESS;
   }
   return false;
 }
 
 bool AMDGPUPerfHint::isLocalAddr(const Value *V) const {
   if (auto PT = dyn_cast<PointerType>(V->getType()))
-    return PT->getAddressSpace() == AS.LOCAL_ADDRESS;
+    return PT->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
   return false;
 }
 
@@ -331,7 +362,7 @@ bool AMDGPUPerfHint::isLargeStride(const Instruction *Inst) {
 AMDGPUPerfHint::MemAccessInfo
 AMDGPUPerfHint::makeMemAccessInfo(Instruction *Inst) const {
   MemAccessInfo MAI;
-  const Value *MO = getMemoryInstrPtr(Inst);
+  const Value *MO = getMemoryInstrPtrAndType(Inst).first;
 
   LLVM_DEBUG(dbgs() << "[isLargeStride] MO: " << *MO << '\n');
   // Do not treat local-addr memory access as large stride.
@@ -341,14 +372,6 @@ AMDGPUPerfHint::makeMemAccessInfo(Instruction *Inst) const {
   MAI.V = MO;
   MAI.Base = GetPointerBaseWithConstantOffset(MO, MAI.Offset, *DL);
   return MAI;
-}
-
-bool AMDGPUPerfHint::isConstantAddr(const Value *V) const {
-  if (auto PT = dyn_cast<PointerType>(V->getType())) {
-    unsigned As = PT->getAddressSpace();
-    return As == AS.CONSTANT_ADDRESS || As == AS.CONSTANT_ADDRESS_32BIT;
-  }
-  return false;
 }
 
 bool AMDGPUPerfHint::MemAccessInfo::isLargeStride(
@@ -367,17 +390,27 @@ bool AMDGPUPerfHint::MemAccessInfo::isLargeStride(
 }
 } // namespace
 
-bool AMDGPUPerfHintAnalysis::runOnFunction(Function &F) {
+bool AMDGPUPerfHintAnalysis::runOnSCC(CallGraphSCC &SCC) {
   auto *TPC = getAnalysisIfAvailable<TargetPassConfig>();
   if (!TPC)
     return false;
 
   const TargetMachine &TM = TPC->getTM<TargetMachine>();
-  const TargetSubtargetInfo *ST = TM.getSubtargetImpl(F);
 
-  AMDGPUPerfHint Analyzer(FIM, ST->getTargetLowering());
-  Analyzer.runOnFunction(F);
-  return false;
+  bool Changed = false;
+  for (CallGraphNode *I : SCC) {
+    Function *F = I->getFunction();
+    if (!F || F->isDeclaration())
+      continue;
+
+    const TargetSubtargetInfo *ST = TM.getSubtargetImpl(*F);
+    AMDGPUPerfHint Analyzer(FIM, ST->getTargetLowering());
+
+    if (Analyzer.runOnFunction(*F))
+      Changed = true;
+  }
+
+  return Changed;
 }
 
 bool AMDGPUPerfHintAnalysis::isMemoryBound(const Function *F) const {

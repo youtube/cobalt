@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import lldb
 import optparse
@@ -9,7 +9,7 @@ import sys
 
 class DumpLineTables:
     command_name = "dump-line-tables"
-    short_decription = "Dumps full paths to compile unit files and optionally all line table files."
+    short_description = "Dumps full paths to compile unit files and optionally all line table files."
     description = 'Dumps all line tables from all compile units for any modules specified as arguments. Specifying the --verbose flag will output address ranges for each line entry.'
     usage = "usage: %prog [options] MODULE1 [MODULE2 ...]"
     def create_options(self):
@@ -27,7 +27,7 @@ class DumpLineTables:
             default=False)
 
     def get_short_help(self):
-        return self.short_decription
+        return self.short_description
 
     def get_long_help(self):
         return self.help_string
@@ -61,14 +61,14 @@ class DumpLineTables:
                 result.SetError('no module found that matches "%s".' % (module_path))
                 return
             num_cus = module.GetNumCompileUnits()
-            print >>result, 'Module: "%s"' % (module.file.fullpath),
+            print('Module: "%s"' % (module.file.fullpath), end=' ', file=result)
             if num_cus == 0:
-                print >>result, 'no debug info.'
+                print('no debug info.', file=result)
                 continue
-            print >>result, 'has %u compile units:' % (num_cus)
+            print('has %u compile units:' % (num_cus), file=result)
             for cu_idx in range(num_cus):
                 cu = module.GetCompileUnitAtIndex(cu_idx)
-                print >>result, '  Compile Unit: %s' % (cu.file.fullpath)
+                print('  Compile Unit: %s' % (cu.file.fullpath), file=result)
                 for line_idx in range(cu.GetNumLineEntries()):
                     line_entry = cu.GetLineEntryAtIndex(line_idx)
                     start_file_addr = line_entry.addr.file_addr
@@ -163,19 +163,19 @@ path when setting breakpoints.
                 result.SetError('no module found that matches "%s".' % (module_path))
                 return
             num_cus = module.GetNumCompileUnits()
-            print >>result, 'Module: "%s"' % (module.file.fullpath),
+            print('Module: "%s"' % (module.file.fullpath), end=' ', file=result)
             if num_cus == 0:
-                print >>result, 'no debug info.'
+                print('no debug info.', file=result)
                 continue
-            print >>result, 'has %u compile units:' % (num_cus)
+            print('has %u compile units:' % (num_cus), file=result)
             for i in range(num_cus):
                 cu = module.GetCompileUnitAtIndex(i)
-                print >>result, '  Compile Unit: %s' % (cu.file.fullpath)
+                print('  Compile Unit: %s' % (cu.file.fullpath), file=result)
                 if options.support_files:
                     num_support_files = cu.GetNumSupportFiles()
                     for j in range(num_support_files):
                         path = cu.GetSupportFileAtIndex(j).fullpath
-                        print >>result, '    file[%u]: %s' % (j, path)
+                        print('    file[%u]: %s' % (j, path), file=result)
 
 
 def __lldb_init_module(debugger, dict):
@@ -183,9 +183,9 @@ def __lldb_init_module(debugger, dict):
 
     # Add any commands contained in this module to LLDB
     debugger.HandleCommand(
-        'command script add -c %s.DumpLineTables %s' % (__name__,
+        'command script add -o -c %s.DumpLineTables %s' % (__name__,
                                                         DumpLineTables.command_name))
     debugger.HandleCommand(
-        'command script add -c %s.DumpFiles %s' % (__name__, DumpFiles.command_name))
-    print 'The "%s" and "%s" commands have been installed.' % (DumpLineTables.command_name,
-                                                               DumpFiles.command_name)
+        'command script add -o -c %s.DumpFiles %s' % (__name__, DumpFiles.command_name))
+    print('The "%s" and "%s" commands have been installed.' % (DumpLineTables.command_name,
+                                                               DumpFiles.command_name))

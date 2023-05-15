@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -flto -triple x86_64-unknown-linux -fsanitize=cfi-vcall -fsanitize-cfi-cross-dso -emit-llvm -o - %s | FileCheck --check-prefix=CHECK --check-prefix=ITANIUM %s
-// RUN: %clang_cc1 -flto -triple x86_64-pc-windows-msvc -fsanitize=cfi-vcall  -fsanitize-cfi-cross-dso -emit-llvm -o - %s | FileCheck --check-prefix=CHECK --check-prefix=MS %s
+// RUN: %clang_cc1 -no-opaque-pointers -flto -triple x86_64-unknown-linux -fsanitize=cfi-vcall -fsanitize-cfi-cross-dso -emit-llvm -o - %s | FileCheck --check-prefix=CHECK --check-prefix=ITANIUM %s
+// RUN: %clang_cc1 -no-opaque-pointers -flto -triple x86_64-pc-windows-msvc -fsanitize=cfi-vcall  -fsanitize-cfi-cross-dso -emit-llvm -o - %s | FileCheck --check-prefix=CHECK --check-prefix=MS %s
 
 struct A {
   A();
@@ -38,7 +38,7 @@ void g() {
 // MS:   call void @__cfi_slowpath_diag(i64 -8005289897957287421, i8* %[[VT2]], {{.*}}) {{.*}} !nosanitize
 // CHECK:   br label %[[CONT]], !nosanitize
 // CHECK: [[CONT]]
-// CHECK:   call void %{{.*}}(%struct.A* %{{.*}})
+// CHECK:   call void %{{.*}}(%struct.A* {{[^,]*}} %{{.*}})
 
 // No hash-based bit set entry for (anonymous namespace)::B
 // ITANIUM-NOT: !{i64 {{.*}}, [3 x i8*]* @_ZTVN12_GLOBAL__N_11BE,

@@ -1,9 +1,8 @@
 //===-- llvm/Target/TargetMachine.h - Target Information --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,25 +16,40 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/Pass.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/PGOOptions.h"
+#include "llvm/Target/CGPassBuilderOption.h"
 #include "llvm/Target/TargetOptions.h"
+#include <optional>
 #include <string>
+#include <utility>
 
 namespace llvm {
 
+class AAManager;
+using ModulePassManager = PassManager<Module>;
+
 class Function;
 class GlobalValue;
-class MachineModuleInfo;
+class MachineFunctionPassManager;
+class MachineFunctionAnalysisManager;
+class MachineModuleInfoWrapperPass;
 class Mangler;
 class MCAsmInfo;
 class MCContext;
 class MCInstrInfo;
 class MCRegisterInfo;
+class MCStreamer;
 class MCSubtargetInfo;
 class MCSymbol;
 class raw_pwrite_stream;
-class PassManagerBuilder;
+class PassBuilder;
+struct PerFunctionMIParsingState;
+class SMDiagnostic;
+class SMRange;
 class Target;
 class TargetIntrinsicInfo;
 class TargetIRAnalysis;
@@ -49,6 +63,11 @@ namespace legacy {
 class PassManagerBase;
 }
 using legacy::PassManagerBase;
+
+struct MachineFunctionInfo;
+namespace yaml {
+struct MachineFunctionInfo;
+}
 
 //===----------------------------------------------------------------------===//
 ///
@@ -84,14 +103,16 @@ protected: // Can only create subclasses.
   CodeGenOpt::Level OptLevel = CodeGenOpt::Default;
 
   /// Contains target specific asm information.
-  const MCAsmInfo *AsmInfo;
-
-  const MCRegisterInfo *MRI;
-  const MCInstrInfo *MII;
-  const MCSubtargetInfo *STI;
+  std::unique_ptr<const MCAsmInfo> AsmInfo;
+  std::unique_ptr<const MCRegisterInfo> MRI;
+  std::unique_ptr<const MCInstrInfo> MII;
+  std::unique_ptr<const MCSubtargetInfo> STI;
 
   unsigned RequireStructuredCFG : 1;
   unsigned O0WantsFastISel : 1;
+
+  // PGO related tunables.
+  std::optional<PGOOptions> PGOOption;
 
 public:
   const TargetOptions DefaultOptions;
@@ -106,6 +127,7 @@ public:
   const Triple &getTargetTriple() const { return TargetTriple; }
   StringRef getTargetCPU() const { return TargetCPU; }
   StringRef getTargetFeatureString() const { return TargetFS; }
+  void setTargetFeatureString(StringRef FS) { TargetFS = std::string(FS); }
 
   /// Virtual method implemented by subclasses that returns a reference to that
   /// target's TargetSubtargetInfo-derived member variable.
@@ -114,6 +136,34 @@ public:
   }
   virtual TargetLoweringObjectFile *getObjFileLowering() const {
     return nullptr;
+  }
+
+  /// Create the target's instance of MachineFunctionInfo
+  virtual MachineFunctionInfo *
+  createMachineFunctionInfo(BumpPtrAllocator &Allocator, const Function &F,
+                            const TargetSubtargetInfo *STI) const {
+    return nullptr;
+  }
+
+  /// Allocate and return a default initialized instance of the YAML
+  /// representation for the MachineFunctionInfo.
+  virtual yaml::MachineFunctionInfo *createDefaultFuncInfoYAML() const {
+    return nullptr;
+  }
+
+  /// Allocate and initialize an instance of the YAML representation of the
+  /// MachineFunctionInfo.
+  virtual yaml::MachineFunctionInfo *
+  convertFuncInfoToYAML(const MachineFunction &MF) const {
+    return nullptr;
+  }
+
+  /// Parse out the target's MachineFunctionInfo from the YAML reprsentation.
+  virtual bool parseMachineFunctionInfo(const yaml::MachineFunctionInfo &,
+                                        PerFunctionMIParsingState &PFS,
+                                        SMDiagnostic &Error,
+                                        SMRange &SourceRange) const {
+    return false;
   }
 
   /// This method returns a pointer to the specified type of
@@ -160,11 +210,11 @@ public:
   void resetTargetOptions(const Function &F) const;
 
   /// Return target specific asm information.
-  const MCAsmInfo *getMCAsmInfo() const { return AsmInfo; }
+  const MCAsmInfo *getMCAsmInfo() const { return AsmInfo.get(); }
 
-  const MCRegisterInfo *getMCRegisterInfo() const { return MRI; }
-  const MCInstrInfo *getMCInstrInfo() const { return MII; }
-  const MCSubtargetInfo *getMCSubtargetInfo() const { return STI; }
+  const MCRegisterInfo *getMCRegisterInfo() const { return MRI.get(); }
+  const MCInstrInfo *getMCInstrInfo() const { return MII.get(); }
+  const MCSubtargetInfo *getMCSubtargetInfo() const { return STI.get(); }
 
   /// If intrinsic information is available, return it.  If not, return null.
   virtual const TargetIntrinsicInfo *getIntrinsicInfo() const {
@@ -180,7 +230,10 @@ public:
 
   /// Returns the code model. The choices are small, kernel, medium, large, and
   /// target default.
-  CodeModel::Model getCodeModel() const;
+  CodeModel::Model getCodeModel() const { return CMModel; }
+
+  /// Set the code model.
+  void setCodeModel(CodeModel::Model CM) { CMModel = CM; }
 
   bool isPositionIndependent() const;
 
@@ -202,16 +255,31 @@ public:
   bool getO0WantsFastISel() { return O0WantsFastISel; }
   void setO0WantsFastISel(bool Enable) { O0WantsFastISel = Enable; }
   void setGlobalISel(bool Enable) { Options.EnableGlobalISel = Enable; }
+  void setGlobalISelAbort(GlobalISelAbortMode Mode) {
+    Options.GlobalISelAbort = Mode;
+  }
   void setMachineOutliner(bool Enable) {
     Options.EnableMachineOutliner = Enable;
   }
   void setSupportsDefaultOutlining(bool Enable) {
     Options.SupportsDefaultOutlining = Enable;
   }
+  void setSupportsDebugEntryValues(bool Enable) {
+    Options.SupportsDebugEntryValues = Enable;
+  }
 
-  bool shouldPrintMachineCode() const { return Options.PrintMachineCode; }
+  void setCFIFixup(bool Enable) { Options.EnableCFIFixup = Enable; }
+
+  bool getAIXExtendedAltivecABI() const {
+    return Options.EnableAIXExtendedAltivecABI;
+  }
 
   bool getUniqueSectionNames() const { return Options.UniqueSectionNames; }
+
+  /// Return true if unique basic block section names must be generated.
+  bool getUniqueBasicBlockSectionNames() const {
+    return Options.UniqueBasicBlockSectionNames;
+  }
 
   /// Return true if data objects should be emitted into their own section,
   /// corresponds to -fdata-sections.
@@ -225,42 +293,86 @@ public:
     return Options.FunctionSections;
   }
 
+  /// Return true if visibility attribute should not be emitted in XCOFF,
+  /// corresponding to -mignore-xcoff-visibility.
+  bool getIgnoreXCOFFVisibility() const {
+    return Options.IgnoreXCOFFVisibility;
+  }
+
+  /// Return true if XCOFF traceback table should be emitted,
+  /// corresponding to -xcoff-traceback-table.
+  bool getXCOFFTracebackTable() const { return Options.XCOFFTracebackTable; }
+
+  /// If basic blocks should be emitted into their own section,
+  /// corresponding to -fbasic-block-sections.
+  llvm::BasicBlockSection getBBSectionsType() const {
+    return Options.BBSections;
+  }
+
+  /// Get the list of functions and basic block ids that need unique sections.
+  const MemoryBuffer *getBBSectionsFuncListBuf() const {
+    return Options.BBSectionsFuncListBuf.get();
+  }
+
+  /// Returns true if a cast between SrcAS and DestAS is a noop.
+  virtual bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const {
+    return false;
+  }
+
+  void setPGOOption(std::optional<PGOOptions> PGOOpt) { PGOOption = PGOOpt; }
+  const std::optional<PGOOptions> &getPGOOption() const { return PGOOption; }
+
+  /// If the specified generic pointer could be assumed as a pointer to a
+  /// specific address space, return that address space.
+  ///
+  /// Under offloading programming, the offloading target may be passed with
+  /// values only prepared on the host side and could assume certain
+  /// properties.
+  virtual unsigned getAssumedAddrSpace(const Value *V) const { return -1; }
+
+  /// If the specified predicate checks whether a generic pointer falls within
+  /// a specified address space, return that generic pointer and the address
+  /// space being queried.
+  ///
+  /// Such predicates could be specified in @llvm.assume intrinsics for the
+  /// optimizer to assume that the given generic pointer always falls within
+  /// the address space based on that predicate.
+  virtual std::pair<const Value *, unsigned>
+  getPredicatedAddrSpace(const Value *V) const {
+    return std::make_pair(nullptr, -1);
+  }
+
   /// Get a \c TargetIRAnalysis appropriate for the target.
   ///
   /// This is used to construct the new pass manager's target IR analysis pass,
   /// set up appropriately for this target machine. Even the old pass manager
   /// uses this to answer queries about the IR.
-  TargetIRAnalysis getTargetIRAnalysis();
+  TargetIRAnalysis getTargetIRAnalysis() const;
 
   /// Return a TargetTransformInfo for a given function.
   ///
   /// The returned TargetTransformInfo is specialized to the subtarget
   /// corresponding to \p F.
-  virtual TargetTransformInfo getTargetTransformInfo(const Function &F);
+  virtual TargetTransformInfo getTargetTransformInfo(const Function &F) const;
 
-  /// Allow the target to modify the pass manager, e.g. by calling
-  /// PassManagerBuilder::addExtension.
-  virtual void adjustPassManager(PassManagerBuilder &) {}
+  /// Allow the target to modify the pass pipeline.
+  virtual void registerPassBuilderCallbacks(PassBuilder &) {}
 
-  /// These enums are meant to be passed into addPassesToEmitFile to indicate
-  /// what type of file to emit, and returned by it to indicate what type of
-  /// file could actually be made.
-  enum CodeGenFileType {
-    CGFT_AssemblyFile,
-    CGFT_ObjectFile,
-    CGFT_Null         // Do not emit any output.
-  };
+  /// Allow the target to register alias analyses with the AAManager for use
+  /// with the new pass manager. Only affects the "default" AAManager.
+  virtual void registerDefaultAliasAnalyses(AAManager &) {}
 
   /// Add passes to the specified pass manager to get the specified file
   /// emitted.  Typically this will involve several steps of code generation.
   /// This method should return true if emission of this file type is not
   /// supported, or false on success.
-  /// \p MMI is an optional parameter that, if set to non-nullptr,
+  /// \p MMIWP is an optional parameter that, if set to non-nullptr,
   /// will be used to set the MachineModuloInfo for this PM.
-  virtual bool addPassesToEmitFile(PassManagerBase &, raw_pwrite_stream &,
-                                   raw_pwrite_stream *, CodeGenFileType,
-                                   bool /*DisableVerify*/ = true,
-                                   MachineModuleInfo *MMI = nullptr) {
+  virtual bool
+  addPassesToEmitFile(PassManagerBase &, raw_pwrite_stream &,
+                      raw_pwrite_stream *, CodeGenFileType,
+                      bool /*DisableVerify*/ = true,
+                      MachineModuleInfoWrapperPass *MMIWP = nullptr) {
     return true;
   }
 
@@ -286,16 +398,16 @@ public:
                          Mangler &Mang, bool MayAlwaysUsePrivate = false) const;
   MCSymbol *getSymbol(const GlobalValue *GV) const;
 
-  /// True if the target uses physical regs at Prolog/Epilog insertion
-  /// time. If true (most machines), all vregs must be allocated before
-  /// PEI. If false (virtual-register machines), then callee-save register
-  /// spilling and scavenging are not needed or used.
-  virtual bool usesPhysRegsForPEI() const { return true; }
+  /// The integer bit size to use for SjLj based exception handling.
+  static constexpr unsigned DefaultSjLjDataSize = 32;
+  virtual unsigned getSjLjDataSize() const { return DefaultSjLjDataSize; }
 
-  /// True if the target wants to use interprocedural register allocation by
-  /// default. The -enable-ipra flag can be used to override this.
-  virtual bool useIPRA() const {
-    return false;
+  static std::pair<int, int> parseBinutilsVersion(StringRef Version);
+
+  /// getAddressSpaceForPseudoSourceKind - Given the kind of memory
+  /// (e.g. stack) the target returns the corresponding address space.
+  virtual unsigned getAddressSpaceForPseudoSourceKind(unsigned Kind) const {
+    return 0;
   }
 };
 
@@ -316,7 +428,7 @@ public:
   ///
   /// The TTI returned uses the common code generator to answer queries about
   /// the IR.
-  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+  TargetTransformInfo getTargetTransformInfo(const Function &F) const override;
 
   /// Create a pass configuration object to be used by addPassToEmitX methods
   /// for generating a pipeline of CodeGen passes.
@@ -324,12 +436,28 @@ public:
 
   /// Add passes to the specified pass manager to get the specified file
   /// emitted.  Typically this will involve several steps of code generation.
-  /// \p MMI is an optional parameter that, if set to non-nullptr,
-  /// will be used to set the MachineModuloInfofor this PM.
-  bool addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &Out,
-                           raw_pwrite_stream *DwoOut, CodeGenFileType FileType,
-                           bool DisableVerify = true,
-                           MachineModuleInfo *MMI = nullptr) override;
+  /// \p MMIWP is an optional parameter that, if set to non-nullptr,
+  /// will be used to set the MachineModuloInfo for this PM.
+  bool
+  addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &Out,
+                      raw_pwrite_stream *DwoOut, CodeGenFileType FileType,
+                      bool DisableVerify = true,
+                      MachineModuleInfoWrapperPass *MMIWP = nullptr) override;
+
+  virtual Error buildCodeGenPipeline(ModulePassManager &,
+                                     MachineFunctionPassManager &,
+                                     MachineFunctionAnalysisManager &,
+                                     raw_pwrite_stream &, raw_pwrite_stream *,
+                                     CodeGenFileType, CGPassBuilderOption,
+                                     PassInstrumentationCallbacks *) {
+    return make_error<StringError>("buildCodeGenPipeline is not overridden",
+                                   inconvertibleErrorCode());
+  }
+
+  virtual std::pair<StringRef, bool> getPassNameFromLegacyName(StringRef) {
+    llvm_unreachable(
+        "getPassNameFromLegacyName parseMIRPipeline is not overridden");
+  }
 
   /// Add passes to the specified pass manager to get machine code emitted with
   /// the MCJIT. This method returns true if machine code is not supported. It
@@ -348,9 +476,49 @@ public:
   /// Adds an AsmPrinter pass to the pipeline that prints assembly or
   /// machine code from the MI representation.
   bool addAsmPrinter(PassManagerBase &PM, raw_pwrite_stream &Out,
-                     raw_pwrite_stream *DwoOut, CodeGenFileType FileTYpe,
+                     raw_pwrite_stream *DwoOut, CodeGenFileType FileType,
                      MCContext &Context);
+
+  Expected<std::unique_ptr<MCStreamer>>
+  createMCStreamer(raw_pwrite_stream &Out, raw_pwrite_stream *DwoOut,
+                   CodeGenFileType FileType, MCContext &Ctx);
+
+  /// True if the target uses physical regs (as nearly all targets do). False
+  /// for stack machines such as WebAssembly and other virtual-register
+  /// machines. If true, all vregs must be allocated before PEI. If false, then
+  /// callee-save register spilling and scavenging are not needed or used. If
+  /// false, implicitly defined registers will still be assumed to be physical
+  /// registers, except that variadic defs will be allocated vregs.
+  virtual bool usesPhysRegsForValues() const { return true; }
+
+  /// True if the target wants to use interprocedural register allocation by
+  /// default. The -enable-ipra flag can be used to override this.
+  virtual bool useIPRA() const {
+    return false;
+  }
+
+  /// The default variant to use in unqualified `asm` instructions.
+  /// If this returns 0, `asm "$(foo$|bar$)"` will evaluate to `asm "foo"`.
+  virtual int unqualifiedInlineAsmVariant() const { return 0; }
 };
+
+/// Helper method for getting the code model, returning Default if
+/// CM does not have a value. The tiny and kernel models will produce
+/// an error, so targets that support them or require more complex codemodel
+/// selection logic should implement and call their own getEffectiveCodeModel.
+inline CodeModel::Model
+getEffectiveCodeModel(std::optional<CodeModel::Model> CM,
+                      CodeModel::Model Default) {
+  if (CM) {
+    // By default, targets do not support the tiny and kernel models.
+    if (*CM == CodeModel::Tiny)
+      report_fatal_error("Target does not support the tiny CodeModel", false);
+    if (*CM == CodeModel::Kernel)
+      report_fatal_error("Target does not support the kernel CodeModel", false);
+    return *CM;
+  }
+  return Default;
+}
 
 } // end namespace llvm
 

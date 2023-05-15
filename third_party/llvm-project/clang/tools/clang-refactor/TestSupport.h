@@ -1,9 +1,8 @@
 //===--- TestSupport.h - Clang-based refactoring tool -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,10 +18,10 @@
 #include "ToolRefactoringResultConsumer.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include <map>
+#include <optional>
 #include <string>
 
 namespace clang {
@@ -59,9 +58,6 @@ struct TestSelectionRangesInFile {
   };
   std::vector<RangeGroup> GroupedRanges;
 
-  TestSelectionRangesInFile(TestSelectionRangesInFile &&) = default;
-  TestSelectionRangesInFile &operator=(TestSelectionRangesInFile &&) = default;
-
   bool foreachRange(const SourceManager &SM,
                     llvm::function_ref<void(SourceRange)> Callback) const;
 
@@ -97,9 +93,10 @@ struct TestSelectionRangesInFile {
 /// because clang-refactor should return zero on exit when the group results are
 /// consistent.
 ///
-/// \returns None on failure (errors are emitted to stderr), or a set of
+/// \returns std::nullopt on failure (errors are emitted to stderr), or a set of
 /// grouped source ranges in the given file otherwise.
-Optional<TestSelectionRangesInFile> findTestSelectionRanges(StringRef Filename);
+std::optional<TestSelectionRangesInFile>
+findTestSelectionRanges(StringRef Filename);
 
 } // end namespace refactor
 } // end namespace clang

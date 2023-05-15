@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,57 +13,52 @@
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 template <class S, class SV>
-void
+TEST_CONSTEXPR_CXX20 void
 test(SV lhs, const S& rhs, bool x)
 {
     assert((lhs != rhs) == x);
 }
 
-int main()
-{
-    {
-    typedef std::string S;
-    typedef std::string_view SV;
-    test(SV(""), S(""), false);
-    test(SV(""), S("abcde"), true);
-    test(SV(""), S("abcdefghij"), true);
-    test(SV(""), S("abcdefghijklmnopqrst"), true);
-    test(SV("abcde"), S(""), true);
-    test(SV("abcde"), S("abcde"), false);
-    test(SV("abcde"), S("abcdefghij"), true);
-    test(SV("abcde"), S("abcdefghijklmnopqrst"), true);
-    test(SV("abcdefghij"), S(""), true);
-    test(SV("abcdefghij"), S("abcde"), true);
-    test(SV("abcdefghij"), S("abcdefghij"), false);
-    test(SV("abcdefghij"), S("abcdefghijklmnopqrst"), true);
-    test(SV("abcdefghijklmnopqrst"), S(""), true);
-    test(SV("abcdefghijklmnopqrst"), S("abcde"), true);
-    test(SV("abcdefghijklmnopqrst"), S("abcdefghij"), true);
-    test(SV("abcdefghijklmnopqrst"), S("abcdefghijklmnopqrst"), false);
-    }
+template <class S>
+TEST_CONSTEXPR_CXX20 void test_string() {
+  typedef std::string_view SV;
+  test(SV(""), S(""), false);
+  test(SV(""), S("abcde"), true);
+  test(SV(""), S("abcdefghij"), true);
+  test(SV(""), S("abcdefghijklmnopqrst"), true);
+  test(SV("abcde"), S(""), true);
+  test(SV("abcde"), S("abcde"), false);
+  test(SV("abcde"), S("abcdefghij"), true);
+  test(SV("abcde"), S("abcdefghijklmnopqrst"), true);
+  test(SV("abcdefghij"), S(""), true);
+  test(SV("abcdefghij"), S("abcde"), true);
+  test(SV("abcdefghij"), S("abcdefghij"), false);
+  test(SV("abcdefghij"), S("abcdefghijklmnopqrst"), true);
+  test(SV("abcdefghijklmnopqrst"), S(""), true);
+  test(SV("abcdefghijklmnopqrst"), S("abcde"), true);
+  test(SV("abcdefghijklmnopqrst"), S("abcdefghij"), true);
+  test(SV("abcdefghijklmnopqrst"), S("abcdefghijklmnopqrst"), false);
+}
+
+TEST_CONSTEXPR_CXX20 bool test() {
+  test_string<std::string>();
 #if TEST_STD_VER >= 11
-    {
-    typedef std::basic_string<char, std::char_traits<char>, min_allocator<char>> S;
-    typedef std::basic_string_view<char, std::char_traits<char>> SV;
-    test(SV(""), S(""), false);
-    test(SV(""), S("abcde"), true);
-    test(SV(""), S("abcdefghij"), true);
-    test(SV(""), S("abcdefghijklmnopqrst"), true);
-    test(SV("abcde"), S(""), true);
-    test(SV("abcde"), S("abcde"), false);
-    test(SV("abcde"), S("abcdefghij"), true);
-    test(SV("abcde"), S("abcdefghijklmnopqrst"), true);
-    test(SV("abcdefghij"), S(""), true);
-    test(SV("abcdefghij"), S("abcde"), true);
-    test(SV("abcdefghij"), S("abcdefghij"), false);
-    test(SV("abcdefghij"), S("abcdefghijklmnopqrst"), true);
-    test(SV("abcdefghijklmnopqrst"), S(""), true);
-    test(SV("abcdefghijklmnopqrst"), S("abcde"), true);
-    test(SV("abcdefghijklmnopqrst"), S("abcdefghij"), true);
-    test(SV("abcdefghijklmnopqrst"), S("abcdefghijklmnopqrst"), false);
-    }
+  test_string<std::basic_string<char, std::char_traits<char>, min_allocator<char>>>();
 #endif
+
+  return true;
+}
+
+int main(int, char**)
+{
+  test();
+#if TEST_STD_VER > 17
+  static_assert(test());
+#endif
+
+  return 0;
 }

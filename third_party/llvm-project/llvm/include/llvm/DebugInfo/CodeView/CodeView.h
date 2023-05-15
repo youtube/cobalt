@@ -1,9 +1,8 @@
 //===- CodeView.h -----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -52,18 +51,15 @@ enum SymbolKind : uint16_t {
 
 #define CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(Class)                            \
   inline Class operator|(Class a, Class b) {                                   \
-    return static_cast<Class>(                                                 \
-        static_cast<std::underlying_type<Class>::type>(a) |                    \
-        static_cast<std::underlying_type<Class>::type>(b));                    \
+    return static_cast<Class>(static_cast<std::underlying_type_t<Class>>(a) |  \
+                              static_cast<std::underlying_type_t<Class>>(b));  \
   }                                                                            \
   inline Class operator&(Class a, Class b) {                                   \
-    return static_cast<Class>(                                                 \
-        static_cast<std::underlying_type<Class>::type>(a) &                    \
-        static_cast<std::underlying_type<Class>::type>(b));                    \
+    return static_cast<Class>(static_cast<std::underlying_type_t<Class>>(a) &  \
+                              static_cast<std::underlying_type_t<Class>>(b));  \
   }                                                                            \
   inline Class operator~(Class a) {                                            \
-    return static_cast<Class>(                                                 \
-        ~static_cast<std::underlying_type<Class>::type>(a));                   \
+    return static_cast<Class>(~static_cast<std::underlying_type_t<Class>>(a)); \
   }                                                                            \
   inline Class &operator|=(Class &a, Class b) {                                \
     a = a | b;                                                                 \
@@ -124,7 +120,6 @@ enum class CPUType : uint16_t {
   ARM_XMAC = 0x66,
   ARM_WMMX = 0x67,
   ARM7 = 0x68,
-  ARM64 = 0x69,
   Omni = 0x70,
   Ia64 = 0x80,
   Ia64_2 = 0x81,
@@ -136,6 +131,10 @@ enum class CPUType : uint16_t {
   EBC = 0xe0,
   Thumb = 0xf0,
   ARMNT = 0xf4,
+  ARM64 = 0xf6,
+  HybridX86ARM64 = 0xf7,
+  ARM64EC = 0xf8,
+  ARM64X = 0xf9,
   D3D11_Shader = 0x100,
 };
 
@@ -160,9 +159,12 @@ enum SourceLanguage : uint8_t {
   MSIL = 0x0f,
   HLSL = 0x10,
 
-  /// The DMD compiler emits 'D' for the CV source language. Microsoft doesn't
-  /// have an enumerator for it yet.
+  Rust = 0x15,
+
+  /// The DMD & Swift compilers emit 'D' and 'S', respectively, for the CV
+  /// source language. Microsoft does not have enumerators for them yet.
   D = 'D',
+  Swift = 'S',
 };
 
 /// These values correspond to the CV_call_e enumeration, and are documented
@@ -231,6 +233,8 @@ enum class FrameProcedureOptions : uint32_t {
   Inlined = 0x00000800,
   StrictSecurityChecks = 0x00001000,
   SafeBuffers = 0x00002000,
+  EncodedLocalBasePointerMask = 0x0000C000,
+  EncodedParamBasePointerMask = 0x00030000,
   ProfileGuidedOptimization = 0x00040000,
   ValidProfileCounts = 0x00080000,
   OptimizedForSpeed = 0x00100000,
@@ -302,6 +306,9 @@ enum class ModifierOptions : uint16_t {
 };
 CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(ModifierOptions)
 
+// If the subsection kind has this bit set, then the linker should ignore it.
+enum : uint32_t { SubsectionIgnoreFlag = 0x80000000 };
+
 enum class DebugSubsectionKind : uint32_t {
   None = 0,
   Symbols = 0xf1,
@@ -320,6 +327,9 @@ enum class DebugSubsectionKind : uint32_t {
   MergedAssemblyInput = 0xfc,
 
   CoffSymbolRVA = 0xfd,
+
+  XfgHashType = 0xff,
+  XfgHashVirtual = 0x100,
 };
 
 /// Equivalent to CV_ptrtype_e.
@@ -356,7 +366,9 @@ enum class PointerOptions : uint32_t {
   Const = 0x00000400,
   Unaligned = 0x00000800,
   Restrict = 0x00001000,
-  WinRTSmartPointer = 0x00080000
+  WinRTSmartPointer = 0x00080000,
+  LValueRefThisPointer = 0x00100000,
+  RValueRefThisPointer = 0x00200000
 };
 CV_DEFINE_ENUM_CLASS_FLAGS_OPERATORS(PointerOptions)
 
@@ -505,10 +517,37 @@ enum class FrameCookieKind : uint8_t {
 
 // Corresponds to CV_HREG_e enum.
 enum class RegisterId : uint16_t {
+#define CV_REGISTERS_ALL
 #define CV_REGISTER(name, value) name = value,
 #include "CodeViewRegisters.def"
 #undef CV_REGISTER
+#undef CV_REGISTERS_ALL
 };
+
+// Register Ids are shared between architectures in CodeView. CPUType is needed
+// to map register Id to name.
+struct CPURegister {
+  CPURegister() = delete;
+  CPURegister(CPUType Cpu, codeview::RegisterId Reg) {
+    this->Cpu = Cpu;
+    this->Reg = Reg;
+  }
+  CPUType Cpu;
+  RegisterId Reg;
+};
+
+/// Two-bit value indicating which register is the designated frame pointer
+/// register. Appears in the S_FRAMEPROC record flags.
+enum class EncodedFramePtrReg : uint8_t {
+  None = 0,
+  StackPtr = 1,
+  FramePtr = 2,
+  BasePtr = 3,
+};
+
+RegisterId decodeFramePtrReg(EncodedFramePtrReg EncodedReg, CPUType CPU);
+
+EncodedFramePtrReg encodeFramePtrReg(RegisterId Reg, CPUType CPU);
 
 /// These values correspond to the THUNK_ORDINAL enumeration.
 enum class ThunkOrdinal : uint8_t {

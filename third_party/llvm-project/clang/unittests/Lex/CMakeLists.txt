@@ -3,18 +3,26 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_clang_unittest(LexTests
+  DependencyDirectivesScannerTest.cpp
   HeaderMapTest.cpp
   HeaderSearchTest.cpp
   LexerTest.cpp
   PPCallbacksTest.cpp
   PPConditionalDirectiveRecordTest.cpp
+  PPDependencyDirectivesTest.cpp
+  PPMemoryAllocationsTest.cpp
   )
 
-target_link_libraries(LexTests
+clang_target_link_libraries(LexTests
   PRIVATE
   clangAST
   clangBasic
   clangLex
   clangParse
   clangSema
+  )
+
+target_link_libraries(LexTests
+  PRIVATE
+  LLVMTestingSupport
   )

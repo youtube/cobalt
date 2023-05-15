@@ -1,9 +1,8 @@
 //===- Compilation.h - Compilation Task Data Structure ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,13 +15,13 @@
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Option/Option.h"
 #include <cassert>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -114,7 +113,12 @@ class Compilation {
   ArgStringMap FailureResultFiles;
 
   /// Optional redirection for stdin, stdout, stderr.
-  std::vector<Optional<StringRef>> Redirects;
+  std::vector<std::optional<StringRef>> Redirects;
+
+  /// Callback called after compilation job has been finished.
+  /// Arguments of the callback are the compilation job as an instance of
+  /// class Command and the exit status of the corresponding child process.
+  std::function<void(const Command &, int)> PostCallback;
 
   /// Whether we're compiling for diagnostic purposes.
   bool ForDiagnostics = false;
@@ -139,6 +143,8 @@ public:
     return ActiveOffloadMask & Kind;
   }
 
+  unsigned getActiveOffloadKinds() const { return ActiveOffloadMask; }
+
   /// Iterator that visits device toolchains of a given kind.
   using const_offload_toolchains_iterator =
       const std::multimap<Action::OffloadKind,
@@ -149,6 +155,11 @@ public:
 
   template <Action::OffloadKind Kind>
   const_offload_toolchains_range getOffloadToolChains() const {
+    return OrderedOffloadingToolchains.equal_range(Kind);
+  }
+
+  const_offload_toolchains_range
+  getOffloadToolChains(Action::OffloadKind Kind) const {
     return OrderedOffloadingToolchains.equal_range(Kind);
   }
 
@@ -205,12 +216,21 @@ public:
 
   void addCommand(std::unique_ptr<Command> C) { Jobs.addJob(std::move(C)); }
 
+  llvm::opt::ArgStringList &getTempFiles() { return TempFiles; }
   const llvm::opt::ArgStringList &getTempFiles() const { return TempFiles; }
 
   const ArgStringMap &getResultFiles() const { return ResultFiles; }
 
   const ArgStringMap &getFailureResultFiles() const {
     return FailureResultFiles;
+  }
+
+  /// Installs a handler that is executed when a compilation job is finished.
+  /// The arguments of the callback specify the compilation job as an instance
+  /// of class Command and the exit status of the child process executed that
+  /// job.
+  void setPostCallback(const std::function<void(const Command &, int)> &CB) {
+    PostCallback = CB;
   }
 
   /// Returns the sysroot path.
@@ -276,16 +296,22 @@ public:
   ///
   /// \param FailingCommand - For non-zero results, this will be set to the
   /// Command which failed, if any.
+  /// \param LogOnly - When true, only tries to log the command, not actually
+  /// execute it.
   /// \return The result code of the subprocess.
-  int ExecuteCommand(const Command &C, const Command *&FailingCommand) const;
+  int ExecuteCommand(const Command &C, const Command *&FailingCommand,
+                     bool LogOnly = false) const;
 
   /// ExecuteJob - Execute a single job.
   ///
   /// \param FailingCommands - For non-zero results, this will be a vector of
   /// failing commands and their associated result code.
-  void ExecuteJobs(
-      const JobList &Jobs,
-      SmallVectorImpl<std::pair<int, const Command *>> &FailingCommands) const;
+  /// \param LogOnly - When true, only tries to log the command, not actually
+  /// execute it.
+  void
+  ExecuteJobs(const JobList &Jobs,
+              SmallVectorImpl<std::pair<int, const Command *>> &FailingCommands,
+              bool LogOnly = false) const;
 
   /// initCompilationForDiagnostics - Remove stale state and suppress output
   /// so compilation can be reexecuted to generate additional diagnostic
@@ -298,12 +324,16 @@ public:
   /// Return whether an error during the parsing of the input args.
   bool containsError() const { return ContainsError; }
 
+  /// Force driver to fail before toolchain is created. This is necessary when
+  /// error happens in action builder.
+  void setContainsError() { ContainsError = true; }
+
   /// Redirect - Redirect output of this compilation. Can only be done once.
   ///
   /// \param Redirects - array of optional paths. The array should have a size
   /// of three. The inferior process's stdin(0), stdout(1), and stderr(2) will
-  /// be redirected to the corresponding paths, if provided (not llvm::None).
-  void Redirect(ArrayRef<Optional<StringRef>> Redirects);
+  /// be redirected to the corresponding paths, if provided (not std::nullopt).
+  void Redirect(ArrayRef<std::optional<StringRef>> Redirects);
 };
 
 } // namespace driver

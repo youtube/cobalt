@@ -1,9 +1,8 @@
 //====-- unittests/Frontend/PCHPreambleTest.cpp - FrontendAction tests ---====//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -25,6 +24,13 @@ using namespace clang;
 
 namespace {
 
+std::string Canonicalize(const Twine &Path) {
+  SmallVector<char, 128> PathVec;
+  Path.toVector(PathVec);
+  llvm::sys::path::remove_dots(PathVec, true);
+  return std::string(PathVec.begin(), PathVec.end());
+}
+
 class ReadCountingInMemoryFileSystem : public vfs::InMemoryFileSystem
 {
   std::map<std::string, unsigned> ReadCounts;
@@ -32,16 +38,13 @@ class ReadCountingInMemoryFileSystem : public vfs::InMemoryFileSystem
 public:
   ErrorOr<std::unique_ptr<vfs::File>> openFileForRead(const Twine &Path) override
   {
-    SmallVector<char, 128> PathVec;
-    Path.toVector(PathVec);
-    llvm::sys::path::remove_dots(PathVec, true);
-    ++ReadCounts[std::string(PathVec.begin(), PathVec.end())];
+    ++ReadCounts[Canonicalize(Path)];
     return InMemoryFileSystem::openFileForRead(Path);
   }
 
   unsigned GetReadCount(const Twine &Path) const
   {
-    auto it = ReadCounts.find(Path.str());
+    auto it = ReadCounts.find(Canonicalize(Path));
     return it == ReadCounts.end() ? 0 : it->second;
   }
 };
@@ -53,7 +56,10 @@ class PCHPreambleTest : public ::testing::Test {
   FileSystemOptions FSOpts;
 
 public:
-  void SetUp() override {
+  void SetUp() override { ResetVFS(); }
+  void TearDown() override {}
+
+  void ResetVFS() {
     VFS = new ReadCountingInMemoryFileSystem();
     // We need the working directory to be set to something absolute,
     // otherwise it ends up being inadvertently set to the current
@@ -62,9 +68,6 @@ public:
     // What's more, this path *must* be absolute on all (real)
     // filesystems, so just '/' won't work (e.g. on Win32).
     VFS->setCurrentWorkingDirectory("//./");
-  }
-
-  void TearDown() override {
   }
 
   void AddFile(const std::string &Filename, const std::string &Contents) {
@@ -97,8 +100,8 @@ public:
     FileManager *FileMgr = new FileManager(FSOpts, VFS);
 
     std::unique_ptr<ASTUnit> AST = ASTUnit::LoadFromCompilerInvocation(
-      CI, PCHContainerOpts, Diags, FileMgr, false, false,
-      /*PrecompilePreambleAfterNParses=*/1);
+        CI, PCHContainerOpts, Diags, FileMgr, false, CaptureDiagsKind::None,
+        /*PrecompilePreambleAfterNParses=*/1);
     return AST;
   }
 
@@ -118,11 +121,77 @@ private:
     for (const auto &RemappedFile : RemappedFiles) {
       std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBufferCopy(
         RemappedFile.second, RemappedFile.first());
-      Remapped.emplace_back(RemappedFile.first(), buf.release());
+      Remapped.emplace_back(std::string(RemappedFile.first()), buf.release());
     }
     return Remapped;
   }
 };
+
+TEST_F(PCHPreambleTest, ReparseReusesPreambleWithUnsavedFileNotExistingOnDisk) {
+  std::string Header1 = "//./header1.h";
+  std::string MainName = "//./main.cpp";
+  AddFile(MainName, R"cpp(
+#include "//./header1.h"
+int main() { return ZERO; }
+)cpp");
+  RemapFile(Header1, "#define ZERO 0\n");
+
+  // Parse with header file provided as unsaved file, which does not exist on
+  // disk.
+  std::unique_ptr<ASTUnit> AST(ParseAST(MainName));
+  ASSERT_TRUE(AST.get());
+  ASSERT_FALSE(AST->getDiagnostics().hasErrorOccurred());
+
+  // Reparse and check that the preamble was reused.
+  ASSERT_TRUE(ReparseAST(AST));
+  ASSERT_EQ(AST->getPreambleCounterForTests(), 1U);
+}
+
+TEST_F(PCHPreambleTest, ReparseReusesPreambleAfterUnsavedFileWasCreatedOnDisk) {
+  std::string Header1 = "//./header1.h";
+  std::string MainName = "//./main.cpp";
+  AddFile(MainName, R"cpp(
+#include "//./header1.h"
+int main() { return ZERO; }
+)cpp");
+  RemapFile(Header1, "#define ZERO 0\n");
+
+  // Parse with header file provided as unsaved file, which does not exist on
+  // disk.
+  std::unique_ptr<ASTUnit> AST(ParseAST(MainName));
+  ASSERT_TRUE(AST.get());
+  ASSERT_FALSE(AST->getDiagnostics().hasErrorOccurred());
+
+  // Create the unsaved file also on disk and check that preamble was reused.
+  AddFile(Header1, "#define ZERO 0\n");
+  ASSERT_TRUE(ReparseAST(AST));
+  ASSERT_EQ(AST->getPreambleCounterForTests(), 1U);
+}
+
+TEST_F(PCHPreambleTest,
+       ReparseReusesPreambleAfterUnsavedFileWasRemovedFromDisk) {
+  std::string Header1 = "//./foo/header1.h";
+  std::string MainName = "//./main.cpp";
+  std::string MainFileContent = R"cpp(
+#include "//./foo/header1.h"
+int main() { return ZERO; }
+)cpp";
+  AddFile(MainName, MainFileContent);
+  AddFile(Header1, "#define ZERO 0\n");
+  RemapFile(Header1, "#define ZERO 0\n");
+
+  // Parse with header file provided as unsaved file, which exists on disk.
+  std::unique_ptr<ASTUnit> AST(ParseAST(MainName));
+  ASSERT_TRUE(AST.get());
+  ASSERT_FALSE(AST->getDiagnostics().hasErrorOccurred());
+  ASSERT_EQ(AST->getPreambleCounterForTests(), 1U);
+
+  // Remove the unsaved file from disk and check that the preamble was reused.
+  ResetVFS();
+  AddFile(MainName, MainFileContent);
+  ASSERT_TRUE(ReparseAST(AST));
+  ASSERT_EQ(AST->getPreambleCounterForTests(), 1U);
+}
 
 TEST_F(PCHPreambleTest, ReparseWithOverriddenFileDoesNotInvalidatePreamble) {
   std::string Header1 = "//./header1.h";

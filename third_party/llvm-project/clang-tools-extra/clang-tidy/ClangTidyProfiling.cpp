@@ -1,26 +1,23 @@
 //===--- ClangTidyProfiling.cpp - clang-tidy --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "ClangTidyProfiling.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 #include <system_error>
 #include <utility>
 
 #define DEBUG_TYPE "clang-tidy-profiling"
 
-namespace clang {
-namespace tidy {
+namespace clang::tidy {
 
 ClangTidyProfiling::StorageParams::StorageParams(llvm::StringRef ProfilePrefix,
                                                  llvm::StringRef SourceFile)
@@ -56,7 +53,7 @@ void ClangTidyProfiling::printAsJSON(llvm::raw_ostream &OS) {
 }
 
 void ClangTidyProfiling::storeProfileData() {
-  assert(Storage.hasValue() && "We should have a filename.");
+  assert(Storage && "We should have a filename.");
 
   llvm::SmallString<256> OutputDirectory(Storage->StoreFilename);
   llvm::sys::path::remove_filename(OutputDirectory);
@@ -67,7 +64,7 @@ void ClangTidyProfiling::storeProfileData() {
   }
 
   std::error_code EC;
-  llvm::raw_fd_ostream OS(Storage->StoreFilename, EC, llvm::sys::fs::F_None);
+  llvm::raw_fd_ostream OS(Storage->StoreFilename, EC, llvm::sys::fs::OF_None);
   if (EC) {
     llvm::errs() << "Error opening output file '" << Storage->StoreFilename
                  << "': " << EC.message() << "\n";
@@ -77,17 +74,16 @@ void ClangTidyProfiling::storeProfileData() {
   printAsJSON(OS);
 }
 
-ClangTidyProfiling::ClangTidyProfiling(llvm::Optional<StorageParams> Storage)
+ClangTidyProfiling::ClangTidyProfiling(std::optional<StorageParams> Storage)
     : Storage(std::move(Storage)) {}
 
 ClangTidyProfiling::~ClangTidyProfiling() {
   TG.emplace("clang-tidy", "clang-tidy checks profiling", Records);
 
-  if (!Storage.hasValue())
+  if (!Storage)
     printUserFriendlyTable(llvm::errs());
   else
     storeProfileData();
 }
 
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy

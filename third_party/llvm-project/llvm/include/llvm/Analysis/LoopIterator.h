@@ -1,9 +1,8 @@
 //===--------- LoopIterator.h - Iterate over loop blocks --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This file defines iterators to visit the basic blocks within a loop.
@@ -193,7 +192,7 @@ template<> class po_iterator_storage<LoopBlocksTraversal, true> {
 public:
   po_iterator_storage(LoopBlocksTraversal &lbs) : LBT(lbs) {}
   // These functions are defined below.
-  bool insertEdge(Optional<BasicBlock *> From, BasicBlock *To);
+  bool insertEdge(std::optional<BasicBlock *> From, BasicBlock *To);
   void finishPostorder(BasicBlock *BB);
 };
 
@@ -246,7 +245,7 @@ public:
 };
 
 inline bool po_iterator_storage<LoopBlocksTraversal, true>::insertEdge(
-    Optional<BasicBlock *> From, BasicBlock *To) {
+    std::optional<BasicBlock *> From, BasicBlock *To) {
   return LBT.visitPreorder(To);
 }
 

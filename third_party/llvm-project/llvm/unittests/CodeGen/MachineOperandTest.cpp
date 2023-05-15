@@ -1,27 +1,37 @@
 //===- MachineOperandTest.cpp ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ModuleSlotTracker.h"
-#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/LowLevelTypeImpl.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
 #include "gtest/gtest.h"
 
 using namespace llvm;
 
 namespace {
+
+// Include helper functions to ease the manipulation of MachineFunctions.
+#include "MFCommon.inc"
 
 TEST(MachineOperandTest, ChangeToTargetIndexTest) {
   // Creating a MachineOperand to change it to TargetIndex
@@ -46,13 +56,17 @@ TEST(MachineOperandTest, ChangeToTargetIndexTest) {
 }
 
 TEST(MachineOperandTest, PrintRegisterMask) {
-  uint32_t Dummy;
-  MachineOperand MO = MachineOperand::CreateRegMask(&Dummy);
+  LLVMContext Ctx;
+  Module Mod("Module", Ctx);
+  auto MF = createMachineFunction(Ctx, Mod);
+
+  uint32_t *Dummy = MF->allocateRegMask();
+  MachineOperand MO = MachineOperand::CreateRegMask(Dummy);
 
   // Checking some preconditions on the newly created
   // MachineOperand.
   ASSERT_TRUE(MO.isRegMask());
-  ASSERT_TRUE(MO.getRegMask() == &Dummy);
+  ASSERT_TRUE(MO.getRegMask() == Dummy);
 
   // Print a MachineOperand containing a RegMask. Here we check that without a
   // TRI and IntrinsicInfo we still print a less detailed regmask.
@@ -311,7 +325,7 @@ TEST(MachineOperandTest, PrintMetadata) {
   std::string str;
   // Print a MachineOperand containing a metadata node.
   raw_string_ostream OS(str);
-  MO.print(OS, MST, LLT{}, /*PrintDef=*/false, /*IsStandalone=*/false,
+  MO.print(OS, MST, LLT{}, /*OpIdx*/~0U, /*PrintDef=*/false, /*IsStandalone=*/false,
            /*ShouldPrintRegisterTies=*/false, 0, /*TRI=*/nullptr,
            /*IntrinsicInfo=*/nullptr);
   ASSERT_TRUE(OS.str() == "!0");
@@ -319,7 +333,8 @@ TEST(MachineOperandTest, PrintMetadata) {
 
 TEST(MachineOperandTest, PrintMCSymbol) {
   MCAsmInfo MAI;
-  MCContext Ctx(&MAI, /*MRI=*/nullptr, /*MOFI=*/nullptr);
+  Triple T = Triple("unknown-unknown-unknown");
+  MCContext Ctx(T, &MAI, /*MRI=*/nullptr, /*MSTI=*/nullptr);
   MCSymbol *Sym = Ctx.getOrCreateSymbol("foo");
 
   // Create a MachineOperand with a metadata and print it.
@@ -397,6 +412,16 @@ TEST(MachineOperandTest, PrintPredicate) {
   raw_string_ostream OS(str);
   MO.print(OS, /*TRI=*/nullptr, /*IntrinsicInfo=*/nullptr);
   ASSERT_TRUE(OS.str() == "intpred(eq)");
+}
+
+TEST(MachineOperandTest, HashValue) {
+  char SymName1[] = "test";
+  char SymName2[] = "test";
+  MachineOperand MO1 = MachineOperand::CreateES(SymName1);
+  MachineOperand MO2 = MachineOperand::CreateES(SymName2);
+  ASSERT_NE(SymName1, SymName2);
+  ASSERT_EQ(hash_value(MO1), hash_value(MO2));
+  ASSERT_TRUE(MO1.isIdenticalTo(MO2));
 }
 
 } // end namespace

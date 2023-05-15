@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <tuple>
 
@@ -17,13 +16,17 @@
 //    EXPLICIT(...) tuple(UTypes&&...)
 
 // Check that the UTypes... ctor is properly disabled before evaluating any
-// SFINAE when the tuple-like copy/move ctor should *clearly* be selected
+// SFINAE when the copy/move ctor from another tuple should clearly be selected
 // instead. This happens 'sizeof...(UTypes) == 1' and the first element of
-// 'UTypes...' is an instance of the tuple itself. See PR23256.
+// 'UTypes...' is an instance of the tuple itself.
+//
+// See https://llvm.org/PR23256.
 
 #include <tuple>
 #include <memory>
 #include <type_traits>
+
+#include "test_macros.h"
 
 
 struct UnconstrainedCtor {
@@ -58,7 +61,7 @@ struct ExplicitUnconstrainedCtor {
 
 };
 
-int main() {
+int main(int, char**) {
     typedef UnconstrainedCtor A;
     typedef ExplicitUnconstrainedCtor ExplicitA;
     {
@@ -70,22 +73,22 @@ int main() {
     {
         static_assert(std::is_constructible<
             std::tuple<A>,
-            std::allocator_arg_t, std::allocator<void>,
+            std::allocator_arg_t, std::allocator<int>,
             std::tuple<A> const&
         >::value, "");
         static_assert(std::is_constructible<
             std::tuple<A>,
-            std::allocator_arg_t, std::allocator<void>,
+            std::allocator_arg_t, std::allocator<int>,
             std::tuple<A> &&
         >::value, "");
         static_assert(std::is_constructible<
             std::tuple<ExplicitA>,
-            std::allocator_arg_t, std::allocator<void>,
+            std::allocator_arg_t, std::allocator<int>,
             std::tuple<ExplicitA> const&
         >::value, "");
         static_assert(std::is_constructible<
             std::tuple<ExplicitA>,
-            std::allocator_arg_t, std::allocator<void>,
+            std::allocator_arg_t, std::allocator<int>,
             std::tuple<ExplicitA> &&
         >::value, "");
     }
@@ -95,4 +98,6 @@ int main() {
         std::tuple<ExplicitA&&> t2(std::forward_as_tuple(ExplicitA{}));
         ((void)t2);
     }
+
+  return 0;
 }

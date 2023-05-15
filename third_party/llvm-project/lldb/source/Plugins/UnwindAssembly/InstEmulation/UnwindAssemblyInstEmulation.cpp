@@ -1,9 +1,8 @@
-//===-- UnwindAssemblyInstEmulation.cpp --------------------------*- C++-*-===//
+//===-- UnwindAssemblyInstEmulation.cpp -----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,6 +21,7 @@
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
@@ -29,9 +29,9 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//-----------------------------------------------------------------------------------------------
+LLDB_PLUGIN_DEFINE(UnwindAssemblyInstEmulation)
+
 //  UnwindAssemblyInstEmulation method definitions
-//-----------------------------------------------------------------------------------------------
 
 bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
     AddressRange &range, Thread &thread, UnwindPlan &unwind_plan) {
@@ -39,10 +39,10 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
   ProcessSP process_sp(thread.GetProcess());
   if (process_sp) {
     Status error;
-    const bool prefer_file_cache = true;
+    const bool force_live_memory = true;
     if (process_sp->GetTarget().ReadMemory(
-            range.GetBaseAddress(), prefer_file_cache, function_text.data(),
-            range.GetByteSize(), error) != range.GetByteSize()) {
+            range.GetBaseAddress(), function_text.data(), range.GetByteSize(),
+            error, force_live_memory) != range.GetByteSize()) {
       return false;
     }
   }
@@ -57,11 +57,11 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
     return false;
 
   if (range.GetByteSize() > 0 && range.GetBaseAddress().IsValid() &&
-      m_inst_emulator_ap.get()) {
+      m_inst_emulator_up.get()) {
 
     // The instruction emulation subclass setup the unwind plan for the first
     // instruction.
-    m_inst_emulator_ap->CreateFunctionEntryUnwind(unwind_plan);
+    m_inst_emulator_up->CreateFunctionEntryUnwind(unwind_plan);
 
     // CreateFunctionEntryUnwind should have created the first row. If it
     // doesn't, then we are done.
@@ -70,10 +70,10 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
 
     const bool prefer_file_cache = true;
     DisassemblerSP disasm_sp(Disassembler::DisassembleBytes(
-        m_arch, NULL, NULL, range.GetBaseAddress(), opcode_data, opcode_size,
-        99999, prefer_file_cache));
+        m_arch, nullptr, nullptr, range.GetBaseAddress(), opcode_data,
+        opcode_size, 99999, prefer_file_cache));
 
-    Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND));
+    Log *log = GetLog(LLDBLog::Unwind);
 
     if (disasm_sp) {
 
@@ -83,10 +83,9 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
       const uint32_t addr_byte_size = m_arch.GetAddressByteSize();
       const bool show_address = true;
       const bool show_bytes = true;
-      m_inst_emulator_ap->GetRegisterInfo(unwind_plan.GetRegisterKind(),
-                                          unwind_plan.GetInitialCFARegister(),
-                                          m_cfa_reg_info);
-
+      const bool show_control_flow_kind = true;
+      m_cfa_reg_info = *m_inst_emulator_up->GetRegisterInfo(
+          unwind_plan.GetRegisterKind(), unwind_plan.GetInitialCFARegister());
       m_fp_is_cfa = false;
       m_register_values.clear();
       m_pushed_regs.clear();
@@ -126,18 +125,11 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
         // Add the initial state to the save list with offset 0.
         saved_unwind_states.insert({0, {last_row, m_register_values}});
 
-        // cache the pc register number (in whatever register numbering this
-        // UnwindPlan uses) for quick reference during instruction parsing.
-        RegisterInfo pc_reg_info;
-        m_inst_emulator_ap->GetRegisterInfo(
-            eRegisterKindGeneric, LLDB_REGNUM_GENERIC_PC, pc_reg_info);
-
-        // cache the return address register number (in whatever register
+        // cache the stack pointer register number (in whatever register
         // numbering this UnwindPlan uses) for quick reference during
         // instruction parsing.
-        RegisterInfo ra_reg_info;
-        m_inst_emulator_ap->GetRegisterInfo(
-            eRegisterKindGeneric, LLDB_REGNUM_GENERIC_RA, ra_reg_info);
+        RegisterInfo sp_reg_info = *m_inst_emulator_up->GetRegisterInfo(
+            eRegisterKindGeneric, LLDB_REGNUM_GENERIC_SP);
 
         // The architecture dependent condition code of the last processed
         // instruction.
@@ -168,14 +160,31 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
               *newrow = *it->second.first;
               m_curr_row.reset(newrow);
               m_register_values = it->second.second;
+              // re-set the CFA register ivars to match the
+              // new m_curr_row.
+              if (sp_reg_info.name &&
+                  m_curr_row->GetCFAValue().IsRegisterPlusOffset()) {
+                uint32_t row_cfa_regnum =
+                    m_curr_row->GetCFAValue().GetRegisterNumber();
+                lldb::RegisterKind row_kind =
+                    m_unwind_plan_ptr->GetRegisterKind();
+                // set m_cfa_reg_info to the row's CFA reg.
+                m_cfa_reg_info = *m_inst_emulator_up->GetRegisterInfo(
+                    row_kind, row_cfa_regnum);
+                // set m_fp_is_cfa.
+                if (sp_reg_info.kinds[row_kind] == row_cfa_regnum)
+                  m_fp_is_cfa = false;
+                else
+                  m_fp_is_cfa = true;
+              }
             }
 
-            m_inst_emulator_ap->SetInstruction(inst->GetOpcode(),
+            m_inst_emulator_up->SetInstruction(inst->GetOpcode(),
                                                inst->GetAddress(), nullptr);
 
             if (last_condition !=
-                m_inst_emulator_ap->GetInstructionCondition()) {
-              if (m_inst_emulator_ap->GetInstructionCondition() !=
+                m_inst_emulator_up->GetInstructionCondition()) {
+              if (m_inst_emulator_up->GetInstructionCondition() !=
                       EmulateInstruction::UnconditionalCondition &&
                   saved_unwind_states.count(current_offset) == 0) {
                 // If we don't have a saved row for the current offset then
@@ -198,6 +207,23 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
                     std::make_shared<UnwindPlan::Row>(*saved_state.first);
                 m_curr_row->SetOffset(current_offset);
                 m_register_values = saved_state.second;
+                // re-set the CFA register ivars to match the
+                // new m_curr_row.
+                if (sp_reg_info.name &&
+                    m_curr_row->GetCFAValue().IsRegisterPlusOffset()) {
+                  uint32_t row_cfa_regnum =
+                      m_curr_row->GetCFAValue().GetRegisterNumber();
+                  lldb::RegisterKind row_kind =
+                      m_unwind_plan_ptr->GetRegisterKind();
+                  // set m_cfa_reg_info to the row's CFA reg.
+                  m_cfa_reg_info = *m_inst_emulator_up->GetRegisterInfo(
+                      row_kind, row_cfa_regnum);
+                  // set m_fp_is_cfa.
+                  if (sp_reg_info.kinds[row_kind] == row_cfa_regnum)
+                    m_fp_is_cfa = false;
+                  else
+                    m_fp_is_cfa = true;
+                }
                 bool replace_existing =
                     true; // The last instruction might already
                           // created a row for this offset and
@@ -216,13 +242,14 @@ bool UnwindAssemblyInstEmulation::GetNonCallSiteUnwindPlanFromAssembly(
               lldb_private::FormatEntity::Entry format;
               FormatEntity::Parse("${frame.pc}: ", format);
               inst->Dump(&strm, inst_list.GetMaxOpcocdeByteSize(), show_address,
-                         show_bytes, NULL, NULL, NULL, &format, 0);
+                         show_bytes, show_control_flow_kind, nullptr, nullptr,
+                         nullptr, &format, 0);
               log->PutString(strm.GetString());
             }
 
-            last_condition = m_inst_emulator_ap->GetInstructionCondition();
+            last_condition = m_inst_emulator_up->GetInstructionCondition();
 
-            m_inst_emulator_ap->EvaluateInstruction(
+            m_inst_emulator_up->EvaluateInstruction(
                 eEmulateInstructionOptionIgnoreConditions);
 
             // If the current instruction is a branch forward then save the
@@ -297,23 +324,14 @@ bool UnwindAssemblyInstEmulation::FirstNonPrologueInsn(
 
 UnwindAssembly *
 UnwindAssemblyInstEmulation::CreateInstance(const ArchSpec &arch) {
-  std::unique_ptr<EmulateInstruction> inst_emulator_ap(
+  std::unique_ptr<EmulateInstruction> inst_emulator_up(
       EmulateInstruction::FindPlugin(arch, eInstructionTypePrologueEpilogue,
-                                     NULL));
+                                     nullptr));
   // Make sure that all prologue instructions are handled
-  if (inst_emulator_ap.get())
-    return new UnwindAssemblyInstEmulation(arch, inst_emulator_ap.release());
-  return NULL;
+  if (inst_emulator_up)
+    return new UnwindAssemblyInstEmulation(arch, inst_emulator_up.release());
+  return nullptr;
 }
-
-//------------------------------------------------------------------
-// PluginInterface protocol in UnwindAssemblyParser_x86
-//------------------------------------------------------------------
-ConstString UnwindAssemblyInstEmulation::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t UnwindAssemblyInstEmulation::GetPluginVersion() { return 1; }
 
 void UnwindAssemblyInstEmulation::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -324,12 +342,7 @@ void UnwindAssemblyInstEmulation::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-ConstString UnwindAssemblyInstEmulation::GetPluginNameStatic() {
-  static ConstString g_name("inst-emulation");
-  return g_name;
-}
-
-const char *UnwindAssemblyInstEmulation::GetPluginDescriptionStatic() {
+llvm::StringRef UnwindAssemblyInstEmulation::GetPluginDescriptionStatic() {
   return "Instruction emulation based unwind information.";
 }
 
@@ -366,7 +379,7 @@ size_t UnwindAssemblyInstEmulation::ReadMemory(
     EmulateInstruction *instruction, void *baton,
     const EmulateInstruction::Context &context, lldb::addr_t addr, void *dst,
     size_t dst_len) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND));
+  Log *log = GetLog(LLDBLog::Unwind);
 
   if (log && log->GetVerbose()) {
     StreamString strm;
@@ -398,7 +411,7 @@ size_t UnwindAssemblyInstEmulation::WriteMemory(
                      instruction->GetArchitecture().GetByteOrder(),
                      instruction->GetArchitecture().GetAddressByteSize());
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND));
+  Log *log = GetLog(LLDBLog::Unwind);
 
   if (log && log->GetVerbose()) {
     StreamString strm;
@@ -439,7 +452,7 @@ size_t UnwindAssemblyInstEmulation::WriteMemory(
   case EmulateInstruction::eContextPushRegisterOnStack: {
     uint32_t reg_num = LLDB_INVALID_REGNUM;
     uint32_t generic_regnum = LLDB_INVALID_REGNUM;
-    assert(context.info_type ==
+    assert(context.GetInfoType() ==
                EmulateInstruction::eInfoTypeRegisterToRegisterPlusOffset &&
            "unhandled case, add code to handle this!");
     const uint32_t unwind_reg_kind = m_unwind_plan_ptr->GetRegisterKind();
@@ -479,7 +492,7 @@ bool UnwindAssemblyInstEmulation::ReadRegister(EmulateInstruction *instruction,
                                                RegisterValue &reg_value) {
   bool synthetic = GetRegisterValue(*reg_info, reg_value);
 
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND));
+  Log *log = GetLog(LLDBLog::Unwind);
 
   if (log && log->GetVerbose()) {
 
@@ -505,7 +518,7 @@ bool UnwindAssemblyInstEmulation::WriteRegister(
 bool UnwindAssemblyInstEmulation::WriteRegister(
     EmulateInstruction *instruction, const EmulateInstruction::Context &context,
     const RegisterInfo *reg_info, const RegisterValue &reg_value) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_UNWIND));
+  Log *log = GetLog(LLDBLog::Unwind);
 
   if (log && log->GetVerbose()) {
 
@@ -558,7 +571,8 @@ bool UnwindAssemblyInstEmulation::WriteRegister(
     // with the same amount.
     lldb::RegisterKind kind = m_unwind_plan_ptr->GetRegisterKind();
     if (m_fp_is_cfa && reg_info->kinds[kind] == m_cfa_reg_info.kinds[kind] &&
-        context.info_type == EmulateInstruction::eInfoTypeRegisterPlusOffset &&
+        context.GetInfoType() ==
+            EmulateInstruction::eInfoTypeRegisterPlusOffset &&
         context.info.RegisterPlusOffset.reg.kinds[kind] ==
             m_cfa_reg_info.kinds[kind]) {
       const int64_t offset = context.info.RegisterPlusOffset.signed_offset;
@@ -569,18 +583,19 @@ bool UnwindAssemblyInstEmulation::WriteRegister(
 
   case EmulateInstruction::eContextAbsoluteBranchRegister:
   case EmulateInstruction::eContextRelativeBranchImmediate: {
-    if (context.info_type == EmulateInstruction::eInfoTypeISAAndImmediate &&
+    if (context.GetInfoType() == EmulateInstruction::eInfoTypeISAAndImmediate &&
         context.info.ISAAndImmediate.unsigned_data32 > 0) {
       m_forward_branch_offset =
           context.info.ISAAndImmediateSigned.signed_data32;
-    } else if (context.info_type ==
+    } else if (context.GetInfoType() ==
                    EmulateInstruction::eInfoTypeISAAndImmediateSigned &&
                context.info.ISAAndImmediateSigned.signed_data32 > 0) {
       m_forward_branch_offset = context.info.ISAAndImmediate.unsigned_data32;
-    } else if (context.info_type == EmulateInstruction::eInfoTypeImmediate &&
+    } else if (context.GetInfoType() ==
+                   EmulateInstruction::eInfoTypeImmediate &&
                context.info.unsigned_immediate > 0) {
       m_forward_branch_offset = context.info.unsigned_immediate;
-    } else if (context.info_type ==
+    } else if (context.GetInfoType() ==
                    EmulateInstruction::eInfoTypeImmediateSigned &&
                context.info.signed_immediate > 0) {
       m_forward_branch_offset = context.info.signed_immediate;
@@ -593,20 +608,39 @@ bool UnwindAssemblyInstEmulation::WriteRegister(
     const uint32_t generic_regnum = reg_info->kinds[eRegisterKindGeneric];
     if (reg_num != LLDB_INVALID_REGNUM &&
         generic_regnum != LLDB_REGNUM_GENERIC_SP) {
-      switch (context.info_type) {
+      switch (context.GetInfoType()) {
       case EmulateInstruction::eInfoTypeAddress:
         if (m_pushed_regs.find(reg_num) != m_pushed_regs.end() &&
             context.info.address == m_pushed_regs[reg_num]) {
           m_curr_row->SetRegisterLocationToSame(reg_num,
                                                 false /*must_replace*/);
           m_curr_row_modified = true;
+
+          // FP has been restored to its original value, we are back
+          // to using SP to calculate the CFA.
+          if (m_fp_is_cfa) {
+            m_fp_is_cfa = false;
+            lldb::RegisterKind sp_reg_kind = eRegisterKindGeneric;
+            uint32_t sp_reg_num = LLDB_REGNUM_GENERIC_SP;
+            RegisterInfo sp_reg_info =
+                *m_inst_emulator_up->GetRegisterInfo(sp_reg_kind, sp_reg_num);
+            RegisterValue sp_reg_val;
+            if (GetRegisterValue(sp_reg_info, sp_reg_val)) {
+              m_cfa_reg_info = sp_reg_info;
+              const uint32_t cfa_reg_num =
+                  sp_reg_info.kinds[m_unwind_plan_ptr->GetRegisterKind()];
+              assert(cfa_reg_num != LLDB_INVALID_REGNUM);
+              m_curr_row->GetCFAValue().SetIsRegisterPlusOffset(
+                  cfa_reg_num, m_initial_sp - sp_reg_val.GetAsUInt64());
+            }
+          }
         }
         break;
       case EmulateInstruction::eInfoTypeISA:
         assert(
             (generic_regnum == LLDB_REGNUM_GENERIC_PC ||
              generic_regnum == LLDB_REGNUM_GENERIC_FLAGS) &&
-            "eInfoTypeISA used for poping a register other the the PC/FLAGS");
+            "eInfoTypeISA used for popping a register other the PC/FLAGS");
         if (generic_regnum != LLDB_REGNUM_GENERIC_FLAGS) {
           m_curr_row->SetRegisterLocationToSame(reg_num,
                                                 false /*must_replace*/);

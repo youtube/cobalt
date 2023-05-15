@@ -24,14 +24,6 @@
 
 #include "InstrProfiling.h"
 
-#ifdef __USE_FILE_OFFSET64
-# define DWORD_HI(x) (x >> 32)
-# define DWORD_LO(x) ((x) & 0xffffffff)
-#else
-# define DWORD_HI(x) (0)
-# define DWORD_LO(x) (x)
-#endif
-
 COMPILER_RT_VISIBILITY
 void *mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset)
 {
@@ -116,6 +108,18 @@ int msync(void *addr, size_t length, int flags)
      *   return -1;
      */
   }
+
+  return 0;
+}
+
+COMPILER_RT_VISIBILITY
+int madvise(void *addr, size_t length, int advice)
+{
+  if (advice != MADV_DONTNEED)
+    return -1; /* Not supported. */
+
+  if (!VirtualUnlock(addr, length))
+    return -1;
 
   return 0;
 }

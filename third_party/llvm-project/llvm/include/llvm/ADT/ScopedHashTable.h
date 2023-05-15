@@ -1,9 +1,8 @@
 //===- ScopedHashTable.h - A simple scoped hash table -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -33,7 +32,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
-#include "llvm/Support/Allocator.h"
+#include "llvm/Support/AllocatorBase.h"
 #include <cassert>
 #include <new>
 
@@ -148,7 +147,9 @@ public:
 };
 
 template <typename K, typename V, typename KInfo, typename AllocatorTy>
-class ScopedHashTable {
+class ScopedHashTable : detail::AllocatorHolder<AllocatorTy> {
+  using AllocTy = detail::AllocatorHolder<AllocatorTy>;
+
 public:
   /// ScopeTy - This is a helpful typedef that allows clients to get easy access
   /// to the name of the scope for this hash table.
@@ -163,11 +164,9 @@ private:
   DenseMap<K, ValTy*, KInfo> TopLevelMap;
   ScopeTy *CurScope = nullptr;
 
-  AllocatorTy Allocator;
-
 public:
   ScopedHashTable() = default;
-  ScopedHashTable(AllocatorTy A) : Allocator(A) {}
+  ScopedHashTable(AllocatorTy A) : AllocTy(A) {}
   ScopedHashTable(const ScopedHashTable &) = delete;
   ScopedHashTable &operator=(const ScopedHashTable &) = delete;
 
@@ -176,8 +175,7 @@ public:
   }
 
   /// Access to the allocator.
-  AllocatorTy &getAllocator() { return Allocator; }
-  const AllocatorTy &getAllocator() const { return Allocator; }
+  using AllocTy::getAllocator;
 
   /// Return 1 if the specified key is in the table, 0 otherwise.
   size_type count(const K &Key) const {
@@ -198,7 +196,7 @@ public:
 
   using iterator = ScopedHashTableIterator<K, V, KInfo>;
 
-  iterator end() { return iterator(0); }
+  iterator end() { return iterator(nullptr); }
 
   iterator begin(const K &Key) {
     typename DenseMap<K, ValTy*, KInfo>::iterator I =
@@ -218,7 +216,7 @@ public:
     assert(S && "No scope active!");
     ScopedHashTableVal<K, V> *&KeyEntry = TopLevelMap[Key];
     KeyEntry = ValTy::Create(S->getLastValInScope(), KeyEntry, Key, Val,
-                             Allocator);
+                             getAllocator());
     S->setLastValInScope(KeyEntry);
   }
 };

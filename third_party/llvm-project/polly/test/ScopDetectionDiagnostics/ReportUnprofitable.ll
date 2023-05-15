@@ -1,9 +1,9 @@
 ; RUN: opt %loadPolly -pass-remarks-missed="polly-detect" \
-; RUN:     -polly-detect-track-failures -polly-detect -analyze \
+; RUN:     -polly-detect-track-failures -polly-print-detect -disable-output \
 ; RUN:     -polly-process-unprofitable=false < %s 2>&1| FileCheck %s
 
 ; RUN: opt %loadPolly -pass-remarks-missed="polly-detect" \
-; RUN:     -polly-detect-track-failures -polly-detect -analyze \
+; RUN:     -polly-detect-track-failures -polly-print-detect -disable-output \
 ; RUN:     -polly-process-unprofitable=false < %s 2>&1 -pass-remarks-output=%t.yaml
 ; RUN: cat %t.yaml | FileCheck -check-prefix=YAML %s
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -29,7 +29,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            RejectionErrors
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 2, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 2, Column: 3 }
 ; YAML: Function:        onlyWrite
 ; YAML: Args:
 ; YAML:   - String:          The following errors keep this region from being a Scop.
@@ -37,7 +37,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            Unprofitable
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 2, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 2, Column: 3 }
 ; YAML: Function:        onlyWrite
 ; YAML: Args:
 ; YAML:   - String:          No profitable polyhedral optimization found
@@ -45,7 +45,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            InvalidScopEnd
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 3, Column: 10 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 3, Column: 10 }
 ; YAML: Function:        onlyWrite
 ; YAML: Args:
 ; YAML:   - String:          Invalid Scop candidate ends here.
@@ -53,7 +53,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            RejectionErrors
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 7, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 7, Column: 3 }
 ; YAML: Function:        onlyRead
 ; YAML: Args:
 ; YAML:   - String:          The following errors keep this region from being a Scop.
@@ -61,7 +61,7 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            Unprofitable
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 7, Column: 3 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 7, Column: 3 }
 ; YAML: Function:        onlyRead
 ; YAML: Args:
 ; YAML:   - String:          No profitable polyhedral optimization found
@@ -69,16 +69,16 @@ target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 ; YAML: --- !Missed
 ; YAML: Pass:            polly-detect
 ; YAML: Name:            InvalidScopEnd
-; YAML: DebugLoc:        { File: /tmp/test.c, Line: 8, Column: 10 }
+; YAML: DebugLoc:        { File: '/tmp/test.c', Line: 8, Column: 10 }
 ; YAML: Function:        onlyRead
 ; YAML: Args:
 ; YAML:   - String:          Invalid Scop candidate ends here.
 
 
 ; Function Attrs: nounwind uwtable
-define void @onlyWrite(float* %A) #0 !dbg !4 {
+define void @onlyWrite(ptr %A) #0 !dbg !4 {
 entry:
-  call void @llvm.dbg.value(metadata float* %A, i64 0, metadata !14, metadata !15), !dbg !16
+  call void @llvm.dbg.value(metadata ptr %A, i64 0, metadata !14, metadata !15), !dbg !16
   call void @llvm.dbg.value(metadata i64 0, i64 0, metadata !17, metadata !15), !dbg !20
   br label %for.cond, !dbg !21
 
@@ -88,8 +88,8 @@ for.cond:                                         ; preds = %for.inc, %entry
   br i1 %exitcond, label %for.body, label %for.end, !dbg !22
 
 for.body:                                         ; preds = %for.cond
-  %arrayidx = getelementptr inbounds float, float* %A, i64 %i.0, !dbg !23
-  store float 0.000000e+00, float* %arrayidx, align 4, !dbg !25
+  %arrayidx = getelementptr inbounds float, ptr %A, i64 %i.0, !dbg !23
+  store float 0.000000e+00, ptr %arrayidx, align 4, !dbg !25
   br label %for.inc, !dbg !23
 
 for.inc:                                          ; preds = %for.body
@@ -105,9 +105,9 @@ for.end:                                          ; preds = %for.cond
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: nounwind uwtable
-define void @onlyRead(float* %A) #0 !dbg !10 {
+define void @onlyRead(ptr %A) #0 !dbg !10 {
 entry:
-  call void @llvm.dbg.value(metadata float* %A, i64 0, metadata !29, metadata !15), !dbg !30
+  call void @llvm.dbg.value(metadata ptr %A, i64 0, metadata !29, metadata !15), !dbg !30
   call void @llvm.dbg.value(metadata i64 0, i64 0, metadata !31, metadata !15), !dbg !33
   br label %for.cond, !dbg !34
 
@@ -117,8 +117,8 @@ for.cond:                                         ; preds = %for.inc, %entry
   br i1 %exitcond, label %for.body, label %for.end, !dbg !35
 
 for.body:                                         ; preds = %for.cond
-  %arrayidx = getelementptr inbounds float, float* %A, i64 %i.0, !dbg !36
-  %val = load float, float* %arrayidx, align 4, !dbg !38
+  %arrayidx = getelementptr inbounds float, ptr %A, i64 %i.0, !dbg !36
+  %val = load float, ptr %arrayidx, align 4, !dbg !38
   br label %for.inc, !dbg !36
 
 for.inc:                                          ; preds = %for.body
@@ -133,7 +133,7 @@ for.end:                                          ; preds = %for.cond
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

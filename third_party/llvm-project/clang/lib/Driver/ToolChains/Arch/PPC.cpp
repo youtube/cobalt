@@ -1,9 +1,8 @@
 //===--- PPC.cpp - PPC Helpers for Tools ------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,51 +13,57 @@
 #include "clang/Driver/Options.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/Support/Host.h"
 
 using namespace clang::driver;
 using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
+static std::string getPPCGenericTargetCPU(const llvm::Triple &T) {
+  // LLVM may default to generating code for the native CPU,
+  // but, like gcc, we default to a more generic option for
+  // each architecture. (except on AIX)
+  if (T.isOSAIX())
+    return "pwr7";
+  else if (T.getArch() == llvm::Triple::ppc64le)
+    return "ppc64le";
+  else if (T.getArch() == llvm::Triple::ppc64)
+    return "ppc64";
+  else
+    return "ppc";
+}
+
 /// getPPCTargetCPU - Get the (LLVM) name of the PowerPC cpu we are targeting.
-std::string ppc::getPPCTargetCPU(const ArgList &Args) {
+std::string ppc::getPPCTargetCPU(const ArgList &Args, const llvm::Triple &T) {
   if (Arg *A = Args.getLastArg(clang::driver::options::OPT_mcpu_EQ)) {
     StringRef CPUName = A->getValue();
 
+    // Clang/LLVM does not actually support code generation
+    // for the 405 CPU. However, there are uses of this CPU ID
+    // in projects that previously used GCC and rely on Clang
+    // accepting it. Clang has always ignored it and passed the
+    // generic CPU ID to the back end.
+    if (CPUName == "generic" || CPUName == "405")
+      return getPPCGenericTargetCPU(T);
+
     if (CPUName == "native") {
-      std::string CPU = llvm::sys::getHostCPUName();
+      std::string CPU = std::string(llvm::sys::getHostCPUName());
       if (!CPU.empty() && CPU != "generic")
         return CPU;
       else
-        return "";
+        return getPPCGenericTargetCPU(T);
     }
 
     return llvm::StringSwitch<const char *>(CPUName)
         .Case("common", "generic")
-        .Case("440", "440")
         .Case("440fp", "440")
-        .Case("450", "450")
-        .Case("601", "601")
-        .Case("602", "602")
-        .Case("603", "603")
-        .Case("603e", "603e")
-        .Case("603ev", "603ev")
-        .Case("604", "604")
-        .Case("604e", "604e")
-        .Case("620", "620")
         .Case("630", "pwr3")
         .Case("G3", "g3")
-        .Case("7400", "7400")
         .Case("G4", "g4")
-        .Case("7450", "7450")
         .Case("G4+", "g4+")
-        .Case("750", "750")
-        .Case("970", "970")
+        .Case("8548", "e500")
         .Case("G5", "g5")
-        .Case("a2", "a2")
-        .Case("a2q", "a2q")
-        .Case("e500mc", "e500mc")
-        .Case("e5500", "e5500")
         .Case("power3", "pwr3")
         .Case("power4", "pwr4")
         .Case("power5", "pwr5")
@@ -68,39 +73,37 @@ std::string ppc::getPPCTargetCPU(const ArgList &Args) {
         .Case("power7", "pwr7")
         .Case("power8", "pwr8")
         .Case("power9", "pwr9")
-        .Case("pwr3", "pwr3")
-        .Case("pwr4", "pwr4")
-        .Case("pwr5", "pwr5")
-        .Case("pwr5x", "pwr5x")
-        .Case("pwr6", "pwr6")
-        .Case("pwr6x", "pwr6x")
-        .Case("pwr7", "pwr7")
-        .Case("pwr8", "pwr8")
-        .Case("pwr9", "pwr9")
+        .Case("power10", "pwr10")
+        .Case("future", "future")
         .Case("powerpc", "ppc")
         .Case("powerpc64", "ppc64")
         .Case("powerpc64le", "ppc64le")
-        .Default("");
+        .Default(CPUName.data());
   }
 
-  return "";
+  return getPPCGenericTargetCPU(T);
 }
 
 const char *ppc::getPPCAsmModeForCPU(StringRef Name) {
   return llvm::StringSwitch<const char *>(Name)
-        .Case("pwr7", "-mpower7")
-        .Case("power7", "-mpower7")
-        .Case("pwr8", "-mpower8")
-        .Case("power8", "-mpower8")
-        .Case("ppc64le", "-mpower8")
-        .Case("pwr9", "-mpower9")
-        .Case("power9", "-mpower9")
-        .Default("-many");
+      .Case("pwr7", "-mpower7")
+      .Case("power7", "-mpower7")
+      .Case("pwr8", "-mpower8")
+      .Case("power8", "-mpower8")
+      .Case("ppc64le", "-mpower8")
+      .Case("pwr9", "-mpower9")
+      .Case("power9", "-mpower9")
+      .Case("pwr10", "-mpower10")
+      .Case("power10", "-mpower10")
+      .Default("-many");
 }
 
 void ppc::getPPCTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                                const ArgList &Args,
                                std::vector<StringRef> &Features) {
+  if (Triple.getSubArch() == llvm::Triple::PPCSubArch_spe)
+    Features.push_back("+spe");
+
   handleTargetFeaturesGroup(Args, Features, options::OPT_m_ppc_Features_Group);
 
   ppc::FloatABI FloatABI = ppc::getPPCFloatABI(D, Args);
@@ -116,7 +119,8 @@ ppc::ReadGOTPtrMode ppc::getPPCReadGOTPtrMode(const Driver &D, const llvm::Tripl
                                               const ArgList &Args) {
   if (Args.getLastArg(options::OPT_msecure_plt))
     return ppc::ReadGOTPtrMode::SecurePlt;
-  if (Triple.isOSOpenBSD())
+  if ((Triple.isOSFreeBSD() && Triple.getOSMajorVersion() >= 13) ||
+      Triple.isOSNetBSD() || Triple.isOSOpenBSD() || Triple.isMusl())
     return ppc::ReadGOTPtrMode::SecurePlt;
   else
     return ppc::ReadGOTPtrMode::Bss;

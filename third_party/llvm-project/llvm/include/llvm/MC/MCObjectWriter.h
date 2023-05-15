@@ -1,22 +1,16 @@
 //===- llvm/MC/MCObjectWriter.h - Object File Writer Interface --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_MC_MCOBJECTWRITER_H
 #define LLVM_MC_MCOBJECTWRITER_H
 
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/Endian.h"
-#include "llvm/Support/EndianStream.h"
-#include "llvm/Support/raw_ostream.h"
-#include <cassert>
+#include "llvm/MC/MCSymbol.h"
 #include <cstdint>
 
 namespace llvm {
@@ -39,6 +33,9 @@ class MCValue;
 /// should be emitted as part of writeObject().
 class MCObjectWriter {
 protected:
+  std::vector<const MCSymbol *> AddrsigSyms;
+  bool EmitAddrsigSection = false;
+
   MCObjectWriter() = default;
 
 public:
@@ -92,15 +89,27 @@ public:
                                                       bool InSet,
                                                       bool IsPCRel) const;
 
+  /// ELF only. Mark that we have seen GNU ABI usage (e.g. SHF_GNU_RETAIN).
+  virtual void markGnuAbi() {}
+
   /// Tell the object writer to emit an address-significance table during
   /// writeObject(). If this function is not called, all symbols are treated as
   /// address-significant.
-  virtual void emitAddrsigSection() {}
+  void emitAddrsigSection() { EmitAddrsigSection = true; }
+
+  bool getEmitAddrsigSection() { return EmitAddrsigSection; }
 
   /// Record the given symbol in the address-significance table to be written
   /// diring writeObject().
-  virtual void addAddrsigSymbol(const MCSymbol *Sym) {}
+  void addAddrsigSymbol(const MCSymbol *Sym) { AddrsigSyms.push_back(Sym); }
 
+  std::vector<const MCSymbol *> &getAddrsigSyms() { return AddrsigSyms; }
+
+  virtual void addExceptionEntry(const MCSymbol *Symbol, const MCSymbol *Trap,
+                                 unsigned LanguageCode, unsigned ReasonCode,
+                                 unsigned FunctionSize, bool hasDebug) {
+    report_fatal_error("addExceptionEntry is only supported on XCOFF targets");
+  }
   /// Write the object file and returns the number of bytes written.
   ///
   /// This routine is called by the assembler after layout and relaxation is

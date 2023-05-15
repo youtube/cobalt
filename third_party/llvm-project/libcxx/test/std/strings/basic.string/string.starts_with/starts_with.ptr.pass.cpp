@@ -1,25 +1,23 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-// UNSUPPORTED: c++98, c++03, c++11, c++14, c++17
+// UNSUPPORTED: c++03, c++11, c++14, c++17
 
 // <string>
 
-//   bool starts_with(const CharT *x) const;
+// constexpr bool starts_with(const CharT *x) const;
 
 #include <string>
 #include <cassert>
 
 #include "test_macros.h"
 
-int main()
-{
-    {
+constexpr bool test() {
+  {
     typedef std::string S;
     const char *s = "abcde";
     S  s0 {};
@@ -58,5 +56,15 @@ int main()
     assert (!sNot.starts_with("abcd"));
     assert (!sNot.starts_with("abcde"));
     assert ( sNot.starts_with("def"));
-    }
+  }
+
+  return true;
+}
+
+int main(int, char**)
+{
+  test();
+  static_assert(test());
+
+  return 0;
 }

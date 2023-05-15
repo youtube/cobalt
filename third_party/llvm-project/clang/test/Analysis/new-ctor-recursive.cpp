@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -std=c++11 -analyzer-checker=core,cplusplus.NewDelete,cplusplus.NewDeleteLeaks,debug.ExprInspection -analyzer-config c++-allocator-inlining=true -std=c++11 -verify %s
+// RUN: %clang_analyze_cc1 -std=c++11 -analyzer-checker=core,cplusplus.NewDelete,cplusplus.NewDeleteLeaks,debug.ExprInspection -analyzer-config c++-allocator-inlining=true -std=c++11 -verify -analyzer-config eagerly-assume=false %s
 
 void clang_analyzer_eval(bool);
 void clang_analyzer_dump(int);
@@ -51,11 +51,9 @@ void *operator new(size_t size, S *place) {
 
 void testThatCharConstructorIndeedYieldsGarbage() {
   S *s = new S(ConstructionKind::Garbage);
-  clang_analyzer_eval(s->x == 0); // expected-warning{{UNKNOWN}}
-  clang_analyzer_eval(s->x == 1); // expected-warning{{UNKNOWN}}
-  // FIXME: This should warn, but MallocChecker doesn't default-bind regions
-  // returned by standard operator new to garbage.
-  s->x += 1; // no-warning
+  clang_analyzer_eval(s->x == 0); // expected-warning{{The left operand of '==' is a garbage value [core.UndefinedBinaryOperatorResult]}}
+  clang_analyzer_eval(s->x == 1);
+  s->x += 1;
   delete s;
 }
 

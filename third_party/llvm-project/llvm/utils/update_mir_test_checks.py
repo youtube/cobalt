@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Updates FileCheck checks in MIR tests.
 
@@ -9,7 +9,8 @@ The checks added by this script will cover the entire body of each
 function it handles. Virtual registers used are given names via
 FileCheck patterns, so if you do want to check a subset of the body it
 should be straightforward to trim out the irrelevant parts. None of
-the YAML metadata will be checked, other than function names.
+the YAML metadata will be checked, other than function names, and fixedStack
+if the --print-fixed-stack option is used.
 
 If there are multiple llc commands in a test, the full set of checks
 will be repeated for each different check pattern. Checks for patterns
@@ -21,6 +22,7 @@ from __future__ import print_function
 
 import argparse
 import collections
+import glob
 import os
 import re
 import subprocess
@@ -32,9 +34,14 @@ MIR_FUNC_NAME_RE = re.compile(r' *name: *(?P<func>[A-Za-z0-9_.-]+)')
 MIR_BODY_BEGIN_RE = re.compile(r' *body: *\|')
 MIR_BASIC_BLOCK_RE = re.compile(r' *bb\.[0-9]+.*:$')
 VREG_RE = re.compile(r'(%[0-9]+)(?::[a-z0-9_]+)?(?:\([<>a-z0-9 ]+\))?')
+MI_FLAGS_STR= (
+    r'(frame-setup |frame-destroy |nnan |ninf |nsz |arcp |contract |afn '
+    r'|reassoc |nuw |nsw |exact |nofpexcept |nomerge )*')
+VREG_DEF_FLAGS_STR = r'(?:dead )*'
 VREG_DEF_RE = re.compile(
-    r'^ *(?P<vregs>{0}(?:, {0})*) '
-    r'= (?P<opcode>[A-Zt][A-Za-z0-9_]+)'.format(VREG_RE.pattern))
+    r'^ *(?P<vregs>{2}{0}(?:, {2}{0})*) = '
+    r'{1}(?P<opcode>[A-Zt][A-Za-z0-9_]+)'.format(
+        VREG_RE.pattern, MI_FLAGS_STR, VREG_DEF_FLAGS_STR))
 MIR_PREFIX_DATA_RE = re.compile(r'^ *(;|bb.[0-9].*: *$|[a-z]+:( |$)|$)')
 
 IR_FUNC_NAME_RE = re.compile(
@@ -45,6 +52,10 @@ MIR_FUNC_RE = re.compile(
     r'^---$'
     r'\n'
     r'^ *name: *(?P<func>[A-Za-z0-9_.-]+)$'
+    r'.*?'
+    r'^ *fixedStack: *(\[\])? *\n'
+    r'(?P<fixedStack>.*?)\n?'
+    r'^ *stack:'
     r'.*?'
     r'^ *body: *\|\n'
     r'(?P<body>.*?)\n'
@@ -62,6 +73,8 @@ class LLC:
         with open(ir) as ir_file:
             stdout = subprocess.check_output('{} {}'.format(self.bin, args),
                                              shell=True, stdin=ir_file)
+            if sys.version_info[0] > 2:
+              stdout = stdout.decode()
             # Fix line endings to unix CR style.
             stdout = stdout.replace('\r\n', '\n')
         return stdout
@@ -82,12 +95,6 @@ def log(msg, verbose=True):
         print(msg, file=sys.stderr)
 
 
-def warn(msg, test_file=None):
-    if test_file:
-        msg = '{}: {}'.format(test_file, msg)
-    print('WARNING: {}'.format(msg), file=sys.stderr)
-
-
 def find_triple_in_ir(lines, verbose=False):
     for l in lines:
         m = common.TRIPLE_IR_RE.match(l)
@@ -96,35 +103,24 @@ def find_triple_in_ir(lines, verbose=False):
     return None
 
 
-def find_run_lines(test, lines, verbose=False):
-    raw_lines = [m.group(1)
-                 for m in [common.RUN_LINE_RE.match(l) for l in lines] if m]
-    run_lines = [raw_lines[0]] if len(raw_lines) > 0 else []
-    for l in raw_lines[1:]:
-        if run_lines[-1].endswith("\\"):
-            run_lines[-1] = run_lines[-1].rstrip("\\") + " " + l
-        else:
-            run_lines.append(l)
-    if verbose:
-        log('Found {} RUN lines:'.format(len(run_lines)))
-        for l in run_lines:
-            log('  RUN: {}'.format(l))
-    return run_lines
-
-
 def build_run_list(test, run_lines, verbose=False):
     run_list = []
     all_prefixes = []
     for l in run_lines:
+        if '|' not in l:
+            common.warn('Skipping unparsable RUN line: ' + l)
+            continue
+
         commands = [cmd.strip() for cmd in l.split('|', 1)]
         llc_cmd = commands[0]
         filecheck_cmd = commands[1] if len(commands) > 1 else ''
+        common.verify_filecheck_prefixes(filecheck_cmd)
 
         if not llc_cmd.startswith('llc '):
-            warn('Skipping non-llc RUN line: {}'.format(l), test_file=test)
+            common.warn('Skipping non-llc RUN line: {}'.format(l), test_file=test)
             continue
         if not filecheck_cmd.startswith('FileCheck '):
-            warn('Skipping non-FileChecked RUN line: {}'.format(l),
+            common.warn('Skipping non-FileChecked RUN line: {}'.format(l),
                  test_file=test)
             continue
 
@@ -150,13 +146,12 @@ def build_run_list(test, run_lines, verbose=False):
 
         run_list.append(Run(check_prefixes, cmd_args, triple))
 
-    # Remove any common prefixes. We'll just leave those entirely alone.
-    common_prefixes = set([prefix for prefix in all_prefixes
-                           if all_prefixes.count(prefix) > 1])
+    # Sort prefixes that are shared between run lines before unshared prefixes.
+    # This causes us to prefer printing shared prefixes.
     for run in run_list:
-        run.prefixes = [p for p in run.prefixes if p not in common_prefixes]
+        run.prefixes.sort(key=lambda prefix: -all_prefixes.count(prefix))
 
-    return run_list, common_prefixes
+    return run_list
 
 
 def find_functions_with_one_bb(lines, verbose=False):
@@ -178,50 +173,87 @@ def find_functions_with_one_bb(lines, verbose=False):
     return result
 
 
-def build_function_body_dictionary(test, raw_tool_output, triple, prefixes,
+class FunctionInfo:
+    def __init__(self, body, fixedStack):
+        self.body = body
+        self.fixedStack = fixedStack
+
+    def __eq__(self, other):
+        if not isinstance(other, FunctionInfo):
+            return False
+        return self.body == other.body and self.fixedStack == other.fixedStack
+
+
+def build_function_info_dictionary(test, raw_tool_output, triple, prefixes,
                                    func_dict, verbose):
     for m in MIR_FUNC_RE.finditer(raw_tool_output):
         func = m.group('func')
+        fixedStack = m.group('fixedStack')
         body = m.group('body')
         if verbose:
             log('Processing function: {}'.format(func))
             for l in body.splitlines():
                 log('  {}'.format(l))
+
+        # Vreg mangling
+        mangled = []
+        vreg_map = {}
+        for func_line in body.splitlines(keepends=True):
+            m = VREG_DEF_RE.match(func_line)
+            if m:
+                for vreg in VREG_RE.finditer(m.group('vregs')):
+                    name = mangle_vreg(m.group('opcode'), vreg_map.values())
+                    vreg_map[vreg.group(1)] = name
+                    func_line = func_line.replace(
+                        vreg.group(1), '[[{}:%[0-9]+]]'.format(name), 1)
+            for number, name in vreg_map.items():
+                func_line = re.sub(r'{}\b'.format(number), '[[{}]]'.format(name),
+                                func_line)
+            mangled.append(func_line)
+        body = ''.join(mangled)
+
         for prefix in prefixes:
-            if func in func_dict[prefix] and func_dict[prefix][func] != body:
-                warn('Found conflicting asm for prefix: {}'.format(prefix),
-                     test_file=test)
-            func_dict[prefix][func] = body
+            info = FunctionInfo(body, fixedStack)
+            if func in func_dict[prefix]:
+                if func_dict[prefix][func] != info:
+                    func_dict[prefix][func] = None
+            else:
+                func_dict[prefix][func] = info
 
 
 def add_checks_for_function(test, output_lines, run_list, func_dict, func_name,
-                            single_bb, verbose=False):
+                            single_bb, args):
     printed_prefixes = set()
     for run in run_list:
         for prefix in run.prefixes:
             if prefix in printed_prefixes:
-                continue
+                break
             if not func_dict[prefix][func_name]:
                 continue
             # if printed_prefixes:
             #     # Add some space between different check prefixes.
             #     output_lines.append('')
             printed_prefixes.add(prefix)
-            log('Adding {} lines for {}'.format(prefix, func_name), verbose)
+            log('Adding {} lines for {}'.format(prefix, func_name), args.verbose)
             add_check_lines(test, output_lines, prefix, func_name, single_bb,
-                            func_dict[prefix][func_name].splitlines())
+                            func_dict[prefix][func_name], args)
             break
+        else:
+            common.warn(
+                'Found conflicting asm for function: {}'.format(func_name),
+                test_file=test)
     return output_lines
 
 
 def add_check_lines(test, output_lines, prefix, func_name, single_bb,
-                    func_body):
+                    func_info: FunctionInfo, args):
+    func_body = func_info.body.splitlines()
     if single_bb:
         # Don't bother checking the basic block label for a single BB
         func_body.pop(0)
 
     if not func_body:
-        warn('Function has no instructions to check: {}'.format(func_name),
+        common.warn('Function has no instructions to check: {}'.format(func_name),
              test_file=test)
         return
 
@@ -232,21 +264,21 @@ def add_check_lines(test, output_lines, prefix, func_name, single_bb,
 
     output_lines.append('{}-LABEL: name: {}'.format(check, func_name))
 
-    vreg_map = {}
+    if args.print_fixed_stack:
+        output_lines.append('{}: fixedStack:'.format(check))
+        for stack_line in func_info.fixedStack.splitlines():
+            filecheck_directive = check + '-NEXT'
+            output_lines.append('{}: {}'.format(filecheck_directive, stack_line))
+
+    first_check = True
     for func_line in func_body:
         if not func_line.strip():
+            # The mir printer prints leading whitespace so we can't use CHECK-EMPTY:
+            output_lines.append(check + '-NEXT: {{' + func_line + '$}}')
             continue
-        m = VREG_DEF_RE.match(func_line)
-        if m:
-            for vreg in VREG_RE.finditer(m.group('vregs')):
-                name = mangle_vreg(m.group('opcode'), vreg_map.values())
-                vreg_map[vreg.group(1)] = name
-                func_line = func_line.replace(
-                    vreg.group(1), '[[{}:%[0-9]+]]'.format(name), 1)
-        for number, name in vreg_map.items():
-            func_line = re.sub(r'{}\b'.format(number), '[[{}]]'.format(name),
-                               func_line)
-        check_line = '{}: {}'.format(check, func_line[indent:]).rstrip()
+        filecheck_directive = check if first_check else check + '-NEXT'
+        first_check = False
+        check_line = '{}: {}'.format(filecheck_directive, func_line[indent:]).rstrip()
         output_lines.append(check_line)
 
 
@@ -290,49 +322,38 @@ def should_add_line_to_output(input_line, prefix_set):
     return True
 
 
-def update_test_file(llc, test, remove_common_prefixes=False, verbose=False):
-    log('Scanning for RUN lines in test file: {}'.format(test), verbose)
+def update_test_file(args, test, autogenerated_note):
     with open(test) as fd:
         input_lines = [l.rstrip() for l in fd]
 
-    triple_in_ir = find_triple_in_ir(input_lines, verbose)
-    run_lines = find_run_lines(test, input_lines, verbose)
-    run_list, common_prefixes = build_run_list(test, run_lines, verbose)
+    triple_in_ir = find_triple_in_ir(input_lines, args.verbose)
+    run_lines = common.find_run_lines(test, input_lines)
+    run_list = build_run_list(test, run_lines, args.verbose)
 
-    simple_functions = find_functions_with_one_bb(input_lines, verbose)
+    simple_functions = find_functions_with_one_bb(input_lines, args.verbose)
 
     func_dict = {}
     for run in run_list:
         for prefix in run.prefixes:
             func_dict.update({prefix: dict()})
     for prefixes, llc_args, triple_in_cmd in run_list:
-        log('Extracted LLC cmd: llc {}'.format(llc_args), verbose)
-        log('Extracted FileCheck prefixes: {}'.format(prefixes), verbose)
+        log('Extracted LLC cmd: llc {}'.format(llc_args), args.verbose)
+        log('Extracted FileCheck prefixes: {}'.format(prefixes), args.verbose)
 
-        raw_tool_output = llc(llc_args, test)
+        raw_tool_output = args.llc_binary(llc_args, test)
         if not triple_in_cmd and not triple_in_ir:
-            warn('No triple found: skipping file', test_file=test)
+            common.warn('No triple found: skipping file', test_file=test)
             return
 
-        build_function_body_dictionary(test, raw_tool_output,
+        build_function_info_dictionary(test, raw_tool_output,
                                        triple_in_cmd or triple_in_ir,
-                                       prefixes, func_dict, verbose)
+                                       prefixes, func_dict, args.verbose)
 
     state = 'toplevel'
     func_name = None
     prefix_set = set([prefix for run in run_list for prefix in run.prefixes])
-    log('Rewriting FileCheck prefixes: {}'.format(prefix_set), verbose)
+    log('Rewriting FileCheck prefixes: {}'.format(prefix_set), args.verbose)
 
-    if remove_common_prefixes:
-        prefix_set.update(common_prefixes)
-    elif common_prefixes:
-        warn('Ignoring common prefixes: {}'.format(common_prefixes),
-             test_file=test)
-
-    comment_char = '#' if test.endswith('.mir') else ';'
-    autogenerated_note = ('{} NOTE: Assertions have been autogenerated by '
-                          'utils/{}'.format(comment_char,
-                                            os.path.basename(__file__)))
     output_lines = []
     output_lines.append(autogenerated_note)
 
@@ -370,14 +391,14 @@ def update_test_file(llc, test, remove_common_prefixes=False, verbose=False):
                 state = 'mir function body'
                 add_checks_for_function(test, output_lines, run_list,
                                         func_dict, func_name, single_bb=False,
-                                        verbose=verbose)
+                                        args=args)
         elif state == 'mir function prefix':
             m = MIR_PREFIX_DATA_RE.match(input_line)
             if not m:
                 state = 'mir function body'
                 add_checks_for_function(test, output_lines, run_list,
                                         func_dict, func_name, single_bb=True,
-                                        verbose=verbose)
+                                        args=args)
 
             if should_add_line_to_output(input_line, prefix_set):
                 output_lines.append(input_line)
@@ -393,7 +414,7 @@ def update_test_file(llc, test, remove_common_prefixes=False, verbose=False):
                 state = 'ir function body'
                 add_checks_for_function(test, output_lines, run_list,
                                         func_dict, func_name, single_bb=False,
-                                        verbose=verbose)
+                                        args=args)
 
             if should_add_line_to_output(input_line, prefix_set):
                 output_lines.append(input_line)
@@ -405,31 +426,29 @@ def update_test_file(llc, test, remove_common_prefixes=False, verbose=False):
                 output_lines.append(input_line)
 
 
-    log('Writing {} lines to {}...'.format(len(output_lines), test), verbose)
+    log('Writing {} lines to {}...'.format(len(output_lines), test), args.verbose)
 
     with open(test, 'wb') as fd:
-        fd.writelines([l + '\n' for l in output_lines])
+        fd.writelines(['{}\n'.format(l).encode('utf-8') for l in output_lines])
 
 
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Show verbose output')
-    parser.add_argument('--llc-binary', dest='llc', default='llc', type=LLC,
+    parser.add_argument('--llc-binary', default='llc', type=LLC,
                         help='The "llc" binary to generate the test case with')
-    parser.add_argument('--remove-common-prefixes', action='store_true',
-                        help='Remove existing check lines whose prefixes are '
-                             'shared between multiple commands')
+    parser.add_argument('--print-fixed-stack', action='store_true',
+                        help='Add check lines for fixedStack')
     parser.add_argument('tests', nargs='+')
-    args = parser.parse_args()
+    args = common.parse_commandline_args(parser)
 
-    for test in args.tests:
+    script_name = os.path.basename(__file__)
+    for ti in common.itertests(args.tests, parser,
+                               script_name='utils/' + script_name):
         try:
-            update_test_file(args.llc, test, args.remove_common_prefixes,
-                             verbose=args.verbose)
+            update_test_file(ti.args, ti.path, ti.test_autogenerated_note)
         except Exception:
-            warn('Error processing file', test_file=test)
+            common.warn('Error processing file', test_file=ti.path)
             raise
 
 

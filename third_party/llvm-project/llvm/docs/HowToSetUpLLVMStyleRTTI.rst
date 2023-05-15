@@ -380,8 +380,8 @@ contract, you can tweak and optimize it as much as you want.
 For example, LLVM-style RTTI can work fine in the presence of
 multiple-inheritance by defining an appropriate ``classof``.
 An example of this in practice is
-`Decl <http://clang.llvm.org/doxygen/classclang_1_1Decl.html>`_ vs.
-`DeclContext <http://clang.llvm.org/doxygen/classclang_1_1DeclContext.html>`_
+`Decl <https://clang.llvm.org/doxygen/classclang_1_1Decl.html>`_ vs.
+`DeclContext <https://clang.llvm.org/doxygen/classclang_1_1DeclContext.html>`_
 inside Clang.
 The ``Decl`` hierarchy is done very similarly to the example setup
 demonstrated in this tutorial.
@@ -396,7 +396,7 @@ returning true for ones that are known to be ``DeclContext``'s.
    Touch on some of the more advanced features, like ``isa_impl`` and
    ``simplify_type``. However, those two need reference documentation in
    the form of doxygen comments as well. We need the doxygen so that we can
-   say "for full details, see http://llvm.org/doxygen/..."
+   say "for full details, see https://llvm.org/doxygen/..."
 
 Rules of Thumb
 ==============
@@ -412,3 +412,160 @@ Rules of Thumb
 #. For each class in the hierarchy that has children, implement a
    ``classof`` that checks a range of the first child's ``Kind`` and the
    last child's ``Kind``.
+
+RTTI for Open Class Hierarchies
+===============================
+
+Sometimes it is not possible to know all types in a hierarchy ahead of time.
+For example, in the shapes hierarchy described above the authors may have
+wanted their code to work for user defined shapes too. To support use cases
+that require open hierarchies LLVM provides the ``RTTIRoot`` and
+``RTTIExtends`` utilities.
+
+The ``RTTIRoot`` class describes an interface for performing RTTI checks. The
+``RTTIExtends`` class template provides an implementation of this interface
+for classes derived from ``RTTIRoot``. ``RTTIExtends`` uses the "`Curiously
+Recurring Template Idiom`_", taking the class being defined as its first
+template argument and the parent class as the second argument. Any class that
+uses ``RTTIExtends`` must define a ``static char ID`` member, the address of
+which will be used to identify the type.
+
+This open-hierarchy RTTI support should only be used if your use case requires
+it. Otherwise the standard LLVM RTTI system should be preferred.
+
+.. _`Curiously Recurring Template Idiom`:
+  https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
+
+E.g.
+
+.. code-block:: c++
+
+   class Shape : public RTTIExtends<Shape, RTTIRoot> {
+   public:
+     static char ID;
+     virtual double computeArea() = 0;
+   };
+
+   class Square : public RTTIExtends<Square, Shape> {
+     double SideLength;
+   public:
+     static char ID;
+
+     Square(double S) : SideLength(S) {}
+     double computeArea() override;
+   };
+
+   class Circle : public RTTIExtends<Circle, Shape> {
+     double Radius;
+   public:
+     static char ID;
+
+     Circle(double R) : Radius(R) {}
+     double computeArea() override;
+   };
+
+   char Shape::ID = 0;
+   char Square::ID = 0;
+   char Circle::ID = 0;
+
+Advanced Use Cases
+==================
+
+The underlying implementation of isa/cast/dyn_cast is all controlled through a
+struct called ``CastInfo``. ``CastInfo`` provides 4 methods, ``isPossible``,
+``doCast``, ``castFailed``, and ``doCastIfPossible``. These are for ``isa``,
+``cast``, and ``dyn_cast``, in order. You can control the way your cast is
+performed by creating a specialization of the ``CastInfo`` struct (to your
+desired types) that provides the same static methods as the base ``CastInfo``
+struct.
+
+This can be a lot of boilerplate, so we also have what we call Cast Traits.
+These are structs that provide one or more of the above methods so you can
+factor out common casting patterns in your project. We provide a few in the
+header file ready to be used, and we'll show a few examples motivating their
+usage. These examples are not exhaustive, and adding new cast traits is easy
+so users should feel free to add them to their project, or contribute them if
+they're particularly useful!
+
+Value to value casting
+----------------------
+In this case, we have a struct that is what we call 'nullable' - i.e. it is
+constructible from ``nullptr`` and that results in a value you can tell is
+invalid.
+
+.. code-block:: c++
+
+  class SomeValue {
+  public:
+    SomeValue(void *ptr) : ptr(ptr) {}
+    void *getPointer() const { return ptr; }
+    bool isValid() const { return ptr != nullptr; }
+  private:
+    void *ptr;
+  };
+
+Given something like this, we want to pass this object around by value, and we
+would like to cast from objects of this type to some other set of objects. For
+now, we assume that the types we want to cast *to* all provide ``classof``. So
+we can use some provided cast traits like so:
+
+.. code-block:: c++
+
+  template <typename T>
+  struct CastInfo<T, SomeValue>
+    : CastIsPossible<T, SomeValue>, NullableValueCastFailed<T>,
+      DefaultDoCastIfPossible<T, SomeValue, CastInfo<T, SomeValue>> {
+    static T doCast(SomeValue v) {
+      return T(v.getPointer());
+    }
+  };
+
+Pointer to value casting
+------------------------
+Now given the value above ``SomeValue``, maybe we'd like to be able to cast to
+that type from a char pointer type. So what we would do in that case is:
+
+.. code-block:: c++
+
+  template <typename T>
+  struct CastInfo<SomeValue, T *>
+    : NullableValueCastFailed<SomeValue>,
+      DefaultDoCastIfPossible<SomeValue, T *, CastInfo<SomeValue, T *>> {
+    static bool isPossible(const T *t) {
+      return std::is_same<T, char>::value;
+    }
+    static SomeValue doCast(const T *t) {
+      return SomeValue((void *)t);
+    }
+  };
+
+This would enable us to cast from a ``char *`` to a SomeValue, if we wanted to.
+
+Optional value casting
+----------------------
+When your types are not constructible from ``nullptr`` or there isn't a simple
+way to tell when an object is invalid, you may want to use ``llvm::Optional``.
+In those cases, you probably want something like this:
+
+.. code-block:: c++
+
+  template <typename T>
+  struct CastInfo<T, SomeValue> : OptionalValueCast<T, SomeValue> {};
+
+That cast trait requires that ``T`` is constructible from ``const SomeValue &``
+but it enables casting like so:
+
+.. code-block:: c++
+
+  SomeValue someVal = ...;
+  Optional<AnotherValue> valOr = dyn_cast<AnotherValue>(someVal);
+
+With the ``_if_present`` variants, you can even do optional chaining like this:
+
+.. code-block:: c++
+
+  Optional<SomeValue> someVal = ...;
+  Optional<AnotherValue> valOr = dyn_cast_if_present<AnotherValue>(someVal);
+
+and ``valOr`` will be ``None`` if either ``someVal`` cannot be converted *or*
+if ``someVal`` was also ``None``.

@@ -1,9 +1,8 @@
 //=- CachePruning.h - Helper to manage the pruning of a cache dir -*- C++ -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,15 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_CACHE_PRUNING_H
-#define LLVM_SUPPORT_CACHE_PRUNING_H
+#ifndef LLVM_SUPPORT_CACHEPRUNING_H
+#define LLVM_SUPPORT_CACHEPRUNING_H
 
-#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include <chrono>
+#include <optional>
 
 namespace llvm {
 
 template <typename T> class Expected;
+class StringRef;
 
 /// Policy for the pruneCache() function. A default constructed
 /// CachePruningPolicy provides a reasonable default policy.
@@ -29,7 +30,7 @@ struct CachePruningPolicy {
   /// directory too often. It does not impact the decision of which file to
   /// prune. A value of 0 forces the scan to occur. A value of None disables
   /// pruning.
-  llvm::Optional<std::chrono::seconds> Interval = std::chrono::seconds(1200);
+  std::optional<std::chrono::seconds> Interval = std::chrono::seconds(1200);
 
   /// The expiration for a file. When a file hasn't been accessed for Expiration
   /// seconds, it is removed from the cache. A value of 0 disables the
@@ -70,11 +71,16 @@ Expected<CachePruningPolicy> parseCachePruningPolicy(StringRef PolicyStr);
 /// Peform pruning using the supplied policy, returns true if pruning
 /// occurred, i.e. if Policy.Interval was expired.
 ///
+/// Check whether cache pruning happens using the supplied policy, adds a
+/// ThinLTO warning if cache_size_bytes or cache_size_files is too small for the
+/// current link job. The warning recommends the user to consider adjusting
+/// --thinlto-cache-policy.
+///
 /// As a safeguard against data loss if the user specifies the wrong directory
 /// as their cache directory, this function will ignore files not matching the
 /// pattern "llvmcache-*".
-bool pruneCache(StringRef Path, CachePruningPolicy Policy);
-
+bool pruneCache(StringRef Path, CachePruningPolicy Policy,
+                const std::vector<std::unique_ptr<MemoryBuffer>> &Files = {});
 } // namespace llvm
 
 #endif

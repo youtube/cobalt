@@ -1,9 +1,9 @@
 /*===-- llvm-c/BitReader.h - BitReader Library C Interface ------*- C++ -*-===*\
 |*                                                                            *|
-|*                     The LLVM Compiler Infrastructure                       *|
-|*                                                                            *|
-|* This file is distributed under the University of Illinois Open Source      *|
-|* License. See LICENSE.TXT for details.                                      *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
 |*                                                                            *|
 |*===----------------------------------------------------------------------===*|
 |*                                                                            *|
@@ -19,11 +19,10 @@
 #ifndef LLVM_C_BITREADER_H
 #define LLVM_C_BITREADER_H
 
+#include "llvm-c/ExternC.h"
 #include "llvm-c/Types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+LLVM_C_EXTERN_C_BEGIN
 
 /**
  * @defgroup LLVMCBitReader Bit Reader
@@ -62,8 +61,13 @@ LLVMBool LLVMGetBitcodeModuleInContext(LLVMContextRef ContextRef,
                                        LLVMMemoryBufferRef MemBuf,
                                        LLVMModuleRef *OutM, char **OutMessage);
 
-/** Reads a module from the specified path, returning via the OutMP parameter a
- * module provider which performs lazy deserialization. Returns 0 on success. */
+/** Reads a module from the given memory buffer, returning via the OutMP
+ * parameter a module provider which performs lazy deserialization.
+ *
+ * Returns 0 on success.
+ *
+ * Takes ownership of \p MemBuf if (and only if) the module was read
+ * successfully. */
 LLVMBool LLVMGetBitcodeModuleInContext2(LLVMContextRef ContextRef,
                                         LLVMMemoryBufferRef MemBuf,
                                         LLVMModuleRef *OutM);
@@ -78,8 +82,6 @@ LLVMBool LLVMGetBitcodeModule2(LLVMMemoryBufferRef MemBuf, LLVMModuleRef *OutM);
  * @}
  */
 
-#ifdef __cplusplus
-}
-#endif
+LLVM_C_EXTERN_C_END
 
 #endif

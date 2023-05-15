@@ -706,8 +706,8 @@ if.else:
   br i1 %cmp1, label %if.end3.sink.split, label %if.end
 
 if.end3.sink.split:
-  %g2.sink = phi i32* [ @g2, %if.else ], [ @g1, %entry ]
-  store i32 0, i32* %g2.sink, align 4
+  %g2.sink = phi ptr [ @g2, %if.else ], [ @g1, %entry ]
+  store i32 0, ptr %g2.sink, align 4
   br label %if.end
 
 if.end:
@@ -718,13 +718,14 @@ if.end:
 define void @func28(i32 signext %a) {
 ; CHECK-LABEL: @func28
 ; CHECK: cmplwi	 [[REG1:[0-9]+]], [[REG2:[0-9]+]]
-; CHECK: .[[LABEL1:[A-Z0-9_]+]]:
+; CHECK: .[[LABEL2:[A-Z0-9_]+]]:
+; CHECK: cmpwi   [[REG1]], [[REG2]]
+; CHECK: ble     0, .[[LABEL1:[A-Z0-9_]+]]
 ; CHECK-NOT: cmp
-; CHECK: bne	 0, .[[LABEL2:[A-Z0-9_]+]]
+; CHECK: bne     0, .[[LABEL2]]
 ; CHECK: bl dummy1
-; CHECK: .[[LABEL2]]:
-; CHECK: cmpwi	 [[REG1]], [[REG2]]
-; CHECK: bgt	 0, .[[LABEL1]]
+; CHECK: b .[[LABEL2]]
+; CHECK: .[[LABEL1]]:
 ; CHECK: blr
 entry:
   br label %do.body

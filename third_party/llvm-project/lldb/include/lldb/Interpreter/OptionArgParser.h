@@ -1,9 +1,8 @@
 //===-- OptionArgParser.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,7 +23,7 @@ struct OptionArgParser {
   static char ToChar(llvm::StringRef s, char fail_value, bool *success_ptr);
 
   static int64_t ToOptionEnum(llvm::StringRef s,
-                              OptionEnumValueElement *enum_values,
+                              const OptionEnumValues &enum_values,
                               int32_t fail_value, Status &error);
 
   static lldb::ScriptLanguage ToScriptLanguage(llvm::StringRef s,

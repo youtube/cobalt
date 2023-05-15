@@ -1,11 +1,14 @@
 //===-- examples/HowToUseJIT/HowToUseJIT.cpp - An example use of the JIT --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+//
+//  WARNING: This example demonstrates how to use LLVM's older ExecutionEngine
+//           JIT APIs. The newer LLJIT APIs should be preferred for new
+//           projects. See llvm/examples/HowToUseLLJIT.
 //
 //  This small program provides an example of how to quickly build a small
 //  module with two functions and execute it with the JIT.
@@ -37,6 +40,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -60,18 +64,20 @@ using namespace llvm;
 
 int main() {
   InitializeNativeTarget();
+  LLVMInitializeNativeAsmPrinter();
 
   LLVMContext Context;
   
   // Create some module to put our function into it.
-  std::unique_ptr<Module> Owner = make_unique<Module>("test", Context);
+  std::unique_ptr<Module> Owner = std::make_unique<Module>("test", Context);
   Module *M = Owner.get();
 
   // Create the add1 function entry and insert this entry into module M.  The
   // function will have a return type of "int" and take an argument of "int".
   Function *Add1F =
-    cast<Function>(M->getOrInsertFunction("add1", Type::getInt32Ty(Context),
-                                          Type::getInt32Ty(Context)));
+      Function::Create(FunctionType::get(Type::getInt32Ty(Context),
+                                         {Type::getInt32Ty(Context)}, false),
+                       Function::ExternalLinkage, "add1", M);
 
   // Add a basic block to the function. As before, it automatically inserts
   // because of the last argument.
@@ -100,7 +106,8 @@ int main() {
   // Now we're going to create function `foo', which returns an int and takes no
   // arguments.
   Function *FooF =
-    cast<Function>(M->getOrInsertFunction("foo", Type::getInt32Ty(Context)));
+      Function::Create(FunctionType::get(Type::getInt32Ty(Context), {}, false),
+                       Function::ExternalLinkage, "foo", M);
 
   // Add a basic block to the FooF function.
   BB = BasicBlock::Create(Context, "EntryBlock", FooF);

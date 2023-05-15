@@ -1,5 +1,4 @@
-; RUN: opt < %s -iv-users -S -disable-output
-; RUN: opt < %s -passes='require<ivusers>' -S -disable-output
+; RUN: opt < %s -passes='require<iv-users>' -S -disable-output
 ;
 ; PR12868: Infinite recursion:
 ; getUDivExpr()->getZeroExtendExpr()->isLoopBackedgeGuardedBy()

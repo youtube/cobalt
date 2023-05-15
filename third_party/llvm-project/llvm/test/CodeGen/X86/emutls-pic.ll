@@ -1,34 +1,33 @@
-; RUN: llc < %s -emulated-tls -mtriple=i386-linux-gnu -relocation-model=pic | FileCheck -check-prefix=X32 %s
+; RUN: llc < %s -emulated-tls -mtriple=i386-linux-gnu -relocation-model=pic | FileCheck -check-prefix=X86 %s
 ; RUN: llc < %s -emulated-tls -mtriple=x86_64-linux-gnu -relocation-model=pic | FileCheck -check-prefix=X64 %s
-; RUN: llc < %s -emulated-tls -mtriple=i386-linux-android -relocation-model=pic | FileCheck -check-prefix=X32 %s
+; RUN: llc < %s -emulated-tls -mtriple=i386-linux-android -relocation-model=pic | FileCheck -check-prefix=X86 %s
 ; RUN: llc < %s -emulated-tls -mtriple=x86_64-linux-android -relocation-model=pic | FileCheck -check-prefix=X64 %s
 
 ; RUN: llc < %s -mtriple=i386-linux-gnu -relocation-model=pic | FileCheck -check-prefix=NoEMU %s
 ; RUN: llc < %s -mtriple=x86_64-linux-gnu -relocation-model=pic | FileCheck -check-prefix=NoEMU %s
-; RUN: llc < %s -mtriple=i386-linux-android -relocation-model=pic | FileCheck -check-prefix=X32 %s
+; RUN: llc < %s -mtriple=i386-linux-android -relocation-model=pic | FileCheck -check-prefix=X86 %s
 ; RUN: llc < %s -mtriple=x86_64-linux-android -relocation-model=pic | FileCheck -check-prefix=X64 %s
 
 ; NoEMU-NOT: __emutls
 
 ; Use my_emutls_get_address like __emutls_get_address.
-@my_emutls_v_xyz = external global i8*, align 4
-declare i8* @my_emutls_get_address(i8*)
+@my_emutls_v_xyz = external global ptr, align 4
+declare ptr @my_emutls_get_address(ptr)
 
 define i32 @my_get_xyz() {
-; X32-LABEL: my_get_xyz:
-; X32:      movl my_emutls_v_xyz@GOT(%ebx), %eax
-; X32-NEXT: movl %eax, (%esp)
-; X32-NEXT: calll my_emutls_get_address@PLT
+; X86-LABEL: my_get_xyz:
+; X86:      movl my_emutls_v_xyz@GOT(%ebx), %eax
+; X86-NEXT: movl %eax, (%esp)
+; X86-NEXT: calll my_emutls_get_address@PLT
 ; X64-LABEL: my_get_xyz:
 ; X64:      movq my_emutls_v_xyz@GOTPCREL(%rip), %rdi
 ; X64-NEXT: callq my_emutls_get_address@PLT
 ; X64-NEXT: movl (%rax), %eax
 
 entry:
-  %call = call i8* @my_emutls_get_address(i8* bitcast (i8** @my_emutls_v_xyz to i8*))
-  %0 = bitcast i8* %call to i32*
-  %1 = load i32, i32* %0, align 4
-  ret i32 %1
+  %call = call ptr @my_emutls_get_address(ptr @my_emutls_v_xyz)
+  %0 = load i32, ptr %call, align 4
+  ret i32 %0
 }
 
 @i = thread_local global i32 15
@@ -37,14 +36,14 @@ entry:
 
 define i32 @f1() {
 entry:
-  %tmp1 = load i32, i32* @i
+  %tmp1 = load i32, ptr @i
   ret i32 %tmp1
 }
 
-; X32-LABEL: f1:
-; X32:      movl __emutls_v.i@GOT(%ebx), %eax
-; X32-NEXT: movl %eax, (%esp)
-; X32-NEXT: calll __emutls_get_address@PLT
+; X86-LABEL: f1:
+; X86:      movl __emutls_v.i@GOT(%ebx), %eax
+; X86-NEXT: movl %eax, (%esp)
+; X86-NEXT: calll __emutls_get_address@PLT
 ; X64-LABEL: f1:
 ; X64:      movq __emutls_v.i@GOTPCREL(%rip), %rdi
 ; X64-NEXT: callq __emutls_get_address@PLT
@@ -52,52 +51,52 @@ entry:
 
 @i2 = external thread_local global i32
 
-define i32* @f2() {
+define ptr @f2() {
 entry:
-  ret i32* @i
+  ret ptr @i
 }
 
-; X32-LABEL: f2:
+; X86-LABEL: f2:
 ; X64-LABEL: f2:
 
 
 define i32 @f3() {
 entry:
-  %tmp1 = load i32, i32* @i  ; <i32> [#uses=1]
+  %tmp1 = load i32, ptr @i  ; <i32> [#uses=1]
   ret i32 %tmp1
 }
 
-; X32-LABEL: f3:
+; X86-LABEL: f3:
 ; X64-LABEL: f3:
 
 
-define i32* @f4() nounwind {
+define ptr @f4() nounwind {
 entry:
-  ret i32* @i
+  ret ptr @i
 }
 
-; X32-LABEL: f4:
+; X86-LABEL: f4:
 ; X64-LABEL: f4:
 
 
 define i32 @f5() nounwind {
 entry:
-  %0 = load i32, i32* @j, align 4
-  %1 = load i32, i32* @k, align 4
+  %0 = load i32, ptr @j, align 4
+  %1 = load i32, ptr @k, align 4
   %add = add nsw i32 %0, %1
   ret i32 %add
 }
 
-; X32-LABEL: f5:
-; X32:      leal __emutls_v.j@GOTOFF(%ebx), %eax
-; X32-NEXT: movl %eax, (%esp)
-; X32-NEXT: calll __emutls_get_address@PLT
-; X32-NEXT: movl (%eax), %esi
-; X32-NEXT: leal __emutls_v.k@GOTOFF(%ebx), %eax
-; X32-NEXT: movl %eax, (%esp)
-; X32-NEXT: calll __emutls_get_address@PLT
-; X32-NEXT: addl (%eax), %esi
-; X32-NEXT: movl %esi, %eax
+; X86-LABEL: f5:
+; X86:      leal __emutls_v.j@GOTOFF(%ebx), %eax
+; X86-NEXT: movl %eax, (%esp)
+; X86-NEXT: calll __emutls_get_address@PLT
+; X86-NEXT: movl (%eax), %esi
+; X86-NEXT: leal __emutls_v.k@GOTOFF(%ebx), %eax
+; X86-NEXT: movl %eax, (%esp)
+; X86-NEXT: calll __emutls_get_address@PLT
+; X86-NEXT: addl (%eax), %esi
+; X86-NEXT: movl %esi, %eax
 
 ; X64-LABEL: f5:
 ; X64:      leaq __emutls_v.j(%rip), %rdi
@@ -110,39 +109,39 @@ entry:
 
 ;;;;; 32-bit targets
 
-; X32:      .data{{$}}
-; X32:      .globl __emutls_v.i
-; X32-LABEL: __emutls_v.i:
-; X32-NEXT: .long 4
-; X32-NEXT: .long 4
-; X32-NEXT: .long 0
-; X32-NEXT: .long __emutls_t.i
+; X86:      .data{{$}}
+; X86:      .globl __emutls_v.i
+; X86-LABEL: __emutls_v.i:
+; X86-NEXT: .long 4
+; X86-NEXT: .long 4
+; X86-NEXT: .long 0
+; X86-NEXT: .long __emutls_t.i
 
-; X32:      .section .rodata,
-; X32-LABEL: __emutls_t.i:
-; X32-NEXT: .long 15
+; X86:      .section .rodata,
+; X86-LABEL: __emutls_t.i:
+; X86-NEXT: .long 15
 
-; X32:      .data{{$}}
-; X32-NOT:  .globl
-; X32-LABEL: __emutls_v.j:
-; X32-NEXT: .long 4
-; X32-NEXT: .long 4
-; X32-NEXT: .long 0
-; X32-NEXT: .long __emutls_t.j
+; X86:      .data{{$}}
+; X86-NOT:  .globl
+; X86-LABEL: __emutls_v.j:
+; X86-NEXT: .long 4
+; X86-NEXT: .long 4
+; X86-NEXT: .long 0
+; X86-NEXT: .long __emutls_t.j
 
-; X32:      .section .rodata,
-; X32-LABEL: __emutls_t.j:
-; X32-NEXT: .long 42
+; X86:      .section .rodata,
+; X86-LABEL: __emutls_t.j:
+; X86-NEXT: .long 42
 
-; X32:      .data{{$}}
-; X32-NOT:  .globl
-; X32-LABEL: __emutls_v.k:
-; X32-NEXT: .long 4
-; X32-NEXT: .long 8
-; X32-NEXT: .long 0
-; X32-NEXT: .long 0
+; X86:      .data{{$}}
+; X86-NOT:  .globl
+; X86-LABEL: __emutls_v.k:
+; X86-NEXT: .long 4
+; X86-NEXT: .long 8
+; X86-NEXT: .long 0
+; X86-NEXT: .long 0
 
-; X32-NOT:   __emutls_t.k:
+; X86-NOT:   __emutls_t.k:
 
 ;;;;; 64-bit targets
 

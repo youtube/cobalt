@@ -1,9 +1,8 @@
 //===---------- UsingInserter.h - clang-tidy ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,6 +13,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
+#include <optional>
 #include <set>
 
 namespace clang {
@@ -27,9 +27,9 @@ class UsingInserter {
 public:
   UsingInserter(const SourceManager &SourceMgr);
 
-  // Creates a \p using declaration fixit. Returns ``llvm::None`` on error
+  // Creates a \p using declaration fixit. Returns ``std::nullopt`` on error
   // or if the using declaration already exists.
-  llvm::Optional<FixItHint>
+  std::optional<FixItHint>
   createUsingDeclaration(ASTContext &Context, const Stmt &Statement,
                          llvm::StringRef QualifiedName);
 

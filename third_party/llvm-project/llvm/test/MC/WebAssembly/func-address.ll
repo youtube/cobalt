@@ -1,4 +1,4 @@
-; RUN: llc -O2 -filetype=obj %s -o - | llvm-readobj -r -s -expand-relocs | FileCheck %s
+; RUN: llc -O2 -filetype=obj %s -o - | llvm-readobj -S -r --expand-relocs - | FileCheck %s
 
 target triple = "wasm32-unknown-unknown"
 
@@ -19,8 +19,8 @@ entry:
 ; function.
 define hidden void @call_indirect() #0 {
 entry:
-  %adr = alloca i32 ()*, align 4
-  store i32 ()* @import3, i32 ()** %adr, align 4
+  %adr = alloca ptr, align 4
+  store ptr @import3, ptr %adr, align 4
   ret void
 }
 
@@ -30,22 +30,22 @@ entry:
 ; CHECK:      Relocations [
 ; CHECK-NEXT:   Section (5) CODE {
 ; CHECK-NEXT:     Relocation {
-; CHECK-NEXT:       Type: R_WEBASSEMBLY_FUNCTION_INDEX_LEB (0)
+; CHECK-NEXT:       Type: R_WASM_FUNCTION_INDEX_LEB (0)
 ; CHECK-NEXT:       Offset: 0x4
 ; CHECK-NEXT:       Symbol: import1
 ; CHECK-NEXT:     }
 ; CHECK-NEXT:     Relocation {
-; CHECK-NEXT:       Type: R_WEBASSEMBLY_FUNCTION_INDEX_LEB (0)
+; CHECK-NEXT:       Type: R_WASM_FUNCTION_INDEX_LEB (0)
 ; CHECK-NEXT:       Offset: 0xB
 ; CHECK-NEXT:       Symbol: import2
 ; CHECK-NEXT:     }
 ; CHECK-NEXT:     Relocation {
-; CHECK-NEXT:       Type: R_WEBASSEMBLY_GLOBAL_INDEX_LEB (7)
+; CHECK-NEXT:       Type: R_WASM_GLOBAL_INDEX_LEB (7)
 ; CHECK-NEXT:       Offset: 0x15
 ; CHECK-NEXT:       Symbol: __stack_pointer
 ; CHECK-NEXT:     }
 ; CHECK-NEXT:     Relocation {
-; CHECK-NEXT:       Type: R_WEBASSEMBLY_TABLE_INDEX_SLEB (1)
+; CHECK-NEXT:       Type: R_WASM_TABLE_INDEX_SLEB (1)
 ; CHECK-NEXT:       Offset: 0x1E
 ; CHECK-NEXT:       Symbol: import3
 ; CHECK-NEXT:     }

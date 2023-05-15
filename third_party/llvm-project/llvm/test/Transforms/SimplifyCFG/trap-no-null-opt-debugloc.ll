@@ -1,13 +1,13 @@
-; RUN: opt -S -simplifycfg < %s | FileCheck %s
+; RUN: opt -S -passes=simplifycfg -simplifycfg-require-and-preserve-domtree=1 < %s | FileCheck %s
 define void @foo() nounwind ssp #0 !dbg !0 {
-; CHECK: store i32 42, i32* null
+; CHECK: store i32 42, ptr null
 ; CHECK-NOT: call void @llvm.trap()
 ; CHECK: ret void
-  store i32 42, i32* null, !dbg !5
+  store i32 42, ptr null, !dbg !5
   ret void, !dbg !7
 }
 
-attributes #0 = { "null-pointer-is-valid"="true" }
+attributes #0 = { null_pointer_is_valid }
 
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!10}

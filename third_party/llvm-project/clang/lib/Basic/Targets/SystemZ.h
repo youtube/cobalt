@@ -1,9 +1,8 @@
 //===--- SystemZ.h - Declare SystemZ target feature support -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,30 +23,42 @@ namespace targets {
 
 class LLVM_LIBRARY_VISIBILITY SystemZTargetInfo : public TargetInfo {
 
-  static const Builtin::Info BuiltinInfo[];
   static const char *const GCCRegNames[];
   std::string CPU;
   int ISARevision;
   bool HasTransactionalExecution;
   bool HasVector;
+  bool SoftFloat;
 
 public:
   SystemZTargetInfo(const llvm::Triple &Triple, const TargetOptions &)
       : TargetInfo(Triple), CPU("z10"), ISARevision(8),
-        HasTransactionalExecution(false), HasVector(false) {
+        HasTransactionalExecution(false), HasVector(false), SoftFloat(false) {
     IntMaxType = SignedLong;
     Int64Type = SignedLong;
     TLSSupported = true;
     IntWidth = IntAlign = 32;
     LongWidth = LongLongWidth = LongAlign = LongLongAlign = 64;
+    Int128Align = 64;
     PointerWidth = PointerAlign = 64;
     LongDoubleWidth = 128;
     LongDoubleAlign = 64;
     LongDoubleFormat = &llvm::APFloat::IEEEquad();
     DefaultAlignForAttributeAligned = 64;
     MinGlobalAlign = 16;
-    resetDataLayout("E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-a:8:16-n32:64");
+    if (Triple.isOSzOS()) {
+      // All vector types are default aligned on an 8-byte boundary, even if the
+      // vector facility is not available. That is different from Linux.
+      MaxVectorAlign = 64;
+      // Compared to Linux/ELF, the data layout differs only in that name
+      // mangling is GOFF.
+      resetDataLayout(
+          "E-m:l-i1:8:16-i8:8:16-i64:64-f128:64-v128:64-a:8:16-n32:64");
+    } else
+      resetDataLayout("E-m:e-i1:8:16-i8:8:16-i64:64-f128:64"
+                      "-v128:64-a:8:16-n32:64");
     MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 64;
+    HasStrictFP = true;
   }
 
   void getTargetDefines(const LangOptions &Opts,
@@ -59,13 +70,41 @@ public:
 
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
     // No aliases.
-    return None;
+    return std::nullopt;
   }
 
   ArrayRef<TargetInfo::AddlRegName> getGCCAddlRegNames() const override;
 
+  bool isSPRegName(StringRef RegName) const override {
+    return RegName.equals("r15");
+  }
+
   bool validateAsmConstraint(const char *&Name,
                              TargetInfo::ConstraintInfo &info) const override;
+
+  std::string convertConstraint(const char *&Constraint) const override {
+    switch (Constraint[0]) {
+    case 'p': // Keep 'p' constraint.
+      return std::string("p");
+    case 'Z':
+      switch (Constraint[1]) {
+      case 'Q': // Address with base and unsigned 12-bit displacement
+      case 'R': // Likewise, plus an index
+      case 'S': // Address with base and signed 20-bit displacement
+      case 'T': // Likewise, plus an index
+        // "^" hints llvm that this is a 2 letter constraint.
+        // "Constraint++" is used to promote the string iterator
+        // to the next constraint.
+        return std::string("^") + std::string(Constraint++, 2);
+      default:
+        break;
+      }
+      break;
+    default:
+      break;
+    }
+    return TargetInfo::convertConstraint(Constraint);
+  }
 
   const char *getClobbers() const override {
     // FIXME: Is this really right?
@@ -84,6 +123,14 @@ public:
 
   void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override;
 
+  bool isValidTuneCPUName(StringRef Name) const override {
+    return isValidCPUName(Name);
+  }
+
+  void fillValidTuneCPUList(SmallVectorImpl<StringRef> &Values) const override {
+    fillValidCPUList(Values);
+  }
+
   bool setCPU(const std::string &Name) override {
     CPU = Name;
     ISARevision = getISARevision(CPU);
@@ -101,6 +148,10 @@ public:
       Features["vector"] = true;
     if (ISARevision >= 12)
       Features["vector-enhancements-1"] = true;
+    if (ISARevision >= 13)
+      Features["vector-enhancements-2"] = true;
+    if (ISARevision >= 14)
+      Features["nnp-assist"] = true;
     return TargetInfo::initFeatureMap(Features, Diags, CPU, FeaturesVec);
   }
 
@@ -108,18 +159,25 @@ public:
                             DiagnosticsEngine &Diags) override {
     HasTransactionalExecution = false;
     HasVector = false;
+    SoftFloat = false;
     for (const auto &Feature : Features) {
       if (Feature == "+transactional-execution")
         HasTransactionalExecution = true;
       else if (Feature == "+vector")
         HasVector = true;
+      else if (Feature == "+soft-float")
+        SoftFloat = true;
     }
-    // If we use the vector ABI, vector types are 64-bit aligned.
-    if (HasVector) {
+    HasVector &= !SoftFloat;
+
+    // If we use the vector ABI, vector types are 64-bit aligned. The
+    // DataLayout string is always set to this alignment as it is not a
+    // requirement that it follows the alignment emitted by the front end. It
+    // is assumed generally that the Datalayout should reflect only the
+    // target triple and not any specific feature.
+    if (HasVector && !getTriple().isOSzOS())
       MaxVectorAlign = 64;
-      resetDataLayout("E-m:e-i1:8:16-i8:8:16-i64:64-f128:64"
-                      "-v128:64-a:8:16-n32:64");
-    }
+
     return true;
   }
 
@@ -131,6 +189,8 @@ public:
     case CC_Swift:
     case CC_OpenCLKernel:
       return CCCR_OK;
+    case CC_SwiftAsync:
+      return CCCR_Error;
     default:
       return CCCR_Warning;
     }
@@ -142,7 +202,13 @@ public:
     return "";
   }
 
-  bool useFloat128ManglingForLongDouble() const override { return true; }
+  const char *getLongDoubleMangling() const override { return "g"; }
+
+  bool hasBitIntType() const override { return true; }
+
+  int getEHDataRegisterNumber(unsigned RegNo) const override {
+    return RegNo < 4 ? 6 + RegNo : -1;
+  }
 };
 } // namespace targets
 } // namespace clang

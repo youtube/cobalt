@@ -1,9 +1,8 @@
 //===-- HexagonISelDAGToDAG.h -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // Hexagon specific code to select Hexagon machine instructions for
@@ -26,16 +25,19 @@ namespace llvm {
 class MachineFunction;
 class HexagonInstrInfo;
 class HexagonRegisterInfo;
-class HexagonTargetLowering;
 
 class HexagonDAGToDAGISel : public SelectionDAGISel {
   const HexagonSubtarget *HST;
   const HexagonInstrInfo *HII;
   const HexagonRegisterInfo *HRI;
 public:
+  static char ID;
+
+  HexagonDAGToDAGISel() = delete;
+
   explicit HexagonDAGToDAGISel(HexagonTargetMachine &tm,
                                CodeGenOpt::Level OptLevel)
-      : SelectionDAGISel(tm, OptLevel), HST(nullptr), HII(nullptr),
+      : SelectionDAGISel(ID, tm, OptLevel), HST(nullptr), HII(nullptr),
         HRI(nullptr) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override {
@@ -44,6 +46,7 @@ public:
     HII = HST->getInstrInfo();
     HRI = HST->getRegisterInfo();
     SelectionDAGISel::runOnMachineFunction(MF);
+    updateAligna();
     return true;
   }
 
@@ -51,7 +54,7 @@ public:
     return true;
   }
   void PreprocessISelDAG() override;
-  void EmitFunctionEntryCode() override;
+  void emitFunctionEntryCode() override;
 
   void Select(SDNode *N) override;
 
@@ -60,9 +63,8 @@ public:
   inline bool SelectAddrGP(SDValue &N, SDValue &R);
   inline bool SelectAnyImm(SDValue &N, SDValue &R);
   inline bool SelectAnyInt(SDValue &N, SDValue &R);
-  bool SelectAnyImmediate(SDValue &N, SDValue &R, uint32_t LogAlign);
-  bool SelectGlobalAddress(SDValue &N, SDValue &R, bool UseGP,
-                           uint32_t LogAlign);
+  bool SelectAnyImmediate(SDValue &N, SDValue &R, Align Alignment);
+  bool SelectGlobalAddress(SDValue &N, SDValue &R, bool UseGP, Align Alignment);
   bool SelectAddrFI(SDValue &N, SDValue &R);
   bool DetectUseSxtw(SDValue &N, SDValue &R);
 
@@ -70,10 +72,6 @@ public:
   inline bool SelectAnyImm1(SDValue &N, SDValue &R);
   inline bool SelectAnyImm2(SDValue &N, SDValue &R);
   inline bool SelectAnyImm3(SDValue &N, SDValue &R);
-
-  StringRef getPassName() const override {
-    return "Hexagon DAG->DAG Pattern Instruction Selection";
-  }
 
   // Generate a machine instruction node corresponding to the circ/brev
   // load intrinsic.
@@ -97,9 +95,9 @@ public:
   void SelectIndexedStore(StoreSDNode *ST, const SDLoc &dl);
   void SelectStore(SDNode *N);
   void SelectSHL(SDNode *N);
-  void SelectZeroExtend(SDNode *N);
   void SelectIntrinsicWChain(SDNode *N);
   void SelectIntrinsicWOChain(SDNode *N);
+  void SelectExtractSubvector(SDNode *N);
   void SelectConstant(SDNode *N);
   void SelectConstantFP(SDNode *N);
   void SelectV65Gather(SDNode *N);
@@ -129,10 +127,6 @@ private:
     return SDValue(U, 0);
   }
 
-  void SelectHvxShuffle(SDNode *N);
-  void SelectHvxRor(SDNode *N);
-  void SelectHvxVAlign(SDNode *N);
-
   bool keepsLowBits(const SDValue &Val, unsigned NumBits, SDValue &Src);
   bool isAlignedMemNode(const MemSDNode *N) const;
   bool isSmallStackStore(const StoreSDNode *N) const;
@@ -140,10 +134,20 @@ private:
   bool hasOneUse(const SDNode *N) const;
 
   // DAG preprocessing functions.
+  void PreprocessHvxISelDAG();
   void ppSimplifyOrSelect0(std::vector<SDNode*> &&Nodes);
   void ppAddrReorderAddShl(std::vector<SDNode*> &&Nodes);
   void ppAddrRewriteAndSrl(std::vector<SDNode*> &&Nodes);
   void ppHoistZextI1(std::vector<SDNode*> &&Nodes);
+  void ppHvxShuffleOfShuffle(std::vector<SDNode*> &&Nodes);
+
+  void SelectHvxExtractSubvector(SDNode *N);
+  void SelectHvxShuffle(SDNode *N);
+  void SelectHvxRor(SDNode *N);
+  void SelectHvxVAlign(SDNode *N);
+
+  // Function postprocessing.
+  void updateAligna();
 
   SmallDenseMap<SDNode *,int> RootWeights;
   SmallDenseMap<SDNode *,int> RootHeights;

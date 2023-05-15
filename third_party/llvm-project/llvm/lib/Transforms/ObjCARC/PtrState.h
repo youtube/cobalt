@@ -1,9 +1,8 @@
 //===- PtrState.h - ARC State for a Ptr -------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -32,6 +31,7 @@ class Value;
 namespace objcarc {
 
 class ARCMDKindCache;
+class BundledRetainClaimRVs;
 class ProvenanceAnalysis;
 
 /// \enum Sequence
@@ -43,8 +43,7 @@ enum Sequence {
   S_Retain,        ///< objc_retain(x).
   S_CanRelease,    ///< foo(x) -- x could possibly see a ref count decrement.
   S_Use,           ///< any use of x.
-  S_Stop,          ///< like S_Release, but code motion is stopped.
-  S_Release,       ///< objc_release(x).
+  S_Stop,          ///< code motion is stopped.
   S_MovableRelease ///< objc_release(x), !clang.imprecise_release.
 };
 
@@ -203,7 +202,8 @@ struct TopDownPtrState : PtrState {
                           ProvenanceAnalysis &PA, ARCInstKind Class);
 
   bool HandlePotentialAlterRefCount(Instruction *Inst, const Value *Ptr,
-                                    ProvenanceAnalysis &PA, ARCInstKind Class);
+                                    ProvenanceAnalysis &PA, ARCInstKind Class,
+                                    const BundledRetainClaimRVs &BundledRVs);
 };
 
 } // end namespace objcarc

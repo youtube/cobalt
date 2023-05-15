@@ -1,9 +1,8 @@
 //===- llvm/unittest/ADT/TinyPtrVectorTest.cpp ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,12 +22,21 @@
 using namespace llvm;
 
 namespace {
+template <typename T> struct RemovePointer : std::remove_pointer<T> {};
+
+template <typename PointerTy, unsigned IntBits, typename IntType,
+          typename PtrTraits, typename Info>
+struct RemovePointer<
+    PointerIntPair<PointerTy, IntBits, IntType, PtrTraits, Info>> {
+  typedef typename RemovePointer<PointerTy>::type type;
+};
 
 template <typename VectorT>
 class TinyPtrVectorTest : public testing::Test {
 protected:
   typedef typename VectorT::value_type PtrT;
-  typedef typename std::remove_pointer<PtrT>::type ValueT;
+  typedef typename RemovePointer<PtrT>::type ValueT;
+  using PtrTraits = PointerLikeTypeTraits<PtrT>;
 
   VectorT V;
   VectorT V2;
@@ -37,15 +45,15 @@ protected:
   std::vector<PtrT> TestPtrs;
 
   TinyPtrVectorTest() {
-    for (size_t i = 0, e = array_lengthof(TestValues); i != e; ++i)
-      TestPtrs.push_back(&TestValues[i]);
+    for (size_t i = 0, e = std::size(TestValues); i != e; ++i)
+      TestPtrs.push_back(PtrT(&TestValues[i]));
 
     std::shuffle(TestPtrs.begin(), TestPtrs.end(), std::mt19937{});
   }
 
-  ArrayRef<PtrT> testArray(size_t N) {
-    return makeArrayRef(&TestPtrs[0], N);
-  }
+  PtrT makePtr(ValueT *V) { return PtrT(V); }
+
+  ArrayRef<PtrT> testArray(size_t N) { return ArrayRef(&TestPtrs[0], N); }
 
   void appendValues(VectorT &V, ArrayRef<PtrT> Values) {
     for (size_t i = 0, e = Values.size(); i != e; ++i)
@@ -70,10 +78,10 @@ protected:
   }
 };
 
-typedef ::testing::Types<TinyPtrVector<int*>,
-                         TinyPtrVector<double*>
-                         > TinyPtrVectorTestTypes;
-TYPED_TEST_CASE(TinyPtrVectorTest, TinyPtrVectorTestTypes);
+typedef ::testing::Types<TinyPtrVector<int *>, TinyPtrVector<double *>,
+                         TinyPtrVector<PointerIntPair<int *, 1>>>
+    TinyPtrVectorTestTypes;
+TYPED_TEST_SUITE(TinyPtrVectorTest, TinyPtrVectorTestTypes, );
 
 TYPED_TEST(TinyPtrVectorTest, EmptyTest) {
   this->expectValues(this->V, this->testArray(0));
@@ -96,8 +104,8 @@ TYPED_TEST(TinyPtrVectorTest, PushPopBack) {
   this->expectValues(this->V, this->testArray(4));
   this->V.pop_back();
   this->expectValues(this->V, this->testArray(3));
-  this->TestPtrs[3] = &this->TestValues[42];
-  this->TestPtrs[4] = &this->TestValues[43];
+  this->TestPtrs[3] = this->makePtr(&this->TestValues[42]);
+  this->TestPtrs[4] = this->makePtr(&this->TestValues[43]);
   this->V.push_back(this->TestPtrs[3]);
   this->expectValues(this->V, this->testArray(4));
   this->V.push_back(this->TestPtrs[4]);

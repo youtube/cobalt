@@ -149,7 +149,8 @@ void test() {
 }
 
 namespace PR21905 {
-int (*a) () = (void)Z;  // expected-error-re {{use of undeclared identifier 'Z'{{$}}}}
+int (*a)() = (void)Z; // expected-error-re {{use of undeclared identifier 'Z'{{$}}}} \
+                      // expected-error {{cannot initialize a variable of type 'int (*)()' with an rvalue of type 'void'}}
 }
 
 namespace PR21947 {
@@ -158,7 +159,7 @@ __typeof blur y;  // expected-error {{use of undeclared identifier 'blur'; did y
 }
 
 namespace PR22092 {
-a = b ? : 0;  // expected-error {{C++ requires a type specifier for all declarations}} \
+a = b ? : 0;  // expected-error {{a type specifier is required for all declarations}} \
               // expected-error-re {{use of undeclared identifier 'b'{{$}}}}
 }
 

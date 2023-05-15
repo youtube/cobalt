@@ -5,16 +5,17 @@
 define i8 @test1(i8 %x) nounwind {
 ; X32-LABEL: test1:
 ; X32:       ## %bb.0:
-; X32-NEXT:    movb {{[0-9]+}}(%esp), %al
+; X32-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
 ; X32-NEXT:    andb $1, %al
 ; X32-NEXT:    negb %al
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: test1:
 ; X64:       ## %bb.0:
-; X64-NEXT:    andb $1, %dil
-; X64-NEXT:    negb %dil
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    andb $1, %al
+; X64-NEXT:    negb %al
+; X64-NEXT:    ## kill: def $al killed $al killed $eax
 ; X64-NEXT:    retq
   %z = trunc i8 %x to i1
   %u = sext i1 %z to i8
@@ -86,14 +87,15 @@ define i32 @test4(i32 %x) nounwind {
 define i8 @test5(i8 %x) nounwind {
 ; X32-LABEL: test5:
 ; X32:       ## %bb.0:
-; X32-NEXT:    movb {{[0-9]+}}(%esp), %al
+; X32-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
 ; X32-NEXT:    andb $1, %al
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: test5:
 ; X64:       ## %bb.0:
-; X64-NEXT:    andb $1, %dil
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    andb $1, %al
+; X64-NEXT:    ## kill: def $al killed $al killed $eax
 ; X64-NEXT:    retq
   %z = trunc i8 %x to i1
   %u = zext i1 %z to i8

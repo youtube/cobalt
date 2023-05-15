@@ -3,9 +3,9 @@
 ; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
 
 declare i32 @foo()
-@g1 = global i16 0
+@g1 = dso_local global i16 0
 
-define void @f1(i32 %target) {
+define dso_local void @f1(i32 %target) {
 ; CHECK-LABEL: f1:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -19,7 +19,7 @@ exit:
   ret void
 }
 
-define void @f2(i32 %target) {
+define dso_local void @f2(i32 %target) {
 ; CHECK-LABEL: f2:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -33,7 +33,7 @@ exit:
   ret void
 }
 
-define void @f3(i32 %target) {
+define dso_local void @f3(i32 %target) {
 ; CHECK-LABEL: f3:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -47,7 +47,7 @@ exit:
   ret void
 }
 
-define void @f4(i32 %target) {
+define dso_local void @f4(i32 %target) {
 ; CHECK-LABEL: f4:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -61,7 +61,7 @@ exit:
   ret void
 }
 
-define void @f5(i32 %target) {
+define dso_local void @f5(i32 %target) {
 ; CHECK-LABEL: f5:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -75,7 +75,7 @@ exit:
   ret void
 }
 
-define void @f6(i32 %target) {
+define dso_local void @f6(i32 %target) {
 ; CHECK-LABEL: f6:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -91,7 +91,7 @@ exit:
 
 ; Check that CRJ is used for checking equality with a zero-extending
 ; character load.
-define void @f7(i8 *%targetptr) {
+define dso_local void @f7(ptr %targetptr) {
 ; CHECK-LABEL: f7:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -100,7 +100,7 @@ define void @f7(i8 *%targetptr) {
   br label %loop
 loop:
   %val = call i32 @foo()
-  %byte = load i8, i8 *%targetptr
+  %byte = load i8, ptr %targetptr
   %target = zext i8 %byte to i32
   %cond = icmp eq i32 %val, %target
   br i1 %cond, label %loop, label %exit
@@ -109,7 +109,7 @@ exit:
 }
 
 ; ...and zero-extending i16 loads.
-define void @f8(i16 *%targetptr) {
+define dso_local void @f8(ptr %targetptr) {
 ; CHECK-LABEL: f8:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -118,7 +118,7 @@ define void @f8(i16 *%targetptr) {
   br label %loop
 loop:
   %val = call i32 @foo()
-  %half = load i16, i16 *%targetptr
+  %half = load i16, ptr %targetptr
   %target = zext i16 %half to i32
   %cond = icmp eq i32 %val, %target
   br i1 %cond, label %loop, label %exit
@@ -127,7 +127,7 @@ exit:
 }
 
 ; ...unless the address is a global.
-define void @f9(i16 *%targetptr) {
+define dso_local void @f9(ptr %targetptr) {
 ; CHECK-LABEL: f9:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -136,7 +136,7 @@ define void @f9(i16 *%targetptr) {
   br label %loop
 loop:
   %val = call i32 @foo()
-  %half = load i16, i16 *@g1
+  %half = load i16, ptr@g1
   %target = zext i16 %half to i32
   %cond = icmp eq i32 %val, %target
   br i1 %cond, label %loop, label %exit
@@ -146,7 +146,7 @@ exit:
 
 ; Check that CRJ is used for checking order between two zero-extending
 ; byte loads, even if the original comparison was unsigned.
-define void @f10(i8 *%targetptr1) {
+define dso_local void @f10(ptr %targetptr1) {
 ; CHECK-LABEL: f10:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -156,9 +156,9 @@ define void @f10(i8 *%targetptr1) {
   br label %loop
 loop:
   %val = call i32 @foo()
-  %targetptr2 = getelementptr i8, i8 *%targetptr1, i64 1
-  %byte1 = load i8, i8 *%targetptr1
-  %byte2 = load i8, i8 *%targetptr2
+  %targetptr2 = getelementptr i8, ptr %targetptr1, i64 1
+  %byte1 = load i8, ptr %targetptr1
+  %byte2 = load i8, ptr %targetptr2
   %ext1 = zext i8 %byte1 to i32
   %ext2 = zext i8 %byte2 to i32
   %cond = icmp ult i32 %ext1, %ext2
@@ -168,7 +168,7 @@ exit:
 }
 
 ; ...likewise halfword loads.
-define void @f11(i16 *%targetptr1) {
+define dso_local void @f11(ptr %targetptr1) {
 ; CHECK-LABEL: f11:
 ; CHECK: .cfi_def_cfa_offset
 ; CHECK: .L[[LABEL:.*]]:
@@ -178,9 +178,9 @@ define void @f11(i16 *%targetptr1) {
   br label %loop
 loop:
   %val = call i32 @foo()
-  %targetptr2 = getelementptr i16, i16 *%targetptr1, i64 1
-  %half1 = load i16, i16 *%targetptr1
-  %half2 = load i16, i16 *%targetptr2
+  %targetptr2 = getelementptr i16, ptr %targetptr1, i64 1
+  %half1 = load i16, ptr %targetptr1
+  %half2 = load i16, ptr %targetptr2
   %ext1 = zext i16 %half1 to i32
   %ext2 = zext i16 %half2 to i32
   %cond = icmp ult i32 %ext1, %ext2

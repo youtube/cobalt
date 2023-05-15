@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03 && !stdlib=libc++
 
 // <vector>
 
@@ -27,13 +26,14 @@ class A
     int i_;
     double d_;
 
-    A(const A&);
-    A& operator=(const A&);
 public:
-    A(int i, double d)
+    A(const A&) = delete;
+    A& operator=(const A&) = delete;
+
+    TEST_CONSTEXPR_CXX14 A(int i, double d)
         : i_(i), d_(d) {}
 
-    A(A&& a)
+    TEST_CONSTEXPR_CXX14 A(A&& a)
         : i_(a.i_),
           d_(a.d_)
     {
@@ -41,7 +41,7 @@ public:
         a.d_ = 0;
     }
 
-    A& operator=(A&& a)
+    TEST_CONSTEXPR_CXX14 A& operator=(A&& a)
     {
         i_ = a.i_;
         d_ = a.d_;
@@ -50,11 +50,11 @@ public:
         return *this;
     }
 
-    int geti() const {return i_;}
-    double getd() const {return d_;}
+    TEST_CONSTEXPR_CXX14 int geti() const {return i_;}
+    TEST_CONSTEXPR_CXX14 double getd() const {return d_;}
 };
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     {
         std::vector<A> c;
@@ -111,7 +111,7 @@ int main()
         assert(is_contiguous_container_asan_correct(c));
     }
     {
-        std::vector<A, min_allocator<A>> c;
+        std::vector<A, min_allocator<A> > c;
 #if TEST_STD_VER > 14
         A& r1 = c.emplace_back(2, 3.5);
         assert(c.size() == 1);
@@ -138,11 +138,33 @@ int main()
         assert(is_contiguous_container_asan_correct(c));
     }
     {
-        std::vector<Tag_X, TaggingAllocator<Tag_X>> c;
+        std::vector<Tag_X, TaggingAllocator<Tag_X> > c;
         c.emplace_back();
         assert(c.size() == 1);
         c.emplace_back(1, 2, 3);
         assert(c.size() == 2);
         assert(is_contiguous_container_asan_correct(c));
     }
+
+    { // LWG 2164
+        int arr[] = {0, 1, 2, 3, 4};
+        int sz = 5;
+        std::vector<int> c(arr, arr+sz);
+        while (c.size() < c.capacity())
+            c.push_back(sz++);
+        c.emplace_back(c.front());
+        assert(c.back() == 0);
+        for (int i = 0; i < sz; ++i)
+            assert(c[i] == i);
+    }
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

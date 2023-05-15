@@ -1,9 +1,8 @@
 //===--- lib/CodeGen/DebugLocStream.h - DWARF debug_loc stream --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -39,21 +38,18 @@ public:
         : CU(CU), EntryOffset(EntryOffset) {}
   };
   struct Entry {
-    const MCSymbol *BeginSym;
-    const MCSymbol *EndSym;
+    const MCSymbol *Begin;
+    const MCSymbol *End;
     size_t ByteOffset;
     size_t CommentOffset;
-    Entry(const MCSymbol *BeginSym, const MCSymbol *EndSym, size_t ByteOffset,
-          size_t CommentOffset)
-        : BeginSym(BeginSym), EndSym(EndSym), ByteOffset(ByteOffset),
-          CommentOffset(CommentOffset) {}
   };
 
 private:
   SmallVector<List, 4> Lists;
   SmallVector<Entry, 32> Entries;
   SmallString<256> DWARFBytes;
-  SmallVector<std::string, 32> Comments;
+  std::vector<std::string> Comments;
+  MCSymbol *Sym;
 
   /// Only verbose textual output needs comments.  This will be set to
   /// true for that case, and false otherwise.
@@ -64,6 +60,12 @@ public:
   size_t getNumLists() const { return Lists.size(); }
   const List &getList(size_t LI) const { return Lists[LI]; }
   ArrayRef<List> getLists() const { return Lists; }
+  MCSymbol *getSym() const {
+    return Sym;
+  }
+  void setSym(MCSymbol *Sym) {
+    this->Sym = Sym;
+  }
 
   class ListBuilder;
   class EntryBuilder;
@@ -94,7 +96,7 @@ private:
   /// Until the next call, bytes added to the stream will be added to this
   /// entry.
   void startEntry(const MCSymbol *BeginSym, const MCSymbol *EndSym) {
-    Entries.emplace_back(BeginSym, EndSym, DWARFBytes.size(), Comments.size());
+    Entries.push_back({BeginSym, EndSym, DWARFBytes.size(), Comments.size()});
   }
 
   /// Finalize a .debug_loc entry, deleting if it's empty.
@@ -107,19 +109,18 @@ public:
 
   ArrayRef<Entry> getEntries(const List &L) const {
     size_t LI = getIndex(L);
-    return makeArrayRef(Entries)
-        .slice(Lists[LI].EntryOffset, getNumEntries(LI));
+    return ArrayRef(Entries).slice(Lists[LI].EntryOffset, getNumEntries(LI));
   }
 
   ArrayRef<char> getBytes(const Entry &E) const {
     size_t EI = getIndex(E);
-    return makeArrayRef(DWARFBytes.begin(), DWARFBytes.end())
+    return ArrayRef(DWARFBytes.begin(), DWARFBytes.end())
         .slice(Entries[EI].ByteOffset, getNumBytes(EI));
   }
   ArrayRef<std::string> getComments(const Entry &E) const {
     size_t EI = getIndex(E);
-    return makeArrayRef(Comments)
-        .slice(Entries[EI].CommentOffset, getNumComments(EI));
+    return ArrayRef(Comments).slice(Entries[EI].CommentOffset,
+                                    getNumComments(EI));
   }
 
 private:
@@ -157,11 +158,17 @@ class DebugLocStream::ListBuilder {
   DbgVariable &V;
   const MachineInstr &MI;
   size_t ListIndex;
+  std::optional<uint8_t> TagOffset;
 
 public:
   ListBuilder(DebugLocStream &Locs, DwarfCompileUnit &CU, AsmPrinter &Asm,
               DbgVariable &V, const MachineInstr &MI)
-      : Locs(Locs), Asm(Asm), V(V), MI(MI), ListIndex(Locs.startList(&CU)) {}
+      : Locs(Locs), Asm(Asm), V(V), MI(MI), ListIndex(Locs.startList(&CU)),
+        TagOffset(std::nullopt) {}
+
+  void setTagOffset(uint8_t TO) {
+    TagOffset = TO;
+  }
 
   /// Finalize the list.
   ///

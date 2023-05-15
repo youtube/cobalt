@@ -1,16 +1,15 @@
 //===--- DeprecatedHeadersCheck.h - clang-tidy-------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MODERNIZE_C_HEADERS_TO_CXX_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MODERNIZE_C_HEADERS_TO_CXX_H
 
-#include "../ClangTidy.h"
+#include "../ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {
@@ -32,12 +31,30 @@ namespace modernize {
 /// Example: ``<stdio.h> => <cstdio>``
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/modernize-deprecated-headers.html
+/// http://clang.llvm.org/extra/clang-tidy/checks/modernize/deprecated-headers.html
 class DeprecatedHeadersCheck : public ClangTidyCheck {
 public:
-  DeprecatedHeadersCheck(StringRef Name, ClangTidyContext *Context)
-      : ClangTidyCheck(Name, Context) {}
-  void registerPPCallbacks(CompilerInstance &Compiler) override;
+  DeprecatedHeadersCheck(StringRef Name, ClangTidyContext *Context);
+  bool isLanguageVersionSupported(const LangOptions &LangOpts) const override {
+    return LangOpts.CPlusPlus;
+  }
+  void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
+  void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP,
+                           Preprocessor *ModuleExpanderPP) override;
+  void registerMatchers(ast_matchers::MatchFinder *Finder) override;
+  void onEndOfTranslationUnit() override;
+  void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
+
+  struct IncludeMarker {
+    std::string Replacement;
+    StringRef FileName;
+    SourceRange ReplacementRange;
+    SourceLocation DiagLoc;
+  };
+
+private:
+  std::vector<IncludeMarker> IncludesToBeProcessed;
+  bool CheckHeaderFile;
 };
 
 } // namespace modernize

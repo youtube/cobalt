@@ -1,24 +1,27 @@
 //===- FrontendOptions.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_FRONTEND_FRONTENDOPTIONS_H
 #define LLVM_CLANG_FRONTEND_FRONTENDOPTIONS_H
 
+#include "clang/AST/ASTDumperUtils.h"
+#include "clang/Basic/LangStandard.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
-#include "clang/Serialization/ModuleFileExtension.h"
 #include "clang/Sema/CodeCompleteOptions.h"
+#include "clang/Serialization/ModuleFileExtension.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include <cassert>
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
-#include <unordered_map>
 
 namespace llvm {
 
@@ -73,6 +76,9 @@ enum ActionKind {
   /// Emit a .o file.
   EmitObj,
 
+  // Extract API information
+  ExtractAPI,
+
   /// Parse and apply any fixits to the source.
   FixIt,
 
@@ -82,11 +88,14 @@ enum ActionKind {
   /// Generate pre-compiled module from a C++ module interface file.
   GenerateModuleInterface,
 
+  /// Generate a C++20 header unit module from a header file.
+  GenerateHeaderUnit,
+
   /// Generate pre-compiled header.
   GeneratePCH,
 
-  /// Generate pre-tokenized header.
-  GeneratePTH,
+  /// Generate Interface Stub Files.
+  GenerateInterfaceStubs,
 
   /// Only execute frontend initialization.
   InitOnly,
@@ -102,9 +111,6 @@ enum ActionKind {
 
   /// Run a plugin action, \see ActionName.
   PluginAction,
-
-  /// Print DeclContext and their Decls.
-  PrintDeclContext,
 
   /// Print the "preamble" of the input file
   PrintPreamble,
@@ -131,7 +137,10 @@ enum ActionKind {
   MigrateSource,
 
   /// Just lex, no output.
-  RunPreprocessorOnly
+  RunPreprocessorOnly,
+
+  /// Print the output of the dependency directives source minimizer.
+  PrintDependencyDirectivesSourceMinimizerOutput
 };
 
 } // namespace frontend
@@ -139,35 +148,13 @@ enum ActionKind {
 /// The kind of a file that we've been handed as an input.
 class InputKind {
 private:
-  unsigned Lang : 4;
+  Language Lang;
   unsigned Fmt : 3;
   unsigned Preprocessed : 1;
+  unsigned HeaderUnit : 3;
+  unsigned IsHeader : 1;
 
 public:
-  /// The language for the input, used to select and validate the language
-  /// standard and possible actions.
-  enum Language {
-    Unknown,
-
-    /// Assembly: we accept this only so that we can preprocess it.
-    Asm,
-
-    /// LLVM IR: we accept this so that we can run the optimizer on it,
-    /// and compile it to assembly or object code.
-    LLVM_IR,
-
-    ///@{ Languages that the frontend can parse and compile.
-    C,
-    CXX,
-    ObjC,
-    ObjCXX,
-    OpenCL,
-    CUDA,
-    RenderScript,
-    HIP,
-    ///@}
-  };
-
   /// The input file format.
   enum Format {
     Source,
@@ -175,26 +162,56 @@ public:
     Precompiled
   };
 
-  constexpr InputKind(Language L = Unknown, Format F = Source,
-                      bool PP = false)
-      : Lang(L), Fmt(F), Preprocessed(PP) {}
+  // If we are building a header unit, what kind it is; this affects whether
+  // we look for the file in the user or system include search paths before
+  // flagging a missing input.
+  enum HeaderUnitKind {
+    HeaderUnit_None,
+    HeaderUnit_User,
+    HeaderUnit_System,
+    HeaderUnit_Abs
+  };
+
+  constexpr InputKind(Language L = Language::Unknown, Format F = Source,
+                      bool PP = false, HeaderUnitKind HU = HeaderUnit_None,
+                      bool HD = false)
+      : Lang(L), Fmt(F), Preprocessed(PP), HeaderUnit(HU), IsHeader(HD) {}
 
   Language getLanguage() const { return static_cast<Language>(Lang); }
   Format getFormat() const { return static_cast<Format>(Fmt); }
+  HeaderUnitKind getHeaderUnitKind() const {
+    return static_cast<HeaderUnitKind>(HeaderUnit);
+  }
   bool isPreprocessed() const { return Preprocessed; }
+  bool isHeader() const { return IsHeader; }
+  bool isHeaderUnit() const { return HeaderUnit != HeaderUnit_None; }
 
   /// Is the input kind fully-unknown?
-  bool isUnknown() const { return Lang == Unknown && Fmt == Source; }
+  bool isUnknown() const { return Lang == Language::Unknown && Fmt == Source; }
 
   /// Is the language of the input some dialect of Objective-C?
-  bool isObjectiveC() const { return Lang == ObjC || Lang == ObjCXX; }
+  bool isObjectiveC() const {
+    return Lang == Language::ObjC || Lang == Language::ObjCXX;
+  }
 
   InputKind getPreprocessed() const {
-    return InputKind(getLanguage(), getFormat(), true);
+    return InputKind(getLanguage(), getFormat(), true, getHeaderUnitKind(),
+                     isHeader());
+  }
+
+  InputKind getHeader() const {
+    return InputKind(getLanguage(), getFormat(), isPreprocessed(),
+                     getHeaderUnitKind(), true);
+  }
+
+  InputKind withHeaderUnit(HeaderUnitKind HU) const {
+    return InputKind(getLanguage(), getFormat(), isPreprocessed(), HU,
+                     isHeader());
   }
 
   InputKind withFormat(Format F) const {
-    return InputKind(getLanguage(), F, isPreprocessed());
+    return InputKind(getLanguage(), F, isPreprocessed(), getHeaderUnitKind(),
+                     isHeader());
   }
 };
 
@@ -206,7 +223,7 @@ class FrontendInputFile {
   /// The input, if it comes from a buffer rather than a file. This object
   /// does not own the buffer, and the caller is responsible for ensuring
   /// that it outlives any users.
-  llvm::MemoryBuffer *Buffer = nullptr;
+  std::optional<llvm::MemoryBufferRef> Buffer;
 
   /// The kind of input, e.g., C source, AST file, LLVM IR.
   InputKind Kind;
@@ -218,26 +235,30 @@ public:
   FrontendInputFile() = default;
   FrontendInputFile(StringRef File, InputKind Kind, bool IsSystem = false)
       : File(File.str()), Kind(Kind), IsSystem(IsSystem) {}
-  FrontendInputFile(llvm::MemoryBuffer *Buffer, InputKind Kind,
+  FrontendInputFile(llvm::MemoryBufferRef Buffer, InputKind Kind,
                     bool IsSystem = false)
       : Buffer(Buffer), Kind(Kind), IsSystem(IsSystem) {}
 
   InputKind getKind() const { return Kind; }
   bool isSystem() const { return IsSystem; }
 
-  bool isEmpty() const { return File.empty() && Buffer == nullptr; }
+  bool isEmpty() const { return File.empty() && Buffer == std::nullopt; }
   bool isFile() const { return !isBuffer(); }
-  bool isBuffer() const { return Buffer != nullptr; }
+  bool isBuffer() const { return Buffer != std::nullopt; }
   bool isPreprocessed() const { return Kind.isPreprocessed(); }
+  bool isHeader() const { return Kind.isHeader(); }
+  InputKind::HeaderUnitKind getHeaderUnitKind() const {
+    return Kind.getHeaderUnitKind();
+  }
 
   StringRef getFile() const {
     assert(isFile());
     return File;
   }
 
-  llvm::MemoryBuffer *getBuffer() const {
+  llvm::MemoryBufferRef getBuffer() const {
     assert(isBuffer());
-    return Buffer;
+    return *Buffer;
   }
 };
 
@@ -257,8 +278,11 @@ public:
   /// Show frontend performance metrics and statistics.
   unsigned ShowStats : 1;
 
-  /// Show timers for individual actions.
-  unsigned ShowTimers : 1;
+  /// print the supported cpus for the current target
+  unsigned PrintSupportedCPUs : 1;
+
+  /// Output time trace profile.
+  unsigned TimeTrace : 1;
 
   /// Show the -version text.
   unsigned ShowVersion : 1;
@@ -297,8 +321,14 @@ public:
   /// Whether we include lookup table dumps in AST dumps.
   unsigned ASTDumpLookups : 1;
 
+  /// Whether we include declaration type dumps in AST dumps.
+  unsigned ASTDumpDeclTypes : 1;
+
   /// Whether we are performing an implicit module build.
   unsigned BuildingImplicitModule : 1;
+
+  /// Whether to use a filesystem lock when building implicit modules.
+  unsigned BuildingImplicitModuleUsesLock : 1;
 
   /// Whether we should embed all used files into the PCM file.
   unsigned ModulesEmbedAllFiles : 1;
@@ -306,7 +336,22 @@ public:
   /// Whether timestamps should be written to the produced PCH file.
   unsigned IncludeTimestamps : 1;
 
+  /// Should a temporary file be used during compilation.
+  unsigned UseTemporary : 1;
+
+  /// When using -emit-module, treat the modulemap as a system module.
+  unsigned IsSystemModule : 1;
+
+  /// Output (and read) PCM files regardless of compiler errors.
+  unsigned AllowPCMWithCompilerErrors : 1;
+
+  /// Whether to share the FileManager when building modules.
+  unsigned ModulesShareFileManager : 1;
+
   CodeCompleteOptions CodeCompleteOpts;
+
+  /// Specifies the output format of the AST.
+  ASTDumpOutputFormat ASTDumpFormat = ADOF_Default;
 
   enum {
     ARCMT_None,
@@ -369,13 +414,17 @@ public:
                          ObjCMT_MigrateDecls | ObjCMT_PropertyDotSyntax)
   };
   unsigned ObjCMTAction = ObjCMT_None;
-  std::string ObjCMTWhiteListPath;
+  std::string ObjCMTAllowListPath;
 
   std::string MTMigrateDir;
   std::string ARCMTMigrateReportOut;
 
+  /// The input kind, either specified via -x argument or deduced from the input
+  /// file name.
+  InputKind DashX;
+
   /// The input files and their types.
-  std::vector<FrontendInputFile> Inputs;
+  SmallVector<FrontendInputFile, 0> Inputs;
 
   /// When the input is a module map, the original module map file from which
   /// that map was inferred, if any (for umbrella modules).
@@ -399,8 +448,16 @@ public:
   /// The name of the action to run when using a plugin action.
   std::string ActionName;
 
+  // Currently this is only used as part of the `-extract-api` action.
+  /// The name of the product the input files belong too.
+  std::string ProductName;
+
+  // Currently this is only used as part of the `-extract-api` action.
+  /// The file providing a list of APIs to ignore when extracting documentation
+  std::string ExtractAPIIgnoresFile;
+
   /// Args to pass to the plugins
-  std::unordered_map<std::string,std::vector<std::string>> PluginArgs;
+  std::map<std::string, std::vector<std::string>> PluginArgs;
 
   /// The list of plugin actions to run in addition to the normal action.
   std::vector<std::string> AddPluginActions;
@@ -432,27 +489,42 @@ public:
   /// (in the format produced by -fdump-record-layouts).
   std::string OverrideRecordLayoutsFile;
 
-  /// Auxiliary triple for CUDA compilation.
+  /// Auxiliary triple for CUDA/HIP compilation.
   std::string AuxTriple;
+
+  /// Auxiliary target CPU for CUDA/HIP compilation.
+  std::optional<std::string> AuxTargetCPU;
+
+  /// Auxiliary target features for CUDA/HIP compilation.
+  std::optional<std::vector<std::string>> AuxTargetFeatures;
 
   /// Filename to write statistics to.
   std::string StatsFile;
 
+  /// Minimum time granularity (in microseconds) traced by time profiler.
+  unsigned TimeTraceGranularity;
+
+  /// Path which stores the output files for -ftime-trace
+  std::string TimeTracePath;
+
 public:
   FrontendOptions()
       : DisableFree(false), RelocatablePCH(false), ShowHelp(false),
-        ShowStats(false), ShowTimers(false), ShowVersion(false),
+        ShowStats(false), TimeTrace(false), ShowVersion(false),
         FixWhatYouCan(false), FixOnlyWarnings(false), FixAndRecompile(false),
         FixToTemporaries(false), ARCMTMigrateEmitARCErrors(false),
         SkipFunctionBodies(false), UseGlobalModuleIndex(true),
         GenerateGlobalModuleIndex(true), ASTDumpDecls(false),
         ASTDumpLookups(false), BuildingImplicitModule(false),
-        ModulesEmbedAllFiles(false), IncludeTimestamps(true) {}
+        BuildingImplicitModuleUsesLock(true), ModulesEmbedAllFiles(false),
+        IncludeTimestamps(true), UseTemporary(true),
+        AllowPCMWithCompilerErrors(false), ModulesShareFileManager(true),
+        TimeTraceGranularity(500) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
-  /// extension. For example, "c" would return InputKind::C.
+  /// extension. For example, "c" would return Language::C.
   ///
-  /// \return The input kind for the extension, or InputKind::Unknown if the
+  /// \return The input kind for the extension, or Language::Unknown if the
   /// extension is not recognized.
   static InputKind getInputKindForExtension(StringRef Extension);
 };

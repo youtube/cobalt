@@ -1,8 +1,8 @@
-;RUN: opt -S -globalopt -f %s | FileCheck %s
+;RUN: opt -S -passes=globalopt -f %s | FileCheck %s
 
 ;CHECK: @foo = internal unnamed_addr global i1 false, align 4, !dbg ![[VAR:.*]]
 ;CHECK: ![[VAR]] = !DIGlobalVariableExpression(var: !1, expr:
-;CHECK-SAME: !DIExpression(DW_OP_deref, DW_OP_constu, 111, DW_OP_mul,
+;CHECK-SAME: !DIExpression(DW_OP_deref_size, 1, DW_OP_constu, 111, DW_OP_mul,
 ;CHECK-SAME:               DW_OP_constu, 0, DW_OP_plus, DW_OP_stack_value,
 ;CHECK-SAME:               DW_OP_LLVM_fragment, 0, 1)) 
 
@@ -11,21 +11,21 @@
 ; Function Attrs: noinline nounwind optnone uwtable
 define void @set1() #0 !dbg !11 {
 entry:
-  store i32 111, i32* @foo, align 4, !dbg !14
+  store i32 111, ptr @foo, align 4, !dbg !14
   ret void, !dbg !15
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define void @set2() #0 !dbg !16 {
 entry:
-  store i32 0, i32* @foo, align 4, !dbg !17
+  store i32 0, ptr @foo, align 4, !dbg !17
   ret void, !dbg !18
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define i32 @get() #0 !dbg !19 {
 entry:
-  %0 = load i32, i32* @foo, align 4, !dbg !22
+  %0 = load i32, ptr @foo, align 4, !dbg !22
   ret i32 %0, !dbg !23
 }
 

@@ -1,9 +1,8 @@
 //===- SpillPlacement.h - Optimal Spill Code Placement ---------*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -96,6 +95,9 @@ public:
     /// the block has a non-PHI def.  When this is false, a live-in value on
     /// the stack can be live-out on the stack without inserting a spill.
     bool ChangesValue;
+
+    void print(raw_ostream &OS) const;
+    void dump() const;
   };
 
   /// prepare - Reset state and prepare for a new spill placement computation.

@@ -1,4 +1,4 @@
-set(LLVM_LINK_COMPONENTS ${LLVM_TARGETS_TO_BUILD} FuzzMutate)
+set(LLVM_LINK_COMPONENTS ${LLVM_TARGETS_TO_BUILD} FuzzerCLI)
 set(CXX_FLAGS_NOFUZZ ${CMAKE_CXX_FLAGS})
 set(DUMMY_MAIN DummyClangFuzzer.cpp)
 if(LLVM_LIB_FUZZING_ENGINE)
@@ -12,6 +12,7 @@ endif()
 # Needed by LLVM's CMake checks because this file defines multiple targets.
 set(LLVM_OPTIONAL_SOURCES
   ClangFuzzer.cpp
+  ClangObjectiveCFuzzer.cpp
   DummyClangFuzzer.cpp
   ExampleClangProtoFuzzer.cpp
   ExampleClangLoopProtoFuzzer.cpp
@@ -108,6 +109,7 @@ endif()
 
 add_clang_subdirectory(handle-cxx)
 add_clang_subdirectory(handle-llvm)
+add_clang_subdirectory(dictionary)
 
 add_clang_executable(clang-fuzzer
   EXCLUDE_FROM_ALL
@@ -116,6 +118,18 @@ add_clang_executable(clang-fuzzer
   )
 
 target_link_libraries(clang-fuzzer
+  PRIVATE
+  ${LLVM_LIB_FUZZING_ENGINE}
+  clangHandleCXX
+  )
+
+add_clang_executable(clang-objc-fuzzer
+  EXCLUDE_FROM_ALL
+  ${DUMMY_MAIN}
+  ClangObjectiveCFuzzer.cpp
+  )
+
+target_link_libraries(clang-objc-fuzzer
   PRIVATE
   ${LLVM_LIB_FUZZING_ENGINE}
   clangHandleCXX

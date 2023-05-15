@@ -1,9 +1,9 @@
 """
 LLDB AppKit formatters
 
-part of The LLVM Compiler Infrastructure
-This file is distributed under the University of Illinois Open Source
-License. See LICENSE.TXT for details.
+Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+See https://llvm.org/LICENSE.txt for license information.
+SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """
 # example summary provider for CFBinaryHeap
 # the real summary is now C++ code built into LLDB
@@ -143,7 +143,7 @@ def CFBinaryHeap_SummaryProvider(valobj, dict):
         #  the mask needs to be changed)
         if summary is None:
             summary = '<variable is not CFBinaryHeap>'
-        elif isinstance(summary, basestring):
+        elif isinstance(summary, str):
             pass
         else:
             if provider.sys_params.is_64_bit:

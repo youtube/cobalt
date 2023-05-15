@@ -1,9 +1,8 @@
 //===-- SparcRegisterInfo.td - Sparc Register defs ---------*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -107,6 +106,8 @@ def ASR31 : SparcCtrlReg<31, "ASR31">;
 def PSR : SparcCtrlReg<0, "PSR">;
 def WIM : SparcCtrlReg<0, "WIM">;
 def TBR : SparcCtrlReg<0, "TBR">;
+// PC on the other hand is only available for SparcV9.
+def PC : SparcCtrlReg<5, "PC">;
 
 def TPC : SparcCtrlReg<0, "TPC">;
 def TNPC : SparcCtrlReg<1, "TNPC">;
@@ -125,7 +126,9 @@ def OTHERWIN : SparcCtrlReg<13, "OTHERWIN">;
 def WSTATE : SparcCtrlReg<14, "WSTATE">;
 
 // Integer registers
-def G0 : Ri< 0, "G0">, DwarfRegNum<[0]>;
+def G0 : Ri< 0, "G0">, DwarfRegNum<[0]> {
+  let isConstant = true;
+}
 def G1 : Ri< 1, "G1">, DwarfRegNum<[1]>;
 def G2 : Ri< 2, "G2">, DwarfRegNum<[2]>;
 def G3 : Ri< 3, "G3">, DwarfRegNum<[3]>;
@@ -360,14 +363,14 @@ let isAllocatable = 0 in {
   // Ancillary state registers
   def ASRRegs : RegisterClass<"SP", [i32], 32,
                               (add Y, (sequence "ASR%u", 1, 31))>;
-                            
+
   // This register class should not be used to hold i64 values.
   def CoprocRegs : RegisterClass<"SP", [i32], 32,
                                 (add (sequence "C%u", 0, 31))>;
 
   // Should be in the same order as CoprocRegs.
   def CoprocPair : RegisterClass<"SP", [v2i32], 64,
-    (add C0_C1,   C2_C3,   C4_C5,   C6_C7,   
+    (add C0_C1,   C2_C3,   C4_C5,   C6_C7,
          C8_C9,   C10_C11, C12_C13, C14_C15,
          C16_C17, C18_C19, C20_C21, C22_C23,
          C24_C25, C26_C27, C28_C29, C30_C31)>;
@@ -377,3 +380,4 @@ let isAllocatable = 0 in {
 def PRRegs : RegisterClass<"SP", [i64], 64,
     (add TPC, TNPC, TSTATE, TT, TICK, TBA, PSTATE, TL, PIL, CWP,
          CANSAVE, CANRESTORE, CLEANWIN, OTHERWIN, WSTATE)>;
+

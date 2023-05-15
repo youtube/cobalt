@@ -1,9 +1,8 @@
 //===- TemplateName.h - C++ Template Name Representation --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,23 +13,27 @@
 #ifndef LLVM_CLANG_AST_TEMPLATENAME_H
 #define LLVM_CLANG_AST_TEMPLATENAME_H
 
+#include "clang/AST/DependenceFlags.h"
+#include "clang/AST/NestedNameSpecifier.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
 #include <cassert>
+#include <optional>
 
 namespace clang {
 
 class ASTContext;
+class Decl;
 class DependentTemplateName;
-class DiagnosticBuilder;
 class IdentifierInfo;
 class NamedDecl;
 class NestedNameSpecifier;
 enum OverloadedOperatorKind : int;
 class OverloadedTemplateStorage;
+class AssumedTemplateStorage;
 struct PrintingPolicy;
 class QualifiedTemplateName;
 class SubstTemplateTemplateParmPackStorage;
@@ -38,6 +41,7 @@ class SubstTemplateTemplateParmStorage;
 class TemplateArgument;
 class TemplateDecl;
 class TemplateTemplateParmDecl;
+class UsingShadowDecl;
 
 /// Implementation class used to describe either a set of overloaded
 /// template names or an already-substituted template template parameter pack.
@@ -45,6 +49,7 @@ class UncommonTemplateNameStorage {
 protected:
   enum Kind {
     Overloaded,
+    Assumed, // defined in DeclarationName.h
     SubstTemplateTemplateParm,
     SubstTemplateTemplateParmPack
   };
@@ -53,9 +58,12 @@ protected:
     /// A Kind.
     unsigned Kind : 2;
 
-    /// The number of stored templates or template arguments,
-    /// depending on which subclass we have.
-    unsigned Size : 30;
+    // The template parameter index.
+    unsigned Index : 15;
+
+    /// The pack index, or the number of stored templates
+    /// or template arguments, depending on which subclass we have.
+    unsigned Data : 15;
   };
 
   union {
@@ -63,17 +71,22 @@ protected:
     void *PointerAlignment;
   };
 
-  UncommonTemplateNameStorage(Kind kind, unsigned size) {
-    Bits.Kind = kind;
-    Bits.Size = size;
+  UncommonTemplateNameStorage(Kind Kind, unsigned Index, unsigned Data) {
+    Bits.Kind = Kind;
+    Bits.Index = Index;
+    Bits.Data = Data;
   }
 
 public:
-  unsigned size() const { return Bits.Size; }
-
   OverloadedTemplateStorage *getAsOverloadedStorage()  {
     return Bits.Kind == Overloaded
              ? reinterpret_cast<OverloadedTemplateStorage *>(this)
+             : nullptr;
+  }
+
+  AssumedTemplateStorage *getAsAssumedTemplateName()  {
+    return Bits.Kind == Assumed
+             ? reinterpret_cast<AssumedTemplateStorage *>(this)
              : nullptr;
   }
 
@@ -96,7 +109,7 @@ class OverloadedTemplateStorage : public UncommonTemplateNameStorage {
   friend class ASTContext;
 
   OverloadedTemplateStorage(unsigned size)
-      : UncommonTemplateNameStorage(Overloaded, size) {}
+      : UncommonTemplateNameStorage(Overloaded, 0, size) {}
 
   NamedDecl **getStorage() {
     return reinterpret_cast<NamedDecl **>(this + 1);
@@ -106,10 +119,16 @@ class OverloadedTemplateStorage : public UncommonTemplateNameStorage {
   }
 
 public:
+  unsigned size() const { return Bits.Data; }
+
   using iterator = NamedDecl *const *;
 
   iterator begin() const { return getStorage(); }
-  iterator end() const { return getStorage() + size(); }
+  iterator end() const { return getStorage() + Bits.Data; }
+
+  llvm::ArrayRef<NamedDecl*> decls() const {
+    return llvm::ArrayRef(begin(), end());
+  }
 };
 
 /// A structure for storing an already-substituted template template
@@ -118,23 +137,29 @@ public:
 /// This kind of template names occurs when the parameter pack has been
 /// provided with a template template argument pack in a context where its
 /// enclosing pack expansion could not be fully expanded.
-class SubstTemplateTemplateParmPackStorage
-  : public UncommonTemplateNameStorage, public llvm::FoldingSetNode
-{
-  TemplateTemplateParmDecl *Parameter;
+class SubstTemplateTemplateParmPackStorage : public UncommonTemplateNameStorage,
+                                             public llvm::FoldingSetNode {
   const TemplateArgument *Arguments;
+  llvm::PointerIntPair<Decl *, 1, bool> AssociatedDeclAndFinal;
 
 public:
-  SubstTemplateTemplateParmPackStorage(TemplateTemplateParmDecl *Parameter,
-                                       unsigned Size,
-                                       const TemplateArgument *Arguments)
-      : UncommonTemplateNameStorage(SubstTemplateTemplateParmPack, Size),
-        Parameter(Parameter), Arguments(Arguments) {}
+  SubstTemplateTemplateParmPackStorage(ArrayRef<TemplateArgument> ArgPack,
+                                       Decl *AssociatedDecl, unsigned Index,
+                                       bool Final);
+
+  /// A template-like entity which owns the whole pattern being substituted.
+  /// This will own a set of template parameters.
+  Decl *getAssociatedDecl() const;
+
+  /// Returns the index of the replaced parameter in the associated declaration.
+  /// This should match the result of `getParameterPack()->getIndex()`.
+  unsigned getIndex() const { return Bits.Index; }
+
+  // When true the substitution will be 'Final' (subst node won't be placed).
+  bool getFinal() const;
 
   /// Retrieve the template template parameter pack being substituted.
-  TemplateTemplateParmDecl *getParameterPack() const {
-    return Parameter;
-  }
+  TemplateTemplateParmDecl *getParameterPack() const;
 
   /// Retrieve the template template argument pack with which this
   /// parameter was substituted.
@@ -142,10 +167,9 @@ public:
 
   void Profile(llvm::FoldingSetNodeID &ID, ASTContext &Context);
 
-  static void Profile(llvm::FoldingSetNodeID &ID,
-                      ASTContext &Context,
-                      TemplateTemplateParmDecl *Parameter,
-                      const TemplateArgument &ArgPack);
+  static void Profile(llvm::FoldingSetNodeID &ID, ASTContext &Context,
+                      const TemplateArgument &ArgPack, Decl *AssociatedDecl,
+                      unsigned Index, bool Final);
 };
 
 /// Represents a C++ template name within the type system.
@@ -176,9 +200,13 @@ public:
 /// specifier in the typedef. "apply" is a nested template, and can
 /// only be understood in the context of
 class TemplateName {
+  // NameDecl is either a TemplateDecl or a UsingShadowDecl depending on the
+  // NameKind.
+  // !! There is no free low bits in 32-bit builds to discriminate more than 4
+  // pointer types in PointerUnion.
   using StorageType =
-      llvm::PointerUnion4<TemplateDecl *, UncommonTemplateNameStorage *,
-                          QualifiedTemplateName *, DependentTemplateName *>;
+      llvm::PointerUnion<Decl *, UncommonTemplateNameStorage *,
+                         QualifiedTemplateName *, DependentTemplateName *>;
 
   StorageType Storage;
 
@@ -192,6 +220,10 @@ public:
 
     /// A set of overloaded template declarations.
     OverloadedTemplate,
+
+    /// An unqualified-id that has been assumed to name a function template
+    /// that will be found by ADL.
+    AssumedTemplate,
 
     /// A qualified template name, where the qualification is kept
     /// to describe the source code as written.
@@ -208,16 +240,22 @@ public:
     /// A template template parameter pack that has been substituted for
     /// a template template argument pack, but has not yet been expanded into
     /// individual arguments.
-    SubstTemplateTemplateParmPack
+    SubstTemplateTemplateParmPack,
+
+    /// A template name that refers to a template declaration found through a
+    /// specific using shadow declaration.
+    UsingTemplate,
   };
 
   TemplateName() = default;
   explicit TemplateName(TemplateDecl *Template);
   explicit TemplateName(OverloadedTemplateStorage *Storage);
+  explicit TemplateName(AssumedTemplateStorage *Storage);
   explicit TemplateName(SubstTemplateTemplateParmStorage *Storage);
   explicit TemplateName(SubstTemplateTemplateParmPackStorage *Storage);
   explicit TemplateName(QualifiedTemplateName *Qual);
   explicit TemplateName(DependentTemplateName *Dep);
+  explicit TemplateName(UsingShadowDecl *Using);
 
   /// Determine whether this template name is NULL.
   bool isNull() const;
@@ -235,13 +273,17 @@ public:
   TemplateDecl *getAsTemplateDecl() const;
 
   /// Retrieve the underlying, overloaded function template
-  // declarations that this template name refers to, if known.
+  /// declarations that this template name refers to, if known.
   ///
   /// \returns The set of overloaded function templates that this template
   /// name refers to, if known. If the template name does not refer to a
   /// specific set of function templates because it is a dependent name or
   /// refers to a single template, returns NULL.
   OverloadedTemplateStorage *getAsOverloadedTemplate() const;
+
+  /// Retrieve information on a name that has been assumed to be a
+  /// template-name in order to permit a call via ADL.
+  AssumedTemplateStorage *getAsAssumedTemplateName() const;
 
   /// Retrieve the substituted template template parameter, if
   /// known.
@@ -266,12 +308,18 @@ public:
   /// structure, if any.
   DependentTemplateName *getAsDependentTemplateName() const;
 
+  /// Retrieve the using shadow declaration through which the underlying
+  /// template declaration is introduced, if any.
+  UsingShadowDecl *getAsUsingShadowDecl() const;
+
   TemplateName getUnderlying() const;
 
   /// Get the template name to substitute when this template name is used as a
   /// template template argument. This refers to the most recent declaration of
   /// the template, including any default template arguments.
   TemplateName getNameToSubstitute() const;
+
+  TemplateNameDependence getDependence() const;
 
   /// Determines whether this is a dependent template name.
   bool isDependent() const;
@@ -284,16 +332,17 @@ public:
   /// unexpanded parameter pack (for C++0x variadic templates).
   bool containsUnexpandedParameterPack() const;
 
+  enum class Qualified { None, AsWritten, Fully };
   /// Print the template name.
   ///
   /// \param OS the output stream to which the template name will be
   /// printed.
   ///
-  /// \param SuppressNNS if true, don't print the
-  /// nested-name-specifier that precedes the template name (if it has
-  /// one).
+  /// \param Qual print the (Qualified::None) simple name,
+  /// (Qualified::AsWritten) any written (possibly partial) qualifier, or
+  /// (Qualified::Fully) the fully qualified name.
   void print(raw_ostream &OS, const PrintingPolicy &Policy,
-             bool SuppressNNS = false) const;
+             Qualified Qual = Qualified::AsWritten) const;
 
   /// Debugging aid that dumps the template name.
   void dump(raw_ostream &OS) const;
@@ -317,8 +366,8 @@ public:
 
 /// Insertion operator for diagnostics.  This allows sending TemplateName's
 /// into a diagnostic with <<.
-const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                    TemplateName N);
+const StreamingDiagnostic &operator<<(const StreamingDiagnostic &DB,
+                                      TemplateName N);
 
 /// A structure for storing the information associated with a
 /// substituted template template parameter.
@@ -326,23 +375,41 @@ class SubstTemplateTemplateParmStorage
   : public UncommonTemplateNameStorage, public llvm::FoldingSetNode {
   friend class ASTContext;
 
-  TemplateTemplateParmDecl *Parameter;
   TemplateName Replacement;
+  Decl *AssociatedDecl;
 
-  SubstTemplateTemplateParmStorage(TemplateTemplateParmDecl *parameter,
-                                   TemplateName replacement)
-      : UncommonTemplateNameStorage(SubstTemplateTemplateParm, 0),
-        Parameter(parameter), Replacement(replacement) {}
+  SubstTemplateTemplateParmStorage(TemplateName Replacement,
+                                   Decl *AssociatedDecl, unsigned Index,
+                                   std::optional<unsigned> PackIndex)
+      : UncommonTemplateNameStorage(SubstTemplateTemplateParm, Index,
+                                    PackIndex ? *PackIndex + 1 : 0),
+        Replacement(Replacement), AssociatedDecl(AssociatedDecl) {
+    assert(AssociatedDecl != nullptr);
+  }
 
 public:
-  TemplateTemplateParmDecl *getParameter() const { return Parameter; }
+  /// A template-like entity which owns the whole pattern being substituted.
+  /// This will own a set of template parameters.
+  Decl *getAssociatedDecl() const { return AssociatedDecl; }
+
+  /// Returns the index of the replaced parameter in the associated declaration.
+  /// This should match the result of `getParameter()->getIndex()`.
+  unsigned getIndex() const { return Bits.Index; }
+
+  std::optional<unsigned> getPackIndex() const {
+    if (Bits.Data == 0)
+      return std::nullopt;
+    return Bits.Data - 1;
+  }
+
+  TemplateTemplateParmDecl *getParameter() const;
   TemplateName getReplacement() const { return Replacement; }
 
   void Profile(llvm::FoldingSetNodeID &ID);
 
-  static void Profile(llvm::FoldingSetNodeID &ID,
-                      TemplateTemplateParmDecl *parameter,
-                      TemplateName replacement);
+  static void Profile(llvm::FoldingSetNodeID &ID, TemplateName Replacement,
+                      Decl *AssociatedDecl, unsigned Index,
+                      std::optional<unsigned> PackIndex);
 };
 
 inline TemplateName TemplateName::getUnderlying() const {
@@ -375,13 +442,19 @@ class QualifiedTemplateName : public llvm::FoldingSetNode {
   /// this name with DependentTemplateName).
   llvm::PointerIntPair<NestedNameSpecifier *, 1> Qualifier;
 
-  /// The template declaration or set of overloaded function templates
-  /// that this qualified name refers to.
-  TemplateDecl *Template;
+  /// The underlying template name, it is either
+  ///  1) a Template -- a template declaration that this qualified name refers
+  ///     to.
+  ///  2) or a UsingTemplate -- a template declaration introduced by a
+  ///     using-shadow declaration.
+  TemplateName UnderlyingTemplate;
 
   QualifiedTemplateName(NestedNameSpecifier *NNS, bool TemplateKeyword,
-                        TemplateDecl *Template)
-      : Qualifier(NNS, TemplateKeyword? 1 : 0), Template(Template) {}
+                        TemplateName Template)
+      : Qualifier(NNS, TemplateKeyword ? 1 : 0), UnderlyingTemplate(Template) {
+    assert(UnderlyingTemplate.getKind() == TemplateName::Template ||
+           UnderlyingTemplate.getKind() == TemplateName::UsingTemplate);
+  }
 
 public:
   /// Return the nested name specifier that qualifies this name.
@@ -391,23 +464,18 @@ public:
   /// keyword.
   bool hasTemplateKeyword() const { return Qualifier.getInt(); }
 
-  /// The template declaration that this qualified name refers
-  /// to.
-  TemplateDecl *getDecl() const { return Template; }
-
-  /// The template declaration to which this qualified name
-  /// refers.
-  TemplateDecl *getTemplateDecl() const { return Template; }
+  /// Return the underlying template name.
+  TemplateName getUnderlyingTemplate() const { return UnderlyingTemplate; }
 
   void Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getQualifier(), hasTemplateKeyword(), getTemplateDecl());
+    Profile(ID, getQualifier(), hasTemplateKeyword(), UnderlyingTemplate);
   }
 
   static void Profile(llvm::FoldingSetNodeID &ID, NestedNameSpecifier *NNS,
-                      bool TemplateKeyword, TemplateDecl *Template) {
+                      bool TemplateKeyword, TemplateName TN) {
     ID.AddPointer(NNS);
     ID.AddBoolean(TemplateKeyword);
-    ID.AddPointer(Template);
+    ID.AddPointer(TN.getAsVoidPointer());
   }
 };
 
@@ -535,7 +603,7 @@ struct PointerLikeTypeTraits<clang::TemplateName> {
   }
 
   // No bits are available!
-  enum { NumLowBitsAvailable = 0 };
+  static constexpr int NumLowBitsAvailable = 0;
 };
 
 } // namespace llvm.

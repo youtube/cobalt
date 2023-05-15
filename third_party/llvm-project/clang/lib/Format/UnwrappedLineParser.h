@@ -1,9 +1,8 @@
 //===--- UnwrappedLineParser.h - Format C++ code ----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,9 +18,11 @@
 #include "FormatToken.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Format/Format.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/Support/Regex.h"
 #include <list>
 #include <stack>
+#include <vector>
 
 namespace clang {
 namespace format {
@@ -37,17 +38,28 @@ struct UnwrappedLineNode;
 struct UnwrappedLine {
   UnwrappedLine();
 
-  // FIXME: Don't use std::list here.
   /// The \c Tokens comprising this \c UnwrappedLine.
   std::list<UnwrappedLineNode> Tokens;
 
   /// The indent level of the \c UnwrappedLine.
   unsigned Level;
 
+  /// The \c PPBranchLevel (adjusted for header guards) if this line is a
+  /// \c InMacroBody line, and 0 otherwise.
+  unsigned PPLevel;
+
   /// Whether this \c UnwrappedLine is part of a preprocessor directive.
   bool InPPDirective;
+  /// Whether this \c UnwrappedLine is part of a pramga directive.
+  bool InPragmaDirective;
+  /// Whether it is part of a macro body.
+  bool InMacroBody;
 
   bool MustBeDeclaration;
+
+  /// \c True if this line should be indented by ContinuationIndent in
+  /// addition to the normal indention level.
+  bool IsContinuation = false;
 
   /// If this \c UnwrappedLine closes a block in a sequence of lines,
   /// \c MatchingOpeningBlockLineIndex stores the index of the corresponding
@@ -77,59 +89,116 @@ class UnwrappedLineParser {
 public:
   UnwrappedLineParser(const FormatStyle &Style,
                       const AdditionalKeywords &Keywords,
-                      unsigned FirstStartColumn,
-                      ArrayRef<FormatToken *> Tokens,
+                      unsigned FirstStartColumn, ArrayRef<FormatToken *> Tokens,
                       UnwrappedLineConsumer &Callback);
 
   void parse();
 
 private:
+  enum class IfStmtKind {
+    NotIf,   // Not an if statement.
+    IfOnly,  // An if statement without the else clause.
+    IfElse,  // An if statement followed by else but not else if.
+    IfElseIf // An if statement followed by else if.
+  };
+
   void reset();
   void parseFile();
-  void parseLevel(bool HasOpeningBrace);
-  void parseBlock(bool MustBeDeclaration, bool AddLevel = true,
-                  bool MunchSemi = true);
-  void parseChildBlock();
+  bool precededByCommentOrPPDirective() const;
+  bool parseLevel(const FormatToken *OpeningBrace = nullptr,
+                  bool CanContainBracedList = true,
+                  TokenType NextLBracesType = TT_Unknown,
+                  IfStmtKind *IfKind = nullptr,
+                  FormatToken **IfLeftBrace = nullptr);
+  bool mightFitOnOneLine(UnwrappedLine &Line,
+                         const FormatToken *OpeningBrace = nullptr) const;
+  FormatToken *parseBlock(bool MustBeDeclaration = false,
+                          unsigned AddLevels = 1u, bool MunchSemi = true,
+                          bool KeepBraces = true, IfStmtKind *IfKind = nullptr,
+                          bool UnindentWhitesmithsBraces = false,
+                          bool CanContainBracedList = true,
+                          TokenType NextLBracesType = TT_Unknown);
+  void parseChildBlock(bool CanContainBracedList = true,
+                       TokenType NextLBracesType = TT_Unknown);
   void parsePPDirective();
   void parsePPDefine();
   void parsePPIf(bool IfDef);
-  void parsePPElIf();
   void parsePPElse();
   void parsePPEndIf();
+  void parsePPPragma();
   void parsePPUnknown();
   void readTokenWithJavaScriptASI();
-  void parseStructuralElement();
+  void parseStructuralElement(bool IsTopLevel = false,
+                              TokenType NextLBracesType = TT_Unknown,
+                              IfStmtKind *IfKind = nullptr,
+                              FormatToken **IfLeftBrace = nullptr,
+                              bool *HasDoWhile = nullptr,
+                              bool *HasLabel = nullptr);
   bool tryToParseBracedList();
-  bool parseBracedList(bool ContinueOnSemicolons = false,
+  bool parseBracedList(bool ContinueOnSemicolons = false, bool IsEnum = false,
                        tok::TokenKind ClosingBraceKind = tok::r_brace);
-  void parseParens();
+  void parseParens(TokenType AmpAmpTokenType = TT_Unknown);
   void parseSquare(bool LambdaIntroducer = false);
-  void parseIfThenElse();
+  void keepAncestorBraces();
+  void parseUnbracedBody(bool CheckEOF = false);
+  void handleAttributes();
+  bool handleCppAttributes();
+  bool isBlockBegin(const FormatToken &Tok) const;
+  FormatToken *parseIfThenElse(IfStmtKind *IfKind, bool KeepBraces = false);
   void parseTryCatch();
+  void parseLoopBody(bool KeepBraces, bool WrapRightBrace);
   void parseForOrWhileLoop();
   void parseDoWhile();
-  void parseLabel();
+  void parseLabel(bool LeftAlignLabel = false);
   void parseCaseLabel();
   void parseSwitch();
   void parseNamespace();
+  void parseModuleImport();
   void parseNew();
   void parseAccessSpecifier();
   bool parseEnum();
+  bool parseStructLike();
+  bool parseRequires();
+  void parseRequiresClause(FormatToken *RequiresToken);
+  void parseRequiresExpression(FormatToken *RequiresToken);
+  void parseConstraintExpression();
   void parseJavaEnumBody();
   // Parses a record (aka class) as a top level element. If ParseAsExpr is true,
   // parses the record as a child block, i.e. if the class declaration is an
   // expression.
   void parseRecord(bool ParseAsExpr = false);
+  void parseObjCLightweightGenerics();
   void parseObjCMethod();
   void parseObjCProtocolList();
   void parseObjCUntilAtEnd();
   void parseObjCInterfaceOrImplementation();
   bool parseObjCProtocol();
   void parseJavaScriptEs6ImportExport();
+  void parseStatementMacro();
+  void parseCSharpAttribute();
+  // Parse a C# generic type constraint: `where T : IComparable<T>`.
+  // See:
+  // https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/where-generic-type-constraint
+  void parseCSharpGenericTypeConstraint();
   bool tryToParseLambda();
+  bool tryToParseChildBlock();
   bool tryToParseLambdaIntroducer();
+  bool tryToParsePropertyAccessor();
   void tryToParseJSFunction();
-  void addUnwrappedLine();
+  bool tryToParseSimpleAttribute();
+  void parseVerilogHierarchyIdentifier();
+  void parseVerilogSensitivityList();
+  // Returns the number of levels of indentation in addition to the normal 1
+  // level for a block, used for indenting case labels.
+  unsigned parseVerilogHierarchyHeader();
+  void parseVerilogTable();
+  void parseVerilogCaseLabel();
+
+  // Used by addUnwrappedLine to denote whether to keep or remove a level
+  // when resetting the line state.
+  enum class LineLevel { Remove, Keep };
+
+  void addUnwrappedLine(LineLevel AdjustLevel = LineLevel::Remove);
   bool eof() const;
   // LevelDifference is the difference of levels after and before the current
   // token. For example:
@@ -147,7 +216,7 @@ private:
   //
   // NextTok specifies the next token. A null pointer NextTok is supported, and
   // signifies either the absence of a next token, or that the next token
-  // shouldn't be taken into accunt for the analysis.
+  // shouldn't be taken into account for the analysis.
   void distributeComments(const SmallVectorImpl<FormatToken *> &Comments,
                           const FormatToken *NextTok);
 
@@ -201,7 +270,7 @@ private:
 
   // We store for each line whether it must be a declaration depending on
   // whether we are in a compound statement or not.
-  std::vector<bool> DeclarationScopeStack;
+  llvm::BitVector DeclarationScopeStack;
 
   const FormatStyle &Style;
   const AdditionalKeywords &Keywords;
@@ -215,6 +284,10 @@ private:
   // of the format tokens. The goal is to have the actual tokens created and
   // owned outside of and handed into the UnwrappedLineParser.
   ArrayRef<FormatToken *> AllTokens;
+
+  // Keeps a stack of the states of nested control statements (true if the
+  // statement contains more than some predefined number of nested statements).
+  SmallVector<bool, 8> NestedTooDeep;
 
   // Represents preprocessor branch type, so we can find matching
   // #if/#else/#endif directives.
@@ -288,7 +361,8 @@ struct UnwrappedLineNode {
 };
 
 inline UnwrappedLine::UnwrappedLine()
-    : Level(0), InPPDirective(false), MustBeDeclaration(false),
+    : Level(0), PPLevel(0), InPPDirective(false), InPragmaDirective(false),
+      InMacroBody(false), MustBeDeclaration(false),
       MatchingOpeningBlockLineIndex(kInvalidIndex) {}
 
 } // end namespace format

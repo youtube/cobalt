@@ -420,6 +420,10 @@ calll 64
 // CHECK: encoding: [0x66,0x98]          
 cbtw 
 
+// CHECK: cwtl 
+// CHECK: encoding: [0x98]          
+cwtl 
+
 // CHECK: clc 
 // CHECK: encoding: [0xf8]          
 clc 
@@ -431,6 +435,10 @@ cld
 // CHECK: cli 
 // CHECK: encoding: [0xfa]          
 cli 
+
+// CHECK: cwtd 
+// CHECK: encoding: [0x66,0x99]          
+cwtd 
 
 // CHECK: cltd 
 // CHECK: encoding: [0x99]          
@@ -557,7 +565,7 @@ cmpsb %es:(%edi), %es:(%esi)
 cmpsl %es:(%edi), %es:(%esi) 
 
 // CHECK: cmpsw %es:(%edi), %es:(%esi) 
-// CHECK: encoding: [0x66,0x26,0xa7]        
+// CHECK: encoding: [0x26,0x66,0xa7]        
 cmpsw %es:(%edi), %es:(%esi) 
 
 // CHECK: cmpw $0, -485498096(%edx,%eax,4) 
@@ -1189,7 +1197,7 @@ lock xchgl %eax, (%edx)
 lodsb %es:(%esi), %al 
 
 // CHECK: lodsw %es:(%esi), %ax 
-// CHECK: encoding: [0x66,0x26,0xad]        
+// CHECK: encoding: [0x26,0x66,0xad]        
 lodsw %es:(%esi), %ax 
 
 // CHECK: loop 64 
@@ -1337,7 +1345,7 @@ movsb %es:(%esi), %es:(%edi)
 movsl %es:(%esi), %es:(%edi) 
 
 // CHECK: movsw %es:(%esi), %es:(%edi) 
-// CHECK: encoding: [0x66,0x26,0xa5]        
+// CHECK: encoding: [0x26,0x66,0xa5]        
 movsw %es:(%esi), %es:(%edi) 
 
 // CHECK: movw $0, -485498096(%edx,%eax,4) 
@@ -2213,7 +2221,7 @@ rep cmpsb %es:(%edi), %es:(%esi)
 rep cmpsl %es:(%edi), %es:(%esi) 
 
 // CHECK: rep cmpsw %es:(%edi), %es:(%esi) 
-// CHECK: encoding: [0xf3,0x66,0x26,0xa7]       
+// CHECK: encoding: [0xf3,0x26,0x66,0xa7]       
 rep cmpsw %es:(%edi), %es:(%esi) 
 
 // CHECK: rep lodsb %es:(%esi), %al 
@@ -2221,7 +2229,7 @@ rep cmpsw %es:(%edi), %es:(%esi)
 rep lodsb %es:(%esi), %al 
 
 // CHECK: rep lodsw %es:(%esi), %ax 
-// CHECK: encoding: [0xf3,0x66,0x26,0xad]       
+// CHECK: encoding: [0xf3,0x26,0x66,0xad]       
 rep lodsw %es:(%esi), %ax 
 
 // CHECK: rep movsb %es:(%esi), %es:(%edi) 
@@ -2233,7 +2241,7 @@ rep movsb %es:(%esi), %es:(%edi)
 rep movsl %es:(%esi), %es:(%edi) 
 
 // CHECK: rep movsw %es:(%esi), %es:(%edi) 
-// CHECK: encoding: [0xf3,0x66,0x26,0xa5]       
+// CHECK: encoding: [0xf3,0x26,0x66,0xa5]       
 rep movsw %es:(%esi), %es:(%edi) 
 
 // CHECK: repne cmpsb %es:(%edi), %es:(%esi) 
@@ -2245,7 +2253,7 @@ repne cmpsb %es:(%edi), %es:(%esi)
 repne cmpsl %es:(%edi), %es:(%esi) 
 
 // CHECK: repne cmpsw %es:(%edi), %es:(%esi) 
-// CHECK: encoding: [0xf2,0x66,0x26,0xa7]       
+// CHECK: encoding: [0xf2,0x26,0x66,0xa7]       
 repne cmpsw %es:(%edi), %es:(%esi) 
 
 // CHECK: repne lodsb %es:(%esi), %al 
@@ -2253,7 +2261,7 @@ repne cmpsw %es:(%edi), %es:(%esi)
 repne lodsb %es:(%esi), %al 
 
 // CHECK: repne lodsw %es:(%esi), %ax 
-// CHECK: encoding: [0xf2,0x66,0x26,0xad]       
+// CHECK: encoding: [0xf2,0x26,0x66,0xad]       
 repne lodsw %es:(%esi), %ax 
 
 // CHECK: repne movsb %es:(%esi), %es:(%edi) 
@@ -2265,7 +2273,7 @@ repne movsb %es:(%esi), %es:(%edi)
 repne movsl %es:(%esi), %es:(%edi) 
 
 // CHECK: repne movsw %es:(%esi), %es:(%edi) 
-// CHECK: encoding: [0xf2,0x66,0x26,0xa5]       
+// CHECK: encoding: [0xf2,0x26,0x66,0xa5]       
 repne movsw %es:(%esi), %es:(%edi) 
 
 // CHECK: repne scasb %es:(%edi), %al 

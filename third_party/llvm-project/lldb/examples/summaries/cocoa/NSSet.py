@@ -1,9 +1,9 @@
 """
 LLDB AppKit formatters
 
-part of The LLVM Compiler Infrastructure
-This file is distributed under the University of Illinois Open Source
-License. See LICENSE.TXT for details.
+Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+See https://llvm.org/LICENSE.txt for license information.
+SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 """
 # summary provider for NSSet
 import lldb
@@ -242,7 +242,7 @@ def NSSet_SummaryProvider(valobj, dict):
             summary = None
         if summary is None:
             summary = '<variable is not NSSet>'
-        if isinstance(summary, basestring):
+        if isinstance(summary, str):
             return summary
         else:
             summary = str(summary) + \
@@ -271,7 +271,7 @@ def NSSet_SummaryProvider2(valobj, dict):
         #                  the mask needs to be changed)
         if summary is None:
             summary = '<variable is not CFSet>'
-        if isinstance(summary, basestring):
+        if isinstance(summary, str):
             return summary
         else:
             if provider.sys_params.is_64_bit:

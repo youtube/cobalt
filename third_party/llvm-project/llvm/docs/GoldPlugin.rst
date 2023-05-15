@@ -17,6 +17,10 @@ and above also supports LTO via plugins.  However, usage of the LLVM
 gold plugin with ld.bfd is not tested and therefore not officially
 supported or recommended.
 
+As of LLVM 15, the gold plugin will ignore bitcode from the ``.llvmbc``
+section inside of ELF object files.  However, LTO with bitcode files
+is still supported.
+
 .. _`gold linker`: http://sourceware.org/binutils
 .. _`GCC LTO`: http://gcc.gnu.org/wiki/LinkTimeOptimization
 .. _`gold plugin interface`: http://gcc.gnu.org/wiki/whopr/driver
@@ -60,7 +64,7 @@ support.
   ``/usr/bin/ld`` then replace it with ``ld-new``. Alternatively, install
   in ``/usr/bin/ld.gold`` and use ``-fuse-ld=gold`` as described earlier.
 
-  Optionally, add ``--enable=gold=default`` to the above configure invocation
+  Optionally, add ``--enable-gold=default`` to the above configure invocation
   to automatically install the newly built gold as the default linker with
   ``make install``.
 

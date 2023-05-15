@@ -1,13 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <locale>
+
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
 
 // template<class Codecvt, class Elem = wchar_t,
 //          class Wide_alloc = allocator<Elem>,
@@ -20,10 +21,14 @@
 //     typedef typename Codecvt::state_type                      state_type;
 //     typedef typename wide_string::traits_type::int_type       int_type;
 
+// XFAIL: no-wide-characters
+
 #include <locale>
 #include <codecvt>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
     {
         typedef std::wstring_convert<std::codecvt_utf8<wchar_t> > myconv;
@@ -32,4 +37,6 @@ int main()
         static_assert((std::is_same<myconv::state_type, std::mbstate_t>::value), "");
         static_assert((std::is_same<myconv::int_type, std::char_traits<wchar_t>::int_type>::value), "");
     }
+
+  return 0;
 }

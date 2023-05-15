@@ -1,5 +1,5 @@
-; RUN: llc < %s -mcpu=a2 | FileCheck %s
-; RUN: llc < %s -mcpu=a2 -disable-lsr | FileCheck -check-prefix=NOLSR %s
+; RUN: llc < %s -mcpu=a2 -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -mcpu=a2 -disable-lsr -verify-machineinstrs | FileCheck -check-prefix=NOLSR %s
 target datalayout = "E-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-f128:128:128-v128:128:128-n32:64"
 target triple = "powerpc64-unknown-linux-gnu"
 
@@ -15,10 +15,9 @@ for.body:                                         ; preds = %for.body, %entry
   br i1 %exitcond, label %for.end, label %for.body
 
 ; CHECK: @main
-; CHECK: li [[REG:[0-9]+]], 0
-; CHECK: oris [[REG2:[0-9]+]], [[REG]], 65535
-; CHECK: ori [[REG3:[0-9]+]], [[REG2]], 65535
-; CHECK: mtctr [[REG3]]
+; CHECK: li [[REG:[0-9]+]], -1
+; CHECK: rldic [[REG2:[0-9]+]], [[REG]], 0, 32
+; CHECK: mtctr [[REG2]]
 ; CHECK: bdnz
 
 for.end:                                          ; preds = %for.body, %entry
@@ -83,4 +82,4 @@ for.end:                                          ; preds = %for.body, %entry
   ret void
 }
 
-attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "less-precise-fpmad"="false" "frame-pointer"="non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }

@@ -1,13 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <locale>
+
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
 
 // wbuffer_convert<Codecvt, Elem, Tr>
 
@@ -15,10 +16,12 @@
 
 // This test is not entirely portable
 
+// XFAIL: no-wide-characters
+
 #include <locale>
-#include <codecvt>
-#include <fstream>
 #include <cassert>
+#include <codecvt>
+#include <sstream>
 
 struct test_buf
     : public std::wbuffer_convert<std::codecvt_utf8<wchar_t> >
@@ -38,22 +41,25 @@ struct test_buf
     virtual int_type pbackfail(int_type c = traits_type::eof()) {return base::pbackfail(c);}
 };
 
-int main()
+int main(int, char**)
 {
+    std::string const s = "123456789";
     {
-        std::ifstream bs("underflow.dat");
-        test_buf f(bs.rdbuf());
+        std::istringstream in(s);
+        test_buf f(in.rdbuf());
         assert(f.sbumpc() == L'1');
         assert(f.sgetc() == L'2');
         assert(f.pbackfail(L'a') == test_buf::traits_type::eof());
     }
     {
-        std::fstream bs("underflow.dat");
-        test_buf f(bs.rdbuf());
+        std::istringstream in(s);
+        test_buf f(in.rdbuf());
         assert(f.sbumpc() == L'1');
         assert(f.sgetc() == L'2');
         assert(f.pbackfail(L'a') == test_buf::traits_type::eof());
         assert(f.sbumpc() == L'2');
         assert(f.sgetc() == L'3');
     }
+
+  return 0;
 }

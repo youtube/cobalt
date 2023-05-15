@@ -1,9 +1,8 @@
 //===- InstSimplifyPass.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -12,14 +11,12 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TRANSFORMS_UTILS_INSTSIMPLIFYPASS_H
-#define LLVM_TRANSFORMS_UTILS_INSTSIMPLIFYPASS_H
+#ifndef LLVM_TRANSFORMS_SCALAR_INSTSIMPLIFYPASS_H
+#define LLVM_TRANSFORMS_SCALAR_INSTSIMPLIFYPASS_H
 
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
-
-class FunctionPass;
 
 /// Run instruction simplification across each instruction in the function.
 ///
@@ -37,10 +34,6 @@ public:
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
-/// Create a legacy pass that does instruction simplification on each
-/// instruction in a function.
-FunctionPass *createInstSimplifyLegacyPass();
-
 } // end namespace llvm
 
-#endif // LLVM_TRANSFORMS_UTILS_INSTSIMPLIFYPASS_H
+#endif // LLVM_TRANSFORMS_SCALAR_INSTSIMPLIFYPASS_H

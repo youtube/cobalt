@@ -1,14 +1,13 @@
 //===-- DynamicLoaderMacOSXDYLD.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // This is the DynamicLoader plugin for Darwin (macOS / iPhoneOS / tvOS /
-// watchOS)
+// watchOS / BridgeOS)
 // platforms earlier than 2016, where lldb would read the "dyld_all_image_infos"
 // dyld internal structure to understand where things were loaded and the
 // solib loaded/unloaded notification function we put a breakpoint on gives us
@@ -18,20 +17,16 @@
 // dyld SPI functions to get the same information without reading internal dyld
 // data structures.
 
-#ifndef liblldb_DynamicLoaderMacOSXDYLD_h_
-#define liblldb_DynamicLoaderMacOSXDYLD_h_
+#ifndef LLDB_SOURCE_PLUGINS_DYNAMICLOADER_MACOSX_DYLD_DYNAMICLOADERMACOSXDYLD_H
+#define LLDB_SOURCE_PLUGINS_DYNAMICLOADER_MACOSX_DYLD_DYNAMICLOADERMACOSXDYLD_H
 
-// C Includes
-// C++ Includes
 #include <mutex>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
+#include "lldb/Host/SafeMachO.h"
 #include "lldb/Target/DynamicLoader.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/FileSpec.h"
-#include "lldb/Utility/SafeMachO.h"
 #include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/UUID.h"
 
@@ -41,28 +36,24 @@ class DynamicLoaderMacOSXDYLD : public lldb_private::DynamicLoaderDarwin {
 public:
   DynamicLoaderMacOSXDYLD(lldb_private::Process *process);
 
-  virtual ~DynamicLoaderMacOSXDYLD() override;
+  ~DynamicLoaderMacOSXDYLD() override;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "macosx-dyld"; }
 
-  static const char *GetPluginDescriptionStatic();
+  static llvm::StringRef GetPluginDescriptionStatic();
 
   static lldb_private::DynamicLoader *
   CreateInstance(lldb_private::Process *process, bool force);
 
-  //------------------------------------------------------------------
   /// Called after attaching a process.
   ///
   /// Allow DynamicLoader plug-ins to execute some code after
   /// attaching to a process.
-  //------------------------------------------------------------------
   bool ProcessDidExec() override;
 
   lldb_private::Status CanLoadImage() override;
@@ -72,12 +63,10 @@ public:
       lldb_private::LazyBool &using_shared_cache,
       lldb_private::LazyBool &private_shared_cache) override;
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
-  lldb_private::ConstString GetPluginName() override;
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
-  uint32_t GetPluginVersion() override;
+  bool IsFullyInitialized() override;
 
 protected:
   void PutToLog(lldb_private::Log *log) const;
@@ -107,20 +96,15 @@ protected:
                              lldb_private::FileSpec *lc_id_dylinker);
 
   struct DYLDAllImageInfos {
-    uint32_t version;
-    uint32_t dylib_info_count;            // Version >= 1
-    lldb::addr_t dylib_info_addr;         // Version >= 1
-    lldb::addr_t notification;            // Version >= 1
-    bool processDetachedFromSharedRegion; // Version >= 1
-    bool libSystemInitialized;            // Version >= 2
-    lldb::addr_t dyldImageLoadAddress;    // Version >= 2
+    uint32_t version = 0;
+    uint32_t dylib_info_count = 0;                            // Version >= 1
+    lldb::addr_t dylib_info_addr = LLDB_INVALID_ADDRESS;      // Version >= 1
+    lldb::addr_t notification = LLDB_INVALID_ADDRESS;         // Version >= 1
+    bool processDetachedFromSharedRegion = false;             // Version >= 1
+    bool libSystemInitialized = false;                        // Version >= 2
+    lldb::addr_t dyldImageLoadAddress = LLDB_INVALID_ADDRESS; // Version >= 2
 
-    DYLDAllImageInfos()
-        : version(0), dylib_info_count(0),
-          dylib_info_addr(LLDB_INVALID_ADDRESS),
-          notification(LLDB_INVALID_ADDRESS),
-          processDetachedFromSharedRegion(false), libSystemInitialized(false),
-          dyldImageLoadAddress(LLDB_INVALID_ADDRESS) {}
+    DYLDAllImageInfos() = default;
 
     void Clear() {
       version = 0;
@@ -132,7 +116,7 @@ protected:
       dyldImageLoadAddress = LLDB_INVALID_ADDRESS;
     }
 
-    bool IsValid() const { return version >= 1 || version <= 6; }
+    bool IsValid() const { return version >= 1 && version <= 6; }
   };
 
   static lldb::ByteOrder GetByteOrderFromMagic(uint32_t magic);
@@ -180,7 +164,9 @@ protected:
   bool m_process_image_addr_is_all_images_infos;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(DynamicLoaderMacOSXDYLD);
+  DynamicLoaderMacOSXDYLD(const DynamicLoaderMacOSXDYLD &) = delete;
+  const DynamicLoaderMacOSXDYLD &
+  operator=(const DynamicLoaderMacOSXDYLD &) = delete;
 };
 
-#endif // liblldb_DynamicLoaderMacOSXDYLD_h_
+#endif // LLDB_SOURCE_PLUGINS_DYNAMICLOADER_MACOSX_DYLD_DYNAMICLOADERMACOSXDYLD_H

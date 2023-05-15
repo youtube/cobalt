@@ -1,9 +1,8 @@
 //===- COFFImportFile.cpp - COFF short import file implementation ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,10 +12,14 @@
 
 #include "llvm/Object/COFFImportFile.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ArchiveWriter.h"
 #include "llvm/Object/COFF.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
 
 #include <cstdint>
@@ -35,6 +38,7 @@ static bool is32bit(MachineTypes Machine) {
   default:
     llvm_unreachable("unsupported machine");
   case IMAGE_FILE_MACHINE_ARM64:
+  case IMAGE_FILE_MACHINE_ARM64EC:
   case IMAGE_FILE_MACHINE_AMD64:
     return false;
   case IMAGE_FILE_MACHINE_ARMNT:
@@ -52,6 +56,7 @@ static uint16_t getImgRelRelocation(MachineTypes Machine) {
   case IMAGE_FILE_MACHINE_ARMNT:
     return IMAGE_REL_ARM_ADDR32NB;
   case IMAGE_FILE_MACHINE_ARM64:
+  case IMAGE_FILE_MACHINE_ARM64EC:
     return IMAGE_REL_ARM64_ADDR32NB;
   case IMAGE_FILE_MACHINE_I386:
     return IMAGE_REL_I386_DIR32NB;
@@ -496,7 +501,7 @@ NewArchiveMember ObjectFactory::createWeakExternal(StringRef Sym,
 
   // COFF Header
   coff_file_header Header{
-      u16(0),
+      u16(Machine),
       u16(NumberOfSections),
       u32(0),
       u32(sizeof(Header) + (NumberOfSections * sizeof(coff_section))),
@@ -596,9 +601,12 @@ Error writeImportLibrary(StringRef ImportName, StringRef Path,
       ImportType = IMPORT_CONST;
 
     StringRef SymbolName = E.SymbolName.empty() ? E.Name : E.SymbolName;
-    ImportNameType NameType = getNameType(SymbolName, E.Name, Machine, MinGW);
+    ImportNameType NameType = E.Noname
+                                  ? IMPORT_ORDINAL
+                                  : getNameType(SymbolName, E.Name,
+                                                Machine, MinGW);
     Expected<std::string> Name = E.ExtName.empty()
-                                     ? SymbolName
+                                     ? std::string(SymbolName)
                                      : replace(SymbolName, E.Name, E.ExtName);
 
     if (!Name)

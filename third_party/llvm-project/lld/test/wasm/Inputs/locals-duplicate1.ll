@@ -1,11 +1,11 @@
 target triple = "wasm32-unknown-unknown"
 
 ; Will collide: local (internal linkage) with global (external) linkage
-@colliding_global1 = internal default global i32 0, align 4
+@colliding_global1 = internal default global i32 1, align 4
 ; Will collide: global with local
-@colliding_global2 = default global i32 0, align 4
+@colliding_global2 = default global i32 1, align 4
 ; Will collide: local with local
-@colliding_global3 = internal default global i32 0, align 4
+@colliding_global3 = internal default global i32 1, align 4
 
 ; Will collide: local with global
 define internal i32 @colliding_func1() {
@@ -24,28 +24,28 @@ entry:
 }
 
 
-define i32* @get_global1A() {
+define ptr @get_global1A() {
 entry:
-  ret i32* @colliding_global1
+  ret ptr @colliding_global1
 }
-define i32* @get_global2A() {
+define ptr @get_global2A() {
 entry:
-  ret i32* @colliding_global2
+  ret ptr @colliding_global2
 }
-define i32* @get_global3A() {
+define ptr @get_global3A() {
 entry:
-  ret i32* @colliding_global3
+  ret ptr @colliding_global3
 }
 
-define i32 ()* @get_func1A() {
+define ptr @get_func1A() {
 entry:
-  ret i32 ()* @colliding_func1
+  ret ptr @colliding_func1
 }
-define i32 ()* @get_func2A() {
+define ptr @get_func2A() {
 entry:
-  ret i32 ()* @colliding_func2
+  ret ptr @colliding_func2
 }
-define i32 ()* @get_func3A() {
+define ptr @get_func3A() {
 entry:
-  ret i32 ()* @colliding_func3
+  ret ptr @colliding_func3
 }

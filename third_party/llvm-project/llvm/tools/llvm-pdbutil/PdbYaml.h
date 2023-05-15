@@ -1,9 +1,8 @@
 //===- PdbYAML.h ---------------------------------------------- *- C++ --*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,6 @@
 
 #include "OutputStyle.h"
 
-#include "llvm/ADT/Optional.h"
 #include "llvm/DebugInfo/CodeView/SymbolRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/MSF/MSFCommon.h"
@@ -25,23 +23,20 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/YAMLTraits.h"
 
+#include <optional>
 #include <vector>
 
 namespace llvm {
-namespace codeview {
-class DebugStringTableSubsection;
-}
 namespace pdb {
 
 namespace yaml {
-struct SerializationContext;
 
 struct MSFHeaders {
   msf::SuperBlock SuperBlock;
   uint32_t NumDirectoryBlocks = 0;
   std::vector<uint32_t> DirectoryBlocks;
   uint32_t NumStreams = 0;
-  uint32_t FileSize = 0;
+  uint64_t FileSize = 0;
 };
 
 struct StreamBlockList {
@@ -72,7 +67,7 @@ struct PdbDbiModuleInfo {
   StringRef Mod;
   std::vector<StringRef> SourceFiles;
   std::vector<CodeViewYAML::YAMLDebugSubsection> Subsections;
-  Optional<PdbModiStream> Modi;
+  std::optional<PdbModiStream> Modi;
 };
 
 struct PdbDbiStream {
@@ -92,18 +87,23 @@ struct PdbTpiStream {
   std::vector<CodeViewYAML::LeafRecord> Records;
 };
 
+struct PdbPublicsStream {
+  std::vector<CodeViewYAML::SymbolRecord> PubSyms;
+};
+
 struct PdbObject {
   explicit PdbObject(BumpPtrAllocator &Allocator) : Allocator(Allocator) {}
 
-  Optional<MSFHeaders> Headers;
-  Optional<std::vector<uint32_t>> StreamSizes;
-  Optional<std::vector<StreamBlockList>> StreamMap;
-  Optional<PdbInfoStream> PdbStream;
-  Optional<PdbDbiStream> DbiStream;
-  Optional<PdbTpiStream> TpiStream;
-  Optional<PdbTpiStream> IpiStream;
+  std::optional<MSFHeaders> Headers;
+  std::optional<std::vector<uint32_t>> StreamSizes;
+  std::optional<std::vector<StreamBlockList>> StreamMap;
+  std::optional<PdbInfoStream> PdbStream;
+  std::optional<PdbDbiStream> DbiStream;
+  std::optional<PdbTpiStream> TpiStream;
+  std::optional<PdbTpiStream> IpiStream;
+  std::optional<PdbPublicsStream> PublicsStream;
 
-  Optional<std::vector<StringRef>> StringTable;
+  std::optional<std::vector<StringRef>> StringTable;
 
   BumpPtrAllocator &Allocator;
 };
@@ -118,6 +118,7 @@ LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::StreamBlockList)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::PdbInfoStream)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::PdbDbiStream)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::PdbTpiStream)
+LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::PdbPublicsStream)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::NamedStreamMapping)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::PdbModiStream)
 LLVM_YAML_DECLARE_MAPPING_TRAITS(pdb::yaml::PdbDbiModuleInfo)

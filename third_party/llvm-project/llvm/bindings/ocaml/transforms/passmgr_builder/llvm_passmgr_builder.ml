@@ -1,9 +1,8 @@
 (*===-- llvm_passmgr_builder.ml - LLVM OCaml Interface --------*- OCaml -*-===*
  *
- *                     The LLVM Compiler Infrastructure
- *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
  *===----------------------------------------------------------------------===*)
 
@@ -27,6 +26,3 @@ external populate_function_pass_manager
 external populate_module_pass_manager
   : [ `Module ] Llvm.PassManager.t -> t -> unit
   = "llvm_pmbuilder_populate_module_pass_manager"
-external populate_lto_pass_manager
-  : [ `Module ] Llvm.PassManager.t -> internalize:bool -> run_inliner:bool -> t -> unit
-  = "llvm_pmbuilder_populate_lto_pass_manager"

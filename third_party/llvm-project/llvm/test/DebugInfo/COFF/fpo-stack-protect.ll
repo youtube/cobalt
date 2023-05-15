@@ -1,4 +1,4 @@
-; RUN: llc < %s | FileCheck %s
+; RUN: llc < %s -experimental-debug-variable-locations=true | FileCheck %s
 
 ; C source:
 ; void escape(int *);
@@ -30,7 +30,7 @@
 ; CHECK:         addl    $20, %esp
 ; CHECK:         popl    %esi
 ; CHECK:         retl
-; CHECK: Ltmp2:
+; CHECK: Ltmp4:
 ; CHECK:         .cv_fpo_endproc
 
 ; ModuleID = 't.c'
@@ -43,19 +43,17 @@ define i32 @ssp(i32 returned %a) local_unnamed_addr #0 !dbg !8 {
 entry:
   %arr = alloca [4 x i32], align 4
   tail call void @llvm.dbg.value(metadata i32 %a, metadata !13, metadata !DIExpression()), !dbg !18
-  %0 = bitcast [4 x i32]* %arr to i8*, !dbg !19
-  call void @llvm.lifetime.start.p0i8(i64 16, i8* nonnull %0) #4, !dbg !19
-  tail call void @llvm.dbg.declare(metadata [4 x i32]* %arr, metadata !14, metadata !DIExpression()), !dbg !20
-  %arrayinit.begin = getelementptr inbounds [4 x i32], [4 x i32]* %arr, i32 0, i32 0, !dbg !21
-  store i32 %a, i32* %arrayinit.begin, align 4, !dbg !21, !tbaa !22
-  %arrayinit.element = getelementptr inbounds [4 x i32], [4 x i32]* %arr, i32 0, i32 1, !dbg !21
-  store i32 %a, i32* %arrayinit.element, align 4, !dbg !21, !tbaa !22
-  %arrayinit.element1 = getelementptr inbounds [4 x i32], [4 x i32]* %arr, i32 0, i32 2, !dbg !21
-  store i32 %a, i32* %arrayinit.element1, align 4, !dbg !21, !tbaa !22
-  %arrayinit.element2 = getelementptr inbounds [4 x i32], [4 x i32]* %arr, i32 0, i32 3, !dbg !21
-  store i32 %a, i32* %arrayinit.element2, align 4, !dbg !21, !tbaa !22
-  call void @escape(i32* nonnull %arrayinit.begin) #4, !dbg !26
-  call void @llvm.lifetime.end.p0i8(i64 16, i8* nonnull %0) #4, !dbg !27
+  call void @llvm.lifetime.start.p0(i64 16, ptr nonnull %arr) #4, !dbg !19
+  tail call void @llvm.dbg.declare(metadata ptr %arr, metadata !14, metadata !DIExpression()), !dbg !20
+  store i32 %a, ptr %arr, align 4, !dbg !21, !tbaa !22
+  %arrayinit.element = getelementptr inbounds [4 x i32], ptr %arr, i32 0, i32 1, !dbg !21
+  store i32 %a, ptr %arrayinit.element, align 4, !dbg !21, !tbaa !22
+  %arrayinit.element1 = getelementptr inbounds [4 x i32], ptr %arr, i32 0, i32 2, !dbg !21
+  store i32 %a, ptr %arrayinit.element1, align 4, !dbg !21, !tbaa !22
+  %arrayinit.element2 = getelementptr inbounds [4 x i32], ptr %arr, i32 0, i32 3, !dbg !21
+  store i32 %a, ptr %arrayinit.element2, align 4, !dbg !21, !tbaa !22
+  call void @escape(ptr nonnull %arr) #4, !dbg !26
+  call void @llvm.lifetime.end.p0(i64 16, ptr nonnull %arr) #4, !dbg !27
   ret i32 %a, !dbg !28
 }
 
@@ -63,20 +61,20 @@ entry:
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: argmemonly nounwind
-declare void @llvm.lifetime.start.p0i8(i64, i8* nocapture) #2
+declare void @llvm.lifetime.start.p0(i64, ptr nocapture) #2
 
-declare void @escape(i32*) local_unnamed_addr #3
+declare void @escape(ptr) local_unnamed_addr #3
 
 ; Function Attrs: argmemonly nounwind
-declare void @llvm.lifetime.end.p0i8(i64, i8* nocapture) #2
+declare void @llvm.lifetime.end.p0(i64, ptr nocapture) #2
 
 ; Function Attrs: nounwind readnone speculatable
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-attributes #0 = { nounwind sspstrong "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind sspstrong "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone speculatable }
 attributes #2 = { argmemonly nounwind }
-attributes #3 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #3 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #4 = { nounwind }
 
 !llvm.dbg.cu = !{!0}

@@ -28,19 +28,19 @@
 @external_y = thread_local global i8 7, align 2
 @internal_y = internal thread_local global i64 9, align 16
 
-define i32* @get_external_x() {
+define ptr @get_external_x() {
 entry:
-  ret i32* @external_x
+  ret ptr @external_x
 }
 
-define i8* @get_external_y() {
+define ptr @get_external_y() {
 entry:
-  ret i8* @external_y
+  ret ptr @external_y
 }
 
-define i64* @get_internal_y() {
+define ptr @get_internal_y() {
 entry:
-  ret i64* @internal_y
+  ret ptr @internal_y
 }
 
 ; ARM_32-LABEL:  get_external_x:
@@ -78,8 +78,9 @@ entry:
 ; ARM_32-NEXT:   .long 0
 
 ; WIN-LABEL:  get_external_x:
-; WIN:        movw r0, :lower16:__emutls_v.external_x
-; WIN:        movt r0, :upper16:__emutls_v.external_x
+; WIN:        movw r0, :lower16:.refptr.__emutls_v.external_x
+; WIN:        movt r0, :upper16:.refptr.__emutls_v.external_x
+; WIN:        ldr  r0, [r0]
 ; WIN:        bl __emutls_get_address
 ; WIN-LABEL:  get_external_y:
 ; WIN:        movw r0, :lower16:__emutls_v.external_y

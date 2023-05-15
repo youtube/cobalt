@@ -3,9 +3,9 @@
 target datalayout = "e-m:w-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-windows-msvc"
 
-define dllexport void ()* @f() !dbg !6 {
+define dllexport ptr @f() !dbg !6 {
 entry:
-  ret void ()* null, !dbg !28
+  ret ptr null, !dbg !28
 }
 
 !llvm.dbg.cu = !{!0}
@@ -40,16 +40,16 @@ entry:
 !27 = !DIDerivedType(tag: DW_TAG_member, name: "Size", scope: !1, file: !1, baseType: !26, size: 32, offset: 32)
 !28 = !DILocation(line: 1, scope: !6)
 
-; CHECK: # Struct
-; CHECK: #   TypeLeafKind: LF_STRUCTURE
-; CHECK: #   MemberCount: 0
-; CHECK: #   Properties [
-; CHECK: #     ForwardReference
-; CHECK: #   ]
-; CHECK: #   FieldList: 0x0
-; CHECK: #   DerivedFrom: 0x0
-; CHECK: #   VShape: 0x0
-; CHECK: #   SizeOf: 0
-; CHECK: #   Name: __block_descriptor
-; CHECK: # }
-
+; CHECK: # Struct (0x1003)
+; CHECK: .short	0x2a                    # Record length
+; CHECK: .short	0x1505                  # Record kind: LF_STRUCTURE
+; CHECK: .short	0x0                     # MemberCount
+; CHECK: .short	0x80                    # Properties ( ForwardReference (0x80) )
+; CHECK: .long	0x0                     # FieldList
+; CHECK: .long	0x0                     # DerivedFrom
+; CHECK: .long	0x0                     # VShape
+; CHECK: .short	0x0                     # SizeOf
+; CHECK: .asciz	"__block_descriptor"    # Name
+; CHECK: .byte	243
+; CHECK: .byte	242
+; CHECK: .byte	241

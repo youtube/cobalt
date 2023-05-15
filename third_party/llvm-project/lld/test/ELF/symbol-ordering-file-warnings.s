@@ -19,11 +19,6 @@
 # RUN:   --unresolved-symbols=ignore-all --no-warn-symbol-ordering --warn-symbol-ordering 2>&1 | \
 # RUN:   FileCheck %s --check-prefixes=WARN,MISSING
 
-# Check that a warning is emitted for undefined symbols.
-# RUN: echo "undefined" > %t-order-undef.txt
-# RUN: ld.lld %t1.o %t3.o -o %t --symbol-ordering-file %t-order-undef.txt \
-# RUN:   --unresolved-symbols=ignore-all 2>&1 | FileCheck %s --check-prefixes=WARN,UNDEFINED
-
 # Check that a warning is emitted for imported shared symbols.
 # RUN: echo "shared" > %t-order-shared.txt
 # RUN: ld.lld %t1.o %t.so -o %t --symbol-ordering-file %t-order-shared.txt \
@@ -69,11 +64,11 @@
 # RUN: ld.lld %t1.o %t2.o -o %t --symbol-ordering-file %t-order-weak.txt \
 # RUN:   --unresolved-symbols=ignore-all 2>&1 | FileCheck %s --check-prefixes=WARN --allow-empty
 
-# Check that symbols only in unused archive members result in a warning.
+# Check that symbols only in unused archive members does not result in a warning.
 # RUN: rm -f %t.a
 # RUN: llvm-ar rc %t.a %t3.o
 # RUN: ld.lld %t1.o %t.a -o %t --symbol-ordering-file %t-order-missing.txt \
-# RUN:   --unresolved-symbols=ignore-all 2>&1 | FileCheck %s --check-prefixes=WARN,MISSING --allow-empty
+# RUN:   --unresolved-symbols=ignore-all 2>&1 | count 0
 
 # Check that a warning for each same-named symbol with an issue.
 # RUN: echo "multi" > %t-order-same-name.txt
@@ -97,35 +92,43 @@
 # RUN: echo "_GLOBAL_OFFSET_TABLE_" >> %t-order-multi.txt
 # RUN: echo "_start" >> %t-order-multi.txt
 # RUN: ld.lld %t1.o %t3.o %t.so -o %t --symbol-ordering-file %t-order-multi.txt --gc-sections -T %t.script \
-# RUN:   --unresolved-symbols=ignore-all 2>&1 | FileCheck %s --check-prefixes=WARN,SAMESYM,ABSOLUTE,SHARED,UNDEFINED,GC,DISCARD,MISSING2,SYNTHETIC
+# RUN:   2>&1 | FileCheck %s --check-prefixes=WARN,SAMESYM,ABSOLUTE,SHARED,UNDEFINED,GC,DISCARD,MISSING2,SYNTHETIC
 
 # WARN-NOT:    warning:
 # SAMESYM:     warning: {{.*}}.txt: duplicate ordered symbol: _start
 # WARN-NOT:    warning:
-# SYNTHETIC:   warning: <internal>: unable to order synthetic symbol: _GLOBAL_OFFSET_TABLE_
+# SHARED:      warning: {{.*}}.so: unable to order shared symbol: shared
 # WARN-NOT:    warning:
 # DISCARD:     warning: {{.*}}1.o: unable to order discarded symbol: discard
 # WARN-NOT:    warning:
 # GC:          warning: {{.*}}1.o: unable to order discarded symbol: gc
 # WARN-NOT:    warning:
-# SHARED:      warning: {{.*}}.so: unable to order shared symbol: shared
+# SYNTHETIC:   warning: <internal>: unable to order synthetic symbol: _GLOBAL_OFFSET_TABLE_
 # WARN-NOT:    warning:
 # UNDEFINED:   warning: {{.*}}3.o: unable to order undefined symbol: undefined
 # WARN-NOT:    warning:
 # ABSOLUTE:    warning: {{.*}}1.o: unable to order absolute symbol: absolute
 # WARN-NOT:    warning:
 # MISSING:     warning: symbol ordering file: no such symbol: missing
-# MISSING2:    warning: symbol ordering file: no such symbol: missing_sym
-# COMDAT:      warning: {{.*}}1.o: unable to order discarded symbol: comdat
-# MULTI:       warning: {{.*}}3.o: unable to order undefined symbol: multi
-# MULTI-NEXT:  warning: {{.*}}2.o: unable to order absolute symbol: multi
 # WARN-NOT:    warning:
+# MISSING2:    warning: symbol ordering file: no such symbol: missing_sym
+# WARN-NOT:    warning:
+# COMDAT:      warning: {{.*}}1.o: unable to order discarded symbol: comdat
+# WARN-NOT:    warning:
+# MULTI:       warning: {{.*}}2.o: unable to order absolute symbol: multi
+# WARN-NOT:    warning:
+
+.section .text._start,"ax",@progbits
+.global _start
+_start:
+  movq  %rax, absolute
+  callq shared
 
 absolute = 0x1234
 
-.section .text.gc,"ax",@progbits
-.global gc
-gc:
+.section .text.comdat,"axG",@progbits,comdat,comdat
+.weak comdat
+comdat:
   nop
 
 .section .text.discard,"ax",@progbits
@@ -133,21 +136,15 @@ gc:
 discard:
   nop
 
-.section .text.comdat,"axG",@progbits,comdat,comdat
-.weak comdat
-comdat:
+.section .text.gc,"ax",@progbits
+.global gc
+gc:
   nop
 
 .section .text.glob_or_wk,"ax",@progbits
 .weak glob_or_wk
 glob_or_wk:
   nop
-
-.section .text._start,"ax",@progbits
-.global _start
-_start:
-  movq  %rax, absolute
-  callq shared
 
 .section .text.icf1,"ax",@progbits
 .global icf1

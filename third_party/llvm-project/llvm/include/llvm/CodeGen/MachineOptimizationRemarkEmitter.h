@@ -1,9 +1,8 @@
 ///===- MachineOptimizationRemarkEmitter.h - Opt Diagnostics -*- C++ -*----===//
 ///
-///                     The LLVM Compiler Infrastructure
-///
-/// This file is distributed under the University of Illinois Open Source
-/// License. See LICENSE.TXT for details.
+/// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+/// See https://llvm.org/LICENSE.txt for license information.
+/// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 ///
 ///===---------------------------------------------------------------------===//
 /// \file
@@ -16,8 +15,10 @@
 #ifndef LLVM_CODEGEN_MACHINEOPTIMIZATIONREMARKEMITTER_H
 #define LLVM_CODEGEN_MACHINEOPTIMIZATIONREMARKEMITTER_H
 
-#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/IR/DiagnosticInfo.h"
+#include "llvm/IR/Function.h"
+#include <optional>
 
 namespace llvm {
 class MachineBasicBlock;
@@ -119,6 +120,12 @@ public:
       : DiagnosticInfoMIROptimization(DK_MachineOptimizationRemarkAnalysis,
                                       PassName, RemarkName, Loc, MBB) {}
 
+  MachineOptimizationRemarkAnalysis(const char *PassName, StringRef RemarkName,
+                                    const MachineInstr *MI)
+      : DiagnosticInfoMIROptimization(DK_MachineOptimizationRemarkAnalysis,
+                                      PassName, RemarkName, MI->getDebugLoc(),
+                                      MI->getParent()) {}
+
   static bool classof(const DiagnosticInfo *DI) {
     return DI->getKind() == DK_MachineOptimizationRemarkAnalysis;
   }
@@ -159,9 +166,10 @@ public:
   /// (1) to filter trivial false positives or (2) to provide more context so
   /// that non-trivial false positives can be quickly detected by the user.
   bool allowExtraAnalysis(StringRef PassName) const {
-    return (MF.getFunction().getContext().getDiagnosticsOutputFile() ||
-            MF.getFunction().getContext()
-            .getDiagHandlerPtr()->isAnyRemarkEnabled(PassName));
+    return (
+        MF.getFunction().getContext().getLLVMRemarkStreamer() ||
+        MF.getFunction().getContext().getDiagHandlerPtr()->isAnyRemarkEnabled(
+            PassName));
   }
 
   /// Take a lambda that returns a remark which will be emitted.  Second
@@ -172,11 +180,18 @@ public:
     // remarks enabled. We can't currently check whether remarks are requested
     // for the calling pass since that requires actually building the remark.
 
-    if (MF.getFunction().getContext().getDiagnosticsOutputFile() ||
-        MF.getFunction().getContext().getDiagHandlerPtr()->isAnyRemarkEnabled()) {
+    if (MF.getFunction().getContext().getLLVMRemarkStreamer() ||
+        MF.getFunction()
+            .getContext()
+            .getDiagHandlerPtr()
+            ->isAnyRemarkEnabled()) {
       auto R = RemarkBuilder();
       emit((DiagnosticInfoOptimizationBase &)R);
     }
+  }
+
+  MachineBlockFrequencyInfo *getBFI() {
+    return MBFI;
   }
 
 private:
@@ -187,7 +202,7 @@ private:
 
   /// Compute hotness from IR value (currently assumed to be a block) if PGO is
   /// available.
-  Optional<uint64_t> computeHotness(const MachineBasicBlock &MBB);
+  std::optional<uint64_t> computeHotness(const MachineBasicBlock &MBB);
 
   /// Similar but use value from \p OptDiag and update hotness there.
   void computeHotness(DiagnosticInfoMIROptimization &Remark);

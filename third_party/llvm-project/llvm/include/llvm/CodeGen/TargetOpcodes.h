@@ -1,9 +1,8 @@
 //===-- llvm/CodeGen/TargetOpcodes.h - Target Indep Opcodes -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -37,6 +36,14 @@ inline bool isPreISelGenericOpcode(unsigned Opcode) {
 inline bool isTargetSpecificOpcode(unsigned Opcode) {
   return Opcode > TargetOpcode::PRE_ISEL_GENERIC_OPCODE_END;
 }
+
+/// \returns true if \p Opcode is an optimization hint opcode which is not
+/// supposed to appear after ISel.
+inline bool isPreISelGenericOptimizationHint(unsigned Opcode) {
+  return Opcode >= TargetOpcode::PRE_ISEL_GENERIC_OPTIMIZATION_HINT_START &&
+         Opcode <= TargetOpcode::PRE_ISEL_GENERIC_OPTIMIZATION_HINT_END;
+}
+
 } // end namespace llvm
 
 #endif

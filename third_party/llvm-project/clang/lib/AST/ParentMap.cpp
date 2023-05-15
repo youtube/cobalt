@@ -1,9 +1,8 @@
 //===--- ParentMap.cpp - Mappings from Stmts to their Parents ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -34,8 +33,10 @@ static void BuildParentMap(MapTy& M, Stmt* S,
 
   switch (S->getStmtClass()) {
   case Stmt::PseudoObjectExprClass: {
-    assert(OVMode == OV_Transparent && "Should not appear alongside OVEs");
     PseudoObjectExpr *POE = cast<PseudoObjectExpr>(S);
+
+    if (OVMode == OV_Opaque && M[POE->getSyntacticForm()])
+      break;
 
     // If we are rebuilding the map, clear out any existing state.
     if (M[POE->getSyntacticForm()])
@@ -84,6 +85,18 @@ static void BuildParentMap(MapTy& M, Stmt* S,
     }
     break;
   }
+  case Stmt::CapturedStmtClass:
+    for (Stmt *SubStmt : S->children()) {
+      if (SubStmt) {
+        M[SubStmt] = S;
+        BuildParentMap(M, SubStmt, OVMode);
+      }
+    }
+    if (Stmt *SubStmt = cast<CapturedStmt>(S)->getCapturedStmt()) {
+      M[SubStmt] = S;
+      BuildParentMap(M, SubStmt, OVMode);
+    }
+    break;
   default:
     for (Stmt *SubStmt : S->children()) {
       if (SubStmt) {
@@ -122,8 +135,7 @@ void ParentMap::setParent(const Stmt *S, const Stmt *Parent) {
 
 Stmt* ParentMap::getParent(Stmt* S) const {
   MapTy* M = (MapTy*) Impl;
-  MapTy::iterator I = M->find(S);
-  return I == M->end() ? nullptr : I->second;
+  return M->lookup(S);
 }
 
 Stmt *ParentMap::getParentIgnoreParens(Stmt *S) const {
@@ -163,7 +175,7 @@ bool ParentMap::isConsumedExpr(Expr* E) const {
 
   // Ignore parents that don't guarantee consumption.
   while (P && (isa<ParenExpr>(P) || isa<CastExpr>(P) ||
-               isa<ExprWithCleanups>(P))) {
+               isa<FullExpr>(P))) {
     DirectChild = P;
     P = getParent(P);
   }

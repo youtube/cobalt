@@ -1,9 +1,8 @@
 //===----- CGCoroutine.cpp - Emit LLVM Code for C++ coroutines ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -93,10 +92,10 @@ static void createCoroData(CodeGenFunction &CGF,
                            CallExpr const *CoroIdExpr = nullptr) {
   if (CurCoro.Data) {
     if (CurCoro.Data->CoroIdExpr)
-      CGF.CGM.Error(CoroIdExpr->getLocStart(),
+      CGF.CGM.Error(CoroIdExpr->getBeginLoc(),
                     "only one __builtin_coro_id can be used in a function");
     else if (CoroIdExpr)
-      CGF.CGM.Error(CoroIdExpr->getLocStart(),
+      CGF.CGM.Error(CoroIdExpr->getBeginLoc(),
                     "__builtin_coro_id shall not be used in a C++ coroutine");
     else
       llvm_unreachable("EmitCoroutineBodyStatement called twice?");
@@ -205,7 +204,6 @@ static LValueOrRValue emitSuspendExpression(CodeGenFunction &CGF, CGCoroData &Co
     BasicBlock *RealSuspendBlock =
         CGF.createBasicBlock(Prefix + Twine(".suspend.bool"));
     CGF.Builder.CreateCondBr(SuspendRet, RealSuspendBlock, ReadyBlock);
-    SuspendBlock = RealSuspendBlock;
     CGF.EmitBlock(RealSuspendBlock);
   }
 
@@ -240,8 +238,8 @@ static LValueOrRValue emitSuspendExpression(CodeGenFunction &CGF, CGCoroData &Co
     auto Loc = S.getResumeExpr()->getExprLoc();
     auto *Catch = new (CGF.getContext())
         CXXCatchStmt(Loc, /*exDecl=*/nullptr, Coro.ExceptionHandler);
-    auto *TryBody =
-        CompoundStmt::Create(CGF.getContext(), S.getResumeExpr(), Loc, Loc);
+    auto *TryBody = CompoundStmt::Create(CGF.getContext(), S.getResumeExpr(),
+                                         FPOptionsOverride(), Loc, Loc);
     TryStmt = CXXTryStmt::Create(CGF.getContext(), Loc, TryBody, Catch);
     CGF.EnterCXXTryStmt(*TryStmt);
   }
@@ -277,9 +275,9 @@ RValue CodeGenFunction::EmitCoyieldExpr(const CoyieldExpr &E,
 void CodeGenFunction::EmitCoreturnStmt(CoreturnStmt const &S) {
   ++CurCoro.Data->CoreturnCount;
   const Expr *RV = S.getOperand();
-  if (RV && RV->getType()->isVoidType()) {
-    // Make sure to evaluate the expression of a co_return with a void
-    // expression for side effects.
+  if (RV && RV->getType()->isVoidType() && !isa<InitListExpr>(RV)) {
+    // Make sure to evaluate the non initlist expression of a co_return
+    // with a void expression for side effects.
     RunCleanupsScope cleanupScope(*this);
     EmitIgnoredExpr(RV);
   }
@@ -407,7 +405,7 @@ struct CallCoroEnd final : public EHScopeStack::Cleanup {
     if (Bundles.empty()) {
       // Otherwise, (landingpad model), create a conditional branch that leads
       // either to a cleanup block or a block with EH resume instruction.
-      auto *ResumeBB = CGF.getEHResumeBlock(/*cleanup=*/true);
+      auto *ResumeBB = CGF.getEHResumeBlock(/*isCleanup=*/true);
       auto *CleanupContBB = CGF.createBasicBlock("cleanup.cont");
       CGF.Builder.CreateCondBr(CoroEnd, ResumeBB, CleanupContBB);
       CGF.EmitBlock(CleanupContBB);
@@ -444,7 +442,7 @@ struct CallCoroDelete final : public EHScopeStack::Cleanup {
     // We should have captured coro.free from the emission of deallocate.
     auto *CoroFree = CGF.CurCoro.Data->LastCoroFree;
     if (!CoroFree) {
-      CGF.CGM.Error(Deallocate->getLocStart(),
+      CGF.CGM.Error(Deallocate->getBeginLoc(),
                     "Deallocation expressoin does not refer to coro.free");
       return;
     }
@@ -464,72 +462,6 @@ struct CallCoroDelete final : public EHScopeStack::Cleanup {
     CGF.Builder.SetInsertPoint(AfterFreeBB);
   }
   explicit CallCoroDelete(Stmt *DeallocStmt) : Deallocate(DeallocStmt) {}
-};
-}
-
-namespace {
-struct GetReturnObjectManager {
-  CodeGenFunction &CGF;
-  CGBuilderTy &Builder;
-  const CoroutineBodyStmt &S;
-
-  Address GroActiveFlag;
-  CodeGenFunction::AutoVarEmission GroEmission;
-
-  GetReturnObjectManager(CodeGenFunction &CGF, const CoroutineBodyStmt &S)
-      : CGF(CGF), Builder(CGF.Builder), S(S), GroActiveFlag(Address::invalid()),
-        GroEmission(CodeGenFunction::AutoVarEmission::invalid()) {}
-
-  // The gro variable has to outlive coroutine frame and coroutine promise, but,
-  // it can only be initialized after coroutine promise was created, thus, we
-  // split its emission in two parts. EmitGroAlloca emits an alloca and sets up
-  // cleanups. Later when coroutine promise is available we initialize the gro
-  // and sets the flag that the cleanup is now active.
-
-  void EmitGroAlloca() {
-    auto *GroDeclStmt = dyn_cast<DeclStmt>(S.getResultDecl());
-    if (!GroDeclStmt) {
-      // If get_return_object returns void, no need to do an alloca.
-      return;
-    }
-
-    auto *GroVarDecl = cast<VarDecl>(GroDeclStmt->getSingleDecl());
-
-    // Set GRO flag that it is not initialized yet
-    GroActiveFlag =
-      CGF.CreateTempAlloca(Builder.getInt1Ty(), CharUnits::One(), "gro.active");
-    Builder.CreateStore(Builder.getFalse(), GroActiveFlag);
-
-    GroEmission = CGF.EmitAutoVarAlloca(*GroVarDecl);
-
-    // Remember the top of EHStack before emitting the cleanup.
-    auto old_top = CGF.EHStack.stable_begin();
-    CGF.EmitAutoVarCleanups(GroEmission);
-    auto top = CGF.EHStack.stable_begin();
-
-    // Make the cleanup conditional on gro.active
-    for (auto b = CGF.EHStack.find(top), e = CGF.EHStack.find(old_top);
-      b != e; b++) {
-      if (auto *Cleanup = dyn_cast<EHCleanupScope>(&*b)) {
-        assert(!Cleanup->hasActiveFlag() && "cleanup already has active flag?");
-        Cleanup->setActiveFlag(GroActiveFlag);
-        Cleanup->setTestFlagInEHCleanup();
-        Cleanup->setTestFlagInNormalCleanup();
-      }
-    }
-  }
-
-  void EmitGroInit() {
-    if (!GroActiveFlag.isValid()) {
-      // No Gro variable was allocated. Simply emit the call to
-      // get_return_object.
-      CGF.EmitStmt(S.getResultDecl());
-      return;
-    }
-
-    CGF.EmitAutoVarInit(GroEmission);
-    Builder.CreateStore(Builder.getTrue(), GroActiveFlag);
-  }
 };
 }
 
@@ -558,6 +490,8 @@ void CodeGenFunction::EmitCoroutineBody(const CoroutineBodyStmt &S) {
       {Builder.getInt32(NewAlign), NullPtr, NullPtr, NullPtr});
   createCoroData(*this, CurCoro, CoroId);
   CurCoro.Data->SuspendBB = RetBB;
+  assert(ShouldEmitLifetimeMarkers &&
+         "Must emit lifetime intrinsics for coroutines");
 
   // Backend is allowed to elide memory allocations, to help it, emit
   // auto mem = coro.alloc() ? 0 : ... allocation code ...;
@@ -597,14 +531,22 @@ void CodeGenFunction::EmitCoroutineBody(const CoroutineBodyStmt &S) {
       CGM.getIntrinsic(llvm::Intrinsic::coro_begin), {CoroId, Phi});
   CurCoro.Data->CoroBegin = CoroBegin;
 
-  GetReturnObjectManager GroManager(*this, S);
-  GroManager.EmitGroAlloca();
-
   CurCoro.Data->CleanupJD = getJumpDestInCurrentScope(RetBB);
   {
+    CGDebugInfo *DI = getDebugInfo();
     ParamReferenceReplacerRAII ParamReplacer(LocalDeclMap);
     CodeGenFunction::RunCleanupsScope ResumeScope(*this);
     EHStack.pushCleanup<CallCoroDelete>(NormalAndEHCleanup, S.getDeallocate());
+
+    // Create mapping between parameters and copy-params for coroutine function.
+    llvm::ArrayRef<const Stmt *> ParamMoves = S.getParamMoves();
+    assert(
+        (ParamMoves.size() == 0 || (ParamMoves.size() == FnArgs.size())) &&
+        "ParamMoves and FnArgs should be the same size for coroutine function");
+    if (ParamMoves.size() == FnArgs.size() && DI)
+      for (const auto Pair : llvm::zip(FnArgs, ParamMoves))
+        DI->getCoroutineParameterMappings().insert(
+            {std::get<0>(Pair), std::get<1>(Pair)});
 
     // Create parameter copies. We do it before creating a promise, since an
     // evolution of coroutine TS may allow promise constructor to observe
@@ -626,8 +568,23 @@ void CodeGenFunction::EmitCoroutineBody(const CoroutineBodyStmt &S) {
     // promise local variable was not emitted yet.
     CoroId->setArgOperand(1, PromiseAddrVoidPtr);
 
-    // Now we have the promise, initialize the GRO
-    GroManager.EmitGroInit();
+    // ReturnValue should be valid as long as the coroutine's return type
+    // is not void. The assertion could help us to reduce the check later.
+    assert(ReturnValue.isValid() == (bool)S.getReturnStmt());
+    // Now we have the promise, initialize the GRO.
+    // We need to emit `get_return_object` first. According to:
+    // [dcl.fct.def.coroutine]p7
+    // The call to get_return_­object is sequenced before the call to
+    // initial_suspend and is invoked at most once.
+    //
+    // So we couldn't emit return value when we emit return statment,
+    // otherwise the call to get_return_object wouldn't be in front
+    // of initial_suspend.
+    if (ReturnValue.isValid()) {
+      EmitAnyExprToMem(S.getReturnValue(), ReturnValue,
+                       S.getReturnValue()->getType().getQualifiers(),
+                       /*IsInit*/ true);
+    }
 
     EHStack.pushCleanup<CallCoroEnd>(EHCleanup);
 
@@ -654,7 +611,7 @@ void CodeGenFunction::EmitCoroutineBody(const CoroutineBodyStmt &S) {
         EmitBlock(BodyBB);
       }
 
-      auto Loc = S.getLocStart();
+      auto Loc = S.getBeginLoc();
       CXXCatchStmt Catch(Loc, /*exDecl=*/nullptr,
                          CurCoro.Data->ExceptionHandler);
       auto *TryStmt =
@@ -690,8 +647,15 @@ void CodeGenFunction::EmitCoroutineBody(const CoroutineBodyStmt &S) {
   llvm::Function *CoroEnd = CGM.getIntrinsic(llvm::Intrinsic::coro_end);
   Builder.CreateCall(CoroEnd, {NullPtr, Builder.getFalse()});
 
-  if (Stmt *Ret = S.getReturnStmt())
+  if (Stmt *Ret = S.getReturnStmt()) {
+    // Since we already emitted the return value above, so we shouldn't
+    // emit it again here.
+    cast<ReturnStmt>(Ret)->setRetValue(nullptr);
     EmitStmt(Ret);
+  }
+
+  // LLVM require the frontend to mark the coroutine.
+  CurFn->setPresplitCoroutine();
 }
 
 // Emit coroutine intrinsic and patch up arguments of the token type.
@@ -707,10 +671,24 @@ RValue CodeGenFunction::EmitCoroutineIntrinsic(const CallExpr *E,
     if (CurCoro.Data && CurCoro.Data->CoroBegin) {
       return RValue::get(CurCoro.Data->CoroBegin);
     }
-    CGM.Error(E->getLocStart(), "this builtin expect that __builtin_coro_begin "
-      "has been used earlier in this function");
-    auto NullPtr = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
+    CGM.Error(E->getBeginLoc(), "this builtin expect that __builtin_coro_begin "
+                                "has been used earlier in this function");
+    auto *NullPtr = llvm::ConstantPointerNull::get(Builder.getInt8PtrTy());
     return RValue::get(NullPtr);
+  }
+  case llvm::Intrinsic::coro_size: {
+    auto &Context = getContext();
+    CanQualType SizeTy = Context.getSizeType();
+    llvm::IntegerType *T = Builder.getIntNTy(Context.getTypeSize(SizeTy));
+    llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::coro_size, T);
+    return RValue::get(Builder.CreateCall(F));
+  }
+  case llvm::Intrinsic::coro_align: {
+    auto &Context = getContext();
+    CanQualType SizeTy = Context.getSizeType();
+    llvm::IntegerType *T = Builder.getIntNTy(Context.getTypeSize(SizeTy));
+    llvm::Function *F = CGM.getIntrinsic(llvm::Intrinsic::coro_align, T);
+    return RValue::get(Builder.CreateCall(F));
   }
   // The following three intrinsics take a token parameter referring to a token
   // returned by earlier call to @llvm.coro.id. Since we cannot represent it in
@@ -722,10 +700,10 @@ RValue CodeGenFunction::EmitCoroutineIntrinsic(const CallExpr *E,
       Args.push_back(CurCoro.Data->CoroId);
       break;
     }
-    CGM.Error(E->getLocStart(), "this builtin expect that __builtin_coro_id has"
+    CGM.Error(E->getBeginLoc(), "this builtin expect that __builtin_coro_id has"
                                 " been used earlier in this function");
     // Fallthrough to the next case to add TokenNone as the first argument.
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   }
   // @llvm.coro.suspend takes a token parameter. Add token 'none' as the first
   // argument.
@@ -733,10 +711,10 @@ RValue CodeGenFunction::EmitCoroutineIntrinsic(const CallExpr *E,
     Args.push_back(llvm::ConstantTokenNone::get(getLLVMContext()));
     break;
   }
-  for (auto &Arg : E->arguments())
+  for (const Expr *Arg : E->arguments())
     Args.push_back(EmitScalarExpr(Arg));
 
-  llvm::Value *F = CGM.getIntrinsic(IID);
+  llvm::Function *F = CGM.getIntrinsic(IID);
   llvm::CallInst *Call = Builder.CreateCall(F, Args);
 
   // Note: The following code is to enable to emit coro.id and coro.begin by

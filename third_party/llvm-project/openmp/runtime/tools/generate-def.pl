@@ -3,10 +3,9 @@
 #
 #//===----------------------------------------------------------------------===//
 #//
-#//                     The LLVM Compiler Infrastructure
-#//
-#// This file is dual licensed under the MIT and the University of Illinois Open
-#// Source Licenses. See LICENSE.txt for details.
+#// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+#// See https://llvm.org/LICENSE.txt for license information.
+#// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #//
 #//===----------------------------------------------------------------------===//
 #
@@ -95,7 +94,7 @@ sub parse_input($\%) {
 
     if ( @dirs ) {
         my $dir = pop( @dirs );
-        $error->( "Unterminated %if direcive.", $dir->{ n }, $dir->{ line } );
+        $error->( "Unterminated %if directive.", $dir->{ n }, $dir->{ line } );
     }; # while
 
     return %entries;
@@ -109,13 +108,18 @@ sub process(\%) {
     foreach my $entry ( keys( %$entries ) ) {
         if ( not $entries->{ $entry }->{ obsolete } ) {
             my $ordinal = $entries->{ $entry }->{ ordinal };
-            if ( $entry =~ m{\A[ok]mp_} ) {
-                if ( not defined( $ordinal ) or $ordinal eq "DATA" ) {
+            # omp_alloc and omp_free are C/C++ only functions, skip "1000+ordinal" for them
+            if ( $entry =~ m{\A[ok]mp_} and $entry ne "omp_alloc" and $entry ne "omp_free" and
+                $entry ne "omp_calloc" and $entry ne "omp_realloc" and
+                $entry ne "omp_aligned_alloc" and $entry ne "omp_aligned_calloc" ) {
+                if ( not defined( $ordinal ) ) {
                     runtime_error(
                         "Bad entry \"$entry\": ordinal number is not specified."
                     );
                 }; # if
-                $entries->{ uc( $entry ) } = { ordinal => 1000 + $ordinal };
+                if ( $ordinal ne "DATA" ) {
+                    $entries->{ uc( $entry ) } = { ordinal => 1000 + $ordinal };
+                }
             }; # if
         }; # if
     }; # foreach
@@ -150,7 +154,7 @@ sub generate_output(\%$) {
         print( $bulk );
     }; # if
 
-}; # sub generate_ouput
+}; # sub generate_output
 
 #
 # Parse command line.
@@ -266,7 +270,7 @@ A name of input file.
 =head1 DESCRIPTION
 
 The script reads input file, process conditional directives, checks content for consistency, and
-generates ouptput file suitable for linker.
+generates output file suitable for linker.
 
 =head2 Input File Format
 
@@ -285,7 +289,7 @@ Comments start with C<#> symbol and continue to the end of line.
     %endif
 
 A part of file surrounded by C<%ifdef I<name>> and C<%endif> directives is a conditional part -- it
-has effect only if I<name> is defined in the comman line by B<--define> option. C<%ifndef> is a
+has effect only if I<name> is defined in the command line by B<--define> option. C<%ifndef> is a
 negated version of C<%ifdef> -- conditional part has an effect only if I<name> is B<not> defined.
 
 Conditional parts may be nested.

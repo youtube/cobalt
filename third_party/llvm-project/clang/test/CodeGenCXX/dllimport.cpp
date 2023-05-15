@@ -1,14 +1,14 @@
-// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s -DMSABI -w | FileCheck --check-prefix=MSC --check-prefix=M32 %s
-// RUN: %clang_cc1 -triple x86_64-windows-msvc -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s -DMSABI -w | FileCheck --check-prefix=MSC --check-prefix=M64 %s
-// RUN: %clang_cc1 -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU --check-prefix=G32 %s
-// RUN: %clang_cc1 -triple x86_64-windows-gnu  -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU --check-prefix=G64 %s
-// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=18.00 -emit-llvm -std=c++1y -O1 -disable-llvm-passes -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M18 %s
-// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=19.00 -emit-llvm -std=c++1y -O1 -disable-llvm-passes -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M19 %s
-// RUN: %clang_cc1 -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O1 -o - %s         -w | FileCheck --check-prefix=GO1 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s -DMSABI -w | FileCheck --check-prefix=MSC --check-prefix=M32 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple x86_64-windows-msvc -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s -DMSABI -w | FileCheck --check-prefix=MSC --check-prefix=M64 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU --check-prefix=G32 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple x86_64-windows-gnu  -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=18.00 -emit-llvm -std=c++1y -O1 -disable-llvm-passes -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M18 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -fms-compatibility-version=19.00 -emit-llvm -std=c++1y -O1 -disable-llvm-passes -o - %s -DMSABI -w | FileCheck --check-prefix=MO1 --check-prefix=M19 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions                                  -emit-llvm -std=c++1y -O1 -disable-llvm-passes -o - %s         -w | FileCheck --check-prefix=GO1 %s
 
 // CHECK-NOT doesn't play nice with CHECK-DAG, so use separate run lines.
-// RUN: %clang_cc1 -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s -DMSABI -w | FileCheck --check-prefix=MSC2 %s
-// RUN: %clang_cc1 -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU2 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple i686-windows-msvc   -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s -DMSABI -w | FileCheck --check-prefix=MSC2 %s
+// RUN: %clang_cc1 -no-enable-noundef-analysis -triple i686-windows-gnu    -fno-rtti -fno-threadsafe-statics -fms-extensions -emit-llvm -std=c++1y -O0 -o - %s         -w | FileCheck --check-prefix=GNU2 %s
 
 // Helper structs to make templates more expressive.
 struct ImplicitInst_Imported {};
@@ -62,9 +62,9 @@ __declspec(dllimport) int GlobalRedecl2a;
 __declspec(dllimport) int GlobalRedecl2a;
 USEVAR(GlobalRedecl2a)
 
-// M32-DAG: @"?GlobalRedecl2b@@3PAHA"   = external dllimport global i32*
-// M64-DAG: @"?GlobalRedecl2b@@3PEAHEA" = external dllimport global i32*
-// GNU-DAG: @GlobalRedecl2b                = external dllimport global i32*
+// M32-DAG: @"?GlobalRedecl2b@@3PAHA"   = external dllimport global ptr
+// M64-DAG: @"?GlobalRedecl2b@@3PEAHEA" = external dllimport global ptr
+// GNU-DAG: @GlobalRedecl2b                = external dllimport global ptr
 int *__attribute__((dllimport)) GlobalRedecl2b;
 int *__attribute__((dllimport)) GlobalRedecl2b;
 USEVARTYPE(int*, GlobalRedecl2b)
@@ -78,7 +78,7 @@ USEVAR(GlobalRedecl2c)
 // NB: MSC issues a warning and makes GlobalRedecl3 dllexport. We follow GCC
 // and drop the dllimport with a warning.
 // MSC-DAG: @"?GlobalRedecl3@@3HA" = external dso_local global i32
-// GNU-DAG: @GlobalRedecl3            = external dso_local global i32
+// GNU-DAG: @GlobalRedecl3            = external global i32
 __declspec(dllimport) extern int GlobalRedecl3;
                       extern int GlobalRedecl3; // dllimport ignored
 USEVAR(GlobalRedecl3)
@@ -98,8 +98,8 @@ inline int __declspec(dllimport) inlineStaticLocalsFunc() {
 USE(inlineStaticLocalsFunc);
 
 // The address of a dllimport global cannot be used in constant initialization.
-// M32-DAG: @"?arr@?1??initializationFunc@@YAPAHXZ@4QBQAHB" = internal global [1 x i32*] zeroinitializer
-// GNU-DAG: @_ZZ18initializationFuncvE3arr = internal global [1 x i32*] zeroinitializer
+// M32-DAG: @"?arr@?1??initializationFunc@@YAPAHXZ@4QBQAHB" = internal global [1 x ptr] zeroinitializer
+// GNU-DAG: @_ZZ18initializationFuncvE3arr = internal global [1 x ptr] zeroinitializer
 int *initializationFunc() {
   static int *const arr[] = {&ExternGlobalDecl};
   return arr[0];
@@ -137,7 +137,7 @@ template<typename T> __declspec(dllimport) int VarTmplRedecl2;
 USEVAR(VarTmplRedecl2<ImplicitInst_Imported>)
 
 // MSC-DAG: @"??$VarTmplRedecl3@UImplicitInst_Imported@@@@3HA" = external dso_local global i32
-// GNU-DAG: @_Z14VarTmplRedecl3I21ImplicitInst_ImportedE          = external dso_local global i32
+// GNU-DAG: @_Z14VarTmplRedecl3I21ImplicitInst_ImportedE          = external global i32
 template<typename T> __declspec(dllimport) extern int VarTmplRedecl3;
 template<typename T>                       extern int VarTmplRedecl3; // dllimport ignored
 USEVAR(VarTmplRedecl3<ImplicitInst_Imported>)
@@ -203,7 +203,7 @@ USEVAR(VarTmpl<ExplicitSpec_Imported>)
 // Functions
 //===----------------------------------------------------------------------===//
 
-// GNU-DAG: declare dso_local void @_ZdlPv(i8*)
+// GNU-DAG: declare dso_local void @_ZdlPv(ptr)
 
 // Import function declaration.
 // MSC-DAG: declare dllimport void @"?decl@@YAXXZ"()
@@ -308,8 +308,8 @@ USE(friend4)
 USE(friend5)
 
 // Implicit declarations can be redeclared with dllimport.
-// MSC-DAG: declare dllimport noalias i8* @"??2@{{YAPAXI|YAPEAX_K}}@Z"(
-// GNU-DAG: declare dllimport noalias i8* @_Znw{{[yj]}}(
+// MSC-DAG: declare dllimport nonnull ptr @"??2@{{YAPAXI|YAPEAX_K}}@Z"(
+// GNU-DAG: declare dllimport nonnull ptr @_Znw{{[yj]}}(
 __declspec(dllimport) void* operator new(__SIZE_TYPE__ n);
 void UNIQ(use)() { ::operator new(42); }
 
@@ -346,17 +346,17 @@ USE1(ReferencingNonImportedMethod)
 void UNIQ(use)() { ReferencingClassMemberPtr(&ClassWithNonImportedMethod::f, nullptr); }
 // References to operator new and delete count too, despite not being DeclRefExprs.
 __declspec(dllimport) inline int *ReferencingNonImportedNew() { return new int[2]; }
-// MO1-DAG: declare dllimport i32* @"?ReferencingNonImportedNew@@YAPAHXZ"
+// MO1-DAG: declare dllimport ptr @"?ReferencingNonImportedNew@@YAPAHXZ"
 __declspec(dllimport) inline int *ReferencingNonImportedDelete() { delete (int*)nullptr; }
-// MO1-DAG: declare dllimport i32* @"?ReferencingNonImportedDelete@@YAPAHXZ"
+// MO1-DAG: declare dllimport ptr @"?ReferencingNonImportedDelete@@YAPAHXZ"
 USE(ReferencingNonImportedNew)
 USE(ReferencingNonImportedDelete)
 __declspec(dllimport) void* operator new[](__SIZE_TYPE__);
 __declspec(dllimport) void operator delete(void*);
 __declspec(dllimport) inline int *ReferencingImportedNew() { return new int[2]; }
-// MO1-DAG: define available_externally dllimport i32* @"?ReferencingImportedNew@@YAPAHXZ"
+// MO1-DAG: define available_externally dllimport ptr @"?ReferencingImportedNew@@YAPAHXZ"
 __declspec(dllimport) inline int *ReferencingImportedDelete() { delete (int*)nullptr; }
-// MO1-DAG: define available_externally dllimport i32* @"?ReferencingImportedDelete@@YAPAHXZ"
+// MO1-DAG: define available_externally dllimport ptr @"?ReferencingImportedDelete@@YAPAHXZ"
 USE(ReferencingImportedNew)
 USE(ReferencingImportedDelete)
 struct ClassWithDtor { ~ClassWithDtor() {} };
@@ -364,12 +364,12 @@ struct __declspec(dllimport) ClassWithNonDllImportField { using X = ClassWithDto
 struct __declspec(dllimport) ClassWithNonDllImportBase : public ClassWithDtor { };
 USECLASS(ClassWithNonDllImportField);
 USECLASS(ClassWithNonDllImportBase);
-// MO1-DAG: declare dllimport x86_thiscallcc void @"??1ClassWithNonDllImportBase@@QAE@XZ"(%struct.ClassWithNonDllImportBase*)
-// MO1-DAG: declare dllimport x86_thiscallcc void @"??1ClassWithNonDllImportField@@QAE@XZ"(%struct.ClassWithNonDllImportField*)
+// MO1-DAG: declare dllimport x86_thiscallcc void @"??1ClassWithNonDllImportBase@@QAE@XZ"(ptr {{[^,]*}})
+// MO1-DAG: declare dllimport x86_thiscallcc void @"??1ClassWithNonDllImportField@@QAE@XZ"(ptr {{[^,]*}})
 struct ClassWithCtor { ClassWithCtor() {} };
 struct __declspec(dllimport) ClassWithNonDllImportFieldWithCtor { ClassWithCtor t; };
 USECLASS(ClassWithNonDllImportFieldWithCtor);
-// MO1-DAG: declare dllimport x86_thiscallcc %struct.ClassWithNonDllImportFieldWithCtor* @"??0ClassWithNonDllImportFieldWithCtor@@QAE@XZ"(%struct.ClassWithNonDllImportFieldWithCtor* returned)
+// MO1-DAG: declare dllimport x86_thiscallcc ptr @"??0ClassWithNonDllImportFieldWithCtor@@QAE@XZ"(ptr {{[^,]*}} returned {{[^,]*}})
 struct ClassWithImplicitDtor { __declspec(dllimport) ClassWithImplicitDtor(); ClassWithDtor member; };
 __declspec(dllimport) inline void ReferencingDtorThroughDefinition() { ClassWithImplicitDtor x; };
 USE(ReferencingDtorThroughDefinition)
@@ -386,6 +386,13 @@ __declspec(dllimport) inline void FunctionWithNormalVar() { static int x = 42; }
 USE(FunctionWithTLSVar)
 USE(FunctionWithNormalVar)
 
+// always_inline and __force_inline take precedence.
+__declspec(dllimport) inline int ReferencingNonImportedFuncAlwaysInline() __attribute__((always_inline)) { return NonImportedFunc(); }
+USE(ReferencingNonImportedFuncAlwaysInline)
+// MO1-DAG: define available_externally dllimport i32 @"?ReferencingNonImportedFuncAlwaysInline@@YAHXZ"
+__declspec(dllimport) __forceinline int ReferencingNonImportedFuncForceInline() { return NonImportedFunc(); }
+USE(ReferencingNonImportedFuncForceInline)
+// MO1-DAG: define available_externally dllimport i32 @"?ReferencingNonImportedFuncForceInline@@YAHXZ"
 
 //===----------------------------------------------------------------------===//
 // Function templates
@@ -638,12 +645,12 @@ struct __declspec(dllimport) T {
   // MO1-DAG: @"?b@T@@2HA" = external dllimport global i32
 
   T& operator=(T&) = default;
-  // MO1-DAG: define available_externally dllimport x86_thiscallcc dereferenceable({{[0-9]+}}) %struct.T* @"??4T@@QAEAAU0@AAU0@@Z"
+  // MO1-DAG: define available_externally dllimport x86_thiscallcc nonnull align {{[0-9]+}} dereferenceable({{[0-9]+}}) ptr @"??4T@@QAEAAU0@AAU0@@Z"
 
   T& operator=(T&&) = default;
   // Note: Don't mark inline move operators dllimport because current MSVC versions don't export them.
-  // M18-DAG: define linkonce_odr dso_local x86_thiscallcc dereferenceable({{[0-9]+}}) %struct.T* @"??4T@@QAEAAU0@$$QAU0@@Z"
-  // M19-DAG: define available_externally dllimport x86_thiscallcc dereferenceable({{[0-9]+}}) %struct.T* @"??4T@@QAEAAU0@$$QAU0@@Z"
+  // M18-DAG: define linkonce_odr dso_local x86_thiscallcc nonnull align {{[0-9]+}} dereferenceable({{[0-9]+}}) ptr @"??4T@@QAEAAU0@$$QAU0@@Z"
+  // M19-DAG: define available_externally dllimport x86_thiscallcc nonnull align {{[0-9]+}} dereferenceable({{[0-9]+}}) ptr @"??4T@@QAEAAU0@$$QAU0@@Z"
 };
 USEMEMFUNC(T, a)
 USESTATICMEMFUNC(T, StaticMethod)
@@ -659,15 +666,15 @@ USEMEMFUNC(V, foo)
 struct __declspec(dllimport) W { virtual void foo() {} };
 USECLASS(W)
 // vftable:
-// MO1-DAG: @"??_SW@@6B@" = linkonce_odr unnamed_addr constant { [1 x i8*] } { [1 x i8*] [i8* bitcast (void (%struct.W*)* @"?foo@W@@UAEXXZ" to i8*)] }
-// GO1-DAG: @_ZTV1W = available_externally dllimport unnamed_addr constant { [3 x i8*] } { [3 x i8*] [i8* null, i8* null, i8* bitcast (void (%struct.W*)* @_ZN1W3fooEv to i8*)] }
+// MO1-DAG: @"??_SW@@6B@" = linkonce_odr unnamed_addr constant { [1 x ptr] } { [1 x ptr] [ptr @"?foo@W@@UAEXXZ"] }
+// GO1-DAG: @_ZTV1W = available_externally dllimport unnamed_addr constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr null, ptr @_ZN1W3fooEv] }
 
 struct __declspec(dllimport) KeyFuncClass {
   constexpr KeyFuncClass() {}
   virtual void foo();
 };
 extern constexpr KeyFuncClass keyFuncClassVar = {};
-// G32-DAG: @_ZTV12KeyFuncClass = external dllimport unnamed_addr constant { [3 x i8*] }
+// G32-DAG: @_ZTV12KeyFuncClass = external dllimport unnamed_addr constant { [3 x ptr] }
 
 struct __declspec(dllimport) X : public virtual W {};
 USECLASS(X)
@@ -773,7 +780,7 @@ namespace PR21355 {
   // S::~S is a key function, so we would ordinarily emit a strong definition for
   // the vtable. However, S is imported, so the vtable should be too.
 
-  // GNU-DAG: @_ZTVN7PR213551SE = available_externally dllimport unnamed_addr constant { [4 x i8*] }
+  // GNU-DAG: @_ZTVN7PR213551SE = available_externally dllimport unnamed_addr constant { [4 x ptr] }
 }
 
 namespace PR21366 {
@@ -795,7 +802,7 @@ namespace PR27319 {
   };
   extern template struct __declspec(dllimport) A<int>;
   void f() { new A<int>(); }
-  // MO1-DAG: @"??_S?$A@H@PR27319@@6B@" = linkonce_odr unnamed_addr constant { [1 x i8*] }
+  // MO1-DAG: @"??_S?$A@H@PR27319@@6B@" = linkonce_odr unnamed_addr constant { [1 x ptr] }
 }
 
 // MS ignores DLL attributes on partial specializations.
@@ -831,7 +838,7 @@ template struct __declspec(dllimport) ExplicitInstantiationDeclImportedDefTempla
 USECLASS(ExplicitInstantiationDeclImportedDefTemplate<int>);
 USEMEMFUNC(ExplicitInstantiationDeclImportedDefTemplate<int>, f);
 // M32-DAG: {{declare|define available_externally}} dllimport x86_thiscallcc void @"?f@?$ExplicitInstantiationDeclImportedDefTemplate@H@@QAEXXZ"
-// M32-DAG: {{declare|define available_externally}} dllimport x86_thiscallcc %struct.ExplicitInstantiationDeclImportedDefTemplate* @"??0?$ExplicitInstantiationDeclImportedDefTemplate@H@@QAE@XZ"
+// M32-DAG: {{declare|define available_externally}} dllimport x86_thiscallcc ptr @"??0?$ExplicitInstantiationDeclImportedDefTemplate@H@@QAE@XZ"
 // G32-DAG: define weak_odr dso_local x86_thiscallcc void @_ZN44ExplicitInstantiationDeclImportedDefTemplateIiE1fEv
 
 template <typename T> struct __declspec(dllimport) ExplicitInstantiationDeclExportedDefImportedTemplate { void f() {} ExplicitInstantiationDeclExportedDefImportedTemplate() {} };
@@ -840,7 +847,7 @@ template struct __declspec(dllexport) ExplicitInstantiationDeclExportedDefImport
 USECLASS(ExplicitInstantiationDeclExportedDefImportedTemplate<int>);
 USEMEMFUNC(ExplicitInstantiationDeclExportedDefImportedTemplate<int>, f);
 // M32-DAG: {{declare|define available_externally}} dllimport x86_thiscallcc void @"?f@?$ExplicitInstantiationDeclExportedDefImportedTemplate@H@@QAEXXZ"
-// M32-DAG: {{declare|define available_externally}} dllimport x86_thiscallcc %struct.ExplicitInstantiationDeclExportedDefImportedTemplate* @"??0?$ExplicitInstantiationDeclExportedDefImportedTemplate@H@@QAE@XZ"
+// M32-DAG: {{declare|define available_externally}} dllimport x86_thiscallcc ptr @"??0?$ExplicitInstantiationDeclExportedDefImportedTemplate@H@@QAE@XZ"
 
 template <typename T> struct PR23770BaseTemplate { void f() {} };
 template <typename T> struct PR23770DerivedTemplate : PR23770BaseTemplate<int> {};
@@ -996,3 +1003,26 @@ template struct __declspec(dllexport) ExplicitInstantiationDeclTemplateBase2<int
 USEMEMFUNC(ExplicitInstantiationDeclTemplateBase2<int>, func)
 // M32-DAG: declare dllimport x86_thiscallcc void @"?func@?$ExplicitInstantiationDeclTemplateBase2@H@@QAEXXZ"
 // G32-DAG: define weak_odr dso_local x86_thiscallcc void @_ZN38ExplicitInstantiationDeclTemplateBase2IiE4funcEv
+
+namespace pr39496 {
+// Make sure dll attribute are inherited by static locals also in template
+// specializations.
+template <typename> struct __declspec(dllimport) S { int foo() { static int x; return x++; } };
+int foo() { S<int> s; return s.foo(); }
+// MO1-DAG: @"?x@?{{1|2}}??foo@?$S@H@pr39496@@Q{{[A-Z]*}}HXZ@4HA" = available_externally dllimport global i32 0, align 4
+
+template <typename> struct T { int foo() { static int x; return x++; } };
+extern template struct __declspec(dllimport) T<int>;
+int bar() { T<int> t; return t.foo(); }
+// MO1-DAG: @"?x@?{{1|2}}??foo@?$T@H@pr39496@@Q{{[A-Z]*}}HXZ@4HA" = available_externally dllimport global i32 0, align 4
+
+template <typename T> struct __declspec(dllimport) U {
+  void foo() {
+    // Don't inherit dllimport to src before attaching the initializer.
+    static constexpr char src[] = {"hello"};
+    T arr[sizeof(src)];
+  }
+};
+void baz() { U<int> u; u.foo(); } // No diagnostic.
+
+}

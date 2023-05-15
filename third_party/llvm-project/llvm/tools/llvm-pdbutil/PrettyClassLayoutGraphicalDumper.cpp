@@ -1,15 +1,13 @@
 //===- PrettyClassLayoutGraphicalDumper.h -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "PrettyClassLayoutGraphicalDumper.h"
 
-#include "LinePrinter.h"
 #include "PrettyClassDefinitionDumper.h"
 #include "PrettyEnumDumper.h"
 #include "PrettyFunctionDumper.h"
@@ -18,8 +16,10 @@
 #include "PrettyVariableDumper.h"
 #include "llvm-pdbutil.h"
 
+#include "llvm/DebugInfo/PDB/IPDBLineNumber.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolData.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeBaseClass.h"
+#include "llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeUDT.h"
 #include "llvm/DebugInfo/PDB/UDTLayout.h"
 #include "llvm/Support/Format.h"
@@ -36,16 +36,16 @@ bool PrettyClassLayoutGraphicalDumper::start(const UDTLayoutBase &Layout) {
 
   if (RecursionLevel == 1 &&
       opts::pretty::ClassFormat == opts::pretty::ClassDefinitionFormat::All) {
-    for (auto &Other : Layout.other_items())
+    for (const auto &Other : Layout.other_items())
       Other->dump(*this);
-    for (auto &Func : Layout.funcs())
+    for (const auto &Func : Layout.funcs())
       Func->dump(*this);
   }
 
   const BitVector &UseMap = Layout.usedBytes();
   int NextPaddingByte = UseMap.find_first_unset();
 
-  for (auto &Item : Layout.layout_items()) {
+  for (const auto &Item : Layout.layout_items()) {
     // Calculate the absolute offset of the first byte of the next field.
     uint32_t RelativeOffset = Item->getOffsetInParent();
     CurrentAbsoluteOffset = ClassOffsetZero + RelativeOffset;

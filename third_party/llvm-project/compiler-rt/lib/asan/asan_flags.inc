@@ -1,9 +1,8 @@
 //===-- asan_flags.inc ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -50,9 +49,10 @@ ASAN_FLAG(
     "to find more errors.")
 ASAN_FLAG(bool, replace_intrin, true,
           "If set, uses custom wrappers for memset/memcpy/memmove intrinsics.")
-ASAN_FLAG(bool, detect_stack_use_after_return, false,
+ASAN_FLAG(bool, detect_stack_use_after_return,
+          SANITIZER_LINUX && !SANITIZER_ANDROID,
           "Enables stack-use-after-return checking at run-time.")
-ASAN_FLAG(int, min_uar_stack_size_log, 16, // We can't do smaller anyway.
+ASAN_FLAG(int, min_uar_stack_size_log, 16,  // We can't do smaller anyway.
           "Minimum fake stack size log.")
 ASAN_FLAG(int, max_uar_stack_size_log,
           20, // 1Mb per size class, i.e. ~11Mb per thread
@@ -83,13 +83,16 @@ ASAN_FLAG(
     int, sleep_after_init, 0,
     "Number of seconds to sleep after AddressSanitizer is initialized. "
     "Useful for debugging purposes (e.g. when one needs to attach gdb).")
+ASAN_FLAG(
+    int, sleep_before_init, 0,
+    "Number of seconds to sleep before AddressSanitizer starts initializing. "
+    "Useful for debugging purposes (e.g. when one needs to attach gdb).")
 ASAN_FLAG(bool, check_malloc_usable_size, true,
           "Allows the users to work around the bug in Nvidia drivers prior to "
           "295.*.")
 ASAN_FLAG(bool, unmap_shadow_on_exit, false,
           "If set, explicitly unmaps the (huge) shadow at exit.")
-ASAN_FLAG(bool, protect_shadow_gap, !SANITIZER_RTEMS,
-          "If set, mprotect the shadow gap")
+ASAN_FLAG(bool, protect_shadow_gap, true, "If set, mprotect the shadow gap")
 ASAN_FLAG(bool, print_stats, false,
           "Print various statistics after printing an error message or if "
           "atexit=1.")
@@ -119,7 +122,7 @@ ASAN_FLAG(bool, poison_array_cookie, true,
 // https://github.com/google/sanitizers/issues/309
 // TODO(glider,timurrrr): Fix known issues and enable this back.
 ASAN_FLAG(bool, alloc_dealloc_mismatch,
-          !SANITIZER_MAC && !SANITIZER_WINDOWS && !SANITIZER_ANDROID,
+          !SANITIZER_APPLE && !SANITIZER_WINDOWS && !SANITIZER_ANDROID,
           "Report errors on malloc/delete, new/free, new/delete[], etc.")
 
 ASAN_FLAG(bool, new_delete_type_mismatch, true,
@@ -140,10 +143,10 @@ ASAN_FLAG(
     "If >= 2, detect operations like <, <=, >, >= and - on invalid pointer "
     "pairs (e.g. when pointers belong to different objects); "
     "If == 1, detect invalid operations only when both pointers are non-null.")
-ASAN_FLAG(
-    bool, detect_container_overflow, true,
-    "If true, honor the container overflow annotations. See "
-    "https://github.com/google/sanitizers/wiki/AddressSanitizerContainerOverflow")
+ASAN_FLAG(bool, detect_container_overflow, true,
+          "If true, honor the container overflow annotations. See "
+          "https://github.com/google/sanitizers/wiki/"
+          "AddressSanitizerContainerOverflow")
 ASAN_FLAG(int, detect_odr_violation, 2,
           "If >=2, detect violation of One-Definition-Rule (ODR); "
           "If ==1, detect ODR-violation only if the two variables "
@@ -152,8 +155,6 @@ ASAN_FLAG(const char *, suppressions, "", "Suppressions file name.")
 ASAN_FLAG(bool, halt_on_error, true,
           "Crash the program after printing the first error report "
           "(WARNING: USE AT YOUR OWN RISK!)")
-ASAN_FLAG(bool, use_odr_indicator, false,
-          "Use special ODR indicator symbol for ODR violation detection")
 ASAN_FLAG(bool, allocator_frees_and_returns_null_on_realloc_zero, true,
           "realloc(p, 0) is equivalent to free(p) by default (Same as the "
           "POSIX standard). If set to false, realloc(p, 0) will return a "
@@ -161,3 +162,6 @@ ASAN_FLAG(bool, allocator_frees_and_returns_null_on_realloc_zero, true,
 ASAN_FLAG(bool, verify_asan_link_order, true,
           "Check position of ASan runtime in library list (needs to be disabled"
           " when other library has to be preloaded system-wide)")
+ASAN_FLAG(
+    bool, windows_hook_rtl_allocators, false,
+    "(Windows only) enable hooking of Rtl(Allocate|Free|Size|ReAllocate)Heap.")

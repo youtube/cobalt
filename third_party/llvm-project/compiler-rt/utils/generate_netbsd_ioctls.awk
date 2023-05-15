@@ -2,10 +2,9 @@
 
 #===-- generate_netbsd_ioctls.awk ------------------------------------------===#
 #
-#                     The LLVM Compiler Infrastructure
-#
-# This file is distributed under the University of Illinois Open Source
-# License. See LICENSE.TXT for details.
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
 #===------------------------------------------------------------------------===#
 #
@@ -14,10 +13,16 @@
 #
 # This script reads public headers from a NetBSD host.
 #
+# This script shall be executed only on the newest NetBSD version.
+# This script will emit compat code for the older releases.
+#
+# NetBSD minimal version supported 9.0.
+# NetBSD current version supported 9.99.26.
+#
 #===------------------------------------------------------------------------===#
 
 BEGIN {
-  # harcode the script name
+  # hardcode the script name
   script_name = "generate_netbsd_ioctls.awk"
   outputinc = "../lib/sanitizer_common/sanitizer_interceptors_ioctl_netbsd.inc"
 
@@ -44,133 +49,13 @@ BEGIN {
     rootdir = ENVIRON["ROOTDIR"]
   }
 
-  # hardcode list of headers with ioctl(2) entries
-  # List generated manually with the following script:
-  #   for w in `find /usr/include/ -type f -name '*.h' -exec echo {} \;`; \
-  #   do awk '/[^a-zA-Z0-9_]_IO[W]*[R]*[ ]*\(/ && $2 ~ /^[A-Z_]+$/ {got=1} END{if(got) {print ARGV[1]}}' $w; \
-  #   done|awk '{print "  ARGV[ARGC++] = rootdir \"" substr($0, 14) "\""}'
-
-  ARGV[ARGC++] = rootdir "altq/altq_afmap.h"
-  ARGV[ARGC++] = rootdir "altq/altq.h"
-  ARGV[ARGC++] = rootdir "altq/altq_blue.h"
-  ARGV[ARGC++] = rootdir "altq/altq_cbq.h"
-  ARGV[ARGC++] = rootdir "altq/altq_cdnr.h"
-  ARGV[ARGC++] = rootdir "altq/altq_fifoq.h"
-  ARGV[ARGC++] = rootdir "altq/altq_hfsc.h"
-  ARGV[ARGC++] = rootdir "altq/altq_jobs.h"
-  ARGV[ARGC++] = rootdir "altq/altq_priq.h"
-  ARGV[ARGC++] = rootdir "altq/altq_red.h"
-  ARGV[ARGC++] = rootdir "altq/altq_rio.h"
-  ARGV[ARGC++] = rootdir "altq/altq_wfq.h"
-  ARGV[ARGC++] = rootdir "crypto/cryptodev.h"
-  ARGV[ARGC++] = rootdir "dev/apm/apmio.h"
-  ARGV[ARGC++] = rootdir "dev/dm/netbsd-dm.h"
-  ARGV[ARGC++] = rootdir "dev/dmover/dmover_io.h"
-  ARGV[ARGC++] = rootdir "dev/dtv/dtvio_demux.h"
-  ARGV[ARGC++] = rootdir "dev/dtv/dtvio_frontend.h"
-  ARGV[ARGC++] = rootdir "dev/filemon/filemon.h"
-  ARGV[ARGC++] = rootdir "dev/hdaudio/hdaudioio.h"
-  ARGV[ARGC++] = rootdir "dev/hdmicec/hdmicecio.h"
-  ARGV[ARGC++] = rootdir "dev/hpc/hpcfbio.h"
-  ARGV[ARGC++] = rootdir "dev/i2o/iopio.h"
-  ARGV[ARGC++] = rootdir "dev/ic/athioctl.h"
-  ARGV[ARGC++] = rootdir "dev/ic/bt8xx.h"
-  ARGV[ARGC++] = rootdir "dev/ic/hd44780var.h"
-  ARGV[ARGC++] = rootdir "dev/ic/icp_ioctl.h"
-  ARGV[ARGC++] = rootdir "dev/ic/isp_ioctl.h"
-  ARGV[ARGC++] = rootdir "dev/ic/mlxio.h"
-  ARGV[ARGC++] = rootdir "dev/ic/nvmeio.h"
-  ARGV[ARGC++] = rootdir "dev/ir/irdaio.h"
-  ARGV[ARGC++] = rootdir "dev/isa/satlinkio.h"
-  ARGV[ARGC++] = rootdir "dev/isa/isvio.h"
-  ARGV[ARGC++] = rootdir "dev/isa/wtreg.h"
-  ARGV[ARGC++] = rootdir "dev/iscsi/iscsi_ioctl.h"
-  ARGV[ARGC++] = rootdir "dev/ofw/openfirmio.h"
-  ARGV[ARGC++] = rootdir "dev/pci/amrio.h"
-  ARGV[ARGC++] = rootdir "dev/pci/mlyio.h"
-  ARGV[ARGC++] = rootdir "dev/pci/pciio.h"
-  ARGV[ARGC++] = rootdir "dev/pci/tweio.h"
-  ARGV[ARGC++] = rootdir "dev/pcmcia/if_cnwioctl.h"
-  ARGV[ARGC++] = rootdir "dev/pcmcia/if_rayreg.h"
-  ARGV[ARGC++] = rootdir "dev/raidframe/raidframeio.h"
-  ARGV[ARGC++] = rootdir "dev/sbus/mbppio.h"
-  ARGV[ARGC++] = rootdir "dev/scsipi/ses.h"
-  ARGV[ARGC++] = rootdir "dev/sun/disklabel.h"
-  ARGV[ARGC++] = rootdir "dev/sun/fbio.h"
-  ARGV[ARGC++] = rootdir "dev/sun/kbio.h"
-  ARGV[ARGC++] = rootdir "dev/sun/vuid_event.h"
-  ARGV[ARGC++] = rootdir "dev/tc/sticio.h"
-  ARGV[ARGC++] = rootdir "dev/usb/ukyopon.h"
-  ARGV[ARGC++] = rootdir "dev/usb/urio.h"
-  ARGV[ARGC++] = rootdir "dev/usb/usb.h"
-  ARGV[ARGC++] = rootdir "dev/usb/utoppy.h"
-  ARGV[ARGC++] = rootdir "dev/vme/xio.h"
-  ARGV[ARGC++] = rootdir "dev/wscons/wsdisplay_usl_io.h"
-  ARGV[ARGC++] = rootdir "dev/wscons/wsconsio.h"
-  ARGV[ARGC++] = rootdir "dev/biovar.h"
-  ARGV[ARGC++] = rootdir "dev/md.h"
-  ARGV[ARGC++] = rootdir "dev/ccdvar.h"
-  ARGV[ARGC++] = rootdir "dev/cgdvar.h"
-  ARGV[ARGC++] = rootdir "dev/fssvar.h"
-  ARGV[ARGC++] = rootdir "dev/bluetooth/btdev.h"
-  ARGV[ARGC++] = rootdir "dev/bluetooth/btsco.h"
-  ARGV[ARGC++] = rootdir "dev/kttcpio.h"
-  ARGV[ARGC++] = rootdir "dev/lockstat.h"
-  ARGV[ARGC++] = rootdir "dev/vndvar.h"
-  ARGV[ARGC++] = rootdir "dev/spkrio.h"
-  ARGV[ARGC++] = rootdir "net/bpf.h"
-  ARGV[ARGC++] = rootdir "net/if_atm.h"
-  ARGV[ARGC++] = rootdir "net/if_gre.h"
-  ARGV[ARGC++] = rootdir "net/if_ppp.h"
-  ARGV[ARGC++] = rootdir "net/npf.h"
-  ARGV[ARGC++] = rootdir "net/if_pppoe.h"
-  ARGV[ARGC++] = rootdir "net/if_sppp.h"
-  ARGV[ARGC++] = rootdir "net/if_srt.h"
-  ARGV[ARGC++] = rootdir "net/if_tap.h"
-  ARGV[ARGC++] = rootdir "net/if_tun.h"
-  ARGV[ARGC++] = rootdir "net/pfvar.h"
-  ARGV[ARGC++] = rootdir "net/slip.h"
-  ARGV[ARGC++] = rootdir "netbt/hci.h"
-  ARGV[ARGC++] = rootdir "netinet/ip_nat.h"
-  ARGV[ARGC++] = rootdir "netinet/ip_proxy.h"
-  ARGV[ARGC++] = rootdir "netinet6/in6_var.h"
-  ARGV[ARGC++] = rootdir "netnatm/natm.h"
-  ARGV[ARGC++] = rootdir "netsmb/smb_dev.h"
-  ARGV[ARGC++] = rootdir "sys/agpio.h"
-  ARGV[ARGC++] = rootdir "sys/audioio.h"
-  ARGV[ARGC++] = rootdir "sys/ataio.h"
-  ARGV[ARGC++] = rootdir "sys/cdio.h"
-  ARGV[ARGC++] = rootdir "sys/chio.h"
-  ARGV[ARGC++] = rootdir "sys/clockctl.h"
-  ARGV[ARGC++] = rootdir "sys/cpuio.h"
-  ARGV[ARGC++] = rootdir "sys/dkio.h"
-  ARGV[ARGC++] = rootdir "sys/drvctlio.h"
-  ARGV[ARGC++] = rootdir "sys/dvdio.h"
-  ARGV[ARGC++] = rootdir "sys/envsys.h"
-  ARGV[ARGC++] = rootdir "sys/event.h"
-  ARGV[ARGC++] = rootdir "sys/fdio.h"
-  ARGV[ARGC++] = rootdir "sys/filio.h"
-  ARGV[ARGC++] = rootdir "sys/gpio.h"
-  ARGV[ARGC++] = rootdir "sys/ioctl.h"
-  ARGV[ARGC++] = rootdir "sys/ioctl_compat.h"
-  ARGV[ARGC++] = rootdir "sys/joystick.h"
-  ARGV[ARGC++] = rootdir "sys/ksyms.h"
-  ARGV[ARGC++] = rootdir "sys/lua.h"
-  ARGV[ARGC++] = rootdir "sys/midiio.h"
-  ARGV[ARGC++] = rootdir "sys/mtio.h"
-  ARGV[ARGC++] = rootdir "sys/power.h"
-  ARGV[ARGC++] = rootdir "sys/radioio.h"
-  ARGV[ARGC++] = rootdir "sys/rndio.h"
-  ARGV[ARGC++] = rootdir "sys/scanio.h"
-  ARGV[ARGC++] = rootdir "sys/scsiio.h"
-  ARGV[ARGC++] = rootdir "sys/sockio.h"
-  ARGV[ARGC++] = rootdir "sys/timepps.h"
-  ARGV[ARGC++] = rootdir "sys/ttycom.h"
-  ARGV[ARGC++] = rootdir "sys/verified_exec.h"
-  ARGV[ARGC++] = rootdir "sys/videoio.h"
-  ARGV[ARGC++] = rootdir "sys/wdog.h"
-  ARGV[ARGC++] = rootdir "soundcard.h"
-  ARGV[ARGC++] = rootdir "xen/xenio.h"
+  # detect and register files to detect ioctl() definitions
+  ARGC = 1
+  cmd = "find " rootdir " -type f -name '*.h'"
+  while (cmd | getline) {
+    ARGV[ARGC++] = $0
+  }
+  close(cmd)
 
   ioctl_table_max = 0
 }
@@ -272,7 +157,6 @@ FNR == 1 {
       $0 ~ /JOY_GET_X_OFFSET/ ||
       $0 ~ /CHIOGPICKER/ ||
       $0 ~ /SLIOCGUNIT/ ||
-      $0 ~ /SATIOSBUFSIZE/ ||
       $0 ~ /TUNSLMODE/ ||
       $0 ~ /CBQ_IF_ATTACH/ ||
       $0 ~ /CDNR_IF_ATTACH/ ||
@@ -314,6 +198,7 @@ FNR == 1 {
       $0 ~ /PRIQ_IF_DETACH/ ||
       $0 ~ /PRIQ_ENABLE/ ||
       $0 ~ /WFQ_IF_ATTACH/ ||
+      $0 ~ /POWER_IOC_GET_TYPE_WITH_LOSSAGE/ ||
       $0 ~ /HFSC_DEL_FILTER/) {
     # There are entries with duplicate codes.. disable the less used ones
     next
@@ -345,17 +230,12 @@ FNR == 1 {
 
   # This !NONE check allows to skip some unparsable entries
   if (ioctl_mode[ioctl_table_max] != "NONE") {
-    # special cases first
-    if ($0 ~ /POWER_IOC_GET_TYPE_WITH_LOSSAGE/) {
-      ioctl_type[ioctl_table_max] = "sizeof(uptr)"
-    } else {
-      n = split($0, a, ",")
-      if (n == 3) {
-        gsub(/^[ ]+/, "", a[3])
-        match(a[3], /[a-zA-Z0-9_* ]+/)
-        type = get_type(substr(a[3], 0, RLENGTH))
-        ioctl_type[ioctl_table_max] = type
-      }
+    n = split($0, a, ",")
+    if (n == 3) {
+      gsub(/^[ ]+/, "", a[3])
+      match(a[3], /[a-zA-Z0-9_* ]+/)
+      type = get_type(substr(a[3], 0, RLENGTH))
+      ioctl_type[ioctl_table_max] = type
     }
   }
 
@@ -373,6 +253,12 @@ END {
     exit(abnormal_exit)
   }
 
+  # Add compat entries
+  add_compat("dev/filemon/filemon.h (compat <= 9.99.26)", "FILEMON_SET_FD", "READWRITE", "sizeof(int)")
+  add_compat("", "FILEMON_SET_PID", "READWRITE", "sizeof(int)")
+  add_compat("dev/usb/urio.h (compat <= 9.99.43)", "URIO_SEND_COMMAND", "READWRITE", "struct_urio_command_sz")
+  add_compat("", "URIO_RECV_COMMAND", "READWRITE", "struct_urio_command_sz")
+
   # Generate sanitizer_interceptors_ioctl_netbsd.inc
 
   # open pipe
@@ -380,10 +266,9 @@ END {
 
   pcmd("//===-- sanitizer_interceptors_ioctl_netbsd.inc -----------------*- C++ -*-===//")
   pcmd("//")
-  pcmd("//                     The LLVM Compiler Infrastructure")
-  pcmd("//")
-  pcmd("// This file is distributed under the University of Illinois Open Source")
-  pcmd("// License. See LICENSE.TXT for details.")
+  pcmd("// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.")
+  pcmd("// See https://llvm.org/LICENSE.txt for license information.")
+  pcmd("// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception")
   pcmd("//")
   pcmd("//===----------------------------------------------------------------------===//")
   pcmd("//")
@@ -431,6 +316,9 @@ END {
   pcmd("")
 
   for (i = 0; i < ioctl_table_max; i++) {
+    if (i in fname && fname[i] == "dev/nvmm/nvmm_ioctl.h") {
+      pcmd("#if defined(__x86_64__)")
+    }
     if (i in fname) {
       pcmd("  /* Entries from file: " fname[i] " */")
     }
@@ -442,6 +330,10 @@ END {
     }
 
     pcmd("  _(" ioctl_name[i] ", " ioctl_mode[i] "," type ");")
+
+    if (ioctl_name[i] == "NVMM_IOC_CTL") {
+      pcmd("#endif")
+    }
   }
 
   pcmd("#undef _")
@@ -609,6 +501,8 @@ function get_type(string)
     return "sizeof(u16)"
   } else if (string == "u_int32_t" || string == "uint32_t") {
     return "sizeof(u32)"
+  } else if (string == "u_int64_t" || string == "uint64_t") {
+    return "sizeof(u64)"
   } else if (string ~ /\*$/) {
     return "sizeof(uptr)"
   } else if (string == "off_t") {
@@ -748,6 +642,12 @@ function get_type(string)
     return "struct_RF_SingleComponent_sz"
   } else if (string == "RF_ProgressInfo_t") {
     return "struct_RF_ProgressInfo_sz"
+  } else if (string == "nvlist_ref_t") {
+    return "struct_nvlist_ref_sz"
+  } else if (string == "spi_ioctl_transfer_t") {
+    return "struct_spi_ioctl_transfer_sz"
+  } else if (string == "spi_ioctl_configure_t") {
+    return "struct_spi_ioctl_configure_sz"
   } else {
     print "Unrecognized entry: " string
     print "Aborting"
@@ -756,4 +656,15 @@ function get_type(string)
   }
 
   return string
+}
+
+function add_compat(path, name, mode, type)
+{
+  if (path != "") {
+    fname[ioctl_table_max] = path
+  }
+  ioctl_name[ioctl_table_max] = name
+  ioctl_mode[ioctl_table_max] = mode
+  ioctl_type[ioctl_table_max] = type
+  ioctl_table_max++
 }

@@ -1,9 +1,8 @@
 //===-- Bitcode/Reader/MetadataLoader.h - Load Metadatas -------*- C++ -*-====//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,7 +13,6 @@
 #ifndef LLVM_LIB_BITCODE_READER_METADATALOADER_H
 #define LLVM_LIB_BITCODE_READER_METADATALOADER_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 
 #include <functional>
@@ -24,13 +22,26 @@ namespace llvm {
 class BitcodeReaderValueList;
 class BitstreamCursor;
 class DISubprogram;
-class Error;
 class Function;
 class Instruction;
 class Metadata;
-class MDNode;
 class Module;
 class Type;
+template <typename T> class ArrayRef;
+
+typedef std::function<Type *(unsigned)> GetTypeByIDTy;
+
+typedef std::function<unsigned(unsigned, unsigned)> GetContainedTypeIDTy;
+
+typedef std::function<void(Metadata **, unsigned, GetTypeByIDTy,
+                           GetContainedTypeIDTy)>
+    MDTypeCallbackTy;
+
+struct MetadataLoaderCallbacks {
+  GetTypeByIDTy GetTypeByID;
+  GetContainedTypeIDTy GetContainedTypeID;
+  std::optional<MDTypeCallbackTy> MDType;
+};
 
 /// Helper class that handles loading Metadatas and keeping them available.
 class MetadataLoader {
@@ -42,7 +53,7 @@ public:
   ~MetadataLoader();
   MetadataLoader(BitstreamCursor &Stream, Module &TheModule,
                  BitcodeReaderValueList &ValueList, bool IsImporting,
-                 std::function<Type *(unsigned)> getTypeByID);
+                 MetadataLoaderCallbacks Callbacks);
   MetadataLoader &operator=(MetadataLoader &&);
   MetadataLoader(MetadataLoader &&);
 
@@ -65,14 +76,12 @@ public:
   /// necessary.
   Metadata *getMetadataFwdRefOrLoad(unsigned Idx);
 
-  MDNode *getMDNodeFwdRefOrNull(unsigned Idx);
-
-  /// Return the DISubprogra metadata for a Function if any, null otherwise.
+  /// Return the DISubprogram metadata for a Function if any, null otherwise.
   DISubprogram *lookupSubprogramForFunction(Function *F);
 
   /// Parse a `METADATA_ATTACHMENT` block for a function.
-  Error parseMetadataAttachment(
-      Function &F, const SmallVectorImpl<Instruction *> &InstructionList);
+  Error parseMetadataAttachment(Function &F,
+                                ArrayRef<Instruction *> InstructionList);
 
   /// Parse a `METADATA_KIND` block for the current module.
   Error parseMetadataKinds();

@@ -1,9 +1,8 @@
 //===- llvm/Target/TargetSchedule.cpp - Sched Machine Model ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,7 +16,6 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCInstrItineraries.h"
@@ -28,6 +26,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <numeric>
 
 using namespace llvm;
 
@@ -45,22 +44,6 @@ bool TargetSchedModel::hasInstrItineraries() const {
   return EnableSchedItins && !InstrItins.isEmpty();
 }
 
-static unsigned gcd(unsigned Dividend, unsigned Divisor) {
-  // Dividend and Divisor will be naturally swapped as needed.
-  while (Divisor) {
-    unsigned Rem = Dividend % Divisor;
-    Dividend = Divisor;
-    Divisor = Rem;
-  };
-  return Dividend;
-}
-
-static unsigned lcm(unsigned A, unsigned B) {
-  unsigned LCM = (uint64_t(A) * B) / gcd(A, B);
-  assert((LCM >= A && LCM >= B) && "LCM overflow");
-  return LCM;
-}
-
 void TargetSchedModel::init(const TargetSubtargetInfo *TSInfo) {
   STI = TSInfo;
   SchedModel = TSInfo->getSchedModel();
@@ -73,7 +56,7 @@ void TargetSchedModel::init(const TargetSubtargetInfo *TSInfo) {
   for (unsigned Idx = 0; Idx < NumRes; ++Idx) {
     unsigned NumUnits = SchedModel.getProcResource(Idx)->NumUnits;
     if (NumUnits > 0)
-      ResourceLCM = lcm(ResourceLCM, NumUnits);
+      ResourceLCM = std::lcm(ResourceLCM, NumUnits);
   }
   MicroOpFactor = ResourceLCM / SchedModel.IssueWidth;
   for (unsigned Idx = 0; Idx < NumRes; ++Idx) {
@@ -301,7 +284,7 @@ computeOutputLatency(const MachineInstr *DefMI, unsigned DefOperIdx,
   // TODO: The following hack exists because predication passes do not
   // correctly append imp-use operands, and readsReg() strangely returns false
   // for predicated defs.
-  unsigned Reg = DefMI->getOperand(DefOperIdx).getReg();
+  Register Reg = DefMI->getOperand(DefOperIdx).getReg();
   const MachineFunction &MF = *DefMI->getMF();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   if (!DepMI->readsRegister(Reg, TRI) && TII->isPredicated(*DepMI))

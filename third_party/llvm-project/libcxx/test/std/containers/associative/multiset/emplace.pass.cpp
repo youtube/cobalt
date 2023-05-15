@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <set>
 
@@ -19,11 +18,12 @@
 #include <set>
 #include <cassert>
 
+#include "test_macros.h"
 #include "../../Emplaceable.h"
 #include "DefaultOnly.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef std::multiset<DefaultOnly> M;
@@ -37,7 +37,7 @@ int main()
         assert(DefaultOnly::count == 1);
 
         r = m.emplace();
-        assert(r == next(m.begin()));
+        assert(r == std::next(m.begin()));
         assert(m.size() == 2);
         assert(*m.begin() == DefaultOnly());
         assert(DefaultOnly::count == 2);
@@ -52,11 +52,11 @@ int main()
         assert(m.size() == 1);
         assert(*m.begin() == Emplaceable());
         r = m.emplace(2, 3.5);
-        assert(r == next(m.begin()));
+        assert(r == std::next(m.begin()));
         assert(m.size() == 2);
         assert(*r == Emplaceable(2, 3.5));
         r = m.emplace(2, 3.5);
-        assert(r == next(m.begin(), 2));
+        assert(r == std::next(m.begin(), 2));
         assert(m.size() == 3);
         assert(*r == Emplaceable(2, 3.5));
     }
@@ -78,4 +78,6 @@ int main()
         assert(m.size() == 1);
         assert(*r == 2);
     }
+
+  return 0;
 }

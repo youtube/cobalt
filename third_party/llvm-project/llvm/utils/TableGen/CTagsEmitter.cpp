@@ -1,9 +1,8 @@
 //===- CTagsEmitter.cpp - Generate ctags-compatible index ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -28,18 +27,22 @@ namespace {
 
 class Tag {
 private:
-  const std::string *Id;
-  SMLoc Loc;
+  StringRef Id;
+  StringRef BufferIdentifier;
+  unsigned Line;
 public:
-  Tag(const std::string &Name, const SMLoc Location)
-      : Id(&Name), Loc(Location) {}
-  int operator<(const Tag &B) const { return *Id < *B.Id; }
-  void emit(raw_ostream &OS) const {
+  Tag(StringRef Name, const SMLoc Location) : Id(Name) {
     const MemoryBuffer *CurMB =
-        SrcMgr.getMemoryBuffer(SrcMgr.FindBufferContainingLoc(Loc));
-    auto BufferName = CurMB->getBufferIdentifier();
-    std::pair<unsigned, unsigned> LineAndColumn = SrcMgr.getLineAndColumn(Loc);
-    OS << *Id << "\t" << BufferName << "\t" << LineAndColumn.first << "\n";
+        SrcMgr.getMemoryBuffer(SrcMgr.FindBufferContainingLoc(Location));
+    BufferIdentifier = CurMB->getBufferIdentifier();
+    auto LineAndColumn = SrcMgr.getLineAndColumn(Location);
+    Line = LineAndColumn.first;
+  }
+  int operator<(const Tag &B) const {
+    return std::make_tuple(Id, BufferIdentifier, Line) < std::make_tuple(B.Id, B.BufferIdentifier, B.Line);
+  }
+  void emit(raw_ostream &OS) const {
+    OS << Id << "\t" << BufferIdentifier << "\t" << Line << "\n";
   }
 };
 
@@ -68,12 +71,15 @@ void CTagsEmitter::run(raw_ostream &OS) {
   std::vector<Tag> Tags;
   // Collect tags.
   Tags.reserve(Classes.size() + Defs.size());
-  for (const auto &C : Classes)
+  for (const auto &C : Classes) {
     Tags.push_back(Tag(C.first, locate(C.second.get())));
+    for (SMLoc FwdLoc : C.second->getForwardDeclarationLocs())
+      Tags.push_back(Tag(C.first, FwdLoc));
+  }
   for (const auto &D : Defs)
     Tags.push_back(Tag(D.first, locate(D.second.get())));
   // Emit tags.
-  llvm::sort(Tags.begin(), Tags.end());
+  llvm::sort(Tags);
   OS << "!_TAG_FILE_FORMAT\t1\t/original ctags format/\n";
   OS << "!_TAG_FILE_SORTED\t1\t/0=unsorted, 1=sorted, 2=foldcase/\n";
   for (const Tag &T : Tags)

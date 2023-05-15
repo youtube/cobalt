@@ -1,4 +1,4 @@
-; RUN: llc -filetype=asm -o - < %s -mtriple arm-arm-netbsd-eabi -disable-fp-elim| FileCheck %s --check-prefix=CHECK-ARM
+; RUN: llc -filetype=asm -o - < %s -mtriple arm-arm-netbsd-eabi -frame-pointer=all| FileCheck %s --check-prefix=CHECK-ARM
 ; RUN: llc -filetype=asm -o - < %s -mtriple arm-arm-netbsd-eabi | FileCheck %s --check-prefix=CHECK-ARM-FP-ELIM
 
 define void @test1() {
@@ -51,8 +51,8 @@ define i32 @test3() {
 	%retval = alloca i32, align 4
 	%tmp = alloca i32, align 4
 	%a = alloca [805306369 x i8], align 16
-	store i32 0, i32* %tmp
-	%tmp1 = load i32, i32* %tmp
+	store i32 0, ptr %tmp
+	%tmp1 = load i32, ptr %tmp
         ret i32 %tmp1
 }
 

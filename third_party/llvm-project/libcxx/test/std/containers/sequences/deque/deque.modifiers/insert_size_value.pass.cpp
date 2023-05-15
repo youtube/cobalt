@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -51,7 +50,7 @@ test(int P, C& c1, int size, int x)
     CI i = c1.insert(c1.begin() + P, size, x);
     assert(i == c1.begin() + P);
     assert(c1.size() == c1_osize + size);
-    assert(static_cast<std::size_t>(distance(c1.begin(), c1.end())) == c1.size());
+    assert(static_cast<std::size_t>(std::distance(c1.begin(), c1.end())) == c1.size());
     i = c1.begin();
     for (int j = 0; j < P; ++j, ++i)
         assert(*i == j);
@@ -121,7 +120,7 @@ self_reference_test()
             CI jt = c.cbegin() + j;
             c.insert(it, 5, *jt);
             assert(c.size() == 25);
-            assert(static_cast<std::size_t>(distance(c.begin(), c.end())) == c.size());
+            assert(static_cast<std::size_t>(std::distance(c.begin(), c.end())) == c.size());
             it = c.cbegin();
             for (int k = 0; k < i; ++k, ++it)
                 assert(*it == k);
@@ -133,7 +132,7 @@ self_reference_test()
     }
 }
 
-int main()
+int main(int, char**)
 {
     {
     int rng[] = {0, 1, 2, 3, 1023, 1024, 1025, 2047, 2048, 2049};
@@ -155,4 +154,6 @@ int main()
     self_reference_test<std::deque<int, min_allocator<int>> >();
     }
 #endif
+
+  return 0;
 }

@@ -1,22 +1,18 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <vector>
-// UNSUPPORTED: c++98, c++03, c++11, c++14
-// UNSUPPORTED: libcpp-no-deduction-guides
-
+// UNSUPPORTED: c++03, c++11, c++14
 
 // template <class InputIterator, class Allocator = allocator<typename iterator_traits<InputIterator>::value_type>>
 //    vector(InputIterator, InputIterator, Allocator = Allocator())
 //    -> vector<typename iterator_traits<InputIterator>::value_type, Allocator>;
 //
-
 
 #include <deque>
 #include <iterator>
@@ -24,7 +20,7 @@
 #include <cstddef>
 
 
-int main()
+int main(int, char**)
 {
 //  Test the explicit deduction guides
 
@@ -37,4 +33,6 @@ int main()
 //      deque<allocator<int>, allocator<allocator<int>>>
     }
 
+
+  return 0;
 }

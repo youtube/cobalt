@@ -1,9 +1,8 @@
 //===-- Bitcode/Reader/ValueList.h - Number values --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,55 +14,63 @@
 #define LLVM_LIB_BITCODE_READER_VALUELIST_H
 
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/Support/Error.h"
 #include <cassert>
 #include <utility>
 #include <vector>
 
 namespace llvm {
 
-class Constant;
-class LLVMContext;
+class Error;
 class Type;
 class Value;
 
 class BitcodeReaderValueList {
-  std::vector<WeakTrackingVH> ValuePtrs;
+  /// Maps Value ID to pair of Value* and Type ID.
+  std::vector<std::pair<WeakTrackingVH, unsigned>> ValuePtrs;
 
-  /// As we resolve forward-referenced constants, we add information about them
-  /// to this vector.  This allows us to resolve them in bulk instead of
-  /// resolving each reference at a time.  See the code in
-  /// ResolveConstantForwardRefs for more information about this.
-  ///
-  /// The key of this vector is the placeholder constant, the value is the slot
-  /// number that holds the resolved value.
-  using ResolveConstantsTy = std::vector<std::pair<Constant *, unsigned>>;
-  ResolveConstantsTy ResolveConstants;
-  LLVMContext &Context;
+  /// Maximum number of valid references. Forward references exceeding the
+  /// maximum must be invalid.
+  unsigned RefsUpperBound;
+
+  using MaterializeValueFnTy =
+      std::function<Expected<Value *>(unsigned, BasicBlock *)>;
+  MaterializeValueFnTy MaterializeValueFn;
 
 public:
-  BitcodeReaderValueList(LLVMContext &C) : Context(C) {}
-
-  ~BitcodeReaderValueList() {
-    assert(ResolveConstants.empty() && "Constants not resolved?");
-  }
+  BitcodeReaderValueList(size_t RefsUpperBound,
+                         MaterializeValueFnTy MaterializeValueFn)
+      : RefsUpperBound(std::min((size_t)std::numeric_limits<unsigned>::max(),
+                                RefsUpperBound)),
+        MaterializeValueFn(MaterializeValueFn) {}
 
   // vector compatibility methods
   unsigned size() const { return ValuePtrs.size(); }
-  void resize(unsigned N) { ValuePtrs.resize(N); }
-  void push_back(Value *V) { ValuePtrs.emplace_back(V); }
+  void resize(unsigned N) {
+    ValuePtrs.resize(N);
+  }
+  void push_back(Value *V, unsigned TypeID) {
+    ValuePtrs.emplace_back(V, TypeID);
+  }
 
   void clear() {
-    assert(ResolveConstants.empty() && "Constants not resolved?");
     ValuePtrs.clear();
   }
 
   Value *operator[](unsigned i) const {
     assert(i < ValuePtrs.size());
-    return ValuePtrs[i];
+    return ValuePtrs[i].first;
   }
 
-  Value *back() const { return ValuePtrs.back(); }
-  void pop_back() { ValuePtrs.pop_back(); }
+  unsigned getTypeID(unsigned ValNo) const {
+    assert(ValNo < ValuePtrs.size());
+    return ValuePtrs[ValNo].second;
+  }
+
+  Value *back() const { return ValuePtrs.back().first; }
+  void pop_back() {
+    ValuePtrs.pop_back();
+  }
   bool empty() const { return ValuePtrs.empty(); }
 
   void shrinkTo(unsigned N) {
@@ -71,14 +78,15 @@ public:
     ValuePtrs.resize(N);
   }
 
-  Constant *getConstantFwdRef(unsigned Idx, Type *Ty);
-  Value *getValueFwdRef(unsigned Idx, Type *Ty);
+  void replaceValueWithoutRAUW(unsigned ValNo, Value *NewV) {
+    assert(ValNo < ValuePtrs.size());
+    ValuePtrs[ValNo].first = NewV;
+  }
 
-  void assignValue(Value *V, unsigned Idx);
+  Value *getValueFwdRef(unsigned Idx, Type *Ty, unsigned TyID,
+                        BasicBlock *ConstExprInsertBB);
 
-  /// Once all constants are read, this method bulk resolves any forward
-  /// references.
-  void resolveConstantForwardRefs();
+  Error assignValue(unsigned Idx, Value *V, unsigned TypeID);
 };
 
 } // end namespace llvm

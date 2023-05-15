@@ -1,13 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// test_memory_resource requires RTTI for dynamic_cast
+// UNSUPPORTED: no-rtti
 
 // <experimental/memory_resource>
 
@@ -19,15 +21,19 @@
 //  B) The destructor is implicitly marked noexcept.
 //  C) The destructor is marked virtual.
 
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
+
 #include <experimental/memory_resource>
 #include <type_traits>
 #include <cassert>
 
-#include "test_memory_resource.hpp"
+#include "test_memory_resource.h"
+
+#include "test_macros.h"
 
 using std::experimental::pmr::memory_resource;
 
-int main()
+int main(int, char**)
 {
     static_assert(
         std::has_virtual_destructor<memory_resource>::value
@@ -56,4 +62,6 @@ int main()
         assert(TR::resource_constructed == 1);
         assert(TR::resource_destructed == 1);
     }
+
+  return 0;
 }

@@ -1,10 +1,10 @@
-; RUN: opt < %s -S -loop-unroll -unroll-threshold=800 -unroll-peel-max-count=0 | FileCheck %s
+; RUN: opt < %s -S -passes=loop-unroll -unroll-threshold=800 -unroll-peel-max-count=0 | FileCheck %s
 
 ; We should not peel this loop even though we can, because the max count is set
 ; to zero.
 define i32 @invariant_backedge_neg_1(i32 %a, i32 %b) {
 ; CHECK-LABEL: @invariant_backedge_neg_1
-; CHECK-NOT    loop.peel{{.*}}:
+; CHECK-NOT:   loop.peel{{.*}}:
 ; CHECK:       loop:
 ; CHECK:         %i = phi
 ; CHECK:         %sum = phi

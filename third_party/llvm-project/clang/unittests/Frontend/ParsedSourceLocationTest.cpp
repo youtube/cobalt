@@ -1,14 +1,14 @@
 //===- unittests/Frontend/ParsedSourceLocationTest.cpp - ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "gtest/gtest.h"
+#include <optional>
 
 using namespace llvm;
 using namespace clang;
@@ -18,7 +18,7 @@ namespace {
 TEST(ParsedSourceRange, ParseTest) {
   auto Check = [](StringRef Value, StringRef Filename, unsigned BeginLine,
                   unsigned BeginColumn, unsigned EndLine, unsigned EndColumn) {
-    Optional<ParsedSourceRange> PSR = ParsedSourceRange::fromString(Value);
+    std::optional<ParsedSourceRange> PSR = ParsedSourceRange::fromString(Value);
     ASSERT_TRUE(PSR);
     EXPECT_EQ(PSR->FileName, Filename);
     EXPECT_EQ(PSR->Begin.first, BeginLine);

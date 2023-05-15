@@ -1,4 +1,5 @@
 ; RUN: llc -mattr=sram,addsubiw < %s -march=avr | FileCheck %s
+; RUN: llc -mattr=sram,avrtiny < %s -march=avr | FileCheck %s --check-prefix=CHECK-TINY
 
 @char = common global i8 0
 @char.array = common global [3 x i8] zeroinitializer
@@ -20,6 +21,10 @@ define void @global8_store() {
 ; CHECK-LABEL: global8_store:
 ; CHECK: ldi [[REG:r[0-9]+]], 6
 ; CHECK: sts char, [[REG]]
+;
+; CHECK-TINY-LABEL: global8_store:
+; CHECK-TINY: ldi [[REG:r[0-9]+]], 6
+; CHECK-TINY: sts char, [[REG]]
   store i8 6, i8* @char
   ret void
 }
@@ -27,6 +32,9 @@ define void @global8_store() {
 define i8 @global8_load() {
 ; CHECK-LABEL: global8_load:
 ; CHECK: lds r24, char
+;
+; CHECK-TINY-LABEL: global8_load:
+; CHECK-TINY: lds r24, char
   %result = load i8, i8* @char
   ret i8 %result
 }
@@ -39,6 +47,10 @@ define void @array8_store() {
 ; CHECK: ldi [[REG2:r[0-9]+]], 2
 ; CHECK: sts char.array+1, [[REG2]]
 ; CHECK: sts char.array, [[REG3]]
+;
+; CHECK-TINY-LABEL: array8_store:
+; CHECK-TINY: ldi [[REG1:r[0-9]+]], 3
+; CHECK-TINY: sts char.array+2, [[REG1]]
   store i8 1, i8* getelementptr inbounds ([3 x i8], [3 x i8]* @char.array, i32 0, i64 0)
   store i8 2, i8* getelementptr inbounds ([3 x i8], [3 x i8]* @char.array, i32 0, i64 1)
   store i8 3, i8* getelementptr inbounds ([3 x i8], [3 x i8]* @char.array, i32 0, i64 2)
@@ -48,6 +60,9 @@ define void @array8_store() {
 define i8 @array8_load() {
 ; CHECK-LABEL: array8_load:
 ; CHECK: lds r24, char.array+2
+;
+; CHECK-TINY-LABEL: array8_load:
+; CHECK-TINY: lds r24, char.array+2
   %result = load i8, i8* getelementptr inbounds ([3 x i8], [3 x i8]* @char.array, i32 0, i64 2)
   ret i8 %result
 }
@@ -57,6 +72,11 @@ define i8 @static8_inc() {
 ; CHECK: lds r24, char.static
 ; CHECK: inc r24
 ; CHECK: sts char.static, r24
+;
+; CHECK-TINY-LABEL: static8_inc:
+; CHECK-TINY: lds r24, char.static
+; CHECK-TINY: inc r24
+; CHECK-TINY: sts char.static, r24
   %1 = load i8, i8* @char.static
   %inc = add nsw i8 %1, 1
   store i8 %inc, i8* @char.static
@@ -84,6 +104,11 @@ define i16 @global16_load() {
 define void @array16_store() {
 ; CHECK-LABEL: array16_store:
 
+; CHECK: ldi [[REG1:r[0-9]+]], 221
+; CHECK: ldi [[REG2:r[0-9]+]], 170
+; CHECK: sts int.array+5, [[REG2]]
+; CHECK: sts int.array+4, [[REG1]]
+
 ; CHECK: ldi [[REG1:r[0-9]+]], 204
 ; CHECK: ldi [[REG2:r[0-9]+]], 170
 ; CHECK: sts int.array+3, [[REG2]]
@@ -93,12 +118,6 @@ define void @array16_store() {
 ; CHECK: ldi [[REG2:r[0-9]+]], 170
 ; CHECK: sts int.array+1, [[REG2]]
 ; CHECK: sts int.array, [[REG1]]
-
-
-; CHECK: ldi [[REG1:r[0-9]+]], 221
-; CHECK: ldi [[REG2:r[0-9]+]], 170
-; CHECK: sts int.array+5, [[REG2]]
-; CHECK: sts int.array+4, [[REG1]]
   store i16 43707, i16* getelementptr inbounds ([3 x i16], [3 x i16]* @int.array, i32 0, i64 0)
   store i16 43724, i16* getelementptr inbounds ([3 x i16], [3 x i16]* @int.array, i32 0, i64 1)
   store i16 43741, i16* getelementptr inbounds ([3 x i16], [3 x i16]* @int.array, i32 0, i64 2)
@@ -152,30 +171,36 @@ define i32 @global32_load() {
 
 define void @array32_store() {
 ; CHECK-LABEL: array32_store:
-; CHECK: ldi [[REG1:r[0-9]+]], 102
-; CHECK: ldi [[REG2:r[0-9]+]], 85
-; CHECK: sts long.array+7, [[REG2]]
-; CHECK: sts long.array+6, [[REG1]]
-; CHECK: ldi [[REG1:r[0-9]+]], 136
-; CHECK: ldi [[REG2:r[0-9]+]], 119
-; CHECK: sts long.array+5, [[REG2]]
-; CHECK: sts long.array+4, [[REG1]]
-; CHECK: ldi [[REG1:r[0-9]+]], 27
-; CHECK: ldi [[REG2:r[0-9]+]], 172
-; CHECK: sts long.array+3, [[REG2]]
-; CHECK: sts long.array+2, [[REG1]]
-; CHECK: ldi [[REG1:r[0-9]+]], 68
-; CHECK: ldi [[REG2:r[0-9]+]], 13
-; CHECK: sts long.array+1, [[REG2]]
-; CHECK: sts long.array, [[REG1]]
+
 ; CHECK: ldi [[REG1:r[0-9]+]], 170
 ; CHECK: ldi [[REG2:r[0-9]+]], 153
 ; CHECK: sts long.array+11, [[REG2]]
 ; CHECK: sts long.array+10, [[REG1]]
+
 ; CHECK: ldi [[REG1:r[0-9]+]], 204
 ; CHECK: ldi [[REG2:r[0-9]+]], 187
 ; CHECK: sts long.array+9, [[REG2]]
 ; CHECK: sts long.array+8, [[REG1]]
+
+; CHECK: ldi [[REG1:r[0-9]+]], 102
+; CHECK: ldi [[REG2:r[0-9]+]], 85
+; CHECK: sts long.array+7, [[REG2]]
+; CHECK: sts long.array+6, [[REG1]]
+
+; CHECK: ldi [[REG1:r[0-9]+]], 136
+; CHECK: ldi [[REG2:r[0-9]+]], 119
+; CHECK: sts long.array+5, [[REG2]]
+; CHECK: sts long.array+4, [[REG1]]
+
+; CHECK: ldi [[REG1:r[0-9]+]], 27
+; CHECK: ldi [[REG2:r[0-9]+]], 172
+; CHECK: sts long.array+3, [[REG2]]
+; CHECK: sts long.array+2, [[REG1]]
+
+; CHECK: ldi [[REG1:r[0-9]+]], 68
+; CHECK: ldi [[REG2:r[0-9]+]], 13
+; CHECK: sts long.array+1, [[REG2]]
+; CHECK: sts long.array, [[REG1]]
   store i32 2887454020, i32* getelementptr inbounds ([3 x i32], [3 x i32]* @long.array, i32 0, i64 0)
   store i32 1432778632, i32* getelementptr inbounds ([3 x i32], [3 x i32]* @long.array, i32 0, i64 1)
   store i32 2578103244, i32* getelementptr inbounds ([3 x i32], [3 x i32]* @long.array, i32 0, i64 2)
@@ -202,10 +227,10 @@ define i32 @static32_inc() {
 ; CHECK: sbci r23, 255
 ; CHECK: sbci r24, 255
 ; CHECK: sbci r25, 255
-; CHECK: sts long.static+3, r25
-; CHECK: sts long.static+2, r24
-; CHECK: sts long.static+1, r23
-; CHECK: sts long.static, r22
+; CHECK-DAG: sts long.static+3, r25
+; CHECK-DAG: sts long.static+2, r24
+; CHECK-DAG: sts long.static+1, r23
+; CHECK-DAG: sts long.static, r22
   %1 = load i32, i32* @long.static
   %inc = add nsw i32 %1, 1
   store i32 %inc, i32* @long.static
@@ -304,14 +329,14 @@ define i64 @static64_inc() {
 ; CHECK: sbci r23, 255
 ; CHECK: sbci r24, 255
 ; CHECK: sbci r25, 255
-; CHECK: sts longlong.static+7, r25
-; CHECK: sts longlong.static+6, r24
-; CHECK: sts longlong.static+5, r23
-; CHECK: sts longlong.static+4, r22
-; CHECK: sts longlong.static+3, r21
-; CHECK: sts longlong.static+2, r20
-; CHECK: sts longlong.static+1, r19
-; CHECK: sts longlong.static, r18
+; CHECK-DAG: sts longlong.static+7, r25
+; CHECK-DAG: sts longlong.static+6, r24
+; CHECK-DAG: sts longlong.static+5, r23
+; CHECK-DAG: sts longlong.static+4, r22
+; CHECK-DAG: sts longlong.static+3, r21
+; CHECK-DAG: sts longlong.static+2, r20
+; CHECK-DAG: sts longlong.static+1, r19
+; CHECK-DAG: sts longlong.static, r18
   %1 = load i64, i64* @longlong.static
   %inc = add nsw i64 %1, 1
   store i64 %inc, i64* @longlong.static

@@ -1,9 +1,8 @@
 //===-- FrontendAction.h - Generic Frontend Action Interface ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -24,6 +23,7 @@
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Error.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -47,6 +47,12 @@ private:
 protected:
   /// @name Implementation Action Interface
   /// @{
+
+  /// Prepare to execute the action on the given CompilerInstance.
+  ///
+  /// This is called before executing the action on any inputs, and can modify
+  /// the configuration as needed (including adjusting the input list).
+  virtual bool PrepareToExecuteAction(CompilerInstance &CI) { return true; }
 
   /// Create the AST consumer object for this action, if supported.
   ///
@@ -130,9 +136,16 @@ public:
     return CurrentInput;
   }
 
-  const StringRef getCurrentFile() const {
+  StringRef getCurrentFile() const {
     assert(!CurrentInput.isEmpty() && "No current file!");
     return CurrentInput.getFile();
+  }
+
+  StringRef getCurrentFileOrBufferName() const {
+    assert(!CurrentInput.isEmpty() && "No current file!");
+    return CurrentInput.isFile()
+               ? CurrentInput.getFile()
+               : CurrentInput.getBuffer().getBufferIdentifier();
   }
 
   InputKind getCurrentFileKind() const {
@@ -190,6 +203,11 @@ public:
   /// @name Public Action Interface
   /// @{
 
+  /// Prepare the action to execute on the given compiler instance.
+  bool PrepareToExecute(CompilerInstance &CI) {
+    return PrepareToExecuteAction(CI);
+  }
+
   /// Prepare the action for processing the input file \p Input.
   ///
   /// This is run after the options and frontend have been initialized,
@@ -212,11 +230,11 @@ public:
   bool BeginSourceFile(CompilerInstance &CI, const FrontendInputFile &Input);
 
   /// Set the source manager's main input file, and run the action.
-  bool Execute();
+  llvm::Error Execute();
 
   /// Perform any per-file post processing, deallocate per-file
   /// objects, and run statistics and output file cleanup code.
-  void EndSourceFile();
+  virtual void EndSourceFile();
 
   /// @}
 };
@@ -252,17 +270,18 @@ public:
                          const std::vector<std::string> &arg) = 0;
 
   enum ActionType {
-    Cmdline,             ///< Action is determined by the cc1 command-line
-    ReplaceAction,       ///< Replace the main action
-    AddBeforeMainAction, ///< Execute the action before the main action
-    AddAfterMainAction   ///< Execute the action after the main action
+    CmdlineBeforeMainAction, ///< Execute the action before the main action if
+                             ///< on the command line
+    CmdlineAfterMainAction,  ///< Execute the action after the main action if on
+                             ///< the command line
+    ReplaceAction,           ///< Replace the main action
+    AddBeforeMainAction,     ///< Execute the action before the main action
+    AddAfterMainAction       ///< Execute the action after the main action
   };
   /// Get the action type for this plugin
   ///
-  /// \return The action type. If the type is Cmdline then by default the
-  /// plugin does nothing and what it does is determined by the cc1
-  /// command-line.
-  virtual ActionType getActionType() { return Cmdline; }
+  /// \return The action type. By default we use CmdlineAfterMainAction.
+  virtual ActionType getActionType() { return CmdlineAfterMainAction; }
 };
 
 /// Abstract base class to use for preprocessor-based frontend actions.
@@ -284,15 +303,18 @@ public:
 /// some existing action's behavior. It implements every virtual method in
 /// the FrontendAction interface by forwarding to the wrapped action.
 class WrapperFrontendAction : public FrontendAction {
+protected:
   std::unique_ptr<FrontendAction> WrappedAction;
 
-protected:
+  bool PrepareToExecuteAction(CompilerInstance &CI) override;
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                  StringRef InFile) override;
   bool BeginInvocation(CompilerInstance &CI) override;
   bool BeginSourceFileAction(CompilerInstance &CI) override;
   void ExecuteAction() override;
+  void EndSourceFile() override;
   void EndSourceFileAction() override;
+  bool shouldEraseOutputFiles() override;
 
 public:
   /// Construct a WrapperFrontendAction from an existing action, taking

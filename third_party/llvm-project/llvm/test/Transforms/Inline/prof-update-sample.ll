@@ -1,9 +1,9 @@
-; RUN: opt < %s -inline -S | FileCheck %s
+; RUN: opt < %s -passes='require<profile-summary>,cgscc(inline)' -S | FileCheck %s
 ; Checks if inliner updates branch_weights annotation for call instructions.
 
 declare void @ext();
 declare void @ext1();
-@func = global void ()* null
+@func = global ptr null
 
 ; CHECK: define void @callee(i32 %n) !prof ![[ENTRY_COUNT:[0-9]*]]
 define void  @callee(i32 %n) !prof !15 {
@@ -18,7 +18,7 @@ cond_false:
 ; ext is cloned and updated.
 ; CHECK: call void @ext(), !prof ![[COUNT_CALLEE:[0-9]*]]
   call void @ext(), !prof !16
-  %f = load void ()*, void ()** @func
+  %f = load ptr, ptr @func
 ; CHECK: call void %f(), !prof ![[COUNT_IND_CALLEE:[0-9]*]] 
   call void %f(), !prof !18
   ret void
@@ -48,13 +48,12 @@ define void @caller() {
 !13 = !{i32 999000, i64 100, i32 1}
 !14 = !{i32 999999, i64 1, i32 2}
 !15 = !{!"function_entry_count", i64 1000}
-!16 = !{!"branch_weights", i64 2000}
-!17 = !{!"branch_weights", i64 400}
+!16 = !{!"branch_weights", i32 2000}
+!17 = !{!"branch_weights", i32 400}
 !18 = !{!"VP", i32 0, i64 140, i64 111, i64 80, i64 222, i64 40, i64 333, i64 20}
-attributes #0 = { alwaysinline }
 ; CHECK: ![[ENTRY_COUNT]] = !{!"function_entry_count", i64 600}
-; CHECK: ![[COUNT_CALLEE1]] = !{!"branch_weights", i64 2000}
-; CHECK: ![[COUNT_CALLEE]] = !{!"branch_weights", i64 1200}
+; CHECK: ![[COUNT_CALLEE1]] = !{!"branch_weights", i32 2000}
+; CHECK: ![[COUNT_CALLEE]] = !{!"branch_weights", i32 1200}
 ; CHECK: ![[COUNT_IND_CALLEE]] = !{!"VP", i32 0, i64 84, i64 111, i64 48, i64 222, i64 24, i64 333, i64 12}
-; CHECK: ![[COUNT_CALLER]] = !{!"branch_weights", i64 800}
+; CHECK: ![[COUNT_CALLER]] = !{!"branch_weights", i32 800}
 ; CHECK: ![[COUNT_IND_CALLER]] = !{!"VP", i32 0, i64 56, i64 111, i64 32, i64 222, i64 16, i64 333, i64 8}

@@ -1,11 +1,15 @@
 set(LLVM_LINK_COMPONENTS
-    ${LLVM_TARGETS_TO_BUILD}
+    AllTargetsAsmParsers
+    AllTargetsCodeGens
+    AllTargetsDescs
+    AllTargetsInfos
     Analysis
     AsmPrinter
     BitReader
     BitWriter
     CodeGen
     Core
+    FuzzerCLI
     FuzzMutate
     IRReader
     MC
@@ -13,6 +17,7 @@ set(LLVM_LINK_COMPONENTS
     SelectionDAG
     Support
     Target
+    TargetParser
 )
 add_llvm_fuzzer(llvm-isel-fuzzer
   llvm-isel-fuzzer.cpp

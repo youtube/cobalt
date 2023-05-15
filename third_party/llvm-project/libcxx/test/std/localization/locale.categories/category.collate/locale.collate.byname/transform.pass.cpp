@@ -1,11 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+//
+// NetBSD does not support LC_COLLATE at the moment
+// XFAIL: netbsd
 
 // <locale>
 
@@ -21,9 +23,10 @@
 
 #include <stdio.h>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
-int main()
+int main(int, char**)
 {
     {
         std::locale l(LOCALE_en_US_UTF_8);
@@ -32,11 +35,13 @@ int main()
             const std::collate<char>& f = std::use_facet<std::collate<char> >(l);
             assert(f.transform(x.data(), x.data() + x.size()) != x);
         }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
         {
             std::wstring x(L"1234");
             const std::collate<wchar_t>& f = std::use_facet<std::collate<wchar_t> >(l);
             assert(f.transform(x.data(), x.data() + x.size()) != x);
         }
+#endif
     }
     {
         std::locale l("C");
@@ -45,10 +50,14 @@ int main()
             const std::collate<char>& f = std::use_facet<std::collate<char> >(l);
             assert(f.transform(x.data(), x.data() + x.size()) == x);
         }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
         {
             std::wstring x(L"1234");
             const std::collate<wchar_t>& f = std::use_facet<std::collate<wchar_t> >(l);
             assert(f.transform(x.data(), x.data() + x.size()) == x);
         }
+#endif
     }
+
+  return 0;
 }

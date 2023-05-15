@@ -1,9 +1,8 @@
 //===----- ScheduleDAGFast.cpp - Fast poor list scheduler -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,16 +11,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "InstrEmitter.h"
-#include "ScheduleDAGSDNodes.h"
 #include "SDNodeDbgValue.h"
-#include "llvm/ADT/STLExtras.h"
+#include "ScheduleDAGSDNodes.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -57,9 +54,7 @@ namespace {
 
     SUnit *pop() {
       if (empty()) return nullptr;
-      SUnit *V = Queue.back();
-      Queue.pop_back();
-      return V;
+      return Queue.pop_back_val();
     }
   };
 
@@ -125,8 +120,7 @@ void ScheduleDAGFast::Schedule() {
   // Build the scheduling graph.
   BuildSchedGraph(nullptr);
 
-  LLVM_DEBUG(for (unsigned su = 0, e = SUnits.size(); su != e; ++su) SUnits[su]
-                 .dumpAll(this));
+  LLVM_DEBUG(dump());
 
   // Execute the actual scheduling loop.
   ListScheduleBottomUp();
@@ -144,7 +138,7 @@ void ScheduleDAGFast::ReleasePred(SUnit *SU, SDep *PredEdge) {
 #ifndef NDEBUG
   if (PredSU->NumSuccsLeft == 0) {
     dbgs() << "*** Scheduling failed! ***\n";
-    PredSU->dump(this);
+    dumpNode(*PredSU);
     dbgs() << " has been released too many times!\n";
     llvm_unreachable(nullptr);
   }
@@ -182,7 +176,7 @@ void ScheduleDAGFast::ReleasePredecessors(SUnit *SU, unsigned CurCycle) {
 /// the Available queue.
 void ScheduleDAGFast::ScheduleNodeBottomUp(SUnit *SU, unsigned CurCycle) {
   LLVM_DEBUG(dbgs() << "*** Scheduling [" << CurCycle << "]: ");
-  LLVM_DEBUG(SU->dump(this));
+  LLVM_DEBUG(dumpNode(*SU));
 
   assert(CurCycle >= SU->getHeight() && "Node scheduled below its height!");
   SU->setHeightToAtLeast(CurCycle);
@@ -432,7 +426,8 @@ static MVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
     NumRes = 1;
   } else {
     const MCInstrDesc &MCID = TII->get(N->getMachineOpcode());
-    assert(MCID.ImplicitDefs && "Physical reg def must be in implicit def list!");
+    assert(MCID.getImplicitDefs() &&
+           "Physical reg def must be in implicit def list!");
     NumRes = MCID.getNumDefs();
     for (const MCPhysReg *ImpDef = MCID.getImplicitDefs(); *ImpDef; ++ImpDef) {
       if (Reg == *ImpDef)
@@ -446,17 +441,29 @@ static MVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
 /// CheckForLiveRegDef - Return true and update live register vector if the
 /// specified register def of the specified SUnit clobbers any "live" registers.
 static bool CheckForLiveRegDef(SUnit *SU, unsigned Reg,
-                               std::vector<SUnit*> &LiveRegDefs,
+                               std::vector<SUnit *> &LiveRegDefs,
                                SmallSet<unsigned, 4> &RegAdded,
                                SmallVectorImpl<unsigned> &LRegs,
-                               const TargetRegisterInfo *TRI) {
+                               const TargetRegisterInfo *TRI,
+                               const SDNode *Node = nullptr) {
   bool Added = false;
   for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI) {
-    if (LiveRegDefs[*AI] && LiveRegDefs[*AI] != SU) {
-      if (RegAdded.insert(*AI).second) {
-        LRegs.push_back(*AI);
-        Added = true;
-      }
+    // Check if Ref is live.
+    if (!LiveRegDefs[*AI])
+      continue;
+
+    // Allow multiple uses of the same def.
+    if (LiveRegDefs[*AI] == SU)
+      continue;
+
+    // Allow multiple uses of same def
+    if (Node && LiveRegDefs[*AI]->getNode() == Node)
+      continue;
+
+    // Add Reg to the set of interfering live regs.
+    if (RegAdded.insert(*AI).second) {
+      LRegs.push_back(*AI);
+      Added = true;
     }
   }
   return Added;
@@ -481,7 +488,8 @@ bool ScheduleDAGFast::DelayForLiveRegsBottomUp(SUnit *SU,
   }
 
   for (SDNode *Node = SU->getNode(); Node; Node = Node->getGluedNode()) {
-    if (Node->getOpcode() == ISD::INLINEASM) {
+    if (Node->getOpcode() == ISD::INLINEASM ||
+        Node->getOpcode() == ISD::INLINEASM_BR) {
       // Inline asm can clobber physical defs.
       unsigned NumOps = Node->getNumOperands();
       if (Node->getOperand(NumOps-1).getValueType() == MVT::Glue)
@@ -499,7 +507,7 @@ bool ScheduleDAGFast::DelayForLiveRegsBottomUp(SUnit *SU,
           // Check for def of register or earlyclobber register.
           for (; NumVals; --NumVals, ++i) {
             unsigned Reg = cast<RegisterSDNode>(Node->getOperand(i))->getReg();
-            if (TargetRegisterInfo::isPhysicalRegister(Reg))
+            if (Register::isPhysicalRegister(Reg))
               CheckForLiveRegDef(SU, Reg, LiveRegDefs, RegAdded, LRegs, TRI);
           }
         } else
@@ -507,10 +515,19 @@ bool ScheduleDAGFast::DelayForLiveRegsBottomUp(SUnit *SU,
       }
       continue;
     }
+
+    if (Node->getOpcode() == ISD::CopyToReg) {
+      Register Reg = cast<RegisterSDNode>(Node->getOperand(1))->getReg();
+      if (Reg.isPhysical()) {
+        SDNode *SrcNode = Node->getOperand(2).getNode();
+        CheckForLiveRegDef(SU, Reg, LiveRegDefs, RegAdded, LRegs, TRI, SrcNode);
+      }
+    }
+
     if (!Node->isMachineOpcode())
       continue;
     const MCInstrDesc &MCID = TII->get(Node->getMachineOpcode());
-    if (!MCID.ImplicitDefs)
+    if (!MCID.getImplicitDefs())
       continue;
     for (const MCPhysReg *Reg = MCID.getImplicitDefs(); *Reg; ++Reg) {
       CheckForLiveRegDef(SU, *Reg, LiveRegDefs, RegAdded, LRegs, TRI);
@@ -761,8 +778,9 @@ void ScheduleDAGLinearize::Schedule() {
 
 MachineBasicBlock*
 ScheduleDAGLinearize::EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
-  InstrEmitter Emitter(BB, InsertPos);
-  DenseMap<SDValue, unsigned> VRBaseMap;
+  InstrEmitter Emitter(DAG->getTarget(), BB, InsertPos,
+                       DAG->getUseInstrRefDebugInfo());
+  DenseMap<SDValue, Register> VRBaseMap;
 
   LLVM_DEBUG({ dbgs() << "\n*** Final schedule ***\n"; });
 
@@ -776,12 +794,10 @@ ScheduleDAGLinearize::EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
     // Emit any debug values associated with the node.
     if (N->getHasDebugValue()) {
       MachineBasicBlock::iterator InsertPos = Emitter.getInsertPos();
-      for (auto DV : DAG->GetDbgValues(N)) {
-        if (DV->isInvalidated())
-          continue;
-        if (auto *DbgMI = Emitter.EmitDbgValue(DV, VRBaseMap))
-          BB->insert(InsertPos, DbgMI);
-        DV->setIsInvalidated();
+      for (auto *DV : DAG->GetDbgValues(N)) {
+        if (!DV->isEmitted())
+          if (auto *DbgMI = Emitter.EmitDbgValue(DV, VRBaseMap))
+            BB->insert(InsertPos, DbgMI);
       }
     }
   }

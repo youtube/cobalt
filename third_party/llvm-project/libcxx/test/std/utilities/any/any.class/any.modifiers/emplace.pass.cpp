@@ -1,20 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
-// XFAIL: with_system_cxx_lib=macosx10.12
-// XFAIL: with_system_cxx_lib=macosx10.11
-// XFAIL: with_system_cxx_lib=macosx10.10
-// XFAIL: with_system_cxx_lib=macosx10.9
-// XFAIL: with_system_cxx_lib=macosx10.7
-// XFAIL: with_system_cxx_lib=macosx10.8
+// Throwing bad_any_cast is supported starting in macosx10.13
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12}} && !no-exceptions
 
 // <any>
 
@@ -26,11 +21,8 @@
 #include <cassert>
 
 #include "any_helpers.h"
-#include "count_new.hpp"
+#include "count_new.h"
 #include "test_macros.h"
-
-using std::any;
-using std::any_cast;
 
 struct Tracked {
   static int count;
@@ -46,7 +38,7 @@ void test_emplace_type() {
     assert(Type::count == 0);
     Type::reset();
     {
-        any a(std::in_place_type<Tracked>);
+        std::any a(std::in_place_type<Tracked>);
         assert(Tracked::count == 1);
 
         auto &v = a.emplace<Type>();
@@ -62,7 +54,7 @@ void test_emplace_type() {
     assert(Type::count == 0);
     Type::reset();
     {
-        any a(std::in_place_type<Tracked>);
+        std::any a(std::in_place_type<Tracked>);
         assert(Tracked::count == 1);
 
         auto &v = a.emplace<Type>(101);
@@ -78,7 +70,7 @@ void test_emplace_type() {
     assert(Type::count == 0);
     Type::reset();
     {
-        any a(std::in_place_type<Tracked>);
+        std::any a(std::in_place_type<Tracked>);
         assert(Tracked::count == 1);
 
         auto &v = a.emplace<Type>(-1, 42, -1);
@@ -100,7 +92,7 @@ void test_emplace_type_tracked() {
     // constructing from a small type should perform no allocations.
     DisableAllocationGuard g(isSmallType<Type>()); ((void)g);
     {
-        any a(std::in_place_type<Tracked>);
+        std::any a(std::in_place_type<Tracked>);
         assert(Tracked::count == 1);
         auto &v = a.emplace<Type>();
         static_assert( std::is_same_v<Type&, decltype(v)>, "" );
@@ -110,7 +102,7 @@ void test_emplace_type_tracked() {
         assertArgsMatch<Type>(a);
     }
     {
-        any a(std::in_place_type<Tracked>);
+        std::any a(std::in_place_type<Tracked>);
         assert(Tracked::count == 1);
         auto &v = a.emplace<Type>(-1, 42, -1);
         static_assert( std::is_same_v<Type&, decltype(v)>, "" );
@@ -121,7 +113,7 @@ void test_emplace_type_tracked() {
     }
     // initializer_list constructor tests
     {
-        any a(std::in_place_type<Tracked>);
+        std::any a(std::in_place_type<Tracked>);
         assert(Tracked::count == 1);
         auto &v = a.emplace<Type>({-1, 42, -1});
         static_assert( std::is_same_v<Type&, decltype(v)>, "" );
@@ -132,7 +124,7 @@ void test_emplace_type_tracked() {
     }
     {
         int x = 42;
-        any a(std::in_place_type<Tracked>);
+        std::any a(std::in_place_type<Tracked>);
         assert(Tracked::count == 1);
         auto &v = a.emplace<Type>({-1, 42, -1}, x);
         static_assert( std::is_same_v<Type&, decltype(v)>, "" );
@@ -275,7 +267,7 @@ void test_emplace_sfinae_constraints() {
     }
 }
 
-int main() {
+int main(int, char**) {
     test_emplace_type<small>();
     test_emplace_type<large>();
     test_emplace_type<small_throws_on_copy>();
@@ -288,4 +280,6 @@ int main() {
     test_emplace_throws<SmallThrows>();
     test_emplace_throws<LargeThrows>();
 #endif
+
+  return 0;
 }

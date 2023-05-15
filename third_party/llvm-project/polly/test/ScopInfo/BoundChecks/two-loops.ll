@@ -1,5 +1,5 @@
-; RUN: opt %loadPolly -polly-scops -analyze < %s | FileCheck %s
-; RUN: opt %loadPolly -polly-ast -analyze < %s | FileCheck %s --check-prefix=AST
+; RUN: opt %loadPolly -polly-print-scops -disable-output< %s | FileCheck %s
+; RUN: opt %loadPolly -polly-print-ast -disable-output < %s | FileCheck %s --check-prefix=AST
 ;
 ; This only works after the post-dominator tree has fixed.
 ; XFAIL: *
@@ -35,7 +35,7 @@
 ; AST:     {  /* original code */ }
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
-define void @foo(i64 %n, float* %A) #0 {
+define void @foo(i64 %n, ptr %A) #0 {
 entry:
   br label %for.cond
 
@@ -69,10 +69,10 @@ if.then.6:                                        ; preds = %if.end
 
 if.end.7:                                         ; preds = %if.end
   %conv = sitofp i64 %i.0 to float
-  %arrayidx = getelementptr inbounds float, float* %A, i64 %i.0
-  %tmp = load float, float* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds float, ptr %A, i64 %i.0
+  %tmp = load float, ptr %arrayidx, align 4
   %add = fadd float %tmp, %conv
-  store float %add, float* %arrayidx, align 4
+  store float %add, ptr %arrayidx, align 4
   br label %for.inc
 
 for.inc:                                          ; preds = %if.end.7
@@ -92,8 +92,8 @@ for.end.10:                                       ; preds = %for.cond
 
 declare void @exception(...) #1
 
-attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { noreturn "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { noreturn "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { noreturn nounwind }
 
 !llvm.ident = !{!0}

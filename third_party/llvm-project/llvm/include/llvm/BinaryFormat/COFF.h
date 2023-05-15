@@ -1,9 +1,8 @@
 //===-- llvm/BinaryFormat/COFF.h --------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -25,7 +24,6 @@
 
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
-#include <cstring>
 
 namespace llvm {
 namespace COFF {
@@ -100,6 +98,7 @@ enum MachineTypes : unsigned {
   IMAGE_FILE_MACHINE_ARM = 0x1C0,
   IMAGE_FILE_MACHINE_ARMNT = 0x1C4,
   IMAGE_FILE_MACHINE_ARM64 = 0xAA64,
+  IMAGE_FILE_MACHINE_ARM64EC = 0xA641,
   IMAGE_FILE_MACHINE_EBC = 0xEBC,
   IMAGE_FILE_MACHINE_I386 = 0x14C,
   IMAGE_FILE_MACHINE_IA64 = 0x200,
@@ -312,6 +311,7 @@ enum SectionCharacteristics : uint32_t {
   IMAGE_SCN_ALIGN_2048BYTES = 0x00C00000,
   IMAGE_SCN_ALIGN_4096BYTES = 0x00D00000,
   IMAGE_SCN_ALIGN_8192BYTES = 0x00E00000,
+  IMAGE_SCN_ALIGN_MASK = 0x00F00000,
   IMAGE_SCN_LNK_NRELOC_OVFL = 0x01000000,
   IMAGE_SCN_MEM_DISCARDABLE = 0x02000000,
   IMAGE_SCN_MEM_NOT_CACHED = 0x04000000,
@@ -371,13 +371,15 @@ enum RelocationTypesARM : unsigned {
   IMAGE_REL_ARM_TOKEN = 0x0005,
   IMAGE_REL_ARM_BLX24 = 0x0008,
   IMAGE_REL_ARM_BLX11 = 0x0009,
+  IMAGE_REL_ARM_REL32 = 0x000A,
   IMAGE_REL_ARM_SECTION = 0x000E,
   IMAGE_REL_ARM_SECREL = 0x000F,
   IMAGE_REL_ARM_MOV32A = 0x0010,
   IMAGE_REL_ARM_MOV32T = 0x0011,
   IMAGE_REL_ARM_BRANCH20T = 0x0012,
   IMAGE_REL_ARM_BRANCH24T = 0x0014,
-  IMAGE_REL_ARM_BLX23T = 0x0015
+  IMAGE_REL_ARM_BLX23T = 0x0015,
+  IMAGE_REL_ARM_PAIR = 0x0016,
 };
 
 enum RelocationTypesARM64 : unsigned {
@@ -398,9 +400,10 @@ enum RelocationTypesARM64 : unsigned {
   IMAGE_REL_ARM64_ADDR64 = 0x000E,
   IMAGE_REL_ARM64_BRANCH19 = 0x000F,
   IMAGE_REL_ARM64_BRANCH14 = 0x0010,
+  IMAGE_REL_ARM64_REL32 = 0x0011,
 };
 
-enum COMDATType : unsigned {
+enum COMDATType : uint8_t {
   IMAGE_COMDAT_SELECT_NODUPLICATES = 1,
   IMAGE_COMDAT_SELECT_ANY,
   IMAGE_COMDAT_SELECT_SAME_SIZE,
@@ -436,7 +439,8 @@ struct AuxiliaryWeakExternal {
 enum WeakExternalCharacteristics : unsigned {
   IMAGE_WEAK_EXTERN_SEARCH_NOLIBRARY = 1,
   IMAGE_WEAK_EXTERN_SEARCH_LIBRARY = 2,
-  IMAGE_WEAK_EXTERN_SEARCH_ALIAS = 3
+  IMAGE_WEAK_EXTERN_SEARCH_ALIAS = 3,
+  IMAGE_WEAK_EXTERN_ANTI_DEPENDENCY = 4
 };
 
 struct AuxiliarySectionDefinition {
@@ -545,7 +549,7 @@ struct PE32Header {
   uint32_t AddressOfEntryPoint; // RVA
   uint32_t BaseOfCode;          // RVA
   uint32_t BaseOfData;          // RVA
-  uint32_t ImageBase;
+  uint64_t ImageBase;
   uint32_t SectionAlignment;
   uint32_t FileAlignment;
   uint16_t MajorOperatingSystemVersion;
@@ -561,10 +565,10 @@ struct PE32Header {
   uint16_t Subsystem;
   // FIXME: This should be DllCharacteristics to match the COFF spec.
   uint16_t DLLCharacteristics;
-  uint32_t SizeOfStackReserve;
-  uint32_t SizeOfStackCommit;
-  uint32_t SizeOfHeapReserve;
-  uint32_t SizeOfHeapCommit;
+  uint64_t SizeOfStackReserve;
+  uint64_t SizeOfStackCommit;
+  uint64_t SizeOfHeapReserve;
+  uint64_t SizeOfHeapCommit;
   uint32_t LoaderFlags;
   // FIXME: This should be NumberOfRvaAndSizes to match the COFF spec.
   uint32_t NumberOfRvaAndSize;
@@ -600,7 +604,7 @@ enum WindowsSubsystem : unsigned {
   IMAGE_SUBSYSTEM_NATIVE = 1,  ///< Device drivers and native Windows processes
   IMAGE_SUBSYSTEM_WINDOWS_GUI = 2,      ///< The Windows GUI subsystem.
   IMAGE_SUBSYSTEM_WINDOWS_CUI = 3,      ///< The Windows character subsystem.
-  IMAGE_SUBSYSTEM_OS2_CUI = 5,          ///< The OS/2 character subsytem.
+  IMAGE_SUBSYSTEM_OS2_CUI = 5,          ///< The OS/2 character subsystem.
   IMAGE_SUBSYSTEM_POSIX_CUI = 7,        ///< The POSIX character subsystem.
   IMAGE_SUBSYSTEM_NATIVE_WINDOWS = 8,   ///< Native Windows 9x driver.
   IMAGE_SUBSYSTEM_WINDOWS_CE_GUI = 9,   ///< Windows CE.
@@ -640,6 +644,11 @@ enum DLLCharacteristics : unsigned {
   IMAGE_DLL_CHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000
 };
 
+enum ExtendedDLLCharacteristics : unsigned {
+  /// Image is CET compatible
+  IMAGE_DLL_CHARACTERISTICS_EX_CET_COMPAT = 0x0001
+};
+
 enum DebugType : unsigned {
   IMAGE_DEBUG_TYPE_UNKNOWN = 0,
   IMAGE_DEBUG_TYPE_COFF = 1,
@@ -658,6 +667,7 @@ enum DebugType : unsigned {
   IMAGE_DEBUG_TYPE_ILTCG = 14,
   IMAGE_DEBUG_TYPE_MPX = 15,
   IMAGE_DEBUG_TYPE_REPRO = 16,
+  IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS = 20,
 };
 
 enum BaseRelocationType : unsigned {
@@ -695,6 +705,51 @@ enum ImportNameType : unsigned {
   IMPORT_NAME_UNDECORATE = 3
 };
 
+enum class GuardFlags : uint32_t {
+  /// Module performs control flow integrity checks using system-supplied
+  /// support.
+  CF_INSTRUMENTED = 0x100,
+  /// Module performs control flow and write integrity checks.
+  CFW_INSTRUMENTED = 0x200,
+  /// Module contains valid control flow target metadata.
+  CF_FUNCTION_TABLE_PRESENT = 0x400,
+  /// Module does not make use of the /GS security cookie.
+  SECURITY_COOKIE_UNUSED = 0x800,
+  /// Module supports read only delay load IAT.
+  PROTECT_DELAYLOAD_IAT = 0x1000,
+  /// Delayload import table in its own .didat section (with nothing else in it)
+  /// that can be freely reprotected.
+  DELAYLOAD_IAT_IN_ITS_OWN_SECTION = 0x2000,
+  /// Module contains suppressed export information. This also infers that the
+  /// address taken IAT table is also present in the load config.
+  CF_EXPORT_SUPPRESSION_INFO_PRESENT = 0x4000,
+  /// Module enables suppression of exports.
+  CF_ENABLE_EXPORT_SUPPRESSION = 0x8000,
+  /// Module contains longjmp target information.
+  CF_LONGJUMP_TABLE_PRESENT = 0x10000,
+  /// Module contains EH continuation target information.
+  EH_CONTINUATION_TABLE_PRESENT = 0x400000,
+  /// Mask for the subfield that contains the stride of Control Flow Guard
+  /// function table entries (that is, the additional count of bytes per table
+  /// entry).
+  CF_FUNCTION_TABLE_SIZE_MASK = 0xF0000000,
+  CF_FUNCTION_TABLE_SIZE_5BYTES = 0x10000000,
+  CF_FUNCTION_TABLE_SIZE_6BYTES = 0x20000000,
+  CF_FUNCTION_TABLE_SIZE_7BYTES = 0x30000000,
+  CF_FUNCTION_TABLE_SIZE_8BYTES = 0x40000000,
+  CF_FUNCTION_TABLE_SIZE_9BYTES = 0x50000000,
+  CF_FUNCTION_TABLE_SIZE_10BYTES = 0x60000000,
+  CF_FUNCTION_TABLE_SIZE_11BYTES = 0x70000000,
+  CF_FUNCTION_TABLE_SIZE_12BYTES = 0x80000000,
+  CF_FUNCTION_TABLE_SIZE_13BYTES = 0x90000000,
+  CF_FUNCTION_TABLE_SIZE_14BYTES = 0xA0000000,
+  CF_FUNCTION_TABLE_SIZE_15BYTES = 0xB0000000,
+  CF_FUNCTION_TABLE_SIZE_16BYTES = 0xC0000000,
+  CF_FUNCTION_TABLE_SIZE_17BYTES = 0xD0000000,
+  CF_FUNCTION_TABLE_SIZE_18BYTES = 0xE0000000,
+  CF_FUNCTION_TABLE_SIZE_19BYTES = 0xF0000000,
+};
+
 struct ImportHeader {
   uint16_t Sig1; ///< Must be IMAGE_FILE_MACHINE_UNKNOWN (0).
   uint16_t Sig2; ///< Must be 0xFFFF.
@@ -717,9 +772,30 @@ enum CodeViewIdentifiers {
   DEBUG_HASHES_SECTION_MAGIC = 0x133C9C5
 };
 
+// These flags show up in the @feat.00 symbol. They appear to be some kind of
+// compiler features bitfield read by link.exe.
+enum Feat00Flags : uint32_t {
+  // Object is compatible with /safeseh.
+  SafeSEH = 0x1,
+  // Object was compiled with /GS.
+  GuardStack = 0x100,
+  // Object was compiled with /sdl.
+  SDL = 0x200,
+  // Object was compiled with /guard:cf.
+  GuardCF = 0x800,
+  // Object was compiled with /guard:ehcont.
+  GuardEHCont = 0x4000,
+  // Object was compiled with /kernel.
+  Kernel = 0x40000000,
+};
+
 inline bool isReservedSectionNumber(int32_t SectionNumber) {
   return SectionNumber <= 0;
 }
+
+/// Encode section name based on string table offset.
+/// The size of Out must be at least COFF::NameSize.
+bool encodeSectionName(char *Out, uint64_t Offset);
 
 } // End namespace COFF.
 } // End namespace llvm.

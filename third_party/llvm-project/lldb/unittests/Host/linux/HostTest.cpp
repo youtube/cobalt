@@ -1,15 +1,15 @@
-//===-- HostTest.cpp --------------------------------------------*- C++ -*-===//
+//===-- HostTest.cpp ------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/Host.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfo.h"
-#include "lldb/Target/Process.h"
+#include "lldb/Utility/ProcessInfo.h"
 #include "gtest/gtest.h"
 
 using namespace lldb_private;
@@ -17,8 +17,14 @@ using namespace lldb_private;
 namespace {
 class HostTest : public testing::Test {
 public:
-  static void SetUpTestCase() { HostInfo::Initialize(); }
-  static void TearDownTestCase() { HostInfo::Terminate(); }
+  static void SetUpTestCase() {
+    FileSystem::Initialize();
+    HostInfo::Initialize();
+  }
+  static void TearDownTestCase() {
+    HostInfo::Terminate();
+    FileSystem::Terminate();
+  }
 };
 } // namespace
 

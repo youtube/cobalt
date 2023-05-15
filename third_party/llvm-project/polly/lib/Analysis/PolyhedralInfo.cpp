@@ -1,21 +1,21 @@
 //===--------- PolyhedralInfo.cpp  - Create Scops from LLVM IR-------------===//
-///
-///                     The LLVM Compiler Infrastructure
-///
-/// This file is distributed under the University of Illinois Open Source
-/// License. See LICENSE.TXT for details.
-///
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
 //===----------------------------------------------------------------------===//
-///
-/// An interface to the Polyhedral analysis engine(Polly) of LLVM.
-///
-/// This pass provides an interface to the polyhedral analysis performed by
-/// Polly.
-///
-/// This interface provides basic interface like isParallel, isVectorizable
-/// that can be used in LLVM transformation passes.
-///
-/// Work in progress, this file is subject to change.
+//
+// An interface to the Polyhedral analysis engine(Polly) of LLVM.
+//
+// This pass provides an interface to the polyhedral analysis performed by
+// Polly.
+//
+// This interface provides basic interface like isParallel, isVectorizable
+// that can be used in LLVM transformation passes.
+//
+// Work in progress, this file is subject to change.
+//
 //===----------------------------------------------------------------------===//
 
 #include "polly/PolyhedralInfo.h"
@@ -25,9 +25,9 @@
 #include "polly/ScopInfo.h"
 #include "polly/Support/GICHelper.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
-#include <isl/map.h>
-#include <isl/union_map.h>
+#include "isl/union_map.h"
 
 using namespace llvm;
 using namespace polly;
@@ -36,13 +36,11 @@ using namespace polly;
 
 static cl::opt<bool> CheckParallel("polly-check-parallel",
                                    cl::desc("Check for parallel loops"),
-                                   cl::Hidden, cl::init(false), cl::ZeroOrMore,
-                                   cl::cat(PollyCategory));
+                                   cl::Hidden, cl::cat(PollyCategory));
 
 static cl::opt<bool> CheckVectorizable("polly-check-vectorizable",
                                        cl::desc("Check for vectorizable loops"),
-                                       cl::Hidden, cl::init(false),
-                                       cl::ZeroOrMore, cl::cat(PollyCategory));
+                                       cl::Hidden, cl::cat(PollyCategory));
 
 void PolyhedralInfo::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequiredTransitive<DependenceInfoWrapperPass>();
@@ -86,10 +84,12 @@ bool PolyhedralInfo::checkParallel(Loop *L, isl_pw_aff **MinDepDistPtr) const {
                        Dependences::TYPE_WAR | Dependences::TYPE_RED)
           .release();
 
-  LLVM_DEBUG(dbgs() << "Dependences :\t" << stringFromIslObj(Deps) << "\n");
+  LLVM_DEBUG(dbgs() << "Dependences :\t" << stringFromIslObj(Deps, "null")
+                    << "\n");
 
   isl_union_map *Schedule = getScheduleForLoop(S, L);
-  LLVM_DEBUG(dbgs() << "Schedule: \t" << stringFromIslObj(Schedule) << "\n");
+  LLVM_DEBUG(dbgs() << "Schedule: \t" << stringFromIslObj(Schedule, "null")
+                    << "\n");
 
   IsParallel = D.isParallel(Schedule, Deps, MinDepDistPtr);
   isl_union_map_free(Schedule);
@@ -163,3 +163,52 @@ INITIALIZE_PASS_DEPENDENCY(ScopInfoWrapperPass);
 INITIALIZE_PASS_END(PolyhedralInfo, "polyhedral-info",
                     "Polly - Interface to polyhedral analysis engine", false,
                     false)
+
+//===----------------------------------------------------------------------===//
+
+namespace {
+/// Print result from PolyhedralInfo.
+class PolyhedralInfoPrinterLegacyPass final : public FunctionPass {
+public:
+  static char ID;
+
+  PolyhedralInfoPrinterLegacyPass() : PolyhedralInfoPrinterLegacyPass(outs()) {}
+  explicit PolyhedralInfoPrinterLegacyPass(llvm::raw_ostream &OS)
+      : FunctionPass(ID), OS(OS) {}
+
+  bool runOnFunction(Function &F) override {
+    PolyhedralInfo &P = getAnalysis<PolyhedralInfo>();
+
+    OS << "Printing analysis '" << P.getPassName() << "' for function '"
+       << F.getName() << "':\n";
+    P.print(OS);
+
+    return false;
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    FunctionPass::getAnalysisUsage(AU);
+    AU.addRequired<PolyhedralInfo>();
+    AU.setPreservesAll();
+  }
+
+private:
+  llvm::raw_ostream &OS;
+};
+
+char PolyhedralInfoPrinterLegacyPass::ID = 0;
+} // namespace
+
+Pass *polly::createPolyhedralInfoPrinterLegacyPass(raw_ostream &OS) {
+  return new PolyhedralInfoPrinterLegacyPass(OS);
+}
+
+INITIALIZE_PASS_BEGIN(
+    PolyhedralInfoPrinterLegacyPass, "print-polyhedral-info",
+    "Polly - Print interface to polyhedral analysis engine analysis", false,
+    false);
+INITIALIZE_PASS_DEPENDENCY(PolyhedralInfo);
+INITIALIZE_PASS_END(
+    PolyhedralInfoPrinterLegacyPass, "print-polyhedral-info",
+    "Polly - Print interface to polyhedral analysis engine analysis", false,
+    false)

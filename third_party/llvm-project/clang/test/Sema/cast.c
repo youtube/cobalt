@@ -1,11 +1,15 @@
-// RUN: %clang_cc1 -fsyntax-only -triple x86_64-unknown-unknown %s -verify
+// RUN: %clang_cc1 -fsyntax-only -triple x86_64-unknown-unknown %s -verify -Wvla
+
+int array[(long)(char *)0]; // expected-warning {{variable length array used}} \
+                            // expected-warning {{variable length array folded to constant array as an extension}} \
+                            // expected-note {{this conversion is not allowed in a constant expression}}
 
 typedef struct { unsigned long bits[(((1) + (64) - 1) / (64))]; } cpumask_t;
 cpumask_t x;
-void foo() {
+void foo(void) {
   (void)x;
 }
-void bar() {
+void bar(void) {
   char* a;
   double b;
   b = (double)a; // expected-error {{pointer cannot be cast to type}}
@@ -151,19 +155,31 @@ void testCDouble(CDouble v) {
 }
 
 void testVoidPtr(VoidPtr v) {
-  (void) (Bool) v;
-  (void) (Int) v;
+  (void)(Bool) v;
+  (void) (Int) v; // expected-warning{{cast to smaller integer type 'Int' (aka 'int') from 'VoidPtr' (aka 'void *')}}
   (void) (Long) v;
   (void) (VoidPtr) v;
   (void) (CharPtr) v;
+  // Test that casts to void* can be controlled separately
+  // from other -Wpointer-to-int-cast warnings.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvoid-pointer-to-int-cast"
+  (void)(Int) v; // no-warning
+#pragma clang diagnostic pop
 }
 
 void testCharPtr(CharPtr v) {
-  (void) (Bool) v;
-  (void) (Int) v;
+  (void)(Bool) v;
+  (void) (Int) v; // expected-warning{{cast to smaller integer type 'Int' (aka 'int') from 'CharPtr' (aka 'char *')}}
   (void) (Long) v;
   (void) (VoidPtr) v;
   (void) (CharPtr) v;
+  // Test that casts to void* can be controlled separately
+  // from other -Wpointer-to-int-cast warnings.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvoid-pointer-to-int-cast"
+  (void)(Int) v; // expected-warning{{cast to smaller integer type 'Int' (aka 'int') from 'CharPtr' (aka 'char *')}}
+#pragma clang diagnostic pop
 }
 
 typedef enum { x_a, x_b } X;
@@ -171,6 +187,26 @@ void *intToPointerCast2(X x) {
   return (void*)x;
 }
 
-void *intToPointerCast3() {
+void *intToPointerCast3(void) {
   return (void*)(1 + 3);
+}
+
+void voidPointerToEnumCast(VoidPtr v) {
+  (void)(X) v; // expected-warning{{cast to smaller integer type 'X' from 'VoidPtr' (aka 'void *')}}
+  // Test that casts to void* can be controlled separately
+  // from other -Wpointer-to-enum-cast warnings.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvoid-pointer-to-enum-cast"
+  (void)(X) v; // no-warning
+#pragma clang diagnostic pop
+}
+
+void pointerToEnumCast(CharPtr v) {
+  (void)(X) v; // expected-warning{{cast to smaller integer type 'X' from 'CharPtr' (aka 'char *')}}
+  // Test that casts to void* can be controlled separately
+  // from other -Wpointer-to-enum-cast warnings.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvoid-pointer-to-enum-cast"
+  (void)(X) v; // expected-warning{{cast to smaller integer type 'X' from 'CharPtr' (aka 'char *')}}
+#pragma clang diagnostic pop
 }

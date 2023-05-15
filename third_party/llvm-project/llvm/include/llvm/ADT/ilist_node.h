@@ -1,15 +1,15 @@
 //===- llvm/ADT/ilist_node.h - Intrusive Linked List Helper -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// This file defines the ilist_node class template, which is a convenient
-// base class for creating classes that can be used with ilists.
-//
+///
+/// \file
+/// This file defines the ilist_node class template, which is a convenient
+/// base class for creating classes that can be used with ilists.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ADT_ILIST_NODE_H

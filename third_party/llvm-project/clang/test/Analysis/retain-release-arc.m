@@ -90,13 +90,12 @@ void _dispatch_object_validate(dispatch_object_t object);
   CFErrorRef error;
   CFDictionaryRef testDict = CFPropertyListCreateWithData(kCFAllocatorDefault, (__bridge CFDataRef)plistData, 0, 0, &error);
 #if HAS_ARC
-      // expected-note@-2 {{Call to function 'CFPropertyListCreateWithData' returns a Core Foundation object of type CFPropertyListRef with a +1 retain count}}
+      // expected-note@-2 {{Call to function 'CFPropertyListCreateWithData' returns a Core Foundation object of type 'CFPropertyListRef' with a +1 retain count}}
 #endif
   return (__bridge NSDictionary *)testDict;
 #if HAS_ARC
       // expected-warning@-2 {{Potential leak of an object stored into 'testDict'}}
-      // expected-note@-3 {{Object returned to caller as an owning reference (single retain count transferred to caller)}}
-      // expected-note@-4 {{Object leaked: object allocated and stored into 'testDict' is returned from a method managed by Automatic Reference Counting}}
+      // expected-note@-3 {{Object leaked: object allocated and stored into 'testDict' is returned from a method managed by Automatic Reference Counting}}
 #endif
 }
 
@@ -123,7 +122,7 @@ void _dispatch_object_validate(dispatch_object_t object);
 
 int buf[1024];
 
-void libdispatch_leaked_data() {
+void libdispatch_leaked_data(void) {
   dispatch_data_t data = dispatch_data_create(buf, 1024,
                                               dispatch_get_main_queue(), ^{});
 }
@@ -133,7 +132,7 @@ void libdispatch_leaked_data() {
   // expected-note@-4{{Object leaked: object allocated and stored into 'data' is not referenced later in this execution path and has a retain count of +1}}
 #endif
 
-void libdispatch_dispatch_released_data() {
+void libdispatch_dispatch_released_data(void) {
   dispatch_data_t data = dispatch_data_create(buf, 1024,
                                               dispatch_get_main_queue(), ^{});
 #if !HAS_ARC
@@ -141,7 +140,7 @@ void libdispatch_dispatch_released_data() {
 #endif
 }
 
-void libdispatch_objc_released_data() {
+void libdispatch_objc_released_data(void) {
   dispatch_data_t data = dispatch_data_create(buf, 1024,
                                               dispatch_get_main_queue(), ^{});
 #if !HAS_ARC
@@ -149,7 +148,7 @@ void libdispatch_objc_released_data() {
 #endif
 }
 
-void libdispatch_leaked_retained_data() {
+void libdispatch_leaked_retained_data(void) {
   dispatch_data_t data = dispatch_data_create(buf, 1024,
                                               dispatch_get_main_queue(), ^{});
 #if !HAS_ARC

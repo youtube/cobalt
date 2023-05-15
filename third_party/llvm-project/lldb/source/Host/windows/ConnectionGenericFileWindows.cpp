@@ -1,13 +1,13 @@
-//===-- ConnectionGenericFileWindows.cpp ------------------------*- C++ -*-===//
+//===-- ConnectionGenericFileWindows.cpp ----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/windows/ConnectionGenericFileWindows.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/Timeout.h"
@@ -91,10 +91,9 @@ bool ConnectionGenericFile::IsConnected() const {
 
 lldb::ConnectionStatus ConnectionGenericFile::Connect(llvm::StringRef path,
                                                       Status *error_ptr) {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_CONNECTION));
-  if (log)
-    log->Printf("%p ConnectionGenericFile::Connect (url = '%s')",
-                static_cast<void *>(this), path.str().c_str());
+  Log *log = GetLog(LLDBLog::Connection);
+  LLDB_LOGF(log, "%p ConnectionGenericFile::Connect (url = '%s')",
+            static_cast<void *>(this), path.str().c_str());
 
   if (!path.consume_front("file://")) {
     if (error_ptr)
@@ -129,15 +128,14 @@ lldb::ConnectionStatus ConnectionGenericFile::Connect(llvm::StringRef path,
   }
 
   m_owns_file = true;
-  m_uri.assign(path);
+  m_uri = path.str();
   return eConnectionStatusSuccess;
 }
 
 lldb::ConnectionStatus ConnectionGenericFile::Disconnect(Status *error_ptr) {
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_CONNECTION));
-  if (log)
-    log->Printf("%p ConnectionGenericFile::Disconnect ()",
-                static_cast<void *>(this));
+  Log *log = GetLog(LLDBLog::Connection);
+  LLDB_LOGF(log, "%p ConnectionGenericFile::Disconnect ()",
+            static_cast<void *>(this));
 
   if (!IsConnected())
     return eConnectionStatusSuccess;
@@ -190,9 +188,8 @@ size_t ConnectionGenericFile::Read(void *dst, size_t dst_len,
               ? std::chrono::duration_cast<std::chrono::milliseconds>(*timeout)
                     .count()
               : INFINITE;
-      DWORD wait_result =
-          ::WaitForMultipleObjects(llvm::array_lengthof(m_event_handles),
-                                   m_event_handles, FALSE, milliseconds);
+      DWORD wait_result = ::WaitForMultipleObjects(
+          std::size(m_event_handles), m_event_handles, FALSE, milliseconds);
       // All of the events are manual reset events, so make sure we reset them
       // to non-signalled.
       switch (wait_result) {
@@ -247,13 +244,12 @@ finish:
   ResetEvent(m_event_handles[kBytesAvailableEvent]);
 
   IncrementFilePointer(return_info.GetBytes());
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_CONNECTION));
-  if (log) {
-    log->Printf("%p ConnectionGenericFile::Read()  handle = %p, dst = %p, "
-                "dst_len = %zu) => %zu, error = %s",
-                this, m_file, dst, dst_len, return_info.GetBytes(),
-                return_info.GetError().AsCString());
-  }
+  Log *log = GetLog(LLDBLog::Connection);
+  LLDB_LOGF(log,
+            "%p ConnectionGenericFile::Read()  handle = %p, dst = %p, "
+            "dst_len = %zu) => %zu, error = %s",
+            static_cast<void *>(this), m_file, dst, dst_len,
+            return_info.GetBytes(), return_info.GetError().AsCString());
 
   return return_info.GetBytes();
 }
@@ -297,13 +293,12 @@ finish:
     *error_ptr = return_info.GetError();
 
   IncrementFilePointer(return_info.GetBytes());
-  Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_CONNECTION));
-  if (log) {
-    log->Printf("%p ConnectionGenericFile::Write()  handle = %p, src = %p, "
-                "src_len = %zu) => %zu, error = %s",
-                this, m_file, src, src_len, return_info.GetBytes(),
-                return_info.GetError().AsCString());
-  }
+  Log *log = GetLog(LLDBLog::Connection);
+  LLDB_LOGF(log,
+            "%p ConnectionGenericFile::Write()  handle = %p, src = %p, "
+            "src_len = %zu) => %zu, error = %s",
+            static_cast<void *>(this), m_file, src, src_len,
+            return_info.GetBytes(), return_info.GetError().AsCString());
   return return_info.GetBytes();
 }
 

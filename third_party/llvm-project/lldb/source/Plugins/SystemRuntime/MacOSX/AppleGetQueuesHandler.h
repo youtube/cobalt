@@ -1,23 +1,18 @@
 //===-- AppleGetQueuesHandler.h ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_AppleGetQueuesHandler_h_
-#define lldb_AppleGetQueuesHandler_h_
+#ifndef LLDB_SOURCE_PLUGINS_SYSTEMRUNTIME_MACOSX_APPLEGETQUEUESHANDLER_H
+#define LLDB_SOURCE_PLUGINS_SYSTEMRUNTIME_MACOSX_APPLEGETQUEUESHANDLER_H
 
-// C Includes
-// C++ Includes
 #include <map>
 #include <mutex>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/lldb-public.h"
@@ -50,45 +45,42 @@ public:
   ~AppleGetQueuesHandler();
 
   struct GetQueuesReturnInfo {
-    lldb::addr_t queues_buffer_ptr;  /* the address of the queues buffer from
+    lldb::addr_t queues_buffer_ptr =
+        LLDB_INVALID_ADDRESS; /* the address of the queues buffer from
+          libBacktraceRecording */
+    lldb::addr_t queues_buffer_size = 0; /* the size of the queues buffer from
                                         libBacktraceRecording */
-    lldb::addr_t queues_buffer_size; /* the size of the queues buffer from
-                                        libBacktraceRecording */
-    uint64_t count; /* the number of queues included in the queues buffer */
+    uint64_t count = 0; /* the number of queues included in the queues buffer */
 
-    GetQueuesReturnInfo()
-        : queues_buffer_ptr(LLDB_INVALID_ADDRESS), queues_buffer_size(0),
-          count(0) {}
+    GetQueuesReturnInfo() = default;
   };
 
-  //----------------------------------------------------------
   /// Get the list of queues that exist (with any active or pending items) via
   /// a call to introspection_get_dispatch_queues().  If there's a page of
   /// memory that needs to be freed, pass in the address and size and it will
   /// be freed before getting the list of queues.
   ///
-  /// @param [in] thread
+  /// \param [in] thread
   ///     The thread to run this plan on.
   ///
-  /// @param [in] page_to_free
+  /// \param [in] page_to_free
   ///     An address of an inferior process vm page that needs to be
   ///     deallocated,
   ///     LLDB_INVALID_ADDRESS if this is not needed.
   ///
-  /// @param [in] page_to_free_size
+  /// \param [in] page_to_free_size
   ///     The size of the vm page that needs to be deallocated if an address was
   ///     passed in to page_to_free.
   ///
-  /// @param [out] error
+  /// \param [out] error
   ///     This object will be updated with the error status / error string from
   ///     any failures encountered.
   ///
-  /// @returns
+  /// \returns
   ///     The result of the inferior function call execution.  If there was a
   ///     failure of any kind while getting
   ///     the information, the queues_buffer_ptr value will be
   ///     LLDB_INVALID_ADDRESS.
-  //----------------------------------------------------------
   GetQueuesReturnInfo GetCurrentQueues(Thread &thread,
                                        lldb::addr_t page_to_free,
                                        uint64_t page_to_free_size,
@@ -113,4 +105,4 @@ private:
 
 } // using namespace lldb_private
 
-#endif // lldb_AppleGetQueuesHandler_h_
+#endif // LLDB_SOURCE_PLUGINS_SYSTEMRUNTIME_MACOSX_APPLEGETQUEUESHANDLER_H

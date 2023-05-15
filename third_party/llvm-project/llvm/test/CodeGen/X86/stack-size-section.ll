@@ -1,8 +1,12 @@
-; RUN: llc < %s -mtriple=x86_64-linux -stack-size-section | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-linux -stack-size-section | FileCheck %s --check-prefix=CHECK --check-prefix=GROUPS
+
+; PS4 'as' does not recognize the section attribute "o".  So we have a simple .stack_sizes section on PS4.
+; RUN: llc < %s -mtriple=x86_64-scei-ps4 -stack-size-section | FileCheck %s --check-prefix=CHECK --check-prefix=NOGROUPS
 
 ; CHECK-LABEL: func1:
 ; CHECK-NEXT: .Lfunc_begin0:
-; CHECK: .section .stack_sizes,"o",@progbits
+; GROUPS: .section .stack_sizes,"o",@progbits,.text{{$}}
+; NOGROUPS: .section .stack_sizes,"",@progbits
 ; CHECK-NEXT: .quad .Lfunc_begin0
 ; CHECK-NEXT: .byte 8
 define void @func1(i32, i32) #0 {
@@ -13,7 +17,8 @@ define void @func1(i32, i32) #0 {
 
 ; CHECK-LABEL: func2:
 ; CHECK-NEXT: .Lfunc_begin1:
-; CHECK: .section .stack_sizes,"o",@progbits
+; GROUPS: .section .stack_sizes,"o",@progbits,.text{{$}}
+; NOGROUPS: .section .stack_sizes,"",@progbits
 ; CHECK-NEXT: .quad .Lfunc_begin1
 ; CHECK-NEXT: .byte 24
 define void @func2() #0 {
@@ -24,18 +29,19 @@ define void @func2() #0 {
 
 ; Check that we still put .stack_sizes into the corresponding COMDAT group if any.
 ; CHECK: .section .text._Z4fooTIiET_v,"axG",@progbits,_Z4fooTIiET_v,comdat
-; CHECK: .section .stack_sizes,"Go",@progbits,_Z4fooTIiET_v,comdat,.text._Z4fooTIiET_v,unique,1
+; GROUPS: .section .stack_sizes,"Go",@progbits,_Z4fooTIiET_v,comdat,.text._Z4fooTIiET_v{{$}}
+; NOGROUPS: .section .stack_sizes,"",@progbits
 $_Z4fooTIiET_v = comdat any
 define linkonce_odr dso_local i32 @_Z4fooTIiET_v() comdat {
   ret i32 0
 }
 
-; Check that we assign a unique ID to .stack_sizes if it is linked with a unique .text section.
 ; CHECK: .section .text.func3,"ax",@progbits
-; CHECK: .section .stack_sizes,"o",@progbits,.text.func3,unique,2
+; GROUPS: .section .stack_sizes,"o",@progbits,.text.func3{{$}}
+; NOGROUPS: .section .stack_sizes,"",@progbits
 define dso_local i32 @func3() section ".text.func3" {
   %1 = alloca i32, align 4
-  store i32 0, i32* %1, align 4
+  store i32 0, ptr %1, align 4
   ret i32 0
 }
 
@@ -46,4 +52,4 @@ define void @dynalloc(i32 %N) #0 {
   ret void
 }
 
-attributes #0 = { "no-frame-pointer-elim"="true" }
+attributes #0 = { "frame-pointer"="all" }

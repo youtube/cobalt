@@ -8,35 +8,35 @@ define i32 @bar(i32 %b) #0 !dbg !4 {
 entry:
   %b.addr = alloca i32, align 4
   %var = alloca i32, align 4
-  store i32 %b, i32* %b.addr, align 4
-  call void @llvm.dbg.declare(metadata i32* %b.addr, metadata !13, metadata !14), !dbg !15
-  call void @llvm.dbg.declare(metadata i32* %var, metadata !16, metadata !14), !dbg !17
-  %0 = load i32, i32* %b.addr, align 4, !dbg !18
+  store i32 %b, ptr %b.addr, align 4
+  call void @llvm.dbg.declare(metadata ptr %b.addr, metadata !13, metadata !14), !dbg !15
+  call void @llvm.dbg.declare(metadata ptr %var, metadata !16, metadata !14), !dbg !17
+  %0 = load i32, ptr %b.addr, align 4, !dbg !18
   %add = add nsw i32 %0, 1, !dbg !19
-  store i32 %add, i32* %var, align 4, !dbg !17
-  %call = call i32 @foo(i32* %var), !dbg !20
+  store i32 %add, ptr %var, align 4, !dbg !17
+  %call = call i32 @foo(ptr %var), !dbg !20
   ret i32 %call, !dbg !21
 }
 
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-declare i32 @foo(i32*) #2
+declare i32 @foo(ptr) #2
 
 ; Function Attrs: nounwind ssp
 define i32 @baz(i32 %b) #0 !dbg !8 {
 entry:
   %b.addr = alloca i32, align 4
-  store i32 %b, i32* %b.addr, align 4
-  call void @llvm.dbg.declare(metadata i32* %b.addr, metadata !22, metadata !14), !dbg !23
-  %0 = load i32, i32* %b.addr, align 4, !dbg !24
+  store i32 %b, ptr %b.addr, align 4
+  call void @llvm.dbg.declare(metadata ptr %b.addr, metadata !22, metadata !14), !dbg !23
+  %0 = load i32, ptr %b.addr, align 4, !dbg !24
   %call = call i32 @bar(i32 %0), !dbg !25
   ret i32 %call, !dbg !26
 }
 
-attributes #0 = { nounwind ssp "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="yonah" "target-features"="+cx16,+sse,+sse2,+sse3" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind ssp "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="yonah" "target-features"="+cx16,+sse,+sse2,+sse3" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
-attributes #2 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="yonah" "target-features"="+cx16,+sse,+sse2,+sse3" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="yonah" "target-features"="+cx16,+sse,+sse2,+sse3" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!9, !10, !11}

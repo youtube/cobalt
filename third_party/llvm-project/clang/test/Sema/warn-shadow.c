@@ -2,7 +2,7 @@
 
 int i;          // expected-note 3 {{previous declaration is here}}
 
-void foo() {
+void foo(void) {
   int pass1;
   int i;        // expected-warning {{declaration shadows a variable in the global scope}} \
                 // expected-note {{previous declaration is here}}
@@ -52,10 +52,22 @@ void test7(void *context, void (*callback)(void *context)) {}
 extern int bob; // expected-note {{previous declaration is here}}
 
 // rdar://8883302
-void rdar8883302() {
+void rdar8883302(void) {
   extern int bob; // don't warn for shadowing.
 }
 
-void test8() {
+void test8(void) {
   int bob; // expected-warning {{declaration shadows a variable in the global scope}}
 }
+
+enum PR24718_1{pr24718}; // expected-note {{previous declaration is here}}
+void PR24718(void) {
+  enum PR24718_2{pr24718}; // expected-warning {{declaration shadows a variable in the global scope}}
+}
+
+struct PR24718_3;
+struct PR24718_4 {
+  enum {
+    PR24718_3 // Does not shadow a type.
+  };
+};

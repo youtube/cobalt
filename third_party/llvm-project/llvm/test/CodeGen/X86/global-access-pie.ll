@@ -9,9 +9,9 @@
 ; RUN:   | FileCheck -check-prefix=X32 %s
 
 ; External Linkage
-@a = global i32 0, align 4
+@a = dso_local global i32 0, align 4
 
-define i32 @my_access_global_a() #0 {
+define dso_local i32 @my_access_global_a() #0 {
 ; X32-LABEL: my_access_global_a:
 ; X32:       addl $_GLOBAL_OFFSET_TABLE_{{.*}}, %eax
 ; X32-NEXT:  movl a@GOTOFF(%eax), %eax
@@ -19,14 +19,14 @@ define i32 @my_access_global_a() #0 {
 ; X64:       movl a(%rip), %eax
 
 entry:
-  %0 = load i32, i32* @a, align 4
+  %0 = load i32, ptr @a, align 4
   ret i32 %0
 }
 
 ; WeakAny Linkage
-@b = weak global i32 0, align 4
+@b = weak dso_local global i32 0, align 4
 
-define i32 @my_access_global_b() #0 {
+define dso_local i32 @my_access_global_b() #0 {
 ; X32-LABEL: my_access_global_b:
 ; X32:       addl $_GLOBAL_OFFSET_TABLE_{{.*}}, %eax
 ; X32-NEXT:  movl b@GOTOFF(%eax), %eax
@@ -34,14 +34,14 @@ define i32 @my_access_global_b() #0 {
 ; X64:       movl b(%rip), %eax
 
 entry:
-  %0 = load i32, i32* @b, align 4
+  %0 = load i32, ptr @b, align 4
   ret i32 %0
 }
 
 ; Internal Linkage
 @c = internal global i32 0, align 4
 
-define i32 @my_access_global_c() #0 {
+define dso_local i32 @my_access_global_c() #0 {
 ; X32-LABEL: my_access_global_c:
 ; X32:       addl $_GLOBAL_OFFSET_TABLE_{{.*}}, %eax
 ; X32-NEXT:  movl c@GOTOFF(%eax), %eax
@@ -49,14 +49,14 @@ define i32 @my_access_global_c() #0 {
 ; X64:       movl c(%rip), %eax
 
 entry:
-  %0 = load i32, i32* @c, align 4
+  %0 = load i32, ptr @c, align 4
   ret i32 %0
 }
 
 ; External Linkage, only declaration.
 @d = external global i32, align 4
 
-define i32 @my_access_global_load_d() #0 {
+define dso_local i32 @my_access_global_load_d() #0 {
 ; X32-LABEL: my_access_global_load_d:
 ; X32:       addl $_GLOBAL_OFFSET_TABLE_{{.*}}, %eax
 ; X32-NEXT:  movl d@GOT(%eax), %eax
@@ -66,13 +66,13 @@ define i32 @my_access_global_load_d() #0 {
 ; X64-NEXT:  movl (%rax), %eax
 
 entry:
-  %0 = load i32, i32* @d, align 4
+  %0 = load i32, ptr @d, align 4
   ret i32 %0
 }
 
 ; External Linkage, only declaration, store a value.
 
-define i32 @my_access_global_store_d() #0 {
+define dso_local i32 @my_access_global_store_d() #0 {
 ; X32-LABEL: my_access_global_store_d:
 ; X32:       addl $_GLOBAL_OFFSET_TABLE_{{.*}}, %eax
 ; X32-NEXT:  movl d@GOT(%eax), %eax
@@ -82,15 +82,15 @@ define i32 @my_access_global_store_d() #0 {
 ; X64-NEXT:  movl $2, (%rax)
 
 entry:
-  store i32 2, i32* @d, align 4
+  store i32 2, ptr @d, align 4
   ret i32 0
 }
 
 ; External Linkage, function pointer access.
-declare i32 @access_fp(i32 ()*)
+declare i32 @access_fp(ptr)
 declare i32 @foo()
 
-define i32 @my_access_fp_foo() #0 {
+define dso_local i32 @my_access_fp_foo() #0 {
 ; X32-LABEL: my_access_fp_foo:
 ; X32:       addl $_GLOBAL_OFFSET_TABLE_{{.*}}, %ebx
 ; X32-NEXT:  movl	foo@GOT(%ebx), %eax
@@ -98,7 +98,7 @@ define i32 @my_access_fp_foo() #0 {
 ; X64:       movq foo@GOTPCREL(%rip), %rdi
 
 entry:
-  %call = call i32 @access_fp(i32 ()* @foo)
+  %call = call i32 @access_fp(ptr @foo)
   ret i32 %call
 }
 
@@ -106,20 +106,20 @@ entry:
 
 $bar = comdat any
 
-define linkonce_odr i32 @bar() comdat {
+define linkonce_odr dso_local i32 @bar() comdat {
 entry:
   ret i32 0
 }
 
-define i32 @my_access_fp_bar() #0 {
+define dso_local i32 @my_access_fp_bar() #0 {
 ; X32-LABEL: my_access_fp_bar:
 ; X32:       addl $_GLOBAL_OFFSET_TABLE_{{.*}}, %ebx
-; X32-NEXT:  leal	bar@GOTOFF(%ebx), %eax
+; X32-NEXT:  leal bar@GOTOFF(%ebx), %eax
 ; X64-LABEL: my_access_fp_bar:
 ; X64:       leaq bar(%rip), %rdi
 
 entry:
-  %call = call i32 @access_fp(i32 ()* @bar)
+  %call = call i32 @access_fp(ptr @bar)
   ret i32 %call
 }
 

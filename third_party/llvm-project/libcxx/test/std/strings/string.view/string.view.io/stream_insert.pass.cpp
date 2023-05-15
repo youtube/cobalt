@@ -1,13 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// <string>
+// UNSUPPORTED: no-localization
+// UNSUPPORTED: !stdlib=libc++ && (c++03 || c++11 || c++14)
+
+// <string_view>
 
 // template<class charT, class traits, class Allocator>
 //   basic_ostream<charT, traits>&
@@ -18,14 +20,13 @@
 #include <sstream>
 #include <cassert>
 
-using std::string_view;
-using std::wstring_view;
+#include "test_macros.h"
 
-int main()
+int main(int, char**)
 {
     {
         std::ostringstream out;
-        string_view sv("some text");
+        std::string_view sv("some text");
         out << sv;
         assert(out.good());
         assert(sv == out.str());
@@ -33,15 +34,16 @@ int main()
     {
         std::ostringstream out;
         std::string s("some text");
-        string_view sv(s);
+        std::string_view sv(s);
         out.width(12);
         out << sv;
         assert(out.good());
         assert("   " + s == out.str());
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wostringstream out;
-        wstring_view sv(L"some text");
+        std::wstring_view sv(L"some text");
         out << sv;
         assert(out.good());
         assert(sv == out.str());
@@ -49,10 +51,13 @@ int main()
     {
         std::wostringstream out;
         std::wstring s(L"some text");
-        wstring_view sv(s);
+        std::wstring_view sv(s);
         out.width(12);
         out << sv;
         assert(out.good());
         assert(L"   " + s == out.str());
     }
+#endif
+
+  return 0;
 }

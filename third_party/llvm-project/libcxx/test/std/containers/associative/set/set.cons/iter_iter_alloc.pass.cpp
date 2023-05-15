@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,7 +26,7 @@
 #include "../../../test_compare.h"
 #include "test_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef int V;
@@ -43,18 +42,18 @@ int main()
         3,
         3
     };
-    typedef test_compare<std::less<V> > C;
+    typedef test_less<V> C;
     typedef test_allocator<V> A;
-    std::set<V, C, A> m(input_iterator<const V*>(ar),
-                        input_iterator<const V*>(ar+sizeof(ar)/sizeof(ar[0])),
+    std::set<V, C, A> m(cpp17_input_iterator<const V*>(ar),
+                        cpp17_input_iterator<const V*>(ar+sizeof(ar)/sizeof(ar[0])),
                         C(5), A(7));
     assert(m.value_comp() == C(5));
     assert(m.get_allocator() == A(7));
     assert(m.size() == 3);
-    assert(distance(m.begin(), m.end()) == 3);
+    assert(std::distance(m.begin(), m.end()) == 3);
     assert(*m.begin() == 1);
-    assert(*next(m.begin()) == 2);
-    assert(*next(m.begin(), 2) == 3);
+    assert(*std::next(m.begin()) == 2);
+    assert(*std::next(m.begin(), 2) == 3);
     }
 #if TEST_STD_VER > 11
     {
@@ -72,16 +71,18 @@ int main()
         3
     };
     typedef test_allocator<V> A;
-    typedef test_compare<std::less<int> > C;
+    typedef test_less<int> C;
     A a(7);
     std::set<V, C, A> m(ar, ar+sizeof(ar)/sizeof(ar[0]), a);
 
     assert(m.size() == 3);
-    assert(distance(m.begin(), m.end()) == 3);
+    assert(std::distance(m.begin(), m.end()) == 3);
     assert(*m.begin() == 1);
-    assert(*next(m.begin()) == 2);
-    assert(*next(m.begin(), 2) == 3);
+    assert(*std::next(m.begin()) == 2);
+    assert(*std::next(m.begin(), 2) == 3);
     assert(m.get_allocator() == a);
     }
 #endif
+
+  return 0;
 }

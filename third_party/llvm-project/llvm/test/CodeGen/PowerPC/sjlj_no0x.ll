@@ -1,6 +1,6 @@
-; RUN: llc < %s -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 -verify-machineinstrs | FileCheck %s
-; RUN: llc < %s -mtriple=powerpc64-unknown-linux-gnu -mcpu=a2 -verify-machineinstrs | FileCheck %s
-; RUN: llc < %s -mtriple=powerpc64le-unknown-linux-gnu -mcpu=pwr8 -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -relocation-model=pic -mtriple=powerpc64-unknown-linux-gnu -mcpu=pwr7 -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -relocation-model=pic -mtriple=powerpc64-unknown-linux-gnu -mcpu=a2 -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -relocation-model=pic -mtriple=powerpc64le-unknown-linux-gnu -mcpu=pwr8 -verify-machineinstrs | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-n32:64"
 target triple = "powerpc64le-unknown-linux-gnu"
@@ -8,7 +8,7 @@ target triple = "powerpc64le-unknown-linux-gnu"
 ; Function Attrs: noinline nounwind
 define void @_Z23BuiltinLongJmpFunc1_bufv() #0 {
 entry:
-  call void @llvm.eh.sjlj.longjmp(i8* bitcast (void ()* @_Z23BuiltinLongJmpFunc1_bufv to i8*))
+  call void @llvm.eh.sjlj.longjmp(ptr @_Z23BuiltinLongJmpFunc1_bufv)
   unreachable
 
 ; CHECK: @_Z23BuiltinLongJmpFunc1_bufv
@@ -26,4 +26,4 @@ return:                                           ; No predecessors!
 }
 
 ; Function Attrs: noreturn nounwind
-declare void @llvm.eh.sjlj.longjmp(i8*) #1
+declare void @llvm.eh.sjlj.longjmp(ptr) #1

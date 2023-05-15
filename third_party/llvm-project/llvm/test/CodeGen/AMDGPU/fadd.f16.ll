@@ -1,5 +1,5 @@
-; RUN: llc -march=amdgcn -mcpu=tahiti -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=SI %s
-; RUN: llc -march=amdgcn -mcpu=fiji -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -check-prefix=GCN -check-prefix=VI %s
+; RUN: llc -march=amdgcn -mcpu=tahiti -verify-machineinstrs -enable-misched=false < %s | FileCheck -check-prefix=GCN -check-prefix=SI %s
+; RUN: llc -march=amdgcn -mcpu=fiji -mattr=-flat-for-global -verify-machineinstrs -enable-misched=false < %s | FileCheck -check-prefix=GCN -check-prefix=VI %s
 
 ; GCN-LABEL: {{^}}fadd_f16
 ; GCN: {{buffer|flat}}_load_ushort v[[A_F16:[0-9]+]]
@@ -12,14 +12,14 @@
 ; GCN: buffer_store_short v[[R_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fadd_f16(
-    half addrspace(1)* %r,
-    half addrspace(1)* %a,
-    half addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a,
+    ptr addrspace(1) %b) {
 entry:
-  %a.val = load volatile half, half addrspace(1)* %a
-  %b.val = load volatile half, half addrspace(1)* %b
+  %a.val = load volatile half, ptr addrspace(1) %a
+  %b.val = load volatile half, ptr addrspace(1) %b
   %r.val = fadd half %a.val, %b.val
-  store half %r.val, half addrspace(1)* %r
+  store half %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -32,12 +32,12 @@ entry:
 ; GCN: buffer_store_short v[[R_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fadd_f16_imm_a(
-    half addrspace(1)* %r,
-    half addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %b) {
 entry:
-  %b.val = load half, half addrspace(1)* %b
+  %b.val = load half, ptr addrspace(1) %b
   %r.val = fadd half 1.0, %b.val
-  store half %r.val, half addrspace(1)* %r
+  store half %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -50,20 +50,20 @@ entry:
 ; GCN: buffer_store_short v[[R_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fadd_f16_imm_b(
-    half addrspace(1)* %r,
-    half addrspace(1)* %a) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a) {
 entry:
-  %a.val = load half, half addrspace(1)* %a
+  %a.val = load half, ptr addrspace(1) %a
   %r.val = fadd half %a.val, 2.0
-  store half %r.val, half addrspace(1)* %r
+  store half %r.val, ptr addrspace(1) %r
   ret void
 }
 
 ; GCN-LABEL: {{^}}fadd_v2f16:
 ; SI: buffer_load_dword v[[A_V2_F16:[0-9]+]]
 ; SI: buffer_load_dword v[[B_V2_F16:[0-9]+]]
-; VI: flat_load_dword v[[B_V2_F16:[0-9]+]]
 ; VI: flat_load_dword v[[A_V2_F16:[0-9]+]]
+; VI: flat_load_dword v[[B_V2_F16:[0-9]+]]
 
 ; SI-DAG:  v_cvt_f32_f16_e32 v[[A_F32_0:[0-9]+]], v[[A_V2_F16]]
 ; SI-DAG: v_lshrrev_b32_e32 v[[A_F16_1:[0-9]+]], 16, v[[A_V2_F16]]
@@ -86,17 +86,17 @@ entry:
 ; GCN: buffer_store_dword v[[R_V2_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fadd_v2f16(
-    <2 x half> addrspace(1)* %r,
-    <2 x half> addrspace(1)* %a,
-    <2 x half> addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a,
+    ptr addrspace(1) %b) {
 entry:
   %tid = call i32 @llvm.amdgcn.workitem.id.x()
-  %gep.a = getelementptr inbounds <2 x half>, <2 x half> addrspace(1)* %a, i32 %tid
-  %gep.b = getelementptr inbounds <2 x half>, <2 x half> addrspace(1)* %b, i32 %tid
-  %a.val = load <2 x half>, <2 x half> addrspace(1)* %gep.a
-  %b.val = load <2 x half>, <2 x half> addrspace(1)* %gep.b
+  %gep.a = getelementptr inbounds <2 x half>, ptr addrspace(1) %a, i32 %tid
+  %gep.b = getelementptr inbounds <2 x half>, ptr addrspace(1) %b, i32 %tid
+  %a.val = load <2 x half>, ptr addrspace(1) %gep.a
+  %b.val = load <2 x half>, ptr addrspace(1) %gep.b
   %r.val = fadd <2 x half> %a.val, %b.val
-  store <2 x half> %r.val, <2 x half> addrspace(1)* %r
+  store <2 x half> %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -120,14 +120,14 @@ entry:
 ; GCN: buffer_store_dword v[[R_V2_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fadd_v2f16_imm_a(
-    <2 x half> addrspace(1)* %r,
-    <2 x half> addrspace(1)* %b) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %b) {
 entry:
   %tid = call i32 @llvm.amdgcn.workitem.id.x()
-  %gep.b = getelementptr inbounds <2 x half>, <2 x half> addrspace(1)* %b, i32 %tid
-  %b.val = load <2 x half>, <2 x half> addrspace(1)* %gep.b
+  %gep.b = getelementptr inbounds <2 x half>, ptr addrspace(1) %b, i32 %tid
+  %b.val = load <2 x half>, ptr addrspace(1) %gep.b
   %r.val = fadd <2 x half> <half 1.0, half 2.0>, %b.val
-  store <2 x half> %r.val, <2 x half> addrspace(1)* %r
+  store <2 x half> %r.val, ptr addrspace(1) %r
   ret void
 }
 
@@ -151,14 +151,14 @@ entry:
 ; GCN: buffer_store_dword v[[R_V2_F16]]
 ; GCN: s_endpgm
 define amdgpu_kernel void @fadd_v2f16_imm_b(
-    <2 x half> addrspace(1)* %r,
-    <2 x half> addrspace(1)* %a) {
+    ptr addrspace(1) %r,
+    ptr addrspace(1) %a) {
 entry:
   %tid = call i32 @llvm.amdgcn.workitem.id.x()
-  %gep.a = getelementptr inbounds <2 x half>, <2 x half> addrspace(1)* %a, i32 %tid
-  %a.val = load <2 x half>, <2 x half> addrspace(1)* %gep.a
+  %gep.a = getelementptr inbounds <2 x half>, ptr addrspace(1) %a, i32 %tid
+  %a.val = load <2 x half>, ptr addrspace(1) %gep.a
   %r.val = fadd <2 x half> %a.val, <half 2.0, half 1.0>
-  store <2 x half> %r.val, <2 x half> addrspace(1)* %r
+  store <2 x half> %r.val, ptr addrspace(1) %r
   ret void
 }
 

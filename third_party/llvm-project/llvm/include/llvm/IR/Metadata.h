@@ -1,9 +1,8 @@
 //===- llvm/IR/Metadata.h - Metadata definitions ----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,9 +18,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/PointerUnion.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ilist_node.h"
@@ -46,11 +43,17 @@ namespace llvm {
 class Module;
 class ModuleSlotTracker;
 class raw_ostream;
+template <typename T> class StringMapEntry;
+template <typename ValueTy> class StringMapEntryStorage;
 class Type;
 
 enum LLVMConstants : uint32_t {
   DEBUG_METADATA_VERSION = 3 // Current debug info version number.
 };
+
+/// Magic number in the value profile metadata showing a target has been
+/// promoted for the instruction and shouldn't be promoted again.
+const uint64_t NOMORE_ICP_MAGICNUM = -1;
 
 /// Root of the metadata hierarchy.
 ///
@@ -66,9 +69,9 @@ protected:
   enum StorageType { Uniqued, Distinct, Temporary };
 
   /// Storage flag for non-uniqued, otherwise unowned, metadata.
-  unsigned char Storage;
-  // TODO: expose remaining bits to subclasses.
+  unsigned char Storage : 7;
 
+  unsigned char SubclassData1 : 1;
   unsigned short SubclassData16 = 0;
   unsigned SubclassData32 = 0;
 
@@ -80,7 +83,7 @@ public:
 
 protected:
   Metadata(unsigned ID, StorageType Storage)
-      : SubclassID(ID), Storage(Storage) {
+      : SubclassID(ID), Storage(Storage), SubclassData1(false) {
     static_assert(sizeof(*this) == 8, "Metadata fields poorly packed");
   }
 
@@ -165,7 +168,7 @@ inline raw_ostream &operator<<(raw_ostream &OS, const Metadata &MD) {
 /// Metadata wrapper in the Value hierarchy.
 ///
 /// A member of the \a Value hierarchy to represent a reference to metadata.
-/// This allows, e.g., instrinsics to have metadata as operands.
+/// This allows, e.g., intrinsics to have metadata as operands.
 ///
 /// Notably, this is the only thing in either hierarchy that is allowed to
 /// reference \a LocalAsMetadata.
@@ -298,6 +301,10 @@ public:
   ///
   /// Replace all uses of this with \c MD, which is allowed to be null.
   void replaceAllUsesWith(Metadata *MD);
+   /// Replace all uses of the constant with Undef in debug info metadata
+  static void SalvageDebugInfo(const Constant &C); 
+  /// Returns the list of all DIArgList users of this.
+  SmallVector<Metadata *> getAllArgListUsers();
 
   /// Resolve all uses of this.
   ///
@@ -377,6 +384,10 @@ public:
   Value *getValue() const { return V; }
   Type *getType() const { return V->getType(); }
   LLVMContext &getContext() const { return V->getContext(); }
+
+  SmallVector<Metadata *> getAllArgListUsers() {
+    return ReplaceableMetadataImpl::getAllArgListUsers();
+  }
 
   static void handleDeletion(Value *V);
   static void handleRAUW(Value *From, Value *To);
@@ -525,7 +536,7 @@ template <class V, class M> struct IsValidReference {
 /// As an analogue to \a isa(), check whether \c MD has an \a Value inside of
 /// type \c X.
 template <class X, class Y>
-inline typename std::enable_if<detail::IsValidPointer<X, Y>::value, bool>::type
+inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, bool>
 hasa(Y &&MD) {
   assert(MD && "Null pointer sent into hasa");
   if (auto *V = dyn_cast<ConstantAsMetadata>(MD))
@@ -533,9 +544,8 @@ hasa(Y &&MD) {
   return false;
 }
 template <class X, class Y>
-inline
-    typename std::enable_if<detail::IsValidReference<X, Y &>::value, bool>::type
-    hasa(Y &MD) {
+inline std::enable_if_t<detail::IsValidReference<X, Y &>::value, bool>
+hasa(Y &MD) {
   return hasa(&MD);
 }
 
@@ -543,14 +553,13 @@ inline
 ///
 /// As an analogue to \a cast(), extract the \a Value subclass \c X from \c MD.
 template <class X, class Y>
-inline typename std::enable_if<detail::IsValidPointer<X, Y>::value, X *>::type
+inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
 extract(Y &&MD) {
   return cast<X>(cast<ConstantAsMetadata>(MD)->getValue());
 }
 template <class X, class Y>
-inline
-    typename std::enable_if<detail::IsValidReference<X, Y &>::value, X *>::type
-    extract(Y &MD) {
+inline std::enable_if_t<detail::IsValidReference<X, Y &>::value, X *>
+extract(Y &MD) {
   return extract(&MD);
 }
 
@@ -559,7 +568,7 @@ inline
 /// As an analogue to \a cast_or_null(), extract the \a Value subclass \c X
 /// from \c MD, allowing \c MD to be null.
 template <class X, class Y>
-inline typename std::enable_if<detail::IsValidPointer<X, Y>::value, X *>::type
+inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
 extract_or_null(Y &&MD) {
   if (auto *V = cast_or_null<ConstantAsMetadata>(MD))
     return cast<X>(V->getValue());
@@ -572,7 +581,7 @@ extract_or_null(Y &&MD) {
 /// from \c MD, return null if \c MD doesn't contain a \a Value or if the \a
 /// Value it does contain is of the wrong subclass.
 template <class X, class Y>
-inline typename std::enable_if<detail::IsValidPointer<X, Y>::value, X *>::type
+inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
 dyn_extract(Y &&MD) {
   if (auto *V = dyn_cast<ConstantAsMetadata>(MD))
     return dyn_cast<X>(V->getValue());
@@ -585,7 +594,7 @@ dyn_extract(Y &&MD) {
 /// from \c MD, return null if \c MD doesn't contain a \a Value or if the \a
 /// Value it does contain is of the wrong subclass, allowing \c MD to be null.
 template <class X, class Y>
-inline typename std::enable_if<detail::IsValidPointer<X, Y>::value, X *>::type
+inline std::enable_if_t<detail::IsValidPointer<X, Y>::value, X *>
 dyn_extract_or_null(Y &&MD) {
   if (auto *V = dyn_cast_or_null<ConstantAsMetadata>(MD))
     return dyn_cast<X>(V->getValue());
@@ -600,7 +609,7 @@ dyn_extract_or_null(Y &&MD) {
 /// These are used to efficiently contain a byte sequence for metadata.
 /// MDString is always unnamed.
 class MDString : public Metadata {
-  friend class StringMapEntry<MDString>;
+  friend class StringMapEntryStorage<MDString>;
 
   StringMapEntry<MDString> *Entry = nullptr;
 
@@ -640,39 +649,92 @@ public:
 /// A collection of metadata nodes that might be associated with a
 /// memory access used by the alias-analysis infrastructure.
 struct AAMDNodes {
-  explicit AAMDNodes(MDNode *T = nullptr, MDNode *S = nullptr,
-                     MDNode *N = nullptr)
-      : TBAA(T), Scope(S), NoAlias(N) {}
+  explicit AAMDNodes() = default;
+  explicit AAMDNodes(MDNode *T, MDNode *TS, MDNode *S, MDNode *N)
+      : TBAA(T), TBAAStruct(TS), Scope(S), NoAlias(N) {}
 
   bool operator==(const AAMDNodes &A) const {
-    return TBAA == A.TBAA && Scope == A.Scope && NoAlias == A.NoAlias;
+    return TBAA == A.TBAA && TBAAStruct == A.TBAAStruct && Scope == A.Scope &&
+           NoAlias == A.NoAlias;
   }
 
   bool operator!=(const AAMDNodes &A) const { return !(*this == A); }
 
-  explicit operator bool() const { return TBAA || Scope || NoAlias; }
+  explicit operator bool() const {
+    return TBAA || TBAAStruct || Scope || NoAlias;
+  }
 
   /// The tag for type-based alias analysis.
-  MDNode *TBAA;
+  MDNode *TBAA = nullptr;
+
+  /// The tag for type-based alias analysis (tbaa struct).
+  MDNode *TBAAStruct = nullptr;
 
   /// The tag for alias scope specification (used with noalias).
-  MDNode *Scope;
+  MDNode *Scope = nullptr;
 
   /// The tag specifying the noalias scope.
-  MDNode *NoAlias;
+  MDNode *NoAlias = nullptr;
+
+  // Shift tbaa Metadata node to start off bytes later
+  static MDNode *shiftTBAA(MDNode *M, size_t off);
+
+  // Shift tbaa.struct Metadata node to start off bytes later
+  static MDNode *shiftTBAAStruct(MDNode *M, size_t off);
+
+  // Extend tbaa Metadata node to apply to a series of bytes of length len.
+  // A size of -1 denotes an unknown size.
+  static MDNode *extendToTBAA(MDNode *TBAA, ssize_t len);
 
   /// Given two sets of AAMDNodes that apply to the same pointer,
   /// give the best AAMDNodes that are compatible with both (i.e. a set of
   /// nodes whose allowable aliasing conclusions are a subset of those
   /// allowable by both of the inputs). However, for efficiency
   /// reasons, do not create any new MDNodes.
-  AAMDNodes intersect(const AAMDNodes &Other) {
+  AAMDNodes intersect(const AAMDNodes &Other) const {
     AAMDNodes Result;
     Result.TBAA = Other.TBAA == TBAA ? TBAA : nullptr;
+    Result.TBAAStruct = Other.TBAAStruct == TBAAStruct ? TBAAStruct : nullptr;
     Result.Scope = Other.Scope == Scope ? Scope : nullptr;
     Result.NoAlias = Other.NoAlias == NoAlias ? NoAlias : nullptr;
     return Result;
   }
+
+  /// Create a new AAMDNode that describes this AAMDNode after applying a
+  /// constant offset to the start of the pointer.
+  AAMDNodes shift(size_t Offset) const {
+    AAMDNodes Result;
+    Result.TBAA = TBAA ? shiftTBAA(TBAA, Offset) : nullptr;
+    Result.TBAAStruct =
+        TBAAStruct ? shiftTBAAStruct(TBAAStruct, Offset) : nullptr;
+    Result.Scope = Scope;
+    Result.NoAlias = NoAlias;
+    return Result;
+  }
+
+  /// Create a new AAMDNode that describes this AAMDNode after extending it to
+  /// apply to a series of bytes of length Len. A size of -1 denotes an unknown
+  /// size.
+  AAMDNodes extendTo(ssize_t Len) const {
+    AAMDNodes Result;
+    Result.TBAA = TBAA ? extendToTBAA(TBAA, Len) : nullptr;
+    // tbaa.struct contains (offset, size, type) triples. Extending the length
+    // of the tbaa.struct doesn't require changing this (though more information
+    // could be provided by adding more triples at subsequent lengths).
+    Result.TBAAStruct = TBAAStruct;
+    Result.Scope = Scope;
+    Result.NoAlias = NoAlias;
+    return Result;
+  }
+
+  /// Given two sets of AAMDNodes applying to potentially different locations,
+  /// determine the best AAMDNodes that apply to both.
+  AAMDNodes merge(const AAMDNodes &Other) const;
+
+  /// Determine the best AAMDNodes after concatenating two different locations
+  /// together. Different from `merge`, where different locations should
+  /// overlap each other, `concat` puts non-overlapping locations together.
+  AAMDNodes concat(const AAMDNodes &Other) const;
 };
 
 // Specialize DenseMapInfo for AAMDNodes.
@@ -680,16 +742,17 @@ template<>
 struct DenseMapInfo<AAMDNodes> {
   static inline AAMDNodes getEmptyKey() {
     return AAMDNodes(DenseMapInfo<MDNode *>::getEmptyKey(),
-                     nullptr, nullptr);
+                     nullptr, nullptr, nullptr);
   }
 
   static inline AAMDNodes getTombstoneKey() {
     return AAMDNodes(DenseMapInfo<MDNode *>::getTombstoneKey(),
-                     nullptr, nullptr);
+                     nullptr, nullptr, nullptr);
   }
 
   static unsigned getHashValue(const AAMDNodes &Val) {
     return DenseMapInfo<MDNode *>::getHashValue(Val.TBAA) ^
+           DenseMapInfo<MDNode *>::getHashValue(Val.TBAAStruct) ^
            DenseMapInfo<MDNode *>::getHashValue(Val.Scope) ^
            DenseMapInfo<MDNode *>::getHashValue(Val.NoAlias);
   }
@@ -711,10 +774,21 @@ class MDOperand {
 
 public:
   MDOperand() = default;
-  MDOperand(MDOperand &&) = delete;
   MDOperand(const MDOperand &) = delete;
-  MDOperand &operator=(MDOperand &&) = delete;
+  MDOperand(MDOperand &&Op) {
+    MD = Op.MD;
+    if (MD)
+      (void)MetadataTracking::retrack(Op.MD, MD);
+    Op.MD = nullptr;
+  }
   MDOperand &operator=(const MDOperand &) = delete;
+  MDOperand &operator=(MDOperand &&Op) {
+    MD = Op.MD;
+    if (MD)
+      (void)MetadataTracking::retrack(Op.MD, MD);
+    Op.MD = nullptr;
+    return *this;
+  }
   ~MDOperand() { untrack(); }
 
   Metadata *get() const { return MD; }
@@ -805,7 +879,7 @@ public:
   /// Ensure that this has RAUW support, and then return it.
   ReplaceableMetadataImpl *getOrCreateReplaceableUses() {
     if (!hasReplaceableUses())
-      makeReplaceable(llvm::make_unique<ReplaceableMetadataImpl>(getContext()));
+      makeReplaceable(std::make_unique<ReplaceableMetadataImpl>(getContext()));
     return getReplaceableUses();
   }
 
@@ -859,21 +933,132 @@ struct TempMDNodeDeleter {
 /// If an unresolved node is part of a cycle, \a resolveCycles() needs
 /// to be called on some member of the cycle once all temporary nodes have been
 /// replaced.
+///
+/// MDNodes can be large or small, as well as resizable or non-resizable.
+/// Large MDNodes' operands are allocated in a separate storage vector,
+/// whereas small MDNodes' operands are co-allocated. Distinct and temporary
+/// MDnodes are resizable, but only MDTuples support this capability.
+///
+/// Clients can add operands to resizable MDNodes using push_back().
 class MDNode : public Metadata {
   friend class ReplaceableMetadataImpl;
   friend class LLVMContextImpl;
+  friend class DIArgList;
 
-  unsigned NumOperands;
-  unsigned NumUnresolved;
+  /// The header that is coallocated with an MDNode along with its "small"
+  /// operands. It is located immediately before the main body of the node.
+  /// The operands are in turn located immediately before the header.
+  /// For resizable MDNodes, the space for the storage vector is also allocated
+  /// immediately before the header, overlapping with the operands.
+  /// Explicity set alignment because bitfields by default have an
+  /// alignment of 1 on z/OS.
+  struct alignas(alignof(size_t)) Header {
+    bool IsResizable : 1;
+    bool IsLarge : 1;
+    size_t SmallSize : 4;
+    size_t SmallNumOps : 4;
+    size_t : sizeof(size_t) * CHAR_BIT - 10;
+
+    unsigned NumUnresolved = 0;
+    using LargeStorageVector = SmallVector<MDOperand, 0>;
+
+    static constexpr size_t NumOpsFitInVector =
+        sizeof(LargeStorageVector) / sizeof(MDOperand);
+    static_assert(
+        NumOpsFitInVector * sizeof(MDOperand) == sizeof(LargeStorageVector),
+        "sizeof(LargeStorageVector) must be a multiple of sizeof(MDOperand)");
+
+    static constexpr size_t MaxSmallSize = 15;
+
+    static constexpr size_t getOpSize(unsigned NumOps) {
+      return sizeof(MDOperand) * NumOps;
+    }
+    /// Returns the number of operands the node has space for based on its
+    /// allocation characteristics.
+    static size_t getSmallSize(size_t NumOps, bool IsResizable, bool IsLarge) {
+      return IsLarge ? NumOpsFitInVector
+                     : std::max(NumOps, NumOpsFitInVector * IsResizable);
+    }
+    /// Returns the number of bytes allocated for operands and header.
+    static size_t getAllocSize(StorageType Storage, size_t NumOps) {
+      return getOpSize(
+                 getSmallSize(NumOps, isResizable(Storage), isLarge(NumOps))) +
+             sizeof(Header);
+    }
+
+    /// Only temporary and distinct nodes are resizable.
+    static bool isResizable(StorageType Storage) { return Storage != Uniqued; }
+    static bool isLarge(size_t NumOps) { return NumOps > MaxSmallSize; }
+
+    size_t getAllocSize() const {
+      return getOpSize(SmallSize) + sizeof(Header);
+    }
+    void *getAllocation() {
+      return reinterpret_cast<char *>(this + 1) -
+             alignTo(getAllocSize(), alignof(uint64_t));
+    }
+
+    void *getLargePtr() const {
+      static_assert(alignof(LargeStorageVector) <= alignof(Header),
+                    "LargeStorageVector too strongly aligned");
+      return reinterpret_cast<char *>(const_cast<Header *>(this)) -
+             sizeof(LargeStorageVector);
+    }
+
+    void *getSmallPtr();
+
+    LargeStorageVector &getLarge() {
+      assert(IsLarge);
+      return *reinterpret_cast<LargeStorageVector *>(getLargePtr());
+    }
+
+    const LargeStorageVector &getLarge() const {
+      assert(IsLarge);
+      return *reinterpret_cast<const LargeStorageVector *>(getLargePtr());
+    }
+
+    void resizeSmall(size_t NumOps);
+    void resizeSmallToLarge(size_t NumOps);
+    void resize(size_t NumOps);
+
+    explicit Header(size_t NumOps, StorageType Storage);
+    ~Header();
+
+    MutableArrayRef<MDOperand> operands() {
+      if (IsLarge)
+        return getLarge();
+      return MutableArrayRef(
+          reinterpret_cast<MDOperand *>(this) - SmallSize, SmallNumOps);
+    }
+
+    ArrayRef<MDOperand> operands() const {
+      if (IsLarge)
+        return getLarge();
+      return ArrayRef(reinterpret_cast<const MDOperand *>(this) - SmallSize,
+                      SmallNumOps);
+    }
+
+    unsigned getNumOperands() const {
+      if (!IsLarge)
+        return SmallNumOps;
+      return getLarge().size();
+    }
+  };
+
+  Header &getHeader() { return *(reinterpret_cast<Header *>(this) - 1); }
+
+  const Header &getHeader() const {
+    return *(reinterpret_cast<const Header *>(this) - 1);
+  }
 
   ContextAndReplaceableUses Context;
 
 protected:
   MDNode(LLVMContext &Context, unsigned ID, StorageType Storage,
-         ArrayRef<Metadata *> Ops1, ArrayRef<Metadata *> Ops2 = None);
+         ArrayRef<Metadata *> Ops1, ArrayRef<Metadata *> Ops2 = std::nullopt);
   ~MDNode() = default;
 
-  void *operator new(size_t Size, unsigned NumOps);
+  void *operator new(size_t Size, size_t NumOps, StorageType Storage);
   void operator delete(void *Mem);
 
   /// Required by std, but never called.
@@ -888,8 +1073,8 @@ protected:
 
   void dropAllReferences();
 
-  MDOperand *mutable_begin() { return mutable_end() - NumOperands; }
-  MDOperand *mutable_end() { return reinterpret_cast<MDOperand *>(this); }
+  MDOperand *mutable_begin() { return getHeader().operands().begin(); }
+  MDOperand *mutable_end() { return getHeader().operands().end(); }
 
   using mutable_op_range = iterator_range<MDOperand *>;
 
@@ -935,7 +1120,7 @@ public:
   /// As forward declarations are resolved, their containers should get
   /// resolved automatically.  However, if this (or one of its operands) is
   /// involved in a cycle, \a resolveCycles() needs to be called explicitly.
-  bool isResolved() const { return !isTemporary() && !NumUnresolved; }
+  bool isResolved() const { return !isTemporary() && !getNumUnresolved(); }
 
   bool isUniqued() const { return Storage == Uniqued; }
   bool isDistinct() const { return Storage == Distinct; }
@@ -966,7 +1151,7 @@ public:
   /// Try to create a uniqued version of \c N -- in place, if possible -- and
   /// return it.  If \c N cannot be uniqued, return a distinct node instead.
   template <class T>
-  static typename std::enable_if<std::is_base_of<MDNode, T>::value, T *>::type
+  static std::enable_if_t<std::is_base_of<MDNode, T>::value, T *>
   replaceWithPermanent(std::unique_ptr<T, TempMDNodeDeleter> N) {
     return cast<T>(N.release()->replaceWithPermanentImpl());
   }
@@ -978,7 +1163,7 @@ public:
   ///
   /// \pre N does not self-reference.
   template <class T>
-  static typename std::enable_if<std::is_base_of<MDNode, T>::value, T *>::type
+  static std::enable_if_t<std::is_base_of<MDNode, T>::value, T *>
   replaceWithUniqued(std::unique_ptr<T, TempMDNodeDeleter> N) {
     return cast<T>(N.release()->replaceWithUniquedImpl());
   }
@@ -988,10 +1173,35 @@ public:
   /// Create a distinct version of \c N -- in place, if possible -- and return
   /// it.  Takes ownership of the temporary node.
   template <class T>
-  static typename std::enable_if<std::is_base_of<MDNode, T>::value, T *>::type
+  static std::enable_if_t<std::is_base_of<MDNode, T>::value, T *>
   replaceWithDistinct(std::unique_ptr<T, TempMDNodeDeleter> N) {
     return cast<T>(N.release()->replaceWithDistinctImpl());
   }
+
+  /// Print in tree shape.
+  ///
+  /// Prints definition of \c this in tree shape.
+  ///
+  /// If \c M is provided, metadata nodes will be numbered canonically;
+  /// otherwise, pointer addresses are substituted.
+  /// @{
+  void printTree(raw_ostream &OS, const Module *M = nullptr) const;
+  void printTree(raw_ostream &OS, ModuleSlotTracker &MST,
+                 const Module *M = nullptr) const;
+  /// @}
+
+  /// User-friendly dump in tree shape.
+  ///
+  /// If \c M is provided, metadata nodes will be numbered canonically;
+  /// otherwise, pointer addresses are substituted.
+  ///
+  /// Note: this uses an explicit overload instead of default arguments so that
+  /// the nullptr version is easy to call from a debugger.
+  ///
+  /// @{
+  void dumpTree() const;
+  void dumpTree(const Module *M) const;
+  /// @}
 
 private:
   MDNode *replaceWithPermanentImpl();
@@ -1004,10 +1214,24 @@ protected:
   /// Sets the operand directly, without worrying about uniquing.
   void setOperand(unsigned I, Metadata *New);
 
+  unsigned getNumUnresolved() const { return getHeader().NumUnresolved; }
+
+  void setNumUnresolved(unsigned N) { getHeader().NumUnresolved = N; }
   void storeDistinctInContext();
   template <class T, class StoreT>
   static T *storeImpl(T *N, StorageType Storage, StoreT &Store);
   template <class T> static T *storeImpl(T *N, StorageType Storage);
+
+  /// Resize the node to hold \a NumOps operands.
+  ///
+  /// \pre \a isTemporary() or \a isDistinct()
+  /// \pre MetadataID == MDTupleKind
+  void resize(size_t NumOps) {
+    assert(!isUniqued() && "Resizing is not supported for uniqued nodes");
+    assert(getMetadataID() == MDTupleKind &&
+           "Resizing is not supported for this node kind");
+    getHeader().resize(NumOps);
+  }
 
 private:
   void handleChangedOperand(void *Ref, Metadata *New);
@@ -1062,15 +1286,15 @@ public:
     return const_cast<MDNode *>(this)->mutable_end();
   }
 
-  op_range operands() const { return op_range(op_begin(), op_end()); }
+  ArrayRef<MDOperand> operands() const { return getHeader().operands(); }
 
   const MDOperand &getOperand(unsigned I) const {
-    assert(I < NumOperands && "Out of range");
-    return op_begin()[I];
+    assert(I < getNumOperands() && "Out of range");
+    return getHeader().operands()[I];
   }
 
   /// Return number of MDNode operands.
-  unsigned getNumOperands() const { return NumOperands; }
+  unsigned getNumOperands() const { return getHeader().getNumOperands(); }
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Metadata *MD) {
@@ -1120,8 +1344,9 @@ class MDTuple : public MDNode {
                           StorageType Storage, bool ShouldCreate = true);
 
   TempMDTuple cloneImpl() const {
-    return getTemporary(getContext(),
-                        SmallVector<Metadata *, 4>(op_begin(), op_end()));
+    ArrayRef<MDOperand> Operands = operands();
+    return getTemporary(getContext(), SmallVector<Metadata *, 4>(
+                                          Operands.begin(), Operands.end()));
   }
 
 public:
@@ -1156,6 +1381,16 @@ public:
   /// Return a (temporary) clone of this.
   TempMDTuple clone() const { return cloneImpl(); }
 
+  /// Append an element to the tuple. This will resize the node.
+  void push_back(Metadata *MD) {
+    size_t NumOps = getNumOperands();
+    resize(NumOps + 1);
+    setOperand(NumOps, MD);
+  }
+
+  /// Shrink the operands by 1.
+  void pop_back() { resize(getNumOperands() - 1); }
+
   static bool classof(const Metadata *MD) {
     return MD->getMetadataID() == MDTupleKind;
   }
@@ -1182,17 +1417,47 @@ void TempMDNodeDeleter::operator()(MDNode *Node) const {
   MDNode::deleteTemporary(Node);
 }
 
+/// This is a simple wrapper around an MDNode which provides a higher-level
+/// interface by hiding the details of how alias analysis information is encoded
+/// in its operands.
+class AliasScopeNode {
+  const MDNode *Node = nullptr;
+
+public:
+  AliasScopeNode() = default;
+  explicit AliasScopeNode(const MDNode *N) : Node(N) {}
+
+  /// Get the MDNode for this AliasScopeNode.
+  const MDNode *getNode() const { return Node; }
+
+  /// Get the MDNode for this AliasScopeNode's domain.
+  const MDNode *getDomain() const {
+    if (Node->getNumOperands() < 2)
+      return nullptr;
+    return dyn_cast_or_null<MDNode>(Node->getOperand(1));
+  }
+  StringRef getName() const {
+    if (Node->getNumOperands() > 2)
+      if (MDString *N = dyn_cast_or_null<MDString>(Node->getOperand(2)))
+        return N->getString();
+    return StringRef();
+  }
+};
+
 /// Typed iterator through MDNode operands.
 ///
 /// An iterator that transforms an \a MDNode::iterator into an iterator over a
 /// particular Metadata subclass.
-template <class T>
-class TypedMDOperandIterator
-    : public std::iterator<std::input_iterator_tag, T *, std::ptrdiff_t, void,
-                           T *> {
+template <class T> class TypedMDOperandIterator {
   MDNode::op_iterator I = nullptr;
 
 public:
+  using iterator_category = std::input_iterator_tag;
+  using value_type = T *;
+  using difference_type = std::ptrdiff_t;
+  using pointer = void;
+  using reference = T *;
+
   TypedMDOperandIterator() = default;
   explicit TypedMDOperandIterator(MDNode::op_iterator I) : I(I) {}
 
@@ -1227,15 +1492,13 @@ public:
   template <class U>
   MDTupleTypedArrayWrapper(
       const MDTupleTypedArrayWrapper<U> &Other,
-      typename std::enable_if<std::is_convertible<U *, T *>::value>::type * =
-          nullptr)
+      std::enable_if_t<std::is_convertible<U *, T *>::value> * = nullptr)
       : N(Other.get()) {}
 
   template <class U>
   explicit MDTupleTypedArrayWrapper(
       const MDTupleTypedArrayWrapper<U> &Other,
-      typename std::enable_if<!std::is_convertible<U *, T *>::value>::type * =
-          nullptr)
+      std::enable_if_t<!std::is_convertible<U *, T *>::value> * = nullptr)
       : N(Other.get()) {}
 
   explicit operator bool() const { return get(); }
@@ -1316,10 +1579,11 @@ public:
 //===----------------------------------------------------------------------===//
 /// A tuple of MDNodes.
 ///
-/// Despite its name, a NamedMDNode isn't itself an MDNode. NamedMDNodes belong
-/// to modules, have names, and contain lists of MDNodes.
+/// Despite its name, a NamedMDNode isn't itself an MDNode.
 ///
-/// TODO: Inherit from Metadata.
+/// NamedMDNodes are named module-level entities that contain lists of MDNodes.
+///
+/// It is illegal for a NamedMDNode to appear as an operand of an MDNode.
 class NamedMDNode : public ilist_node<NamedMDNode> {
   friend class LLVMContextImpl;
   friend class Module;
@@ -1332,9 +1596,7 @@ class NamedMDNode : public ilist_node<NamedMDNode> {
 
   explicit NamedMDNode(const Twine &N);
 
-  template<class T1, class T2>
-  class op_iterator_impl :
-      public std::iterator<std::bidirectional_iterator_tag, T2> {
+  template <class T1, class T2> class op_iterator_impl {
     friend class NamedMDNode;
 
     const NamedMDNode *Node = nullptr;
@@ -1343,6 +1605,12 @@ class NamedMDNode : public ilist_node<NamedMDNode> {
     op_iterator_impl(const NamedMDNode *N, unsigned i) : Node(N), Idx(i) {}
 
   public:
+    using iterator_category = std::bidirectional_iterator_tag;
+    using value_type = T2;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     op_iterator_impl() = default;
 
     bool operator==(const op_iterator_impl &o) const { return Idx == o.Idx; }
@@ -1419,6 +1687,9 @@ public:
     return make_range(op_begin(), op_end());
   }
 };
+
+// Create wrappers for C Binding types (see CBindingWrapping.h).
+DEFINE_ISA_CONVERSION_FUNCTIONS(NamedMDNode, LLVMNamedMDNodeRef)
 
 } // end namespace llvm
 

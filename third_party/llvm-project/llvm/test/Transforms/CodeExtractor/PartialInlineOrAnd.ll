@@ -1,9 +1,6 @@
-; RUN: opt < %s -partial-inliner -S | FileCheck %s
 ; RUN: opt < %s -passes=partial-inliner -S | FileCheck %s
-; RUN: opt < %s -partial-inliner -max-num-inline-blocks=3 -skip-partial-inlining-cost-analysis  -S | FileCheck --check-prefix=LIMIT3 %s
-; RUN: opt < %s -passes=partial-inliner -max-num-inline-blocks=3 -skip-partial-inlining-cost-analysis -S | FileCheck  --check-prefix=LIMIT3 %s
-; RUN: opt < %s -partial-inliner -max-num-inline-blocks=2 -S | FileCheck --check-prefix=LIMIT2 %s
-; RUN: opt < %s -passes=partial-inliner -max-num-inline-blocks=2 -S | FileCheck  --check-prefix=LIMIT2 %s
+; RUN: opt < %s -passes=partial-inliner -max-num-inline-blocks=3 -skip-partial-inlining-cost-analysis -S | FileCheck --check-prefix=LIMIT3 %s
+; RUN: opt < %s -passes=partial-inliner -max-num-inline-blocks=2 -S | FileCheck --check-prefix=LIMIT2 %s
 
 
 ; Function Attrs: nounwind uwtable
@@ -52,12 +49,12 @@ bb:
 ; CHECK: br i1
 ; CHECK: br i1
 ; CHECK: br i1
-; CHECK: call void @bar.1_
+; CHECK: call void @bar.1.
 ; LIMIT3-LABEL: @dummy_caller
 ; LIMIT3: br i1
 ; LIMIT3: br i1
 ; LIMIT3-NOT: br i1
-; LIMIT3: call void @bar.1_
+; LIMIT3: call void @bar.1.
 ; LIMIT2-LABEL: @dummy_caller
 ; LIMIT2-NOT: br i1
 ; LIMIT2: call i32 @bar(
@@ -65,7 +62,7 @@ bb:
   ret i32 %tmp
 }
 
-attributes #0 = { nounwind } 
+attributes #0 = { nounwind }
 attributes #1 = { nounwind }
 attributes #2 = { nounwind }
 

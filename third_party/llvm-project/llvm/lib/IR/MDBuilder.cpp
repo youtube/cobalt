@@ -1,9 +1,8 @@
 //===---- llvm/MDBuilder.cpp - Builder for LLVM metadata ------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -54,7 +53,7 @@ MDNode *MDBuilder::createBranchWeights(ArrayRef<uint32_t> Weights) {
 }
 
 MDNode *MDBuilder::createUnpredictable() {
-  return MDNode::get(Context, None);
+  return MDNode::get(Context, std::nullopt);
 }
 
 MDNode *MDBuilder::createFunctionEntryCount(
@@ -69,9 +68,7 @@ MDNode *MDBuilder::createFunctionEntryCount(
   Ops.push_back(createConstant(ConstantInt::get(Int64Ty, Count)));
   if (Imports) {
     SmallVector<GlobalValue::GUID, 2> OrderID(Imports->begin(), Imports->end());
-    std::stable_sort(OrderID.begin(), OrderID.end(),
-      [] (GlobalValue::GUID A, GlobalValue::GUID B) {
-        return A < B;});
+    llvm::sort(OrderID);
     for (auto ID : OrderID)
       Ops.push_back(createConstant(ConstantInt::get(Int64Ty, ID)));
   }
@@ -107,25 +104,96 @@ MDNode *MDBuilder::createCallees(ArrayRef<Function *> Callees) {
   return MDNode::get(Context, Ops);
 }
 
-MDNode *MDBuilder::createAnonymousAARoot(StringRef Name, MDNode *Extra) {
-  // To ensure uniqueness the root node is self-referential.
-  auto Dummy = MDNode::getTemporary(Context, None);
+MDNode *MDBuilder::createCallbackEncoding(unsigned CalleeArgNo,
+                                          ArrayRef<int> Arguments,
+                                          bool VarArgArePassed) {
+  SmallVector<Metadata *, 4> Ops;
 
-  SmallVector<Metadata *, 3> Args(1, Dummy.get());
+  Type *Int64 = Type::getInt64Ty(Context);
+  Ops.push_back(createConstant(ConstantInt::get(Int64, CalleeArgNo)));
+
+  for (int ArgNo : Arguments)
+    Ops.push_back(createConstant(ConstantInt::get(Int64, ArgNo, true)));
+
+  Type *Int1 = Type::getInt1Ty(Context);
+  Ops.push_back(createConstant(ConstantInt::get(Int1, VarArgArePassed)));
+
+  return MDNode::get(Context, Ops);
+}
+
+MDNode *MDBuilder::mergeCallbackEncodings(MDNode *ExistingCallbacks,
+                                          MDNode *NewCB) {
+  if (!ExistingCallbacks)
+    return MDNode::get(Context, {NewCB});
+
+  auto *NewCBCalleeIdxAsCM = cast<ConstantAsMetadata>(NewCB->getOperand(0));
+  uint64_t NewCBCalleeIdx =
+      cast<ConstantInt>(NewCBCalleeIdxAsCM->getValue())->getZExtValue();
+  (void)NewCBCalleeIdx;
+
+  SmallVector<Metadata *, 4> Ops;
+  unsigned NumExistingOps = ExistingCallbacks->getNumOperands();
+  Ops.resize(NumExistingOps + 1);
+
+  for (unsigned u = 0; u < NumExistingOps; u++) {
+    Ops[u] = ExistingCallbacks->getOperand(u);
+
+    auto *OldCBCalleeIdxAsCM = cast<ConstantAsMetadata>(Ops[u]);
+    uint64_t OldCBCalleeIdx =
+      cast<ConstantInt>(OldCBCalleeIdxAsCM->getValue())->getZExtValue();
+    (void)OldCBCalleeIdx;
+    assert(NewCBCalleeIdx != OldCBCalleeIdx &&
+           "Cannot map a callback callee index twice!");
+  }
+
+  Ops[NumExistingOps] = NewCB;
+  return MDNode::get(Context, Ops);
+}
+
+MDNode *MDBuilder::createRTTIPointerPrologue(Constant *PrologueSig,
+                                             Constant *RTTI) {
+  SmallVector<Metadata *, 4> Ops;
+  Ops.push_back(createConstant(PrologueSig));
+  Ops.push_back(createConstant(RTTI));
+  return MDNode::get(Context, Ops);
+}
+
+MDNode *MDBuilder::createPCSections(ArrayRef<PCSection> Sections) {
+  SmallVector<Metadata *, 2> Ops;
+
+  for (const auto &Entry : Sections) {
+    const StringRef &Sec = Entry.first;
+    Ops.push_back(createString(Sec));
+
+    // If auxiliary data for this section exists, append it.
+    const SmallVector<Constant *> &AuxConsts = Entry.second;
+    if (!AuxConsts.empty()) {
+      SmallVector<Metadata *, 1> AuxMDs;
+      AuxMDs.reserve(AuxConsts.size());
+      for (Constant *C : AuxConsts)
+        AuxMDs.push_back(createConstant(C));
+      Ops.push_back(MDNode::get(Context, AuxMDs));
+    }
+  }
+
+  return MDNode::get(Context, Ops);
+}
+
+MDNode *MDBuilder::createAnonymousAARoot(StringRef Name, MDNode *Extra) {
+  SmallVector<Metadata *, 3> Args(1, nullptr);
   if (Extra)
     Args.push_back(Extra);
   if (!Name.empty())
     Args.push_back(createString(Name));
-  MDNode *Root = MDNode::get(Context, Args);
+  MDNode *Root = MDNode::getDistinct(Context, Args);
 
   // At this point we have
-  //   !0 = metadata !{}            <- dummy
-  //   !1 = metadata !{metadata !0} <- root
-  // Replace the dummy operand with the root node itself and delete the dummy.
+  //   !0 = distinct !{null} <- root
+  // Replace the reserved operand with the root node itself.
   Root->replaceOperandWith(0, Root);
 
   // We now have
-  //   !1 = metadata !{metadata !1} <- self-referential root
+  //   !0 = distinct !{!0} <- root
   return Root;
 }
 
@@ -260,8 +328,31 @@ MDNode *MDBuilder::createMutableTBAAAccessTag(MDNode *Tag) {
 }
 
 MDNode *MDBuilder::createIrrLoopHeaderWeight(uint64_t Weight) {
-  SmallVector<Metadata *, 2> Vals(2);
-  Vals[0] = createString("loop_header_weight");
-  Vals[1] = createConstant(ConstantInt::get(Type::getInt64Ty(Context), Weight));
+  Metadata *Vals[] = {
+    createString("loop_header_weight"),
+    createConstant(ConstantInt::get(Type::getInt64Ty(Context), Weight)),
+  };
   return MDNode::get(Context, Vals);
+}
+
+MDNode *MDBuilder::createPseudoProbeDesc(uint64_t GUID, uint64_t Hash,
+                                         Function *F) {
+  auto *Int64Ty = Type::getInt64Ty(Context);
+  SmallVector<Metadata *, 3> Ops(3);
+  Ops[0] = createConstant(ConstantInt::get(Int64Ty, GUID));
+  Ops[1] = createConstant(ConstantInt::get(Int64Ty, Hash));
+  Ops[2] = createString(F->getName());
+  return MDNode::get(Context, Ops);
+}
+
+MDNode *
+MDBuilder::createLLVMStats(ArrayRef<std::pair<StringRef, uint64_t>> LLVMStats) {
+  auto *Int64Ty = Type::getInt64Ty(Context);
+  SmallVector<Metadata *, 4> Ops(LLVMStats.size() * 2);
+  for (size_t I = 0; I < LLVMStats.size(); I++) {
+    Ops[I * 2] = createString(LLVMStats[I].first);
+    Ops[I * 2 + 1] =
+        createConstant(ConstantInt::get(Int64Ty, LLVMStats[I].second));
+  }
+  return MDNode::get(Context, Ops);
 }

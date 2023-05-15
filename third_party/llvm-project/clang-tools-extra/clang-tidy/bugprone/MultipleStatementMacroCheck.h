@@ -1,16 +1,15 @@
 //===--- MultipleStatementMacroCheck.h - clang-tidy--------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_BUGPRONE_MULTIPLE_STATEMENT_MACRO_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_BUGPRONE_MULTIPLE_STATEMENT_MACRO_H
 
-#include "../ClangTidy.h"
+#include "../ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {
@@ -21,7 +20,7 @@ namespace bugprone {
 /// other ones will be executed unconditionally.
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/bugprone-multiple-statement-macro.html
+/// http://clang.llvm.org/extra/clang-tidy/checks/bugprone/multiple-statement-macro.html
 class MultipleStatementMacroCheck : public ClangTidyCheck {
 public:
   MultipleStatementMacroCheck(StringRef Name, ClangTidyContext *Context)

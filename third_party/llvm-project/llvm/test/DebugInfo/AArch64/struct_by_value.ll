@@ -1,10 +1,11 @@
 ; A by-value struct is a register-indirect value (breg).
-; RUN: llc %s -filetype=asm -o - | FileCheck %s
+; RUN: llc %s -filetype=obj -o - | llvm-dwarfdump - | FileCheck %s
 
-; CHECK: Lsection_info:
-; CHECK: DW_AT_location
-; CHECK-NEXT: .byte 112
-; 112 = 0x70 = DW_OP_breg0
+; Test that the 'f' parameter is present, with a location, and that the
+; expression for the location contains a DW_OP_breg
+; CHECK: DW_TAG_formal_parameter
+; CHECK-NEXT: DW_AT_location
+; CHECK-NEXT: DW_OP_breg
 
 ; rdar://problem/13658587
 ;
@@ -31,11 +32,10 @@ target triple = "arm64-apple-ios3.0.0"
 %struct.five = type { i32, i32, i32, i32, i32 }
 
 ; Function Attrs: nounwind ssp
-define i32 @return_five_int(%struct.five* %f) #0 !dbg !4 {
+define i32 @return_five_int(ptr %f) #0 !dbg !4 {
 entry:
-  call void @llvm.dbg.declare(metadata %struct.five* %f, metadata !17, metadata !DIExpression(DW_OP_deref)), !dbg !18
-  %a = getelementptr inbounds %struct.five, %struct.five* %f, i32 0, i32 0, !dbg !19
-  %0 = load i32, i32* %a, align 4, !dbg !19
+  call void @llvm.dbg.declare(metadata ptr %f, metadata !17, metadata !DIExpression(DW_OP_deref)), !dbg !18
+  %0 = load i32, ptr %f, align 4, !dbg !19
   ret i32 %0, !dbg !19
 }
 

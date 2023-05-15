@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -37,7 +36,7 @@ testd(const C& c, int p, int f)
         assert(*i == t2[n2]);
     for (; n1 < size_t1; ++n1, ++i)
         assert(*i == t1[n1]);
-    assert(distance(c.begin(), c.end()) == size_t1 + 1);
+    assert(std::distance(c.begin(), c.end()) == size_t1 + 1);
 }
 
 template <class C>
@@ -73,10 +72,10 @@ tests(const C& c, int p, int f)
         for (n = p; n < size_t1; ++n, ++i)
             assert(*i == t1[n]);
     }
-    assert(distance(c.begin(), c.end()) == size_t1);
+    assert(std::distance(c.begin(), c.end()) == size_t1);
 }
 
-int main()
+int main(int, char**)
 {
     {
     // splicing different containers
@@ -88,8 +87,8 @@ int main()
             C c1(std::begin(t1), std::end(t1));
             C c2(std::begin(t2), std::end(t2));
 
-            c1.splice_after(next(c1.cbefore_begin(), p), std::move(c2),
-                  next(c2.cbefore_begin(), f));
+            c1.splice_after(std::next(c1.cbefore_begin(), p), std::move(c2),
+                  std::next(c2.cbefore_begin(), f));
             testd(c1, p, f);
         }
     }
@@ -101,8 +100,8 @@ int main()
         {
             C c1(std::begin(t1), std::end(t1));
 
-            c1.splice_after(next(c1.cbefore_begin(), p), std::move(c1),
-                  next(c1.cbefore_begin(), f));
+            c1.splice_after(std::next(c1.cbefore_begin(), p), std::move(c1),
+                  std::next(c1.cbefore_begin(), f));
             tests(c1, p, f);
         }
     }
@@ -118,8 +117,8 @@ int main()
             C c1(std::begin(t1), std::end(t1));
             C c2(std::begin(t2), std::end(t2));
 
-            c1.splice_after(next(c1.cbefore_begin(), p), std::move(c2),
-                  next(c2.cbefore_begin(), f));
+            c1.splice_after(std::next(c1.cbefore_begin(), p), std::move(c2),
+                  std::next(c2.cbefore_begin(), f));
             testd(c1, p, f);
         }
     }
@@ -131,11 +130,13 @@ int main()
         {
             C c1(std::begin(t1), std::end(t1));
 
-            c1.splice_after(next(c1.cbefore_begin(), p), std::move(c1),
-                  next(c1.cbefore_begin(), f));
+            c1.splice_after(std::next(c1.cbefore_begin(), p), std::move(c1),
+                  std::next(c1.cbefore_begin(), f));
             tests(c1, p, f);
         }
     }
     }
 #endif
+
+  return 0;
 }

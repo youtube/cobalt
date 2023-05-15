@@ -1,9 +1,8 @@
 //===- llvm/unittest/ADT/BitmaskEnumTest.cpp - BitmaskEnum unit tests -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -75,6 +74,17 @@ TEST(BitmaskEnumTest, BitwiseXorEquals) {
   // ^= should return a reference to the LHS.
   (f ^= F4) = F3;
   EXPECT_EQ(F3, f);
+}
+
+TEST(BitmaskEnumTest, ConstantExpression) {
+  constexpr Flags f1 = ~F1;
+  constexpr Flags f2 = F1 | F2;
+  constexpr Flags f3 = F1 & F2;
+  constexpr Flags f4 = F1 ^ F2;
+  EXPECT_EQ(f1, ~F1);
+  EXPECT_EQ(f2, F1 | F2);
+  EXPECT_EQ(f3, F1 & F2);
+  EXPECT_EQ(f4, F1 ^ F2);
 }
 
 TEST(BitmaskEnumTest, BitwiseNot) {

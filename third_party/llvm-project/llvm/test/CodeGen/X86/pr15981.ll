@@ -2,9 +2,9 @@
 ; RUN: llc < %s -mtriple=i686-unknown-unknown | FileCheck %s --check-prefix=X86
 ; RUN: llc < %s -mtriple=x86_64-unknown-unknown | FileCheck %s --check-prefix=X64
 
-@a = external global i32
-@b = external global i32
-@c = external global i32
+@a = external dso_local global i32
+@b = external dso_local global i32
+@c = external dso_local global i32
 
 define i32 @fn1(i32, i32) {
 ; X86-LABEL: fn1:
@@ -19,9 +19,9 @@ define i32 @fn1(i32, i32) {
 ;
 ; X64-LABEL: fn1:
 ; X64:       # %bb.0:
-; X64-NEXT:    testl %esi, %esi
-; X64-NEXT:    cmovel %esi, %edi
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    testl %esi, %esi
+; X64-NEXT:    cmovel %esi, %eax
 ; X64-NEXT:    retq
   %3 = icmp ne i32 %1, 0
   %4 = select i1 %3, i32 %0, i32 0
@@ -43,20 +43,20 @@ define void @fn2() {
 ; X64-LABEL: fn2:
 ; X64:       # %bb.0:
 ; X64-NEXT:    xorl %eax, %eax
-; X64-NEXT:    decl {{.*}}(%rip)
+; X64-NEXT:    decl a(%rip)
 ; X64-NEXT:    je .LBB1_2
 ; X64-NEXT:  # %bb.1:
-; X64-NEXT:    movl {{.*}}(%rip), %eax
+; X64-NEXT:    movl b(%rip), %eax
 ; X64-NEXT:  .LBB1_2:
-; X64-NEXT:    movl %eax, {{.*}}(%rip)
+; X64-NEXT:    movl %eax, c(%rip)
 ; X64-NEXT:    retq
-  %1 = load volatile i32, i32* @b, align 4
-  %2 = load i32, i32* @a, align 4
+  %1 = load volatile i32, ptr @b, align 4
+  %2 = load i32, ptr @a, align 4
   %3 = add nsw i32 %2, -1
-  store i32 %3, i32* @a, align 4
+  store i32 %3, ptr @a, align 4
   %4 = icmp ne i32 %3, 0
   %5 = select i1 %4, i32 %1, i32 0
-  store i32 %5, i32* @c, align 4
+  store i32 %5, ptr @c, align 4
   ret void
 }
 

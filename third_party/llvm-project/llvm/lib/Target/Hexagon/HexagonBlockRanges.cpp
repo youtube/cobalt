@@ -1,9 +1,8 @@
 //===- HexagonBlockRanges.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -74,7 +73,7 @@ void HexagonBlockRanges::IndexRange::merge(const IndexRange &A) {
 }
 
 void HexagonBlockRanges::RangeList::include(const RangeList &RL) {
-  for (auto &R : RL)
+  for (const auto &R : RL)
     if (!is_contained(*this, R))
       push_back(R);
 }
@@ -85,7 +84,7 @@ void HexagonBlockRanges::RangeList::unionize(bool MergeAdjacent) {
   if (empty())
     return;
 
-  llvm::sort(begin(), end());
+  llvm::sort(*this);
   iterator Iter = begin();
 
   while (Iter != end()-1) {
@@ -176,7 +175,7 @@ MachineInstr *HexagonBlockRanges::InstrIndexMap::getInstr(IndexType Idx) const {
 
 HexagonBlockRanges::IndexType HexagonBlockRanges::InstrIndexMap::getIndex(
       MachineInstr *MI) const {
-  for (auto &I : Map)
+  for (const auto &I : Map)
     if (I.second == MI)
       return I.first;
   return IndexType::None;
@@ -269,14 +268,14 @@ HexagonBlockRanges::RegisterSet HexagonBlockRanges::expandToSubRegs(
     return SRs;
   }
 
-  if (TargetRegisterInfo::isPhysicalRegister(R.Reg)) {
+  if (R.Reg.isPhysical()) {
     MCSubRegIterator I(R.Reg, &TRI);
     if (!I.isValid())
       SRs.insert({R.Reg, 0});
     for (; I.isValid(); ++I)
       SRs.insert({*I, 0});
   } else {
-    assert(TargetRegisterInfo::isVirtualRegister(R.Reg));
+    assert(R.Reg.isVirtual());
     auto &RC = *MRI.getRegClass(R.Reg);
     unsigned PReg = *RC.begin();
     MCSubRegIndexIterator I(PReg, &TRI);
@@ -322,7 +321,7 @@ void HexagonBlockRanges::computeInitialLiveRanges(InstrIndexMap &IndexMap,
       if (!Op.isReg() || !Op.isUse() || Op.isUndef())
         continue;
       RegisterRef R = { Op.getReg(), Op.getSubReg() };
-      if (TargetRegisterInfo::isPhysicalRegister(R.Reg) && Reserved[R.Reg])
+      if (R.Reg.isPhysical() && Reserved[R.Reg])
         continue;
       bool IsKill = Op.isKill();
       for (auto S : expandToSubRegs(R, MRI, TRI)) {
@@ -339,7 +338,7 @@ void HexagonBlockRanges::computeInitialLiveRanges(InstrIndexMap &IndexMap,
         continue;
       RegisterRef R = { Op.getReg(), Op.getSubReg() };
       for (auto S : expandToSubRegs(R, MRI, TRI)) {
-        if (TargetRegisterInfo::isPhysicalRegister(S.Reg) && Reserved[S.Reg])
+        if (S.Reg.isPhysical() && Reserved[S.Reg])
           continue;
         if (Op.isDead())
           Clobbers.insert(S);
@@ -375,7 +374,7 @@ void HexagonBlockRanges::computeInitialLiveRanges(InstrIndexMap &IndexMap,
     // Update maps for defs.
     for (RegisterRef S : Defs) {
       // Defs should already be expanded into subregs.
-      assert(!TargetRegisterInfo::isPhysicalRegister(S.Reg) ||
+      assert(!S.Reg.isPhysical() ||
              !MCSubRegIterator(S.Reg, &TRI, false).isValid());
       if (LastDef[S] != IndexType::None || LastUse[S] != IndexType::None)
         closeRange(S);
@@ -384,7 +383,7 @@ void HexagonBlockRanges::computeInitialLiveRanges(InstrIndexMap &IndexMap,
     // Update maps for clobbers.
     for (RegisterRef S : Clobbers) {
       // Clobbers should already be expanded into subregs.
-      assert(!TargetRegisterInfo::isPhysicalRegister(S.Reg) ||
+      assert(!S.Reg.isPhysical() ||
              !MCSubRegIterator(S.Reg, &TRI, false).isValid());
       if (LastDef[S] != IndexType::None || LastUse[S] != IndexType::None)
         closeRange(S);
@@ -483,7 +482,7 @@ HexagonBlockRanges::RegToRangeMap HexagonBlockRanges::computeDeadMap(
     }
   }
   for (auto &P : LiveMap)
-    if (TargetRegisterInfo::isVirtualRegister(P.first.Reg))
+    if (P.first.Reg.isVirtual())
       addDeadRanges(P.first);
 
   LLVM_DEBUG(dbgs() << __func__ << ": dead map\n"
@@ -513,7 +512,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS,
 
 raw_ostream &llvm::operator<<(raw_ostream &OS,
                               const HexagonBlockRanges::RangeList &RL) {
-  for (auto &R : RL)
+  for (const auto &R : RL)
     OS << R << " ";
   return OS;
 }
@@ -529,7 +528,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS,
 
 raw_ostream &llvm::operator<<(raw_ostream &OS,
                               const HexagonBlockRanges::PrintRangeMap &P) {
-  for (auto &I : P.Map) {
+  for (const auto &I : P.Map) {
     const HexagonBlockRanges::RangeList &RL = I.second;
     OS << printReg(I.first.Reg, &P.TRI, I.first.Sub) << " -> " << RL << "\n";
   }

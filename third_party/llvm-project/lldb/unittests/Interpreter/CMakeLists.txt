@@ -1,13 +1,19 @@
 add_lldb_unittest(InterpreterTests
+  TestCommandPaths.cpp
   TestCompletion.cpp
   TestOptionArgParser.cpp
+  TestOptionValue.cpp
+  TestOptionValueFileColonLine.cpp
+  TestRegexCommand.cpp
 
   LINK_LIBS
-    lldbInterpreter
-    lldbUtilityHelpers
-  )
-
-target_link_libraries(InterpreterTests
-  PRIVATE
-  ${PYTHON_LIBRARY}
-  )
+      lldbCore
+      lldbHost
+      lldbTarget
+      lldbSymbol
+      lldbUtility
+      lldbUtilityHelpers
+      lldbInterpreter
+      lldbPluginPlatformMacOSX
+      LLVMTestingSupport
+)

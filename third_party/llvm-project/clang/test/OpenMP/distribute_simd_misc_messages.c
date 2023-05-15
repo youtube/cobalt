@@ -1,6 +1,17 @@
-// RUN: %clang_cc1 -fsyntax-only -fopenmp -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fopenmp -fopenmp-version=45 -verify=expected,omp45 %s -Wuninitialized
+// RUN: %clang_cc1 -fsyntax-only -fopenmp -verify=expected,omp50 %s -Wuninitialized
+// RUN: %clang_cc1 -fsyntax-only -fopenmp -fopenmp-version=51 -verify=expected,omp51 %s -Wuninitialized
 
-// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -fopenmp-version=45 -verify=expected,omp45 %s -Wuninitialized
+// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -verify=expected,omp50 %s -Wuninitialized
+// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -fopenmp-version=51 -verify=expected,omp51 %s -Wuninitialized
+
+void xxx(int argc) {
+  int x; // expected-note {{initialize the variable 'x' to silence this warning}}
+#pragma omp distribute simd
+  for (int i = 0; i < 10; ++i)
+    argc = x; // expected-warning {{variable 'x' is uninitialized when used here}}
+}
 
 // expected-error@+1 {{unexpected OpenMP directive '#pragma omp distribute simd'}}
 #pragma omp distribute simd
@@ -11,7 +22,7 @@
 // expected-error@+1 {{unexpected OpenMP directive '#pragma omp distribute simd'}}
 #pragma omp distribute simd safelen(4)
 
-void test_no_clause() {
+void test_no_clause(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -26,7 +37,7 @@ void test_no_clause() {
   ++i;
 }
 
-void test_branch_protected_scope() {
+void test_branch_protected_scope(void) {
   int i = 0;
 L1:
   ++i;
@@ -55,7 +66,7 @@ L1:
     goto L1;
 }
 
-void test_invalid_clause() {
+void test_invalid_clause(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -65,7 +76,7 @@ void test_invalid_clause() {
     ;
 }
 
-void test_non_identifiers() {
+void test_non_identifiers(void) {
   int i, x;
 
 #pragma omp target
@@ -90,8 +101,8 @@ void test_non_identifiers() {
     ;
 }
 
-extern int foo();
-void test_safelen() {
+extern int foo(void);
+void test_safelen(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -185,13 +196,13 @@ void test_safelen() {
     ;
 #pragma omp target
 #pragma omp teams
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp distribute simd safelen(2.5)
   for (i = 0; i < 16; ++i)
     ;
 #pragma omp target
 #pragma omp teams
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp distribute simd safelen(foo())
   for (i = 0; i < 16; ++i)
     ;
@@ -215,7 +226,7 @@ void test_safelen() {
     ;
 }
 
-void test_simdlen() {
+void test_simdlen(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -308,13 +319,13 @@ void test_simdlen() {
     ;
 #pragma omp target
 #pragma omp teams
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp distribute simd simdlen(2.5)
   for (i = 0; i < 16; ++i)
     ;
 #pragma omp target
 #pragma omp teams
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp distribute simd simdlen(foo())
   for (i = 0; i < 16; ++i)
     ;
@@ -338,7 +349,7 @@ void test_simdlen() {
     ;
 }
 
-void test_safelen_simdlen() {
+void test_safelen_simdlen(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -355,7 +366,7 @@ void test_safelen_simdlen() {
     ;
 }
 
-void test_collapse() {
+void test_collapse(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -452,13 +463,13 @@ void test_collapse() {
     ; // expected-error {{expected 4 for loops after '#pragma omp distribute simd', but found only 1}}
 #pragma omp target
 #pragma omp teams
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp distribute simd collapse(2.5)
   for (i = 0; i < 16; ++i)
     ;
 #pragma omp target
 #pragma omp teams
-// expected-error@+1 {{expression is not an integer constant expression}}
+// expected-error@+1 {{integer constant expression}}
 #pragma omp distribute simd collapse(foo())
   for (i = 0; i < 16; ++i)
     ;
@@ -480,11 +491,11 @@ void test_collapse() {
 #pragma omp distribute simd collapse(5 - 5)
   for (i = 0; i < 16; ++i)
     ;
-// expected-note@+3 {{defined as reduction}}
+// expected-note@+3 2 {{defined as reduction}}
 #pragma omp target
 #pragma omp teams
 #pragma omp distribute simd collapse(2) reduction(+ : i)
-  for (i = 0; i < 16; ++i)
+  for (i = 0; i < 16; ++i) // expected-error {{loop iteration variable in the associated loop of 'omp distribute simd' directive may not be reduction, predetermined as lastprivate}}
     // expected-note@+1 {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp for' directive into a parallel or another task region?}}
     for (int j = 0; j < 16; ++j)
 // expected-error@+2 2 {{reduction variable must be shared}}
@@ -502,7 +513,7 @@ void test_collapse() {
         i += j;
 }
 
-void test_linear() {
+void test_linear(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -565,7 +576,7 @@ void test_linear() {
     ;
 }
 
-void test_aligned() {
+void test_aligned(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -704,7 +715,7 @@ void test_aligned() {
     ;
 }
 
-void test_private() {
+void test_private(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -764,7 +775,7 @@ void test_private() {
   }
 }
 
-void test_firstprivate() {
+void test_firstprivate(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -775,7 +786,7 @@ void test_firstprivate() {
     ;
 }
 
-void test_lastprivate() {
+void test_lastprivate(void) {
   int i;
 #pragma omp target
 #pragma omp teams
@@ -835,7 +846,7 @@ void test_lastprivate() {
     ;
 }
 
-void test_reduction() {
+void test_reduction(void) {
   int i, x, y;
 #pragma omp target
 #pragma omp teams
@@ -983,7 +994,7 @@ void test_reduction() {
     ;
 }
 
-void test_loop_messages() {
+void test_loop_messages(void) {
   float a[100], b[100], c[100];
 #pragma omp target
 #pragma omp teams
@@ -1023,5 +1034,120 @@ void linear_modifiers(int argc) {
 #pragma omp teams
 #pragma omp distribute simd linear(foo(k)) // expected-error {{expected 'val' modifier}}
   for (k = 0; k < argc; ++k) ++k;
+}
+
+void test_nontemporal(void) {
+  int i;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{expected expression}} expected-error@+1 {{expected ')'}} expected-note@+1 {{to match this '('}}
+#pragma omp distribute simd nontemporal(
+  for (i = 0; i < 16; ++i)
+    ;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 2 {{expected expression}} expected-error@+1 {{expected ')'}} expected-note@+1 {{to match this '('}}
+#pragma omp distribute simd nontemporal(,
+  for (i = 0; i < 16; ++i)
+    ;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 2 {{expected expression}}
+#pragma omp distribute simd nontemporal(, )
+  for (i = 0; i < 16; ++i)
+    ;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{expected expression}}
+#pragma omp distribute simd nontemporal()
+  for (i = 0; i < 16; ++i)
+    ;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{expected expression}}
+#pragma omp distribute simd nontemporal(int)
+  for (i = 0; i < 16; ++i)
+    ;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} omp50-error@+1 {{expected variable name}} omp51-error@+1 {{expected variable name}}
+#pragma omp distribute simd nontemporal(0)
+  for (i = 0; i < 16; ++i)
+    ;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{use of undeclared identifier 'x'}}
+#pragma omp distribute simd nontemporal(x)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+2 {{use of undeclared identifier 'x'}}
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{use of undeclared identifier 'y'}}
+#pragma omp distribute simd nontemporal(x, y)
+  for (i = 0; i < 16; ++i)
+    ;
+// expected-error@+3 {{use of undeclared identifier 'x'}}
+// expected-error@+2 {{use of undeclared identifier 'y'}}
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{use of undeclared identifier 'z'}}
+#pragma omp distribute simd nontemporal(x, y, z)
+  for (i = 0; i < 16; ++i)
+    ;
+
+  int x, y;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{expected ',' or ')' in 'nontemporal' clause}} expected-error@+1 {{expected ')'}} expected-note@+1 {{to match this '('}}
+#pragma omp distribute simd nontemporal(x :)
+  for (i = 0; i < 16; ++i)
+    ;
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-error@+1 {{expected ')'}} expected-note@+1 {{to match this '('}} expected-error@+1 {{expected ',' or ')' in 'nontemporal' clause}}
+#pragma omp distribute simd nontemporal(x :, )
+  for (i = 0; i < 16; ++i)
+    ;
+
+// omp51-note@+3 {{defined as nontemporal}}
+// omp50-note@+2 {{defined as nontemporal}}
+// omp45-error@+1 2 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} omp50-error@+1 {{a variable cannot appear in more than one nontemporal clause}} omp51-error@+1 {{a variable cannot appear in more than one nontemporal clause}}
+#pragma omp distribute simd nontemporal(x) nontemporal(x)
+  for (i = 0; i < 16; ++i)
+    ;
+
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}}
+#pragma omp distribute simd private(x) nontemporal(x)
+  for (i = 0; i < 16; ++i)
+    ;
+
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}}
+#pragma omp distribute simd nontemporal(x) private(x)
+  for (i = 0; i < 16; ++i)
+    ;
+
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}} expected-note@+1 {{to match this '('}} expected-error@+1 {{expected ',' or ')' in 'nontemporal' clause}} expected-error@+1 {{expected ')'}}
+#pragma omp distribute simd nontemporal(x, y : 0)
+  for (i = 0; i < 16; ++i)
+    ;
+
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}}
+#pragma omp distribute simd nontemporal(x) lastprivate(x)
+  for (i = 0; i < 16; ++i)
+    ;
+
+// omp45-error@+1 {{unexpected OpenMP clause 'nontemporal' in directive '#pragma omp distribute simd'}}
+#pragma omp distribute simd lastprivate(x) nontemporal(x)
+  for (i = 0; i < 16; ++i)
+    ;
+#pragma omp distribute simd order // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} expected-error {{expected '(' after 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order( // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} expected-error {{expected ')'}} expected-note {{to match this '('}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}} omp51-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(none // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} expected-error {{expected ')'}} expected-note {{to match this '('}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}} omp51-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(concurrent // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(concurrent) // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(unconstrained:) // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}} omp51-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(reproducible:concurrent // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} expected-error {{expected ')'}} expected-note {{to match this '('}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(reproducible:concurrent) // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(unconstrained:concurrent) // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} omp50-error {{expected 'concurrent' in OpenMP clause 'order'}}
+  for (int i = 0; i < 10; ++i)
+    ;
+#pragma omp distribute simd order(concurrent) order(concurrent) // omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} omp45-error {{unexpected OpenMP clause 'order' in directive '#pragma omp distribute simd'}} omp51-error {{directive '#pragma omp distribute simd' cannot contain more than one 'order' clause}}
+  for (int i = 0; i < 10; ++i)
+    ;
 }
 

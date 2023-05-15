@@ -88,7 +88,6 @@ foo:
   msr CPTR_EL2, x3
   msr CPTR_EL3, x3
   msr CSSELR_EL1, x3
-  msr CURRENTEL, x3
   msr DACR32_EL2, x3
   msr ESR_EL1, x3
   msr ESR_EL2, x3
@@ -135,6 +134,34 @@ foo:
   msr VTCR_EL2, x3
   msr VTTBR_EL2, x3
   msr SPSel, x3
+  msr AMAIR2_EL1, x3
+  msr AMAIR2_EL12, x3
+  msr AMAIR2_EL2, x3
+  msr AMAIR2_EL3, x3
+  msr MAIR2_EL1, x3
+  msr MAIR2_EL12, x3
+  msr MAIR2_EL2, x3
+  msr MAIR2_EL3, x3
+  msr PIRE0_EL1, x3
+  msr PIRE0_EL2, x3
+  msr PIR_EL1, x3
+  msr PIR_EL12, x3
+  msr PIR_EL2, x3
+  msr PIR_EL3, x3
+  msr S2PIR_EL2, x3
+  msr POR_EL0, x3
+  msr POR_EL1, x3
+  msr POR_EL12, x3
+  msr POR_EL2, x3
+  msr POR_EL3, x3
+  msr S2POR_EL1, x3
+  msr SCTLR2_EL1, x3
+  msr SCTLR2_EL12, x3
+  msr SCTLR2_EL2, x3
+  msr SCTLR2_EL3, x3
+  msr TCR2_EL1, x3
+  msr TCR2_EL12, x3
+  msr TCR2_EL2, x3
   msr S3_2_C11_C6_4, x1
   msr  S0_0_C0_C0_0, x0
   msr  S1_2_C3_C4_5, x2
@@ -168,7 +195,6 @@ foo:
 ; CHECK: msr CPTR_EL2, x3               ; encoding: [0x43,0x11,0x1c,0xd5]
 ; CHECK: msr CPTR_EL3, x3               ; encoding: [0x43,0x11,0x1e,0xd5]
 ; CHECK: msr CSSELR_EL1, x3             ; encoding: [0x03,0x00,0x1a,0xd5]
-; CHECK: msr CurrentEL, x3              ; encoding: [0x43,0x42,0x18,0xd5]
 ; CHECK: msr DACR32_EL2, x3             ; encoding: [0x03,0x30,0x1c,0xd5]
 ; CHECK: msr ESR_EL1, x3                ; encoding: [0x03,0x52,0x18,0xd5]
 ; CHECK: msr ESR_EL2, x3                ; encoding: [0x03,0x52,0x1c,0xd5]
@@ -215,9 +241,41 @@ foo:
 ; CHECK: msr VTCR_EL2, x3               ; encoding: [0x43,0x21,0x1c,0xd5]
 ; CHECK: msr VTTBR_EL2, x3              ; encoding: [0x03,0x21,0x1c,0xd5]
 ; CHECK: msr  SPSel, x3                 ; encoding: [0x03,0x42,0x18,0xd5]
+; CHECK: msr AMAIR2_EL1, x3             ; encoding: [0x23,0xa3,0x18,0xd5]
+; CHECK: msr AMAIR2_EL12, x3            ; encoding: [0x23,0xa3,0x1d,0xd5]
+; CHECK: msr AMAIR2_EL2, x3             ; encoding: [0x23,0xa3,0x1c,0xd5]
+; CHECK: msr AMAIR2_EL3, x3             ; encoding: [0x23,0xa3,0x1e,0xd5]
+; CHECK: msr MAIR2_EL1, x3              ; encoding: [0x23,0xa2,0x18,0xd5]
+; CHECK: msr MAIR2_EL12, x3             ; encoding: [0x23,0xa2,0x1d,0xd5]
+; CHECK: msr MAIR2_EL2, x3              ; encoding: [0x23,0xa1,0x1c,0xd5]
+; CHECK: msr MAIR2_EL3, x3              ; encoding: [0x23,0xa1,0x1e,0xd5]
+; CHECK: msr PIRE0_EL1, x3              ; encoding: [0x43,0xa2,0x18,0xd5]
+; CHECK: msr PIRE0_EL2, x3              ; encoding: [0x43,0xa2,0x1c,0xd5]
+; CHECK: msr PIR_EL1, x3                ; encoding: [0x63,0xa2,0x18,0xd5]
+; CHECK: msr PIR_EL12, x3               ; encoding: [0x63,0xa2,0x1d,0xd5]
+; CHECK: msr PIR_EL2, x3                ; encoding: [0x63,0xa2,0x1c,0xd5]
+; CHECK: msr PIR_EL3, x3                ; encoding: [0x63,0xa2,0x1e,0xd5]
+; CHECK: msr S2PIR_EL2, x3              ; encoding: [0xa3,0xa2,0x1c,0xd5]
+; CHECK: msr POR_EL0, x3                ; encoding: [0x83,0xa2,0x1b,0xd5]
+; CHECK: msr POR_EL1, x3                ; encoding: [0x83,0xa2,0x18,0xd5]
+; CHECK: msr POR_EL12, x3               ; encoding: [0x83,0xa2,0x1d,0xd5]
+; CHECK: msr POR_EL2, x3                ; encoding: [0x83,0xa2,0x1c,0xd5]
+; CHECK: msr POR_EL3, x3                ; encoding: [0x83,0xa2,0x1e,0xd5]
+; CHECK: msr S2POR_EL1, x3              ; encoding: [0xa3,0xa2,0x18,0xd5]
+; CHECK: msr SCTLR2_EL1, x3             ; encoding: [0x63,0x10,0x18,0xd5]
+; CHECK: msr SCTLR2_EL12, x3            ; encoding: [0x63,0x10,0x1d,0xd5]
+; CHECK: msr SCTLR2_EL2, x3             ; encoding: [0x63,0x10,0x1c,0xd5]
+; CHECK: msr SCTLR2_EL3, x3             ; encoding: [0x63,0x10,0x1e,0xd5]
+; CHECK: msr TCR2_EL1, x3               ; encoding: [0x63,0x20,0x18,0xd5]
+; CHECK: msr TCR2_EL12, x3              ; encoding: [0x63,0x20,0x1d,0xd5]
+; CHECK: msr TCR2_EL2, x3               ; encoding: [0x63,0x20,0x1c,0xd5]
 ; CHECK: msr  S3_2_C11_C6_4, x1         ; encoding: [0x81,0xb6,0x1a,0xd5]
 ; CHECK: msr  S0_0_C0_C0_0, x0          ; encoding: [0x00,0x00,0x00,0xd5]
 ; CHECK: msr  S1_2_C3_C4_5, x2          ; encoding: [0xa2,0x34,0x0a,0xd5]
+
+// Readonly system registers: writing to them gives an error
+  msr CURRENTEL, x3
+; CHECK-ERRORS: :[[@LINE-1]]:7: error: expected writable system register or pstate
 
   mrs x3, ACTLR_EL1
   mrs x3, ACTLR_EL2
@@ -275,10 +333,15 @@ foo:
   mrs x3, ID_AA64DFR1_EL1
   mrs x3, ID_AA64ISAR0_EL1
   mrs x3, ID_AA64ISAR1_EL1
+  mrs x3, ID_AA64ISAR2_EL1
   mrs x3, ID_AA64MMFR0_EL1
   mrs x3, ID_AA64MMFR1_EL1
+  mrs x3, ID_AA64MMFR2_EL1
+  mrs x3, ID_AA64MMFR3_EL1
+  mrs x3, ID_AA64MMFR4_EL1
   mrs x3, ID_AA64PFR0_EL1
   mrs x3, ID_AA64PFR1_EL1
+  mrs x3, ID_AA64PFR2_EL1
   mrs x3, IFSR32_EL2
   mrs x3, ISR_EL1
   mrs x3, MAIR_EL1
@@ -401,6 +464,34 @@ foo:
   mrs x3, DBGCLAIMSET_EL1
   mrs x3, DBGCLAIMCLR_EL1
   mrs x3, DBGAUTHSTATUS_EL1
+  mrs x3, AMAIR2_EL1
+  mrs x3, AMAIR2_EL12
+  mrs x3, AMAIR2_EL2
+  mrs x3, AMAIR2_EL3
+  mrs x3, MAIR2_EL1
+  mrs x3, MAIR2_EL12
+  mrs x3, MAIR2_EL2
+  mrs x3, MAIR2_EL3
+  mrs x3, PIRE0_EL1
+  mrs x3, PIRE0_EL2
+  mrs x3, PIR_EL1
+  mrs x3, PIR_EL12
+  mrs x3, PIR_EL2
+  mrs x3, PIR_EL3
+  mrs x3, S2PIR_EL2
+  mrs x3, POR_EL0
+  mrs x3, POR_EL1
+  mrs x3, POR_EL12
+  mrs x3, POR_EL2
+  mrs x3, POR_EL3
+  mrs x3, S2POR_EL1
+  mrs x3, SCTLR2_EL1
+  mrs x3, SCTLR2_EL12
+  mrs x3, SCTLR2_EL2
+  mrs x3, SCTLR2_EL3
+  mrs x3, TCR2_EL1
+  mrs x3, TCR2_EL12
+  mrs x3, TCR2_EL2
   mrs x1, S3_2_C15_C6_4
   mrs x3, s3_3_c11_c1_4
   mrs x3, S3_3_c11_c1_4
@@ -461,10 +552,15 @@ foo:
 ; CHECK: mrs x3, ID_AA64DFR1_EL1        ; encoding: [0x23,0x05,0x38,0xd5]
 ; CHECK: mrs x3, ID_AA64ISAR0_EL1       ; encoding: [0x03,0x06,0x38,0xd5]
 ; CHECK: mrs x3, ID_AA64ISAR1_EL1       ; encoding: [0x23,0x06,0x38,0xd5]
+; CHECK: mrs x3, ID_AA64ISAR2_EL1       ; encoding: [0x43,0x06,0x38,0xd5]
 ; CHECK: mrs x3, ID_AA64MMFR0_EL1       ; encoding: [0x03,0x07,0x38,0xd5]
 ; CHECK: mrs x3, ID_AA64MMFR1_EL1       ; encoding: [0x23,0x07,0x38,0xd5]
+; CHECK: mrs x3, ID_AA64MMFR2_EL1       ; encoding: [0x43,0x07,0x38,0xd5]
+; CHECK: mrs x3, ID_AA64MMFR3_EL1       ; encoding: [0x63,0x07,0x38,0xd5]
+; CHECK: mrs x3, ID_AA64MMFR4_EL1       ; encoding: [0x83,0x07,0x38,0xd5]
 ; CHECK: mrs x3, ID_AA64PFR0_EL1        ; encoding: [0x03,0x04,0x38,0xd5]
 ; CHECK: mrs x3, ID_AA64PFR1_EL1        ; encoding: [0x23,0x04,0x38,0xd5]
+; CHECK: mrs x3, ID_AA64PFR2_EL1        ; encoding: [0x43,0x04,0x38,0xd5]
 ; CHECK: mrs x3, IFSR32_EL2             ; encoding: [0x23,0x50,0x3c,0xd5]
 ; CHECK: mrs x3, ISR_EL1                ; encoding: [0x03,0xc1,0x38,0xd5]
 ; CHECK: mrs x3, MAIR_EL1               ; encoding: [0x03,0xa2,0x38,0xd5]
@@ -586,6 +682,34 @@ foo:
 ; CHECK: mrs	x3, DBGCLAIMSET_EL1     ; encoding: [0xc3,0x78,0x30,0xd5]
 ; CHECK: mrs	x3, DBGCLAIMCLR_EL1     ; encoding: [0xc3,0x79,0x30,0xd5]
 ; CHECK: mrs	x3, DBGAUTHSTATUS_EL1   ; encoding: [0xc3,0x7e,0x30,0xd5]
+; CHECK: mrs x3, AMAIR2_EL1           ; encoding: [0x23,0xa3,0x38,0xd5]
+; CHECK: mrs x3, AMAIR2_EL12          ; encoding: [0x23,0xa3,0x3d,0xd5]
+; CHECK: mrs x3, AMAIR2_EL2           ; encoding: [0x23,0xa3,0x3c,0xd5]
+; CHECK: mrs x3, AMAIR2_EL3           ; encoding: [0x23,0xa3,0x3e,0xd5]
+; CHECK: mrs x3, MAIR2_EL1            ; encoding: [0x23,0xa2,0x38,0xd5]
+; CHECK: mrs x3, MAIR2_EL12           ; encoding: [0x23,0xa2,0x3d,0xd5]
+; CHECK: mrs x3, MAIR2_EL2            ; encoding: [0x23,0xa1,0x3c,0xd5]
+; CHECK: mrs x3, MAIR2_EL3            ; encoding: [0x23,0xa1,0x3e,0xd5]
+; CHECK: mrs x3, PIRE0_EL1            ; encoding: [0x43,0xa2,0x38,0xd5]
+; CHECK: mrs x3, PIRE0_EL2            ; encoding: [0x43,0xa2,0x3c,0xd5]
+; CHECK: mrs x3, PIR_EL1              ; encoding: [0x63,0xa2,0x38,0xd5]
+; CHECK: mrs x3, PIR_EL12             ; encoding: [0x63,0xa2,0x3d,0xd5]
+; CHECK: mrs x3, PIR_EL2              ; encoding: [0x63,0xa2,0x3c,0xd5]
+; CHECK: mrs x3, PIR_EL3              ; encoding: [0x63,0xa2,0x3e,0xd5]
+; CHECK: mrs x3, S2PIR_EL2            ; encoding: [0xa3,0xa2,0x3c,0xd5]
+; CHECK: mrs x3, POR_EL0              ; encoding: [0x83,0xa2,0x3b,0xd5]
+; CHECK: mrs x3, POR_EL1              ; encoding: [0x83,0xa2,0x38,0xd5]
+; CHECK: mrs x3, POR_EL12             ; encoding: [0x83,0xa2,0x3d,0xd5]
+; CHECK: mrs x3, POR_EL2              ; encoding: [0x83,0xa2,0x3c,0xd5]
+; CHECK: mrs x3, POR_EL3              ; encoding: [0x83,0xa2,0x3e,0xd5]
+; CHECK: mrs x3, S2POR_EL1            ; encoding: [0xa3,0xa2,0x38,0xd5]
+; CHECK: mrs x3, SCTLR2_EL1           ; encoding: [0x63,0x10,0x38,0xd5]
+; CHECK: mrs x3, SCTLR2_EL12          ; encoding: [0x63,0x10,0x3d,0xd5]
+; CHECK: mrs x3, SCTLR2_EL2           ; encoding: [0x63,0x10,0x3c,0xd5]
+; CHECK: mrs x3, SCTLR2_EL3           ; encoding: [0x63,0x10,0x3e,0xd5]
+; CHECK: mrs x3, TCR2_EL1             ; encoding: [0x63,0x20,0x38,0xd5]
+; CHECK: mrs x3, TCR2_EL12            ; encoding: [0x63,0x20,0x3d,0xd5]
+; CHECK: mrs x3, TCR2_EL2             ; encoding: [0x63,0x20,0x3c,0xd5]
 ; CHECK: mrs    x1, S3_2_C15_C6_4       ; encoding: [0x81,0xf6,0x3a,0xd5]
 ; CHECK: mrs	x3, S3_3_C11_C1_4       ; encoding: [0x83,0xb1,0x3b,0xd5]
 ; CHECK: mrs	x3, S3_3_C11_C1_4       ; encoding: [0x83,0xb1,0x3b,0xd5]
@@ -605,6 +729,7 @@ foo:
  mrs x0, ID_PFR0_EL1
  mrs x0, ID_PFR1_EL1
  mrs x0, ID_DFR0_EL1
+ mrs x0, ID_DFR1_EL1
  mrs x0, ID_AFR0_EL1
  mrs x0, ID_ISAR0_EL1
  mrs x0, ID_ISAR1_EL1
@@ -618,6 +743,7 @@ foo:
 ; CHECK: mrs	x0, ID_PFR0_EL1         ; encoding: [0x00,0x01,0x38,0xd5]
 ; CHECK: mrs	x0, ID_PFR1_EL1         ; encoding: [0x20,0x01,0x38,0xd5]
 ; CHECK: mrs	x0, ID_DFR0_EL1         ; encoding: [0x40,0x01,0x38,0xd5]
+; CHECK: mrs	x0, ID_DFR1_EL1         ; encoding: [0xa0,0x03,0x38,0xd5]
 ; CHECK: mrs	x0, ID_AFR0_EL1         ; encoding: [0x60,0x01,0x38,0xd5]
 ; CHECK: mrs	x0, ID_ISAR0_EL1        ; encoding: [0x00,0x02,0x38,0xd5]
 ; CHECK: mrs	x0, ID_ISAR1_EL1        ; encoding: [0x20,0x02,0x38,0xd5]

@@ -1,9 +1,8 @@
 //===---------- NamespaceAliaser.h - clang-tidy ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,6 +16,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
 #include <map>
+#include <optional>
 
 namespace clang {
 namespace tidy {
@@ -28,8 +28,8 @@ public:
   explicit NamespaceAliaser(const SourceManager &SourceMgr);
   // Adds a namespace alias for \p Namespace valid near \p
   // Statement. Picks the first available name from \p Abbreviations.
-  // Returns ``llvm::None`` if an alias already exists or there is an error.
-  llvm::Optional<FixItHint>
+  // Returns ``std::nullopt`` if an alias already exists or there is an error.
+  std::optional<FixItHint>
   createAlias(ASTContext &Context, const Stmt &Statement,
               llvm::StringRef Namespace,
               const std::vector<std::string> &Abbreviations);

@@ -1,19 +1,19 @@
 ; RUN: llvm-as < %s | llvm-dis > %t.orig
 ; RUN: llvm-as < %s | llvm-c-test --echo > %t.echo
 ; RUN: diff -w %t.orig %t.echo
-
+;
 source_filename = "/test/Bindings/echo.ll"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.11.0"
 
 module asm "classical GAS"
 
-%S = type { i64, %S* }
+%S = type { i64, ptr }
 
 @var = global i32 42
-@ext = external global i32*
-@cst = constant %S { i64 1, %S* @cst }
-@tl = thread_local global { i64, %S* } { i64 1, %S* @cst }
+@ext = external global ptr
+@cst = constant %S { i64 1, ptr @cst }
+@tl = thread_local global { i64, ptr } { i64 1, ptr @cst }
 @arr = linkonce_odr global [5 x i8] [ i8 2, i8 3, i8 5, i8 7, i8 11 ]
 @str = private unnamed_addr constant [13 x i8] c"hello world\0A\00"
 @locStr = private local_unnamed_addr constant [13 x i8] c"hello world\0A\00"
@@ -21,37 +21,48 @@ module asm "classical GAS"
 @protected = protected global i32 23
 @section = global i32 27, section ".custom"
 @align = global i32 31, align 4
+@nullptr = global ptr null
 
-@aliased1 = alias i32, i32* @var
-@aliased2 = internal alias i32, i32* @var
-@aliased3 = external alias i32, i32* @var
-@aliased4 = weak alias i32, i32* @var
-@aliased5 = weak_odr alias i32, i32* @var
+@const_gep = global ptr getelementptr (i32, ptr @var, i64 2)
+@const_inbounds_gep = global ptr getelementptr inbounds (i32, ptr @var, i64 1)
 
-define { i64, %S* } @unpackrepack(%S %s) {
+@aliased1 = alias i32, ptr @var
+@aliased2 = internal alias i32, ptr @var
+@aliased3 = external alias i32, ptr @var
+@aliased4 = weak alias i32, ptr @var
+@aliased5 = weak_odr alias i32, ptr @var
+
+@ifunc = ifunc i32 (i32), ptr @ifunc_resolver
+
+define ptr @ifunc_resolver() {
+entry:
+  ret ptr null
+}
+
+define { i64, ptr } @unpackrepack(%S %s) {
   %1 = extractvalue %S %s, 0
   %2 = extractvalue %S %s, 1
-  %3 = insertvalue { i64, %S* } undef, %S* %2, 1
-  %4 = insertvalue { i64, %S* } %3, i64 %1, 0
-  ret { i64, %S* } %4
+  %3 = insertvalue { i64, ptr } undef, ptr %2, 1
+  %4 = insertvalue { i64, ptr } %3, i64 %1, 0
+  ret { i64, ptr } %4
 }
 
 declare void @decl()
 
 ; TODO: label and metadata types
 define void @types() {
-  %1 = alloca half
-  %2 = alloca float
-  %3 = alloca double
-  %4 = alloca x86_fp80
-  %5 = alloca fp128
-  %6 = alloca ppc_fp128
-  %7 = alloca i7
-  %8 = alloca void (i1)*
-  %9 = alloca [3 x i22]
-  %10 = alloca i328 addrspace(5)*
-  %11 = alloca <5 x i23*>
-  %12 = alloca x86_mmx
+  %1 = alloca half, align 2
+  %2 = alloca float, align 4
+  %3 = alloca double, align 8
+  %4 = alloca x86_fp80, align 16
+  %5 = alloca fp128, align 16
+  %6 = alloca ppc_fp128, align 16
+  %7 = alloca i7, align 1
+  %8 = alloca ptr, align 8
+  %9 = alloca [3 x i22], align 4
+  %10 = alloca ptr addrspace(5), align 8
+  %11 = alloca <5 x ptr>, align 64
+  %12 = alloca x86_mmx, align 8
   ret void
 }
 
@@ -131,9 +142,57 @@ done:
   ret i32 %p
 }
 
+define void @memops(ptr %ptr) {
+  %a = load i8, ptr %ptr
+  %b = load volatile i8, ptr %ptr
+  %c = load i8, ptr %ptr, align 8
+  %d = load atomic i8, ptr %ptr acquire, align 32
+  store i8 0, ptr %ptr
+  store volatile i8 0, ptr %ptr
+  store i8 0, ptr %ptr, align 8
+  store atomic i8 0, ptr %ptr release, align 32
+  %e = atomicrmw add ptr %ptr, i8 0 monotonic, align 1
+  %f = atomicrmw volatile xchg ptr %ptr, i8 0 acq_rel, align 8
+  %g = cmpxchg ptr %ptr, i8 1, i8 2 seq_cst acquire, align 1
+  %h = cmpxchg weak ptr %ptr, i8 1, i8 2 seq_cst acquire, align 8
+  %i = cmpxchg volatile ptr %ptr, i8 1, i8 2 monotonic monotonic, align 16
+  ret void
+}
+
+define i32 @vectorops(i32, i32) {
+  %a = insertelement <4 x i32> undef, i32 %0, i32 0
+  %b = insertelement <4 x i32> %a, i32 %1, i32 2
+  %c = shufflevector <4 x i32> %b, <4 x i32> undef, <4 x i32> zeroinitializer
+  %d = shufflevector <4 x i32> %c, <4 x i32> %b, <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %e = add <4 x i32> %d, %a
+  %f = mul <4 x i32> %e, %b
+  %g = xor <4 x i32> %f, %d
+  %h = or <4 x i32> %f, %e
+  %i = lshr <4 x i32> %h, <i32 2, i32 2, i32 2, i32 2>
+  %j = shl <4 x i32> %i, <i32 2, i32 3, i32 4, i32 5>
+  %k = shufflevector <4 x i32> %j, <4 x i32> %i, <4 x i32> <i32 2, i32 3, i32 undef, i32 undef>
+  %m = shufflevector <4 x i32> %k, <4 x i32> undef, <1 x i32> <i32 1>
+  %n = shufflevector <4 x i32> %j, <4 x i32> undef, <8 x i32> <i32 0, i32 0, i32 1, i32 2, i32 undef, i32 3, i32 undef, i32 undef>
+  %p = extractelement <8 x i32> %n, i32 5
+  ret i32 %p
+}
+
+define i32 @scalablevectorops(i32, <vscale x 4 x i32>) {
+  %a = insertelement <vscale x 4 x i32> undef, i32 %0, i32 0
+  %b = insertelement <vscale x 4 x i32> %a, i32 %0, i32 2
+  %c = shufflevector <vscale x 4 x i32> %b, <vscale x 4 x i32> undef, <vscale x 4 x i32> zeroinitializer
+  %e = add <vscale x 4 x i32> %a, %1
+  %f = mul <vscale x 4 x i32> %e, %b
+  %g = xor <vscale x 4 x i32> %f, %e
+  %h = or <vscale x 4 x i32> %g, %e
+  %i = lshr <vscale x 4 x i32> %h, undef
+  %j = extractelement <vscale x 4 x i32> %i, i32 3
+  ret i32 %j
+}
+
 declare void @personalityFn()
 
-define void @exn() personality void ()* @personalityFn {
+define void @exn() personality ptr @personalityFn {
 entry:
   invoke void @decl()
           to label %via.cleanup unwind label %exn.dispatch
@@ -166,6 +225,37 @@ exit:
   ret void
 }
 
-!llvm.module.flags = !{!1}
+define void @with_debuginfo() !dbg !4 {
+  ret void, !dbg !7
+}
 
-!1 = !{i32 2, !"Debug Info Version", i32 3}
+declare ptr @llvm.stacksave()
+declare void @llvm.stackrestore(ptr)
+declare void @llvm.lifetime.start.p0(i64, ptr)
+declare void @llvm.lifetime.end.p0(i64, ptr)
+
+define void @test_intrinsics() {
+entry:
+  %sp = call ptr @llvm.stacksave()
+  %0 = alloca i8, align 1
+  call void @llvm.lifetime.start.p0(i64 1, ptr %0)
+  call void @llvm.lifetime.end.p0(i64 1, ptr %0)
+  call void @llvm.stackrestore(ptr %sp)
+  ret void
+}
+
+!llvm.dbg.cu = !{!0, !2}
+!llvm.module.flags = !{!3}
+
+!0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug)
+!1 = !DIFile(filename: "echo.ll", directory: "/llvm/test/Bindings/llvm-c/echo.ll")
+!2 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug)
+!3 = !{i32 2, !"Debug Info Version", i32 3}
+!4 = distinct !DISubprogram(name: "with_debuginfo", linkageName: "_with_debuginfo", scope: null, file: !1, line: 42, type: !5, isLocal: false, isDefinition: true, scopeLine: 1519, flags: DIFlagPrototyped, isOptimized: true, unit: !0, templateParams: !6, retainedNodes: !6)
+!5 = !DISubroutineType(types: !6)
+!6 = !{}
+!7 = !DILocation(line: 42, scope: !8, inlinedAt: !11)
+!8 = distinct !DILexicalBlock(scope: !9, file: !1, line: 42, column: 12)
+!9 = distinct !DISubprogram(name: "fake_inlined_block", linkageName: "_fake_inlined_block", scope: null, file: !1, line: 82, type: !5, isLocal: false, isDefinition: true, scopeLine: 82, flags: DIFlagPrototyped, isOptimized: true, unit: !2, templateParams: !6, retainedNodes: !6)
+!10 = distinct !DILocation(line: 84, scope: !8, inlinedAt: !11)
+!11 = !DILocation(line: 42, scope: !4)

@@ -53,7 +53,7 @@ struct S4
   int e;
 } s4;
 
-// CHECK: [[struct_ref:%[a-zA-Z0-9_.]+]] = type { [[struct_ref]]* }
+// CHECK: [[struct_ref:%[a-zA-Z0-9_.]+]] = type { ptr }
 // CHECK: [[struct_S:%[a-zA-Z0-9_.]+]] = type { [3 x i8], [[struct_T:%[a-zA-Z0-9_.]+]], [[struct_T2:%[a-zA-Z0-9_.]+]] }
 // CHECK: [[struct_T]] = type <{ i8, i32 }>
 // CHECK: [[struct_T2]] = type { i8, i32 }
@@ -64,5 +64,5 @@ struct S4
 // CHECK: %struct.S4 = type { [3 x i8], %struct.T4, i32 }
 // CHECK: %struct.T4 = type <{ i8, i32 }>
 
-// CHECK: @refs = common global [[struct_ref]]
-// CHECK: @ss = common global [[struct_S]]
+// CHECK: @refs ={{.*}} global [[struct_ref]]
+// CHECK: @ss ={{.*}} global [[struct_S]]

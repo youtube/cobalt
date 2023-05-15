@@ -1,29 +1,28 @@
-//===-- CommandObjectProcess.cpp --------------------------------*- C++ -*-===//
+//===-- CommandObjectProcess.cpp ------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "CommandObjectProcess.h"
+#include "CommandObjectBreakpoint.h"
+#include "CommandObjectTrace.h"
+#include "CommandOptionsProcessLaunch.h"
 #include "lldb/Breakpoint/Breakpoint.h"
+#include "lldb/Breakpoint/BreakpointIDList.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
+#include "lldb/Breakpoint/BreakpointName.h"
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/State.h"
-#include "lldb/Host/Host.h"
 #include "lldb/Host/OptionParser.h"
-#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
+#include "lldb/Interpreter/OptionGroupPythonClassWithDict.h"
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
@@ -32,6 +31,12 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/Args.h"
+#include "lldb/Utility/State.h"
+
+#include "llvm/ADT/ScopeExit.h"
+
+#include <bitset>
+#include <optional>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -55,19 +60,19 @@ protected:
       state = process->GetState();
 
       if (process->IsAlive() && state != eStateConnected) {
-        char message[1024];
+        std::string message;
         if (process->GetState() == eStateAttaching)
-          ::snprintf(message, sizeof(message),
-                     "There is a pending attach, abort it and %s?",
-                     m_new_process_action.c_str());
+          message =
+              llvm::formatv("There is a pending attach, abort it and {0}?",
+                            m_new_process_action);
         else if (process->GetShouldDetach())
-          ::snprintf(message, sizeof(message),
-                     "There is a running process, detach from it and %s?",
-                     m_new_process_action.c_str());
+          message = llvm::formatv(
+              "There is a running process, detach from it and {0}?",
+              m_new_process_action);
         else
-          ::snprintf(message, sizeof(message),
-                     "There is a running process, kill it and %s?",
-                     m_new_process_action.c_str());
+          message =
+              llvm::formatv("There is a running process, kill it and {0}?",
+                            m_new_process_action);
 
         if (!m_interpreter.Confirm(message, true)) {
           result.SetStatus(eReturnStatusFailed);
@@ -83,7 +88,6 @@ protected:
               result.AppendErrorWithFormat(
                   "Failed to detach from process: %s\n",
                   detach_error.AsCString());
-              result.SetStatus(eReturnStatusFailed);
             }
           } else {
             Status destroy_error(process->Destroy(false));
@@ -93,7 +97,6 @@ protected:
             } else {
               result.AppendErrorWithFormat("Failed to kill process: %s\n",
                                            destroy_error.AsCString());
-              result.SetStatus(eReturnStatusFailed);
             }
           }
         }
@@ -105,9 +108,7 @@ protected:
   std::string m_new_process_action;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessLaunch
-//-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessLaunch
 class CommandObjectProcessLaunch : public CommandObjectProcessLaunchOrAttach {
 public:
@@ -116,7 +117,13 @@ public:
             interpreter, "process launch",
             "Launch the executable in the debugger.", nullptr,
             eCommandRequiresTarget, "restart"),
-        m_options() {
+
+        m_class_options("scripted process", true, 'C', 'k', 'v', 0) {
+    m_all_options.Append(&m_options);
+    m_all_options.Append(&m_class_options, LLDB_OPT_SET_1 | LLDB_OPT_SET_2,
+                         LLDB_OPT_SET_ALL);
+    m_all_options.Finalize();
+
     CommandArgumentEntry arg;
     CommandArgumentData run_args_arg;
 
@@ -134,35 +141,38 @@ public:
 
   ~CommandObjectProcessLaunch() override = default;
 
-  int HandleArgumentCompletion(
-      CompletionRequest &request,
-      OptionElementVector &opt_element_vector) override {
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
 
     CommandCompletions::InvokeCommonCompletionCallbacks(
         GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
         request, nullptr);
-    return request.GetNumberOfMatches();
   }
 
-  Options *GetOptions() override { return &m_options; }
+  Options *GetOptions() override { return &m_all_options; }
 
-  const char *GetRepeatCommand(Args &current_command_args,
-                               uint32_t index) override {
+  std::optional<std::string> GetRepeatCommand(Args &current_command_args,
+                                              uint32_t index) override {
     // No repeat for "process launch"...
-    return "";
+    return std::string("");
   }
 
 protected:
   bool DoExecute(Args &launch_args, CommandReturnObject &result) override {
-    Debugger &debugger = m_interpreter.GetDebugger();
+    Debugger &debugger = GetDebugger();
     Target *target = debugger.GetSelectedTarget().get();
     // If our listener is nullptr, users aren't allows to launch
     ModuleSP exe_module_sp = target->GetExecutableModule();
 
-    if (exe_module_sp == nullptr) {
+    // If the target already has an executable module, then use that.  If it
+    // doesn't then someone must be trying to launch using a path that will
+    // make sense to the remote stub, but doesn't exist on the local host.
+    // In that case use the ExecutableFile that was set in the target's
+    // ProcessLaunchInfo.
+    if (exe_module_sp == nullptr && !target->GetProcessLaunchInfo().GetExecutableFile()) {
       result.AppendError("no file in target, create a debug target using the "
                          "'target create' command");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -170,8 +180,6 @@ protected:
 
     if (!StopProcessIfNecessary(m_exe_ctx.GetProcessPtr(), state, result))
       return false;
-
-    llvm::StringRef target_settings_argv0 = target->GetArg0();
 
     // Determine whether we will disable ASLR or leave it in the default state
     // (i.e. enabled if the platform supports it). First check if the process
@@ -189,10 +197,22 @@ protected:
       disable_aslr = target->GetDisableASLR();
     }
 
+    if (!m_class_options.GetName().empty()) {
+      m_options.launch_info.SetProcessPluginName("ScriptedProcess");
+      m_options.launch_info.SetScriptedProcessClassName(
+          m_class_options.GetName());
+      m_options.launch_info.SetScriptedProcessDictionarySP(
+          m_class_options.GetStructuredData());
+      target->SetProcessLaunchInfo(m_options.launch_info);
+    }
+
     if (disable_aslr)
       m_options.launch_info.GetFlags().Set(eLaunchFlagDisableASLR);
     else
       m_options.launch_info.GetFlags().Clear(eLaunchFlagDisableASLR);
+
+    if (target->GetInheritTCC())
+      m_options.launch_info.GetFlags().Set(eLaunchFlagInheritTCCFromParent);
 
     if (target->GetDetachOnError())
       m_options.launch_info.GetFlags().Set(eLaunchFlagDetachOnError);
@@ -200,16 +220,27 @@ protected:
     if (target->GetDisableSTDIO())
       m_options.launch_info.GetFlags().Set(eLaunchFlagDisableSTDIO);
 
-    m_options.launch_info.GetEnvironment() = target->GetEnvironment();
+    // Merge the launch info environment with the target environment.
+    Environment target_env = target->GetEnvironment();
+    m_options.launch_info.GetEnvironment().insert(target_env.begin(),
+                                                  target_env.end());
+
+    llvm::StringRef target_settings_argv0 = target->GetArg0();
 
     if (!target_settings_argv0.empty()) {
       m_options.launch_info.GetArguments().AppendArgument(
           target_settings_argv0);
-      m_options.launch_info.SetExecutableFile(
-          exe_module_sp->GetPlatformFileSpec(), false);
+      if (exe_module_sp)
+        m_options.launch_info.SetExecutableFile(
+            exe_module_sp->GetPlatformFileSpec(), false);
+      else
+        m_options.launch_info.SetExecutableFile(target->GetProcessLaunchInfo().GetExecutableFile(), false);
     } else {
-      m_options.launch_info.SetExecutableFile(
-          exe_module_sp->GetPlatformFileSpec(), true);
+      if (exe_module_sp)
+        m_options.launch_info.SetExecutableFile(
+            exe_module_sp->GetPlatformFileSpec(), true);
+      else
+        m_options.launch_info.SetExecutableFile(target->GetProcessLaunchInfo().GetExecutableFile(), true);
     }
 
     if (launch_args.GetArgumentCount() == 0) {
@@ -236,91 +267,46 @@ protected:
         llvm::StringRef data = stream.GetString();
         if (!data.empty())
           result.AppendMessage(data);
-        const char *archname =
-            exe_module_sp->GetArchitecture().GetArchitectureName();
-        result.AppendMessageWithFormat(
-            "Process %" PRIu64 " launched: '%s' (%s)\n", process_sp->GetID(),
-            exe_module_sp->GetFileSpec().GetPath().c_str(), archname);
+        // If we didn't have a local executable, then we wouldn't have had an
+        // executable module before launch.
+        if (!exe_module_sp)
+          exe_module_sp = target->GetExecutableModule();
+        if (!exe_module_sp) {
+          result.AppendWarning("Could not get executable module after launch.");
+        } else {
+
+          const char *archname =
+              exe_module_sp->GetArchitecture().GetArchitectureName();
+          result.AppendMessageWithFormat(
+              "Process %" PRIu64 " launched: '%s' (%s)\n", process_sp->GetID(),
+              exe_module_sp->GetFileSpec().GetPath().c_str(), archname);
+        }
         result.SetStatus(eReturnStatusSuccessFinishResult);
         result.SetDidChangeProcessState(true);
       } else {
         result.AppendError(
             "no error returned from Target::Launch, and target has no process");
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError(error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
 
-protected:
-  ProcessLaunchCommandOptions m_options;
+  CommandOptionsProcessLaunch m_options;
+  OptionGroupPythonClassWithDict m_class_options;
+  OptionGroupOptions m_all_options;
 };
 
-//#define SET1 LLDB_OPT_SET_1
-//#define SET2 LLDB_OPT_SET_2
-//#define SET3 LLDB_OPT_SET_3
-//
-// OptionDefinition
-// CommandObjectProcessLaunch::CommandOptions::g_option_table[] =
-//{
-//  // clang-format off
-//  {SET1 | SET2 | SET3, false, "stop-at-entry", 's', OptionParser::eNoArgument,
-//  nullptr, 0, eArgTypeNone,          "Stop at the entry point of the program
-//  when launching a process."},
-//  {SET1,               false, "stdin",         'i',
-//  OptionParser::eRequiredArgument, nullptr, 0, eArgTypeDirectoryName,
-//  "Redirect stdin for the process to <path>."},
-//  {SET1,               false, "stdout",        'o',
-//  OptionParser::eRequiredArgument, nullptr, 0, eArgTypeDirectoryName,
-//  "Redirect stdout for the process to <path>."},
-//  {SET1,               false, "stderr",        'e',
-//  OptionParser::eRequiredArgument, nullptr, 0, eArgTypeDirectoryName,
-//  "Redirect stderr for the process to <path>."},
-//  {SET1 | SET2 | SET3, false, "plugin",        'p',
-//  OptionParser::eRequiredArgument, nullptr, 0, eArgTypePlugin,        "Name of
-//  the process plugin you want to use."},
-//  {       SET2,        false, "tty",           't',
-//  OptionParser::eOptionalArgument, nullptr, 0, eArgTypeDirectoryName, "Start
-//  the process in a terminal. If <path> is specified, look for a terminal whose
-//  name contains <path>, else start the process in a new terminal."},
-//  {              SET3, false, "no-stdio",      'n', OptionParser::eNoArgument,
-//  nullptr, 0, eArgTypeNone,          "Do not set up for terminal I/O to go to
-//  running process."},
-//  {SET1 | SET2 | SET3, false, "working-dir",   'w',
-//  OptionParser::eRequiredArgument, nullptr, 0, eArgTypeDirectoryName, "Set the
-//  current working directory to <path> when running the inferior."},
-//  {0, false, nullptr, 0, 0, nullptr, 0, eArgTypeNone, nullptr}
-//  // clang-format on
-//};
-//
-//#undef SET1
-//#undef SET2
-//#undef SET3
-
-//-------------------------------------------------------------------------
-// CommandObjectProcessAttach
-//-------------------------------------------------------------------------
-
-static OptionDefinition g_process_attach_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "continue",         'c', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,         "Immediately continue the process once attached." },
-  { LLDB_OPT_SET_ALL, false, "plugin",           'P', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePlugin,       "Name of the process plugin you want to use." },
-  { LLDB_OPT_SET_1,   false, "pid",              'p', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePid,          "The process ID of an existing process to attach to." },
-  { LLDB_OPT_SET_2,   false, "name",             'n', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeProcessName,  "The name of the process to attach to." },
-  { LLDB_OPT_SET_2,   false, "include-existing", 'i', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,         "Include existing processes when doing attach -w." },
-  { LLDB_OPT_SET_2,   false, "waitfor",          'w', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,         "Wait for the process with <process-name> to launch." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_attach
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessAttach
 class CommandObjectProcessAttach : public CommandObjectProcessLaunchOrAttach {
 public:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {
+    CommandOptions() {
       // Keep default values of all options in one place: OptionParsingStarting
       // ()
       OptionParsingStarting(nullptr);
@@ -352,7 +338,7 @@ public:
         break;
 
       case 'n':
-        attach_info.GetExecutableFile().SetFile(option_arg, false,
+        attach_info.GetExecutableFile().SetFile(option_arg,
                                                 FileSpec::Style::native);
         break;
 
@@ -365,9 +351,7 @@ public:
         break;
 
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -377,51 +361,8 @@ public:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_process_attach_options);
+      return llvm::ArrayRef(g_process_attach_options);
     }
-
-    bool HandleOptionArgumentCompletion(
-        CompletionRequest &request, OptionElementVector &opt_element_vector,
-        int opt_element_index, CommandInterpreter &interpreter) override {
-      int opt_arg_pos = opt_element_vector[opt_element_index].opt_arg_pos;
-      int opt_defs_index = opt_element_vector[opt_element_index].opt_defs_index;
-
-      // We are only completing the name option for now...
-
-      if (GetDefinitions()[opt_defs_index].short_option == 'n') {
-        // Are we in the name?
-
-        // Look to see if there is a -P argument provided, and if so use that
-        // plugin, otherwise use the default plugin.
-
-        const char *partial_name = nullptr;
-        partial_name = request.GetParsedLine().GetArgumentAtIndex(opt_arg_pos);
-
-        PlatformSP platform_sp(interpreter.GetPlatform(true));
-        if (platform_sp) {
-          ProcessInstanceInfoList process_infos;
-          ProcessInstanceInfoMatch match_info;
-          if (partial_name) {
-            match_info.GetProcessInfo().GetExecutableFile().SetFile(
-                partial_name, false, FileSpec::Style::native);
-            match_info.SetNameMatchType(NameMatch::StartsWith);
-          }
-          platform_sp->FindProcesses(match_info, process_infos);
-          const size_t num_matches = process_infos.GetSize();
-          if (num_matches > 0) {
-            for (size_t i = 0; i < num_matches; ++i) {
-              request.AddCompletion(llvm::StringRef(
-                  process_infos.GetProcessNameAtIndex(i),
-                  process_infos.GetProcessNameLengthAtIndex(i)));
-            }
-          }
-        }
-      }
-
-      return false;
-    }
-
-    // Instance variables to hold the values for command options.
 
     ProcessAttachInfo attach_info;
   };
@@ -429,8 +370,7 @@ public:
   CommandObjectProcessAttach(CommandInterpreter &interpreter)
       : CommandObjectProcessLaunchOrAttach(
             interpreter, "process attach", "Attach to a process.",
-            "process attach <cmd-options>", 0, "attach"),
-        m_options() {}
+            "process attach <cmd-options>", 0, "attach") {}
 
   ~CommandObjectProcessAttach() override = default;
 
@@ -439,9 +379,9 @@ public:
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     PlatformSP platform_sp(
-        m_interpreter.GetDebugger().GetPlatformList().GetSelectedPlatform());
+        GetDebugger().GetPlatformList().GetSelectedPlatform());
 
-    Target *target = m_interpreter.GetDebugger().GetSelectedTarget().get();
+    Target *target = GetDebugger().GetSelectedTarget().get();
     // N.B. The attach should be synchronous.  It doesn't help much to get the
     // prompt back between initiating the attach and the target actually
     // stopping.  So even if the interpreter is set to be asynchronous, we wait
@@ -458,8 +398,8 @@ protected:
       TargetSP new_target_sp;
       Status error;
 
-      error = m_interpreter.GetDebugger().GetTargetList().CreateTarget(
-          m_interpreter.GetDebugger(), "", "", false,
+      error = GetDebugger().GetTargetList().CreateTarget(
+          GetDebugger(), "", "", eLoadDependentsNo,
           nullptr, // No platform options
           new_target_sp);
       target = new_target_sp.get();
@@ -467,7 +407,6 @@ protected:
         result.AppendError(error.AsCString("Error creating target"));
         return false;
       }
-      m_interpreter.GetDebugger().GetTargetList().SetSelectedTarget(target);
     }
 
     // Record the old executable module, we want to issue a warning if the
@@ -477,31 +416,21 @@ protected:
     ModuleSP old_exec_module_sp = target->GetExecutableModule();
     ArchSpec old_arch_spec = target->GetArchitecture();
 
-    if (command.GetArgumentCount()) {
-      result.AppendErrorWithFormat("Invalid arguments for '%s'.\nUsage: %s\n",
-                                   m_cmd_name.c_str(), m_cmd_syntax.c_str());
-      result.SetStatus(eReturnStatusFailed);
-      return false;
-    }
-
-    m_interpreter.UpdateExecutionContext(nullptr);
     StreamString stream;
+    ProcessSP process_sp;
     const auto error = target->Attach(m_options.attach_info, &stream);
     if (error.Success()) {
-      ProcessSP process_sp(target->GetProcessSP());
+      process_sp = target->GetProcessSP();
       if (process_sp) {
         result.AppendMessage(stream.GetString());
         result.SetStatus(eReturnStatusSuccessFinishNoResult);
         result.SetDidChangeProcessState(true);
-        result.SetAbnormalStopWasExpected(true);
       } else {
         result.AppendError(
             "no error returned from Target::Attach, and target has no process");
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendErrorWithFormat("attach failed: %s\n", error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
     }
 
     if (!result.Succeeded())
@@ -543,8 +472,13 @@ protected:
 
     // This supports the use-case scenario of immediately continuing the
     // process once attached.
-    if (m_options.attach_info.GetContinueOnceAttached())
-      m_interpreter.HandleCommand("process continue", eLazyBoolNo, result);
+    if (m_options.attach_info.GetContinueOnceAttached()) {
+      // We have made a process but haven't told the interpreter about it yet,
+      // so CheckRequirements will fail for "process continue".  Set the override
+      // here:
+      ExecutionContext exe_ctx(process_sp);
+      m_interpreter.HandleCommand("process continue", eLazyBoolNo, exe_ctx, result);
+    }
 
     return result.Succeeded();
   }
@@ -552,15 +486,10 @@ protected:
   CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessContinue
-//-------------------------------------------------------------------------
 
-static OptionDefinition g_process_continue_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "ignore-count",'i', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeUnsignedInteger, "Ignore <N> crossings of the breakpoint (if it exists) for the currently selected thread." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_continue
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessContinue
 
@@ -572,15 +501,14 @@ public:
             "Continue execution of all threads in the current process.",
             "process continue",
             eCommandRequiresProcess | eCommandTryTargetAPILock |
-                eCommandProcessMustBeLaunched | eCommandProcessMustBePaused),
-        m_options() {}
+                eCommandProcessMustBeLaunched | eCommandProcessMustBePaused) {}
 
   ~CommandObjectProcessContinue() override = default;
 
 protected:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {
+    CommandOptions() {
       // Keep default values of all options in one place: OptionParsingStarting
       // ()
       OptionParsingStarting(nullptr);
@@ -589,7 +517,7 @@ protected:
     ~CommandOptions() override = default;
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
-                          ExecutionContext *execution_context) override {
+                          ExecutionContext *exe_ctx) override {
       Status error;
       const int short_option = m_getopt_table[option_idx].val;
       switch (short_option) {
@@ -599,39 +527,37 @@ protected:
               "invalid value for ignore option: \"%s\", should be a number.",
               option_arg.str().c_str());
         break;
-
+      case 'b':
+        m_run_to_bkpt_args.AppendArgument(option_arg);
+        m_any_bkpts_specified = true;
+      break;
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
 
     void OptionParsingStarting(ExecutionContext *execution_context) override {
       m_ignore = 0;
+      m_run_to_bkpt_args.Clear();
+      m_any_bkpts_specified = false;
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_process_continue_options);
+      return llvm::ArrayRef(g_process_continue_options);
     }
 
-    uint32_t m_ignore;
+    uint32_t m_ignore = 0;
+    Args m_run_to_bkpt_args;
+    bool m_any_bkpts_specified = false;
   };
+
 
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     Process *process = m_exe_ctx.GetProcessPtr();
     bool synchronous_execution = m_interpreter.GetSynchronous();
     StateType state = process->GetState();
     if (state == eStateStopped) {
-      if (command.GetArgumentCount() != 0) {
-        result.AppendErrorWithFormat(
-            "The '%s' command does not take any arguments.\n",
-            m_cmd_name.c_str());
-        result.SetStatus(eReturnStatusFailed);
-        return false;
-      }
-
       if (m_options.m_ignore > 0) {
         ThreadSP sel_thread_sp(GetDefaultThread()->shared_from_this());
         if (sel_thread_sp) {
@@ -656,6 +582,130 @@ protected:
         }
       }
 
+      Target *target = m_exe_ctx.GetTargetPtr();
+      BreakpointIDList run_to_bkpt_ids;
+      // Don't pass an empty run_to_breakpoint list, as Verify will look for the
+      // default breakpoint.
+      if (m_options.m_run_to_bkpt_args.GetArgumentCount() > 0)
+        CommandObjectMultiwordBreakpoint::VerifyBreakpointOrLocationIDs(
+            m_options.m_run_to_bkpt_args, target, result, &run_to_bkpt_ids,
+            BreakpointName::Permissions::disablePerm);
+      if (!result.Succeeded()) {
+        return false;
+      }
+      result.Clear();
+      if (m_options.m_any_bkpts_specified && run_to_bkpt_ids.GetSize() == 0) {
+        result.AppendError("continue-to breakpoints did not specify any actual "
+                           "breakpoints or locations");
+        return false;
+      }
+
+      // First figure out which breakpoints & locations were specified by the
+      // user:
+      size_t num_run_to_bkpt_ids = run_to_bkpt_ids.GetSize();
+      std::vector<break_id_t> bkpts_disabled;
+      std::vector<BreakpointID> locs_disabled;
+      if (num_run_to_bkpt_ids != 0) {
+        // Go through the ID's specified, and separate the breakpoints from are
+        // the breakpoint.location specifications since the latter require
+        // special handling.  We also figure out whether there's at least one
+        // specifier in the set that is enabled.
+        BreakpointList &bkpt_list = target->GetBreakpointList();
+        std::unordered_set<break_id_t> bkpts_seen;
+        std::unordered_set<break_id_t> bkpts_with_locs_seen;
+        BreakpointIDList with_locs;
+        bool any_enabled = false;
+
+        for (size_t idx = 0; idx < num_run_to_bkpt_ids; idx++) {
+          BreakpointID bkpt_id = run_to_bkpt_ids.GetBreakpointIDAtIndex(idx);
+          break_id_t bp_id = bkpt_id.GetBreakpointID();
+          break_id_t loc_id = bkpt_id.GetLocationID();
+          BreakpointSP bp_sp
+              = bkpt_list.FindBreakpointByID(bp_id);
+          // Note, VerifyBreakpointOrLocationIDs checks for existence, so we
+          // don't need to do it again here.
+          if (bp_sp->IsEnabled()) {
+            if (loc_id == LLDB_INVALID_BREAK_ID) {
+              // A breakpoint (without location) was specified.  Make sure that
+              // at least one of the locations is enabled.
+              size_t num_locations = bp_sp->GetNumLocations();
+              for (size_t loc_idx = 0; loc_idx < num_locations; loc_idx++) {
+                BreakpointLocationSP loc_sp
+                    = bp_sp->GetLocationAtIndex(loc_idx);
+                if (loc_sp->IsEnabled()) {
+                  any_enabled = true;
+                  break;
+                }
+              }
+            } else {
+              // A location was specified, check if it was enabled:
+              BreakpointLocationSP loc_sp = bp_sp->FindLocationByID(loc_id);
+              if (loc_sp->IsEnabled())
+                any_enabled = true;
+            }
+
+            // Then sort the bp & bp.loc entries for later use:
+            if (bkpt_id.GetLocationID() == LLDB_INVALID_BREAK_ID)
+              bkpts_seen.insert(bkpt_id.GetBreakpointID());
+            else {
+              bkpts_with_locs_seen.insert(bkpt_id.GetBreakpointID());
+              with_locs.AddBreakpointID(bkpt_id);
+            }
+          }
+        }
+        // Do all the error checking here so once we start disabling we don't
+        // have to back out half-way through.
+
+        // Make sure at least one of the specified breakpoints is enabled.
+        if (!any_enabled) {
+          result.AppendError("at least one of the continue-to breakpoints must "
+                             "be enabled.");
+          return false;
+        }
+
+        // Also, if you specify BOTH a breakpoint and one of it's locations,
+        // we flag that as an error, since it won't do what you expect, the
+        // breakpoint directive will mean "run to all locations", which is not
+        // what the location directive means...
+        for (break_id_t bp_id : bkpts_with_locs_seen) {
+          if (bkpts_seen.count(bp_id)) {
+            result.AppendErrorWithFormatv("can't specify both a breakpoint and "
+                               "one of its locations: {0}", bp_id);
+          }
+        }
+
+        // Now go through the breakpoints in the target, disabling all the ones
+        // that the user didn't mention:
+        for (BreakpointSP bp_sp : bkpt_list.Breakpoints()) {
+          break_id_t bp_id = bp_sp->GetID();
+          // Handle the case where no locations were specified.  Note we don't
+          // have to worry about the case where a breakpoint and one of its
+          // locations are both in the lists, we've already disallowed that.
+          if (!bkpts_with_locs_seen.count(bp_id)) {
+            if (!bkpts_seen.count(bp_id) && bp_sp->IsEnabled()) {
+              bkpts_disabled.push_back(bp_id);
+              bp_sp->SetEnabled(false);
+            }
+            continue;
+          }
+          // Next, handle the case where a location was specified:
+          // Run through all the locations of this breakpoint and disable
+          // the ones that aren't on our "with locations" BreakpointID list:
+          size_t num_locations = bp_sp->GetNumLocations();
+          BreakpointID tmp_id(bp_id, LLDB_INVALID_BREAK_ID);
+          for (size_t loc_idx = 0; loc_idx < num_locations; loc_idx++) {
+            BreakpointLocationSP loc_sp = bp_sp->GetLocationAtIndex(loc_idx);
+            tmp_id.SetBreakpointLocationID(loc_idx);
+            size_t position = 0;
+            if (!with_locs.FindBreakpointID(tmp_id, &position)
+                && loc_sp->IsEnabled()) {
+              locs_disabled.push_back(tmp_id);
+              loc_sp->SetEnabled(false);
+            }
+          }
+        }
+      }
+
       { // Scope for thread list mutex:
         std::lock_guard<std::recursive_mutex> guard(
             process->GetThreadList().GetMutex());
@@ -673,10 +723,39 @@ protected:
 
       StreamString stream;
       Status error;
+      // For now we can only do -b with synchronous:
+      bool old_sync = GetDebugger().GetAsyncExecution();
+
+      if (run_to_bkpt_ids.GetSize() != 0) {
+        GetDebugger().SetAsyncExecution(false);
+        synchronous_execution = true;
+      }
       if (synchronous_execution)
         error = process->ResumeSynchronous(&stream);
       else
         error = process->Resume();
+
+      if (run_to_bkpt_ids.GetSize() != 0) {
+        GetDebugger().SetAsyncExecution(old_sync);
+      }
+
+      // Now re-enable the breakpoints we disabled:
+      BreakpointList &bkpt_list = target->GetBreakpointList();
+      for (break_id_t bp_id : bkpts_disabled) {
+        BreakpointSP bp_sp = bkpt_list.FindBreakpointByID(bp_id);
+        if (bp_sp)
+          bp_sp->SetEnabled(true);
+      }
+      for (const BreakpointID &bkpt_id : locs_disabled) {
+        BreakpointSP bp_sp
+            = bkpt_list.FindBreakpointByID(bkpt_id.GetBreakpointID());
+        if (bp_sp) {
+          BreakpointLocationSP loc_sp
+              = bp_sp->FindLocationByID(bkpt_id.GetLocationID());
+          if (loc_sp)
+            loc_sp->SetEnabled(true);
+        }
+      }
 
       if (error.Success()) {
         // There is a race condition where this thread will return up the call
@@ -700,13 +779,11 @@ protected:
       } else {
         result.AppendErrorWithFormat("Failed to resume process: %s.\n",
                                      error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendErrorWithFormat(
           "Process cannot be continued from its current state (%s).\n",
           StateAsCString(state));
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
@@ -716,14 +793,9 @@ protected:
   CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessDetach
-//-------------------------------------------------------------------------
-static OptionDefinition g_process_detach_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_1, false, "keep-stopped", 's', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the process should be kept stopped on detach (if possible)." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_detach
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessDetach
 
@@ -731,7 +803,7 @@ class CommandObjectProcessDetach : public CommandObjectParsed {
 public:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() { OptionParsingStarting(nullptr); }
+    CommandOptions() { OptionParsingStarting(nullptr); }
 
     ~CommandOptions() override = default;
 
@@ -756,9 +828,7 @@ public:
         }
         break;
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -768,7 +838,7 @@ public:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_process_detach_options);
+      return llvm::ArrayRef(g_process_detach_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -780,8 +850,7 @@ public:
                             "Detach from the current target process.",
                             "process detach",
                             eCommandRequiresProcess | eCommandTryTargetAPILock |
-                                eCommandProcessMustBeLaunched),
-        m_options() {}
+                                eCommandProcessMustBeLaunched) {}
 
   ~CommandObjectProcessDetach() override = default;
 
@@ -805,7 +874,6 @@ protected:
       result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
       result.AppendErrorWithFormat("Detach failed: %s\n", error.AsCString());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
     return result.Succeeded();
@@ -814,15 +882,9 @@ protected:
   CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessConnect
-//-------------------------------------------------------------------------
-
-static OptionDefinition g_process_connect_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "plugin", 'p', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePlugin, "Name of the process plugin you want to use." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_connect
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessConnect
 
@@ -830,7 +892,7 @@ class CommandObjectProcessConnect : public CommandObjectParsed {
 public:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {
+    CommandOptions() {
       // Keep default values of all options in one place: OptionParsingStarting
       // ()
       OptionParsingStarting(nullptr);
@@ -845,13 +907,11 @@ public:
 
       switch (short_option) {
       case 'p':
-        plugin_name.assign(option_arg);
+        plugin_name.assign(std::string(option_arg));
         break;
 
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -861,7 +921,7 @@ public:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_process_connect_options);
+      return llvm::ArrayRef(g_process_connect_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -872,8 +932,10 @@ public:
   CommandObjectProcessConnect(CommandInterpreter &interpreter)
       : CommandObjectParsed(interpreter, "process connect",
                             "Connect to a remote debug service.",
-                            "process connect <remote-url>", 0),
-        m_options() {}
+                            "process connect <remote-url>", 0) {
+    CommandArgumentData connect_arg{eArgTypeConnectURL, eArgRepeatPlain};
+    m_arguments.push_back({connect_arg});
+  }
 
   ~CommandObjectProcessConnect() override = default;
 
@@ -885,7 +947,6 @@ protected:
       result.AppendErrorWithFormat(
           "'%s' takes exactly one argument:\nUsage: %s\n", m_cmd_name.c_str(),
           m_cmd_syntax.c_str());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -895,7 +956,6 @@ protected:
           "Process %" PRIu64
           " is currently being debugged, kill the process before connecting.\n",
           process->GetID());
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -904,14 +964,19 @@ protected:
       plugin_name = m_options.plugin_name.c_str();
 
     Status error;
-    Debugger &debugger = m_interpreter.GetDebugger();
+    Debugger &debugger = GetDebugger();
     PlatformSP platform_sp = m_interpreter.GetPlatform(true);
-    ProcessSP process_sp = platform_sp->ConnectProcess(
-        command.GetArgumentAtIndex(0), plugin_name, debugger,
-        debugger.GetSelectedTarget().get(), error);
+    ProcessSP process_sp =
+        debugger.GetAsyncExecution()
+            ? platform_sp->ConnectProcess(
+                  command.GetArgumentAtIndex(0), plugin_name, debugger,
+                  debugger.GetSelectedTarget().get(), error)
+            : platform_sp->ConnectProcessSynchronous(
+                  command.GetArgumentAtIndex(0), plugin_name, debugger,
+                  result.GetOutputStream(), debugger.GetSelectedTarget().get(),
+                  error);
     if (error.Fail() || process_sp == nullptr) {
       result.AppendError(error.AsCString("Error connecting to the process"));
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
     return true;
@@ -920,9 +985,7 @@ protected:
   CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessPlugin
-//-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessPlugin
 
 class CommandObjectProcessPlugin : public CommandObjectProxy {
@@ -943,15 +1006,9 @@ public:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessLoad
-//-------------------------------------------------------------------------
-
-static OptionDefinition g_process_load_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_ALL, false, "install", 'i', OptionParser::eOptionalArgument, nullptr, nullptr, 0, eArgTypePath, "Install the shared library to the target. If specified without an argument then the library will installed in the current working directory." },
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_load
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessLoad
 
@@ -959,7 +1016,7 @@ class CommandObjectProcessLoad : public CommandObjectParsed {
 public:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() {
+    CommandOptions() {
       // Keep default values of all options in one place: OptionParsingStarting
       // ()
       OptionParsingStarting(nullptr);
@@ -975,12 +1032,10 @@ public:
       case 'i':
         do_install = true;
         if (!option_arg.empty())
-          install_path.SetFile(option_arg, false, FileSpec::Style::native);
+          install_path.SetFile(option_arg, FileSpec::Style::native);
         break;
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -991,7 +1046,7 @@ public:
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_process_load_options);
+      return llvm::ArrayRef(g_process_load_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -1005,10 +1060,23 @@ public:
                             "process load <filename> [<filename> ...]",
                             eCommandRequiresProcess | eCommandTryTargetAPILock |
                                 eCommandProcessMustBeLaunched |
-                                eCommandProcessMustBePaused),
-        m_options() {}
+                                eCommandProcessMustBePaused) {
+    CommandArgumentData file_arg{eArgTypePath, eArgRepeatPlus};
+    m_arguments.push_back({file_arg});
+  }
 
   ~CommandObjectProcessLoad() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (!m_exe_ctx.HasProcessScope())
+      return;
+
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
+        request, nullptr);
+  }
 
   Options *GetOptions() override { return &m_options; }
 
@@ -1019,22 +1087,24 @@ protected:
     for (auto &entry : command.entries()) {
       Status error;
       PlatformSP platform = process->GetTarget().GetPlatform();
-      llvm::StringRef image_path = entry.ref;
+      llvm::StringRef image_path = entry.ref();
       uint32_t image_token = LLDB_INVALID_IMAGE_TOKEN;
 
       if (!m_options.do_install) {
-        FileSpec image_spec(image_path, false);
+        FileSpec image_spec(image_path);
         platform->ResolveRemotePath(image_spec, image_spec);
         image_token =
             platform->LoadImage(process, FileSpec(), image_spec, error);
       } else if (m_options.install_path) {
-        FileSpec image_spec(image_path, true);
+        FileSpec image_spec(image_path);
+        FileSystem::Instance().Resolve(image_spec);
         platform->ResolveRemotePath(m_options.install_path,
                                     m_options.install_path);
         image_token = platform->LoadImage(process, image_spec,
                                           m_options.install_path, error);
       } else {
-        FileSpec image_spec(image_path, true);
+        FileSpec image_spec(image_path);
+        FileSystem::Instance().Resolve(image_spec);
         image_token =
             platform->LoadImage(process, image_spec, FileSpec(), error);
       }
@@ -1048,7 +1118,6 @@ protected:
         result.AppendErrorWithFormat("failed to load '%s': %s",
                                      image_path.str().c_str(),
                                      error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
       }
     }
     return result.Succeeded();
@@ -1057,9 +1126,7 @@ protected:
   CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessUnload
-//-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessUnload
 
 class CommandObjectProcessUnload : public CommandObjectParsed {
@@ -1071,9 +1138,30 @@ public:
             "returned by a previous call to \"process load\".",
             "process unload <index>",
             eCommandRequiresProcess | eCommandTryTargetAPILock |
-                eCommandProcessMustBeLaunched | eCommandProcessMustBePaused) {}
+                eCommandProcessMustBeLaunched | eCommandProcessMustBePaused) {
+    CommandArgumentData load_idx_arg{eArgTypeUnsignedInteger, eArgRepeatPlain};
+    m_arguments.push_back({load_idx_arg});
+  }
 
   ~CommandObjectProcessUnload() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+
+    if (request.GetCursorIndex() || !m_exe_ctx.HasProcessScope())
+      return;
+
+    Process *process = m_exe_ctx.GetProcessPtr();
+
+    const std::vector<lldb::addr_t> &tokens = process->GetImageTokens();
+    const size_t token_num = tokens.size();
+    for (size_t i = 0; i < token_num; ++i) {
+      if (tokens[i] == LLDB_INVALID_IMAGE_TOKEN)
+        continue;
+      request.TryCompleteCurrentArg(std::to_string(i));
+    }
+  }
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -1081,10 +1169,9 @@ protected:
 
     for (auto &entry : command.entries()) {
       uint32_t image_token;
-      if (entry.ref.getAsInteger(0, image_token)) {
+      if (entry.ref().getAsInteger(0, image_token)) {
         result.AppendErrorWithFormat("invalid image index argument '%s'",
-                                     entry.ref.str().c_str());
-        result.SetStatus(eReturnStatusFailed);
+                                     entry.ref().str().c_str());
         break;
       } else {
         Status error(process->GetTarget().GetPlatform()->UnloadImage(
@@ -1096,7 +1183,6 @@ protected:
         } else {
           result.AppendErrorWithFormat("failed to unload image: %s",
                                        error.AsCString());
-          result.SetStatus(eReturnStatusFailed);
           break;
         }
       }
@@ -1105,18 +1191,16 @@ protected:
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessSignal
-//-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessSignal
 
 class CommandObjectProcessSignal : public CommandObjectParsed {
 public:
   CommandObjectProcessSignal(CommandInterpreter &interpreter)
-      : CommandObjectParsed(interpreter, "process signal",
-                            "Send a UNIX signal to the current target process.",
-                            nullptr, eCommandRequiresProcess |
-                                         eCommandTryTargetAPILock) {
+      : CommandObjectParsed(
+            interpreter, "process signal",
+            "Send a UNIX signal to the current target process.", nullptr,
+            eCommandRequiresProcess | eCommandTryTargetAPILock) {
     CommandArgumentEntry arg;
     CommandArgumentData signal_arg;
 
@@ -1134,6 +1218,20 @@ public:
 
   ~CommandObjectProcessSignal() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (!m_exe_ctx.HasProcessScope() || request.GetCursorIndex() != 0)
+      return;
+
+    UnixSignalsSP signals = m_exe_ctx.GetProcessPtr()->GetUnixSignals();
+    int signo = signals->GetFirstSignalNumber();
+    while (signo != LLDB_INVALID_SIGNAL_NUMBER) {
+      request.TryCompleteCurrentArg(signals->GetSignalAsCString(signo));
+      signo = signals->GetNextSignalNumber(signo);
+    }
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     Process *process = m_exe_ctx.GetProcessPtr();
@@ -1142,16 +1240,15 @@ protected:
       int signo = LLDB_INVALID_SIGNAL_NUMBER;
 
       const char *signal_name = command.GetArgumentAtIndex(0);
-      if (::isxdigit(signal_name[0]))
-        signo =
-            StringConvert::ToSInt32(signal_name, LLDB_INVALID_SIGNAL_NUMBER, 0);
-      else
+      if (::isxdigit(signal_name[0])) {
+        if (!llvm::to_integer(signal_name, signo))
+          signo = LLDB_INVALID_SIGNAL_NUMBER;
+      } else
         signo = process->GetUnixSignals()->GetSignalNumberFromName(signal_name);
 
       if (signo == LLDB_INVALID_SIGNAL_NUMBER) {
         result.AppendErrorWithFormat("Invalid signal argument '%s'.\n",
                                      command.GetArgumentAtIndex(0));
-        result.SetStatus(eReturnStatusFailed);
       } else {
         Status error(process->Signal(signo));
         if (error.Success()) {
@@ -1159,22 +1256,18 @@ protected:
         } else {
           result.AppendErrorWithFormat("Failed to send signal %i: %s\n", signo,
                                        error.AsCString());
-          result.SetStatus(eReturnStatusFailed);
         }
       }
     } else {
       result.AppendErrorWithFormat(
           "'%s' takes exactly one signal number argument:\nUsage: %s\n",
           m_cmd_name.c_str(), m_cmd_syntax.c_str());
-      result.SetStatus(eReturnStatusFailed);
     }
     return result.Succeeded();
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessInterrupt
-//-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessInterrupt
 
 class CommandObjectProcessInterrupt : public CommandObjectParsed {
@@ -1193,32 +1286,22 @@ protected:
     Process *process = m_exe_ctx.GetProcessPtr();
     if (process == nullptr) {
       result.AppendError("no process to halt");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    if (command.GetArgumentCount() == 0) {
-      bool clear_thread_plans = true;
-      Status error(process->Halt(clear_thread_plans));
-      if (error.Success()) {
-        result.SetStatus(eReturnStatusSuccessFinishResult);
-      } else {
-        result.AppendErrorWithFormat("Failed to halt process: %s\n",
-                                     error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
-      }
+    bool clear_thread_plans = true;
+    Status error(process->Halt(clear_thread_plans));
+    if (error.Success()) {
+      result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
-      result.AppendErrorWithFormat("'%s' takes no arguments:\nUsage: %s\n",
-                                   m_cmd_name.c_str(), m_cmd_syntax.c_str());
-      result.SetStatus(eReturnStatusFailed);
+      result.AppendErrorWithFormat("Failed to halt process: %s\n",
+                                   error.AsCString());
     }
     return result.Succeeded();
   }
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessKill
-//-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessKill
 
 class CommandObjectProcessKill : public CommandObjectParsed {
@@ -1237,78 +1320,130 @@ protected:
     Process *process = m_exe_ctx.GetProcessPtr();
     if (process == nullptr) {
       result.AppendError("no process to kill");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
-    if (command.GetArgumentCount() == 0) {
-      Status error(process->Destroy(true));
-      if (error.Success()) {
-        result.SetStatus(eReturnStatusSuccessFinishResult);
-      } else {
-        result.AppendErrorWithFormat("Failed to kill process: %s\n",
-                                     error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
-      }
+    Status error(process->Destroy(true));
+    if (error.Success()) {
+      result.SetStatus(eReturnStatusSuccessFinishResult);
     } else {
-      result.AppendErrorWithFormat("'%s' takes no arguments:\nUsage: %s\n",
-                                   m_cmd_name.c_str(), m_cmd_syntax.c_str());
-      result.SetStatus(eReturnStatusFailed);
+      result.AppendErrorWithFormat("Failed to kill process: %s\n",
+                                   error.AsCString());
     }
     return result.Succeeded();
   }
 };
 
-//-------------------------------------------------------------------------
-// CommandObjectProcessSaveCore
-//-------------------------------------------------------------------------
-#pragma mark CommandObjectProcessSaveCore
+#define LLDB_OPTIONS_process_save_core
+#include "CommandOptions.inc"
 
 class CommandObjectProcessSaveCore : public CommandObjectParsed {
 public:
   CommandObjectProcessSaveCore(CommandInterpreter &interpreter)
-      : CommandObjectParsed(interpreter, "process save-core",
-                            "Save the current process as a core file using an "
-                            "appropriate file type.",
-                            "process save-core FILE",
-                            eCommandRequiresProcess | eCommandTryTargetAPILock |
-                                eCommandProcessMustBeLaunched) {}
+      : CommandObjectParsed(
+            interpreter, "process save-core",
+            "Save the current process as a core file using an "
+            "appropriate file type.",
+            "process save-core [-s corefile-style -p plugin-name] FILE",
+            eCommandRequiresProcess | eCommandTryTargetAPILock |
+                eCommandProcessMustBeLaunched) {
+    CommandArgumentData file_arg{eArgTypePath, eArgRepeatPlain};
+    m_arguments.push_back({file_arg});
+  }
 
   ~CommandObjectProcessSaveCore() override = default;
+
+  Options *GetOptions() override { return &m_options; }
+
+  class CommandOptions : public Options {
+  public:
+    CommandOptions() = default;
+
+    ~CommandOptions() override = default;
+
+    llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
+      return llvm::ArrayRef(g_process_save_core_options);
+    }
+
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
+                          ExecutionContext *execution_context) override {
+      const int short_option = m_getopt_table[option_idx].val;
+      Status error;
+
+      switch (short_option) {
+      case 'p':
+        m_requested_plugin_name = option_arg.str();
+        break;
+      case 's':
+        m_requested_save_core_style =
+            (lldb::SaveCoreStyle)OptionArgParser::ToOptionEnum(
+                option_arg, GetDefinitions()[option_idx].enum_values,
+                eSaveCoreUnspecified, error);
+        break;
+      default:
+        llvm_unreachable("Unimplemented option");
+      }
+
+      return {};
+    }
+
+    void OptionParsingStarting(ExecutionContext *execution_context) override {
+      m_requested_save_core_style = eSaveCoreUnspecified;
+      m_requested_plugin_name.clear();
+    }
+
+    // Instance variables to hold the values for command options.
+    SaveCoreStyle m_requested_save_core_style = eSaveCoreUnspecified;
+    std::string m_requested_plugin_name;
+  };
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     ProcessSP process_sp = m_exe_ctx.GetProcessSP();
     if (process_sp) {
       if (command.GetArgumentCount() == 1) {
-        FileSpec output_file(command.GetArgumentAtIndex(0), false);
-        Status error = PluginManager::SaveCore(process_sp, output_file);
+        FileSpec output_file(command.GetArgumentAtIndex(0));
+        SaveCoreStyle corefile_style = m_options.m_requested_save_core_style;
+        Status error =
+            PluginManager::SaveCore(process_sp, output_file, corefile_style,
+                                    m_options.m_requested_plugin_name);
         if (error.Success()) {
+          if (corefile_style == SaveCoreStyle::eSaveCoreDirtyOnly ||
+              corefile_style == SaveCoreStyle::eSaveCoreStackOnly) {
+            result.AppendMessageWithFormat(
+                "\nModified-memory or stack-memory only corefile "
+                "created.  This corefile may \n"
+                "not show library/framework/app binaries "
+                "on a different system, or when \n"
+                "those binaries have "
+                "been updated/modified. Copies are not included\n"
+                "in this corefile.  Use --style full to include all "
+                "process memory.\n");
+          }
           result.SetStatus(eReturnStatusSuccessFinishResult);
         } else {
           result.AppendErrorWithFormat(
               "Failed to save core file for process: %s\n", error.AsCString());
-          result.SetStatus(eReturnStatusFailed);
         }
       } else {
         result.AppendErrorWithFormat("'%s' takes one arguments:\nUsage: %s\n",
                                      m_cmd_name.c_str(), m_cmd_syntax.c_str());
-        result.SetStatus(eReturnStatusFailed);
       }
     } else {
       result.AppendError("invalid process");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
     return result.Succeeded();
   }
+
+  CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessStatus
-//-------------------------------------------------------------------------
 #pragma mark CommandObjectProcessStatus
+#define LLDB_OPTIONS_process_status
+#include "CommandOptions.inc"
 
 class CommandObjectProcessStatus : public CommandObjectParsed {
 public:
@@ -1321,9 +1456,46 @@ public:
 
   ~CommandObjectProcessStatus() override = default;
 
+  Options *GetOptions() override { return &m_options; }
+
+  class CommandOptions : public Options {
+  public:
+    CommandOptions() = default;
+
+    ~CommandOptions() override = default;
+
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
+                          ExecutionContext *execution_context) override {
+      const int short_option = m_getopt_table[option_idx].val;
+
+      switch (short_option) {
+      case 'v':
+        m_verbose = true;
+        break;
+      default:
+        llvm_unreachable("Unimplemented option");
+      }
+
+      return {};
+    }
+
+    void OptionParsingStarting(ExecutionContext *execution_context) override {
+      m_verbose = false;
+    }
+
+    llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
+      return llvm::ArrayRef(g_process_status_options);
+    }
+
+    // Instance variables to hold the values for command options.
+    bool m_verbose = false;
+  };
+
+protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     Stream &strm = result.GetOutputStream();
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
+
     // No need to check "process" for validity as eCommandRequiresProcess
     // ensures it is valid
     Process *process = m_exe_ctx.GetProcessPtr();
@@ -1331,25 +1503,57 @@ public:
     const uint32_t start_frame = 0;
     const uint32_t num_frames = 1;
     const uint32_t num_frames_with_source = 1;
-    const bool     stop_format = true;
+    const bool stop_format = true;
     process->GetStatus(strm);
     process->GetThreadStatus(strm, only_threads_with_stop_reason, start_frame,
                              num_frames, num_frames_with_source, stop_format);
+
+    if (m_options.m_verbose) {
+      addr_t code_mask = process->GetCodeAddressMask();
+      addr_t data_mask = process->GetDataAddressMask();
+      if (code_mask != 0) {
+        int bits = std::bitset<64>(~code_mask).count();
+        result.AppendMessageWithFormat(
+            "Addressable code address mask: 0x%" PRIx64 "\n", code_mask);
+        result.AppendMessageWithFormat(
+            "Addressable data address mask: 0x%" PRIx64 "\n", data_mask);
+        result.AppendMessageWithFormat(
+            "Number of bits used in addressing (code): %d\n", bits);
+      }
+
+      PlatformSP platform_sp = process->GetTarget().GetPlatform();
+      if (!platform_sp) {
+        result.AppendError("Couldn'retrieve the target's platform");
+        return result.Succeeded();
+      }
+
+      auto expected_crash_info =
+          platform_sp->FetchExtendedCrashInformation(*process);
+
+      if (!expected_crash_info) {
+        result.AppendError(llvm::toString(expected_crash_info.takeError()));
+        return result.Succeeded();
+      }
+
+      StructuredData::DictionarySP crash_info_sp = *expected_crash_info;
+
+      if (crash_info_sp) {
+        strm.EOL();
+        strm.PutCString("Extended Crash Information:\n");
+        crash_info_sp->GetDescription(strm);
+      }
+    }
+
     return result.Succeeded();
   }
+
+private:
+  CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
 // CommandObjectProcessHandle
-//-------------------------------------------------------------------------
-
-static OptionDefinition g_process_handle_options[] = {
-    // clang-format off
-  { LLDB_OPT_SET_1, false, "stop",   's', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the process should be stopped if the signal is received." },
-  { LLDB_OPT_SET_1, false, "notify", 'n', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the debugger should notify the user if the signal is received." },
-  { LLDB_OPT_SET_1, false, "pass",   'p', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "Whether or not the signal should be passed to the process." }
-    // clang-format on
-};
+#define LLDB_OPTIONS_process_handle
+#include "CommandOptions.inc"
 
 #pragma mark CommandObjectProcessHandle
 
@@ -1357,7 +1561,7 @@ class CommandObjectProcessHandle : public CommandObjectParsed {
 public:
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() { OptionParsingStarting(nullptr); }
+    CommandOptions() { OptionParsingStarting(nullptr); }
 
     ~CommandOptions() override = default;
 
@@ -1367,19 +1571,26 @@ public:
       const int short_option = m_getopt_table[option_idx].val;
 
       switch (short_option) {
+      case 'c':
+        do_clear = true;
+        break;
+      case 'd':
+        dummy = true;
+        break;
       case 's':
-        stop = option_arg;
+        stop = std::string(option_arg);
         break;
       case 'n':
-        notify = option_arg;
+        notify = std::string(option_arg);
         break;
       case 'p':
-        pass = option_arg;
+        pass = std::string(option_arg);
+        break;
+      case 't':
+        only_target_values = true;
         break;
       default:
-        error.SetErrorStringWithFormat("invalid short option character '%c'",
-                                       short_option);
-        break;
+        llvm_unreachable("Unimplemented option");
       }
       return error;
     }
@@ -1388,10 +1599,13 @@ public:
       stop.clear();
       notify.clear();
       pass.clear();
+      only_target_values = false;
+      do_clear = false;
+      dummy = false;
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_process_handle_options);
+      return llvm::ArrayRef(g_process_handle_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -1399,6 +1613,9 @@ public:
     std::string stop;
     std::string notify;
     std::string pass;
+    bool only_target_values = false;
+    bool do_clear = false;
+    bool dummy = false;
   };
 
   CommandObjectProcessHandle(CommandInterpreter &interpreter)
@@ -1406,10 +1623,19 @@ public:
                             "Manage LLDB handling of OS signals for the "
                             "current target process.  Defaults to showing "
                             "current policy.",
-                            nullptr),
-        m_options() {
-    SetHelpLong("\nIf no signals are specified, update them all.  If no update "
-                "option is specified, list the current values.");
+                            nullptr) {
+    SetHelpLong("\nIf no signals are specified but one or more actions are, "
+                "and there is a live process, update them all.  If no action "
+                "is specified, list the current values.\n"
+                "If you specify actions with no target (e.g. in an init file) "
+                "or in a target with no process "
+                "the values will get copied into subsequent targets, but "
+                "lldb won't be able to spell-check the options since it can't "
+                "know which signal set will later be in force."
+                "\nYou can see the signal modifications held by the target"
+                "by passing the -t option."
+                "\nYou can also clear the target modification for a signal"
+                "by passing the -c option");
     CommandArgumentEntry arg;
     CommandArgumentData signal_arg;
 
@@ -1436,7 +1662,8 @@ public:
       real_value = 0;
     else {
       // If the value isn't 'true' or 'false', it had better be 0 or 1.
-      real_value = StringConvert::ToUInt32(option.c_str(), 3);
+      if (!llvm::to_integer(option, real_value))
+        real_value = 3;
       if (real_value != 0 && real_value != 1)
         okay = false;
     }
@@ -1491,24 +1718,13 @@ public:
 
 protected:
   bool DoExecute(Args &signal_args, CommandReturnObject &result) override {
-    TargetSP target_sp = m_interpreter.GetDebugger().GetSelectedTarget();
+    Target &target = GetSelectedOrDummyTarget();
 
-    if (!target_sp) {
-      result.AppendError("No current target;"
-                         " cannot handle signals until you have a valid target "
-                         "and process.\n");
-      result.SetStatus(eReturnStatusFailed);
-      return false;
-    }
-
-    ProcessSP process_sp = target_sp->GetProcessSP();
-
-    if (!process_sp) {
-      result.AppendError("No current process; cannot handle signals until you "
-                         "have a valid process.\n");
-      result.SetStatus(eReturnStatusFailed);
-      return false;
-    }
+    // Any signals that are being set should be added to the Target's
+    // DummySignals so they will get applied on rerun, etc.
+    // If we have a process, however, we can do a more accurate job of vetting
+    // the user's options.
+    ProcessSP process_sp = target.GetProcessSP();
 
     int stop_action = -1;   // -1 means leave the current setting alone
     int pass_action = -1;   // -1 means leave the current setting alone
@@ -1518,7 +1734,6 @@ protected:
         !VerifyCommandOptionValue(m_options.stop, stop_action)) {
       result.AppendError("Invalid argument for command option --stop; must be "
                          "true or false.\n");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -1526,7 +1741,6 @@ protected:
         !VerifyCommandOptionValue(m_options.notify, notify_action)) {
       result.AppendError("Invalid argument for command option --notify; must "
                          "be true or false.\n");
-      result.SetStatus(eReturnStatusFailed);
       return false;
     }
 
@@ -1534,38 +1748,101 @@ protected:
         !VerifyCommandOptionValue(m_options.pass, pass_action)) {
       result.AppendError("Invalid argument for command option --pass; must be "
                          "true or false.\n");
-      result.SetStatus(eReturnStatusFailed);
+      return false;
+    }
+
+    bool no_actions = (stop_action == -1 && pass_action == -1
+        && notify_action == -1);
+    if (m_options.only_target_values && !no_actions) {
+      result.AppendError("-t is for reporting, not setting, target values.");
       return false;
     }
 
     size_t num_args = signal_args.GetArgumentCount();
-    UnixSignalsSP signals_sp = process_sp->GetUnixSignals();
+    UnixSignalsSP signals_sp;
+    if (process_sp)
+      signals_sp = process_sp->GetUnixSignals();
+
     int num_signals_set = 0;
 
+    // If we were just asked to print the target values, do that here and
+    // return:
+    if (m_options.only_target_values) {
+      target.PrintDummySignals(result.GetOutputStream(), signal_args);
+      result.SetStatus(eReturnStatusSuccessFinishResult);
+      return true;
+    }
+
+    // This handles clearing values:
+    if (m_options.do_clear) {
+      target.ClearDummySignals(signal_args);
+      if (m_options.dummy)
+        GetDummyTarget().ClearDummySignals(signal_args);
+      result.SetStatus(eReturnStatusSuccessFinishNoResult);
+      return true;
+    }
+
+    // This rest handles setting values:
     if (num_args > 0) {
       for (const auto &arg : signal_args) {
-        int32_t signo = signals_sp->GetSignalNumberFromName(arg.c_str());
-        if (signo != LLDB_INVALID_SIGNAL_NUMBER) {
-          // Casting the actions as bools here should be okay, because
-          // VerifyCommandOptionValue guarantees the value is either 0 or 1.
-          if (stop_action != -1)
-            signals_sp->SetShouldStop(signo, stop_action);
-          if (pass_action != -1) {
-            bool suppress = !pass_action;
-            signals_sp->SetShouldSuppress(signo, suppress);
+        // Do the process first.  If we have a process we can catch
+        // invalid signal names, which we do here.
+        if (signals_sp) {
+          int32_t signo = signals_sp->GetSignalNumberFromName(arg.c_str());
+          if (signo != LLDB_INVALID_SIGNAL_NUMBER) {
+            // Casting the actions as bools here should be okay, because
+            // VerifyCommandOptionValue guarantees the value is either 0 or 1.
+            if (stop_action != -1)
+              signals_sp->SetShouldStop(signo, stop_action);
+            if (pass_action != -1) {
+              bool suppress = !pass_action;
+              signals_sp->SetShouldSuppress(signo, suppress);
+            }
+            if (notify_action != -1)
+              signals_sp->SetShouldNotify(signo, notify_action);
+            ++num_signals_set;
+          } else {
+            result.AppendErrorWithFormat("Invalid signal name '%s'\n",
+                                          arg.c_str());
+            continue;
           }
-          if (notify_action != -1)
-            signals_sp->SetShouldNotify(signo, notify_action);
-          ++num_signals_set;
         } else {
-          result.AppendErrorWithFormat("Invalid signal name '%s'\n",
-                                       arg.c_str());
+          // If there's no process we can't check, so we just set them all.
+          // But since the map signal name -> signal number across all platforms
+          // is not 1-1, we can't sensibly set signal actions by number before
+          // we have a process.  Check that here:
+          int32_t signo;
+          if (llvm::to_integer(arg.c_str(), signo)) {
+            result.AppendErrorWithFormat("Can't set signal handling by signal "
+                                         "number with no process");
+            return false;
+          }
+         num_signals_set = num_args;
         }
+        auto set_lazy_bool = [] (int action) -> LazyBool {
+          LazyBool lazy;
+          if (action == -1)
+            lazy = eLazyBoolCalculate;
+          else if (action)
+            lazy = eLazyBoolYes;
+          else
+            lazy = eLazyBoolNo;
+          return lazy;
+        };
+
+        // If there were no actions, we're just listing, don't add the dummy:
+        if (!no_actions)
+          target.AddDummySignal(arg.ref(),
+                                set_lazy_bool(pass_action),
+                                set_lazy_bool(notify_action),
+                                set_lazy_bool(stop_action));
       }
     } else {
       // No signal specified, if any command options were specified, update ALL
-      // signals.
-      if ((notify_action != -1) || (stop_action != -1) || (pass_action != -1)) {
+      // signals.  But we can't do this without a process since we don't know
+      // all the possible signals that might be valid for this target.
+      if (((notify_action != -1) || (stop_action != -1) || (pass_action != -1))
+          && process_sp) {
         if (m_interpreter.Confirm(
                 "Do you really want to update all the signals?", false)) {
           int32_t signo = signals_sp->GetFirstSignalNumber();
@@ -1584,11 +1861,15 @@ protected:
       }
     }
 
-    PrintSignalInformation(result.GetOutputStream(), signal_args,
-                           num_signals_set, signals_sp);
+    if (signals_sp)
+      PrintSignalInformation(result.GetOutputStream(), signal_args,
+                             num_signals_set, signals_sp);
+    else
+      target.PrintDummySignals(result.GetOutputStream(),
+          signal_args);
 
     if (num_signals_set > 0)
-      result.SetStatus(eReturnStatusSuccessFinishNoResult);
+      result.SetStatus(eReturnStatusSuccessFinishResult);
     else
       result.SetStatus(eReturnStatusFailed);
 
@@ -1598,9 +1879,72 @@ protected:
   CommandOptions m_options;
 };
 
-//-------------------------------------------------------------------------
+// Next are the subcommands of CommandObjectMultiwordProcessTrace
+
+// CommandObjectProcessTraceStart
+class CommandObjectProcessTraceStart : public CommandObjectTraceProxy {
+public:
+  CommandObjectProcessTraceStart(CommandInterpreter &interpreter)
+      : CommandObjectTraceProxy(
+            /*live_debug_session_only*/ true, interpreter,
+            "process trace start",
+            "Start tracing this process with the corresponding trace "
+            "plug-in.",
+            "process trace start [<trace-options>]") {}
+
+protected:
+  lldb::CommandObjectSP GetDelegateCommand(Trace &trace) override {
+    return trace.GetProcessTraceStartCommand(m_interpreter);
+  }
+};
+
+// CommandObjectProcessTraceStop
+class CommandObjectProcessTraceStop : public CommandObjectParsed {
+public:
+  CommandObjectProcessTraceStop(CommandInterpreter &interpreter)
+      : CommandObjectParsed(interpreter, "process trace stop",
+                            "Stop tracing this process. This does not affect "
+                            "traces started with the "
+                            "\"thread trace start\" command.",
+                            "process trace stop",
+                            eCommandRequiresProcess | eCommandTryTargetAPILock |
+                                eCommandProcessMustBeLaunched |
+                                eCommandProcessMustBePaused |
+                                eCommandProcessMustBeTraced) {}
+
+  ~CommandObjectProcessTraceStop() override = default;
+
+  bool DoExecute(Args &command, CommandReturnObject &result) override {
+    ProcessSP process_sp = m_exe_ctx.GetProcessSP();
+
+    TraceSP trace_sp = process_sp->GetTarget().GetTrace();
+
+    if (llvm::Error err = trace_sp->Stop())
+      result.AppendError(toString(std::move(err)));
+    else
+      result.SetStatus(eReturnStatusSuccessFinishResult);
+
+    return result.Succeeded();
+  }
+};
+
+// CommandObjectMultiwordProcessTrace
+class CommandObjectMultiwordProcessTrace : public CommandObjectMultiword {
+public:
+  CommandObjectMultiwordProcessTrace(CommandInterpreter &interpreter)
+      : CommandObjectMultiword(
+            interpreter, "trace", "Commands for tracing the current process.",
+            "process trace <subcommand> [<subcommand objects>]") {
+    LoadSubCommand("start", CommandObjectSP(new CommandObjectProcessTraceStart(
+                                interpreter)));
+    LoadSubCommand("stop", CommandObjectSP(
+                               new CommandObjectProcessTraceStop(interpreter)));
+  }
+
+  ~CommandObjectMultiwordProcessTrace() override = default;
+};
+
 // CommandObjectMultiwordProcess
-//-------------------------------------------------------------------------
 
 CommandObjectMultiwordProcess::CommandObjectMultiwordProcess(
     CommandInterpreter &interpreter)
@@ -1636,6 +1980,9 @@ CommandObjectMultiwordProcess::CommandObjectMultiwordProcess(
                  CommandObjectSP(new CommandObjectProcessPlugin(interpreter)));
   LoadSubCommand("save-core", CommandObjectSP(new CommandObjectProcessSaveCore(
                                   interpreter)));
+  LoadSubCommand(
+      "trace",
+      CommandObjectSP(new CommandObjectMultiwordProcessTrace(interpreter)));
 }
 
 CommandObjectMultiwordProcess::~CommandObjectMultiwordProcess() = default;

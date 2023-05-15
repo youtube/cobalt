@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,8 +13,10 @@
 // REQUIRES: locale.en_US.UTF-8
 
 #include <iomanip>
+#include <istream>
 #include <cassert>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
 template <class CharT>
@@ -38,10 +39,14 @@ public:
     }
 };
 
-int main()
+int main(int, char**)
 {
     {
+#if defined(_WIN32)
+        testbuf<char> sb("  ($1,234,567.89)");
+#else
         testbuf<char> sb("  -$1,234,567.89");
+#endif
         std::istream is(&sb);
         is.imbue(std::locale(LOCALE_en_US_UTF_8));
         long double x = 0;
@@ -49,15 +54,24 @@ int main()
         assert(x == -123456789);
     }
     {
+#if defined(_WIN32)
+        testbuf<char> sb("  (USD 1,234,567.89)");
+#else
         testbuf<char> sb("  -USD 1,234,567.89");
+#endif
         std::istream is(&sb);
         is.imbue(std::locale(LOCALE_en_US_UTF_8));
         long double x = 0;
         is >> std::get_money(x, true);
         assert(x == -123456789);
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
+#if defined(_WIN32)
+        testbuf<wchar_t> sb(L"  ($1,234,567.89)");
+#else
         testbuf<wchar_t> sb(L"  -$1,234,567.89");
+#endif
         std::wistream is(&sb);
         is.imbue(std::locale(LOCALE_en_US_UTF_8));
         long double x = 0;
@@ -65,11 +79,18 @@ int main()
         assert(x == -123456789);
     }
     {
+#if defined(_WIN32)
+        testbuf<wchar_t> sb(L"  (USD 1,234,567.89)");
+#else
         testbuf<wchar_t> sb(L"  -USD 1,234,567.89");
+#endif
         std::wistream is(&sb);
         is.imbue(std::locale(LOCALE_en_US_UTF_8));
         long double x = 0;
         is >> std::get_money(x, true);
         assert(x == -123456789);
     }
+#endif
+
+  return 0;
 }

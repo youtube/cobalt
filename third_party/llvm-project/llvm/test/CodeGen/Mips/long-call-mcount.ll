@@ -1,12 +1,12 @@
 ; Check call to mcount in case of long/short call options.
 ; RUN: llc -march=mips -target-abi o32 --mattr=+long-calls,+noabicalls < %s \
-; RUN:   | FileCheck -check-prefixes=CHECK,LONG %s
+; RUN:   -mips-jalr-reloc=false | FileCheck -check-prefixes=CHECK,LONG %s
 ; RUN: llc -march=mips -target-abi o32 --mattr=-long-calls,+noabicalls < %s \
-; RUN:   | FileCheck -check-prefixes=CHECK,SHORT %s
+; RUN:   -mips-jalr-reloc=false | FileCheck -check-prefixes=CHECK,SHORT %s
 
-; Function Attrs: noinline nounwind optnone
-define void @foo() #0 {
+define void @foo() {
 entry:
+  call void @_mcount()
   ret void
 
 ; CHECK-LABEL: foo
@@ -16,4 +16,4 @@ entry:
 ; SHORT:         jal     _mcount
 }
 
-attributes #0 = { "instrument-function-entry-inlined"="_mcount" }
+declare void @_mcount()

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,6 +18,8 @@ public:
     explicit A(int id) : id_(id) {++count;}
     A(const A& a) : id_(a.id_) {++count;}
     virtual ~A() {assert(id_ >= 0); id_ = -1; --count;}
+
+    A& operator=(const A& other) { id_ = other.id_; return *this; }
 
     static int count;
 };
@@ -38,4 +39,4 @@ public:
 
 int B::count = 0;
 
-#endif  // AB_H
+#endif // AB_H

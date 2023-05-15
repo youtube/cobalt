@@ -1,9 +1,8 @@
 //===- CompilationDatabase.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -65,16 +64,14 @@ std::unique_ptr<CompilationDatabase>
 CompilationDatabase::loadFromDirectory(StringRef BuildDirectory,
                                        std::string &ErrorMessage) {
   llvm::raw_string_ostream ErrorStream(ErrorMessage);
-  for (CompilationDatabasePluginRegistry::iterator
-       It = CompilationDatabasePluginRegistry::begin(),
-       Ie = CompilationDatabasePluginRegistry::end();
-       It != Ie; ++It) {
+  for (const CompilationDatabasePluginRegistry::entry &Database :
+       CompilationDatabasePluginRegistry::entries()) {
     std::string DatabaseErrorMessage;
-    std::unique_ptr<CompilationDatabasePlugin> Plugin(It->instantiate());
+    std::unique_ptr<CompilationDatabasePlugin> Plugin(Database.instantiate());
     if (std::unique_ptr<CompilationDatabase> DB =
             Plugin->loadFromDirectory(BuildDirectory, DatabaseErrorMessage))
       return DB;
-    ErrorStream << It->getName() << ": " << DatabaseErrorMessage << "\n";
+    ErrorStream << Database.getName() << ": " << DatabaseErrorMessage << "\n";
   }
   return nullptr;
 }
@@ -165,7 +162,7 @@ private:
     case driver::Action::InputClass:
       if (Collect) {
         const auto *IA = cast<driver::InputAction>(A);
-        Inputs.push_back(IA->getInputArg().getSpelling());
+        Inputs.push_back(std::string(IA->getInputArg().getSpelling()));
       }
       break;
 
@@ -202,21 +199,24 @@ public:
   SmallVector<std::string, 2> UnusedInputs;
 };
 
-// Unary functor for asking "Given a StringRef S1, does there exist a string
-// S2 in Arr where S1 == S2?"
-struct MatchesAny {
-  MatchesAny(ArrayRef<std::string> Arr) : Arr(Arr) {}
-
+// Filter of tools unused flags such as -no-integrated-as and -Wa,*.
+// They are not used for syntax checking, and could confuse targets
+// which don't support these options.
+struct FilterUnusedFlags {
   bool operator() (StringRef S) {
-    for (const std::string *I = Arr.begin(), *E = Arr.end(); I != E; ++I)
-      if (*I == S)
-        return true;
-    return false;
+    return (S == "-no-integrated-as") || S.startswith("-Wa,");
   }
-
-private:
-  ArrayRef<std::string> Arr;
 };
+
+std::string GetClangToolCommand() {
+  static int Dummy;
+  std::string ClangExecutable =
+      llvm::sys::fs::getMainExecutable("clang", (void *)&Dummy);
+  SmallString<128> ClangToolPath;
+  ClangToolPath = llvm::sys::path::parent_path(ClangExecutable);
+  llvm::sys::path::append(ClangToolPath, "clang-tool");
+  return std::string(ClangToolPath.str());
+}
 
 } // namespace
 
@@ -257,9 +257,10 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
       Diagnostics));
   NewDriver->setCheckInputsExist(false);
 
-  // This becomes the new argv[0]. The value is actually not important as it
-  // isn't used for invoking Tools.
-  Args.insert(Args.begin(), "clang-tool");
+  // This becomes the new argv[0]. The value is used to detect libc++ include
+  // dirs on Mac, it isn't used for other platforms.
+  std::string Argv0 = GetClangToolCommand();
+  Args.insert(Args.begin(), Argv0.c_str());
 
   // By adding -c, we force the driver to treat compilation as the last phase.
   // It will then issue warnings via Diagnostics about un-used options that
@@ -275,11 +276,7 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
   // up with no jobs but then this is the user's fault.
   Args.push_back("placeholder.cpp");
 
-  // Remove -no-integrated-as; it's not used for syntax checking,
-  // and it confuses targets which don't support this option.
-  Args.erase(std::remove_if(Args.begin(), Args.end(),
-                            MatchesAny(std::string("-no-integrated-as"))),
-             Args.end());
+  llvm::erase_if(Args, FilterUnusedFlags());
 
   const std::unique_ptr<driver::Compilation> Compilation(
       NewDriver->BuildCompilation(Args));
@@ -291,9 +288,11 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
   CompileJobAnalyzer CompileAnalyzer;
 
   for (const auto &Cmd : Jobs) {
-    // Collect only for Assemble and Compile jobs. If we do all jobs we get
-    // duplicates since Link jobs point to Assemble jobs as inputs.
+    // Collect only for Assemble, Backend, and Compile jobs. If we do all jobs
+    // we get duplicates since Link jobs point to Assemble jobs as inputs.
+    // -flto* flags make the BackendJobClass, which still needs analyzer.
     if (Cmd.getSource().getKind() == driver::Action::AssembleJobClass ||
+        Cmd.getSource().getKind() == driver::Action::BackendJobClass ||
         Cmd.getSource().getKind() == driver::Action::CompileJobClass) {
       CompileAnalyzer.run(&Cmd.getSource());
     }
@@ -304,15 +303,14 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
     return false;
   }
 
-  // Remove all compilation input files from the command line. This is
-  // necessary so that getCompileCommands() can construct a command line for
-  // each file.
-  std::vector<const char *>::iterator End = std::remove_if(
-      Args.begin(), Args.end(), MatchesAny(CompileAnalyzer.Inputs));
-
-  // Remove all inputs deemed unused for compilation.
-  End = std::remove_if(Args.begin(), End, MatchesAny(DiagClient.UnusedInputs));
-
+  // Remove all compilation input files from the command line and inputs deemed
+  // unused for compilation. This is necessary so that getCompileCommands() can
+  // construct a command line for each file.
+  std::vector<const char *>::iterator End =
+      llvm::remove_if(Args, [&](StringRef S) {
+        return llvm::is_contained(CompileAnalyzer.Inputs, S) ||
+               llvm::is_contained(DiagClient.UnusedInputs, S);
+      });
   // Remove the -c add above as well. It will be at the end right now.
   assert(strcmp(*(End - 1), "-c") == 0);
   --End;
@@ -325,7 +323,7 @@ std::unique_ptr<FixedCompilationDatabase>
 FixedCompilationDatabase::loadFromCommandLine(int &Argc,
                                               const char *const *Argv,
                                               std::string &ErrorMsg,
-                                              Twine Directory) {
+                                              const Twine &Directory) {
   ErrorMsg.clear();
   if (Argc == 0)
     return nullptr;
@@ -338,7 +336,7 @@ FixedCompilationDatabase::loadFromCommandLine(int &Argc,
   std::vector<std::string> StrippedArgs;
   if (!stripPositionalArgs(CommandLine, StrippedArgs, ErrorMsg))
     return nullptr;
-  return llvm::make_unique<FixedCompilationDatabase>(Directory, StrippedArgs);
+  return std::make_unique<FixedCompilationDatabase>(Directory, StrippedArgs);
 }
 
 std::unique_ptr<FixedCompilationDatabase>
@@ -350,15 +348,29 @@ FixedCompilationDatabase::loadFromFile(StringRef Path, std::string &ErrorMsg) {
     ErrorMsg = "Error while opening fixed database: " + Result.message();
     return nullptr;
   }
-  std::vector<std::string> Args{llvm::line_iterator(**File),
-                                llvm::line_iterator()};
-  return llvm::make_unique<FixedCompilationDatabase>(
-      llvm::sys::path::parent_path(Path), std::move(Args));
+  return loadFromBuffer(llvm::sys::path::parent_path(Path),
+                        (*File)->getBuffer(), ErrorMsg);
 }
 
-FixedCompilationDatabase::
-FixedCompilationDatabase(Twine Directory, ArrayRef<std::string> CommandLine) {
-  std::vector<std::string> ToolCommandLine(1, "clang-tool");
+std::unique_ptr<FixedCompilationDatabase>
+FixedCompilationDatabase::loadFromBuffer(StringRef Directory, StringRef Data,
+                                         std::string &ErrorMsg) {
+  ErrorMsg.clear();
+  std::vector<std::string> Args;
+  StringRef Line;
+  while (!Data.empty()) {
+    std::tie(Line, Data) = Data.split('\n');
+    // Stray whitespace is almost certainly unintended.
+    Line = Line.trim();
+    if (!Line.empty())
+      Args.push_back(Line.str());
+  }
+  return std::make_unique<FixedCompilationDatabase>(Directory, std::move(Args));
+}
+
+FixedCompilationDatabase::FixedCompilationDatabase(
+    const Twine &Directory, ArrayRef<std::string> CommandLine) {
+  std::vector<std::string> ToolCommandLine(1, GetClangToolCommand());
   ToolCommandLine.insert(ToolCommandLine.end(),
                          CommandLine.begin(), CommandLine.end());
   CompileCommands.emplace_back(Directory, StringRef(),
@@ -369,8 +381,8 @@ FixedCompilationDatabase(Twine Directory, ArrayRef<std::string> CommandLine) {
 std::vector<CompileCommand>
 FixedCompilationDatabase::getCompileCommands(StringRef FilePath) const {
   std::vector<CompileCommand> Result(CompileCommands);
-  Result[0].CommandLine.push_back(FilePath);
-  Result[0].Filename = FilePath;
+  Result[0].CommandLine.push_back(std::string(FilePath));
+  Result[0].Filename = std::string(FilePath);
   return Result;
 }
 

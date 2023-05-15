@@ -1,13 +1,10 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// UNSUPPORTED: libcpp-has-no-threads
 
 // <atomic>
 
@@ -59,14 +56,10 @@
 
 #include "test_macros.h"
 
-int main()
+int main(int, char**)
 {
     {
         volatile std::atomic<bool> obj(true);
-        assert(obj == true);
-        std::atomic_init(&obj, false);
-        assert(obj == false);
-        std::atomic_init(&obj, true);
         assert(obj == true);
         bool b0 = obj.is_lock_free();
         (void)b0; // to placate scan-build
@@ -119,10 +112,6 @@ int main()
     {
         std::atomic<bool> obj(true);
         assert(obj == true);
-        std::atomic_init(&obj, false);
-        assert(obj == false);
-        std::atomic_init(&obj, true);
-        assert(obj == true);
         bool b0 = obj.is_lock_free();
         (void)b0; // to placate scan-build
         obj.store(false);
@@ -173,10 +162,6 @@ int main()
     }
     {
         std::atomic_bool obj(true);
-        assert(obj == true);
-        std::atomic_init(&obj, false);
-        assert(obj == false);
-        std::atomic_init(&obj, true);
         assert(obj == true);
         bool b0 = obj.is_lock_free();
         (void)b0; // to placate scan-build
@@ -233,4 +218,6 @@ int main()
         assert(zero == false);
         zero.~A();
     }
+
+  return 0;
 }

@@ -3,7 +3,7 @@
 
 // This test checks that values stored in task_data in a barrier_begin event
 // are still present in the corresponding barrier_end event.
-// Therefore, callback implementations different from the ones in callback.h are neccessary.
+// Therefore, callback implementations different from the ones in callback.h are necessary.
 // This is a test for an issue reported in 
 // https://github.com/OpenMPToolsInterface/LLVM-openmp/issues/39
 
@@ -12,9 +12,9 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <omp.h>
-#include <ompt.h>
+#include <omp-tools.h>
 
-static const char* ompt_thread_type_t_values[] = {
+static const char* ompt_thread_t_values[] = {
   NULL,
   "ompt_thread_initial",
   "ompt_thread_worker",
@@ -59,18 +59,18 @@ int main()
 
 static void
 on_ompt_callback_thread_begin(
-  ompt_thread_type_t thread_type,
+  ompt_thread_t thread_type,
   ompt_data_t *thread_data)
 {
   if(thread_data->ptr)
     printf("%s\n", "0: thread_data initially not null");
   thread_data->value = ompt_get_unique_id();
-  printf("%" PRIu64 ": ompt_event_thread_begin: thread_type=%s=%d, thread_id=%" PRIu64 "\n", ompt_get_thread_data()->value, ompt_thread_type_t_values[thread_type], thread_type, thread_data->value);
+  printf("%" PRIu64 ": ompt_event_thread_begin: thread_type=%s=%d, thread_id=%" PRIu64 "\n", ompt_get_thread_data()->value, ompt_thread_t_values[thread_type], thread_type, thread_data->value);
 }
 
 static void
 on_ompt_callback_sync_region(
-  ompt_sync_region_kind_t kind,
+  ompt_sync_region_t kind,
   ompt_scope_endpoint_t endpoint,
   ompt_data_t *parallel_data,
   ompt_data_t *task_data,
@@ -80,19 +80,22 @@ on_ompt_callback_sync_region(
   {
     case ompt_scope_begin:
       task_data->value = ompt_get_unique_id();
-      if(kind == ompt_sync_region_barrier)
+      if (kind == ompt_sync_region_barrier_implicit)
         printf("%" PRIu64 ": ompt_event_barrier_begin: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, parallel_data->value, task_data->value, codeptr_ra);
       break;
     case ompt_scope_end:
-      if(kind == ompt_sync_region_barrier)
+      if (kind == ompt_sync_region_barrier_implicit)
         printf("%" PRIu64 ": ompt_event_barrier_end: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, (parallel_data)?parallel_data->value:0, task_data->value, codeptr_ra);
       break;
+    case ompt_scope_beginend:
+      printf("ompt_scope_beginend should never be passed to %s\n", __func__);
+      exit(-1);
   }
 }
 
 static void
 on_ompt_callback_sync_region_wait(
-  ompt_sync_region_kind_t kind,
+  ompt_sync_region_t kind,
   ompt_scope_endpoint_t endpoint,
   ompt_data_t *parallel_data,
   ompt_data_t *task_data,
@@ -101,17 +104,24 @@ on_ompt_callback_sync_region_wait(
   switch(endpoint)
   {
     case ompt_scope_begin:
-      if(kind == ompt_sync_region_barrier)
-          printf("%" PRIu64 ": ompt_event_wait_barrier_begin: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, parallel_data->value, task_data->value, codeptr_ra);
+      if (kind == ompt_sync_region_barrier_implicit)
+        printf("%" PRIu64
+               ": ompt_event_wait_barrier_begin: parallel_id=%" PRIu64
+               ", task_id=%" PRIu64 ", codeptr_ra=%p\n",
+               ompt_get_thread_data()->value, parallel_data->value,
+               task_data->value, codeptr_ra);
       break;
     case ompt_scope_end:
-      if(kind == ompt_sync_region_barrier)
+      if (kind == ompt_sync_region_barrier_implicit)
         printf("%" PRIu64 ": ompt_event_wait_barrier_end: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, (parallel_data)?parallel_data->value:0, task_data->value, codeptr_ra);
       break;
+    case ompt_scope_beginend:
+      printf("ompt_scope_beginend should never be passed to %s\n", __func__);
+      exit(-1);
   }
 }
 
-#define register_callback_t(name, type)                       \
+#define register_ompt_callback_t(name, type)                       \
 do{                                                           \
   type f_##name = &on_##name;                                 \
   if (ompt_set_callback(name, (ompt_callback_t)f_##name) ==   \
@@ -119,19 +129,17 @@ do{                                                           \
     printf("0: Could not register callback '" #name "'\n");   \
 }while(0)
 
-#define register_callback(name) register_callback_t(name, name##_t)
+#define register_ompt_callback(name) register_ompt_callback_t(name, name##_t)
 
-int ompt_initialize(
-  ompt_function_lookup_t lookup,
-  ompt_data_t *tool_data)
-{
+int ompt_initialize(ompt_function_lookup_t lookup, int initial_device_num,
+                    ompt_data_t *tool_data) {
   ompt_set_callback_t ompt_set_callback;
   ompt_set_callback = (ompt_set_callback_t) lookup("ompt_set_callback");
   ompt_get_unique_id = (ompt_get_unique_id_t) lookup("ompt_get_unique_id");
   ompt_get_thread_data = (ompt_get_thread_data_t) lookup("ompt_get_thread_data");
-  register_callback(ompt_callback_sync_region);
-  register_callback_t(ompt_callback_sync_region_wait, ompt_callback_sync_region_t);
-  register_callback(ompt_callback_thread_begin);
+  register_ompt_callback(ompt_callback_sync_region);
+  register_ompt_callback_t(ompt_callback_sync_region_wait, ompt_callback_sync_region_t);
+  register_ompt_callback(ompt_callback_thread_begin);
   printf("0: NULL_POINTER=%p\n", (void*)NULL);
   return 1; //success
 }

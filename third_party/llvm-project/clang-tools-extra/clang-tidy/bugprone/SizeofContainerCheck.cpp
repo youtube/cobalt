@@ -1,9 +1,8 @@
 //===--- SizeofContainerCheck.cpp - clang-tidy-----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,9 +12,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace bugprone {
+namespace clang::tidy::bugprone {
 
 void SizeofContainerCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(
@@ -29,7 +26,7 @@ void SizeofContainerCheck::registerMatchers(MatchFinder *Finder) {
                .bind("sizeof"),
            // Ignore ARRAYSIZE(<array of containers>) pattern.
            unless(hasAncestor(binaryOperator(
-               anyOf(hasOperatorName("/"), hasOperatorName("%")),
+               hasAnyOperatorName("/", "%"),
                hasLHS(ignoringParenCasts(sizeOfExpr(expr()))),
                hasRHS(ignoringParenCasts(equalsBoundNode("sizeof"))))))),
       this);
@@ -40,10 +37,8 @@ void SizeofContainerCheck::check(const MatchFinder::MatchResult &Result) {
       Result.Nodes.getNodeAs<UnaryExprOrTypeTraitExpr>("sizeof");
 
   auto Diag =
-      diag(SizeOf->getLocStart(), "sizeof() doesn't return the size of the "
+      diag(SizeOf->getBeginLoc(), "sizeof() doesn't return the size of the "
                                   "container; did you mean .size()?");
 }
 
-} // namespace bugprone
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::bugprone

@@ -1,43 +1,41 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 #include <unordered_set>
 #include <unordered_map>
 #include <set>
 #include <map>
+#include "test_macros.h"
 #include "min_allocator.h"
-
-using namespace std;
 
 // [container.node.overview] Table 83.
 template <class K, class T, class C1, class C2, class H1, class H2, class E1, class E2, class A_set, class A_map>
 struct node_compatibility_table
 {
     static constexpr bool value =
-        is_same_v<typename map<K, T, C1, A_map>::node_type,               typename map<K, T, C2, A_map>::node_type> &&
-        is_same_v<typename map<K, T, C1, A_map>::node_type,               typename multimap<K, T, C2, A_map>::node_type> &&
-        is_same_v<typename set<K, C1, A_set>::node_type,                  typename set<K, C2, A_set>::node_type> &&
-        is_same_v<typename set<K, C1, A_set>::node_type,                  typename multiset<K, C2, A_set>::node_type> &&
-        is_same_v<typename unordered_map<K, T, H1, E1, A_map>::node_type, typename unordered_map<K, T, H2, E2, A_map>::node_type> &&
-        is_same_v<typename unordered_map<K, T, H1, E1, A_map>::node_type, typename unordered_multimap<K, T, H2, E2, A_map>::node_type> &&
-        is_same_v<typename unordered_set<K, H1, E1, A_set>::node_type,    typename unordered_set<K, H2, E2, A_set>::node_type> &&
-        is_same_v<typename unordered_set<K, H1, E1, A_set>::node_type,    typename unordered_multiset<K, H2, E2, A_set>::node_type>;
+        std::is_same_v<typename std::map<K, T, C1, A_map>::node_type,               typename std::map<K, T, C2, A_map>::node_type> &&
+        std::is_same_v<typename std::map<K, T, C1, A_map>::node_type,               typename std::multimap<K, T, C2, A_map>::node_type> &&
+        std::is_same_v<typename std::set<K, C1, A_set>::node_type,                  typename std::set<K, C2, A_set>::node_type> &&
+        std::is_same_v<typename std::set<K, C1, A_set>::node_type,                  typename std::multiset<K, C2, A_set>::node_type> &&
+        std::is_same_v<typename std::unordered_map<K, T, H1, E1, A_map>::node_type, typename std::unordered_map<K, T, H2, E2, A_map>::node_type> &&
+        std::is_same_v<typename std::unordered_map<K, T, H1, E1, A_map>::node_type, typename std::unordered_multimap<K, T, H2, E2, A_map>::node_type> &&
+        std::is_same_v<typename std::unordered_set<K, H1, E1, A_set>::node_type,    typename std::unordered_set<K, H2, E2, A_set>::node_type> &&
+        std::is_same_v<typename std::unordered_set<K, H1, E1, A_set>::node_type,    typename std::unordered_multiset<K, H2, E2, A_set>::node_type>;
 };
 
 template <class T> struct my_hash
 {
     using argument_type = T;
-    using result_type = size_t;
+    using result_type = std::size_t;
     my_hash() = default;
-    size_t operator()(const T&) const {return 0;}
+    std::size_t operator()(const T&) const {return 0;}
 };
 
 template <class T> struct my_compare
@@ -66,9 +64,9 @@ namespace std
 template <> struct hash<Static>
 {
     using argument_type = Static;
-    using result_type = size_t;
+    using result_type = std::size_t;
     hash() = default;
-    size_t operator()(const Static&) const;
+    std::size_t operator()(const Static&) const;
 };
 }
 
@@ -82,8 +80,8 @@ static_assert(node_compatibility_table<
 static_assert(
     node_compatibility_table<int, int, std::less<int>, my_compare<int>,
                              std::hash<int>, my_hash<int>, std::equal_to<int>,
-                             my_equal<int>, allocator<int>,
-                             allocator<std::pair<const int, int>>>::value,
+                             my_equal<int>, std::allocator<int>,
+                             std::allocator<std::pair<const int, int>>>::value,
     "");
 
 static_assert(node_compatibility_table<
@@ -121,13 +119,15 @@ void test_node_handle_operations_multi()
     assert(nt2.empty());
 }
 
+template <class> void test_typedef() {}
+
 template <class Container>
 void test_insert_return_type()
 {
-    using irt_type = typename Container::insert_return_type;
+    test_typedef<typename Container::insert_return_type>();
 }
 
-int main()
+int main(int, char**)
 {
     test_node_handle_operations<std::map<int, int>>();
     test_node_handle_operations_multi<std::multimap<int, int>>();
@@ -142,4 +142,6 @@ int main()
     test_insert_return_type<std::set<int>>();
     test_insert_return_type<std::unordered_map<int, int>>();
     test_insert_return_type<std::unordered_set<int>>();
+
+  return 0;
 }

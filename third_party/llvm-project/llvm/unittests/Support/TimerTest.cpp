@@ -1,9 +1,8 @@
 //===- unittests/TimerTest.cpp - Timer tests ------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -46,7 +45,7 @@ TEST(Timer, Additivity) {
   T1.stopTimer();
   auto TR2 = T1.getTotalTime();
 
-  EXPECT_TRUE(TR1 < TR2);
+  EXPECT_LT(TR1, TR2);
 }
 
 TEST(Timer, CheckIfTriggered) {

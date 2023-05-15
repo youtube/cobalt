@@ -11,9 +11,9 @@ target triple = "powerpc64-unknown-linux-gnu"
 
 define signext i32 @test_external() nounwind {
 entry:
-  %0 = load i32, i32* @a, align 4
+  %0 = load i32, ptr @a, align 4
   %inc = add nsw i32 %0, 1
-  store i32 %inc, i32* @a, align 4
+  store i32 %inc, ptr @a, align 4
   ret i32 %0
 }
 
@@ -21,7 +21,9 @@ entry:
 ; CHECK: addis [[REG1:[0-9]+]], 2, .LC[[TOCNUM:[0-9]+]]@toc@ha
 ; CHECK: ld [[REG2:[0-9]+]], .LC[[TOCNUM]]@toc@l([[REG1]])
 ; CHECK: lwz {{[0-9]+}}, 0([[REG2]])
-; CHECK: stw {{[0-9]+}}, 0([[REG2]])
+; CHECK: addis [[REG3:[0-9]+]], 2, .LC[[TOCNUM]]@toc@ha
+; CHECK: ld [[REG4:[0-9]+]], .LC[[TOCNUM]]@toc@l([[REG3]])
+; CHECK: stw {{[0-9]+}}, 0([[REG4]])
 ; CHECK: .section .toc
 ; CHECK: .LC[[TOCNUM]]:
 ; CHECK: .tc {{[a-z0-9A-Z_.]+}}[TC],{{[a-z0-9A-Z_.]+}}

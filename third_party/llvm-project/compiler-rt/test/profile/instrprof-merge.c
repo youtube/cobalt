@@ -2,15 +2,19 @@
 // RUN: %run %t %t.profraw 1 1
 // RUN: llvm-profdata show --all-functions --counts %t.profraw  | FileCheck %s
 
+// FIXME: llvm-profdata exits with "Malformed instrumentation profile data"
+// XFAIL: target={{.*msvc.*}}
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "profile_test.h"
 
 int __llvm_profile_runtime = 0;
 uint64_t __llvm_profile_get_size_for_buffer(void);
 int __llvm_profile_write_buffer(char *);
 void __llvm_profile_reset_counters(void);
-void __llvm_profile_merge_from_buffer(const char *, uint64_t);
+int __llvm_profile_merge_from_buffer(const char *, uint64_t);
 
 int dumpBuffer(const char *FileN, const char *Buffer, uint64_t Size) {
   FILE *File = fopen(FileN, "w");
@@ -38,7 +42,7 @@ int main(int argc, const char *argv[]) {
     return 1;
 
   const uint64_t MaxSize = 10000;
-  static char Buffer[MaxSize];
+  static ALIGNED(sizeof(uint64_t)) char Buffer[MaxSize];
 
   uint64_t Size = __llvm_profile_get_size_for_buffer();
   if (Size > MaxSize)
@@ -86,8 +90,8 @@ int main(int argc, const char *argv[]) {
 // Not profiled
 // CHECK-LABEL:  bar:
 // CHECK:         Counters: 1
-// CHECK-NEXT     Function count: 0
-// CHECK-NEXT     Block counts: []
+// CHECK-NEXT:    Function count: 0
+// CHECK-NEXT:    Block counts: []
 
 // Not profiled
 // CHECK-LABEL:  main:

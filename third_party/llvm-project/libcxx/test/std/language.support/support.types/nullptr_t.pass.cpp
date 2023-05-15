@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -52,30 +51,18 @@ void test_comparisons()
     assert(!(nullptr != p));
 }
 
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wnull-conversion"
-#endif
+TEST_DIAGNOSTIC_PUSH
+TEST_CLANG_DIAGNOSTIC_IGNORED("-Wnull-conversion")
 void test_nullptr_conversions() {
-// GCC does not accept this due to CWG Defect #1423
-// http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_defects.html#1423
-#if defined(__clang__)
-    {
-        bool b = nullptr;
-        assert(!b);
-    }
-#endif
     {
         bool b(nullptr);
         assert(!b);
     }
 }
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
+TEST_DIAGNOSTIC_POP
 
 
-int main()
+int main(int, char**)
 {
     static_assert(sizeof(std::nullptr_t) == sizeof(void*),
                   "sizeof(std::nullptr_t) == sizeof(void*)");
@@ -89,14 +76,9 @@ int main()
         test_conversions<int A::*>();
     }
     {
-#ifdef _LIBCPP_HAS_NO_NULLPTR
+        // TODO: Enable this assertion when GCC compilers implements http://wg21.link/CWG583.
+#if !defined(TEST_COMPILER_GCC)
         static_assert(!has_less<std::nullptr_t>::value, "");
-        // FIXME: our C++03 nullptr emulation still allows for comparisons
-        // with other pointer types by way of the conversion operator.
-        //static_assert(!has_less<void*>::value, "");
-#else
-        // TODO Enable this assertion when all compilers implement core DR 583.
-        // static_assert(!has_less<std::nullptr_t>::value, "");
 #endif
         test_comparisons<std::nullptr_t>();
         test_comparisons<void*>();
@@ -104,4 +86,6 @@ int main()
         test_comparisons<void(*)()>();
     }
     test_nullptr_conversions();
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===-- LoopSink.cpp - Loop Sink Pass -------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -32,24 +31,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/LoopSink.h"
+#include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/AliasSetTracker.h"
-#include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/Analysis/BlockFrequencyInfo.h"
-#include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/MemorySSA.h"
+#include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Metadata.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Scalar/LoopPassManager.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 using namespace llvm;
 
@@ -172,17 +169,16 @@ findBBsToSinkInto(const Loop &L, const SmallPtrSetImpl<BasicBlock *> &UseBBs,
 // sinking is successful.
 // \p LoopBlockNumber is used to sort the insertion blocks to ensure
 // determinism.
-static bool sinkInstruction(Loop &L, Instruction &I,
-                            const SmallVectorImpl<BasicBlock *> &ColdLoopBBs,
-                            const SmallDenseMap<BasicBlock *, int, 16> &LoopBlockNumber,
-                            LoopInfo &LI, DominatorTree &DT,
-                            BlockFrequencyInfo &BFI) {
+static bool sinkInstruction(
+    Loop &L, Instruction &I, const SmallVectorImpl<BasicBlock *> &ColdLoopBBs,
+    const SmallDenseMap<BasicBlock *, int, 16> &LoopBlockNumber, LoopInfo &LI,
+    DominatorTree &DT, BlockFrequencyInfo &BFI, MemorySSAUpdater *MSSAU) {
   // Compute the set of blocks in loop L which contain a use of I.
   SmallPtrSet<BasicBlock *, 2> BBs;
   for (auto &U : I.uses()) {
     Instruction *UI = cast<Instruction>(U.getUser());
     // We cannot sink I to PHI-uses.
-    if (dyn_cast<PHINode>(UI))
+    if (isa<PHINode>(UI))
       return false;
     // We cannot sink I if it has uses outside of the loop.
     if (!L.contains(LI.getLoopFor(UI->getParent())))
@@ -202,22 +198,24 @@ static bool sinkInstruction(Loop &L, Instruction &I,
   if (BBsToSinkInto.empty())
     return false;
 
+  // Return if any of the candidate blocks to sink into is non-cold.
+  if (BBsToSinkInto.size() > 1 &&
+      !llvm::set_is_subset(BBsToSinkInto, LoopBlockNumber))
+    return false;
+
   // Copy the final BBs into a vector and sort them using the total ordering
   // of the loop block numbers as iterating the set doesn't give a useful
   // order. No need to stable sort as the block numbers are a total ordering.
   SmallVector<BasicBlock *, 2> SortedBBsToSinkInto;
-  SortedBBsToSinkInto.insert(SortedBBsToSinkInto.begin(), BBsToSinkInto.begin(),
-                             BBsToSinkInto.end());
-  llvm::sort(SortedBBsToSinkInto.begin(), SortedBBsToSinkInto.end(),
-             [&](BasicBlock *A, BasicBlock *B) {
-               return LoopBlockNumber.find(A)->second <
-                      LoopBlockNumber.find(B)->second;
-             });
+  llvm::append_range(SortedBBsToSinkInto, BBsToSinkInto);
+  llvm::sort(SortedBBsToSinkInto, [&](BasicBlock *A, BasicBlock *B) {
+    return LoopBlockNumber.find(A)->second < LoopBlockNumber.find(B)->second;
+  });
 
   BasicBlock *MoveBB = *SortedBBsToSinkInto.begin();
   // FIXME: Optimize the efficiency for cloned value replacement. The current
   //        implementation is O(SortedBBsToSinkInto.size() * I.num_uses()).
-  for (BasicBlock *N : makeArrayRef(SortedBBsToSinkInto).drop_front(1)) {
+  for (BasicBlock *N : ArrayRef(SortedBBsToSinkInto).drop_front(1)) {
     assert(LoopBlockNumber.find(N)->second >
                LoopBlockNumber.find(MoveBB)->second &&
            "BBs not sorted!");
@@ -225,13 +223,25 @@ static bool sinkInstruction(Loop &L, Instruction &I,
     Instruction *IC = I.clone();
     IC->setName(I.getName());
     IC->insertBefore(&*N->getFirstInsertionPt());
-    // Replaces uses of I with IC in N
-    for (Value::use_iterator UI = I.use_begin(), UE = I.use_end(); UI != UE;) {
-      Use &U = *UI++;
-      auto *I = cast<Instruction>(U.getUser());
-      if (I->getParent() == N)
-        U.set(IC);
+
+    if (MSSAU && MSSAU->getMemorySSA()->getMemoryAccess(&I)) {
+      // Create a new MemoryAccess and let MemorySSA set its defining access.
+      MemoryAccess *NewMemAcc =
+          MSSAU->createMemoryAccessInBB(IC, nullptr, N, MemorySSA::Beginning);
+      if (NewMemAcc) {
+        if (auto *MemDef = dyn_cast<MemoryDef>(NewMemAcc))
+          MSSAU->insertDef(MemDef, /*RenameUses=*/true);
+        else {
+          auto *MemUse = cast<MemoryUse>(NewMemAcc);
+          MSSAU->insertUse(MemUse, /*RenameUses=*/true);
+        }
+      }
     }
+
+    // Replaces uses of I with IC in N
+    I.replaceUsesWithIf(IC, [N](Use &U) {
+      return cast<Instruction>(U.getUser())->getParent() == N;
+    });
     // Replaces uses of I with IC in blocks dominated by N
     replaceDominatedUsesWith(&I, IC, DT, N);
     LLVM_DEBUG(dbgs() << "Sinking a clone of " << I << " To: " << N->getName()
@@ -242,6 +252,11 @@ static bool sinkInstruction(Loop &L, Instruction &I,
   NumLoopSunk++;
   I.moveBefore(&*MoveBB->getFirstInsertionPt());
 
+  if (MSSAU)
+    if (MemoryUseOrDef *OldMemAcc = cast_or_null<MemoryUseOrDef>(
+            MSSAU->getMemorySSA()->getMemoryAccess(&I)))
+      MSSAU->moveToPlace(OldMemAcc, MoveBB, MemorySSA::Beginning);
+
   return true;
 }
 
@@ -250,15 +265,13 @@ static bool sinkInstruction(Loop &L, Instruction &I,
 static bool sinkLoopInvariantInstructions(Loop &L, AAResults &AA, LoopInfo &LI,
                                           DominatorTree &DT,
                                           BlockFrequencyInfo &BFI,
+                                          MemorySSA &MSSA,
                                           ScalarEvolution *SE) {
   BasicBlock *Preheader = L.getLoopPreheader();
-  if (!Preheader)
-    return false;
+  assert(Preheader && "Expected loop to have preheader");
 
-  // Enable LoopSink only when runtime profile is available.
-  // With static profile, the sinking decision may be sub-optimal.
-  if (!Preheader->getParent()->hasProfileData())
-    return false;
+  assert(Preheader->getParent()->hasProfileData() &&
+         "Unexpected call when profile data unavailable.");
 
   const BlockFrequency PreheaderFreq = BFI.getBlockFreq(Preheader);
   // If there are no basic blocks with lower frequency than the preheader then
@@ -269,12 +282,10 @@ static bool sinkLoopInvariantInstructions(Loop &L, AAResults &AA, LoopInfo &LI,
       }))
     return false;
 
-  bool Changed = false;
-  AliasSetTracker CurAST(AA);
+  MemorySSAUpdater MSSAU(&MSSA);
+  SinkAndHoistLICMFlags LICMFlags(/*IsSink=*/true, &L, &MSSA);
 
-  // Compute alias set.
-  for (BasicBlock *BB : L.blocks())
-    CurAST.add(*BB);
+  bool Changed = false;
 
   // Sort loop's basic blocks by frequency
   SmallVector<BasicBlock *, 10> ColdLoopBBs;
@@ -285,27 +296,29 @@ static bool sinkLoopInvariantInstructions(Loop &L, AAResults &AA, LoopInfo &LI,
       ColdLoopBBs.push_back(B);
       LoopBlockNumber[B] = ++i;
     }
-  std::stable_sort(ColdLoopBBs.begin(), ColdLoopBBs.end(),
-                   [&](BasicBlock *A, BasicBlock *B) {
-                     return BFI.getBlockFreq(A) < BFI.getBlockFreq(B);
-                   });
+  llvm::stable_sort(ColdLoopBBs, [&](BasicBlock *A, BasicBlock *B) {
+    return BFI.getBlockFreq(A) < BFI.getBlockFreq(B);
+  });
 
-  // Traverse preheader's instructions in reverse order becaue if A depends
-  // on B (A appears after B), A needs to be sinked first before B can be
+  // Traverse preheader's instructions in reverse order because if A depends
+  // on B (A appears after B), A needs to be sunk first before B can be
   // sinked.
-  for (auto II = Preheader->rbegin(), E = Preheader->rend(); II != E;) {
-    Instruction *I = &*II++;
-    // No need to check for instruction's operands are loop invariant.
-    assert(L.hasLoopInvariantOperands(I) &&
-           "Insts in a loop's preheader should have loop invariant operands!");
-    if (!canSinkOrHoistInst(*I, &AA, &DT, &L, &CurAST, nullptr))
+  for (Instruction &I : llvm::make_early_inc_range(llvm::reverse(*Preheader))) {
+    if (isa<PHINode>(&I))
       continue;
-    if (sinkInstruction(L, *I, ColdLoopBBs, LoopBlockNumber, LI, DT, BFI))
+    // No need to check for instruction's operands are loop invariant.
+    assert(L.hasLoopInvariantOperands(&I) &&
+           "Insts in a loop's preheader should have loop invariant operands!");
+    if (!canSinkOrHoistInst(I, &AA, &DT, &L, MSSAU, false, LICMFlags))
+      continue;
+    if (sinkInstruction(L, I, ColdLoopBBs, LoopBlockNumber, LI, DT, BFI,
+                        &MSSAU)) {
       Changed = true;
+      if (SE)
+        SE->forgetBlockAndLoopDispositions(&I);
+    }
   }
 
-  if (Changed && SE)
-    SE->forgetLoopDispositions(&L);
   return Changed;
 }
 
@@ -318,6 +331,7 @@ PreservedAnalyses LoopSinkPass::run(Function &F, FunctionAnalysisManager &FAM) {
   AAResults &AA = FAM.getResult<AAManager>(F);
   DominatorTree &DT = FAM.getResult<DominatorTreeAnalysis>(F);
   BlockFrequencyInfo &BFI = FAM.getResult<BlockFrequencyAnalysis>(F);
+  MemorySSA &MSSA = FAM.getResult<MemorySSAAnalysis>(F).getMSSA();
 
   // We want to do a postorder walk over the loops. Since loops are a tree this
   // is equivalent to a reversed preorder walk and preorder is easy to compute
@@ -330,10 +344,19 @@ PreservedAnalyses LoopSinkPass::run(Function &F, FunctionAnalysisManager &FAM) {
   do {
     Loop &L = *PreorderLoops.pop_back_val();
 
+    BasicBlock *Preheader = L.getLoopPreheader();
+    if (!Preheader)
+      continue;
+
+    // Enable LoopSink only when runtime profile is available.
+    // With static profile, the sinking decision may be sub-optimal.
+    if (!Preheader->getParent()->hasProfileData())
+      continue;
+
     // Note that we don't pass SCEV here because it is only used to invalidate
     // loops in SCEV and we don't preserve (or request) SCEV at all making that
     // unnecessary.
-    Changed |= sinkLoopInvariantInstructions(L, AA, LI, DT, BFI,
+    Changed |= sinkLoopInvariantInstructions(L, AA, LI, DT, BFI, MSSA,
                                              /*ScalarEvolution*/ nullptr);
   } while (!PreorderLoops.empty());
 
@@ -342,6 +365,11 @@ PreservedAnalyses LoopSinkPass::run(Function &F, FunctionAnalysisManager &FAM) {
 
   PreservedAnalyses PA;
   PA.preserveSet<CFGAnalyses>();
+  PA.preserve<MemorySSAAnalysis>();
+
+  if (VerifyMemorySSA)
+    MSSA.verifyMemorySSA();
+
   return PA;
 }
 
@@ -356,19 +384,36 @@ struct LegacyLoopSinkPass : public LoopPass {
     if (skipLoop(L))
       return false;
 
+    BasicBlock *Preheader = L->getLoopPreheader();
+    if (!Preheader)
+      return false;
+
+    // Enable LoopSink only when runtime profile is available.
+    // With static profile, the sinking decision may be sub-optimal.
+    if (!Preheader->getParent()->hasProfileData())
+      return false;
+
+    AAResults &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
+    MemorySSA &MSSA = getAnalysis<MemorySSAWrapperPass>().getMSSA();
     auto *SE = getAnalysisIfAvailable<ScalarEvolutionWrapperPass>();
-    return sinkLoopInvariantInstructions(
-        *L, getAnalysis<AAResultsWrapperPass>().getAAResults(),
-        getAnalysis<LoopInfoWrapperPass>().getLoopInfo(),
+    bool Changed = sinkLoopInvariantInstructions(
+        *L, AA, getAnalysis<LoopInfoWrapperPass>().getLoopInfo(),
         getAnalysis<DominatorTreeWrapperPass>().getDomTree(),
         getAnalysis<BlockFrequencyInfoWrapperPass>().getBFI(),
-        SE ? &SE->getSE() : nullptr);
+        MSSA, SE ? &SE->getSE() : nullptr);
+
+    if (VerifyMemorySSA)
+      MSSA.verifyMemorySSA();
+
+    return Changed;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesCFG();
     AU.addRequired<BlockFrequencyInfoWrapperPass>();
     getLoopAnalysisUsage(AU);
+    AU.addRequired<MemorySSAWrapperPass>();
+    AU.addPreserved<MemorySSAWrapperPass>();
   }
 };
 }
@@ -378,6 +423,7 @@ INITIALIZE_PASS_BEGIN(LegacyLoopSinkPass, "loop-sink", "Loop Sink", false,
                       false)
 INITIALIZE_PASS_DEPENDENCY(LoopPass)
 INITIALIZE_PASS_DEPENDENCY(BlockFrequencyInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(MemorySSAWrapperPass)
 INITIALIZE_PASS_END(LegacyLoopSinkPass, "loop-sink", "Loop Sink", false, false)
 
 Pass *llvm::createLoopSinkPass() { return new LegacyLoopSinkPass(); }

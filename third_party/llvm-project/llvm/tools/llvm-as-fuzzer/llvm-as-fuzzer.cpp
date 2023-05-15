@@ -1,9 +1,8 @@
-//===--- fuzz-llvm-as.cpp - Fuzzer for llvm-as using lib/Fuzzer -----------===//
+//===-- llvm-as-fuzzer.cpp - Fuzzer for llvm-as using lib/Fuzzer ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,8 +19,8 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <csetjmp>
 
@@ -31,7 +30,7 @@ static jmp_buf JmpBuf;
 
 namespace {
 
-void MyFatalErrorHandler(void *user_data, const std::string& reason,
+void MyFatalErrorHandler(void *user_data, const char *reason,
                          bool gen_crash_diag) {
   // Don't bother printing reason, just return to the test function,
   // since a fatal error represents a successful parse (i.e. it correctly
@@ -71,6 +70,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
   if (!M.get())
     return 0;
 
-  verifyModule(*M.get());
+  if (verifyModule(*M.get(), &errs()))
+    report_fatal_error("Broken module");
   return 0;
 }

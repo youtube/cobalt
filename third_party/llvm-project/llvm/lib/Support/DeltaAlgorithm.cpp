@@ -1,9 +1,8 @@
 //===--- DeltaAlgorithm.cpp - A Set Minimization Algorithm -----*- C++ -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/DeltaAlgorithm.h"
@@ -12,8 +11,7 @@
 #include <set>
 using namespace llvm;
 
-DeltaAlgorithm::~DeltaAlgorithm() {
-}
+DeltaAlgorithm::~DeltaAlgorithm() = default;
 
 bool DeltaAlgorithm::GetTestResult(const changeset_ty &Changes) {
   if (FailedTestsCache.count(Changes))
@@ -58,9 +56,8 @@ DeltaAlgorithm::Delta(const changeset_ty &Changes,
 
   // Otherwise, partition the sets if possible; if not we are done.
   changesetlist_ty SplitSets;
-  for (changesetlist_ty::const_iterator it = Sets.begin(),
-         ie = Sets.end(); it != ie; ++it)
-    Split(*it, SplitSets);
+  for (const changeset_ty &Set : Sets)
+    Split(Set, SplitSets);
   if (SplitSets.size() == Sets.size())
     return Changes;
 

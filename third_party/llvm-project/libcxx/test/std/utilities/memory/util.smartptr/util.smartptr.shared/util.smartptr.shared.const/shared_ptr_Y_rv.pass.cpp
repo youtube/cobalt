@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <memory>
 
@@ -17,6 +16,7 @@
 
 #include <memory>
 #include <type_traits>
+#include <utility>
 #include <cassert>
 
 #include "test_macros.h"
@@ -38,7 +38,7 @@ struct A
     static int count;
 
     A() {++count;}
-    A(const A&) {++count;}
+    A(const A& other) : B(other) {++count;}
     ~A() {--count;}
 };
 
@@ -55,7 +55,7 @@ struct C
 
 int C::count = 0;
 
-int main()
+int main(int, char**)
 {
     static_assert(( std::is_convertible<std::shared_ptr<A>, std::shared_ptr<B> >::value), "");
     static_assert((!std::is_convertible<std::shared_ptr<B>, std::shared_ptr<A> >::value), "");
@@ -97,7 +97,7 @@ int main()
         assert(B::count == 0);
         assert(A::count == 0);
         {
-            std::shared_ptr<B> pB(pA);
+            std::shared_ptr<B> pB(std::move(pA));
             assert(B::count == 0);
             assert(A::count == 0);
             assert(pB.use_count() == 0);
@@ -110,4 +110,31 @@ int main()
     }
     assert(B::count == 0);
     assert(A::count == 0);
+
+#if TEST_STD_VER > 14
+    {
+        std::shared_ptr<A[]> p1;
+        assert(p1.use_count() == 0);
+        assert(A::count == 0);
+        {
+            std::shared_ptr<const A[]> p2(p1);
+            assert(A::count == 0);
+            assert(p2.use_count() == 0);
+            assert(p1.use_count() == 0);
+            assert(p1.get() == p2.get());
+        }
+        assert(p1.use_count() == 0);
+        assert(A::count == 0);
+    }
+    assert(A::count == 0);
+#endif
+
+    {
+        std::shared_ptr<A const> pA(new A);
+        B const* p = pA.get();
+        std::shared_ptr<B const> pB(std::move(pA));
+        assert(pB.get() == p);
+    }
+
+  return 0;
 }

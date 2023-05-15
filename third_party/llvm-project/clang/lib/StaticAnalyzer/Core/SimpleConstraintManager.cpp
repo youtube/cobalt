@@ -1,9 +1,8 @@
 //== SimpleConstraintManager.cpp --------------------------------*- C++ -*--==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include <optional>
 
 namespace clang {
 
@@ -23,11 +23,11 @@ namespace ento {
 
 SimpleConstraintManager::~SimpleConstraintManager() {}
 
-ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef State,
-                                                DefinedSVal Cond,
-                                                bool Assumption) {
+ProgramStateRef SimpleConstraintManager::assumeInternal(ProgramStateRef State,
+                                                        DefinedSVal Cond,
+                                                        bool Assumption) {
   // If we have a Loc value, cast it to a bool NonLoc first.
-  if (Optional<Loc> LV = Cond.getAs<Loc>()) {
+  if (std::optional<Loc> LV = Cond.getAs<Loc>()) {
     SValBuilder &SVB = State->getStateManager().getSValBuilder();
     QualType T;
     const MemRegion *MR = LV->getAsRegion();
@@ -45,8 +45,8 @@ ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef State,
 ProgramStateRef SimpleConstraintManager::assume(ProgramStateRef State,
                                                 NonLoc Cond, bool Assumption) {
   State = assumeAux(State, Cond, Assumption);
-  if (NotifyAssumeClients && SU)
-    return SU->processAssume(State, Cond, Assumption);
+  if (EE)
+    return EE->processAssume(State, Cond, Assumption);
   return State;
 }
 
@@ -58,7 +58,7 @@ ProgramStateRef SimpleConstraintManager::assumeAux(ProgramStateRef State,
   // SymIntExprs.
   if (!canReasonAbout(Cond)) {
     // Just add the constraint to the expression without trying to simplify.
-    SymbolRef Sym = Cond.getAsSymExpr();
+    SymbolRef Sym = Cond.getAsSymbol();
     assert(Sym);
     return assumeSymUnsupported(State, Sym, Assumption);
   }
@@ -87,12 +87,12 @@ ProgramStateRef SimpleConstraintManager::assumeAux(ProgramStateRef State,
   }
 
   case nonloc::LocAsIntegerKind:
-    return assume(State, Cond.castAs<nonloc::LocAsInteger>().getLoc(),
-                  Assumption);
+    return assumeInternal(State, Cond.castAs<nonloc::LocAsInteger>().getLoc(),
+                          Assumption);
   } // end switch
 }
 
-ProgramStateRef SimpleConstraintManager::assumeInclusiveRange(
+ProgramStateRef SimpleConstraintManager::assumeInclusiveRangeInternal(
     ProgramStateRef State, NonLoc Value, const llvm::APSInt &From,
     const llvm::APSInt &To, bool InRange) {
 
@@ -102,7 +102,7 @@ ProgramStateRef SimpleConstraintManager::assumeInclusiveRange(
 
   if (!canReasonAbout(Value)) {
     // Just add the constraint to the expression without trying to simplify.
-    SymbolRef Sym = Value.getAsSymExpr();
+    SymbolRef Sym = Value.getAsSymbol();
     assert(Sym);
     return assumeSymInclusiveRange(State, Sym, From, To, InRange);
   }

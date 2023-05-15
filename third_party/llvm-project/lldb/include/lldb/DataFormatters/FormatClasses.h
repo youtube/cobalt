@@ -1,28 +1,23 @@
 //===-- FormatClasses.h -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_FormatClasses_h_
-#define lldb_FormatClasses_h_
+#ifndef LLDB_DATAFORMATTERS_FORMATCLASSES_H
+#define LLDB_DATAFORMATTERS_FORMATCLASSES_H
 
-// C Includes
-// C++ Includes
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/DataFormatters/TypeFormat.h"
 #include "lldb/DataFormatters/TypeSummary.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
-#include "lldb/DataFormatters/TypeValidator.h"
+#include "lldb/Interpreter/ScriptInterpreter.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/Type.h"
 #include "lldb/lldb-enumerations.h"
@@ -45,27 +40,61 @@ public:
   typedef HardcodedFormatterFinders<TypeFormatImpl> HardcodedFormatFinder;
   typedef HardcodedFormatterFinders<TypeSummaryImpl> HardcodedSummaryFinder;
   typedef HardcodedFormatterFinders<SyntheticChildren> HardcodedSyntheticFinder;
-  typedef HardcodedFormatterFinders<TypeValidatorImpl> HardcodedValidatorFinder;
 };
 
 class FormattersMatchCandidate {
 public:
-  FormattersMatchCandidate(ConstString name, uint32_t reason, bool strip_ptr,
-                           bool strip_ref, bool strip_tydef)
-      : m_type_name(name), m_reason(reason), m_stripped_pointer(strip_ptr),
-        m_stripped_reference(strip_ref), m_stripped_typedef(strip_tydef) {}
+  // Contains flags to indicate how this candidate was generated (e.g. if
+  // typedefs were stripped, or pointers were skipped). These are later compared
+  // to flags in formatters to confirm a string match.
+  struct Flags {
+    bool stripped_pointer = false;
+    bool stripped_reference = false;
+    bool stripped_typedef = false;
+
+    // Returns a copy of this with the "stripped pointer" flag set.
+    Flags WithStrippedPointer() {
+      Flags result(*this);
+      result.stripped_pointer = true;
+      return result;
+    }
+
+    // Returns a copy of this with the "stripped reference" flag set.
+    Flags WithStrippedReference() {
+      Flags result(*this);
+      result.stripped_reference = true;
+      return result;
+    }
+
+    // Returns a copy of this with the "stripped typedef" flag set.
+    Flags WithStrippedTypedef() {
+      Flags result(*this);
+      result.stripped_typedef = true;
+      return result;
+    }
+  };
+
+  FormattersMatchCandidate(ConstString name,
+                           ScriptInterpreter *script_interpreter, TypeImpl type,
+                           Flags flags)
+      : m_type_name(name), m_script_interpreter(script_interpreter),
+        m_type(type), m_flags(flags) {}
 
   ~FormattersMatchCandidate() = default;
 
   ConstString GetTypeName() const { return m_type_name; }
 
-  uint32_t GetReason() const { return m_reason; }
+  TypeImpl GetType() const { return m_type; }
 
-  bool DidStripPointer() const { return m_stripped_pointer; }
+  ScriptInterpreter *GetScriptInterpreter() const {
+    return m_script_interpreter;
+  }
 
-  bool DidStripReference() const { return m_stripped_reference; }
+  bool DidStripPointer() const { return m_flags.stripped_pointer; }
 
-  bool DidStripTypedef() const { return m_stripped_typedef; }
+  bool DidStripReference() const { return m_flags.stripped_reference; }
+
+  bool DidStripTypedef() const { return m_flags.stripped_typedef; }
 
   template <class Formatter>
   bool IsMatch(const std::shared_ptr<Formatter> &formatter_sp) const {
@@ -82,10 +111,11 @@ public:
 
 private:
   ConstString m_type_name;
-  uint32_t m_reason;
-  bool m_stripped_pointer;
-  bool m_stripped_reference;
-  bool m_stripped_typedef;
+  // If a formatter provides a matching callback function, we need the script
+  // interpreter and the type object (as an argument to the callback).
+  ScriptInterpreter *m_script_interpreter;
+  TypeImpl m_type;
+  Flags m_flags;
 };
 
 typedef std::vector<FormattersMatchCandidate> FormattersMatchVector;
@@ -115,26 +145,28 @@ private:
 
 class TypeNameSpecifierImpl {
 public:
-  TypeNameSpecifierImpl() : m_is_regex(false), m_type() {}
+  TypeNameSpecifierImpl() = default;
 
-  TypeNameSpecifierImpl(llvm::StringRef name, bool is_regex)
-      : m_is_regex(is_regex), m_type() {
-    m_type.m_type_name = name;
+  TypeNameSpecifierImpl(llvm::StringRef name,
+                        lldb::FormatterMatchType match_type)
+      : m_match_type(match_type) {
+    m_type.m_type_name = std::string(name);
   }
 
-  // if constructing with a given type, is_regex cannot be true since we are
-  // giving an exact type to match
-  TypeNameSpecifierImpl(lldb::TypeSP type) : m_is_regex(false), m_type() {
+  // if constructing with a given type, we consider that a case of exact match.
+  TypeNameSpecifierImpl(lldb::TypeSP type)
+      : m_match_type(lldb::eFormatterMatchExact) {
     if (type) {
-      m_type.m_type_name = type->GetName().GetStringRef();
-      m_type.m_type_pair.SetType(type);
+      m_type.m_type_name = std::string(type->GetName().GetStringRef());
+      m_type.m_compiler_type = type->GetForwardCompilerType();
     }
   }
 
-  TypeNameSpecifierImpl(CompilerType type) : m_is_regex(false), m_type() {
+  TypeNameSpecifierImpl(CompilerType type)
+      : m_match_type(lldb::eFormatterMatchExact) {
     if (type.IsValid()) {
-      m_type.m_type_name.assign(type.GetConstTypeName().GetCString());
-      m_type.m_type_pair.SetType(type);
+      m_type.m_type_name.assign(type.GetTypeName().GetCString());
+      m_type.m_compiler_type = type;
     }
   }
 
@@ -144,34 +176,30 @@ public:
     return nullptr;
   }
 
-  lldb::TypeSP GetTypeSP() {
-    if (m_type.m_type_pair.IsValid())
-      return m_type.m_type_pair.GetTypeSP();
-    return lldb::TypeSP();
-  }
-
   CompilerType GetCompilerType() {
-    if (m_type.m_type_pair.IsValid())
-      return m_type.m_type_pair.GetCompilerType();
+    if (m_type.m_compiler_type.IsValid())
+      return m_type.m_compiler_type;
     return CompilerType();
   }
 
-  bool IsRegex() { return m_is_regex; }
+  lldb::FormatterMatchType GetMatchType() { return m_match_type; }
+
+  bool IsRegex() { return m_match_type == lldb::eFormatterMatchRegex; }
 
 private:
-  bool m_is_regex;
-  // this works better than TypeAndOrName because the latter only wraps a
-  // TypeSP whereas TypePair can also be backed by a CompilerType
+  lldb::FormatterMatchType m_match_type = lldb::eFormatterMatchExact;
+  // TODO: Replace this with TypeAndOrName.
   struct TypeOrName {
     std::string m_type_name;
-    TypePair m_type_pair;
+    CompilerType m_compiler_type;
   };
   TypeOrName m_type;
 
-private:
-  DISALLOW_COPY_AND_ASSIGN(TypeNameSpecifierImpl);
+  TypeNameSpecifierImpl(const TypeNameSpecifierImpl &) = delete;
+  const TypeNameSpecifierImpl &
+  operator=(const TypeNameSpecifierImpl &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // lldb_FormatClasses_h_
+#endif // LLDB_DATAFORMATTERS_FORMATCLASSES_H

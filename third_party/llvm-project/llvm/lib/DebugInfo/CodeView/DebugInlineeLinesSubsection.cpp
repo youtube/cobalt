@@ -1,9 +1,8 @@
 //===- DebugInlineeLinesSubsection.cpp ------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/DebugInfo/CodeView/CodeView.h"
 #include "llvm/DebugInfo/CodeView/DebugChecksumsSubsection.h"
+#include "llvm/DebugInfo/CodeView/RecordSerialization.h"
 #include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/BinaryStreamWriter.h"
 #include "llvm/Support/Endian.h"
@@ -98,7 +98,7 @@ Error DebugInlineeLinesSubsection::commit(BinaryStreamWriter &Writer) const {
 
     if (auto EC = Writer.writeInteger<uint32_t>(E.ExtraFiles.size()))
       return EC;
-    if (auto EC = Writer.writeArray(makeArrayRef(E.ExtraFiles)))
+    if (auto EC = Writer.writeArray(ArrayRef(E.ExtraFiles)))
       return EC;
   }
 

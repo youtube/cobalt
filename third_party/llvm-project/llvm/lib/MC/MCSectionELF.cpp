@@ -1,9 +1,8 @@
 //===- lib/MC/MCSectionELF.cpp - ELF Code Section Representation ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,11 +17,9 @@
 
 using namespace llvm;
 
-MCSectionELF::~MCSectionELF() = default; // anchor.
-
 // Decides whether a '.section' directive
 // should be printed before the section name.
-bool MCSectionELF::ShouldOmitSectionDirective(StringRef Name,
+bool MCSectionELF::shouldOmitSectionDirective(StringRef Name,
                                               const MCAsmInfo &MAI) const {
   if (isUnique())
     return false;
@@ -53,11 +50,11 @@ static void printName(raw_ostream &OS, StringRef Name) {
   OS << '"';
 }
 
-void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
+void MCSectionELF::printSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
                                         raw_ostream &OS,
                                         const MCExpr *Subsection) const {
-  if (ShouldOmitSectionDirective(SectionName, MAI)) {
-    OS << '\t' << getSectionName();
+  if (shouldOmitSectionDirective(getName(), MAI)) {
+    OS << '\t' << getName();
     if (Subsection) {
       OS << '\t';
       Subsection->print(OS, &MAI);
@@ -67,7 +64,7 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
   }
 
   OS << "\t.section\t";
-  printName(OS, getSectionName());
+  printName(OS, getName());
 
   // Handle the weird solaris syntax if desired.
   if (MAI.usesSunStyleELFSectionSwitchSyntax() &&
@@ -105,6 +102,13 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
     OS << 'T';
   if (Flags & ELF::SHF_LINK_ORDER)
     OS << 'o';
+  if (Flags & ELF::SHF_GNU_RETAIN)
+    OS << 'R';
+
+  // If there are os-specific flags, print them.
+  if (T.isOSSolaris())
+    if (Flags & ELF::SHF_SUNW_NODISCARD)
+      OS << 'R';
 
   // If there are target-specific flags, print them.
   Triple::ArchType Arch = T.getArch();
@@ -116,6 +120,9 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
   } else if (T.isARM() || T.isThumb()) {
     if (Flags & ELF::SHF_ARM_PURECODE)
       OS << 'y';
+  } else if (Arch == Triple::hexagon) {
+    if (Flags & ELF::SHF_HEX_GPREL)
+      OS << 's';
   }
 
   OS << '"';
@@ -152,9 +159,19 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
     OS << "llvm_linker_options";
   else if (Type == ELF::SHT_LLVM_CALL_GRAPH_PROFILE)
     OS << "llvm_call_graph_profile";
+  else if (Type == ELF::SHT_LLVM_DEPENDENT_LIBRARIES)
+    OS << "llvm_dependent_libraries";
+  else if (Type == ELF::SHT_LLVM_SYMPART)
+    OS << "llvm_sympart";
+  else if (Type == ELF::SHT_LLVM_BB_ADDR_MAP)
+    OS << "llvm_bb_addr_map";
+  else if (Type == ELF::SHT_LLVM_BB_ADDR_MAP_V0)
+    OS << "llvm_bb_addr_map_v0";
+  else if (Type == ELF::SHT_LLVM_OFFLOADING)
+    OS << "llvm_offloading";
   else
     report_fatal_error("unsupported type 0x" + Twine::utohexstr(Type) +
-                       " for section " + getSectionName());
+                       " for section " + getName());
 
   if (EntrySize) {
     assert(Flags & ELF::SHF_MERGE);
@@ -163,14 +180,17 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
 
   if (Flags & ELF::SHF_GROUP) {
     OS << ",";
-    printName(OS, Group->getName());
-    OS << ",comdat";
+    printName(OS, Group.getPointer()->getName());
+    if (isComdat())
+      OS << ",comdat";
   }
 
   if (Flags & ELF::SHF_LINK_ORDER) {
-    assert(AssociatedSymbol);
     OS << ",";
-    printName(OS, AssociatedSymbol->getName());
+    if (LinkedToSym)
+      printName(OS, LinkedToSym->getName());
+    else
+      OS << '0';
   }
 
   if (isUnique())
@@ -185,10 +205,12 @@ void MCSectionELF::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
   }
 }
 
-bool MCSectionELF::UseCodeAlign() const {
+bool MCSectionELF::useCodeAlign() const {
   return getFlags() & ELF::SHF_EXECINSTR;
 }
 
 bool MCSectionELF::isVirtualSection() const {
   return getType() == ELF::SHT_NOBITS;
 }
+
+StringRef MCSectionELF::getVirtualSectionKind() const { return "SHT_NOBITS"; }

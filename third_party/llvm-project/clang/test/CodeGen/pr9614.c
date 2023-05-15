@@ -30,16 +30,16 @@ void f(void) {
   memchr("", '.', 0);
 }
 
-// CHECK-LABEL: define void @f()
+// CHECK-LABEL: define{{.*}} void @f()
 // CHECK: call void @foo()
-// CHECK: call i32 @abs(i32 0)
-// CHECK: call i8* @strrchr(
-// CHECK: call void @llvm.prefetch(
-// CHECK: call i8* @memchr(
+// CHECK: call i32 @abs(i32 noundef 0)
+// CHECK: call ptr @strrchr(
+// CHECK: call void @llvm.prefetch.p0(
+// CHECK: call ptr @memchr(
 // CHECK: ret void
 
 // CHECK: declare void @foo()
 // CHECK: declare i32 @abs(i32
-// CHECK: declare i8* @strrchr(i8*, i32)
-// CHECK: declare i8* @memchr(
-// CHECK: declare void @llvm.prefetch(
+// CHECK: declare ptr @strrchr(ptr noundef, i32 noundef)
+// CHECK: declare ptr @memchr(
+// CHECK: declare void @llvm.prefetch.p0(

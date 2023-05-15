@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Script that checks that critical functions in TSan runtime have correct number
 # of push/pop/rsp instructions to verify that runtime is efficient enough.
@@ -8,7 +8,7 @@
 # performance has not regressed by running the following benchmarks before and
 # after the breaking change to verify that the values in this file are safe to
 # update:
-# ./projects/compiler-rt/lib/tsan/tests/rtl/TsanRtlTest
+# ./projects/compiler-rt/lib/tsan/tests/rtl/TsanRtlTest-x86_64-Test
 #   --gtest_also_run_disabled_tests --gtest_filter=DISABLED_BENCH.Mop*
 
 set -u
@@ -34,23 +34,27 @@ check() {
   fi
 }
 
+# All hot functions must contain no PUSH/POP
+# and no CALLs (everything is tail-called).
 for f in write1 write2 write4 write8; do
   check $f rsp 1
-  check $f push 2
-  check $f pop 12
+  check $f push 0
+  check $f pop 0
+  check $f call 0
 done
 
 for f in read1 read2 read4 read8; do
   check $f rsp 1
-  check $f push 3
-  check $f pop 18
+  check $f push 0
+  check $f pop 0
+  check $f call 0
 done
 
 for f in func_entry func_exit; do
   check $f rsp 0
   check $f push 0
   check $f pop 0
-  check $f call 1  # TraceSwitch()
+  check $f call 0
 done
 
 echo LGTM

@@ -1,9 +1,8 @@
 //===- unittest/Support/OptionParsingTest.cpp - OptTable tests ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,9 +25,20 @@ enum ID {
 #undef OPTION
 };
 
-#define PREFIX(NAME, VALUE) const char *const NAME[] = VALUE;
+#define PREFIX(NAME, VALUE)                                                    \
+  static constexpr StringLiteral NAME##_init[] = VALUE;                        \
+  static constexpr ArrayRef<StringLiteral> NAME(NAME##_init,                   \
+                                                std::size(NAME##_init) - 1);
 #include "Opts.inc"
 #undef PREFIX
+
+static constexpr const StringLiteral PrefixTable_init[] =
+#define PREFIX_UNION(VALUES) VALUES
+#include "Opts.inc"
+#undef PREFIX_UNION
+    ;
+static constexpr const ArrayRef<StringLiteral>
+    PrefixTable(PrefixTable_init, std::size(PrefixTable_init) - 1);
 
 enum OptionFlags {
   OptFlag1 = (1 << 4),
@@ -36,7 +46,7 @@ enum OptionFlags {
   OptFlag3 = (1 << 6)
 };
 
-static const OptTable::Info InfoTable[] = {
+static constexpr OptTable::Info InfoTable[] = {
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
   {PREFIX, NAME,  HELPTEXT,    METAVAR,     OPT_##ID,  Option::KIND##Class,    \
@@ -46,10 +56,16 @@ static const OptTable::Info InfoTable[] = {
 };
 
 namespace {
-class TestOptTable : public OptTable {
+class TestOptTable : public GenericOptTable {
 public:
   TestOptTable(bool IgnoreCase = false)
-    : OptTable(InfoTable, IgnoreCase) {}
+      : GenericOptTable(InfoTable, IgnoreCase) {}
+};
+
+class TestPrecomputedOptTable : public PrecomputedOptTable {
+public:
+  TestPrecomputedOptTable(bool IgnoreCase = false)
+      : PrecomputedOptTable(InfoTable, PrefixTable, IgnoreCase) {}
 };
 }
 
@@ -65,8 +81,20 @@ const char *Args[] = {
   "-Gchuu", "2"
   };
 
-TEST(Option, OptionParsing) {
-  TestOptTable T;
+// Test fixture
+template <typename T> class OptTableTest : public ::testing::Test {};
+
+template <typename T> class DISABLED_OptTableTest : public ::testing::Test {};
+
+// Test both precomputed and computed OptTables with the same suite of tests.
+using OptTableTestTypes =
+    ::testing::Types<TestOptTable, TestPrecomputedOptTable>;
+
+TYPED_TEST_SUITE(OptTableTest, OptTableTestTypes, );
+TYPED_TEST_SUITE(DISABLED_OptTableTest, OptTableTestTypes, );
+
+TYPED_TEST(OptTableTest, OptionParsing) {
+  TypeParam T;
   unsigned MAI, MAC;
   InputArgList AL = T.ParseArgs(Args, MAI, MAC);
 
@@ -94,8 +122,12 @@ TEST(Option, OptionParsing) {
   // Check the help text.
   std::string Help;
   raw_string_ostream RSO(Help);
-  T.PrintHelp(RSO, "test", "title!");
+  T.printHelp(RSO, "test", "title!");
   EXPECT_NE(std::string::npos, Help.find("-A"));
+
+  // Check usage line.
+  T.printHelp(RSO, "name [options] file...", "title!");
+  EXPECT_NE(std::string::npos, Help.find("USAGE: name [options] file...\n"));
 
   // Test aliases.
   auto Cs = AL.filtered(OPT_C);
@@ -108,8 +140,8 @@ TEST(Option, OptionParsing) {
   EXPECT_EQ("desu", StringRef(ASL[1]));
 }
 
-TEST(Option, ParseWithFlagExclusions) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, ParseWithFlagExclusions) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   // Exclude flag3 to avoid parsing as OPT_SLASH_C.
@@ -136,8 +168,8 @@ TEST(Option, ParseWithFlagExclusions) {
   EXPECT_EQ("bar", AL.getLastArgValue(OPT_C));
 }
 
-TEST(Option, ParseAliasInGroup) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, ParseAliasInGroup) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-I" };
@@ -145,8 +177,8 @@ TEST(Option, ParseAliasInGroup) {
   EXPECT_TRUE(AL.hasArg(OPT_H));
 }
 
-TEST(Option, AliasArgs) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, AliasArgs) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-J", "-Joo" };
@@ -156,8 +188,8 @@ TEST(Option, AliasArgs) {
   EXPECT_EQ("bar", AL.getAllArgValues(OPT_B)[1]);
 }
 
-TEST(Option, IgnoreCase) {
-  TestOptTable T(true);
+TYPED_TEST(OptTableTest, IgnoreCase) {
+  TypeParam T(true);
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-a", "-joo" };
@@ -166,8 +198,8 @@ TEST(Option, IgnoreCase) {
   EXPECT_TRUE(AL.hasArg(OPT_B));
 }
 
-TEST(Option, DoNotIgnoreCase) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, DoNotIgnoreCase) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-a", "-joo" };
@@ -176,8 +208,8 @@ TEST(Option, DoNotIgnoreCase) {
   EXPECT_FALSE(AL.hasArg(OPT_B));
 }
 
-TEST(Option, SlurpEmpty) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, SlurpEmpty) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurp" };
@@ -187,8 +219,8 @@ TEST(Option, SlurpEmpty) {
   EXPECT_EQ(0U, AL.getAllArgValues(OPT_Slurp).size());
 }
 
-TEST(Option, Slurp) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, Slurp) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurp", "-B", "--", "foo" };
@@ -203,8 +235,8 @@ TEST(Option, Slurp) {
   EXPECT_EQ("foo", AL.getAllArgValues(OPT_Slurp)[2]);
 }
 
-TEST(Option, SlurpJoinedEmpty) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, SlurpJoinedEmpty) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurpjoined" };
@@ -214,8 +246,8 @@ TEST(Option, SlurpJoinedEmpty) {
   EXPECT_EQ(AL.getAllArgValues(OPT_SlurpJoined).size(), 0U);
 }
 
-TEST(Option, SlurpJoinedOneJoined) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, SlurpJoinedOneJoined) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurpjoinedfoo" };
@@ -226,8 +258,8 @@ TEST(Option, SlurpJoinedOneJoined) {
   EXPECT_EQ(AL.getAllArgValues(OPT_SlurpJoined)[0], "foo");
 }
 
-TEST(Option, SlurpJoinedAndSeparate) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, SlurpJoinedAndSeparate) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurpjoinedfoo", "bar", "baz" };
@@ -240,8 +272,8 @@ TEST(Option, SlurpJoinedAndSeparate) {
   EXPECT_EQ("baz", AL.getAllArgValues(OPT_SlurpJoined)[2]);
 }
 
-TEST(Option, SlurpJoinedButSeparate) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, SlurpJoinedButSeparate) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurpjoined", "foo", "bar", "baz" };
@@ -254,8 +286,8 @@ TEST(Option, SlurpJoinedButSeparate) {
   EXPECT_EQ("baz", AL.getAllArgValues(OPT_SlurpJoined)[2]);
 }
 
-TEST(Option, FlagAliasToJoined) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, FlagAliasToJoined) {
+  TypeParam T;
   unsigned MAI, MAC;
 
   // Check that a flag alias provides an empty argument to a joined option.
@@ -267,8 +299,8 @@ TEST(Option, FlagAliasToJoined) {
   EXPECT_EQ("", AL.getAllArgValues(OPT_B)[0]);
 }
 
-TEST(Option, FindNearest) {
-  TestOptTable T;
+TYPED_TEST(OptTableTest, FindNearest) {
+  TypeParam T;
   std::string Nearest;
 
   // Options that are too short should not be considered
@@ -283,6 +315,10 @@ TEST(Option, FindNearest) {
   EXPECT_EQ(Nearest, "-blorp");
   EXPECT_EQ(1U, T.findNearest("--blorm", Nearest));
   EXPECT_EQ(Nearest, "--blorp");
+  EXPECT_EQ(1U, T.findNearest("-blarg", Nearest));
+  EXPECT_EQ(Nearest, "-blarn");
+  EXPECT_EQ(1U, T.findNearest("--blarm", Nearest));
+  EXPECT_EQ(Nearest, "--blarn");
   EXPECT_EQ(1U, T.findNearest("-fjormp", Nearest));
   EXPECT_EQ(Nearest, "--fjormp");
 
@@ -290,6 +326,20 @@ TEST(Option, FindNearest) {
   // of the original string.
   EXPECT_EQ(1U, T.findNearest("/framb:foo", Nearest));
   EXPECT_EQ(Nearest, "/cramb:foo");
+
+  // `--glormp` should have an editing distance > 0 from `--glormp=`.
+  EXPECT_GT(T.findNearest("--glorrmp", Nearest), 0U);
+  EXPECT_EQ(Nearest, "--glorrmp=");
+  EXPECT_EQ(0U, T.findNearest("--glorrmp=foo", Nearest));
+
+  // `--blurmps` should correct to `--blurmp`, not `--blurmp=`, even though
+  // both naively have an editing distance of 1.
+  EXPECT_EQ(1U, T.findNearest("--blurmps", Nearest));
+  EXPECT_EQ(Nearest, "--blurmp");
+
+  // ...but `--blurmps=foo` should correct to `--blurmp=foo`.
+  EXPECT_EQ(1U, T.findNearest("--blurmps=foo", Nearest));
+  EXPECT_EQ(Nearest, "--blurmp=foo");
 
   // Flags should be included and excluded as specified.
   EXPECT_EQ(1U, T.findNearest("-doopf", Nearest, /*FlagsToInclude=*/OptFlag2));
@@ -300,8 +350,8 @@ TEST(Option, FindNearest) {
   EXPECT_EQ(Nearest, "-doopf1");
 }
 
-TEST(DISABLED_Option, FindNearestFIXME) {
-  TestOptTable T;
+TYPED_TEST(DISABLED_OptTableTest, FindNearestFIXME) {
+  TypeParam T;
   std::string Nearest;
 
   // FIXME: Options with joined values should not have those values considered
@@ -309,5 +359,74 @@ TEST(DISABLED_Option, FindNearestFIXME) {
   // succeed.
   EXPECT_EQ(1U, T.findNearest("--erbghFoo", Nearest));
   EXPECT_EQ(Nearest, "--ermghFoo");
+}
 
+TYPED_TEST(OptTableTest, ParseGroupedShortOptions) {
+  TypeParam T;
+  T.setGroupedShortOptions(true);
+  unsigned MAI, MAC;
+
+  // Grouped short options can be followed by a long Flag (-Joo), or a non-Flag
+  // option (-C=1).
+  const char *Args1[] = {"-AIJ", "-AIJoo", "-AC=1"};
+  InputArgList AL = T.ParseArgs(Args1, MAI, MAC);
+  EXPECT_TRUE(AL.hasArg(OPT_A));
+  EXPECT_TRUE(AL.hasArg(OPT_H));
+  ASSERT_EQ((size_t)2, AL.getAllArgValues(OPT_B).size());
+  EXPECT_EQ("foo", AL.getAllArgValues(OPT_B)[0]);
+  EXPECT_EQ("bar", AL.getAllArgValues(OPT_B)[1]);
+  ASSERT_TRUE(AL.hasArg(OPT_C));
+  EXPECT_EQ("1", AL.getAllArgValues(OPT_C)[0]);
+
+  // Prefer a long option to a short option.
+  const char *Args2[] = {"-AB"};
+  InputArgList AL2 = T.ParseArgs(Args2, MAI, MAC);
+  EXPECT_TRUE(!AL2.hasArg(OPT_A));
+  EXPECT_TRUE(AL2.hasArg(OPT_AB));
+
+  // Short options followed by a long option. We probably should disallow this.
+  const char *Args3[] = {"-AIblorp"};
+  InputArgList AL3 = T.ParseArgs(Args3, MAI, MAC);
+  EXPECT_TRUE(AL3.hasArg(OPT_A));
+  EXPECT_TRUE(AL3.hasArg(OPT_Blorp));
+}
+
+TYPED_TEST(OptTableTest, UnknownOptions) {
+  TypeParam T;
+  unsigned MAI, MAC;
+  const char *Args[] = {"-u", "--long", "0"};
+  for (int I = 0; I < 2; ++I) {
+    T.setGroupedShortOptions(I != 0);
+    InputArgList AL = T.ParseArgs(Args, MAI, MAC);
+    const std::vector<std::string> Unknown = AL.getAllArgValues(OPT_UNKNOWN);
+    ASSERT_EQ((size_t)2, Unknown.size());
+    EXPECT_EQ("-u", Unknown[0]);
+    EXPECT_EQ("--long", Unknown[1]);
+  }
+}
+
+TYPED_TEST(OptTableTest, FlagsWithoutValues) {
+  TypeParam T;
+  T.setGroupedShortOptions(true);
+  unsigned MAI, MAC;
+  const char *Args[] = {"-A=1", "-A="};
+  InputArgList AL = T.ParseArgs(Args, MAI, MAC);
+  const std::vector<std::string> Unknown = AL.getAllArgValues(OPT_UNKNOWN);
+  ASSERT_EQ((size_t)2, Unknown.size());
+  EXPECT_EQ("-A=1", Unknown[0]);
+  EXPECT_EQ("-A=", Unknown[1]);
+}
+
+TYPED_TEST(OptTableTest, UnknownGroupedShortOptions) {
+  TypeParam T;
+  T.setGroupedShortOptions(true);
+  unsigned MAI, MAC;
+  const char *Args[] = {"-AuzK", "-AuzK"};
+  InputArgList AL = T.ParseArgs(Args, MAI, MAC);
+  const std::vector<std::string> Unknown = AL.getAllArgValues(OPT_UNKNOWN);
+  ASSERT_EQ((size_t)4, Unknown.size());
+  EXPECT_EQ("-u", Unknown[0]);
+  EXPECT_EQ("-z", Unknown[1]);
+  EXPECT_EQ("-u", Unknown[2]);
+  EXPECT_EQ("-z", Unknown[3]);
 }

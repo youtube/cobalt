@@ -1,9 +1,8 @@
 //===-- ARMELFObjectWriter.cpp - ARM ELF Writer ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,6 +13,7 @@
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixup.h"
+#include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -40,6 +40,8 @@ namespace {
 
     bool needsRelocateWithSymbol(const MCSymbol &Sym,
                                  unsigned Type) const override;
+
+    void addTargetSectionFlags(MCContext &Ctx, MCSectionELF &Sec) override;
   };
 
 } // end anonymous namespace
@@ -51,8 +53,8 @@ ARMELFObjectWriter::ARMELFObjectWriter(uint8_t OSABI)
 
 bool ARMELFObjectWriter::needsRelocateWithSymbol(const MCSymbol &Sym,
                                                  unsigned Type) const {
-  // FIXME: This is extremely conservative. This really needs to use a
-  // whitelist with a clear explanation for why each realocation needs to
+  // FIXME: This is extremely conservative. This really needs to use an
+  // explicit list with a clear explanation for why each realocation needs to
   // point to the symbol, not to the section.
   switch (Type) {
   default:
@@ -77,19 +79,31 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
                                                const MCFixup &Fixup,
                                                bool IsPCRel,
                                                MCContext &Ctx) const {
+  unsigned Kind = Fixup.getTargetKind();
+  if (Kind >= FirstLiteralRelocationKind)
+    return Kind - FirstLiteralRelocationKind;
   MCSymbolRefExpr::VariantKind Modifier = Target.getAccessVariant();
 
   if (IsPCRel) {
-    switch ((unsigned)Fixup.getKind()) {
+    switch (Fixup.getTargetKind()) {
     default:
-      Ctx.reportFatalError(Fixup.getLoc(), "unsupported relocation on symbol");
+      Ctx.reportError(Fixup.getLoc(), "unsupported relocation on symbol");
       return ELF::R_ARM_NONE;
     case FK_Data_4:
       switch (Modifier) {
       default:
-        llvm_unreachable("Unsupported Modifier");
-      case MCSymbolRefExpr::VK_None:
+        Ctx.reportError(Fixup.getLoc(),
+                        "invalid fixup for 4-byte pc-relative data relocation");
+        return ELF::R_ARM_NONE;
+      case MCSymbolRefExpr::VK_None: {
+        if (const MCSymbolRefExpr *SymRef = Target.getSymA()) {
+          // For GNU AS compatibility expressions such as
+          // _GLOBAL_OFFSET_TABLE_ - label emit a R_ARM_BASE_PREL relocation.
+          if (SymRef->getSymbol().getName() == "_GLOBAL_OFFSET_TABLE_")
+            return ELF::R_ARM_BASE_PREL;
+        }
         return ELF::R_ARM_REL32;
+      }
       case MCSymbolRefExpr::VK_GOTTPOFF:
         return ELF::R_ARM_TLS_IE32;
       case MCSymbolRefExpr::VK_ARM_GOT_PREL:
@@ -135,30 +149,42 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
       default:
         return ELF::R_ARM_THM_CALL;
       }
+    case ARM::fixup_bf_target:
+      return ELF::R_ARM_THM_BF16;
+    case ARM::fixup_bfc_target:
+      return ELF::R_ARM_THM_BF12;
+    case ARM::fixup_bfl_target:
+      return ELF::R_ARM_THM_BF18;
     }
   }
-  switch ((unsigned)Fixup.getKind()) {
+  switch (Kind) {
   default:
-    Ctx.reportFatalError(Fixup.getLoc(), "unsupported relocation on symbol");
+    Ctx.reportError(Fixup.getLoc(), "unsupported relocation on symbol");
     return ELF::R_ARM_NONE;
   case FK_Data_1:
     switch (Modifier) {
     default:
-      llvm_unreachable("unsupported Modifier");
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid fixup for 1-byte data relocation");
+      return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_None:
       return ELF::R_ARM_ABS8;
     }
   case FK_Data_2:
     switch (Modifier) {
     default:
-      llvm_unreachable("unsupported modifier");
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid fixup for 2-byte data relocation");
+      return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_None:
       return ELF::R_ARM_ABS16;
     }
   case FK_Data_4:
     switch (Modifier) {
     default:
-      llvm_unreachable("Unsupported Modifier");
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid fixup for 4-byte data relocation");
+      return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_ARM_NONE:
       return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_GOT:
@@ -200,7 +226,8 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
   case ARM::fixup_arm_movt_hi16:
     switch (Modifier) {
     default:
-      llvm_unreachable("Unsupported Modifier");
+      Ctx.reportError(Fixup.getLoc(), "invalid fixup for ARM MOVT instruction");
+      return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_None:
       return ELF::R_ARM_MOVT_ABS;
     case MCSymbolRefExpr::VK_ARM_SBREL:
@@ -209,7 +236,8 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
   case ARM::fixup_arm_movw_lo16:
     switch (Modifier) {
     default:
-      llvm_unreachable("Unsupported Modifier");
+      Ctx.reportError(Fixup.getLoc(), "invalid fixup for ARM MOVW instruction");
+      return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_None:
       return ELF::R_ARM_MOVW_ABS_NC;
     case MCSymbolRefExpr::VK_ARM_SBREL:
@@ -218,7 +246,9 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
   case ARM::fixup_t2_movt_hi16:
     switch (Modifier) {
     default:
-      llvm_unreachable("Unsupported Modifier");
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid fixup for Thumb MOVT instruction");
+      return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_None:
       return ELF::R_ARM_THM_MOVT_ABS;
     case MCSymbolRefExpr::VK_ARM_SBREL:
@@ -227,7 +257,9 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
   case ARM::fixup_t2_movw_lo16:
     switch (Modifier) {
     default:
-      llvm_unreachable("Unsupported Modifier");
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid fixup for Thumb MOVW instruction");
+      return ELF::R_ARM_NONE;
     case MCSymbolRefExpr::VK_None:
       return ELF::R_ARM_THM_MOVW_ABS_NC;
     case MCSymbolRefExpr::VK_ARM_SBREL:
@@ -236,7 +268,25 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
   }
 }
 
+void ARMELFObjectWriter::addTargetSectionFlags(MCContext &Ctx,
+                                               MCSectionELF &Sec) {
+  // The mix of execute-only and non-execute-only at link time is
+  // non-execute-only. To avoid the empty implicitly created .text
+  // section from making the whole .text section non-execute-only, we
+  // mark it execute-only if it is empty and there is at least one
+  // execute-only section in the object.
+  MCSectionELF *TextSection =
+      static_cast<MCSectionELF *>(Ctx.getObjectFileInfo()->getTextSection());
+  if (Sec.getKind().isExecuteOnly() && !TextSection->hasInstructions()) {
+    for (auto &F : TextSection->getFragmentList())
+      if (auto *DF = dyn_cast<MCDataFragment>(&F))
+        if (!DF->getContents().empty())
+          return;
+    TextSection->setFlags(TextSection->getFlags() | ELF::SHF_ARM_PURECODE);
+  }
+}
+
 std::unique_ptr<MCObjectTargetWriter>
 llvm::createARMELFObjectWriter(uint8_t OSABI) {
-  return llvm::make_unique<ARMELFObjectWriter>(OSABI);
+  return std::make_unique<ARMELFObjectWriter>(OSABI);
 }

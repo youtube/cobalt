@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -Wall -Wshift-sign-overflow -ffreestanding -fsyntax-only -verify %s
+// RUN: %clang_cc1 -Wall -Wno-unused-but-set-variable -Wshift-sign-overflow -ffreestanding -fsyntax-only -verify %s
 
 #include <limits.h>
 
@@ -10,7 +10,7 @@ enum {
   Z = 1 << 2
 };
 
-void test() {
+void test(void) {
   char c;
 
   c = 0 << 0;
@@ -20,6 +20,9 @@ void test() {
   c = 1 >> -0;
   c = 1 << -1; // expected-warning {{shift count is negative}}
   c = 1 >> -1; // expected-warning {{shift count is negative}}
+  c = 1 << (unsigned)-1; // expected-warning {{shift count >= width of type}}
+                         // expected-warning@-1 {{implicit conversion}}
+  c = 1 >> (unsigned)-1; // expected-warning {{shift count >= width of type}}
   c = 1 << c;
   c <<= 0;
   c >>= 0;
@@ -58,7 +61,7 @@ void test() {
 enum { b = (a << ashift) };
 
 // Don't warn for negative shifts in code that is unreachable.
-void test_pr5544() {
+void test_pr5544(void) {
   (void) (((1) > 63 && (1) < 128 ? (((unsigned long long) 1)<<((1)-64)) : (unsigned long long) 0)); // no-warning
 }
 

@@ -1,9 +1,8 @@
 //===--------------------- PipelinePrinter.h --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -17,14 +16,19 @@
 #ifndef LLVM_TOOLS_LLVM_MCA_PIPELINEPRINTER_H
 #define LLVM_TOOLS_LLVM_MCA_PIPELINEPRINTER_H
 
-#include "Pipeline.h"
-#include "View.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MCA/Context.h"
+#include "llvm/MCA/Pipeline.h"
+#include "llvm/MCA/View.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define DEBUG_TYPE "llvm-mca"
 
+namespace llvm {
 namespace mca {
+
+class CodeRegion;
 
 /// A printer class that knows how to collects statistics on the
 /// code analyzed by the llvm-mca tool.
@@ -35,10 +39,21 @@ namespace mca {
 /// resource pressure.
 class PipelinePrinter {
   Pipeline &P;
+  const CodeRegion &Region;
+  unsigned RegionIdx;
+  const MCSubtargetInfo &STI;
+  const PipelineOptions &PO;
   llvm::SmallVector<std::unique_ptr<View>, 8> Views;
 
+  void printRegionHeader(llvm::raw_ostream &OS) const;
+  json::Object getJSONReportRegion() const;
+  json::Object getJSONTargetInfo() const;
+  json::Object getJSONSimulationParameters() const;
+
 public:
-  PipelinePrinter(Pipeline &pipeline) : P(pipeline) {}
+  PipelinePrinter(Pipeline &Pipe, const CodeRegion &R, unsigned Idx,
+                  const MCSubtargetInfo &STI, const PipelineOptions &PO)
+      : P(Pipe), Region(R), RegionIdx(Idx), STI(STI), PO(PO) {}
 
   void addView(std::unique_ptr<View> V) {
     P.addEventListener(V.get());
@@ -46,7 +61,9 @@ public:
   }
 
   void printReport(llvm::raw_ostream &OS) const;
+  void printReport(json::Object &JO) const;
 };
 } // namespace mca
+} // namespace llvm
 
 #endif // LLVM_TOOLS_LLVM_MCA_PIPELINEPRINTER_H

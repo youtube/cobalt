@@ -1,4 +1,4 @@
-add_lldb_library(lldbPluginPlatformPOSIX PLUGIN
+add_lldb_library(lldbPluginPlatformPOSIX
   PlatformPOSIX.cpp
 
    LINK_LIBS
@@ -7,4 +7,6 @@ add_lldb_library(lldbPluginPlatformPOSIX PLUGIN
     lldbHost
     lldbInterpreter
     lldbTarget
+    lldbPluginPlatformGDB
+    lldbPluginTypeSystemClang
   )

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,8 @@
 #include <memory>
 #include <cassert>
 
+#include "test_macros.h"
+
 class Deleter {
   int state_;
 
@@ -23,15 +24,15 @@ class Deleter {
   Deleter& operator=(Deleter&);
 
 public:
-  Deleter() : state_(0) {}
+  TEST_CONSTEXPR_CXX23 Deleter() : state_(0) {}
 
-  int state() const { return state_; }
+  TEST_CONSTEXPR_CXX23 int state() const { return state_; }
 
-  void operator()(void*) { ++state_; }
+  TEST_CONSTEXPR_CXX23 void operator()(void*) { ++state_; }
 };
 
 template <class T>
-void test_basic() {
+TEST_CONSTEXPR_CXX23 void test_basic() {
   Deleter d;
   assert(d.state() == 0);
   {
@@ -42,7 +43,18 @@ void test_basic() {
   assert(d.state() == 0);
 }
 
-int main() {
+TEST_CONSTEXPR_CXX23 bool test() {
   test_basic<int>();
   test_basic<int[]>();
+
+  return true;
+}
+
+int main(int, char**) {
+  test();
+#if TEST_STD_VER >= 23
+  static_assert(test());
+#endif
+
+  return 0;
 }

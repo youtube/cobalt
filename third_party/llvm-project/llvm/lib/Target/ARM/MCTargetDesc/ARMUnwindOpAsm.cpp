@@ -1,13 +1,12 @@
 //===-- ARMUnwindOpAsm.cpp - ARM Unwind Opcodes Assembler -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the unwind opcode assmebler for ARM exception handling
+// This file implements the unwind opcode assembler for ARM exception handling
 // table.
 //
 //===----------------------------------------------------------------------===//
@@ -65,8 +64,11 @@ namespace {
 } // end anonymous namespace
 
 void UnwindOpcodeAssembler::EmitRegSave(uint32_t RegSave) {
-  if (RegSave == 0u)
+  if (RegSave == 0u) {
+    // That's the special case for RA PAC.
+    EmitInt8(ARM::EHABI::UNWIND_OPCODE_POP_RA_AUTH_CODE);
     return;
+  }
 
   // One byte opcode to save register r14 and r11-r4
   if (RegSave & (1u << 4)) {
@@ -135,7 +137,7 @@ void UnwindOpcodeAssembler::EmitSPOffset(int64_t Offset) {
     uint8_t Buff[16];
     Buff[0] = ARM::EHABI::UNWIND_OPCODE_INC_VSP_ULEB128;
     size_t ULEBSize = encodeULEB128((Offset - 0x204) >> 2, Buff + 1);
-    EmitBytes(Buff, ULEBSize + 1);
+    emitBytes(Buff, ULEBSize + 1);
   } else if (Offset > 0) {
     if (Offset > 0x100) {
       EmitInt8(ARM::EHABI::UNWIND_OPCODE_INC_VSP | 0x3fu);

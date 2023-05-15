@@ -1,9 +1,8 @@
 //===--- SemaLambda.h - Lambda Helper Functions --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,6 +16,7 @@
 #define LLVM_CLANG_SEMA_SEMALAMBDA_H
 
 #include "clang/AST/ASTLambda.h"
+#include <optional>
 
 namespace clang {
 namespace sema {
@@ -31,9 +31,9 @@ class Sema;
 /// of the capture-capable lambda's LambdaScopeInfo.
 /// See Implementation for more detailed comments.
 
-Optional<unsigned> getStackIndexOfNearestEnclosingCaptureCapableLambda(
+std::optional<unsigned> getStackIndexOfNearestEnclosingCaptureCapableLambda(
     ArrayRef<const sema::FunctionScopeInfo *> FunctionScopes,
-    VarDecl *VarToCapture, Sema &S);
+    ValueDecl *VarToCapture, Sema &S);
 
 } // clang
 

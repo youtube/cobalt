@@ -1,8 +1,7 @@
-; RUN: llc -filetype=obj %s -o - | obj2yaml | FileCheck %s
+; RUN: llc -mcpu=mvp -filetype=obj %s -o - | obj2yaml | FileCheck %s
 ; PR33624
 
 source_filename = "ws.c"
-target datalayout = "e-m:e-p:32:32-i64:64-n32:64-S128"
 target triple = "wasm32-unknown-unknown"
 
 %struct.bd = type { i8 }
@@ -19,9 +18,9 @@ target triple = "wasm32-unknown-unknown"
 ; CHECK-NEXT:         Flags:           [ VISIBILITY_HIDDEN ]
 ; CHECK-NEXT:         Segment:         0
 ; CHECK-NEXT:         Size:            2
-; CHECK-NEXT:     SegmentInfo:    
+; CHECK-NEXT:     SegmentInfo:
 ; CHECK-NEXT:       - Index:           0
 ; CHECK-NEXT:         Name:            .data
-; CHECK-NEXT:         Alignment:       1
+; CHECK-NEXT:         Alignment:       0
 ; CHECK-NEXT:         Flags:           [ ]
 ; CHECK-NEXT: ...

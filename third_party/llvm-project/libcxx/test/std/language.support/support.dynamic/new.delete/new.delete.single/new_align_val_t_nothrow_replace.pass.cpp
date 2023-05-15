@@ -1,41 +1,23 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // UNSUPPORTED: sanitizer-new-delete
 
-// dylibs shipped before macosx10.13 do not provide aligned allocation, so our
-// custom aligned allocation functions are not called and the test fails
-// UNSUPPORTED: with_system_cxx_lib=macosx10.12
-// UNSUPPORTED: with_system_cxx_lib=macosx10.11
-// UNSUPPORTED: with_system_cxx_lib=macosx10.10
-// UNSUPPORTED: with_system_cxx_lib=macosx10.9
-// UNSUPPORTED: with_system_cxx_lib=macosx10.8
-// UNSUPPORTED: with_system_cxx_lib=macosx10.7
+// XFAIL: LIBCXX-AIX-FIXME
 
-// Our custom aligned allocation functions are not called when deploying to
-// platforms older than macosx10.13, since those platforms don't support
-// aligned allocation.
-// UNSUPPORTED: macosx10.12
-// UNSUPPORTED: macosx10.11
-// UNSUPPORTED: macosx10.10
-// UNSUPPORTED: macosx10.9
-// UNSUPPORTED: macosx10.8
-// UNSUPPORTED: macosx10.7
+// Aligned allocation was not provided before macosx10.13 and as a result we
+// get availability errors when the deployment target is older than macosx10.13.
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12}}
 
-// NOTE: gcc doesn't provide -faligned-allocation flag to test for
-// XFAIL: no-aligned-allocation && !gcc
-
-// On Windows libc++ doesn't provide its own definitions for new/delete
-// but instead depends on the ones in VCRuntime. However VCRuntime does not
-// yet provide aligned new/delete definitions so this test fails.
-// XFAIL: LIBCXX-WINDOWS-FIXME
+// Libcxx when built for z/OS doesn't contain the aligned allocation functions,
+// nor does the dynamic library shipped with z/OS.
+// UNSUPPORTED: target={{.+}}-zos{{.*}}
 
 // test operator new nothrow by replacing only operator new
 
@@ -79,31 +61,33 @@ void* operator new(std::size_t s, std::align_val_t a) TEST_THROW_SPEC(std::bad_a
 
 void  operator delete(void* p, std::align_val_t a) TEST_NOEXCEPT
 {
-    assert(p == Buff);
+    ASSERT_WITH_OPERATOR_NEW_FALLBACKS(p == Buff);
     assert(static_cast<std::size_t>(a) == OverAligned);
-    assert(new_called);
+    ASSERT_WITH_OPERATOR_NEW_FALLBACKS(new_called);
     --new_called;
 }
 
 
-int main()
+int main(int, char**)
 {
     {
         A* ap = new (std::nothrow) A;
         assert(ap);
         assert(A_constructed);
-        assert(new_called);
+        ASSERT_WITH_OPERATOR_NEW_FALLBACKS(new_called);
         delete ap;
         assert(!A_constructed);
-        assert(!new_called);
+        ASSERT_WITH_OPERATOR_NEW_FALLBACKS(!new_called);
     }
     {
         B* bp = new (std::nothrow) B;
         assert(bp);
         assert(B_constructed);
-        assert(!new_called);
+        ASSERT_WITH_OPERATOR_NEW_FALLBACKS(!new_called);
         delete bp;
-        assert(!new_called);
+        ASSERT_WITH_OPERATOR_NEW_FALLBACKS(!new_called);
         assert(!B_constructed);
     }
+
+  return 0;
 }

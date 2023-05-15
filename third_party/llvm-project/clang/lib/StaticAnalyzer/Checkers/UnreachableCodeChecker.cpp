@@ -1,9 +1,8 @@
 //==- UnreachableCodeChecker.cpp - Generalized dead code checker -*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This file implements a generalized unreachable code checker using a
@@ -13,7 +12,7 @@
 // A similar flow-sensitive only check exists in Analysis/ReachableCode.cpp
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/SourceManager.h"
@@ -25,6 +24,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "llvm/ADT/SmallSet.h"
+#include <optional>
 
 using namespace clang;
 using namespace ento;
@@ -56,7 +56,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
 
   const Decl *D = nullptr;
   CFG *C = nullptr;
-  ParentMap *PM = nullptr;
+  const ParentMap *PM = nullptr;
   const LocationContext *LC = nullptr;
   // Iterate over ExplodedGraph
   for (ExplodedGraph::node_iterator I = G.nodes_begin(), E = G.nodes_end();
@@ -75,7 +75,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
     if (!PM)
       PM = &LC->getParentMap();
 
-    if (Optional<BlockEntrance> BE = P.getAs<BlockEntrance>()) {
+    if (std::optional<BlockEntrance> BE = P.getAs<BlockEntrance>()) {
       const CFGBlock *CB = BE->getBlock();
       reachable.insert(CB->getBlockID());
     }
@@ -130,7 +130,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
       bool foundUnreachable = false;
       for (CFGBlock::const_iterator ci = CB->begin(), ce = CB->end();
            ci != ce; ++ci) {
-        if (Optional<CFGStmt> S = (*ci).getAs<CFGStmt>())
+        if (std::optional<CFGStmt> S = (*ci).getAs<CFGStmt>())
           if (const CallExpr *CE = dyn_cast<CallExpr>(S->getStmt())) {
             if (CE->getBuiltinCallee() == Builtin::BI__builtin_unreachable ||
                 CE->isBuiltinAssumeFalse(Eng.getContext())) {
@@ -150,7 +150,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
     if (const Stmt *S = getUnreachableStmt(CB)) {
       // In macros, 'do {...} while (0)' is often used. Don't warn about the
       // condition 0 when it is unreachable.
-      if (S->getLocStart().isMacroID())
+      if (S->getBeginLoc().isMacroID())
         if (const auto *I = dyn_cast<IntegerLiteral>(S))
           if (I->getValue() == 0ULL)
             if (const Stmt *Parent = PM->getParent(S))
@@ -170,7 +170,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
     if (SM.isInSystemHeader(SL) || SM.isInExternCSystemHeader(SL))
       continue;
 
-    B.EmitBasicReport(D, this, "Unreachable code", "Dead code",
+    B.EmitBasicReport(D, this, "Unreachable code", categories::UnusedCode,
                       "This statement is never executed", DL, SR);
   }
 }
@@ -200,12 +200,12 @@ void UnreachableCodeChecker::FindUnreachableEntryPoints(const CFGBlock *CB,
 // Find the Stmt* in a CFGBlock for reporting a warning
 const Stmt *UnreachableCodeChecker::getUnreachableStmt(const CFGBlock *CB) {
   for (CFGBlock::const_iterator I = CB->begin(), E = CB->end(); I != E; ++I) {
-    if (Optional<CFGStmt> S = I->getAs<CFGStmt>()) {
+    if (std::optional<CFGStmt> S = I->getAs<CFGStmt>()) {
       if (!isa<DeclStmt>(S->getStmt()))
         return S->getStmt();
     }
   }
-  if (const Stmt *S = CB->getTerminator())
+  if (const Stmt *S = CB->getTerminatorStmt())
     return S;
   else
     return nullptr;
@@ -232,7 +232,7 @@ bool UnreachableCodeChecker::isInvalidPath(const CFGBlock *CB,
   if (!pred)
     return false;
 
-  // Get the predecessor block's terminator conditon
+  // Get the predecessor block's terminator condition
   const Stmt *cond = pred->getTerminatorCondition();
 
   //assert(cond && "CFGBlock's predecessor has a terminator condition");
@@ -251,9 +251,13 @@ bool UnreachableCodeChecker::isInvalidPath(const CFGBlock *CB,
 bool UnreachableCodeChecker::isEmptyCFGBlock(const CFGBlock *CB) {
   return CB->getLabel() == nullptr // No labels
       && CB->size() == 0           // No statements
-      && !CB->getTerminator();     // No terminator
+      && !CB->getTerminatorStmt(); // No terminator
 }
 
 void ento::registerUnreachableCodeChecker(CheckerManager &mgr) {
   mgr.registerChecker<UnreachableCodeChecker>();
+}
+
+bool ento::shouldRegisterUnreachableCodeChecker(const CheckerManager &mgr) {
+  return true;
 }

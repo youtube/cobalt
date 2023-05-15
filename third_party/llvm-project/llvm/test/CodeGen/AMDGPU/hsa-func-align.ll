@@ -1,5 +1,5 @@
 ; RUN: llc -mtriple=amdgcn--amdhsa -mcpu=kaveri < %s | FileCheck -check-prefix=HSA %s
-; RUN: llc -mtriple=amdgcn--amdhsa -mcpu=kaveri -filetype=obj < %s | llvm-readobj -symbols -s -sd | FileCheck -check-prefix=ELF %s
+; RUN: llc -mtriple=amdgcn--amdhsa -mcpu=kaveri -filetype=obj < %s | llvm-readobj --symbols -S --sd - | FileCheck -check-prefix=ELF %s
 
 ; ELF: Section {
 ; ELF: Name: .text
@@ -10,9 +10,9 @@
 
 ; HSA: .globl simple_align16
 ; HSA: .p2align 5
-define void @simple_align16(i32 addrspace(1)* addrspace(4)* %ptr.out) align 32 {
+define void @simple_align16(ptr addrspace(4) %ptr.out) align 32 {
 entry:
-  %out = load i32 addrspace(1)*, i32 addrspace(1)* addrspace(4)* %ptr.out
-  store i32 0, i32 addrspace(1)* %out
+  %out = load ptr addrspace(1), ptr addrspace(4) %ptr.out
+  store i32 0, ptr addrspace(1) %out
   ret void
 }

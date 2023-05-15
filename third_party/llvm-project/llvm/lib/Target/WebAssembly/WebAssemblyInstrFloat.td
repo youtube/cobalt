@@ -1,9 +1,8 @@
 // WebAssemblyInstrFloat.td-WebAssembly Float codegen support ---*- tablegen -*-
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -12,7 +11,38 @@
 ///
 //===----------------------------------------------------------------------===//
 
-let Defs = [ARGUMENTS] in {
+multiclass UnaryFP<SDNode node, string name, bits<32> f32Inst,
+                   bits<32> f64Inst> {
+  defm _F32 : I<(outs F32:$dst), (ins F32:$src), (outs), (ins),
+                [(set F32:$dst, (node F32:$src))],
+                !strconcat("f32.", !strconcat(name, "\t$dst, $src")),
+                !strconcat("f32.", name), f32Inst>;
+  defm _F64 : I<(outs F64:$dst), (ins F64:$src), (outs), (ins),
+                [(set F64:$dst, (node F64:$src))],
+                !strconcat("f64.", !strconcat(name, "\t$dst, $src")),
+                !strconcat("f64.", name), f64Inst>;
+}
+multiclass BinaryFP<SDNode node, string name, bits<32> f32Inst,
+                    bits<32> f64Inst> {
+  defm _F32 : I<(outs F32:$dst), (ins F32:$lhs, F32:$rhs), (outs), (ins),
+                [(set F32:$dst, (node F32:$lhs, F32:$rhs))],
+                !strconcat("f32.", !strconcat(name, "\t$dst, $lhs, $rhs")),
+                !strconcat("f32.", name), f32Inst>;
+  defm _F64 : I<(outs F64:$dst), (ins F64:$lhs, F64:$rhs), (outs), (ins),
+                [(set F64:$dst, (node F64:$lhs, F64:$rhs))],
+                !strconcat("f64.", !strconcat(name, "\t$dst, $lhs, $rhs")),
+                !strconcat("f64.", name), f64Inst>;
+}
+multiclass ComparisonFP<CondCode cond, string name, bits<32> f32Inst, bits<32> f64Inst> {
+  defm _F32 : I<(outs I32:$dst), (ins F32:$lhs, F32:$rhs), (outs), (ins),
+                [(set I32:$dst, (setcc F32:$lhs, F32:$rhs, cond))],
+                !strconcat("f32.", !strconcat(name, "\t$dst, $lhs, $rhs")),
+                !strconcat("f32.", name), f32Inst>;
+  defm  _F64 : I<(outs I32:$dst), (ins F64:$lhs, F64:$rhs), (outs), (ins),
+                [(set I32:$dst, (setcc F64:$lhs, F64:$rhs, cond))],
+                !strconcat("f64.", !strconcat(name, "\t$dst, $lhs, $rhs")),
+                !strconcat("f64.", name), f64Inst>;
+}
 
 let isCommutable = 1 in
 defm ADD : BinaryFP<fadd, "add ", 0x92, 0xa0>;
@@ -27,16 +57,14 @@ defm NEG : UnaryFP<fneg, "neg ", 0x8c, 0x9a>;
 defm COPYSIGN : BinaryFP<fcopysign, "copysign", 0x98, 0xa6>;
 
 let isCommutable = 1 in {
-defm MIN : BinaryFP<fminnan, "min ", 0x96, 0xa4>;
-defm MAX : BinaryFP<fmaxnan, "max ", 0x97, 0xa5>;
+defm MIN : BinaryFP<fminimum, "min ", 0x96, 0xa4>;
+defm MAX : BinaryFP<fmaximum, "max ", 0x97, 0xa5>;
 } // isCommutable = 1
 
 defm CEIL : UnaryFP<fceil, "ceil", 0x8d, 0x9b>;
 defm FLOOR : UnaryFP<ffloor, "floor", 0x8e, 0x9c>;
 defm TRUNC : UnaryFP<ftrunc, "trunc", 0x8f, 0x9d>;
 defm NEAREST : UnaryFP<fnearbyint, "nearest", 0x90, 0x9e>;
-
-} // Defs = [ARGUMENTS]
 
 // DAGCombine oddly folds casts into the rhs of copysign. Unfold them.
 def : Pat<(fcopysign F64:$lhs, F32:$rhs),
@@ -48,8 +76,6 @@ def : Pat<(fcopysign F32:$lhs, F64:$rhs),
 def : Pat<(frint f32:$src), (NEAREST_F32 f32:$src)>;
 def : Pat<(frint f64:$src), (NEAREST_F64 f64:$src)>;
 
-let Defs = [ARGUMENTS] in {
-
 let isCommutable = 1 in {
 defm EQ : ComparisonFP<SETOEQ, "eq  ", 0x5b, 0x61>;
 defm NE : ComparisonFP<SETUNE, "ne  ", 0x5c, 0x62>;
@@ -58,8 +84,6 @@ defm LT : ComparisonFP<SETOLT, "lt  ", 0x5d, 0x63>;
 defm LE : ComparisonFP<SETOLE, "le  ", 0x5f, 0x65>;
 defm GT : ComparisonFP<SETOGT, "gt  ", 0x5e, 0x64>;
 defm GE : ComparisonFP<SETOGE, "ge  ", 0x60, 0x66>;
-
-} // Defs = [ARGUMENTS]
 
 // Don't care floating-point comparisons, supported via other comparisons.
 def : Pat<(seteq f32:$lhs, f32:$rhs), (EQ_F32 f32:$lhs, f32:$rhs)>;
@@ -75,8 +99,6 @@ def : Pat<(setle f64:$lhs, f64:$rhs), (LE_F64 f64:$lhs, f64:$rhs)>;
 def : Pat<(setgt f64:$lhs, f64:$rhs), (GT_F64 f64:$lhs, f64:$rhs)>;
 def : Pat<(setge f64:$lhs, f64:$rhs), (GE_F64 f64:$lhs, f64:$rhs)>;
 
-let Defs = [ARGUMENTS] in {
-
 defm SELECT_F32 : I<(outs F32:$dst), (ins F32:$lhs, F32:$rhs, I32:$cond),
                     (outs), (ins),
                     [(set F32:$dst, (select I32:$cond, F32:$lhs, F32:$rhs))],
@@ -85,8 +107,6 @@ defm SELECT_F64 : I<(outs F64:$dst), (ins F64:$lhs, F64:$rhs, I32:$cond),
                     (outs), (ins),
                     [(set F64:$dst, (select I32:$cond, F64:$lhs, F64:$rhs))],
                     "f64.select\t$dst, $lhs, $rhs, $cond", "f64.select", 0x1b>;
-
-} // Defs = [ARGUMENTS]
 
 // ISD::SELECT requires its operand to conform to getBooleanContents, but
 // WebAssembly's select interprets any non-zero value as true, so we can fold

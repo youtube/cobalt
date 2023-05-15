@@ -1,9 +1,8 @@
 //===----- PostRAHazardRecognizer.cpp - hazard recognizer -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -29,13 +28,11 @@
 
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Pass.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "post-RA-hazard-rec"
@@ -72,21 +69,22 @@ bool PostRAHazardRecognizer::runOnMachineFunction(MachineFunction &Fn) {
       TII->CreateTargetPostRAHazardRecognizer(Fn));
 
   // Return if the target has not implemented a hazard recognizer.
-  if (!HazardRec.get())
+  if (!HazardRec)
     return false;
 
   // Loop over all of the basic blocks
+  bool Changed = false;
   for (auto &MBB : Fn) {
     // We do not call HazardRec->reset() here to make sure we are handling noop
     // hazards at the start of basic blocks.
     for (MachineInstr &MI : MBB) {
       // If we need to emit noops prior to this instruction, then do so.
       unsigned NumPreNoops = HazardRec->PreEmitNoops(&MI);
-      for (unsigned i = 0; i != NumPreNoops; ++i) {
-        HazardRec->EmitNoop();
-        TII->insertNoop(MBB, MachineBasicBlock::iterator(MI));
-        ++NumNoops;
-      }
+      HazardRec->EmitNoops(NumPreNoops);
+      TII->insertNoops(MBB, MachineBasicBlock::iterator(MI), NumPreNoops);
+      NumNoops += NumPreNoops;
+      if (NumPreNoops)
+        Changed = true;
 
       HazardRec->EmitInstruction(&MI);
       if (HazardRec->atIssueLimit()) {
@@ -94,5 +92,5 @@ bool PostRAHazardRecognizer::runOnMachineFunction(MachineFunction &Fn) {
       }
     }
   }
-  return true;
+  return Changed;
 }

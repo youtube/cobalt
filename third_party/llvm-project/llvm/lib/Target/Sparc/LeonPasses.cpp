@@ -1,9 +1,8 @@
 //===------ LeonPasses.cpp - Define passes specific to LEON ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,14 +10,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "LeonPasses.h"
-#include "llvm/CodeGen/ISDOpcodes.h"
+#include "SparcSubtarget.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/IR/DiagnosticInfo.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/raw_ostream.h"
+
 using namespace llvm;
 
 LEONMachineFunctionPass::LEONMachineFunctionPass(char &ID)
@@ -44,8 +42,7 @@ bool InsertNOPLoad::runOnMachineFunction(MachineFunction &MF) {
   DebugLoc DL = DebugLoc();
 
   bool Modified = false;
-  for (auto MFI = MF.begin(), E = MF.end(); MFI != E; ++MFI) {
-    MachineBasicBlock &MBB = *MFI;
+  for (MachineBasicBlock &MBB : MF) {
     for (auto MBBI = MBB.begin(), E = MBB.end(); MBBI != E; ++MBBI) {
       MachineInstr &MI = *MBBI;
       unsigned Opcode = MI.getOpcode();
@@ -79,17 +76,15 @@ bool DetectRoundChange::runOnMachineFunction(MachineFunction &MF) {
   Subtarget = &MF.getSubtarget<SparcSubtarget>();
 
   bool Modified = false;
-  for (auto MFI = MF.begin(), E = MF.end(); MFI != E; ++MFI) {
-    MachineBasicBlock &MBB = *MFI;
-    for (auto MBBI = MBB.begin(), E = MBB.end(); MBBI != E; ++MBBI) {
-      MachineInstr &MI = *MBBI;
+  for (MachineBasicBlock &MBB : MF) {
+    for (MachineInstr &MI : MBB) {
       unsigned Opcode = MI.getOpcode();
       if (Opcode == SP::CALL && MI.getNumOperands() > 0) {
         MachineOperand &MO = MI.getOperand(0);
 
         if (MO.isGlobal()) {
           StringRef FuncName = MO.getGlobal()->getName();
-          if (FuncName.compare_lower("fesetround") == 0) {
+          if (FuncName.compare_insensitive("fesetround") == 0) {
             errs() << "Error: You are using the detectroundchange "
                       "option to detect rounding changes that will "
                       "cause LEON errata. The only way to fix this "
@@ -131,8 +126,7 @@ bool FixAllFDIVSQRT::runOnMachineFunction(MachineFunction &MF) {
   DebugLoc DL = DebugLoc();
 
   bool Modified = false;
-  for (auto MFI = MF.begin(), E = MF.end(); MFI != E; ++MFI) {
-    MachineBasicBlock &MBB = *MFI;
+  for (MachineBasicBlock &MBB : MF) {
     for (auto MBBI = MBB.begin(), E = MBB.end(); MBBI != E; ++MBBI) {
       MachineInstr &MI = *MBBI;
       unsigned Opcode = MI.getOpcode();

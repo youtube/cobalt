@@ -1,4 +1,4 @@
-; RUN: opt %loadPolly -polly-stmt-granularity=bb -polly-optree -polly-codegen -analyze < %s | FileCheck %s -match-full-lines
+; RUN: opt %loadPolly -polly-stmt-granularity=bb -polly-print-optree -polly-codegen -disable-output < %s | FileCheck %s -match-full-lines
 ;
 ; %val1 is used three times: Twice by its own operand tree of %val2 and once
 ; more by the store in %bodyB.
@@ -17,7 +17,7 @@
 ;   C[j] = val2;
 ; }
 ;
-define void @func1(i32 %n, double* noalias nonnull %A, double* noalias nonnull %B, double* noalias nonnull %C) {
+define void @func1(i32 %n, ptr noalias nonnull %A, ptr noalias nonnull %B, ptr noalias nonnull %C) {
 entry:
   br label %for
 
@@ -27,16 +27,16 @@ for:
   br i1 %j.cmp, label %bodyA, label %exit
 
     bodyA:
-      %A_idx = getelementptr inbounds double, double* %A, i32 %j
-      %val1 = load double, double* %A_idx
+      %A_idx = getelementptr inbounds double, ptr %A, i32 %j
+      %val1 = load double, ptr %A_idx
       %val2 = fadd double %val1, %val1
       br label %bodyB
 
     bodyB:
-      %B_idx = getelementptr inbounds double, double* %B, i32 %j
-      store double %val1, double* %B_idx
-      %C_idx = getelementptr inbounds double, double* %C, i32 %j
-      store double %val2, double* %C_idx
+      %B_idx = getelementptr inbounds double, ptr %B, i32 %j
+      store double %val1, ptr %B_idx
+      %C_idx = getelementptr inbounds double, ptr %C, i32 %j
+      store double %val2, ptr %C_idx
       br label %inc
 
 inc:
@@ -53,7 +53,7 @@ return:
 
 ; CHECK: Statistics {
 ; CHECK:     Instructions copied: 1
-; CHECK:     Known loads forwarded: 3
+; CHECK:     Known loads forwarded: 2
 ; CHECK:     Operand trees forwarded: 2
 ; CHECK:     Statements with forwarded operand trees: 1
 ; CHECK: }
@@ -67,7 +67,7 @@ return:
 ; CHECK-NEXT:             MustWriteAccess :=  [Reduction Type: NONE] [Scalar: 1]
 ; CHECK-NEXT:                 [n] -> { Stmt_bodyA[i0] -> MemRef_val2[] };
 ; CHECK-NEXT:             Instructions {
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
+; CHECK-NEXT:                   %val1 = load double, ptr %A_idx, align 8
 ; CHECK-NEXT:                   %val2 = fadd double %val1, %val1
 ; CHECK-NEXT:             }
 ; CHECK-NEXT:     Stmt_bodyB
@@ -79,17 +79,16 @@ return:
 ; CHECK-NEXT:             MustWriteAccess :=  [Reduction Type: NONE] [Scalar: 0]
 ; CHECK-NEXT:                 [n] -> { Stmt_bodyB[i0] -> MemRef_C[i0] };
 ; CHECK-NEXT:             Instructions {
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
+; CHECK-NEXT:                   %val1 = load double, ptr %A_idx, align 8
 ; CHECK-NEXT:                   %val2 = fadd double %val1, %val1
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
-; CHECK-NEXT:                   store double %val1, double* %B_idx
-; CHECK-NEXT:                   store double %val2, double* %C_idx
+; CHECK-NEXT:                   %val1 = load double, ptr %A_idx, align 8
+; CHECK-NEXT:                   store double %val1, ptr %B_idx, align 8
+; CHECK-NEXT:                   store double %val2, ptr %C_idx, align 8
 ; CHECK-NEXT:             }
 ; CHECK-NEXT: }
 
 
-define void @func2(i32 %n, double* noalias nonnull %A, double* noalias nonnull %B, double* noalias nonnull %C) {
+define void @func2(i32 %n, ptr noalias nonnull %A, ptr noalias nonnull %B, ptr noalias nonnull %C) {
 entry:
   br label %for
 
@@ -99,16 +98,16 @@ for:
   br i1 %j.cmp, label %bodyA, label %exit
 
     bodyA:
-      %A_idx = getelementptr inbounds double, double* %A, i32 %j
-      %val1 = load double, double* %A_idx
+      %A_idx = getelementptr inbounds double, ptr %A, i32 %j
+      %val1 = load double, ptr %A_idx
       %val2 = fadd double %val1, %val1
       br label %bodyB
 
     bodyB:
-      %B_idx = getelementptr inbounds double, double* %B, i32 %j
-      store double %val2, double* %B_idx
-      %C_idx = getelementptr inbounds double, double* %C, i32 %j
-      store double %val1, double* %C_idx
+      %B_idx = getelementptr inbounds double, ptr %B, i32 %j
+      store double %val2, ptr %B_idx
+      %C_idx = getelementptr inbounds double, ptr %C, i32 %j
+      store double %val1, ptr %C_idx
       br label %inc
 
 inc:
@@ -125,7 +124,7 @@ return:
 
 ; CHECK: Statistics {
 ; CHECK:     Instructions copied: 1
-; CHECK:     Known loads forwarded: 3
+; CHECK:     Known loads forwarded: 2
 ; CHECK:     Operand trees forwarded: 2
 ; CHECK:     Statements with forwarded operand trees: 1
 ; CHECK: }
@@ -139,7 +138,7 @@ return:
 ; CHECK-NEXT:             MustWriteAccess :=  [Reduction Type: NONE] [Scalar: 1]
 ; CHECK-NEXT:                 [n] -> { Stmt_bodyA[i0] -> MemRef_val1[] };
 ; CHECK-NEXT:             Instructions {
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
+; CHECK-NEXT:                   %val1 = load double, ptr %A_idx, align 8
 ; CHECK-NEXT:                   %val2 = fadd double %val1, %val1
 ; CHECK-NEXT:             }
 ; CHECK-NEXT:     Stmt_bodyB
@@ -151,11 +150,10 @@ return:
 ; CHECK-NEXT:             MustWriteAccess :=  [Reduction Type: NONE] [Scalar: 0]
 ; CHECK-NEXT:                 [n] -> { Stmt_bodyB[i0] -> MemRef_C[i0] };
 ; CHECK-NEXT:             Instructions {
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
-; CHECK-NEXT:                   %val1 = load double, double* %A_idx
+; CHECK-NEXT:                   %val1 = load double, ptr %A_idx, align 8
+; CHECK-NEXT:                   %val1 = load double, ptr %A_idx, align 8
 ; CHECK-NEXT:                   %val2 = fadd double %val1, %val1
-; CHECK-NEXT:                   store double %val2, double* %B_idx
-; CHECK-NEXT:                   store double %val1, double* %C_idx
+; CHECK-NEXT:                   store double %val2, ptr %B_idx, align 8
+; CHECK-NEXT:                   store double %val1, ptr %C_idx, align 8
 ; CHECK-NEXT:             }
 ; CHECK-NEXT: }

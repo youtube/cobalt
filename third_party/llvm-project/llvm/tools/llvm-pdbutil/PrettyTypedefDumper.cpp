@@ -1,20 +1,22 @@
 //===- PrettyTypedefDumper.cpp - PDBSymDumper impl for typedefs -- * C++ *-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "PrettyTypedefDumper.h"
 
-#include "LinePrinter.h"
 #include "PrettyBuiltinDumper.h"
 #include "PrettyFunctionDumper.h"
+#include "PrettyTypeDumper.h"
 
+#include "llvm/DebugInfo/PDB/IPDBLineNumber.h"
 #include "llvm/DebugInfo/PDB/IPDBSession.h"
+#include "llvm/DebugInfo/PDB/Native/LinePrinter.h"
 #include "llvm/DebugInfo/PDB/PDBExtras.h"
+#include "llvm/DebugInfo/PDB/PDBSymbolTypeBuiltin.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeEnum.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypeFunctionSig.h"
 #include "llvm/DebugInfo/PDB/PDBSymbolTypePointer.h"
@@ -35,7 +37,10 @@ void TypedefDumper::start(const PDBSymbolTypeTypedef &Symbol) {
                                                       << Symbol.getName();
 }
 
-void TypedefDumper::dump(const PDBSymbolTypeArray &Symbol) {}
+void TypedefDumper::dump(const PDBSymbolTypeArray &Symbol) {
+  TypeDumper Dumper(Printer);
+  Dumper.dump(Symbol);
+}
 
 void TypedefDumper::dump(const PDBSymbolTypeBuiltin &Symbol) {
   BuiltinDumper Dumper(Printer);

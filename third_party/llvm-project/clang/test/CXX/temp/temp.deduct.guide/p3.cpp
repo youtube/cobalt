@@ -3,14 +3,14 @@
 // The same restrictions apply to the parameter-declaration-clause of a
 // deduction guide as in a function declaration.
 template<typename T> struct A {};
-A(void) -> A<int>; // ok
+A(void) -> A<int>; // expected-note {{previous}}
 A(void, int) -> A<int>; // expected-error {{'void' must be the first and only parameter if specified}}
 
-// We interpret this as also extending to the validity of redeclarations. It's
-// a bit of a stretch (OK, a lot of a stretch) but it gives desirable answers.
-A() -> A<int>; // ok, redeclaration
+A() -> A<int>; // expected-error {{redeclaration of deduction guide}}
+// expected-note@-1 {{previous}}
 
 A() -> A<int>; // expected-note {{previous}}
+// expected-error@-1 {{redeclaration of deduction guide}}
 A() -> A<float>; // FIXME: "functions" is a poor term. expected-error {{functions that differ only in their return type cannot be overloaded}}
 
 template<typename T> A(T) -> A<typename T::foo>;
@@ -24,9 +24,9 @@ template<typename T> using B = A<T>; // expected-note {{template}}
 B() -> B<int>; // expected-error {{cannot specify deduction guide for alias template 'B'}}
 // FIXME: expected-error@-1 {{declarator requires an identifier}}
 template<typename T> int C;
-C() -> int; // expected-error {{requires a type specifier}}
+C() -> int; // expected-error {{a type specifier is required}}
 template<typename T> void D();
-D() -> int; // expected-error {{requires a type specifier}}
+D() -> int; // expected-error {{a type specifier is required}}
 template<template<typename> typename TT> struct E { // expected-note 2{{template}}
   // FIXME: Should only diagnose this once!
   TT(int) -> TT<int>; // expected-error 2{{cannot specify deduction guide for template template parameter 'TT'}} expected-error {{requires an identifier}}
@@ -55,6 +55,7 @@ namespace WrongScope {
   }
   using N::NamedNS1;
   NamedNS1(int) -> NamedNS1<int>; // expected-error {{deduction guide must be declared in the same scope as template}}
+
   using namespace N;
   NamedNS2(int) -> NamedNS2<int>; // expected-error {{deduction guide must be declared in the same scope as template}}
   struct ClassMemberA {

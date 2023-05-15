@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,12 +17,14 @@
 // };
 
 #include <memory>
+
 #include <cassert>
+#include <functional>
 
 #include "test_macros.h"
 
 #if TEST_STD_VER >= 11
-#include "poisoned_hash_helper.hpp"
+#include "poisoned_hash_helper.h"
 #include "deleter_types.h"
 #include "min_allocator.h"
 
@@ -46,22 +47,19 @@ void test_disabled_with_deleter() {
   test_hash_disabled_for_type<pointer>();
 }
 
-namespace std {
-
 template <class T>
-struct hash<::min_pointer<T, std::integral_constant<size_t, 1>>> {
-  size_t operator()(::min_pointer<T, std::integral_constant<size_t, 1>> p) const TEST_NOEXCEPT_FALSE {
+struct std::hash<min_pointer<T, std::integral_constant<size_t, 1>>> {
+  size_t operator()(min_pointer<T, std::integral_constant<size_t, 1>> p) const TEST_NOEXCEPT_FALSE {
     if (!p) return 0;
     return std::hash<T*>{}(std::addressof(*p));
   }
 };
-}
 
 struct A {};
 
 #endif // TEST_STD_VER >= 11
 
-int main()
+int main(int, char**)
 {
   {
     int* ptr = new int;
@@ -100,4 +98,6 @@ int main()
 #endif
   }
 #endif
+
+  return 0;
 }

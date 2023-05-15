@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 // <memory>
 
@@ -80,7 +79,7 @@ void test_ctor_throws()
 
 void test_counted()
 {
-    using It = input_iterator<int*>;
+    using It = cpp17_input_iterator<int*>;
     using FIt = forward_iterator<Counted*>;
     const int N = 5;
     int values[N] = {1, 2, 3, 4, 5};
@@ -110,8 +109,10 @@ void test_counted()
     assert(Counted::count == 0);
 }
 
-int main()
+int main(int, char**)
 {
     test_counted();
     test_ctor_throws();
+
+  return 0;
 }

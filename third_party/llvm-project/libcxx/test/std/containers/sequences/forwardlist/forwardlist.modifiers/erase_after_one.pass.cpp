@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,10 +12,12 @@
 
 #include <forward_list>
 #include <cassert>
+#include <iterator>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef int T;
@@ -24,36 +25,36 @@ int main()
         const T t[] = {0, 1, 2, 3, 4};
         C c(std::begin(t), std::end(t));
 
-        C::iterator i = c.erase_after(next(c.cbefore_begin(), 4));
+        C::iterator i = c.erase_after(std::next(c.cbefore_begin(), 4));
         assert(i == c.end());
-        assert(distance(c.begin(), c.end()) == 4);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
-        assert(*next(c.begin(), 3) == 3);
+        assert(std::distance(c.begin(), c.end()) == 4);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
+        assert(*std::next(c.begin(), 3) == 3);
 
-        i = c.erase_after(next(c.cbefore_begin(), 0));
+        i = c.erase_after(std::next(c.cbefore_begin(), 0));
         assert(i == c.begin());
-        assert(distance(c.begin(), c.end()) == 3);
-        assert(*next(c.begin(), 0) == 1);
-        assert(*next(c.begin(), 1) == 2);
-        assert(*next(c.begin(), 2) == 3);
+        assert(std::distance(c.begin(), c.end()) == 3);
+        assert(*std::next(c.begin(), 0) == 1);
+        assert(*std::next(c.begin(), 1) == 2);
+        assert(*std::next(c.begin(), 2) == 3);
 
-        i = c.erase_after(next(c.cbefore_begin(), 1));
-        assert(i == next(c.begin()));
-        assert(distance(c.begin(), c.end()) == 2);
-        assert(*next(c.begin(), 0) == 1);
-        assert(*next(c.begin(), 1) == 3);
+        i = c.erase_after(std::next(c.cbefore_begin(), 1));
+        assert(i == std::next(c.begin()));
+        assert(std::distance(c.begin(), c.end()) == 2);
+        assert(*std::next(c.begin(), 0) == 1);
+        assert(*std::next(c.begin(), 1) == 3);
 
-        i = c.erase_after(next(c.cbefore_begin(), 1));
+        i = c.erase_after(std::next(c.cbefore_begin(), 1));
         assert(i == c.end());
-        assert(distance(c.begin(), c.end()) == 1);
-        assert(*next(c.begin(), 0) == 1);
+        assert(std::distance(c.begin(), c.end()) == 1);
+        assert(*std::next(c.begin(), 0) == 1);
 
-        i = c.erase_after(next(c.cbefore_begin(), 0));
+        i = c.erase_after(std::next(c.cbefore_begin(), 0));
         assert(i == c.begin());
         assert(i == c.end());
-        assert(distance(c.begin(), c.end()) == 0);
+        assert(std::distance(c.begin(), c.end()) == 0);
     }
 #if TEST_STD_VER >= 11
     {
@@ -62,36 +63,38 @@ int main()
         const T t[] = {0, 1, 2, 3, 4};
         C c(std::begin(t), std::end(t));
 
-        C::iterator i = c.erase_after(next(c.cbefore_begin(), 4));
+        C::iterator i = c.erase_after(std::next(c.cbefore_begin(), 4));
         assert(i == c.end());
-        assert(distance(c.begin(), c.end()) == 4);
-        assert(*next(c.begin(), 0) == 0);
-        assert(*next(c.begin(), 1) == 1);
-        assert(*next(c.begin(), 2) == 2);
-        assert(*next(c.begin(), 3) == 3);
+        assert(std::distance(c.begin(), c.end()) == 4);
+        assert(*std::next(c.begin(), 0) == 0);
+        assert(*std::next(c.begin(), 1) == 1);
+        assert(*std::next(c.begin(), 2) == 2);
+        assert(*std::next(c.begin(), 3) == 3);
 
-        i = c.erase_after(next(c.cbefore_begin(), 0));
+        i = c.erase_after(std::next(c.cbefore_begin(), 0));
         assert(i == c.begin());
-        assert(distance(c.begin(), c.end()) == 3);
-        assert(*next(c.begin(), 0) == 1);
-        assert(*next(c.begin(), 1) == 2);
-        assert(*next(c.begin(), 2) == 3);
+        assert(std::distance(c.begin(), c.end()) == 3);
+        assert(*std::next(c.begin(), 0) == 1);
+        assert(*std::next(c.begin(), 1) == 2);
+        assert(*std::next(c.begin(), 2) == 3);
 
-        i = c.erase_after(next(c.cbefore_begin(), 1));
-        assert(i == next(c.begin()));
-        assert(distance(c.begin(), c.end()) == 2);
-        assert(*next(c.begin(), 0) == 1);
-        assert(*next(c.begin(), 1) == 3);
+        i = c.erase_after(std::next(c.cbefore_begin(), 1));
+        assert(i == std::next(c.begin()));
+        assert(std::distance(c.begin(), c.end()) == 2);
+        assert(*std::next(c.begin(), 0) == 1);
+        assert(*std::next(c.begin(), 1) == 3);
 
-        i = c.erase_after(next(c.cbefore_begin(), 1));
+        i = c.erase_after(std::next(c.cbefore_begin(), 1));
         assert(i == c.end());
-        assert(distance(c.begin(), c.end()) == 1);
-        assert(*next(c.begin(), 0) == 1);
+        assert(std::distance(c.begin(), c.end()) == 1);
+        assert(*std::next(c.begin(), 0) == 1);
 
-        i = c.erase_after(next(c.cbefore_begin(), 0));
+        i = c.erase_after(std::next(c.cbefore_begin(), 0));
         assert(i == c.begin());
         assert(i == c.end());
-        assert(distance(c.begin(), c.end()) == 0);
+        assert(std::distance(c.begin(), c.end()) == 0);
     }
 #endif
+
+  return 0;
 }

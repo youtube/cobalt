@@ -1,239 +1,177 @@
 #include "clang/Basic/Cuda.h"
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/VersionTuple.h"
 
 namespace clang {
 
-const char *CudaVersionToString(CudaVersion V) {
-  switch (V) {
-  case CudaVersion::UNKNOWN:
-    return "unknown";
-  case CudaVersion::CUDA_70:
-    return "7.0";
-  case CudaVersion::CUDA_75:
-    return "7.5";
-  case CudaVersion::CUDA_80:
-    return "8.0";
-  case CudaVersion::CUDA_90:
-    return "9.0";
-  case CudaVersion::CUDA_91:
-    return "9.1";
-  case CudaVersion::CUDA_92:
-    return "9.2";
+struct CudaVersionMapEntry {
+  const char *Name;
+  CudaVersion Version;
+  llvm::VersionTuple TVersion;
+};
+#define CUDA_ENTRY(major, minor)                                               \
+  {                                                                            \
+#major "." #minor, CudaVersion::CUDA_##major##minor,                       \
+        llvm::VersionTuple(major, minor)                                       \
   }
-  llvm_unreachable("invalid enum");
+
+static const CudaVersionMapEntry CudaNameVersionMap[] = {
+    CUDA_ENTRY(7, 0),
+    CUDA_ENTRY(7, 5),
+    CUDA_ENTRY(8, 0),
+    CUDA_ENTRY(9, 0),
+    CUDA_ENTRY(9, 1),
+    CUDA_ENTRY(9, 2),
+    CUDA_ENTRY(10, 0),
+    CUDA_ENTRY(10, 1),
+    CUDA_ENTRY(10, 2),
+    CUDA_ENTRY(11, 0),
+    CUDA_ENTRY(11, 1),
+    CUDA_ENTRY(11, 2),
+    CUDA_ENTRY(11, 3),
+    CUDA_ENTRY(11, 4),
+    CUDA_ENTRY(11, 5),
+    CUDA_ENTRY(11, 6),
+    CUDA_ENTRY(11, 7),
+    CUDA_ENTRY(11, 8),
+    {"", CudaVersion::NEW, llvm::VersionTuple(std::numeric_limits<int>::max())},
+    {"unknown", CudaVersion::UNKNOWN, {}} // End of list tombstone.
+};
+#undef CUDA_ENTRY
+
+const char *CudaVersionToString(CudaVersion V) {
+  for (auto *I = CudaNameVersionMap; I->Version != CudaVersion::UNKNOWN; ++I)
+    if (I->Version == V)
+      return I->Name;
+
+  return CudaVersionToString(CudaVersion::UNKNOWN);
 }
 
+CudaVersion CudaStringToVersion(const llvm::Twine &S) {
+  std::string VS = S.str();
+  for (auto *I = CudaNameVersionMap; I->Version != CudaVersion::UNKNOWN; ++I)
+    if (I->Name == VS)
+      return I->Version;
+  return CudaVersion::UNKNOWN;
+}
+
+CudaVersion ToCudaVersion(llvm::VersionTuple Version) {
+  for (auto *I = CudaNameVersionMap; I->Version != CudaVersion::UNKNOWN; ++I)
+    if (I->TVersion == Version)
+      return I->Version;
+  return CudaVersion::UNKNOWN;
+}
+
+namespace {
+struct CudaArchToStringMap {
+  CudaArch arch;
+  const char *arch_name;
+  const char *virtual_arch_name;
+};
+} // namespace
+
+#define SM2(sm, ca)                                                            \
+  { CudaArch::SM_##sm, "sm_" #sm, ca }
+#define SM(sm) SM2(sm, "compute_" #sm)
+#define GFX(gpu)                                                               \
+  { CudaArch::GFX##gpu, "gfx" #gpu, "compute_amdgcn" }
+static const CudaArchToStringMap arch_names[] = {
+    // clang-format off
+    {CudaArch::UNUSED, "", ""},
+    SM2(20, "compute_20"), SM2(21, "compute_20"), // Fermi
+    SM(30), SM(32), SM(35), SM(37),  // Kepler
+    SM(50), SM(52), SM(53),          // Maxwell
+    SM(60), SM(61), SM(62),          // Pascal
+    SM(70), SM(72),                  // Volta
+    SM(75),                          // Turing
+    SM(80), SM(86),                  // Ampere
+    SM(87),                          // Jetson/Drive AGX Orin
+    SM(89),                          // Ada Lovelace
+    SM(90),                          // Hopper
+    GFX(600),  // gfx600
+    GFX(601),  // gfx601
+    GFX(602),  // gfx602
+    GFX(700),  // gfx700
+    GFX(701),  // gfx701
+    GFX(702),  // gfx702
+    GFX(703),  // gfx703
+    GFX(704),  // gfx704
+    GFX(705),  // gfx705
+    GFX(801),  // gfx801
+    GFX(802),  // gfx802
+    GFX(803),  // gfx803
+    GFX(805),  // gfx805
+    GFX(810),  // gfx810
+    GFX(900),  // gfx900
+    GFX(902),  // gfx902
+    GFX(904),  // gfx903
+    GFX(906),  // gfx906
+    GFX(908),  // gfx908
+    GFX(909),  // gfx909
+    GFX(90a),  // gfx90a
+    GFX(90c),  // gfx90c
+    GFX(940),  // gfx940
+    GFX(1010), // gfx1010
+    GFX(1011), // gfx1011
+    GFX(1012), // gfx1012
+    GFX(1013), // gfx1013
+    GFX(1030), // gfx1030
+    GFX(1031), // gfx1031
+    GFX(1032), // gfx1032
+    GFX(1033), // gfx1033
+    GFX(1034), // gfx1034
+    GFX(1035), // gfx1035
+    GFX(1036), // gfx1036
+    GFX(1100), // gfx1100
+    GFX(1101), // gfx1101
+    GFX(1102), // gfx1102
+    GFX(1103), // gfx1103
+    {CudaArch::Generic, "generic", ""},
+    // clang-format on
+};
+#undef SM
+#undef SM2
+#undef GFX
+
 const char *CudaArchToString(CudaArch A) {
-  switch (A) {
-  case CudaArch::LAST:
-    break;
-  case CudaArch::UNKNOWN:
+  auto result = std::find_if(
+      std::begin(arch_names), std::end(arch_names),
+      [A](const CudaArchToStringMap &map) { return A == map.arch; });
+  if (result == std::end(arch_names))
     return "unknown";
-  case CudaArch::SM_20:
-    return "sm_20";
-  case CudaArch::SM_21:
-    return "sm_21";
-  case CudaArch::SM_30:
-    return "sm_30";
-  case CudaArch::SM_32:
-    return "sm_32";
-  case CudaArch::SM_35:
-    return "sm_35";
-  case CudaArch::SM_37:
-    return "sm_37";
-  case CudaArch::SM_50:
-    return "sm_50";
-  case CudaArch::SM_52:
-    return "sm_52";
-  case CudaArch::SM_53:
-    return "sm_53";
-  case CudaArch::SM_60:
-    return "sm_60";
-  case CudaArch::SM_61:
-    return "sm_61";
-  case CudaArch::SM_62:
-    return "sm_62";
-  case CudaArch::SM_70:
-    return "sm_70";
-  case CudaArch::SM_72:
-    return "sm_72";
-  case CudaArch::GFX600: // tahiti
-    return "gfx600";
-  case CudaArch::GFX601: // pitcairn, verde, oland,hainan
-    return "gfx601";
-  case CudaArch::GFX700: // kaveri
-    return "gfx700";
-  case CudaArch::GFX701: // hawaii
-    return "gfx701";
-  case CudaArch::GFX702: // 290,290x,R390,R390x
-    return "gfx702";
-  case CudaArch::GFX703: // kabini mullins
-    return "gfx703";
-  case CudaArch::GFX704: // bonaire
-    return "gfx704";
-  case CudaArch::GFX801: // carrizo
-    return "gfx801";
-  case CudaArch::GFX802: // tonga,iceland
-    return "gfx802";
-  case CudaArch::GFX803: // fiji,polaris10
-    return "gfx803";
-  case CudaArch::GFX810: // stoney
-    return "gfx810";
-  case CudaArch::GFX900: // vega, instinct
-    return "gfx900";
-  case CudaArch::GFX902: // TBA
-    return "gfx902";
-  }
-  llvm_unreachable("invalid enum");
+  return result->arch_name;
+}
+
+const char *CudaArchToVirtualArchString(CudaArch A) {
+  auto result = std::find_if(
+      std::begin(arch_names), std::end(arch_names),
+      [A](const CudaArchToStringMap &map) { return A == map.arch; });
+  if (result == std::end(arch_names))
+    return "unknown";
+  return result->virtual_arch_name;
 }
 
 CudaArch StringToCudaArch(llvm::StringRef S) {
-  return llvm::StringSwitch<CudaArch>(S)
-      .Case("sm_20", CudaArch::SM_20)
-      .Case("sm_21", CudaArch::SM_21)
-      .Case("sm_30", CudaArch::SM_30)
-      .Case("sm_32", CudaArch::SM_32)
-      .Case("sm_35", CudaArch::SM_35)
-      .Case("sm_37", CudaArch::SM_37)
-      .Case("sm_50", CudaArch::SM_50)
-      .Case("sm_52", CudaArch::SM_52)
-      .Case("sm_53", CudaArch::SM_53)
-      .Case("sm_60", CudaArch::SM_60)
-      .Case("sm_61", CudaArch::SM_61)
-      .Case("sm_62", CudaArch::SM_62)
-      .Case("sm_70", CudaArch::SM_70)
-      .Case("sm_72", CudaArch::SM_72)
-      .Case("gfx600", CudaArch::GFX600)
-      .Case("gfx601", CudaArch::GFX601)
-      .Case("gfx700", CudaArch::GFX700)
-      .Case("gfx701", CudaArch::GFX701)
-      .Case("gfx702", CudaArch::GFX702)
-      .Case("gfx703", CudaArch::GFX703)
-      .Case("gfx704", CudaArch::GFX704)
-      .Case("gfx801", CudaArch::GFX801)
-      .Case("gfx802", CudaArch::GFX802)
-      .Case("gfx803", CudaArch::GFX803)
-      .Case("gfx810", CudaArch::GFX810)
-      .Case("gfx900", CudaArch::GFX900)
-      .Case("gfx902", CudaArch::GFX902)
-      .Default(CudaArch::UNKNOWN);
-}
-
-const char *CudaVirtualArchToString(CudaVirtualArch A) {
-  switch (A) {
-  case CudaVirtualArch::UNKNOWN:
-    return "unknown";
-  case CudaVirtualArch::COMPUTE_20:
-    return "compute_20";
-  case CudaVirtualArch::COMPUTE_30:
-    return "compute_30";
-  case CudaVirtualArch::COMPUTE_32:
-    return "compute_32";
-  case CudaVirtualArch::COMPUTE_35:
-    return "compute_35";
-  case CudaVirtualArch::COMPUTE_37:
-    return "compute_37";
-  case CudaVirtualArch::COMPUTE_50:
-    return "compute_50";
-  case CudaVirtualArch::COMPUTE_52:
-    return "compute_52";
-  case CudaVirtualArch::COMPUTE_53:
-    return "compute_53";
-  case CudaVirtualArch::COMPUTE_60:
-    return "compute_60";
-  case CudaVirtualArch::COMPUTE_61:
-    return "compute_61";
-  case CudaVirtualArch::COMPUTE_62:
-    return "compute_62";
-  case CudaVirtualArch::COMPUTE_70:
-    return "compute_70";
-  case CudaVirtualArch::COMPUTE_72:
-    return "compute_72";
-  case CudaVirtualArch::COMPUTE_AMDGCN:
-    return "compute_amdgcn";
-  }
-  llvm_unreachable("invalid enum");
-}
-
-CudaVirtualArch StringToCudaVirtualArch(llvm::StringRef S) {
-  return llvm::StringSwitch<CudaVirtualArch>(S)
-      .Case("compute_20", CudaVirtualArch::COMPUTE_20)
-      .Case("compute_30", CudaVirtualArch::COMPUTE_30)
-      .Case("compute_32", CudaVirtualArch::COMPUTE_32)
-      .Case("compute_35", CudaVirtualArch::COMPUTE_35)
-      .Case("compute_37", CudaVirtualArch::COMPUTE_37)
-      .Case("compute_50", CudaVirtualArch::COMPUTE_50)
-      .Case("compute_52", CudaVirtualArch::COMPUTE_52)
-      .Case("compute_53", CudaVirtualArch::COMPUTE_53)
-      .Case("compute_60", CudaVirtualArch::COMPUTE_60)
-      .Case("compute_61", CudaVirtualArch::COMPUTE_61)
-      .Case("compute_62", CudaVirtualArch::COMPUTE_62)
-      .Case("compute_70", CudaVirtualArch::COMPUTE_70)
-      .Case("compute_72", CudaVirtualArch::COMPUTE_72)
-      .Case("compute_amdgcn", CudaVirtualArch::COMPUTE_AMDGCN)
-      .Default(CudaVirtualArch::UNKNOWN);
-}
-
-CudaVirtualArch VirtualArchForCudaArch(CudaArch A) {
-  switch (A) {
-  case CudaArch::LAST:
-    break;
-  case CudaArch::UNKNOWN:
-    return CudaVirtualArch::UNKNOWN;
-  case CudaArch::SM_20:
-  case CudaArch::SM_21:
-    return CudaVirtualArch::COMPUTE_20;
-  case CudaArch::SM_30:
-    return CudaVirtualArch::COMPUTE_30;
-  case CudaArch::SM_32:
-    return CudaVirtualArch::COMPUTE_32;
-  case CudaArch::SM_35:
-    return CudaVirtualArch::COMPUTE_35;
-  case CudaArch::SM_37:
-    return CudaVirtualArch::COMPUTE_37;
-  case CudaArch::SM_50:
-    return CudaVirtualArch::COMPUTE_50;
-  case CudaArch::SM_52:
-    return CudaVirtualArch::COMPUTE_52;
-  case CudaArch::SM_53:
-    return CudaVirtualArch::COMPUTE_53;
-  case CudaArch::SM_60:
-    return CudaVirtualArch::COMPUTE_60;
-  case CudaArch::SM_61:
-    return CudaVirtualArch::COMPUTE_61;
-  case CudaArch::SM_62:
-    return CudaVirtualArch::COMPUTE_62;
-  case CudaArch::SM_70:
-    return CudaVirtualArch::COMPUTE_70;
-  case CudaArch::SM_72:
-    return CudaVirtualArch::COMPUTE_72;
-  case CudaArch::GFX600:
-  case CudaArch::GFX601:
-  case CudaArch::GFX700:
-  case CudaArch::GFX701:
-  case CudaArch::GFX702:
-  case CudaArch::GFX703:
-  case CudaArch::GFX704:
-  case CudaArch::GFX801:
-  case CudaArch::GFX802:
-  case CudaArch::GFX803:
-  case CudaArch::GFX810:
-  case CudaArch::GFX900:
-  case CudaArch::GFX902:
-    return CudaVirtualArch::COMPUTE_AMDGCN;
-  }
-  llvm_unreachable("invalid enum");
+  auto result = std::find_if(
+      std::begin(arch_names), std::end(arch_names),
+      [S](const CudaArchToStringMap &map) { return S == map.arch_name; });
+  if (result == std::end(arch_names))
+    return CudaArch::UNKNOWN;
+  return result->arch;
 }
 
 CudaVersion MinVersionForCudaArch(CudaArch A) {
-  switch (A) {
-  case CudaArch::LAST:
-    break;
-  case CudaArch::UNKNOWN:
+  if (A == CudaArch::UNKNOWN)
     return CudaVersion::UNKNOWN;
+
+  // AMD GPUs do not depend on CUDA versions.
+  if (IsAMDGpuArch(A))
+    return CudaVersion::CUDA_70;
+
+  switch (A) {
   case CudaArch::SM_20:
   case CudaArch::SM_21:
   case CudaArch::SM_30:
@@ -252,47 +190,51 @@ CudaVersion MinVersionForCudaArch(CudaArch A) {
     return CudaVersion::CUDA_90;
   case CudaArch::SM_72:
     return CudaVersion::CUDA_91;
-  case CudaArch::GFX600:
-  case CudaArch::GFX601:
-  case CudaArch::GFX700:
-  case CudaArch::GFX701:
-  case CudaArch::GFX702:
-  case CudaArch::GFX703:
-  case CudaArch::GFX704:
-  case CudaArch::GFX801:
-  case CudaArch::GFX802:
-  case CudaArch::GFX803:
-  case CudaArch::GFX810:
-  case CudaArch::GFX900:
-  case CudaArch::GFX902:
-    return CudaVersion::CUDA_70;
+  case CudaArch::SM_75:
+    return CudaVersion::CUDA_100;
+  case CudaArch::SM_80:
+    return CudaVersion::CUDA_110;
+  case CudaArch::SM_86:
+    return CudaVersion::CUDA_111;
+  case CudaArch::SM_87:
+    return CudaVersion::CUDA_114;
+  case CudaArch::SM_89:
+  case CudaArch::SM_90:
+    return CudaVersion::CUDA_118;
+  default:
+    llvm_unreachable("invalid enum");
   }
-  llvm_unreachable("invalid enum");
 }
 
 CudaVersion MaxVersionForCudaArch(CudaArch A) {
+  // AMD GPUs do not depend on CUDA versions.
+  if (IsAMDGpuArch(A))
+    return CudaVersion::NEW;
+
   switch (A) {
   case CudaArch::UNKNOWN:
     return CudaVersion::UNKNOWN;
   case CudaArch::SM_20:
   case CudaArch::SM_21:
-  case CudaArch::GFX600:
-  case CudaArch::GFX601:
-  case CudaArch::GFX700:
-  case CudaArch::GFX701:
-  case CudaArch::GFX702:
-  case CudaArch::GFX703:
-  case CudaArch::GFX704:
-  case CudaArch::GFX801:
-  case CudaArch::GFX802:
-  case CudaArch::GFX803:
-  case CudaArch::GFX810:
-  case CudaArch::GFX900:
-  case CudaArch::GFX902:
     return CudaVersion::CUDA_80;
+  case CudaArch::SM_30:
+    return CudaVersion::CUDA_110;
   default:
-    return CudaVersion::LATEST;
+    return CudaVersion::NEW;
   }
 }
 
+bool CudaFeatureEnabled(llvm::VersionTuple  Version, CudaFeature Feature) {
+  return CudaFeatureEnabled(ToCudaVersion(Version), Feature);
+}
+
+bool CudaFeatureEnabled(CudaVersion Version, CudaFeature Feature) {
+  switch (Feature) {
+  case CudaFeature::CUDA_USES_NEW_LAUNCH:
+    return Version >= CudaVersion::CUDA_92;
+  case CudaFeature::CUDA_USES_FATBIN_REGISTER_END:
+    return Version >= CudaVersion::CUDA_101;
+  }
+  llvm_unreachable("Unknown CUDA feature.");
+}
 } // namespace clang

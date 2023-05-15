@@ -53,17 +53,26 @@ int j() {  // expected-warning{{call itself}}
   return 5 + j();
 }
 
-void k() {  // expected-warning{{call itself}}
+// Don't warn on infinite loops
+void k() {
   while(true) {
     k();
   }
 }
 
-// Don't warn on infinite loops
 void l() {
   while (true) {}
 
   l();
+}
+
+void m() {
+  static int count = 5;
+  if (count >0) {
+    count--;
+    l();
+  }
+  while (true) {}
 }
 
 class S {
@@ -162,3 +171,35 @@ int test_wrapper() {
 }
 
 int wrapper_sum = test_wrapper<2>();  // expected-note{{instantiation}}
+
+namespace std {
+class type_info {
+public:
+  virtual ~type_info();
+  const char *name() const { return __name; }
+  bool operator==(const type_info &__arg) const {
+    return __name == __arg.__name;
+  }
+
+  bool operator!=(const type_info &__arg) const {
+    return !operator==(__arg);
+  }
+
+protected:
+  const char *__name;
+};
+} // namespace std
+struct Q {
+  virtual ~Q() = default;
+};
+
+Q q;
+Q &evaluated_recursive_function(int x) {         // expected-warning{{call itself}}
+  (void)typeid(evaluated_recursive_function(x)); // expected-warning {{expression with side effects will be evaluated despite being used as an operand to 'typeid'}}
+  return q;
+}
+
+int unevaluated_recursive_function() {
+  (void)typeid(unevaluated_recursive_function());
+  return 0;
+}

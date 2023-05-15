@@ -1,24 +1,8 @@
 /*===---- stddef.h - Basic type definitions --------------------------------===
  *
- * Copyright (c) 2008 Eli Friedman
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
  *===-----------------------------------------------------------------------===
  */
@@ -78,7 +62,7 @@ typedef __SIZE_TYPE__ rsize_t;
 #endif /* defined(__need_STDDEF_H_misc) */
 
 #if defined(__need_wchar_t)
-#ifndef __cplusplus
+#if !defined(__cplusplus) || (defined(_MSC_VER) && !_NATIVE_WCHAR_T_DEFINED)
 /* Always define wchar_t when modules are available. */
 #if !defined(_WCHAR_T) || __has_feature(modules)
 #if !__has_feature(modules)
@@ -113,8 +97,15 @@ using ::std::nullptr_t;
 #undef __need_NULL
 #endif /* defined(__need_NULL) */
 
+/* FIXME: This is using the placeholder dates Clang produces for these macros
+   in C2x mode; switch to the correct values once they've been published. */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202000L
+typedef typeof(nullptr) nullptr_t;
+#endif /* defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202000L */
+
 #if defined(__need_STDDEF_H_misc)
-#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201103L
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) ||              \
+    (defined(__cplusplus) && __cplusplus >= 201103L)
 #include "__stddef_max_align_t.h"
 #endif
 #define offsetof(t, d) __builtin_offsetof(t, d)

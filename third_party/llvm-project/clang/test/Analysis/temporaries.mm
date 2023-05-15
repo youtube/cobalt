@@ -1,6 +1,8 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker core,cplusplus -verify %s
+// RUN: %clang_analyze_cc1 -std=c++14 -analyzer-checker core,cplusplus -verify %s
 
 // expected-no-diagnostics
+
+#define nil ((id)0)
 
 // Stripped down unique_ptr<int>
 struct IntPtr {
@@ -15,9 +17,13 @@ struct IntPtr {
   -(void) foo: (IntPtr)arg;
 @end
 
-void bar(Foo *f) {
+void testArgumentRegionInvalidation(Foo *f) {
   IntPtr ptr;
   int *i = ptr.i;
   [f foo: static_cast<IntPtr &&>(ptr)];
   *i = 99; // no-warning
+}
+
+void testNilReceiverCleanup() {
+  [nil foo: IntPtr()];
 }

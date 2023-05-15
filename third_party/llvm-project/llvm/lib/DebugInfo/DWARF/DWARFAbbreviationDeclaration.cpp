@@ -1,21 +1,18 @@
 //===- DWARFAbbreviationDeclaration.cpp -----------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/DWARF/DWARFAbbreviationDeclaration.h"
 
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "llvm/DebugInfo/DWARF/DWARFDataExtractor.h"
 #include "llvm/DebugInfo/DWARF/DWARFFormValue.h"
 #include "llvm/DebugInfo/DWARF/DWARFUnit.h"
 #include "llvm/Support/DataExtractor.h"
-#include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstddef>
@@ -39,9 +36,9 @@ DWARFAbbreviationDeclaration::DWARFAbbreviationDeclaration() {
 
 bool
 DWARFAbbreviationDeclaration::extract(DataExtractor Data,
-                                      uint32_t* OffsetPtr) {
+                                      uint64_t* OffsetPtr) {
   clear();
-  const uint32_t Offset = *OffsetPtr;
+  const uint64_t Offset = *OffsetPtr;
   Code = Data.getULEB128(OffsetPtr);
   if (Code == 0) {
     return false;
@@ -70,7 +67,7 @@ DWARFAbbreviationDeclaration::extract(DataExtractor Data,
         AttributeSpecs.push_back(AttributeSpec(A, F, V));
         continue;
       }
-      Optional<uint8_t> ByteSize;
+      std::optional<uint8_t> ByteSize;
       // If this abbrevation still has a fixed byte size, then update the
       // FixedAttributeSize as needed.
       switch (F) {
@@ -139,48 +136,64 @@ void DWARFAbbreviationDeclaration::dump(raw_ostream &OS) const {
   OS << '\n';
 }
 
-Optional<uint32_t>
+std::optional<uint32_t>
 DWARFAbbreviationDeclaration::findAttributeIndex(dwarf::Attribute Attr) const {
   for (uint32_t i = 0, e = AttributeSpecs.size(); i != e; ++i) {
     if (AttributeSpecs[i].Attr == Attr)
       return i;
   }
-  return None;
+  return std::nullopt;
 }
 
-Optional<DWARFFormValue> DWARFAbbreviationDeclaration::getAttributeValue(
-    const uint32_t DIEOffset, const dwarf::Attribute Attr,
-    const DWARFUnit &U) const {
-  Optional<uint32_t> MatchAttrIndex = findAttributeIndex(Attr);
-  if (!MatchAttrIndex)
-    return None;
-
-  auto DebugInfoData = U.getDebugInfoExtractor();
+uint64_t DWARFAbbreviationDeclaration::getAttributeOffsetFromIndex(
+    uint32_t AttrIndex, uint64_t DIEOffset, const DWARFUnit &U) const {
+  DWARFDataExtractor DebugInfoData = U.getDebugInfoExtractor();
 
   // Add the byte size of ULEB that for the abbrev Code so we can start
   // skipping the attribute data.
-  uint32_t Offset = DIEOffset + CodeByteSize;
-  uint32_t AttrIndex = 0;
-  for (const auto &Spec : AttributeSpecs) {
-    if (*MatchAttrIndex == AttrIndex) {
-      // We have arrived at the attribute to extract, extract if from Offset.
-      DWARFFormValue FormValue(Spec.Form);
-      if (Spec.isImplicitConst()) {
-        FormValue.setSValue(Spec.getImplicitConstValue());
-        return FormValue;
-      }
-      if (FormValue.extractValue(DebugInfoData, &Offset, U.getFormParams(), &U))
-        return FormValue;
-    }
-    // March Offset along until we get to the attribute we want.
-    if (auto FixedSize = Spec.getByteSize(U))
+  uint64_t Offset = DIEOffset + CodeByteSize;
+  for (uint32_t CurAttrIdx = 0; CurAttrIdx != AttrIndex; ++CurAttrIdx)
+    // Match Offset along until we get to the attribute we want.
+    if (auto FixedSize = AttributeSpecs[CurAttrIdx].getByteSize(U))
       Offset += *FixedSize;
     else
-      DWARFFormValue::skipValue(Spec.Form, DebugInfoData, &Offset,
-                                U.getFormParams());
-    ++AttrIndex;
-  }
-  return None;
+      DWARFFormValue::skipValue(AttributeSpecs[CurAttrIdx].Form, DebugInfoData,
+                                &Offset, U.getFormParams());
+  return Offset;
+}
+
+std::optional<DWARFFormValue>
+DWARFAbbreviationDeclaration::getAttributeValueFromOffset(
+    uint32_t AttrIndex, uint64_t Offset, const DWARFUnit &U) const {
+  assert(AttributeSpecs.size() > AttrIndex &&
+         "Attribute Index is out of bounds.");
+
+  // We have arrived at the attribute to extract, extract if from Offset.
+  const AttributeSpec &Spec = AttributeSpecs[AttrIndex];
+  if (Spec.isImplicitConst())
+    return DWARFFormValue::createFromSValue(Spec.Form,
+                                            Spec.getImplicitConstValue());
+
+  DWARFFormValue FormValue(Spec.Form);
+  DWARFDataExtractor DebugInfoData = U.getDebugInfoExtractor();
+  if (FormValue.extractValue(DebugInfoData, &Offset, U.getFormParams(), &U))
+    return FormValue;
+  return std::nullopt;
+}
+
+std::optional<DWARFFormValue>
+DWARFAbbreviationDeclaration::getAttributeValue(const uint64_t DIEOffset,
+                                                const dwarf::Attribute Attr,
+                                                const DWARFUnit &U) const {
+  // Check if this abbreviation has this attribute without needing to skip
+  // any data so we can return quickly if it doesn't.
+  std::optional<uint32_t> MatchAttrIndex = findAttributeIndex(Attr);
+  if (!MatchAttrIndex)
+    return std::nullopt;
+
+  uint64_t Offset = getAttributeOffsetFromIndex(*MatchAttrIndex, DIEOffset, U);
+
+  return getAttributeValueFromOffset(*MatchAttrIndex, Offset, U);
 }
 
 size_t DWARFAbbreviationDeclaration::FixedSizeInfo::getByteSize(
@@ -195,22 +208,22 @@ size_t DWARFAbbreviationDeclaration::FixedSizeInfo::getByteSize(
   return ByteSize;
 }
 
-Optional<int64_t> DWARFAbbreviationDeclaration::AttributeSpec::getByteSize(
+std::optional<int64_t> DWARFAbbreviationDeclaration::AttributeSpec::getByteSize(
     const DWARFUnit &U) const {
   if (isImplicitConst())
     return 0;
   if (ByteSize.HasByteSize)
     return ByteSize.ByteSize;
-  Optional<int64_t> S;
+  std::optional<int64_t> S;
   auto FixedByteSize = dwarf::getFixedFormByteSize(Form, U.getFormParams());
   if (FixedByteSize)
     S = *FixedByteSize;
   return S;
 }
 
-Optional<size_t> DWARFAbbreviationDeclaration::getFixedAttributesByteSize(
+std::optional<size_t> DWARFAbbreviationDeclaration::getFixedAttributesByteSize(
     const DWARFUnit &U) const {
   if (FixedAttributeSize)
     return FixedAttributeSize->getByteSize(U);
-  return None;
+  return std::nullopt;
 }

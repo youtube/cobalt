@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,7 +10,7 @@
 
 // ~vector() // implied noexcept;
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 #include <vector>
 #include <cassert>
@@ -26,9 +25,10 @@ struct some_alloc
     typedef T value_type;
     some_alloc(const some_alloc&);
     ~some_alloc() noexcept(false);
+    void allocate(size_t);
 };
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     {
         typedef std::vector<MoveOnly> C;
@@ -48,4 +48,15 @@ int main()
         static_assert(!std::is_nothrow_destructible<C>::value, "");
     }
 #endif // _LIBCPP_VERSION
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

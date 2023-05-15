@@ -1,5 +1,6 @@
-; RUN: opt < %s -msan -msan-check-access-address=0 -msan-track-origins=1 -S | FileCheck -check-prefix=CHECK -check-prefix=CHECK-ORIGINS1 %s
-; RUN: opt < %s -msan -msan-check-access-address=0 -msan-track-origins=2 -S | FileCheck -check-prefix=CHECK -check-prefix=CHECK-ORIGINS2 %s
+; RUN: opt < %s -msan-check-access-address=0 -msan-track-origins=1 -S -passes=msan 2>&1 | FileCheck "-check-prefixes=CHECK,CHECK-MSAN,CHECK-ORIGINS1" %s
+; RUN: opt < %s -msan-check-access-address=0 -msan-track-origins=2 -S -passes=msan 2>&1 | FileCheck "-check-prefixes=CHECK,CHECK-MSAN,CHECK-ORIGINS2" %s
+; RUN: opt < %s -msan-kernel=1 -msan-check-access-address=0 -S -passes=msan 2>&1        | FileCheck "-check-prefixes=CHECK,CHECK-KMSAN,CHECK-ORIGINS2" %s
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -9,18 +10,18 @@ target triple = "x86_64-unknown-linux-gnu"
 ; Check that debug info for origin propagation code is set correctly.
 
 ; Function Attrs: nounwind
-define void @Store(i32* nocapture %p, i32 %x) #0 !dbg !4 {
+define void @Store(ptr nocapture %p, i32 %x) #0 !dbg !4 {
 entry:
-  tail call void @llvm.dbg.value(metadata i32* %p, i64 0, metadata !11, metadata !DIExpression()), !dbg !16
+  tail call void @llvm.dbg.value(metadata ptr %p, i64 0, metadata !11, metadata !DIExpression()), !dbg !16
   tail call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !12, metadata !DIExpression()), !dbg !16
-  store i32 %x, i32* %p, align 4, !dbg !17, !tbaa !18
+  store i32 %x, ptr %p, align 4, !dbg !17, !tbaa !18
   ret void, !dbg !22
 }
 
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
 
-attributes #0 = { nounwind sanitize_memory "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind sanitize_memory "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}
@@ -52,21 +53,28 @@ attributes #1 = { nounwind readnone }
 
 
 ; CHECK-LABEL: @Store
-; CHECK: load {{.*}} @__msan_param_tls
-; CHECK: [[ORIGIN:%[01-9a-z]+]] = load {{.*}} @__msan_param_origin_tls
-; CHECK: store {{.*}}!dbg ![[DBG:[01-9]+]]
+
+; CHECK-MSAN: load {{.*}} @__msan_param_tls
+; CHECK-MSAN: [[ORIGIN:%[0-9a-z]+]] = load {{.*}} @__msan_param_origin_tls
+
+; CHECK-KMSAN: %param_shadow
+; CHECK-KMSAN: load i32, ptr
+; CHECK-KMSAN: %param_origin
+; CHECK-KMSAN: [[ORIGIN:%[0-9a-z]+]] = load i32, ptr
+
+; CHECK: store {{.*}}!dbg ![[DBG:[0-9]+]]
 ; CHECK: icmp
 ; CHECK: br i1
-; CHECK: <label>
+; CHECK: {{^[0-9]+}}:
 
 ; Origin tracking level 1: simply store the origin value
 ; CHECK-ORIGINS1: store i32 {{.*}}[[ORIGIN]],{{.*}}!dbg !{{.*}}[[DBG]]
 
 ; Origin tracking level 2: pass origin value through __msan_chain_origin and store the result.
-; CHECK-ORIGINS2: [[ORIGIN2:%[01-9a-z]+]] = call i32 @__msan_chain_origin(i32 {{.*}}[[ORIGIN]])
+; CHECK-ORIGINS2: [[ORIGIN2:%[0-9a-z]+]] = call i32 @__msan_chain_origin(i32 {{.*}}[[ORIGIN]])
 ; CHECK-ORIGINS2: store i32 {{.*}}[[ORIGIN2]],{{.*}}!dbg !{{.*}}[[DBG]]
 
 ; CHECK: br label{{.*}}!dbg !{{.*}}[[DBG]]
-; CHECK: <label>
+; CHECK: {{^[0-9]+}}:
 ; CHECK: store{{.*}}!dbg !{{.*}}[[DBG]]
 ; CHECK: ret void

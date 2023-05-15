@@ -1,18 +1,18 @@
-//===-- RegisterUtilities.cpp -----------------------------------*- C++ -*-===//
+//===-- RegisterUtilities.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "Plugins/Process/elf-core/RegisterUtilities.h"
 #include "llvm/ADT/STLExtras.h"
+#include <optional>
 
 using namespace lldb_private;
 
-static llvm::Optional<uint32_t>
+static std::optional<uint32_t>
 getNoteType(const llvm::Triple &Triple,
             llvm::ArrayRef<RegsetDesc> RegsetDescs) {
   for (const auto &Entry : RegsetDescs) {
@@ -23,7 +23,7 @@ getNoteType(const llvm::Triple &Triple,
       continue;
     return Entry.Note;
   }
-  return llvm::None;
+  return std::nullopt;
 }
 
 DataExtractor lldb_private::getRegset(llvm::ArrayRef<CoreNote> Notes,
@@ -35,5 +35,5 @@ DataExtractor lldb_private::getRegset(llvm::ArrayRef<CoreNote> Notes,
   uint32_t Type = *TypeOr;
   auto Iter = llvm::find_if(
       Notes, [Type](const CoreNote &Note) { return Note.info.n_type == Type; });
-  return Iter == Notes.end() ? DataExtractor() : Iter->data;
+  return Iter == Notes.end() ? DataExtractor() : DataExtractor(Iter->data);
 }

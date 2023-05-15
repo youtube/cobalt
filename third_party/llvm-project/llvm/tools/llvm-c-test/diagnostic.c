@@ -1,9 +1,8 @@
 //===-- diagnostic.cpp - tool for testing libLLVM and llvm-c API ----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -71,13 +70,8 @@ int llvm_test_diagnostic_handler(void) {
 
   LLVMModuleRef M;
   int Ret = LLVMGetBitcodeModule2(MB, &M);
-  if (Ret) {
-    // We do not return if the bitcode was invalid, as we want to test whether
-    // the diagnostic handler was executed.
-    fprintf(stderr, "Error parsing bitcode: %s\n", msg);
-  }
-
-  LLVMDisposeMemoryBuffer(MB);
+  if (Ret)
+    LLVMDisposeMemoryBuffer(MB);
 
   if (handlerCalled) {
     fprintf(stderr, "Diagnostic handler was called while loading module\n");

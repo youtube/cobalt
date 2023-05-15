@@ -1,7 +1,7 @@
 ; RUN: llc -march=mips -mattr=+dsp < %s -asm-show-inst -O0 | FileCheck %s \
 ; RUN:   --check-prefixes=ASM,ALL
 ; RUN: llc -march=mips -mattr=+dsp,+micromips < %s -O0 -filetype=obj | \
-; RUN:   llvm-objdump -d - | FileCheck %s --check-prefixes=MM-OBJ,ALL
+; RUN:   llvm-objdump --no-print-imm-hex -d - | FileCheck %s --check-prefixes=MM-OBJ,ALL
 
 ; Test that spill and reloads use the dsp "variant" instructions. We use -O0
 ; to use the simple register allocator.
@@ -13,7 +13,7 @@
 ; FIXME: We should be able to get rid of those instructions with the variable
 ;        value registers.
 
-; ALL-LABEL: spill_reload:
+; ALL-LABEL: spill_reload{{>?}}:
 
 define <4 x i8>  @spill_reload(<4 x i8> %a, <4 x i8> %b, i32 %g) {
 entry:
@@ -23,10 +23,7 @@ entry:
 
 ; ASM: SWDSP
 ; ASM: SWDSP
-; ASM: SWDSP
 
-; MM-OBJ:   sw  ${{[0-9]+}}, {{[0-9]+}}($sp)
-; MM-OBJ:   sw  ${{[0-9]+}}, {{[0-9]+}}($sp)
 ; MM-OBJ:   sw  ${{[0-9]+}}, {{[0-9]+}}($sp)
 ; MM-OBJ:   sw  ${{[0-9]+}}, {{[0-9]+}}($sp)
 

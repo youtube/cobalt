@@ -1,9 +1,8 @@
 //===- llvm/Analysis/LoopInfoImpl.h - Natural Loop Calculator ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,10 +14,9 @@
 #ifndef LLVM_ANALYSIS_LOOPINFOIMPL_H
 #define LLVM_ANALYSIS_LOOPINFOIMPL_H
 
-#include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SetOperations.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Dominators.h"
 
@@ -36,7 +34,7 @@ void LoopBase<BlockT, LoopT>::getExitingBlocks(
     SmallVectorImpl<BlockT *> &ExitingBlocks) const {
   assert(!isInvalid() && "Loop not in a valid state!");
   for (const auto BB : blocks())
-    for (const auto &Succ : children<BlockT *>(BB))
+    for (auto *Succ : children<BlockT *>(BB))
       if (!contains(Succ)) {
         // Not in current loop? It must be an exit block.
         ExitingBlocks.push_back(BB);
@@ -49,11 +47,14 @@ void LoopBase<BlockT, LoopT>::getExitingBlocks(
 template <class BlockT, class LoopT>
 BlockT *LoopBase<BlockT, LoopT>::getExitingBlock() const {
   assert(!isInvalid() && "Loop not in a valid state!");
-  SmallVector<BlockT *, 8> ExitingBlocks;
-  getExitingBlocks(ExitingBlocks);
-  if (ExitingBlocks.size() == 1)
-    return ExitingBlocks[0];
-  return nullptr;
+  auto notInLoop = [&](BlockT *BB) { return !contains(BB); };
+  auto isExitBlock = [&](BlockT *BB, bool AllowRepeats) -> BlockT * {
+    assert(!AllowRepeats && "Unexpected parameter value.");
+    // Child not in current loop?  It must be an exit block.
+    return any_of(children<BlockT *>(BB), notInLoop) ? BB : nullptr;
+  };
+
+  return find_singleton<BlockT>(blocks(), isExitBlock);
 }
 
 /// getExitBlocks - Return all of the successor blocks of this loop.  These
@@ -64,7 +65,7 @@ void LoopBase<BlockT, LoopT>::getExitBlocks(
     SmallVectorImpl<BlockT *> &ExitBlocks) const {
   assert(!isInvalid() && "Loop not in a valid state!");
   for (const auto BB : blocks())
-    for (const auto &Succ : children<BlockT *>(BB))
+    for (auto *Succ : children<BlockT *>(BB))
       if (!contains(Succ))
         // Not in current loop? It must be an exit block.
         ExitBlocks.push_back(Succ);
@@ -73,22 +74,47 @@ void LoopBase<BlockT, LoopT>::getExitBlocks(
 /// getExitBlock - If getExitBlocks would return exactly one block,
 /// return that block. Otherwise return null.
 template <class BlockT, class LoopT>
+std::pair<BlockT *, bool> getExitBlockHelper(const LoopBase<BlockT, LoopT> *L,
+                                             bool Unique) {
+  assert(!L->isInvalid() && "Loop not in a valid state!");
+  auto notInLoop = [&](BlockT *BB,
+                       bool AllowRepeats) -> std::pair<BlockT *, bool> {
+    assert(AllowRepeats == Unique && "Unexpected parameter value.");
+    return {!L->contains(BB) ? BB : nullptr, false};
+  };
+  auto singleExitBlock = [&](BlockT *BB,
+                             bool AllowRepeats) -> std::pair<BlockT *, bool> {
+    assert(AllowRepeats == Unique && "Unexpected parameter value.");
+    return find_singleton_nested<BlockT>(children<BlockT *>(BB), notInLoop,
+                                         AllowRepeats);
+  };
+  return find_singleton_nested<BlockT>(L->blocks(), singleExitBlock, Unique);
+}
+
+template <class BlockT, class LoopT>
+bool LoopBase<BlockT, LoopT>::hasNoExitBlocks() const {
+  auto RC = getExitBlockHelper(this, false);
+  if (RC.second)
+    // found multiple exit blocks
+    return false;
+  // return true if there is no exit block
+  return !RC.first;
+}
+
+/// getExitBlock - If getExitBlocks would return exactly one block,
+/// return that block. Otherwise return null.
+template <class BlockT, class LoopT>
 BlockT *LoopBase<BlockT, LoopT>::getExitBlock() const {
-  assert(!isInvalid() && "Loop not in a valid state!");
-  SmallVector<BlockT *, 8> ExitBlocks;
-  getExitBlocks(ExitBlocks);
-  if (ExitBlocks.size() == 1)
-    return ExitBlocks[0];
-  return nullptr;
+  return getExitBlockHelper(this, false).first;
 }
 
 template <class BlockT, class LoopT>
 bool LoopBase<BlockT, LoopT>::hasDedicatedExits() const {
   // Each predecessor of each exit block of a normal loop is contained
   // within the loop.
-  SmallVector<BlockT *, 4> ExitBlocks;
-  getExitBlocks(ExitBlocks);
-  for (BlockT *EB : ExitBlocks)
+  SmallVector<BlockT *, 4> UniqueExitBlocks;
+  getUniqueExitBlocks(UniqueExitBlocks);
+  for (BlockT *EB : UniqueExitBlocks)
     for (BlockT *Predecessor : children<Inverse<BlockT *>>(EB))
       if (!contains(Predecessor))
         return false;
@@ -96,58 +122,41 @@ bool LoopBase<BlockT, LoopT>::hasDedicatedExits() const {
   return true;
 }
 
+// Helper function to get unique loop exits. Pred is a predicate pointing to
+// BasicBlocks in a loop which should be considered to find loop exits.
+template <class BlockT, class LoopT, typename PredicateT>
+void getUniqueExitBlocksHelper(const LoopT *L,
+                               SmallVectorImpl<BlockT *> &ExitBlocks,
+                               PredicateT Pred) {
+  assert(!L->isInvalid() && "Loop not in a valid state!");
+  SmallPtrSet<BlockT *, 32> Visited;
+  auto Filtered = make_filter_range(L->blocks(), Pred);
+  for (BlockT *BB : Filtered)
+    for (BlockT *Successor : children<BlockT *>(BB))
+      if (!L->contains(Successor))
+        if (Visited.insert(Successor).second)
+          ExitBlocks.push_back(Successor);
+}
+
 template <class BlockT, class LoopT>
 void LoopBase<BlockT, LoopT>::getUniqueExitBlocks(
     SmallVectorImpl<BlockT *> &ExitBlocks) const {
-  typedef GraphTraits<BlockT *> BlockTraits;
-  typedef GraphTraits<Inverse<BlockT *>> InvBlockTraits;
+  getUniqueExitBlocksHelper(this, ExitBlocks,
+                            [](const BlockT *BB) { return true; });
+}
 
-  assert(hasDedicatedExits() &&
-         "getUniqueExitBlocks assumes the loop has canonical form exits!");
-
-  SmallVector<BlockT *, 32> SwitchExitBlocks;
-  for (BlockT *Block : this->blocks()) {
-    SwitchExitBlocks.clear();
-    for (BlockT *Successor : children<BlockT *>(Block)) {
-      // If block is inside the loop then it is not an exit block.
-      if (contains(Successor))
-        continue;
-
-      BlockT *FirstPred = *InvBlockTraits::child_begin(Successor);
-
-      // If current basic block is this exit block's first predecessor then only
-      // insert exit block in to the output ExitBlocks vector. This ensures that
-      // same exit block is not inserted twice into ExitBlocks vector.
-      if (Block != FirstPred)
-        continue;
-
-      // If a terminator has more then two successors, for example SwitchInst,
-      // then it is possible that there are multiple edges from current block to
-      // one exit block.
-      if (std::distance(BlockTraits::child_begin(Block),
-                        BlockTraits::child_end(Block)) <= 2) {
-        ExitBlocks.push_back(Successor);
-        continue;
-      }
-
-      // In case of multiple edges from current block to exit block, collect
-      // only one edge in ExitBlocks. Use switchExitBlocks to keep track of
-      // duplicate edges.
-      if (!is_contained(SwitchExitBlocks, Successor)) {
-        SwitchExitBlocks.push_back(Successor);
-        ExitBlocks.push_back(Successor);
-      }
-    }
-  }
+template <class BlockT, class LoopT>
+void LoopBase<BlockT, LoopT>::getUniqueNonLatchExitBlocks(
+    SmallVectorImpl<BlockT *> &ExitBlocks) const {
+  const BlockT *Latch = getLoopLatch();
+  assert(Latch && "Latch block must exists");
+  getUniqueExitBlocksHelper(this, ExitBlocks,
+                            [Latch](const BlockT *BB) { return BB != Latch; });
 }
 
 template <class BlockT, class LoopT>
 BlockT *LoopBase<BlockT, LoopT>::getUniqueExitBlock() const {
-  SmallVector<BlockT *, 8> UniqueExitBlocks;
-  getUniqueExitBlocks(UniqueExitBlocks);
-  if (UniqueExitBlocks.size() == 1)
-    return UniqueExitBlocks[0];
-  return nullptr;
+  return getExitBlockHelper(this, true).first;
 }
 
 /// getExitEdges - Return all pairs of (_inside_block_,_outside_block_).
@@ -156,7 +165,7 @@ void LoopBase<BlockT, LoopT>::getExitEdges(
     SmallVectorImpl<Edge> &ExitEdges) const {
   assert(!isInvalid() && "Loop not in a valid state!");
   for (const auto BB : blocks())
-    for (const auto &Succ : children<BlockT *>(BB))
+    for (auto *Succ : children<BlockT *>(BB))
       if (!contains(Succ))
         // Not in current loop? It must be an exit block.
         ExitEdges.emplace_back(BB, Succ);
@@ -214,8 +223,6 @@ BlockT *LoopBase<BlockT, LoopT>::getLoopPredecessor() const {
     }
   }
 
-  // Make sure there is only one exit out of the preheader.
-  assert(Out && "Header of loop has no predecessors from outside loop?");
   return Out;
 }
 
@@ -302,17 +309,12 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
   getExitBlocks(ExitBBs);
   df_iterator_default_set<BlockT *> VisitSet;
   VisitSet.insert(ExitBBs.begin(), ExitBBs.end());
-  df_ext_iterator<BlockT *, df_iterator_default_set<BlockT *>>
-      BI = df_ext_begin(getHeader(), VisitSet),
-      BE = df_ext_end(getHeader(), VisitSet);
 
   // Keep track of the BBs visited.
   SmallPtrSet<BlockT *, 8> VisitedBBs;
 
   // Check the individual blocks.
-  for (; BI != BE; ++BI) {
-    BlockT *BB = *BI;
-
+  for (BlockT *BB : depth_first_ext(getHeader(), VisitSet)) {
     assert(std::any_of(GraphTraits<BlockT *>::child_begin(BB),
                        GraphTraits<BlockT *>::child_end(BB),
                        [&](BlockT *B) { return contains(B); }) &&
@@ -324,12 +326,11 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
            "Loop block has no in-loop predecessors!");
 
     SmallVector<BlockT *, 2> OutsideLoopPreds;
-    std::for_each(GraphTraits<Inverse<BlockT *>>::child_begin(BB),
-                  GraphTraits<Inverse<BlockT *>>::child_end(BB),
-                  [&](BlockT *B) {
-                    if (!contains(B))
-                      OutsideLoopPreds.push_back(B);
-                  });
+    for (BlockT *B :
+         llvm::make_range(GraphTraits<Inverse<BlockT *>>::child_begin(BB),
+                          GraphTraits<Inverse<BlockT *>>::child_end(BB)))
+      if (!contains(B))
+        OutsideLoopPreds.push_back(B);
 
     if (BB == getHeader()) {
       assert(!OutsideLoopPreds.empty() && "Loop is unreachable!");
@@ -351,7 +352,7 @@ void LoopBase<BlockT, LoopT>::verifyLoop() const {
 
   if (VisitedBBs.size() != getNumBlocks()) {
     dbgs() << "The following blocks are unreachable in the loop: ";
-    for (auto BB : Blocks) {
+    for (auto *BB : Blocks) {
       if (!VisitedBBs.count(BB)) {
         dbgs() << *BB << "\n";
       }
@@ -390,9 +391,12 @@ void LoopBase<BlockT, LoopT>::verifyLoopNest(
 }
 
 template <class BlockT, class LoopT>
-void LoopBase<BlockT, LoopT>::print(raw_ostream &OS, unsigned Depth,
-                                    bool Verbose) const {
-  OS.indent(Depth * 2) << "Loop at depth " << getLoopDepth() << " containing: ";
+void LoopBase<BlockT, LoopT>::print(raw_ostream &OS, bool Verbose,
+                                    bool PrintNested, unsigned Depth) const {
+  OS.indent(Depth * 2);
+  if (static_cast<const LoopT *>(this)->isAnnotatedParallel())
+    OS << "Parallel ";
+  OS << "Loop at depth " << getLoopDepth() << " containing: ";
 
   BlockT *H = getHeader();
   for (unsigned i = 0; i < getBlocks().size(); ++i) {
@@ -413,10 +417,13 @@ void LoopBase<BlockT, LoopT>::print(raw_ostream &OS, unsigned Depth,
     if (Verbose)
       BB->print(OS);
   }
-  OS << "\n";
 
-  for (iterator I = begin(), E = end(); I != E; ++I)
-    (*I)->print(OS, Depth + 2);
+  if (PrintNested) {
+    OS << "\n";
+
+    for (iterator I = begin(), E = end(); I != E; ++I)
+      (*I)->print(OS, /*Verbose*/ false, PrintNested, Depth + 2);
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -458,8 +465,7 @@ static void discoverAndMapSubloop(LoopT *L, ArrayRef<BlockT *> Backedges,
                                 InvBlockTraits::child_end(PredBB));
     } else {
       // This is a discovered block. Find its outermost discovered loop.
-      while (LoopT *Parent = Subloop->getParentLoop())
-        Subloop = Parent;
+      Subloop = Subloop->getOutermostLoop();
 
       // If it is already discovered to be a subloop of this loop, continue.
       if (Subloop == L)
@@ -516,7 +522,7 @@ void PopulateLoopsDFS<BlockT, LoopT>::insertIntoLoop(BlockT *Block) {
   if (Subloop && Block == Subloop->getHeader()) {
     // We reach this point once per subloop after processing all the blocks in
     // the subloop.
-    if (Subloop->getParentLoop())
+    if (!Subloop->isOutermost())
       Subloop->getParentLoop()->getSubLoopsVector().push_back(Subloop);
     else
       LI->addTopLevelLoop(Subloop);
@@ -577,7 +583,8 @@ void LoopInfoBase<BlockT, LoopT>::analyze(const DomTreeBase<BlockT> &DomTree) {
 }
 
 template <class BlockT, class LoopT>
-SmallVector<LoopT *, 4> LoopInfoBase<BlockT, LoopT>::getLoopsInPreorder() {
+SmallVector<LoopT *, 4>
+LoopInfoBase<BlockT, LoopT>::getLoopsInPreorder() const {
   SmallVector<LoopT *, 4> PreOrderLoops, PreOrderWorklist;
   // The outer-most loop actually goes into the result in the same relative
   // order as we walk it. But LoopInfo stores the top level loops in reverse
@@ -585,16 +592,9 @@ SmallVector<LoopT *, 4> LoopInfoBase<BlockT, LoopT>::getLoopsInPreorder() {
   // FIXME: If we change the order of LoopInfo we will want to remove the
   // reverse here.
   for (LoopT *RootL : reverse(*this)) {
-    assert(PreOrderWorklist.empty() &&
-           "Must start with an empty preorder walk worklist.");
-    PreOrderWorklist.push_back(RootL);
-    do {
-      LoopT *L = PreOrderWorklist.pop_back_val();
-      // Sub-loops are stored in forward program order, but will process the
-      // worklist backwards so append them in reverse order.
-      PreOrderWorklist.append(L->rbegin(), L->rend());
-      PreOrderLoops.push_back(L);
-    } while (!PreOrderWorklist.empty());
+    auto PreOrderLoopsInRootL = RootL->getLoopsInPreorder();
+    PreOrderLoops.append(PreOrderLoopsInRootL.begin(),
+                         PreOrderLoopsInRootL.end());
   }
 
   return PreOrderLoops;
@@ -602,7 +602,7 @@ SmallVector<LoopT *, 4> LoopInfoBase<BlockT, LoopT>::getLoopsInPreorder() {
 
 template <class BlockT, class LoopT>
 SmallVector<LoopT *, 4>
-LoopInfoBase<BlockT, LoopT>::getLoopsInReverseSiblingPreorder() {
+LoopInfoBase<BlockT, LoopT>::getLoopsInReverseSiblingPreorder() const {
   SmallVector<LoopT *, 4> PreOrderLoops, PreOrderWorklist;
   // The outer-most loop actually goes into the result in the same relative
   // order as we walk it. LoopInfo stores the top level loops in reverse
@@ -640,8 +640,8 @@ void LoopInfoBase<BlockT, LoopT>::print(raw_ostream &OS) const {
 
 template <typename T>
 bool compareVectors(std::vector<T> &BB1, std::vector<T> &BB2) {
-  llvm::sort(BB1.begin(), BB1.end());
-  llvm::sort(BB2.begin(), BB2.end());
+  llvm::sort(BB1);
+  llvm::sort(BB2);
   return BB1 == BB2;
 }
 
@@ -687,12 +687,10 @@ static void compareLoops(const LoopT *L, const LoopT *OtherL,
          "Mismatched basic blocks in the loops!");
 
   const SmallPtrSetImpl<const BlockT *> &BlocksSet = L->getBlocksSet();
-  const SmallPtrSetImpl<const BlockT *> &OtherBlocksSet = L->getBlocksSet();
+  const SmallPtrSetImpl<const BlockT *> &OtherBlocksSet =
+      OtherL->getBlocksSet();
   assert(BlocksSet.size() == OtherBlocksSet.size() &&
-         std::all_of(BlocksSet.begin(), BlocksSet.end(),
-                     [&OtherBlocksSet](const BlockT *BB) {
-                       return OtherBlocksSet.count(BB);
-                     }) &&
+         llvm::set_is_subset(BlocksSet, OtherBlocksSet) &&
          "Mismatched basic blocks in BlocksSets!");
 }
 #endif
@@ -702,7 +700,7 @@ void LoopInfoBase<BlockT, LoopT>::verify(
     const DomTreeBase<BlockT> &DomTree) const {
   DenseSet<const LoopT *> Loops;
   for (iterator I = begin(), E = end(); I != E; ++I) {
-    assert(!(*I)->getParentLoop() && "Top-level loop has a parent!");
+    assert((*I)->isOutermost() && "Top-level loop has a parent!");
     (*I)->verifyLoopNest(&Loops);
   }
 

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -70,10 +69,16 @@ class Abstract
 
 enum Enum {zero, one};
 
+enum EnumSigned : int { two };
+
+enum EnumUnsigned : unsigned { three };
+
+enum class EnumClass { zero, one };
+
 typedef void (*FunctionPtr)();
 
 
-int main()
+int main(int, char**)
 {
     test_is_arithmetic<short>();
     test_is_arithmetic<unsigned short>();
@@ -98,10 +103,15 @@ int main()
     test_is_not_arithmetic<char[]>();
     test_is_not_arithmetic<Union>();
     test_is_not_arithmetic<Enum>();
+    test_is_not_arithmetic<EnumSigned>();
+    test_is_not_arithmetic<EnumUnsigned>();
+    test_is_not_arithmetic<EnumClass>();
     test_is_not_arithmetic<FunctionPtr>();
     test_is_not_arithmetic<Empty>();
     test_is_not_arithmetic<incomplete_type>();
     test_is_not_arithmetic<bit_zero>();
     test_is_not_arithmetic<NotEmpty>();
     test_is_not_arithmetic<Abstract>();
+
+  return 0;
 }

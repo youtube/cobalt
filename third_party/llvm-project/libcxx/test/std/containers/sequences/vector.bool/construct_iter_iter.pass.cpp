@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,8 +20,7 @@
 #include "min_allocator.h"
 
 template <class C, class Iterator>
-void
-test(Iterator first, Iterator last)
+TEST_CONSTEXPR_CXX20 void test(Iterator first, Iterator last)
 {
     C c(first, last);
     LIBCPP_ASSERT(c.__invariants());
@@ -31,20 +29,31 @@ test(Iterator first, Iterator last)
         assert(*i == *first);
 }
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     bool a[] = {0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0};
     bool* an = a + sizeof(a)/sizeof(a[0]);
-    test<std::vector<bool> >(input_iterator<const bool*>(a), input_iterator<const bool*>(an));
+    test<std::vector<bool> >(cpp17_input_iterator<const bool*>(a), cpp17_input_iterator<const bool*>(an));
     test<std::vector<bool> >(forward_iterator<const bool*>(a), forward_iterator<const bool*>(an));
     test<std::vector<bool> >(bidirectional_iterator<const bool*>(a), bidirectional_iterator<const bool*>(an));
     test<std::vector<bool> >(random_access_iterator<const bool*>(a), random_access_iterator<const bool*>(an));
     test<std::vector<bool> >(a, an);
 #if TEST_STD_VER >= 11
-    test<std::vector<bool, min_allocator<bool>> >(input_iterator<const bool*>(a), input_iterator<const bool*>(an));
+    test<std::vector<bool, min_allocator<bool>> >(cpp17_input_iterator<const bool*>(a), cpp17_input_iterator<const bool*>(an));
     test<std::vector<bool, min_allocator<bool>> >(forward_iterator<const bool*>(a), forward_iterator<const bool*>(an));
     test<std::vector<bool, min_allocator<bool>> >(bidirectional_iterator<const bool*>(a), bidirectional_iterator<const bool*>(an));
     test<std::vector<bool, min_allocator<bool>> >(random_access_iterator<const bool*>(a), random_access_iterator<const bool*>(an));
     test<std::vector<bool, min_allocator<bool>> >(a, an);
 #endif
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

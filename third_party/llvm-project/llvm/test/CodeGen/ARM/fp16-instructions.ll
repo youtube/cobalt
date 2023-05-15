@@ -1,32 +1,34 @@
 ; SOFT:
 ; RUN: llc < %s -mtriple=arm-none-eabi -float-abi=soft     | FileCheck %s --check-prefixes=CHECK,CHECK-SOFT
 ; RUN: llc < %s -mtriple=thumb-none-eabi -float-abi=soft   | FileCheck %s --check-prefixes=CHECK,CHECK-SOFT
+; RUN: llc < %s -mtriple=thumbv8.1m.main-none-eabi -mattr=+mve | FileCheck %s --check-prefixes=CHECK,CHECK-SOFT
+; RUN: llc < %s -mtriple=thumbv8.1m.main-none-eabi -float-abi=soft -mattr=+mve | FileCheck %s --check-prefixes=CHECK,CHECK-SOFT
 
 ; SOFTFP:
 ; RUN: llc < %s -mtriple=arm-none-eabi -mattr=+vfp3        | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-VFP3
 ; RUN: llc < %s -mtriple=arm-none-eabi -mattr=+vfp4        | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-FP16,CHECK-SOFTFP-FP16-A32
-; RUN: llc < %s -mtriple=arm-none-eabi -mattr=+fullfp16    | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-FULLFP16
+; RUN: llc < %s -mtriple=arm-none-eabi -mattr=+fullfp16,+fp64    | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-FULLFP16
 
 ; RUN: llc < %s -mtriple=thumbv7-none-eabi -mattr=+vfp3        | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-VFP3
 ; RUN: llc < %s -mtriple=thumbv7-none-eabi -mattr=+vfp4        | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-FP16,CHECK-SOFTFP-FP16-T32
-; RUN: llc < %s -mtriple=thumbv7-none-eabi -mattr=+fullfp16    | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-FULLFP16
+; RUN: llc < %s -mtriple=thumbv7-none-eabi -mattr=+fullfp16,+fp64    | FileCheck %s --check-prefixes=CHECK,CHECK-SOFTFP-FULLFP16
 
 ; Test fast-isel
-; RUN: llc < %s -mtriple=arm-none-eabi -mattr=+fullfp16 -O0 | FileCheck %s --check-prefixes=CHECK-SPILL-RELOAD
-; RUN: llc < %s -mtriple=thumbv7-none-eabi -mattr=+fullfp16 -O0 | FileCheck %s --check-prefixes=CHECK-SPILL-RELOAD
+; RUN: llc < %s -mtriple=arm-none-eabi -mattr=+fullfp16,+fp64 -O0 | FileCheck %s --check-prefixes=CHECK-SPILL-RELOAD
+; RUN: llc < %s -mtriple=thumbv7-none-eabi -mattr=+fullfp16,+fp64 -O0 | FileCheck %s --check-prefixes=CHECK-SPILL-RELOAD
 
 ; HARD:
 ; RUN: llc < %s -mtriple=arm-none-eabihf -mattr=+vfp3      | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-VFP3
 ; RUN: llc < %s -mtriple=arm-none-eabihf -mattr=+vfp4      | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FP16
-; RUN: llc < %s -mtriple=arm-none-eabihf -mattr=+fullfp16  | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16
+; RUN: llc < %s -mtriple=arm-none-eabihf -mattr=+fullfp16,+fp64  | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16
 
 ; RUN: llc < %s -mtriple=thumbv7-none-eabihf -mattr=+vfp3      | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-VFP3
 ; RUN: llc < %s -mtriple=thumbv7-none-eabihf -mattr=+vfp4      | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FP16
-; RUN: llc < %s -mtriple=thumbv7-none-eabihf -mattr=+fullfp16  | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16
+; RUN: llc < %s -mtriple=thumbv7-none-eabihf -mattr=+fullfp16,fp64  | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16
 
 ; FP-CONTRACT=FAST
-; RUN: llc < %s -mtriple=arm-none-eabihf -mattr=+fullfp16 -fp-contract=fast | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16-FAST
-; RUN: llc < %s -mtriple=thumbv7-none-eabihf -mattr=+fullfp16 -fp-contract=fast | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16-FAST
+; RUN: llc < %s -mtriple=arm-none-eabihf -mattr=+fullfp16,+fp64 -fp-contract=fast | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16-FAST
+; RUN: llc < %s -mtriple=thumbv7-none-eabihf -mattr=+fullfp16,+fp64 -fp-contract=fast | FileCheck %s --check-prefixes=CHECK,CHECK-HARDFP-FULLFP16-FAST
 
 ; TODO: we can't pass half-precision arguments as "half" types yet. We do
 ; that for the time being by passing "float %f.coerce" and the necessary
@@ -42,8 +44,6 @@ entry:
 ; CHECK-LABEL:            RetValBug:
 ; CHECK-HARDFP-FULLFP16:  {{.*}} lr
 }
-
-; 1. VABS: TODO
 
 ; 2. VADD
 define float @Add(float %a.coerce, float %b.coerce) {
@@ -72,10 +72,10 @@ entry:
 ; CHECK-SOFTFP-VFP3:  vadd.f32
 ; CHECK-SOFTFP-VFP3:  bl  __aeabi_f2h
 
-; CHECK-SOFTFP-FP16:  vmov          [[S2:s[0-9]]], r1
-; CHECK-SOFTFP-FP16:  vmov          [[S0:s[0-9]]], r0
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S2]], [[S2]]
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S0:s[0-9]]], r0
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S2:s[0-9]]], r1
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S2]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vadd.f32      [[S0]], [[S0]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vcvtb.f16.f32 [[S0]], [[S0]]
 ; CHECK-SOFTFP-FP16:  vmov  r0, s0
@@ -164,9 +164,9 @@ entry:
 ; CHECK-LABEL:             VCMPE1:
 
 ; CHECK-SOFT:              bl  __aeabi_fcmplt
-; CHECK-SOFTFP-FP16:       vcmpe.f32 s0, #0
-; CHECK-SOFTFP-FULLFP16:   vcmpe.f16 s0, #0
-; CHECK-HARDFP-FULLFP16:   vcmpe.f16 s0, #0
+; CHECK-SOFTFP-FP16:       vcmp.f32 s0, #0
+; CHECK-SOFTFP-FULLFP16:   vcmp.f16 s0, #0
+; CHECK-HARDFP-FULLFP16:   vcmp.f16 s0, #0
 }
 
 define i32 @VCMPE2(float %F.coerce, float %G.coerce) {
@@ -184,9 +184,9 @@ entry:
 ; CHECK-LABEL:  VCMPE2:
 
 ; CHECK-SOFT:              bl  __aeabi_fcmplt
-; CHECK-SOFTFP-FP16:       vcmpe.f32 s{{.}}, s{{.}}
-; CHECK-SOFTFP-FULLFP16:   vcmpe.f16 s{{.}}, s{{.}}
-; CHECK-HARDFP-FULLFP16:   vcmpe.f16 s{{.}}, s{{.}}
+; CHECK-SOFTFP-FP16:       vcmp.f32 s{{.}}, s{{.}}
+; CHECK-SOFTFP-FULLFP16:   vcmp.f16 s{{.}}, s{{.}}
+; CHECK-HARDFP-FULLFP16:   vcmp.f16 s{{.}}, s{{.}}
 }
 
 ; Test lowering of BR_CC
@@ -196,7 +196,7 @@ entry:
   br label %for.cond
 
 for.cond:
-  %0 = load half, half* %f, align 2
+  %0 = load half, ptr %f, align 2
   %cmp = fcmp nnan ninf nsz ole half %0, 0xH6800
   br i1 %cmp, label %for.body, label %for.end
 
@@ -208,14 +208,14 @@ for.end:
 
 ; CHECK-LABEL:            VCMPBRCC:
 
-; CHECK-SOFT:             bl  __aeabi_fcmpgt
-; CHECK-SOFT:             cmp r0, #0
+; CHECK-SOFT:             bl  __aeabi_fcmp{{gt|le}}
+; CHECK-SOFT:             cmp r0, #{{0|1}}
 
 ; CHECK-SOFTFP-FP16:      vcvtb.f32.f16 [[S2:s[0-9]]], [[S2]]
-; CHECK-SOFTFP-FP16:      vcmpe.f32 [[S2]], s0
+; CHECK-SOFTFP-FP16:      vcmp.f32 [[S2]], s0
 ; CHECK-SOFTFP-FP16:      vmrs  APSR_nzcv, fpscr
 
-; CHECK-SOFTFP-FULLFP16:  vcmpe.f16 s{{.}}, s{{.}}
+; CHECK-SOFTFP-FULLFP16:  vcmp.f16 s{{.}}, s{{.}}
 ; CHECK-SOFTFP-FULLFP16:  vmrs  APSR_nzcv, fpscr
 }
 
@@ -355,10 +355,10 @@ entry:
 ; CHECK-SOFTFP-VFP3:  vdiv.f32
 ; CHECK-SOFTFP-VFP3:  bl  __aeabi_f2h
 
-; CHECK-SOFTFP-FP16:  vmov          [[S2:s[0-9]]], r1
-; CHECK-SOFTFP-FP16:  vmov          [[S0:s[0-9]]], r0
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S2]], [[S2]]
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S0:s[0-9]]], r0
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S2:s[0-9]]], r1
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S2]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vdiv.f32      [[S0]], [[S0]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vcvtb.f16.f32 [[S0]], [[S0]]
 ; CHECK-SOFTFP-FP16:  vmov  r0, s0
@@ -577,10 +577,10 @@ entry:
 ; CHECK-SOFTFP-VFP3:  vmul.f32
 ; CHECK-SOFTFP-VFP3:  bl  __aeabi_f2h
 
-; CHECK-SOFTFP-FP16:  vmov          [[S2:s[0-9]]], r1
-; CHECK-SOFTFP-FP16:  vmov          [[S0:s[0-9]]], r0
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S2]], [[S2]]
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S0:s[0-9]]], r0
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S2:s[0-9]]], r1
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S2]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vmul.f32      [[S0]], [[S0]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vcvtb.f16.f32 [[S0]], [[S0]]
 ; CHECK-SOFTFP-FP16:  vmov  r0, s0
@@ -691,32 +691,24 @@ entry:
 ; CHECK-HARDFP-FULLFP16:       vnmul.f16  s0, s0, s1
 }
 
-; TODO:
-; 28. VRINTA
-; 29. VRINTM
-; 30. VRINTN
-; 31. VRINTP
-; 32. VRINTR
-; 33. VRINTX
-; 34. VRINTZ
-
 ; 35. VSELEQ
-define half @select_cc1()  {
-  %1 = fcmp nsz oeq half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc1(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz oeq half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc1:
 
-; CHECK-HARDFP-FULLFP16:	     vcmp.f16 s0, s0
-; CHECK-HARDFP-FULLFP16-NEXT:	 vmrs APSR_nzcv, fpscr
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s6, s0
+; CHECK-HARDFP-FULLFP16-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16:       vseleq.f16  s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmoveq.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32:       vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32:       it eq
 ; CHECK-SOFTFP-FP16-T32:       vmoveq.f32 s{{.}}, s{{.}}
@@ -727,170 +719,178 @@ define half @select_cc1()  {
 ; be encoded as an FP16 immediate need to be added here.
 ;
 ; 36. VSELGE
-define half @select_cc_ge1()  {
-  %1 = fcmp nsz oge half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_ge1(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz oge half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_ge1:
 
-; CHECK-HARDFP-FULLFP16:       vcmpe.f16 s0, s0
-; CHECK-HARDFP-FULLFP16-NEXT:	 vmrs APSR_nzcv, fpscr
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s6, s0
+; CHECK-HARDFP-FULLFP16-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselge.f16 s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovge.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it ge
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovge.f32 s{{.}}, s{{.}}
 }
 
-define half @select_cc_ge2()  {
-  %1 = fcmp nsz ole half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_ge2(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz ole half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_ge2:
 
-; CHECK-HARDFP-FULLFP16:       vcmpe.f16 s0, s0
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s0, s6
 ; CHECK-HARDFP-FULLFP16-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselge.f16 s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovls.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it ls
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovls.f32 s{{.}}, s{{.}}
 }
 
-define half @select_cc_ge3()  {
-  %1 = fcmp nsz ugt half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_ge3(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz ugt half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_ge3:
 
-; CHECK-HARDFP-FULLFP16: 	     vcmpe.f16 s0, s0
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s0, s6
 ; CHECK-HARDFP-FULLFP16-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselge.f16 s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovhi.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it hi
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovhi.f32 s{{.}}, s{{.}}
 }
 
-define half @select_cc_ge4()  {
-  %1 = fcmp nsz ult half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_ge4(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz ult half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_ge4:
 
-; CHECK-HARDFP-FULLFP16:       vcmpe.f16 s0, s0
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s6, s0
 ; CHECK-HARDFP-FULLFP16-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselge.f16 s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovlt.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it lt
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovlt.f32 s{{.}}, s{{.}}
 }
 
 ; 37. VSELGT
-define half @select_cc_gt1()  {
-  %1 = fcmp nsz ogt half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_gt1(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz ogt half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_gt1:
 
-; CHECK-HARDFP-FULLFP16:	     vcmpe.f16 s0, s0
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s6, s0
 ; CHECK-HARDFP-FULLFP16-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselgt.f16  s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovgt.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it gt
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovgt.f32 s{{.}}, s{{.}}
 }
 
-define half @select_cc_gt2()  {
-  %1 = fcmp nsz uge half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_gt2(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz uge half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_gt2:
 
-; CHECK-HARDFP-FULLFP16:       vcmpe.f16 s0, s0
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s0, s6
 ; CHECK-HARDFP-FULLFP16-NEXT:  vmrs  APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselgt.f16  s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovpl.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it pl
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovpl.f32 s{{.}}, s{{.}}
 }
 
-define half @select_cc_gt3()  {
-  %1 = fcmp nsz ule half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_gt3(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz ule half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_gt3:
 
-; CHECK-HARDFP-FULLFP16:       vcmpe.f16 s0, s0
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s6, s0
 ; CHECK-HARDFP-FULLFP16-NEXT:  vmrs  APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselgt.f16  s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovle.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it le
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovle.f32 s{{.}}, s{{.}}
 }
 
-define half @select_cc_gt4()  {
-  %1 = fcmp nsz olt half undef, 0xH0001
-  %2 = select i1 %1, half 0xHC000, half 0xH0002
-  ret half %2
+define half @select_cc_gt4(ptr %a0)  {
+  %1 = load half, ptr %a0
+  %2 = fcmp nsz olt half %1, 0xH0001
+  %3 = select i1 %2, half 0xHC000, half 0xH0002
+  ret half %3
 
 ; CHECK-LABEL:                 select_cc_gt4:
 
-; CHECK-HARDFP-FULLFP16:       vcmpe.f16 s0, s0
+; CHECK-HARDFP-FULLFP16:       vcmp.f16 s0, s6
 ; CHECK-HARDFP-FULLFP16-NEXT:  vmrs  APSR_nzcv, fpscr
 ; CHECK-HARDFP-FULLFP16-NEXT:  vselgt.f16  s0, s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-A32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-A32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-A32-NEXT:  vmovmi.f32 s{{.}}, s{{.}}
 
-; CHECK-SOFTFP-FP16-T32:       vcmpe.f32 s0, s0
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32 s6, s0
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmrs APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32-NEXT:  it mi
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovmi.f32 s{{.}}, s{{.}}
@@ -935,9 +935,9 @@ entry:
 ; CHECK-SOFTFP-FP16-T32:       vmov	[[S6:s[0-9]]], r0
 ; CHECK-SOFTFP-FP16-T32:       vldr	s0, .LCP{{.*}}
 ; CHECK-SOFTFP-FP16-T32:       vcvtb.f32.f16	[[S6]], [[S6]]
-; CHECK-SOFTFP-FP16-T32:       vmov.f32	[[S2:s[0-9]]], #-2.000000e+00
-; CHECK-SOFTFP-FP16-T32:       vcmp.f32	[[S6]], s0
 ; CHECK-SOFTFP-FP16-T32:       vldr	[[S4:s[0-9]]], .LCPI{{.*}}
+; CHECK-SOFTFP-FP16-T32:       vcmp.f32	[[S6]], s0
+; CHECK-SOFTFP-FP16-T32:       vmov.f32	[[S2:s[0-9]]], #-2.000000e+00
 ; CHECK-SOFTFP-FP16-T32:       vmrs	APSR_nzcv, fpscr
 ; CHECK-SOFTFP-FP16-T32:       it eq
 ; CHECK-SOFTFP-FP16-T32:       vmoveq.f32	[[S4]], [[S2]]
@@ -945,8 +945,6 @@ entry:
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vmovvs.f32	[[S4]], [[S2]]
 ; CHECK-SOFTFP-FP16-T32-NEXT:  vcvtb.f16.f32 s0, [[S4]]
 }
-
-; 39. VSQRT - TODO
 
 ; 40. VSUB
 define float @Sub(float %a.coerce, float %b.coerce) {
@@ -975,10 +973,10 @@ entry:
 ; CHECK-SOFTFP-VFP3:  vsub.f32
 ; CHECK-SOFTFP-VFP3:  bl  __aeabi_f2h
 
-; CHECK-SOFTFP-FP16:  vmov          [[S2:s[0-9]]], r1
-; CHECK-SOFTFP-FP16:  vmov          [[S0:s[0-9]]], r0
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S2]], [[S2]]
-; CHECK-SOFTFP-FP16:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S0:s[0-9]]], r0
+; CHECK-SOFTFP-FP16-DAG:  vmov          [[S2:s[0-9]]], r1
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S0]], [[S0]]
+; CHECK-SOFTFP-FP16-DAG:  vcvtb.f32.f16 [[S2]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vsub.f32      [[S0]], [[S0]], [[S2]]
 ; CHECK-SOFTFP-FP16:  vcvtb.f16.f32 [[S0]], [[S0]]
 ; CHECK-SOFTFP-FP16:  vmov  r0, s0
@@ -1011,9 +1009,8 @@ entry:
   %S = alloca half, align 2
   %tmp.0.extract.trunc = trunc i32 %A.coerce to i16
   %0 = bitcast i16 %tmp.0.extract.trunc to half
-  %S.0.S.0..sroa_cast = bitcast half* %S to i8*
-  store volatile half 0xH3C00, half* %S, align 2
-  %S.0.S.0. = load volatile half, half* %S, align 2
+  store volatile half 0xH3C00, ptr %S, align 2
+  %S.0.S.0. = load volatile half, ptr %S, align 2
   %add = fadd half %S.0.S.0., %0
   %1 = bitcast half %add to i16
   %tmp2.0.insert.ext = zext i16 %1 to i32
@@ -1033,17 +1030,17 @@ define i32 @fn1() {
 entry:
   %coerce = alloca half, align 2
   %tmp2 = alloca i32, align 4
-  store half 0xH7C00, half* %coerce, align 2
-  %0 = load i32, i32* %tmp2, align 4
-  %call = call i32 bitcast (i32 (...)* @fn2 to i32 (i32)*)(i32 %0)
-  store half 0xH7C00, half* %coerce, align 2
-  %1 = load i32, i32* %tmp2, align 4
-  %call3 = call i32 bitcast (i32 (...)* @fn3 to i32 (i32)*)(i32 %1)
+  store half 0xH7C00, ptr %coerce, align 2
+  %0 = load i32, ptr %tmp2, align 4
+  %call = call i32 @fn2(i32 %0)
+  store half 0xH7C00, ptr %coerce, align 2
+  %1 = load i32, ptr %tmp2, align 4
+  %call3 = call i32 @fn3(i32 %1)
   ret i32 %call3
 
 ; CHECK-SPILL-RELOAD-LABEL: fn1:
 ; CHECK-SPILL-RELOAD:       vstr.16 s0, [sp, #{{.}}]  @ 2-byte Spill
-; CHECK-SPILL-RELOAD-NEXT:  bl  fn2
+; CHECK-SPILL-RELOAD:  bl  fn2
 ; CHECK-SPILL-RELOAD-NEXT:  vldr.16 s0, [sp, #{{.}}]  @ 2-byte Reload
 }
 

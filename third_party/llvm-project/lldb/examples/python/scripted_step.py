@@ -186,13 +186,13 @@ class StepCheckingCondition:
         a_var = frame.FindVariable("a")
 
         if not a_var.IsValid():
-            print "A was not valid."
+            print("A was not valid.")
             return True
 
         error = lldb.SBError()
         a_value = a_var.GetValueAsSigned(error)
         if not error.Success():
-            print "A value was not good."
+            print("A value was not good.")
             return True
 
         if a_value == 20:
@@ -239,6 +239,6 @@ class FinishPrintAndContinue:
         frame_0 = self.thread.frames[0]
         rax_value = frame_0.FindRegister("rax")
         if rax_value.GetError().Success():
-            print "RAX on exit: ", rax_value.GetValue()
+            print("RAX on exit: ", rax_value.GetValue())
         else:
-            print "Couldn't get rax value:", rax_value.GetError().GetCString()
+            print("Couldn't get rax value:", rax_value.GetError().GetCString())

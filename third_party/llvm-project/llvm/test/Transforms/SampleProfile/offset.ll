@@ -1,5 +1,4 @@
-; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/offset.prof | opt -analyze -branch-prob | FileCheck %s
-; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/offset.prof | opt -analyze -branch-prob | FileCheck %s
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/offset.prof | opt -passes='print<branch-prob>' -disable-output 2>&1 | FileCheck %s
 
 ; Original C++ code for this test case:
 ;
@@ -24,31 +23,31 @@ define i32 @_Z3fooi(i32 %a) #0 !dbg !4 {
 entry:
   %retval = alloca i32, align 4
   %a.addr = alloca i32, align 4
-  store i32 %a, i32* %a.addr, align 4
-  call void @llvm.dbg.declare(metadata i32* %a.addr, metadata !11, metadata !12), !dbg !13
-  %0 = load i32, i32* %a.addr, align 4, !dbg !14
+  store i32 %a, ptr %a.addr, align 4
+  call void @llvm.dbg.declare(metadata ptr %a.addr, metadata !11, metadata !12), !dbg !13
+  %0 = load i32, ptr %a.addr, align 4, !dbg !14
   %cmp = icmp sgt i32 %0, 0, !dbg !18
   br i1 %cmp, label %if.then, label %if.else, !dbg !19
 ; CHECK: edge entry -> if.then probability is 0x0167ba82 / 0x80000000 = 1.10%
 ; CHECK: edge entry -> if.else probability is 0x7e98457e / 0x80000000 = 98.90% [HOT edge]
 
 if.then:                                          ; preds = %entry
-  store i32 10, i32* %retval, align 4, !dbg !20
+  store i32 10, ptr %retval, align 4, !dbg !20
   br label %return, !dbg !20
 
 if.else:                                          ; preds = %entry
-  store i32 20, i32* %retval, align 4, !dbg !22
+  store i32 20, ptr %retval, align 4, !dbg !22
   br label %return, !dbg !22
 
 return:                                           ; preds = %if.else, %if.then
-  %1 = load i32, i32* %retval, align 4, !dbg !24
+  %1 = load i32, ptr %retval, align 4, !dbg !24
   ret i32 %1, !dbg !24
 }
 
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2" "unsafe-fp-math"="false" "use-soft-float"="false" "use-sample-profile" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

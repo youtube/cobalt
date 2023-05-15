@@ -1,9 +1,8 @@
 //===-- SequenceToOffsetTable.h - Compress similar sequences ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,6 +15,7 @@
 #ifndef LLVM_UTILS_TABLEGEN_SEQUENCETOOFFSETTABLE_H
 #define LLVM_UTILS_TABLEGEN_SEQUENCETOOFFSETTABLE_H
 
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
@@ -24,6 +24,19 @@
 #include <map>
 
 namespace llvm {
+extern llvm::cl::opt<bool> EmitLongStrLiterals;
+
+static inline void printChar(raw_ostream &OS, char C) {
+  unsigned char UC(C);
+  if (isalnum(UC) || ispunct(UC)) {
+    OS << '\'';
+    if (C == '\\' || C == '\'')
+      OS << '\\';
+    OS << C << '\'';
+  } else {
+    OS << unsigned(UC);
+  }
+}
 
 /// SequenceToOffsetTable - Collect a number of terminated sequences of T.
 /// Compute the layout of a table that contains all the sequences, possibly by
@@ -84,7 +97,7 @@ public:
   bool empty() const { return Seqs.empty(); }
 
   unsigned size() const {
-    assert(Entries && "Call layout() before size()");
+    assert((empty() || Entries) && "Call layout() before size()");
     return Entries;
   }
 
@@ -109,12 +122,41 @@ public:
     return I->second + (I->first.size() - Seq.size());
   }
 
+  /// `emitStringLiteralDef` - Print out the table as the body of an array
+  /// initializer, where each element is a C string literal terminated by
+  /// `\0`. Falls back to emitting a comma-separated integer list if
+  /// `EmitLongStrLiterals` is false
+  void emitStringLiteralDef(raw_ostream &OS, const llvm::Twine &Decl) const {
+    assert(Entries && "Call layout() before emitStringLiteralDef()");
+    if (!EmitLongStrLiterals) {
+      OS << Decl << " = {\n";
+      emit(OS, printChar, "0");
+      OS << "  0\n};\n\n";
+      return;
+    }
+
+    OS << "\n#ifdef __GNUC__\n"
+       << "#pragma GCC diagnostic push\n"
+       << "#pragma GCC diagnostic ignored \"-Woverlength-strings\"\n"
+       << "#endif\n"
+       << Decl << " = {\n";
+    for (auto I : Seqs) {
+      OS << "  /* " << I.second << " */ \"";
+      OS.write_escaped(I.first);
+      OS << "\\0\"\n";
+    }
+    OS << "};\n"
+       << "#ifdef __GNUC__\n"
+       << "#pragma GCC diagnostic pop\n"
+       << "#endif\n\n";
+  }
+
   /// emit - Print out the table as the body of an array initializer.
   /// Use the Print function to print elements.
   void emit(raw_ostream &OS,
             void (*Print)(raw_ostream&, ElemT),
             const char *Term = "0") const {
-    assert(Entries && "Call layout() before emit()");
+    assert((empty() || Entries) && "Call layout() before emit()");
     for (typename SeqMap::const_iterator I = Seqs.begin(), E = Seqs.end();
          I != E; ++I) {
       OS << "  /* " << I->second << " */ ";
@@ -127,19 +169,6 @@ public:
     }
   }
 };
-
-// Helper function for SequenceToOffsetTable<string>.
-static inline void printChar(raw_ostream &OS, char C) {
-  unsigned char UC(C);
-  if (isalnum(UC) || ispunct(UC)) {
-    OS << '\'';
-    if (C == '\\' || C == '\'')
-      OS << '\\';
-    OS << C << '\'';
-  } else {
-    OS << unsigned(UC);
-  }
-}
 
 } // end namespace llvm
 

@@ -1,11 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+//
+// NetBSD does not support LC_COLLATE at the moment
+// XFAIL: netbsd
+// XFAIL: LIBCXX-AIX-FIXME
 
 // REQUIRES: locale.cs_CZ.ISO8859-2
 
@@ -18,7 +21,7 @@
 //   lookup_collatename(ForwardIterator first, ForwardIterator last) const;
 
 // TODO: investigation needed
-// XFAIL: linux-gnu
+// XFAIL: target={{.*}}-linux-gnu{{.*}}
 
 #include <regex>
 #include <iterator>
@@ -37,7 +40,7 @@ test(const char_type* A, const std::basic_string<char_type>& expected)
     assert(t.lookup_collatename(F(A), F(A + t.length(A))) == expected);
 }
 
-int main()
+int main(int, char**)
 {
     test("NUL", std::string("\x00", 1));
     test("alert", std::string("\x07"));
@@ -115,6 +118,7 @@ int main()
     test("ch", std::string("ch"));
     std::locale::global(std::locale("C"));
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test(L"NUL", std::wstring(L"\x00", 1));
     test(L"alert", std::wstring(L"\x07"));
     test(L"backspace", std::wstring(L"\x08"));
@@ -190,4 +194,7 @@ int main()
     std::locale::global(std::locale(LOCALE_cs_CZ_ISO8859_2));
     test(L"ch", std::wstring(L"ch"));
     std::locale::global(std::locale("C"));
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
+
+  return 0;
 }

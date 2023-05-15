@@ -1,9 +1,8 @@
 //===- COFFYAML.h - COFF YAMLIO implementation ------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,7 +13,6 @@
 #ifndef LLVM_OBJECTYAML_COFFYAML_H
 #define LLVM_OBJECTYAML_COFFYAML_H
 
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/ObjectYAML/CodeViewYAMLDebugSections.h"
@@ -22,6 +20,7 @@
 #include "llvm/ObjectYAML/CodeViewYAMLTypes.h"
 #include "llvm/ObjectYAML/YAML.h"
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace llvm {
@@ -58,7 +57,13 @@ LLVM_YAML_STRONG_TYPEDEF(uint8_t, AuxSymbolType)
 struct Relocation {
   uint32_t VirtualAddress;
   uint16_t Type;
+
+  // Normally a Relocation can refer to the symbol via its name.
+  // It can also use a direct symbol table index instead (with no name
+  // specified), allowing disambiguating between multiple symbols with the
+  // same name or crafting intentionally broken files for testing.
   StringRef SymbolName;
+  std::optional<uint32_t> SymbolTableIndex;
 };
 
 struct Section {
@@ -68,7 +73,7 @@ struct Section {
   std::vector<CodeViewYAML::YAMLDebugSubsection> DebugS;
   std::vector<CodeViewYAML::LeafRecord> DebugT;
   std::vector<CodeViewYAML::LeafRecord> DebugP;
-  Optional<CodeViewYAML::DebugHSection> DebugH;
+  std::optional<CodeViewYAML::DebugHSection> DebugH;
   std::vector<Relocation> Relocations;
   StringRef Name;
 
@@ -79,12 +84,12 @@ struct Symbol {
   COFF::symbol Header;
   COFF::SymbolBaseType SimpleType = COFF::IMAGE_SYM_TYPE_NULL;
   COFF::SymbolComplexType ComplexType = COFF::IMAGE_SYM_DTYPE_NULL;
-  Optional<COFF::AuxiliaryFunctionDefinition> FunctionDefinition;
-  Optional<COFF::AuxiliarybfAndefSymbol> bfAndefSymbol;
-  Optional<COFF::AuxiliaryWeakExternal> WeakExternal;
+  std::optional<COFF::AuxiliaryFunctionDefinition> FunctionDefinition;
+  std::optional<COFF::AuxiliarybfAndefSymbol> bfAndefSymbol;
+  std::optional<COFF::AuxiliaryWeakExternal> WeakExternal;
   StringRef File;
-  Optional<COFF::AuxiliarySectionDefinition> SectionDefinition;
-  Optional<COFF::AuxiliaryCLRToken> CLRToken;
+  std::optional<COFF::AuxiliarySectionDefinition> SectionDefinition;
+  std::optional<COFF::AuxiliaryCLRToken> CLRToken;
   StringRef Name;
 
   Symbol();
@@ -92,11 +97,12 @@ struct Symbol {
 
 struct PEHeader {
   COFF::PE32Header Header;
-  Optional<COFF::DataDirectory> DataDirectories[COFF::NUM_DATA_DIRECTORIES];
+  std::optional<COFF::DataDirectory>
+      DataDirectories[COFF::NUM_DATA_DIRECTORIES];
 };
 
 struct Object {
-  Optional<PEHeader> OptionalHeader;
+  std::optional<PEHeader> OptionalHeader;
   COFF::header Header;
   std::vector<Section> Sections;
   std::vector<Symbol> Symbols;

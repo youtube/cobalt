@@ -1,26 +1,30 @@
 //===--- PortabilityTidyModule.cpp - clang-tidy ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "../ClangTidy.h"
 #include "../ClangTidyModule.h"
 #include "../ClangTidyModuleRegistry.h"
+#include "RestrictSystemIncludesCheck.h"
 #include "SIMDIntrinsicsCheck.h"
+#include "StdAllocatorConstCheck.h"
 
-namespace clang {
-namespace tidy {
+namespace clang::tidy {
 namespace portability {
 
 class PortabilityModule : public ClangTidyModule {
 public:
   void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
+    CheckFactories.registerCheck<RestrictSystemIncludesCheck>(
+        "portability-restrict-system-includes");
     CheckFactories.registerCheck<SIMDIntrinsicsCheck>(
         "portability-simd-intrinsics");
+    CheckFactories.registerCheck<StdAllocatorConstCheck>(
+        "portability-std-allocator-const");
   }
 };
 
@@ -34,5 +38,4 @@ static ClangTidyModuleRegistry::Add<PortabilityModule>
 // and thus register the PortabilityModule.
 volatile int PortabilityModuleAnchorSource = 0;
 
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy

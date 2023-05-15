@@ -11,7 +11,10 @@
 # CHECK:      Iterations:        100
 # CHECK-NEXT: Instructions:      600
 # CHECK-NEXT: Total Cycles:      318
-# CHECK-NEXT: Dispatch Width:    4
+# CHECK-NEXT: Total uOps:        600
+
+# CHECK:      Dispatch Width:    4
+# CHECK-NEXT: uOps Per Cycle:    1.89
 # CHECK-NEXT: IPC:               1.89
 # CHECK-NEXT: Block RThroughput: 3.0
 
@@ -84,3 +87,4 @@
 # CHECK-NEXT: 3.     2     8.5    0.0    6.0       vaddps	%ymm4, %ymm5, %ymm6
 # CHECK-NEXT: 4.     2     11.0   0.0    3.5       vmulps	%ymm6, %ymm3, %ymm4
 # CHECK-NEXT: 5.     2     16.0   0.0    2.0       vaddps	%ymm4, %ymm5, %ymm0
+# CHECK-NEXT:        2     8.3    0.3    5.0       <total>

@@ -33,7 +33,7 @@ define <8 x float> @sitofp02(<8 x i16> %a) {
 ; AVX-LABEL: sitofp02:
 ; AVX:       # %bb.0:
 ; AVX-NEXT:    vpmovsxwd %xmm0, %xmm1
-; AVX-NEXT:    vpshufd {{.*#+}} xmm0 = xmm0[2,3,0,1]
+; AVX-NEXT:    vpshufd {{.*#+}} xmm0 = xmm0[2,3,2,3]
 ; AVX-NEXT:    vpmovsxwd %xmm0, %xmm0
 ; AVX-NEXT:    vinsertf128 $1, %xmm0, %ymm1, %ymm0
 ; AVX-NEXT:    vcvtdq2ps %ymm0, %ymm0
@@ -105,42 +105,42 @@ define <2 x double> @fpext01(<2 x double> %a0, <4 x float> %a1) nounwind {
   ret <2 x double> %res
 }
 
-define double @funcA(i64* nocapture %e) nounwind uwtable readonly ssp {
+define double @funcA(ptr nocapture %e) nounwind uwtable readonly ssp {
 ; CHECK-LABEL: funcA:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vcvtsi2sdq (%rdi), %xmm0, %xmm0
 ; CHECK-NEXT:    retq
-  %tmp1 = load i64, i64* %e, align 8
+  %tmp1 = load i64, ptr %e, align 8
   %conv = sitofp i64 %tmp1 to double
   ret double %conv
 }
 
-define double @funcB(i32* nocapture %e) nounwind uwtable readonly ssp {
+define double @funcB(ptr nocapture %e) nounwind uwtable readonly ssp {
 ; CHECK-LABEL: funcB:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vcvtsi2sdl (%rdi), %xmm0, %xmm0
 ; CHECK-NEXT:    retq
-  %tmp1 = load i32, i32* %e, align 4
+  %tmp1 = load i32, ptr %e, align 4
   %conv = sitofp i32 %tmp1 to double
   ret double %conv
 }
 
-define float @funcC(i32* nocapture %e) nounwind uwtable readonly ssp {
+define float @funcC(ptr nocapture %e) nounwind uwtable readonly ssp {
 ; CHECK-LABEL: funcC:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vcvtsi2ssl (%rdi), %xmm0, %xmm0
 ; CHECK-NEXT:    retq
-  %tmp1 = load i32, i32* %e, align 4
+  %tmp1 = load i32, ptr %e, align 4
   %conv = sitofp i32 %tmp1 to float
   ret float %conv
 }
 
-define float @funcD(i64* nocapture %e) nounwind uwtable readonly ssp {
+define float @funcD(ptr nocapture %e) nounwind uwtable readonly ssp {
 ; CHECK-LABEL: funcD:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vcvtsi2ssq (%rdi), %xmm0, %xmm0
 ; CHECK-NEXT:    retq
-  %tmp1 = load i64, i64* %e, align 8
+  %tmp1 = load i64, ptr %e, align 8
   %conv = sitofp i64 %tmp1 to float
   ret float %conv
 }
@@ -154,9 +154,9 @@ define void @fpext() nounwind uwtable {
 ; CHECK-NEXT:    retq
   %f = alloca float, align 4
   %d = alloca double, align 8
-  %tmp = load float, float* %f, align 4
+  %tmp = load float, ptr %f, align 4
   %conv = fpext float %tmp to double
-  store double %conv, double* %d, align 8
+  store double %conv, ptr %d, align 8
   ret void
 }
 
@@ -180,23 +180,59 @@ define float @floor_f32(float %a) {
 }
 declare float @llvm.floor.f32(float %p)
 
-define float @floor_f32_load(float* %aptr) optsize {
+define float @floor_f32_load(ptr %aptr) optsize {
 ; CHECK-LABEL: floor_f32_load:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vroundss $9, (%rdi), %xmm0, %xmm0
 ; CHECK-NEXT:    retq
-  %a = load float, float* %aptr
+  %a = load float, ptr %aptr
   %res = call float @llvm.floor.f32(float %a)
   ret float %res
 }
 
-define double @nearbyint_f64_load(double* %aptr) optsize {
+define float @floor_f32_load_pgso(ptr %aptr) !prof !14 {
+; CHECK-LABEL: floor_f32_load_pgso:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    vroundss $9, (%rdi), %xmm0, %xmm0
+; CHECK-NEXT:    retq
+  %a = load float, ptr %aptr
+  %res = call float @llvm.floor.f32(float %a)
+  ret float %res
+}
+
+define double @nearbyint_f64_load(ptr %aptr) optsize {
 ; CHECK-LABEL: nearbyint_f64_load:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    vroundsd $12, (%rdi), %xmm0, %xmm0
 ; CHECK-NEXT:    retq
-  %a = load double, double* %aptr
+  %a = load double, ptr %aptr
   %res = call double @llvm.nearbyint.f64(double %a)
   ret double %res
 }
 
+define double @nearbyint_f64_load_pgso(ptr %aptr) !prof !14 {
+; CHECK-LABEL: nearbyint_f64_load_pgso:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    vroundsd $12, (%rdi), %xmm0, %xmm0
+; CHECK-NEXT:    retq
+  %a = load double, ptr %aptr
+  %res = call double @llvm.nearbyint.f64(double %a)
+  ret double %res
+}
+
+!llvm.module.flags = !{!0}
+!0 = !{i32 1, !"ProfileSummary", !1}
+!1 = !{!2, !3, !4, !5, !6, !7, !8, !9}
+!2 = !{!"ProfileFormat", !"InstrProf"}
+!3 = !{!"TotalCount", i64 10000}
+!4 = !{!"MaxCount", i64 10}
+!5 = !{!"MaxInternalCount", i64 1}
+!6 = !{!"MaxFunctionCount", i64 1000}
+!7 = !{!"NumCounts", i64 3}
+!8 = !{!"NumFunctions", i64 3}
+!9 = !{!"DetailedSummary", !10}
+!10 = !{!11, !12, !13}
+!11 = !{i32 10000, i64 100, i32 1}
+!12 = !{i32 999000, i64 100, i32 1}
+!13 = !{i32 999999, i64 1, i32 2}
+!14 = !{!"function_entry_count", i64 0}

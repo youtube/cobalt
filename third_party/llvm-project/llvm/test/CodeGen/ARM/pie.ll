@@ -1,9 +1,9 @@
 ; RUN: llc  -mtriple=armv7-pc-linux-gnueabi -relocation-model=pic < %s | FileCheck %s
 
-@foo = global i32 42
+@foo = dso_local global i32 42
 
-define i32* @get_foo() {
-  ret i32* @foo
+define dso_local ptr @get_foo() {
+  ret ptr @foo
 }
 
 ; Test that we only use one load. Even that is only needed because there

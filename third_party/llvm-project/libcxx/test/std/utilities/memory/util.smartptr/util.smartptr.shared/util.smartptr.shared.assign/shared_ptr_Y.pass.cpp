@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,8 @@
 #include <memory>
 #include <type_traits>
 #include <cassert>
+
+#include "test_macros.h"
 
 struct B
 {
@@ -34,13 +35,13 @@ struct A
     static int count;
 
     A() {++count;}
-    A(const A&) {++count;}
+    A(const A& other) : B(other) {++count;}
     ~A() {--count;}
 };
 
 int A::count = 0;
 
-int main()
+int main(int, char**)
 {
     {
         const std::shared_ptr<A> pA(new A);
@@ -118,4 +119,26 @@ int main()
     }
     assert(B::count == 0);
     assert(A::count == 0);
+
+#if TEST_STD_VER > 14
+    {
+        std::shared_ptr<A[]> p1(new A[8]);
+        A* ptr = p1.get();
+        assert(A::count == 8);
+        {
+            std::shared_ptr<const A[]> p2;
+            p2 = p1;
+            assert(A::count == 8);
+            assert(p2.use_count() == 2);
+            assert(p1.use_count() == 2);
+            assert(p1.get() == p2.get());
+            assert(p2.get() == ptr);
+        }
+        assert(p1.use_count() == 1);
+        assert(A::count == 8);
+    }
+    assert(A::count == 0);
+#endif
+
+  return 0;
 }

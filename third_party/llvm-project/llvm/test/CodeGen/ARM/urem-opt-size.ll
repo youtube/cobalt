@@ -18,7 +18,7 @@ entry:
 ; CHECK-LABEL: foo1:
 ; CHECK:__aeabi_idiv
 ; CHECK-NOT: smmul
-  %call = tail call i32 bitcast (i32 (...)* @GetValue to i32 ()*)()
+  %call = tail call i32 @GetValue()
   %div = sdiv i32 %call, 1000000
   ret i32 %div
 }
@@ -28,7 +28,7 @@ entry:
 ; CHECK-LABEL: foo2:
 ; CHECK: __aeabi_uidiv
 ; CHECK-NOT: umull
-  %call = tail call i32 bitcast (i32 (...)* @GetValue to i32 ()*)()
+  %call = tail call i32 @GetValue()
   %div = udiv i32 %call, 1000000
   ret i32 %div
 }
@@ -43,7 +43,7 @@ entry:
 ; V7M: udiv [[R2:r[0-9]+]], [[R0:r[0-9]+]], [[R1:r[0-9]+]]
 ; V7M: mls {{r[0-9]+}}, [[R2]], [[R1]], [[R0]]
 ; V7M-NOT: __aeabi_uidivmod
-  %call = tail call i32 bitcast (i32 (...)* @GetValue to i32 ()*)()
+  %call = tail call i32 @GetValue()
   %rem = urem i32 %call, 1000000
   %cmp = icmp eq i32 %rem, 0
   %conv = zext i1 %cmp to i32
@@ -59,7 +59,7 @@ entry:
 ; V7M: sdiv [[R2:r[0-9]+]], [[R0:r[0-9]+]], [[R1:r[0-9]+]]
 ; V7M: mls {{r[0-9]+}}, [[R2]], [[R1]], [[R0]]
 ; V7M-NOT: __aeabi_idivmod
-  %call = tail call i32 bitcast (i32 (...)* @GetValue to i32 ()*)()
+  %call = tail call i32 @GetValue()
   %rem = srem i32 %call, 1000000
   ret i32 %rem
 }
@@ -76,7 +76,7 @@ entry:
 ; V7M-NOT: sdiv
 ; V7M: mls {{r[0-9]+}}, [[R2]], [[R1]], [[R0]]
 ; V7M-NOT: __aeabi_idivmod
-  %call = tail call i32 bitcast (i32 (...)* @GetValue to i32 ()*)()
+  %call = tail call i32 @GetValue()
   %div = sdiv i32 %call, 1000000
   %rem = srem i32 %call, 1000000
   %add = add i32 %div, %rem
@@ -113,5 +113,5 @@ entry:
 declare i32 @GetValue(...) local_unnamed_addr
 
 attributes #0 = { minsize nounwind optsize }
-attributes #4 = { norecurse nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-jump-tables"="false" "stack-protector-buffer-size"="8" "target-cpu"="cortex-a15" "target-features"="+dsp,+hwdiv,+hwdiv-arm,+neon,+vfp4" "use-soft-float"="false" }
+attributes #4 = { norecurse nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-jump-tables"="false" "stack-protector-buffer-size"="8" "target-cpu"="cortex-a15" "target-features"="+dsp,+hwdiv,+hwdiv-arm,+neon,+vfp4" "use-soft-float"="false" }
 

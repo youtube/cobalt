@@ -460,3 +460,23 @@ class B {
 };
 }
 }
+
+namespace DependentTemplateInTrivialNNSLoc {
+  // This testcase causes us to create trivial type source info when doing
+  // substitution into T::template g<>. That trivial type source info contained
+  // a NestedNameSpecifierLoc with no location information.
+  //
+  // Previously, creating a CXXScopeSpec from that resulted in an invalid scope
+  // spec, leading to crashes. Ensure we don't crash here.
+  template <typename T> void f(T &x) {
+    for (typename T::template g<> i : x) {} // expected-warning 0-1{{extension}}
+    x: goto x;
+  }
+}
+
+template <typename T>
+struct x; // expected-note {{template is declared here}}
+
+template <typename T>
+int issue55962 = x::a; // expected-error {{use of class template 'x' requires template arguments}} \
+                       // expected-warning {{variable templates are a C++14 extension}}

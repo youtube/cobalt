@@ -38,7 +38,7 @@ namespace Numbers {
   // expected-note@-2 2 {{candidate constructor (the implicit move constructor) not viable}}
 #endif
 
-    explicit Number(double d) : d(d) {}
+    explicit Number(double d) : d(d) {} // expected-note 2{{explicit constructor is not a candidate}}
     double d;
   };
   Number zero(0.0f);
@@ -63,11 +63,11 @@ void test3() {
 
   int i = Ints::zero;
   Numbers2::f(i);
-  Numbers2::g(i); // expected-error {{no viable conversion from 'int' to 'Numbers::Number'}}
+  Numbers2::g(i); // expected-error {{no viable conversion from 'int' to 'Number'}}
 
   float f = Floats::zero;
   Numbers2::f(f);
-  Numbers2::g(f); // expected-error {{no viable conversion from 'float' to 'Numbers::Number'}}
+  Numbers2::g(f); // expected-error {{no viable conversion from 'float' to 'Number'}}
 }
 
 namespace inline_ns {

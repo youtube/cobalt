@@ -1,18 +1,13 @@
-//===-- OptionGroupValueObjectDisplay.cpp -----------------------*- C++ -*-===//
+//===-- OptionGroupValueObjectDisplay.cpp ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/OptionGroupValueObjectDisplay.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -24,56 +19,50 @@
 using namespace lldb;
 using namespace lldb_private;
 
-OptionGroupValueObjectDisplay::OptionGroupValueObjectDisplay() {}
-
-OptionGroupValueObjectDisplay::~OptionGroupValueObjectDisplay() {}
-
-static OptionDefinition g_option_table[] = {
+static const OptionDefinition g_option_table[] = {
     {LLDB_OPT_SET_1, false, "dynamic-type", 'd',
-     OptionParser::eRequiredArgument, nullptr, g_dynamic_value_types, 0,
+     OptionParser::eRequiredArgument, nullptr, GetDynamicValueTypes(), 0,
      eArgTypeNone, "Show the object as its full dynamic type, not its static "
                    "type, if available."},
     {LLDB_OPT_SET_1, false, "synthetic-type", 'S',
-     OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,
+     OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean,
      "Show the object obeying its synthetic provider, if available."},
     {LLDB_OPT_SET_1, false, "depth", 'D', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeCount, "Set the max recurse depth when "
-                                         "dumping aggregate types (default is "
-                                         "infinity)."},
+     nullptr, {}, 0, eArgTypeCount, "Set the max recurse depth when dumping "
+                                    "aggregate types (default is infinity)."},
     {LLDB_OPT_SET_1, false, "flat", 'F', OptionParser::eNoArgument, nullptr,
-     nullptr, 0, eArgTypeNone, "Display results in a flat format that uses "
-                               "expression paths for each variable or member."},
+     {}, 0, eArgTypeNone, "Display results in a flat format that uses "
+                          "expression paths for each variable or member."},
     {LLDB_OPT_SET_1, false, "location", 'L', OptionParser::eNoArgument, nullptr,
-     nullptr, 0, eArgTypeNone, "Show variable location information."},
+     {}, 0, eArgTypeNone, "Show variable location information."},
     {LLDB_OPT_SET_1, false, "object-description", 'O',
-     OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone,
-     "Print as an Objective-C object."},
+     OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone,
+     "Display using a language-specific description API, if possible."},
     {LLDB_OPT_SET_1, false, "ptr-depth", 'P', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeCount, "The number of pointers to be "
-                                         "traversed when dumping values "
-                                         "(default is zero)."},
+     nullptr, {}, 0, eArgTypeCount, "The number of pointers to be traversed "
+                                    "when dumping values (default is zero)."},
     {LLDB_OPT_SET_1, false, "show-types", 'T', OptionParser::eNoArgument,
-     nullptr, nullptr, 0, eArgTypeNone,
+     nullptr, {}, 0, eArgTypeNone,
      "Show variable types when dumping values."},
     {LLDB_OPT_SET_1, false, "no-summary-depth", 'Y',
-     OptionParser::eOptionalArgument, nullptr, nullptr, 0, eArgTypeCount,
+     OptionParser::eOptionalArgument, nullptr, {}, 0, eArgTypeCount,
      "Set the depth at which omitting summary information stops (default is "
      "1)."},
     {LLDB_OPT_SET_1, false, "raw-output", 'R', OptionParser::eNoArgument,
-     nullptr, nullptr, 0, eArgTypeNone, "Don't use formatting options."},
+     nullptr, {}, 0, eArgTypeNone, "Don't use formatting options."},
     {LLDB_OPT_SET_1, false, "show-all-children", 'A', OptionParser::eNoArgument,
-     nullptr, nullptr, 0, eArgTypeNone,
+     nullptr, {}, 0, eArgTypeNone,
      "Ignore the upper bound on the number of children to show."},
     {LLDB_OPT_SET_1, false, "validate", 'V', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeBoolean, "Show results of type validators."},
+     nullptr, {}, 0, eArgTypeBoolean, "Show results of type validators."},
     {LLDB_OPT_SET_1, false, "element-count", 'Z',
-     OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeCount,
+     OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeCount,
      "Treat the result of the expression as if its type is an array of this "
      "many values."}};
 
 llvm::ArrayRef<OptionDefinition>
 OptionGroupValueObjectDisplay::GetDefinitions() {
-  return llvm::makeArrayRef(g_option_table);
+  return llvm::ArrayRef(g_option_table);
 }
 
 Status OptionGroupValueObjectDisplay::SetOptionValue(
@@ -86,8 +75,8 @@ Status OptionGroupValueObjectDisplay::SetOptionValue(
   switch (short_option) {
   case 'd': {
     int32_t result;
-    result = OptionArgParser::ToOptionEnum(option_arg, g_dynamic_value_types, 2,
-                                           error);
+    result = OptionArgParser::ToOptionEnum(option_arg, GetDynamicValueTypes(),
+                                           2, error);
     if (error.Success())
       use_dynamic = (lldb::DynamicValueType)result;
   } break;
@@ -115,6 +104,8 @@ Status OptionGroupValueObjectDisplay::SetOptionValue(
       max_depth = UINT32_MAX;
       error.SetErrorStringWithFormat("invalid max depth '%s'",
                                      option_arg.str().c_str());
+    } else {
+      max_depth_is_default = false;
     }
     break;
 
@@ -159,8 +150,7 @@ Status OptionGroupValueObjectDisplay::SetOptionValue(
     break;
 
   default:
-    error.SetErrorStringWithFormat("unrecognized option '%c'", short_option);
-    break;
+    llvm_unreachable("Unimplemented option");
   }
 
   return error;
@@ -175,6 +165,7 @@ void OptionGroupValueObjectDisplay::OptionParsingStarting(
   flat_output = false;
   use_objc = false;
   max_depth = UINT32_MAX;
+  max_depth_is_default = true;
   ptr_depth = 0;
   elem_count = 0;
   use_synth = true;
@@ -184,9 +175,12 @@ void OptionGroupValueObjectDisplay::OptionParsingStarting(
 
   TargetSP target_sp =
       execution_context ? execution_context->GetTargetSP() : TargetSP();
-  if (target_sp)
+  if (target_sp) {
     use_dynamic = target_sp->GetPreferDynamicValue();
-  else {
+    auto max_depth_config = target_sp->GetMaximumDepthOfChildrenToDisplay();
+    max_depth = std::get<uint32_t>(max_depth_config);
+    max_depth_is_default = std::get<bool>(max_depth_config);
+  } else {
     // If we don't have any targets, then dynamic values won't do us much good.
     use_dynamic = lldb::eNoDynamicValues;
   }
@@ -202,7 +196,7 @@ DumpValueObjectOptions OptionGroupValueObjectDisplay::GetAsDumpOptions(
     options.SetShowSummary(false);
   else
     options.SetOmitSummaryDepth(no_summary_depth);
-  options.SetMaximumDepth(max_depth)
+  options.SetMaximumDepth(max_depth, max_depth_is_default)
       .SetShowTypes(show_types)
       .SetShowLocation(show_location)
       .SetUseObjectiveC(use_objc)

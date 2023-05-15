@@ -1,20 +1,19 @@
 //===- StreamUtil.cpp - PDB stream utilities --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "StreamUtil.h"
-#include "FormatUtil.h"
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/DebugInfo/PDB/Native/DbiModuleDescriptor.h"
 #include "llvm/DebugInfo/PDB/Native/DbiModuleList.h"
 #include "llvm/DebugInfo/PDB/Native/DbiStream.h"
+#include "llvm/DebugInfo/PDB/Native/FormatUtil.h"
 #include "llvm/DebugInfo/PDB/Native/InfoStream.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
@@ -33,7 +32,7 @@ std::string StreamInfo::getLongName() const {
 StreamInfo StreamInfo::createStream(StreamPurpose Purpose, StringRef Name,
                                     uint32_t StreamIndex) {
   StreamInfo Result;
-  Result.Name = Name;
+  Result.Name = std::string(Name);
   Result.StreamIndex = StreamIndex;
   Result.Purpose = Purpose;
   return Result;
@@ -42,7 +41,7 @@ StreamInfo StreamInfo::createStream(StreamPurpose Purpose, StringRef Name,
 StreamInfo StreamInfo::createModuleStream(StringRef Module,
                                           uint32_t StreamIndex, uint32_t Modi) {
   StreamInfo Result;
-  Result.Name = Module;
+  Result.Name = std::string(Module);
   Result.StreamIndex = StreamIndex;
   Result.ModuleIndex = Modi;
   Result.Purpose = StreamPurpose::ModuleStream;
@@ -91,12 +90,12 @@ void llvm::pdb::discoverStreamPurposes(PDBFile &File,
   if (Info) {
     for (auto &NSE : Info->named_streams()) {
       if (NSE.second != kInvalidStreamIndex)
-        NamedStreams[NSE.second] = NSE.first();
+        NamedStreams[NSE.second] = std::string(NSE.first());
     }
   }
 
   Streams.resize(StreamCount);
-  for (uint16_t StreamIdx = 0; StreamIdx < StreamCount; ++StreamIdx) {
+  for (uint32_t StreamIdx = 0; StreamIdx < StreamCount; ++StreamIdx) {
     if (StreamIdx == OldMSFDirectory)
       Streams[StreamIdx] =
           stream(StreamPurpose::Other, "Old MSF Directory", StreamIdx);

@@ -1,16 +1,15 @@
 //===--- TemporaryObjectsCheck.h - clang-tidy------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_ZIRCON_TEMPORARYOBJECTSCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_ZIRCON_TEMPORARYOBJECTSCHECK_H
 
-#include "../ClangTidy.h"
+#include "../ClangTidyCheck.h"
 #include "../utils/OptionsUtils.h"
 
 namespace clang {
@@ -21,7 +20,7 @@ namespace zircon {
 /// discouraged.
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/zircon-temporary-objects.html
+/// http://clang.llvm.org/extra/clang-tidy/checks/zircon/temporary-objects.html
 class TemporaryObjectsCheck : public ClangTidyCheck {
 public:
   TemporaryObjectsCheck(StringRef Name, ClangTidyContext *Context)
@@ -32,7 +31,7 @@ public:
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
 
 private:
-  std::vector<std::string> Names;
+  std::vector<StringRef> Names;
 };
 
 } // namespace zircon

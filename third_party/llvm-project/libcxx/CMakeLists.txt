@@ -1,48 +1,28 @@
-# See www/CMake.html for instructions on how to build libcxx with CMake.
+# See https://libcxx.llvm.org/docs/BuildingLibcxx.html for instructions on how
+# to build libcxx with CMake.
 
 #===============================================================================
 # Setup Project
 #===============================================================================
-cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.13.4)
 
-if(POLICY CMP0042)
-  cmake_policy(SET CMP0042 NEW) # Set MACOSX_RPATH=YES by default
-endif()
-if(POLICY CMP0022)
-  cmake_policy(SET CMP0022 NEW) # Required when interacting with LLVM and Clang
-endif()
-if(POLICY CMP0068)
-  cmake_policy(SET CMP0068 NEW)
-  set(CMAKE_BUILD_WITH_INSTALL_NAME_DIR ON)
-endif()
+set(LLVM_COMMON_CMAKE_UTILS "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 
 # Add path for custom modules
-set(CMAKE_MODULE_PATH
+list(INSERT CMAKE_MODULE_PATH 0
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules"
-  ${CMAKE_MODULE_PATH}
+  "${LLVM_COMMON_CMAKE_UTILS}"
+  "${LLVM_COMMON_CMAKE_UTILS}/Modules"
   )
 
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  project(libcxx CXX C)
+set(CMAKE_FOLDER "libc++")
 
-  set(PACKAGE_NAME libcxx)
-  set(PACKAGE_VERSION 7.0.0)
-  set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-  set(PACKAGE_BUGREPORT "llvm-bugs@lists.llvm.org")
+set(LIBCXX_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR})
+set(LIBCXX_BINARY_DIR  ${CMAKE_CURRENT_BINARY_DIR})
+set(LIBCXX_BINARY_INCLUDE_DIR "${LIBCXX_BINARY_DIR}/include/c++build")
 
-  # Find the LLVM sources and simulate LLVM CMake options.
-  include(HandleOutOfTreeLLVM)
-endif()
-
-if (LIBCXX_STANDALONE_BUILD)
-  include(FindPythonInterp)
-  if( NOT PYTHONINTERP_FOUND )
-    message(WARNING "Failed to find python interpreter. "
-                    "The libc++ test suite will be disabled.")
-    set(LLVM_INCLUDE_TESTS OFF)
-  endif()
-endif()
+include(GNUInstallDirs)
 
 # Require out of source build.
 include(MacroEnsureOutOfSourceBuild)
@@ -50,9 +30,14 @@ MACRO_ENSURE_OUT_OF_SOURCE_BUILD(
  "${PROJECT_NAME} requires an out of source build. Please create a separate
  build directory and run 'cmake /path/to/${PROJECT_NAME} [options]' there."
  )
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+  message(STATUS "Configuring for clang-cl")
+  set(LIBCXX_TARGETING_CLANG_CL ON)
+endif()
 
 if (MSVC)
   set(LIBCXX_TARGETING_MSVC ON)
+  message(STATUS "Configuring for MSVC")
 else()
   set(LIBCXX_TARGETING_MSVC OFF)
 endif()
@@ -64,20 +49,96 @@ include(CMakeDependentOption)
 include(HandleCompilerRT)
 
 # Basic options ---------------------------------------------------------------
-option(LIBCXX_ENABLE_ASSERTIONS "Enable assertions independent of build mode." OFF)
+option(LIBCXX_ENABLE_ASSERTIONS
+  "Enable assertions inside the compiled library, and at the same time make it the
+   default when compiling user code. Note that assertions can be enabled or disabled
+   by users in their own code regardless of this option." OFF)
 option(LIBCXX_ENABLE_SHARED "Build libc++ as a shared library." ON)
 option(LIBCXX_ENABLE_STATIC "Build libc++ as a static library." ON)
-option(LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY "Build libc++experimental.a" ON)
-set(ENABLE_FILESYSTEM_DEFAULT ${LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY})
-if (WIN32)
+set(ENABLE_FILESYSTEM_DEFAULT ON)
+if (WIN32 AND NOT MINGW)
+  # Filesystem is buildable for windows, but it requires __int128 helper
+  # functions, that currently are provided by libgcc or compiler_rt builtins.
+  # These are available in MinGW environments, but not currently in MSVC
+  # environments.
   set(ENABLE_FILESYSTEM_DEFAULT OFF)
 endif()
-option(LIBCXX_ENABLE_FILESYSTEM "Build filesystem as part of libc++fs.a"
+option(LIBCXX_ENABLE_FILESYSTEM "Build filesystem as part of the main libc++ library"
     ${ENABLE_FILESYSTEM_DEFAULT})
 option(LIBCXX_INCLUDE_TESTS "Build the libc++ tests." ${LLVM_INCLUDE_TESTS})
+option(LIBCXX_ENABLE_PARALLEL_ALGORITHMS "Enable the parallel algorithms library. This requires the PSTL to be available." OFF)
+option(LIBCXX_ENABLE_DEBUG_MODE
+  "Whether to build libc++ with the debug mode enabled.
+   By default, this is turned off. Turning it on results in a different ABI (additional
+   symbols but also potentially different layouts of types), and one should not mix code
+   built against a dylib that has debug mode and code built against a regular dylib." OFF)
+option(LIBCXX_ENABLE_RANDOM_DEVICE
+  "Whether to include support for std::random_device in the library. Disabling
+   this can be useful when building the library for platforms that don't have
+   a source of randomness, such as some embedded platforms. When this is not
+   supported, most of <random> will still be available, but std::random_device
+   will not." ON)
+option(LIBCXX_ENABLE_LOCALIZATION
+  "Whether to include support for localization in the library. Disabling
+   localization can be useful when porting to platforms that don't support
+   the C locale API (e.g. embedded). When localization is not supported,
+   several parts of the library will be disabled: <iostream>, <regex>, <locale>
+   will be completely unusable, and other parts may be only partly available." ON)
+option(LIBCXX_ENABLE_FSTREAM
+   "Whether to include support for <fstream>." ON) # TODO: Consider rolling that into LIBCXX_ENABLE_FILESYSTEM
+option(LIBCXX_ENABLE_UNICODE
+  "Whether to include support for Unicode in the library. Disabling Unicode can
+   be useful when porting to platforms that don't support UTF-8 encoding (e.g.
+   embedded)." ON)
+option(LIBCXX_ENABLE_WIDE_CHARACTERS
+  "Whether to include support for wide characters in the library. Disabling
+   wide character support can be useful when porting to platforms that don't
+   support the C functionality for wide characters. When wide characters are
+   not supported, several parts of the library will be disabled, notably the
+   wide character specializations of std::basic_string." ON)
+option(LIBCXX_ENABLE_VENDOR_AVAILABILITY_ANNOTATIONS
+  "Whether to turn on vendor availability annotations on declarations that depend
+   on definitions in a shared library. By default, we assume that we're not building
+   libc++ for any specific vendor, and we disable those annotations. Vendors wishing
+   to provide compile-time errors when using features unavailable on some version of
+   the shared library they shipped should turn this on and see `include/__availability`
+   for more details." OFF)
+option(LIBCXX_ENABLE_CLANG_TIDY "Whether to compile and run clang-tidy checks" OFF)
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(LIBCXX_DEFAULT_TEST_CONFIG "llvm-libc++-shared-gcc.cfg.in")
+elseif(MINGW)
+  set(LIBCXX_DEFAULT_TEST_CONFIG "llvm-libc++-mingw.cfg.in")
+elseif(WIN32) # clang-cl
+  if (LIBCXX_ENABLE_SHARED)
+    set(LIBCXX_DEFAULT_TEST_CONFIG "llvm-libc++-shared-clangcl.cfg.in")
+  else()
+    set(LIBCXX_DEFAULT_TEST_CONFIG "llvm-libc++-static-clangcl.cfg.in")
+  endif()
+else()
+  if (LIBCXX_ENABLE_SHARED)
+    set(LIBCXX_DEFAULT_TEST_CONFIG "llvm-libc++-shared.cfg.in")
+  else()
+    set(LIBCXX_DEFAULT_TEST_CONFIG "llvm-libc++-static.cfg.in")
+  endif()
+endif()
+set(LIBCXX_TEST_CONFIG "${LIBCXX_DEFAULT_TEST_CONFIG}" CACHE STRING
+    "The path to the Lit testing configuration to use when running the tests.
+     If a relative path is provided, it is assumed to be relative to '<monorepo>/libcxx/test/configs'.")
+if (NOT IS_ABSOLUTE "${LIBCXX_TEST_CONFIG}")
+  set(LIBCXX_TEST_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/test/configs/${LIBCXX_TEST_CONFIG}")
+endif()
+message(STATUS "Using libc++ testing configuration: ${LIBCXX_TEST_CONFIG}")
+set(LIBCXX_TEST_PARAMS "" CACHE STRING
+    "A list of parameters to run the Lit test suite with.")
 
 # Benchmark options -----------------------------------------------------------
-option(LIBCXX_INCLUDE_BENCHMARKS "Build the libc++ benchmarks and their dependancies" ON)
+option(LIBCXX_INCLUDE_BENCHMARKS "Build the libc++ benchmarks and their dependencies" ON)
+
+set(LIBCXX_BENCHMARK_TEST_ARGS_DEFAULT --benchmark_min_time=0.01)
+set(LIBCXX_BENCHMARK_TEST_ARGS "${LIBCXX_BENCHMARK_TEST_ARGS_DEFAULT}" CACHE STRING
+    "Arguments to pass when running the benchmarks using check-cxx-benchmarks")
+
 set(LIBCXX_BENCHMARK_NATIVE_STDLIB "" CACHE STRING
         "Build the benchmarks against the specified native STL.
          The value must be one of libc++/libstdc++")
@@ -103,91 +164,88 @@ cmake_dependent_option(LIBCXX_INSTALL_STATIC_LIBRARY
 cmake_dependent_option(LIBCXX_INSTALL_SHARED_LIBRARY
   "Install the shared libc++ library." ON
   "LIBCXX_ENABLE_SHARED;LIBCXX_INSTALL_LIBRARY" OFF)
-option(LIBCXX_INSTALL_SUPPORT_HEADERS "Install libc++ support headers." ON)
-cmake_dependent_option(LIBCXX_INSTALL_EXPERIMENTAL_LIBRARY
-        "Install libc++experimental.a" ON
-        "LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY;LIBCXX_INSTALL_LIBRARY" OFF)
-cmake_dependent_option(LIBCXX_INSTALL_FILESYSTEM_LIBRARY
-        "Install libc++fs.a" ON
-        "LIBCXX_ENABLE_FILESYSTEM;LIBCXX_INSTALL_LIBRARY" OFF)
 
-if (FUCHSIA)
-  set(DEFAULT_ABI_VERSION 2)
+option(LIBCXX_ABI_UNSTABLE "Use the unstable ABI of libc++. This is equivalent to specifying LIBCXX_ABI_VERSION=n, where n is the not-yet-stable version." OFF)
+if (LIBCXX_ABI_UNSTABLE)
+  set(abi_version "2")
 else()
-  set(DEFAULT_ABI_VERSION 1)
+  set(abi_version "1")
 endif()
-set(LIBCXX_ABI_VERSION ${DEFAULT_ABI_VERSION} CACHE STRING "ABI version of libc++.")
-option(LIBCXX_ABI_UNSTABLE "Unstable ABI of libc++." OFF)
+set(LIBCXX_ABI_VERSION "${abi_version}" CACHE STRING
+  "ABI version of libc++. Can be either 1 or 2, where 2 is currently the unstable ABI.
+   Defaults to 1 unless LIBCXX_ABI_UNSTABLE is specified, in which case this is 2.")
+set(LIBCXX_LIBRARY_VERSION "${LIBCXX_ABI_VERSION}.0" CACHE STRING
+  "Version of libc++. This will be reflected in the name of the shared library produced.
+   For example, -DLIBCXX_LIBRARY_VERSION=x.y will result in the library being named
+   libc++.x.y.dylib, along with the usual symlinks pointing to that. On Apple platforms,
+   this also controls the linker's 'current_version' property.")
+set(LIBCXX_ABI_NAMESPACE "__${LIBCXX_ABI_VERSION}" CACHE STRING "The inline ABI namespace used by libc++. It defaults to __n where `n` is the current ABI version.")
+if (NOT LIBCXX_ABI_NAMESPACE MATCHES "__.*")
+  message(FATAL_ERROR "LIBCXX_ABI_NAMESPACE must be a reserved identifier, got '${LIBCXX_ABI_NAMESPACE}'.")
+endif()
 option(LIBCXX_ABI_FORCE_ITANIUM "Ignore auto-detection and force use of the Itanium ABI.")
 option(LIBCXX_ABI_FORCE_MICROSOFT "Ignore auto-detection and force use of the Microsoft ABI.")
-option(LIBCXX_HIDE_FROM_ABI_PER_TU_BY_DEFAULT "Enable per TU ABI insulation by default. To be used by vendors." OFF)
+
+set(LIBCXX_TYPEINFO_COMPARISON_IMPLEMENTATION "default" CACHE STRING
+  "Override the implementation to use for comparing typeinfos. By default, this
+   is detected automatically by the library, but this option allows overriding
+   which implementation is used unconditionally.
+
+   See the documentation in <libcxx/include/typeinfo> for details on what each
+   value means.")
+set(TYPEINFO_COMPARISON_VALUES "default;1;2;3")
+if (NOT ("${LIBCXX_TYPEINFO_COMPARISON_IMPLEMENTATION}" IN_LIST TYPEINFO_COMPARISON_VALUES))
+  message(FATAL_ERROR "Value '${LIBCXX_TYPEINFO_COMPARISON_IMPLEMENTATION}' is not a valid value for
+                       LIBCXX_TYPEINFO_COMPARISON_IMPLEMENTATION")
+endif()
+
 set(LIBCXX_ABI_DEFINES "" CACHE STRING "A semicolon separated list of ABI macros to define in the site config header.")
+option(LIBCXX_EXTRA_SITE_DEFINES "Extra defines to add into __config_site")
 option(LIBCXX_USE_COMPILER_RT "Use compiler-rt instead of libgcc" OFF)
 
-if (NOT LIBCXX_ENABLE_SHARED AND NOT LIBCXX_ENABLE_STATIC)
-  message(FATAL_ERROR "libc++ must be built as either a shared or static library.")
-endif()
+option(LIBCXX_ENABLE_BACKWARDS_COMPATIBILITY_DEBUG_MODE_SYMBOLS
+  "Whether to include the old Debug mode symbols in the compiled library. This
+   is provided for backwards compatibility since the compiled library used to
+   always contain those symbols, regardless of whether the library was built
+   with the debug mode enabled. This is OFF by default, please contact the libc++
+   developers if you need to turn this on, as this will be removed in LLVM 16." OFF)
 
 # ABI Library options ---------------------------------------------------------
-set(LIBCXX_CXX_ABI "default" CACHE STRING
-    "Specify C++ ABI library to use.")
-set(CXXABIS none default libcxxabi libcxxrt libstdc++ libsupc++ vcruntime)
-set_property(CACHE LIBCXX_CXX_ABI PROPERTY STRINGS ;${CXXABIS})
-
-# Setup the default options if LIBCXX_CXX_ABI is not specified.
-if (LIBCXX_CXX_ABI STREQUAL "default")
-  find_path(
-    LIBCXX_LIBCXXABI_INCLUDES_INTERNAL
-    cxxabi.h
-    PATHS ${LLVM_MAIN_SRC_DIR}/projects/libcxxabi/include
-          ${LLVM_MAIN_SRC_DIR}/runtimes/libcxxabi/include
-          ${LLVM_MAIN_SRC_DIR}/../libcxxabi/include
-    NO_DEFAULT_PATH
-    NO_CMAKE_FIND_ROOT_PATH
-  )
-  if (LIBCXX_TARGETING_MSVC)
-    # FIXME: Figure out how to configure the ABI library on Windows.
-    set(LIBCXX_CXX_ABI_LIBNAME "vcruntime")
-  elseif ((NOT LIBCXX_STANDALONE_BUILD OR HAVE_LIBCXXABI) AND
-          IS_DIRECTORY "${LIBCXX_LIBCXXABI_INCLUDES_INTERNAL}")
-    set(LIBCXX_CXX_ABI_LIBNAME "libcxxabi")
-    set(LIBCXX_CXX_ABI_INCLUDE_PATHS "${LIBCXX_LIBCXXABI_INCLUDES_INTERNAL}")
-    set(LIBCXX_CXX_ABI_INTREE 1)
-  elseif (APPLE)
-    set(LIBCXX_CXX_ABI_LIBNAME "libcxxabi")
-    set(LIBCXX_CXX_ABI_SYSTEM 1)
-  elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
-    set(LIBCXX_CXX_ABI_LIBNAME "libcxxrt")
-    set(LIBCXX_CXX_ABI_INCLUDE_PATHS "/usr/include/c++/v1")
-  else()
-    set(LIBCXX_CXX_ABI_LIBNAME "default")
-  endif()
+if (LIBCXX_TARGETING_MSVC)
+  set(LIBCXX_DEFAULT_ABI_LIBRARY "vcruntime")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+  set(LIBCXX_DEFAULT_ABI_LIBRARY "libcxxrt")
 else()
-  set(LIBCXX_CXX_ABI_LIBNAME "${LIBCXX_CXX_ABI}")
+  set(LIBCXX_DEFAULT_ABI_LIBRARY "libcxxabi")
 endif()
 
-# Use a static copy of the ABI library when linking libc++. This option
-# cannot be used with LIBCXX_ENABLE_ABI_LINKER_SCRIPT.
-option(LIBCXX_ENABLE_STATIC_ABI_LIBRARY "Statically link the ABI library" OFF)
+set(LIBCXX_SUPPORTED_ABI_LIBRARIES none libcxxabi system-libcxxabi libcxxrt libstdc++ libsupc++ vcruntime)
+set(LIBCXX_CXX_ABI "${LIBCXX_DEFAULT_ABI_LIBRARY}" CACHE STRING "Specify C++ ABI library to use. Supported values are ${LIBCXX_SUPPORTED_ABI_LIBRARIES}.")
+if (NOT "${LIBCXX_CXX_ABI}" IN_LIST LIBCXX_SUPPORTED_ABI_LIBRARIES)
+  message(FATAL_ERROR "Unsupported C++ ABI library: '${LIBCXX_CXX_ABI}'. Supported values are ${LIBCXX_SUPPORTED_ABI_LIBRARIES}.")
+endif()
 
-cmake_dependent_option(LIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY
-  "Statically link the ABI library to static library" ON
-  "LIBCXX_ENABLE_STATIC_ABI_LIBRARY;LIBCXX_ENABLE_STATIC" OFF)
+option(LIBCXX_ENABLE_STATIC_ABI_LIBRARY
+  "Use a static copy of the ABI library when linking libc++.
+   This option cannot be used with LIBCXX_ENABLE_ABI_LINKER_SCRIPT." OFF)
 
-cmake_dependent_option(LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY
-  "Statically link the ABI library to shared library" ON
-  "LIBCXX_ENABLE_STATIC_ABI_LIBRARY;LIBCXX_ENABLE_SHARED" OFF)
+option(LIBCXX_STATICALLY_LINK_ABI_IN_STATIC_LIBRARY
+  "Statically link the ABI library to static library"
+  ${LIBCXX_ENABLE_STATIC_ABI_LIBRARY})
+
+option(LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY
+  "Statically link the ABI library to shared library"
+  ${LIBCXX_ENABLE_STATIC_ABI_LIBRARY})
 
 # Generate and install a linker script inplace of libc++.so. The linker script
 # will link libc++ to the correct ABI library. This option is on by default
-# on UNIX platforms other than Apple unless 'LIBCXX_ENABLE_STATIC_ABI_LIBRARY'
-# is on. This option is also disabled when the ABI library is not specified
-# or is specified to be "none".
+# on UNIX platforms other than Apple unless
+# 'LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY' is on. This option is also
+# disabled when the ABI library is not specified or is specified to be "none".
 set(ENABLE_LINKER_SCRIPT_DEFAULT_VALUE OFF)
 if (LLVM_HAVE_LINK_VERSION_SCRIPT AND NOT LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY
-      AND NOT LIBCXX_CXX_ABI_LIBNAME STREQUAL "none"
-      AND NOT LIBCXX_CXX_ABI_LIBNAME STREQUAL "default"
-      AND PYTHONINTERP_FOUND
+      AND NOT LIBCXX_CXX_ABI STREQUAL "none"
+      AND Python3_EXECUTABLE
       AND LIBCXX_ENABLE_SHARED)
     set(ENABLE_LINKER_SCRIPT_DEFAULT_VALUE ON)
 endif()
@@ -196,39 +254,25 @@ option(LIBCXX_ENABLE_ABI_LINKER_SCRIPT
       "Use and install a linker script for the given ABI library"
       ${ENABLE_LINKER_SCRIPT_DEFAULT_VALUE})
 
-set(ENABLE_NEW_DELETE_DEFAULT ON)
-if (LIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS)
-# FIXME: This option should default to off. Unfortunatly GCC 4.9 fails to link
-# programs due to undefined references to new/delete in libc++abi so to work
-# around this libc++abi currently defaults LIBCXXABI_ENABLE_NEW_DELETE_DEFINITIONS
-# to ON. Once the GCC bug has been worked around this option should be changed
-# back to OFF.
-  set(ENABLE_NEW_DELETE_DEFAULT ON)
-endif()
-
 option(LIBCXX_ENABLE_NEW_DELETE_DEFINITIONS
-    "Build libc++ with definitions for operator new/delete. This option can
-    be used to disable the definitions when libc++abi is expected to provide
-    them" ${ENABLE_NEW_DELETE_DEFAULT})
-
+  "Build libc++ with definitions for operator new/delete. These are normally
+   defined in libc++abi, but this option can be used to define them in libc++
+   instead. If you define them in libc++, make sure they are NOT defined in
+   libc++abi. Doing otherwise is an ODR violation." OFF)
 # Build libc++abi with libunwind. We need this option to determine whether to
 # link with libunwind or libgcc_s while running the test cases.
 option(LIBCXXABI_USE_LLVM_UNWINDER "Build and use the LLVM unwinder." OFF)
-option(LIBCXXABI_ENABLE_STATIC_UNWINDER "Statically link the LLVM unwinder." OFF)
 
 # Target options --------------------------------------------------------------
-option(LIBCXX_BUILD_32_BITS "Build 32 bit libc++." ${LLVM_BUILD_32_BITS})
-set(LIBCXX_SYSROOT "" CACHE STRING "Use alternate sysroot.")
-set(LIBCXX_GCC_TOOLCHAIN "" CACHE STRING "Use alternate GCC toolchain.")
+option(LIBCXX_BUILD_32_BITS "Build 32 bit multilib libc++. This option is not supported anymore when building the runtimes. Please specify a full triple instead." ${LLVM_BUILD_32_BITS})
+if (LIBCXX_BUILD_32_BITS)
+  message(FATAL_ERROR "LIBCXX_BUILD_32_BITS is not supported anymore when building the runtimes, please specify a full triple instead.")
+endif()
 
 # Feature options -------------------------------------------------------------
 option(LIBCXX_ENABLE_EXCEPTIONS "Use exceptions." ON)
 option(LIBCXX_ENABLE_RTTI "Use run time type information." ON)
-option(LIBCXX_ENABLE_GLOBAL_FILESYSTEM_NAMESPACE "Build libc++ with support for the global filesystem namespace." ON)
-option(LIBCXX_ENABLE_STDIN "Build libc++ with support for stdin/std::cin." ON)
-option(LIBCXX_ENABLE_STDOUT "Build libc++ with support for stdout/std::cout." ON)
 option(LIBCXX_ENABLE_THREADS "Build libc++ with support for threads." ON)
-option(LIBCXX_ENABLE_THREAD_UNSAFE_C_FUNCTIONS "Build libc++ with support for thread-unsafe C functions" ON)
 option(LIBCXX_ENABLE_MONOTONIC_CLOCK
   "Build libc++ with support for a monotonic clock.
    This option may only be set to OFF when LIBCXX_ENABLE_THREADS=OFF." ON)
@@ -253,23 +297,6 @@ option(LIBCXX_GENERATE_COVERAGE "Enable generating code coverage." OFF)
 set(LIBCXX_COVERAGE_LIBRARY "" CACHE STRING
     "The Profile-rt library used to build with code coverage")
 
-# Don't allow a user to accidentally overwrite the system libc++ installation on Darwin.
-# If the user specifies -DCMAKE_INSTALL_PREFIX=/usr the install rules for libc++
-# will not be generated and a warning will be issued.
-option(LIBCXX_OVERRIDE_DARWIN_INSTALL "Enable overwriting darwins libc++ installation." OFF)
-mark_as_advanced(LIBCXX_OVERRIDE_DARWIN_INSTALL) # Don't show this option by default.
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND NOT LIBCXX_OVERRIDE_DARWIN_INSTALL)
-  if ("${CMAKE_INSTALL_PREFIX}" STREQUAL "/usr")
-    message(WARNING "Disabling libc++ install rules because installation would "
-                    "overwrite the systems installation. Configure with "
-                    "-DLIBCXX_OVERRIDE_DARWIN_INSTALL=ON to suppress this behaviour.")
-    mark_as_advanced(CLEAR LIBCXX_OVERRIDE_DARWIN_INSTALL) # Show the override option.
-    set(LIBCXX_INSTALL_HEADERS OFF)
-    set(LIBCXX_INSTALL_LIBRARY OFF)
-  endif()
-endif()
-
 set(LIBCXX_CONFIGURE_IDE_DEFAULT OFF)
 if (XCODE OR MSVC_IDE)
   set(LIBCXX_CONFIGURE_IDE_DEFAULT ON)
@@ -277,14 +304,16 @@ endif()
 option(LIBCXX_CONFIGURE_IDE "Configure libcxx for use within an IDE"
       ${LIBCXX_CONFIGURE_IDE_DEFAULT})
 
+set(LIBCXX_HERMETIC_STATIC_LIBRARY_DEFAULT OFF)
+if (WIN32)
+  set(LIBCXX_HERMETIC_STATIC_LIBRARY_DEFAULT ON)
+endif()
+option(LIBCXX_HERMETIC_STATIC_LIBRARY
+  "Do not export any symbols from the static library." ${LIBCXX_HERMETIC_STATIC_LIBRARY_DEFAULT})
+
 #===============================================================================
 # Check option configurations
 #===============================================================================
-
-if (LIBCXX_ENABLE_FILESYSTEM AND NOT LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY)
-  message(FATAL_ERROR
-    "LIBCXX_ENABLE_FILESYSTEM cannot be turned on when LIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF")
-endif()
 
 # Ensure LIBCXX_ENABLE_MONOTONIC_CLOCK is set to ON only when
 # LIBCXX_ENABLE_THREADS is on.
@@ -345,34 +374,9 @@ if (LLVM_USE_SANITIZER AND LIBCXX_GENERATE_COVERAGE)
   message(FATAL_ERROR "LLVM_USE_SANITIZER cannot be used with LIBCXX_GENERATE_COVERAGE")
 endif()
 
-# Set LIBCXX_BUILD_32_BITS to (LIBCXX_BUILD_32_BITS OR LLVM_BUILD_32_BITS)
-# and check that we can build with 32 bits if requested.
-if (CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32)
-  if (LIBCXX_BUILD_32_BITS AND NOT LLVM_BUILD_32_BITS) # Don't duplicate the output from LLVM
-    message(STATUS "Building 32 bits executables and libraries.")
-  endif()
-elseif(LIBCXX_BUILD_32_BITS)
-  message(FATAL_ERROR "LIBCXX_BUILD_32_BITS=ON is not supported on this platform.")
-endif()
-
-# Check that this option is not enabled on Apple and emit a usage warning.
-if (LIBCXX_ENABLE_STATIC_ABI_LIBRARY)
-  if (APPLE)
-    message(FATAL_ERROR "LIBCXX_ENABLE_STATIC_ABI_LIBRARY is not supported on OS X")
-  else()
-    message(WARNING "LIBCXX_ENABLE_STATIC_ABI_LIBRARY is an experimental option")
-  endif()
-  if (LIBCXX_ENABLE_STATIC AND NOT PYTHONINTERP_FOUND)
-    message(FATAL_ERROR "LIBCXX_ENABLE_STATIC_ABI_LIBRARY requires python but it was not found.")
-  endif()
-endif()
-
 if (LIBCXX_ENABLE_ABI_LINKER_SCRIPT)
     if (APPLE)
       message(FATAL_ERROR "LIBCXX_ENABLE_ABI_LINKER_SCRIPT cannot be used on APPLE targets")
-    endif()
-    if (NOT PYTHONINTERP_FOUND)
-      message(FATAL_ERROR "LIBCXX_ENABLE_ABI_LINKER_SCRIPT requires python but it was not found.")
     endif()
     if (NOT LIBCXX_ENABLE_SHARED)
       message(FATAL_ERROR "LIBCXX_ENABLE_ABI_LINKER_SCRIPT is only available for shared library builds.")
@@ -381,13 +385,8 @@ endif()
 
 if (LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY AND LIBCXX_ENABLE_ABI_LINKER_SCRIPT)
     message(FATAL_ERROR "Conflicting options given.
-        LIBCXX_ENABLE_STATIC_ABI_LIBRARY cannot be specified with
+        LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY cannot be specified with
         LIBCXX_ENABLE_ABI_LINKER_SCRIPT")
-endif()
-
-if (LIBCXX_HAS_MUSL_LIBC AND NOT LIBCXX_INSTALL_SUPPORT_HEADERS)
-  message(FATAL_ERROR "LIBCXX_INSTALL_SUPPORT_HEADERS can not be turned off"
-                      "when building for Musl with LIBCXX_HAS_MUSL_LIBC.")
 endif()
 
 if (LIBCXX_ABI_FORCE_ITANIUM AND LIBCXX_ABI_FORCE_MICROSOFT)
@@ -398,33 +397,45 @@ endif ()
 # Configure System
 #===============================================================================
 
-set(LIBCXX_COMPILER    ${CMAKE_CXX_COMPILER})
-set(LIBCXX_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR})
-set(LIBCXX_BINARY_DIR  ${CMAKE_CURRENT_BINARY_DIR})
-set(LIBCXX_BINARY_INCLUDE_DIR "${LIBCXX_BINARY_DIR}/include/c++build")
+# TODO: Projects that depend on libc++ should use LIBCXX_GENERATED_INCLUDE_DIR
+# instead of hard-coding include/c++/v1.
 
-string(REGEX MATCH "[0-9]+\\.[0-9]+(\\.[0-9]+)?" CLANG_VERSION
-       ${PACKAGE_VERSION})
+set(LIBCXX_INSTALL_INCLUDE_DIR "${CMAKE_INSTALL_INCLUDEDIR}/c++/v1" CACHE PATH
+    "Path where target-agnostic libc++ headers should be installed.")
+set(LIBCXX_INSTALL_RUNTIME_DIR "${CMAKE_INSTALL_BINDIR}" CACHE PATH
+    "Path where built libc++ runtime libraries should be installed.")
+
+set(LIBCXX_SHARED_OUTPUT_NAME "c++" CACHE STRING "Output name for the shared libc++ runtime library.")
+set(LIBCXX_STATIC_OUTPUT_NAME "c++" CACHE STRING "Output name for the static libc++ runtime library.")
 
 if(LLVM_ENABLE_PER_TARGET_RUNTIME_DIR AND NOT APPLE)
-  set(DEFAULT_INSTALL_PREFIX lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/${LLVM_DEFAULT_TARGET_TRIPLE}/)
-  set(DEFAULT_INSTALL_HEADER_PREFIX lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/)
-  set(LIBCXX_LIBRARY_DIR ${LLVM_LIBRARY_OUTPUT_INTDIR}/clang/${CLANG_VERSION}/${LLVM_DEFAULT_TARGET_TRIPLE}/lib${LIBCXX_LIBDIR_SUFFIX})
-  set(LIBCXX_HEADER_DIR ${LLVM_LIBRARY_OUTPUT_INTDIR}/clang/${CLANG_VERSION})
-elseif(LLVM_LIBRARY_OUTPUT_INTDIR)
-  set(LIBCXX_LIBRARY_DIR ${LLVM_LIBRARY_OUTPUT_INTDIR})
-  set(LIBCXX_HEADER_DIR  ${LLVM_BINARY_DIR})
+  set(LIBCXX_LIBRARY_DIR ${LLVM_LIBRARY_OUTPUT_INTDIR}/${LLVM_DEFAULT_TARGET_TRIPLE})
+  set(LIBCXX_GENERATED_INCLUDE_DIR "${LLVM_BINARY_DIR}/include/c++/v1")
+  set(LIBCXX_GENERATED_INCLUDE_TARGET_DIR "${LLVM_BINARY_DIR}/include/${LLVM_DEFAULT_TARGET_TRIPLE}/c++/v1")
+  set(LIBCXX_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE} CACHE PATH
+      "Path where built libc++ libraries should be installed.")
+  set(LIBCXX_INSTALL_INCLUDE_TARGET_DIR "${CMAKE_INSTALL_INCLUDEDIR}/${LLVM_DEFAULT_TARGET_TRIPLE}/c++/v1" CACHE PATH
+      "Path where target-specific libc++ headers should be installed.")
+  if(LIBCXX_LIBDIR_SUBDIR)
+    string(APPEND LIBCXX_LIBRARY_DIR /${LIBCXX_LIBDIR_SUBDIR})
+    string(APPEND LIBCXX_INSTALL_LIBRARY_DIR /${LIBCXX_LIBDIR_SUBDIR})
+  endif()
 else()
-  set(LIBCXX_LIBRARY_DIR ${CMAKE_BINARY_DIR}/lib${LIBCXX_LIBDIR_SUFFIX})
+  if(LLVM_LIBRARY_OUTPUT_INTDIR)
+    set(LIBCXX_LIBRARY_DIR ${LLVM_LIBRARY_OUTPUT_INTDIR})
+    set(LIBCXX_GENERATED_INCLUDE_DIR "${LLVM_BINARY_DIR}/include/c++/v1")
+  else()
+    set(LIBCXX_LIBRARY_DIR ${CMAKE_BINARY_DIR}/lib${LIBCXX_LIBDIR_SUFFIX})
+    set(LIBCXX_GENERATED_INCLUDE_DIR "${CMAKE_BINARY_DIR}/include/c++/v1")
+  endif()
+  set(LIBCXX_GENERATED_INCLUDE_TARGET_DIR "${LIBCXX_GENERATED_INCLUDE_DIR}")
+  set(LIBCXX_INSTALL_LIBRARY_DIR lib${LIBCXX_LIBDIR_SUFFIX} CACHE PATH
+      "Path where built libc++ libraries should be installed.")
+  set(LIBCXX_INSTALL_INCLUDE_TARGET_DIR "${LIBCXX_INSTALL_INCLUDE_DIR}" CACHE PATH
+      "Path where target-specific libc++ headers should be installed.")
 endif()
 
 file(MAKE_DIRECTORY "${LIBCXX_BINARY_INCLUDE_DIR}")
-
-set(LIBCXX_INSTALL_PREFIX ${DEFAULT_INSTALL_PREFIX} CACHE STRING
-    "Define libc++ destination prefix.")
-
-set(LIBCXX_INSTALL_HEADER_PREFIX ${DEFAULT_INSTALL_HEADER_PREFIX} CACHE STRING
-    "Define libc++ header destination prefix.")
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${LIBCXX_LIBRARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LIBCXX_LIBRARY_DIR})
@@ -436,12 +447,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${LIBCXX_LIBRARY_DIR})
 # LIBCXX_COMPILE_FLAGS: Compile only flags.
 # LIBCXX_LINK_FLAGS: Linker only flags.
 # LIBCXX_LIBRARIES: libraries libc++ is linked to.
-# LIBCXX_INTERFACE_LIBRARIES: Libraries that must be linked when using libc++
-#                             These libraries are exposed in the linker script.
 set(LIBCXX_COMPILE_FLAGS "")
 set(LIBCXX_LINK_FLAGS "")
 set(LIBCXX_LIBRARIES "")
-set(LIBCXX_INTERFACE_LIBRARIES "")
+set(LIBCXX_ADDITIONAL_COMPILE_FLAGS "" CACHE STRING
+    "Additional Compile only flags which can be provided in cache")
+set(LIBCXX_ADDITIONAL_LIBRARIES "" CACHE STRING
+    "Additional libraries libc++ is linked to which can be provided in cache")
 
 # Include macros for adding and removing libc++ flags.
 include(HandleLibcxxFlags)
@@ -450,20 +462,14 @@ include(HandleLibcxxFlags)
 # These flags get added to CMAKE_CXX_FLAGS and CMAKE_C_FLAGS so that
 # 'config-ix' use them during feature checks. It also adds them to both
 # 'LIBCXX_COMPILE_FLAGS' and 'LIBCXX_LINK_FLAGS'
-add_target_flags_if(LIBCXX_BUILD_32_BITS "-m32")
-add_target_flags_if(LIBCXX_TARGET_TRIPLE "--target=${LIBCXX_TARGET_TRIPLE}")
-add_target_flags_if(LIBCXX_SYSROOT "--sysroot=${LIBCXX_SYSROOT}")
-add_target_flags_if(LIBCXX_GCC_TOOLCHAIN "--gcc-toolchain=${LIBCXX_GCC_TOOLCHAIN}")
-if (LIBCXX_TARGET_TRIPLE)
-  set(TARGET_TRIPLE "${LIBCXX_TARGET_TRIPLE}")
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "AIX")
+  add_target_flags_if_supported("-mdefault-visibility-export-mapping=explicit")
+  set(CMAKE_AIX_EXPORT_ALL_SYMBOLS OFF)
 endif()
 
 # Configure compiler.
 include(config-ix)
-
-if (LIBCXX_USE_COMPILER_RT)
-  list(APPEND LIBCXX_LINK_FLAGS "-rtlib=compiler-rt")
-endif()
 
 # Configure coverage options.
 if (LIBCXX_GENERATE_COVERAGE)
@@ -484,13 +490,6 @@ endif()
 
 include(HandleLibCXXABI) # Setup the ABI library flags
 
-if (NOT LIBCXX_STANDALONE_BUILD)
-  # Remove flags that may have snuck in.
-  remove_flags(-DNDEBUG -UNDEBUG -D_DEBUG
-               -lc++abi)
-endif()
-remove_flags(-stdlib=libc++ -stdlib=libstdc++)
-
 # FIXME: Remove all debug flags and flags that change which Windows
 # default libraries are linked. Currently we only support linking the
 # non-debug DLLs
@@ -502,92 +501,145 @@ remove_flags("/D_DEBUG" "/MTd" "/MDd" "/MT" "/Md")
 remove_flags(-Wno-pedantic -pedantic-errors -pedantic)
 
 # Required flags ==============================================================
-set(LIBCXX_STANDARD_VER c++11 CACHE INTERNAL "internal option to change build dialect")
-if (LIBCXX_HAS_MUSL_LIBC)
-  # musl's pthread implementations uses volatile types in their structs which is
-  # not a constexpr in C++11 but is in C++14, so we use C++14 with musl.
-  set(LIBCXX_STANDARD_VER c++14 CACHE INTERNAL "internal option to change build dialect")
-endif()
-add_compile_flags_if_supported(-std=${LIBCXX_STANDARD_VER})
-mangle_name("LIBCXX_SUPPORTS_STD_EQ_${LIBCXX_STANDARD_VER}_FLAG" SUPPORTS_DIALECT_NAME)
-if(NOT ${SUPPORTS_DIALECT_NAME})
-  if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" AND NOT "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
-    message(FATAL_ERROR "C++11 or greater is required but the compiler does not support ${LIBCXX_STANDARD_VER}")
+function(cxx_add_basic_build_flags target)
+
+  # Require C++20 for all targets. C++17 is needed to use aligned allocation
+  # in the dylib. C++20 is needed to use char8_t.
+  set_target_properties(${target} PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO)
+
+  # When building the dylib, don't warn for unavailable aligned allocation
+  # functions based on the deployment target -- they are always available
+  # because they are provided by the dylib itself with the exception of z/OS.
+  if (ZOS)
+    target_add_compile_flags_if_supported(${target} PRIVATE -fno-aligned-allocation)
+  else()
+    target_add_compile_flags_if_supported(${target} PRIVATE -faligned-allocation)
   endif()
-endif()
 
-# On all systems the system c++ standard library headers need to be excluded.
-# MSVC only has -X, which disables all default includes; including the crt.
-# Thus, we do nothing and hope we don't accidentally include any of the C++
-# headers
-add_compile_flags_if_supported(-nostdinc++)
+  # On all systems the system c++ standard library headers need to be excluded.
+  # MSVC only has -X, which disables all default includes; including the crt.
+  # Thus, we do nothing and hope we don't accidentally include any of the C++
+  # headers
+  target_add_compile_flags_if_supported(${target} PUBLIC -nostdinc++)
 
-# Hide all inline function definitions which have not explicitly been marked
-# visible. This prevents new definitions for inline functions from appearing in
-# the dylib when get ODR used by another function.
-add_compile_flags_if_supported(-fvisibility-inlines-hidden)
+  # Hide all inline function definitions which have not explicitly been marked
+  # visible. This prevents new definitions for inline functions from appearing in
+  # the dylib when get ODR used by another function.
+  target_add_compile_flags_if_supported(${target} PRIVATE -fvisibility-inlines-hidden)
 
-if (LIBCXX_CONFIGURE_IDE)
-  # This simply allows IDE to process <experimental/coroutine>
-  add_compile_flags_if_supported(-fcoroutines-ts)
-endif()
+  # Our visibility annotations are not quite right for non-Clang compilers,
+  # so we end up not exporting all the symbols we should. In the future, we
+  # can improve the situation by providing an explicit list of exported
+  # symbols on all compilers.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_add_compile_flags_if_supported(${target} PRIVATE -fvisibility=hidden)
+  endif()
 
-# Let the library headers know they are currently being used to build the
-# library.
-add_definitions(-D_LIBCPP_BUILDING_LIBRARY)
+  if (LIBCXX_CONFIGURE_IDE)
+    # This simply allows IDE to process <experimental/coroutine>
+    target_add_compile_flags_if_supported(${target} PRIVATE -fcoroutines-ts)
+  endif()
 
-if (NOT LIBCXX_ENABLE_NEW_DELETE_DEFINITIONS)
-  add_definitions(-D_LIBCPP_DISABLE_NEW_DELETE_DEFINITIONS)
-endif()
+  # Let the library headers know they are currently being used to build the
+  # library.
+  target_compile_definitions(${target} PRIVATE -D_LIBCPP_BUILDING_LIBRARY)
+
+  if (NOT LIBCXX_ENABLE_NEW_DELETE_DEFINITIONS)
+    target_compile_definitions(${target} PRIVATE -D_LIBCPP_DISABLE_NEW_DELETE_DEFINITIONS)
+  endif()
+
+  if (C_SUPPORTS_COMMENT_LIB_PRAGMA)
+    if (LIBCXX_HAS_PTHREAD_LIB)
+      target_compile_definitions(${target} PRIVATE -D_LIBCPP_LINK_PTHREAD_LIB)
+    endif()
+    if (LIBCXX_HAS_RT_LIB)
+      target_compile_definitions(${target} PRIVATE -D_LIBCPP_LINK_RT_LIB)
+    endif()
+  endif()
+  target_compile_options(${target} PUBLIC "${LIBCXX_ADDITIONAL_COMPILE_FLAGS}")
+endfunction()
 
 # Warning flags ===============================================================
-add_definitions(-D_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-add_compile_flags_if_supported(
-    -Wall -Wextra -W -Wwrite-strings
-    -Wno-unused-parameter -Wno-long-long
-    -Werror=return-type)
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-    add_compile_flags_if_supported(
-        -Wno-user-defined-literals
-        -Wno-covered-switch-default)
-elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
-    add_compile_flags_if_supported(
-        -Wno-literal-suffix
-        -Wno-c++14-compat
-        -Wno-noexcept-type)
-endif()
-if (LIBCXX_ENABLE_WERROR)
-  add_compile_flags_if_supported(-Werror)
-  add_compile_flags_if_supported(-WX)
-else()
-  # TODO(EricWF) Remove this. We shouldn't be suppressing errors when -Werror is
-  # added elsewhere.
-  add_compile_flags_if_supported(-Wno-error)
-endif()
-if (LIBCXX_ENABLE_PEDANTIC)
-  add_compile_flags_if_supported(-pedantic)
-endif()
-if (LIBCXX_DISABLE_MACRO_CONFLICT_WARNINGS)
-  add_definitions(-D_LIBCPP_DISABLE_MACRO_CONFLICT_WARNINGS)
-endif()
+function(cxx_add_warning_flags target)
+  target_compile_definitions(${target} PUBLIC -D_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
+  if (MSVC)
+    # -W4 is the cl.exe/clang-cl equivalent of -Wall. (In cl.exe and clang-cl,
+    # -Wall is equivalent to -Weverything in GCC style compiler drivers.)
+    target_add_compile_flags_if_supported(${target} PRIVATE -W4)
+  else()
+    target_add_compile_flags_if_supported(${target} PRIVATE -Wall)
+  endif()
+  target_add_compile_flags_if_supported(${target} PRIVATE -Wextra -W -Wwrite-strings
+                                                          -Wno-unused-parameter -Wno-long-long
+                                                          -Werror=return-type -Wextra-semi -Wundef
+                                                          -Wformat-nonliteral)
+  if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+    target_add_compile_flags_if_supported(${target} PRIVATE
+      -Wno-user-defined-literals
+      -Wno-covered-switch-default
+      -Wno-suggest-override
+    )
+    if (LIBCXX_TARGETING_CLANG_CL)
+      target_add_compile_flags_if_supported(${target} PRIVATE
+        -Wno-c++98-compat
+        -Wno-c++98-compat-pedantic
+        -Wno-c++11-compat
+        -Wno-undef
+        -Wno-reserved-id-macro
+        -Wno-gnu-include-next
+        -Wno-gcc-compat # For ignoring "'diagnose_if' is a clang extension" warnings
+        -Wno-zero-as-null-pointer-constant # FIXME: Remove this and fix all occurrences.
+        -Wno-deprecated-dynamic-exception-spec # For auto_ptr
+        -Wno-sign-conversion
+        -Wno-old-style-cast
+        -Wno-deprecated # FIXME: Remove this and fix all occurrences.
+        -Wno-shift-sign-overflow # FIXME: Why do we need this with clang-cl but not clang?
+        -Wno-double-promotion # FIXME: remove me
+      )
+    endif()
+  elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+    target_add_compile_flags_if_supported(${target} PRIVATE
+      -Wno-attributes
+      -Wno-literal-suffix
+      -Wno-c++14-compat
+      -Wno-noexcept-type
+      -Wno-suggest-override)
+  endif()
+  if (LIBCXX_ENABLE_WERROR)
+    target_add_compile_flags_if_supported(${target} PRIVATE -Werror)
+    target_add_compile_flags_if_supported(${target} PRIVATE -WX)
+  else()
+    # TODO(EricWF) Remove this. We shouldn't be suppressing errors when -Werror is
+    # added elsewhere.
+    target_add_compile_flags_if_supported(${target} PRIVATE -Wno-error)
+  endif()
+  if (LIBCXX_ENABLE_PEDANTIC)
+    target_add_compile_flags_if_supported(${target} PRIVATE -pedantic)
+  endif()
+endfunction()
 
 # Exception flags =============================================================
-if (LIBCXX_ENABLE_EXCEPTIONS)
-  # Catches C++ exceptions only and tells the compiler to assume that extern C
-  # functions never throw a C++ exception.
-  add_compile_flags_if_supported(-EHsc)
-else()
-  add_definitions(-D_LIBCPP_NO_EXCEPTIONS)
-  add_compile_flags_if_supported(-EHs- -EHa-)
-  add_compile_flags_if_supported(-fno-exceptions)
-endif()
+function(cxx_add_exception_flags target)
+  if (LIBCXX_ENABLE_EXCEPTIONS)
+    # Catches C++ exceptions only and tells the compiler to assume that extern C
+    # functions never throw a C++ exception.
+    target_add_compile_flags_if_supported(${target} PUBLIC -EHsc)
+  else()
+    target_add_compile_flags_if_supported(${target} PUBLIC -EHs- -EHa-)
+    target_add_compile_flags_if_supported(${target} PUBLIC -fno-exceptions)
+  endif()
+endfunction()
 
 # RTTI flags ==================================================================
-if (NOT LIBCXX_ENABLE_RTTI)
-  add_definitions(-D_LIBCPP_NO_RTTI)
-  add_compile_flags_if_supported(-GR-)
-  add_compile_flags_if_supported(-fno-rtti)
-endif()
+function(cxx_add_rtti_flags target)
+  if (NOT LIBCXX_ENABLE_RTTI)
+    target_add_compile_flags_if_supported(${target} PUBLIC -GR-)
+    target_add_compile_flags_if_supported(${target} PUBLIC -fno-rtti)
+  endif()
+endfunction()
 
 # Threading flags =============================================================
 if (LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY AND LIBCXX_ENABLE_SHARED)
@@ -601,9 +653,6 @@ if (LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY AND LIBCXX_ENABLE_SHARED)
 endif()
 
 # Assertion flags =============================================================
-define_if(LIBCXX_ENABLE_ASSERTIONS -UNDEBUG)
-define_if_not(LIBCXX_ENABLE_ASSERTIONS -DNDEBUG)
-define_if(LIBCXX_ENABLE_ASSERTIONS -D_LIBCPP_DEBUG=0)
 define_if(LIBCXX_DEBUG_BUILD -D_DEBUG)
 if (LIBCXX_ENABLE_ASSERTIONS AND NOT LIBCXX_DEBUG_BUILD)
   # MSVC doesn't like _DEBUG on release builds. See PR 4379.
@@ -614,70 +663,205 @@ endif()
 # FIXME The libc++ sources are fundamentally non-modular. They need special
 # versions of the headers in order to provide C++03 and legacy ABI definitions.
 # NOTE: The public headers can be used with modules in all other contexts.
-if (LLVM_ENABLE_MODULES)
-  # Ignore that the rest of the modules flags are now unused.
-  add_compile_flags_if_supported(-Wno-unused-command-line-argument)
-  add_compile_flags(-fno-modules)
-endif()
+function(cxx_add_module_flags target)
+  if (LLVM_ENABLE_MODULES)
+    # Ignore that the rest of the modules flags are now unused.
+    target_add_compile_flags_if_supported(${target} PUBLIC -Wno-unused-command-line-argument)
+    target_compile_options(${target} PUBLIC -fno-modules)
+  endif()
+endfunction()
 
 # Sanitizer flags =============================================================
 
-# Configure for sanitizers. If LIBCXX_STANDALONE_BUILD then we have to do
-# the flag translation ourselves. Othewise LLVM's CMakeList.txt will handle it.
-if (LIBCXX_STANDALONE_BUILD)
-  set(LLVM_USE_SANITIZER "" CACHE STRING
-      "Define the sanitizer used to build the library and tests")
+function(get_sanitizer_flags OUT_VAR  USE_SANITIZER)
+  set(SANITIZER_FLAGS)
+  set(USE_SANITIZER "${USE_SANITIZER}")
   # NOTE: LLVM_USE_SANITIZER checks for a UNIX like system instead of MSVC.
   # But we don't have LLVM_ON_UNIX so checking for MSVC is the best we can do.
-  if (LLVM_USE_SANITIZER AND NOT MSVC)
-    add_flags_if_supported("-fno-omit-frame-pointer")
-    add_flags_if_supported("-gline-tables-only")
+  if (USE_SANITIZER AND NOT MSVC)
+    append_flags_if_supported(SANITIZER_FLAGS "-fno-omit-frame-pointer")
+    append_flags_if_supported(SANITIZER_FLAGS "-gline-tables-only")
 
     if (NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG" AND
-        NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "RELWITHDEBINFO")
-        add_flags_if_supported("-gline-tables-only")
+            NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "RELWITHDEBINFO")
+      append_flags_if_supported(SANITIZER_FLAGS "-gline-tables-only")
     endif()
-    if (LLVM_USE_SANITIZER STREQUAL "Address")
-      add_flags("-fsanitize=address")
-    elseif (LLVM_USE_SANITIZER MATCHES "Memory(WithOrigins)?")
-      add_flags(-fsanitize=memory)
-      if (LLVM_USE_SANITIZER STREQUAL "MemoryWithOrigins")
-        add_flags("-fsanitize-memory-track-origins")
+    if (USE_SANITIZER STREQUAL "Address")
+      append_flags(SANITIZER_FLAGS "-fsanitize=address")
+    elseif (USE_SANITIZER STREQUAL "HWAddress")
+      append_flags(SANITIZER_FLAGS "-fsanitize=hwaddress")
+    elseif (USE_SANITIZER MATCHES "Memory(WithOrigins)?")
+      append_flags(SANITIZER_FLAGS -fsanitize=memory)
+      if (USE_SANITIZER STREQUAL "MemoryWithOrigins")
+        append_flags(SANITIZER_FLAGS "-fsanitize-memory-track-origins")
       endif()
-    elseif (LLVM_USE_SANITIZER STREQUAL "Undefined")
-      add_flags("-fsanitize=undefined -fno-sanitize=vptr,function -fno-sanitize-recover=all")
-    elseif (LLVM_USE_SANITIZER STREQUAL "Thread")
-      add_flags(-fsanitize=thread)
+    elseif (USE_SANITIZER STREQUAL "Undefined")
+      append_flags(SANITIZER_FLAGS "-fsanitize=undefined -fno-sanitize=vptr,function -fno-sanitize-recover=all")
+    elseif (USE_SANITIZER STREQUAL "Address;Undefined" OR
+            USE_SANITIZER STREQUAL "Undefined;Address")
+      append_flags(SANITIZER_FLAGS "-fsanitize=address,undefined -fno-sanitize=vptr,function -fno-sanitize-recover=all")
+    elseif (USE_SANITIZER STREQUAL "Thread")
+      append_flags(SANITIZER_FLAGS -fsanitize=thread)
+    elseif (USE_SANITIZER STREQUAL "DataFlow")
+      append_flags(SANITIZER_FLAGS -fsanitize=dataflow)
     else()
-      message(WARNING "Unsupported value of LLVM_USE_SANITIZER: ${LLVM_USE_SANITIZER}")
+      message(WARNING "Unsupported value of LLVM_USE_SANITIZER: ${USE_SANITIZER}")
     endif()
-  elseif(LLVM_USE_SANITIZER AND MSVC)
+  elseif(USE_SANITIZER AND MSVC)
     message(WARNING "LLVM_USE_SANITIZER is not supported on this platform.")
   endif()
-endif()
+  set(${OUT_VAR} "${SANITIZER_FLAGS}" PARENT_SCOPE)
+endfunction()
+
+get_sanitizer_flags(SANITIZER_FLAGS "${LLVM_USE_SANITIZER}")
+
+# Link system libraries =======================================================
+function(cxx_link_system_libraries target)
+
+# In order to remove just libc++ from the link step
+# we need to use -nostdlib++ whenever it is supported.
+# Unfortunately this cannot be used universally because for example g++ supports
+# only -nodefaultlibs in which case all libraries will be removed and
+# all libraries but c++ have to be added in manually.
+  if (CXX_SUPPORTS_NOSTDLIBXX_FLAG)
+    target_add_link_flags_if_supported(${target} PRIVATE "-nostdlib++")
+  else()
+    target_add_link_flags_if_supported(${target} PRIVATE "-nodefaultlibs")
+    target_add_compile_flags_if_supported(${target} PRIVATE "/Zl")
+    target_add_link_flags_if_supported(${target} PRIVATE "/nodefaultlib")
+  endif()
+
+  if (CXX_SUPPORTS_UNWINDLIB_EQ_NONE_FLAG AND LIBCXXABI_USE_LLVM_UNWINDER)
+    # If we're linking directly against the libunwind that we're building
+    # in the same invocation, don't try to link in the toolchain's
+    # default libunwind (which may be missing still).
+    target_add_link_flags_if_supported(${target} PRIVATE "--unwindlib=none")
+  endif()
+
+  if (LIBCXX_HAS_SYSTEM_LIB)
+    target_link_libraries(${target} PRIVATE System)
+  endif()
+
+  if (LIBCXX_HAS_PTHREAD_LIB)
+    target_link_libraries(${target} PRIVATE pthread)
+  endif()
+
+  if (LIBCXX_HAS_C_LIB)
+    target_link_libraries(${target} PRIVATE c)
+  endif()
+
+  if (LIBCXX_HAS_M_LIB)
+    target_link_libraries(${target} PRIVATE m)
+  endif()
+
+  if (LIBCXX_HAS_RT_LIB)
+    target_link_libraries(${target} PRIVATE rt)
+  endif()
+
+  if (LIBCXX_USE_COMPILER_RT)
+    find_compiler_rt_library(builtins LIBCXX_BUILTINS_LIBRARY)
+    if (LIBCXX_BUILTINS_LIBRARY)
+      target_link_libraries(${target} PRIVATE "${LIBCXX_BUILTINS_LIBRARY}")
+    endif()
+  elseif (LIBCXX_HAS_GCC_LIB)
+    target_link_libraries(${target} PRIVATE gcc)
+  elseif (LIBCXX_HAS_GCC_S_LIB)
+    target_link_libraries(${target} PRIVATE gcc_s)
+  endif()
+
+  if (LIBCXX_HAS_ATOMIC_LIB)
+    target_link_libraries(${target} PRIVATE atomic)
+  endif()
+
+  if (MINGW)
+    target_link_libraries(${target} PRIVATE "${MINGW_LIBRARIES}")
+  endif()
+
+  if (LIBCXX_TARGETING_MSVC)
+    if (LIBCXX_DEBUG_BUILD)
+      set(LIB_SUFFIX "d")
+    else()
+      set(LIB_SUFFIX "")
+    endif()
+
+    target_link_libraries(${target} PRIVATE ucrt${LIB_SUFFIX}) # Universal C runtime
+    target_link_libraries(${target} PRIVATE vcruntime${LIB_SUFFIX}) # C++ runtime
+    target_link_libraries(${target} PRIVATE msvcrt${LIB_SUFFIX}) # C runtime startup files
+    target_link_libraries(${target} PRIVATE msvcprt${LIB_SUFFIX}) # C++ standard library. Required for exception_ptr internals.
+    # Required for standards-complaint wide character formatting functions
+    # (e.g. `printfw`/`scanfw`)
+    target_link_libraries(${target} PRIVATE iso_stdio_wide_specifiers)
+  endif()
+
+  if (ANDROID AND ANDROID_PLATFORM_LEVEL LESS 21)
+    target_link_libraries(${target} PUBLIC android_support)
+  endif()
+  target_link_libraries(${target} PUBLIC "${LIBCXX_ADDITIONAL_LIBRARIES}")
+endfunction()
+
+# Windows-related flags =======================================================
+function(cxx_add_windows_flags target)
+  if(WIN32 AND NOT MINGW)
+    target_compile_definitions(${target} PRIVATE
+                                 # Ignore the -MSC_VER mismatch, as we may build
+                                 # with a different compatibility version.
+                                 _ALLOW_MSC_VER_MISMATCH
+                                 # Don't check the msvcprt iterator debug levels
+                                 # as we will define the iterator types; libc++
+                                 # uses a different macro to identify the debug
+                                 # level.
+                                 _ALLOW_ITERATOR_DEBUG_LEVEL_MISMATCH
+                                 # We are building the c++ runtime, don't pull in
+                                 # msvcprt.
+                                 _CRTBLD
+                                 # Don't warn on the use of "deprecated"
+                                 # "insecure" functions which are standards
+                                 # specified.
+                                 _CRT_SECURE_NO_WARNINGS
+                                 # Use the ISO conforming behaviour for conversion
+                                 # in printf, scanf.
+                                 _CRT_STDIO_ISO_WIDE_SPECIFIERS)
+    # Clang-cl shared builds don't support the experimental library.
+    # To avoid linker errors the format_error destructor is inlined for the
+    # dylib. Users can never use format in this mode.
+    # TODO FMT Remove when format becomes mainline.
+    if (LIBCXX_ENABLE_SHARED)
+      target_compile_definitions(${target} PRIVATE
+                                 _LIBCPP_INLINE_FORMAT_ERROR_DTOR)
+    endif()
+  endif()
+endfunction()
 
 # Configuration file flags =====================================================
-if (NOT LIBCXX_ABI_VERSION EQUAL DEFAULT_ABI_VERSION)
-  config_define(${LIBCXX_ABI_VERSION} _LIBCPP_ABI_VERSION)
-endif()
-config_define_if(LIBCXX_ABI_UNSTABLE _LIBCPP_ABI_UNSTABLE)
+config_define(${LIBCXX_ABI_VERSION} _LIBCPP_ABI_VERSION)
+config_define(${LIBCXX_ABI_NAMESPACE} _LIBCPP_ABI_NAMESPACE)
 config_define_if(LIBCXX_ABI_FORCE_ITANIUM _LIBCPP_ABI_FORCE_ITANIUM)
 config_define_if(LIBCXX_ABI_FORCE_MICROSOFT _LIBCPP_ABI_FORCE_MICROSOFT)
-config_define_if(LIBCXX_HIDE_FROM_ABI_PER_TU_BY_DEFAULT _LIBCPP_HIDE_FROM_ABI_PER_TU_BY_DEFAULT)
-
-config_define_if_not(LIBCXX_ENABLE_GLOBAL_FILESYSTEM_NAMESPACE _LIBCPP_HAS_NO_GLOBAL_FILESYSTEM_NAMESPACE)
-config_define_if_not(LIBCXX_ENABLE_STDIN _LIBCPP_HAS_NO_STDIN)
-config_define_if_not(LIBCXX_ENABLE_STDOUT _LIBCPP_HAS_NO_STDOUT)
 config_define_if_not(LIBCXX_ENABLE_THREADS _LIBCPP_HAS_NO_THREADS)
 config_define_if_not(LIBCXX_ENABLE_MONOTONIC_CLOCK _LIBCPP_HAS_NO_MONOTONIC_CLOCK)
-config_define_if_not(LIBCXX_ENABLE_THREAD_UNSAFE_C_FUNCTIONS _LIBCPP_HAS_NO_THREAD_UNSAFE_C_FUNCTIONS)
-
+if (NOT LIBCXX_TYPEINFO_COMPARISON_IMPLEMENTATION STREQUAL "default")
+  config_define("${LIBCXX_TYPEINFO_COMPARISON_IMPLEMENTATION}" _LIBCPP_TYPEINFO_COMPARISON_IMPLEMENTATION)
+endif()
 config_define_if(LIBCXX_HAS_PTHREAD_API _LIBCPP_HAS_THREAD_API_PTHREAD)
 config_define_if(LIBCXX_HAS_EXTERNAL_THREAD_API _LIBCPP_HAS_THREAD_API_EXTERNAL)
 config_define_if(LIBCXX_HAS_WIN32_THREAD_API _LIBCPP_HAS_THREAD_API_WIN32)
 config_define_if(LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY _LIBCPP_HAS_THREAD_LIBRARY_EXTERNAL)
 config_define_if(LIBCXX_HAS_MUSL_LIBC _LIBCPP_HAS_MUSL_LIBC)
 config_define_if(LIBCXX_NO_VCRUNTIME _LIBCPP_NO_VCRUNTIME)
+config_define_if(LIBCXX_ENABLE_PARALLEL_ALGORITHMS _LIBCPP_HAS_PARALLEL_ALGORITHMS)
+config_define_if_not(LIBCXX_ENABLE_FILESYSTEM _LIBCPP_HAS_NO_FILESYSTEM_LIBRARY)
+config_define_if_not(LIBCXX_ENABLE_RANDOM_DEVICE _LIBCPP_HAS_NO_RANDOM_DEVICE)
+config_define_if_not(LIBCXX_ENABLE_LOCALIZATION _LIBCPP_HAS_NO_LOCALIZATION)
+config_define_if_not(LIBCXX_ENABLE_FSTREAM _LIBCPP_HAS_NO_FSTREAM)
+config_define_if_not(LIBCXX_ENABLE_UNICODE _LIBCPP_HAS_NO_UNICODE)
+config_define_if_not(LIBCXX_ENABLE_WIDE_CHARACTERS _LIBCPP_HAS_NO_WIDE_CHARACTERS)
+config_define_if_not(LIBCXX_ENABLE_VENDOR_AVAILABILITY_ANNOTATIONS _LIBCPP_HAS_NO_VENDOR_AVAILABILITY_ANNOTATIONS)
+config_define_if(LIBCXX_ENABLE_DEBUG_MODE _LIBCPP_ENABLE_DEBUG_MODE)
+if (LIBCXX_ENABLE_ASSERTIONS)
+  config_define(1 _LIBCPP_ENABLE_ASSERTIONS_DEFAULT)
+else()
+  config_define(0 _LIBCPP_ENABLE_ASSERTIONS_DEFAULT)
+endif()
 
 if (LIBCXX_ABI_DEFINES)
   set(abi_defines)
@@ -691,6 +875,17 @@ if (LIBCXX_ABI_DEFINES)
   config_define(${abi_defines} _LIBCPP_ABI_DEFINES)
 endif()
 
+if (LIBCXX_EXTRA_SITE_DEFINES)
+  set(extra_site_defines)
+  foreach (extra_site_define ${LIBCXX_EXTRA_SITE_DEFINES})
+    # Allow defines such as DEFINE=VAL, transformed into "#define DEFINE VAL".
+    string(REPLACE "=" " " extra_site_define "${extra_site_define}")
+    list(APPEND extra_site_defines "#define ${extra_site_define}")
+  endforeach()
+  string(REPLACE ";" "\n" extra_site_defines "${extra_site_defines}")
+  config_define(${extra_site_defines} _LIBCPP_EXTRA_SITE_DEFINES)
+endif()
+
 # By default libc++ on Windows expects to use a shared library, which requires
 # the headers to use DLL import/export semantics. However when building a
 # static library only we modify the headers to disable DLL import/export.
@@ -699,60 +894,47 @@ if (DEFINED WIN32 AND LIBCXX_ENABLE_STATIC AND NOT LIBCXX_ENABLE_SHARED)
   config_define(ON _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS)
 endif()
 
-set(site_config_path "${LIBCXX_BINARY_DIR}/__config_site")
-if (LIBCXX_NEEDS_SITE_CONFIG)
-  configure_file("include/__config_site.in"
-                 "${site_config_path}"
-                 @ONLY)
-
-  # Provide the config definitions by included the generated __config_site
-  # file at compile time.
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" OR "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
-    add_compile_flags("/FI\"${LIBCXX_BINARY_DIR}/__config_site\"")
-  else()
-    add_compile_flags("-include ${LIBCXX_BINARY_DIR}/__config_site")
-  endif()
-else()
-  if (EXISTS "${site_config_path}")
-    message(STATUS "Removing stale site configuration ${site_config_path}")
-    file(REMOVE "${site_config_path}")
-  endif()
+if (WIN32 AND LIBCXX_ENABLE_STATIC_ABI_LIBRARY)
+  # If linking libcxxabi statically into libcxx, skip the dllimport attributes
+  # on symbols we refer to from libcxxabi.
+  add_definitions(-D_LIBCXXABI_DISABLE_VISIBILITY_ANNOTATIONS)
 endif()
+
+# Setup all common build flags =================================================
+function(cxx_add_common_build_flags target)
+  cxx_add_basic_build_flags(${target})
+  cxx_add_warning_flags(${target})
+  cxx_add_windows_flags(${target})
+  cxx_add_exception_flags(${target})
+  cxx_add_rtti_flags(${target})
+  cxx_add_module_flags(${target})
+  cxx_link_system_libraries(${target})
+endfunction()
 
 #===============================================================================
 # Setup Source Code And Tests
 #===============================================================================
-include_directories(include)
 add_subdirectory(include)
-add_subdirectory(lib)
+add_subdirectory(src)
+add_subdirectory(utils)
 
+set(LIBCXX_TEST_DEPS "cxx_experimental")
+
+if (LIBCXX_BUILD_EXTERNAL_THREAD_LIBRARY)
+  list(APPEND LIBCXX_TEST_DEPS cxx_external_threads)
+endif()
+
+if (LIBCXX_ENABLE_CLANG_TIDY)
+  list(APPEND LIBCXX_TEST_DEPS cxx-tidy)
+endif()
 
 if (LIBCXX_INCLUDE_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
 
-# Create the lit.site.cfg file even when LIBCXX_INCLUDE_TESTS is OFF or
-# LLVM_FOUND is OFF. This allows users to run the tests manually using
-# LIT without requiring a full LLVM checkout.
-#
-# However, since some submission systems strip test/ subdirectories, check for
-# it before adding it.
-
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test")
-  add_subdirectory(test)
-endif()
 if (LIBCXX_INCLUDE_TESTS)
+  add_subdirectory(test)
   add_subdirectory(lib/abi)
-endif()
-
-if (LIBCXX_STANDALONE_BUILD AND EXISTS "${LLVM_MAIN_SRC_DIR}/utils/llvm-lit")
-  include(AddLLVM) # for get_llvm_lit_path
-  # Make sure the llvm-lit script is generated into the bin directory, and do
-  # it after adding all tests, since the generated script will only work
-  # correctly discovered tests against test locations from the source tree that
-  # have already been discovered.
-  add_subdirectory(${LLVM_MAIN_SRC_DIR}/utils/llvm-lit
-                   ${CMAKE_CURRENT_BINARY_DIR}/llvm-lit)
 endif()
 
 if (LIBCXX_INCLUDE_DOCS)

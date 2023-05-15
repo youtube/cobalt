@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,17 +28,17 @@ test(U u)
 {
     const std::move_iterator<U> r2(u);
     std::move_iterator<It> r1 = r2;
-    assert(r1.base() == u);
+    assert(base(r1.base()) == base(u));
 }
 
 struct Base {};
 struct Derived : Base {};
 
-int main()
+int main(int, char**)
 {
     Derived d;
 
-    test<input_iterator<Base*> >(input_iterator<Derived*>(&d));
+    test<cpp17_input_iterator<Base*> >(cpp17_input_iterator<Derived*>(&d));
     test<forward_iterator<Base*> >(forward_iterator<Derived*>(&d));
     test<bidirectional_iterator<Base*> >(bidirectional_iterator<Derived*>(&d));
     test<random_access_iterator<const Base*> >(random_access_iterator<Derived*>(&d));
@@ -53,4 +52,6 @@ int main()
     static_assert(it2.base() == p);
     }
 #endif
+
+  return 0;
 }

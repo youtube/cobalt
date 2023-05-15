@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -emit-llvm -fobjc-arc -o - %s | FileCheck %s
+// RUN: %clang_cc1 -no-opaque-pointers -triple x86_64-apple-darwin10 -emit-llvm -fobjc-arc -o - %s | FileCheck %s
 // rdar://10139365
 
 @interface Test58
@@ -15,8 +15,8 @@ void foo() {
 
 // CHECK: [[T0:%.*]] = load {{%.*}} {{%.*}}, align 8
 // CHECK: [[T1:%.*]] = bitcast {{%.*}} [[T0]] to i8*
-// call i8* @objc_retainAutorelease(i8* [[T1]]) nounwind
+// call i8* @llvm.objc.retainAutorelease(i8* [[T1]]) nounwind
 // CHECK: [[T2:%.*]] = load {{%.*}} {{%.*}}, align 8
 // CHECK: [[T3:%.*]] = bitcast {{%.*}} [[T2]] to i8*
-// call i8* @objc_retainAutorelease(i8* [[T3]]) nounwind
+// call i8* @llvm.objc.retainAutorelease(i8* [[T3]]) nounwind
 

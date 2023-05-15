@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # ---------------------------------------------------------------------
 # Be sure to add the python path that points to the LLDB shared library.
@@ -24,7 +24,7 @@ class FrameStatCommand:
         parser = cls.create_options()
         cls.__doc__ = parser.format_help()
         # Add any commands contained in this module to LLDB
-        command = 'command script add -c %s.%s %s' % (module_name,
+        command = 'command script add -o -c %s.%s %s' % (module_name,
                                                       cls.__name__,
                                                       cls.program)
         debugger.HandleCommand(command)
@@ -124,7 +124,7 @@ class FrameStatCommand:
             options.inscope)
         variables_count = variables_list.GetSize()
         if variables_count == 0:
-            print >> result, "no variables here"
+            print("no variables here", file=result)
             return
         total_size = 0
         for i in range(0, variables_count):
@@ -132,9 +132,9 @@ class FrameStatCommand:
             variable_type = variable.GetType()
             total_size = total_size + variable_type.GetByteSize()
             average_size = float(total_size) / variables_count
-            print >>result, ("Your frame has %d variables. Their total size "
-                             "is %d bytes. The average size is %f bytes") % (
-                                    variables_count, total_size, average_size)
+            print("Your frame has %d variables. Their total size "
+                             "is %d bytes. The average size is %f bytes" % (
+                                    variables_count, total_size, average_size), file=result)
         # not returning anything is akin to returning success
 
 

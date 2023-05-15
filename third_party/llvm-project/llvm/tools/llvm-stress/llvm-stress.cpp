@@ -1,9 +1,8 @@
 //===- llvm-stress.cpp - Generate random LL files to stress-test LLVM -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -25,12 +24,10 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalValue.h"
-#include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
@@ -39,9 +36,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
@@ -54,52 +51,31 @@
 
 namespace llvm {
 
-static cl::opt<unsigned> SeedCL("seed",
-  cl::desc("Seed used for randomness"), cl::init(0));
+static cl::OptionCategory StressCategory("Stress Options");
 
-static cl::opt<unsigned> SizeCL("size",
-  cl::desc("The estimated size of the generated function (# of instrs)"),
-  cl::init(100));
+static cl::opt<unsigned> SeedCL("seed", cl::desc("Seed used for randomness"),
+                                cl::init(0), cl::cat(StressCategory));
 
-static cl::opt<std::string>
-OutputFilename("o", cl::desc("Override output filename"),
-               cl::value_desc("filename"));
+static cl::opt<unsigned> SizeCL(
+    "size",
+    cl::desc("The estimated size of the generated function (# of instrs)"),
+    cl::init(100), cl::cat(StressCategory));
 
-static LLVMContext Context;
+static cl::opt<std::string> OutputFilename("o",
+                                           cl::desc("Override output filename"),
+                                           cl::value_desc("filename"),
+                                           cl::cat(StressCategory));
 
-namespace cl {
+static cl::list<StringRef> AdditionalScalarTypes(
+    "types", cl::CommaSeparated,
+    cl::desc("Additional IR scalar types "
+             "(always includes i1, i8, i16, i32, i64, float and double)"));
 
-template <> class parser<Type*> final : public basic_parser<Type*> {
-public:
-  parser(Option &O) : basic_parser(O) {}
+static cl::opt<bool> EnableScalableVectors(
+    "enable-scalable-vectors",
+    cl::desc("Generate IR involving scalable vector types"),
+    cl::init(false), cl::cat(StressCategory));
 
-  // Parse options as IR types. Return true on error.
-  bool parse(Option &O, StringRef, StringRef Arg, Type *&Value) {
-    if      (Arg == "half")      Value = Type::getHalfTy(Context);
-    else if (Arg == "fp128")     Value = Type::getFP128Ty(Context);
-    else if (Arg == "x86_fp80")  Value = Type::getX86_FP80Ty(Context);
-    else if (Arg == "ppc_fp128") Value = Type::getPPC_FP128Ty(Context);
-    else if (Arg == "x86_mmx")   Value = Type::getX86_MMXTy(Context);
-    else if (Arg.startswith("i")) {
-      unsigned N = 0;
-      Arg.drop_front().getAsInteger(10, N);
-      if (N > 0)
-        Value = Type::getIntNTy(Context, N);
-    }
-
-    if (!Value)
-      return O.error("Invalid IR scalar type: '" + Arg + "'!");
-    return false;
-  }
-
-  StringRef getValueName() const override { return "IR scalar type"; }
-};
-
-} // end namespace cl
-
-static cl::list<Type*> AdditionalScalarTypes("types", cl::CommaSeparated,
-  cl::desc("Additional IR scalar types "
-           "(always includes i1, i8, i16, i32, i64, float and double)"));
 
 namespace {
 
@@ -181,7 +157,38 @@ struct Modifier {
 public:
   /// C'tor
   Modifier(BasicBlock *Block, PieceTable *PT, Random *R)
-      : BB(Block), PT(PT), Ran(R), Context(BB->getContext()) {}
+      : BB(Block), PT(PT), Ran(R), Context(BB->getContext()) {
+    ScalarTypes.assign({Type::getInt1Ty(Context), Type::getInt8Ty(Context),
+                        Type::getInt16Ty(Context), Type::getInt32Ty(Context),
+                        Type::getInt64Ty(Context), Type::getFloatTy(Context),
+                        Type::getDoubleTy(Context)});
+
+    for (auto &Arg : AdditionalScalarTypes) {
+      Type *Ty = nullptr;
+      if (Arg == "half")
+        Ty = Type::getHalfTy(Context);
+      else if (Arg == "fp128")
+        Ty = Type::getFP128Ty(Context);
+      else if (Arg == "x86_fp80")
+        Ty = Type::getX86_FP80Ty(Context);
+      else if (Arg == "ppc_fp128")
+        Ty = Type::getPPC_FP128Ty(Context);
+      else if (Arg == "x86_mmx")
+        Ty = Type::getX86_MMXTy(Context);
+      else if (Arg.startswith("i")) {
+        unsigned N = 0;
+        Arg.drop_front().getAsInteger(10, N);
+        if (N > 0)
+          Ty = Type::getIntNTy(Context, N);
+      }
+      if (!Ty) {
+        errs() << "Invalid IR scalar type: '" << Arg << "'!\n";
+        exit(1);
+      }
+
+      ScalarTypes.push_back(Ty);
+    }
+  }
 
   /// virtual D'tor to silence warnings.
   virtual ~Modifier() = default;
@@ -238,9 +245,7 @@ protected:
       if (getRandom() & 1)
         return ConstantFP::getAllOnesValue(Tp);
       return ConstantFP::getNullValue(Tp);
-    } else if (Tp->isVectorTy()) {
-      VectorType *VTp = cast<VectorType>(Tp);
-
+    } else if (auto *VTp = dyn_cast<FixedVectorType>(Tp)) {
       std::vector<Constant*> TempValues;
       TempValues.reserve(VTp->getNumElements());
       for (unsigned i = 0; i < VTp->getNumElements(); ++i)
@@ -277,7 +282,7 @@ protected:
 
   /// Pick a random type.
   Type *pickType() {
-    return (getRandom() & 1 ? pickVectorType() : pickScalarType());
+    return (getRandom() & 1) ? pickVectorType() : pickScalarType();
   }
 
   /// Pick a random pointer type.
@@ -287,40 +292,30 @@ protected:
   }
 
   /// Pick a random vector type.
-  Type *pickVectorType(unsigned len = (unsigned)-1) {
-    // Pick a random vector width in the range 2**0 to 2**4.
-    // by adding two randoms we are generating a normal-like distribution
-    // around 2**3.
-    unsigned width = 1<<((getRandom() % 3) + (getRandom() % 3));
-    Type *Ty;
+  Type *pickVectorType(VectorType *VTy = nullptr) {
 
     // Vectors of x86mmx are illegal; keep trying till we get something else.
+    Type *Ty;
     do {
       Ty = pickScalarType();
     } while (Ty->isX86_MMXTy());
 
-    if (len != (unsigned)-1)
-      width = len;
-    return VectorType::get(Ty, width);
+    if (VTy)
+      return VectorType::get(Ty, VTy->getElementCount());
+
+    // Select either fixed length or scalable vectors with 50% probability
+    // (only if scalable vectors are enabled)
+    bool Scalable = EnableScalableVectors && getRandom() & 1;
+
+    // Pick a random vector width in the range 2**0 to 2**4.
+    // by adding two randoms we are generating a normal-like distribution
+    // around 2**3.
+    unsigned width = 1<<((getRandom() % 3) + (getRandom() % 3));
+    return VectorType::get(Ty, width, Scalable);
   }
 
   /// Pick a random scalar type.
   Type *pickScalarType() {
-    static std::vector<Type*> ScalarTypes;
-    if (ScalarTypes.empty()) {
-      ScalarTypes.assign({
-        Type::getInt1Ty(Context),
-        Type::getInt8Ty(Context),
-        Type::getInt16Ty(Context),
-        Type::getInt32Ty(Context),
-        Type::getInt64Ty(Context),
-        Type::getFloatTy(Context),
-        Type::getDoubleTy(Context)
-      });
-      ScalarTypes.insert(ScalarTypes.end(),
-        AdditionalScalarTypes.begin(), AdditionalScalarTypes.end());
-    }
-
     return ScalarTypes[getRandom() % ScalarTypes.size()];
   }
 
@@ -335,6 +330,8 @@ protected:
 
   /// Context
   LLVMContext &Context;
+
+  std::vector<Type *> ScalarTypes;
 };
 
 struct LoadModifier: public Modifier {
@@ -344,7 +341,10 @@ struct LoadModifier: public Modifier {
   void Act() override {
     // Try to use predefined pointers. If non-exist, use undef pointer value;
     Value *Ptr = getRandomPointerValue();
-    Value *V = new LoadInst(Ptr, "L", BB->getTerminator());
+    Type *Ty = Ptr->getType()->isOpaquePointerTy()
+                   ? pickType()
+                   : Ptr->getType()->getNonOpaquePointerElementType();
+    Value *V = new LoadInst(Ty, Ptr, "L", BB->getTerminator());
     PT->push_back(V);
   }
 };
@@ -356,15 +356,16 @@ struct StoreModifier: public Modifier {
   void Act() override {
     // Try to use predefined pointers. If non-exist, use undef pointer value;
     Value *Ptr = getRandomPointerValue();
-    Type  *Tp = Ptr->getType();
-    Value *Val = getRandomValue(Tp->getContainedType(0));
-    Type  *ValTy = Val->getType();
+    Type *ValTy = Ptr->getType()->isOpaquePointerTy()
+                      ? pickType()
+                      : Ptr->getType()->getNonOpaquePointerElementType();
 
     // Do not store vectors of i1s because they are unsupported
     // by the codegen.
     if (ValTy->isVectorTy() && ValTy->getScalarSizeInBits() == 1)
       return;
 
+    Value *Val = getRandomValue(ValTy);
     new StoreInst(Val, Ptr, BB->getTerminator());
   }
 };
@@ -437,7 +438,7 @@ struct ConstModifier: public Modifier {
       for (unsigned i = 0; i < 2; ++i)
         RandomBits[i] = Ran->Rand64();
 
-      APInt RandomInt(Ty->getPrimitiveSizeInBits(), makeArrayRef(RandomBits));
+      APInt RandomInt(Ty->getPrimitiveSizeInBits(), ArrayRef(RandomBits));
       APFloat RandomFloat(Ty->getFltSemantics(), RandomInt);
 
       if (getRandom() & 1)
@@ -449,10 +450,10 @@ struct ConstModifier: public Modifier {
       switch (getRandom() % 7) {
       case 0:
         return PT->push_back(ConstantInt::get(
-            Ty, APInt::getAllOnesValue(Ty->getPrimitiveSizeInBits())));
+            Ty, APInt::getAllOnes(Ty->getPrimitiveSizeInBits())));
       case 1:
-        return PT->push_back(ConstantInt::get(
-            Ty, APInt::getNullValue(Ty->getPrimitiveSizeInBits())));
+        return PT->push_back(
+            ConstantInt::get(Ty, APInt::getZero(Ty->getPrimitiveSizeInBits())));
       case 2:
       case 3:
       case 4:
@@ -482,10 +483,10 @@ struct ExtractElementModifier: public Modifier {
 
   void Act() override {
     Value *Val0 = getRandomVectorValue();
-    Value *V = ExtractElementInst::Create(Val0,
-             ConstantInt::get(Type::getInt32Ty(BB->getContext()),
-             getRandom() % cast<VectorType>(Val0->getType())->getNumElements()),
-             "E", BB->getTerminator());
+    Value *V = ExtractElementInst::Create(
+        Val0,
+        getRandomValue(Type::getInt32Ty(BB->getContext())),
+        "E", BB->getTerminator());
     return PT->push_back(V);
   }
 };
@@ -498,7 +499,11 @@ struct ShuffModifier: public Modifier {
     Value *Val0 = getRandomVectorValue();
     Value *Val1 = getRandomValue(Val0->getType());
 
-    unsigned Width = cast<VectorType>(Val0->getType())->getNumElements();
+    // Can't express arbitrary shufflevectors for scalable vectors
+    if (isa<ScalableVectorType>(Val0->getType()))
+      return;
+
+    unsigned Width = cast<FixedVectorType>(Val0->getType())->getNumElements();
     std::vector<Constant*> Idxs;
 
     Type *I32 = Type::getInt32Ty(BB->getContext());
@@ -526,10 +531,10 @@ struct InsertElementModifier: public Modifier {
     Value *Val0 = getRandomVectorValue();
     Value *Val1 = getRandomValue(Val0->getType()->getScalarType());
 
-    Value *V = InsertElementInst::Create(Val0, Val1,
-              ConstantInt::get(Type::getInt32Ty(BB->getContext()),
-              getRandom() % cast<VectorType>(Val0->getType())->getNumElements()),
-              "I",  BB->getTerminator());
+    Value *V = InsertElementInst::Create(
+        Val0, Val1,
+        getRandomValue(Type::getInt32Ty(BB->getContext())),
+        "I", BB->getTerminator());
     return PT->push_back(V);
   }
 };
@@ -544,10 +549,8 @@ struct CastModifier: public Modifier {
     Type *DestTy = pickScalarType();
 
     // Handle vector casts vectors.
-    if (VTy->isVectorTy()) {
-      VectorType *VecTy = cast<VectorType>(VTy);
-      DestTy = pickVectorType(VecTy->getNumElements());
-    }
+    if (VTy->isVectorTy())
+      DestTy = pickVectorType(cast<VectorType>(VTy));
 
     // no need to cast.
     if (VTy == DestTy) return;
@@ -627,10 +630,9 @@ struct SelectModifier: public Modifier {
 
     // If the value type is a vector, and we allow vector select, then in 50%
     // of the cases generate a vector select.
-    if (Val0->getType()->isVectorTy() && (getRandom() % 1)) {
-      unsigned NumElem = cast<VectorType>(Val0->getType())->getNumElements();
-      CondTy = VectorType::get(CondTy, NumElem);
-    }
+    if (auto *VTy = dyn_cast<VectorType>(Val0->getType()))
+      if (getRandom() & 1)
+        CondTy = VectorType::get(CondTy, VTy->getElementCount());
 
     Value *Cond = getRandomValue(CondTy);
     Value *V = SelectInst::Create(Cond, Val0, Val1, "Sl", BB->getTerminator());
@@ -712,7 +714,7 @@ static void IntroduceControlFlow(Function *F, Random &R) {
       BoolInst.push_back(&Instr);
   }
 
-  std::shuffle(BoolInst.begin(), BoolInst.end(), R);
+  llvm::shuffle(BoolInst.begin(), BoolInst.end(), R);
 
   for (auto *Instr : BoolInst) {
     BasicBlock *Curr = Instr->getParent();
@@ -731,12 +733,12 @@ static void IntroduceControlFlow(Function *F, Random &R) {
 int main(int argc, char **argv) {
   using namespace llvm;
 
-  // Init LLVM, call llvm_shutdown() on exit, parse args, etc.
-  PrettyStackTraceProgram X(argc, argv);
+  InitLLVM X(argc, argv);
+  cl::HideUnrelatedOptions({&StressCategory, &getColorCategory()});
   cl::ParseCommandLineOptions(argc, argv, "llvm codegen stress-tester\n");
-  llvm_shutdown_obj Y;
 
-  auto M = llvm::make_unique<Module>("/tmp/autogen.bc", Context);
+  LLVMContext Context;
+  auto M = std::make_unique<Module>("/tmp/autogen.bc", Context);
   Function *F = GenEmptyFunction(M.get());
 
   // Pick an initial seed value
@@ -753,16 +755,19 @@ int main(int argc, char **argv) {
     OutputFilename = "-";
 
   std::error_code EC;
-  Out.reset(new ToolOutputFile(OutputFilename, EC, sys::fs::F_None));
+  Out.reset(new ToolOutputFile(OutputFilename, EC, sys::fs::OF_None));
   if (EC) {
     errs() << EC.message() << '\n';
     return 1;
   }
 
-  legacy::PassManager Passes;
-  Passes.add(createVerifierPass());
-  Passes.add(createPrintModulePass(Out->os()));
-  Passes.run(*M.get());
+  // Check that the generated module is accepted by the verifier.
+  if (verifyModule(*M.get(), &Out->os()))
+    report_fatal_error("Broken module found, compilation aborted!");
+
+  // Output textual IR.
+  M->print(Out->os(), nullptr);
+
   Out->keep();
 
   return 0;

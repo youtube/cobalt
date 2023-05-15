@@ -1,4 +1,4 @@
-; RUN: opt < %s -partial-inliner -skip-partial-inlining-cost-analysis -S | FileCheck %s
+; RUN: opt < %s -passes=partial-inliner -skip-partial-inlining-cost-analysis -S | FileCheck %s
 
 ; This test checks to make sure that the CodeExtractor
 ;  properly sets the entry count for the function that is
@@ -22,7 +22,7 @@ entry:
   ret i32 %val
 }
 
-; CHECK: @inlinedFunc.1_if.then(i1 %cond) !prof [[COUNT1:![0-9]+]]
+; CHECK: @inlinedFunc.1.if.then(i1 %cond) !prof [[COUNT1:![0-9]+]]
 
 
 !llvm.module.flags = !{!0}

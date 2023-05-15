@@ -252,29 +252,29 @@ define <16 x i8> @test_buildvector_v16i8(i8 %a0, i8 %a1, i8 %a2, i8 %a3, i8 %a4,
 ; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm2 = xmm2[0],xmm0[0],xmm2[1],xmm0[1],xmm2[2],xmm0[2],xmm2[3],xmm0[3],xmm2[4],xmm0[4],xmm2[5],xmm0[5],xmm2[6],xmm0[6],xmm2[7],xmm0[7]
 ; SSE2-32-NEXT:    punpcklwd {{.*#+}} xmm2 = xmm2[0],xmm1[0],xmm2[1],xmm1[1],xmm2[2],xmm1[2],xmm2[3],xmm1[3]
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm0 = mem[0],zero,zero,zero
-; SSE2-32-NEXT:    movd {{.*#+}} xmm1 = mem[0],zero,zero,zero
-; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm1 = xmm1[0],xmm0[0],xmm1[1],xmm0[1],xmm1[2],xmm0[2],xmm1[3],xmm0[3],xmm1[4],xmm0[4],xmm1[5],xmm0[5],xmm1[6],xmm0[6],xmm1[7],xmm0[7]
-; SSE2-32-NEXT:    movd {{.*#+}} xmm0 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm3 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm3 = xmm3[0],xmm0[0],xmm3[1],xmm0[1],xmm3[2],xmm0[2],xmm3[3],xmm0[3],xmm3[4],xmm0[4],xmm3[5],xmm0[5],xmm3[6],xmm0[6],xmm3[7],xmm0[7]
-; SSE2-32-NEXT:    punpcklwd {{.*#+}} xmm3 = xmm3[0],xmm1[0],xmm3[1],xmm1[1],xmm3[2],xmm1[2],xmm3[3],xmm1[3]
-; SSE2-32-NEXT:    punpckldq {{.*#+}} xmm3 = xmm3[0],xmm2[0],xmm3[1],xmm2[1]
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm0 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm1 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm1 = xmm1[0],xmm0[0],xmm1[1],xmm0[1],xmm1[2],xmm0[2],xmm1[3],xmm0[3],xmm1[4],xmm0[4],xmm1[5],xmm0[5],xmm1[6],xmm0[6],xmm1[7],xmm0[7]
+; SSE2-32-NEXT:    punpcklwd {{.*#+}} xmm1 = xmm1[0],xmm3[0],xmm1[1],xmm3[1],xmm1[2],xmm3[2],xmm1[3],xmm3[3]
+; SSE2-32-NEXT:    punpckldq {{.*#+}} xmm1 = xmm1[0],xmm2[0],xmm1[1],xmm2[1]
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm0 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm2 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm2 = xmm2[0],xmm0[0],xmm2[1],xmm0[1],xmm2[2],xmm0[2],xmm2[3],xmm0[3],xmm2[4],xmm0[4],xmm2[5],xmm0[5],xmm2[6],xmm0[6],xmm2[7],xmm0[7]
-; SSE2-32-NEXT:    punpcklwd {{.*#+}} xmm2 = xmm2[0],xmm1[0],xmm2[1],xmm1[1],xmm2[2],xmm1[2],xmm2[3],xmm1[3]
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm0 = mem[0],zero,zero,zero
-; SSE2-32-NEXT:    movd {{.*#+}} xmm1 = mem[0],zero,zero,zero
-; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm1 = xmm1[0],xmm0[0],xmm1[1],xmm0[1],xmm1[2],xmm0[2],xmm1[3],xmm0[3],xmm1[4],xmm0[4],xmm1[5],xmm0[5],xmm1[6],xmm0[6],xmm1[7],xmm0[7]
+; SSE2-32-NEXT:    movd {{.*#+}} xmm3 = mem[0],zero,zero,zero
+; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm3 = xmm3[0],xmm0[0],xmm3[1],xmm0[1],xmm3[2],xmm0[2],xmm3[3],xmm0[3],xmm3[4],xmm0[4],xmm3[5],xmm0[5],xmm3[6],xmm0[6],xmm3[7],xmm0[7]
+; SSE2-32-NEXT:    punpcklwd {{.*#+}} xmm3 = xmm3[0],xmm2[0],xmm3[1],xmm2[1],xmm3[2],xmm2[2],xmm3[3],xmm2[3]
+; SSE2-32-NEXT:    movd {{.*#+}} xmm0 = mem[0],zero,zero,zero
+; SSE2-32-NEXT:    movd {{.*#+}} xmm2 = mem[0],zero,zero,zero
+; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm2 = xmm2[0],xmm0[0],xmm2[1],xmm0[1],xmm2[2],xmm0[2],xmm2[3],xmm0[3],xmm2[4],xmm0[4],xmm2[5],xmm0[5],xmm2[6],xmm0[6],xmm2[7],xmm0[7]
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm4 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    movd {{.*#+}} xmm0 = mem[0],zero,zero,zero
 ; SSE2-32-NEXT:    punpcklbw {{.*#+}} xmm0 = xmm0[0],xmm4[0],xmm0[1],xmm4[1],xmm0[2],xmm4[2],xmm0[3],xmm4[3],xmm0[4],xmm4[4],xmm0[5],xmm4[5],xmm0[6],xmm4[6],xmm0[7],xmm4[7]
-; SSE2-32-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],xmm1[0],xmm0[1],xmm1[1],xmm0[2],xmm1[2],xmm0[3],xmm1[3]
-; SSE2-32-NEXT:    punpckldq {{.*#+}} xmm0 = xmm0[0],xmm2[0],xmm0[1],xmm2[1]
-; SSE2-32-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm3[0]
+; SSE2-32-NEXT:    punpcklwd {{.*#+}} xmm0 = xmm0[0],xmm2[0],xmm0[1],xmm2[1],xmm0[2],xmm2[2],xmm0[3],xmm2[3]
+; SSE2-32-NEXT:    punpckldq {{.*#+}} xmm0 = xmm0[0],xmm3[0],xmm0[1],xmm3[1]
+; SSE2-32-NEXT:    punpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
 ; SSE2-32-NEXT:    retl
 ;
 ; SSE2-64-LABEL: test_buildvector_v16i8:
@@ -507,3 +507,48 @@ define <4 x i32> @test_buildvector_v4i32_splat_zext_i8(i8 %in) {
   %splat = shufflevector <4 x i32> %insert, <4 x i32> undef, <4 x i32> zeroinitializer
   ret <4 x i32> %splat
 }
+
+; PR37502 - https://bugs.llvm.org/show_bug.cgi?id=37502
+; Don't use a series of insertps when movddup will do.
+
+define <4 x float> @PR37502(float %x, float %y) {
+; SSE2-32-LABEL: PR37502:
+; SSE2-32:       # %bb.0:
+; SSE2-32-NEXT:    movsd {{.*#+}} xmm0 = mem[0],zero
+; SSE2-32-NEXT:    movlhps {{.*#+}} xmm0 = xmm0[0,0]
+; SSE2-32-NEXT:    retl
+;
+; SSE2-64-LABEL: PR37502:
+; SSE2-64:       # %bb.0:
+; SSE2-64-NEXT:    unpcklps {{.*#+}} xmm0 = xmm0[0],xmm1[0],xmm0[1],xmm1[1]
+; SSE2-64-NEXT:    movlhps {{.*#+}} xmm0 = xmm0[0,0]
+; SSE2-64-NEXT:    retq
+;
+; SSE41-32-LABEL: PR37502:
+; SSE41-32:       # %bb.0:
+; SSE41-32-NEXT:    movddup {{.*#+}} xmm0 = mem[0,0]
+; SSE41-32-NEXT:    retl
+;
+; SSE41-64-LABEL: PR37502:
+; SSE41-64:       # %bb.0:
+; SSE41-64-NEXT:    insertps {{.*#+}} xmm0 = xmm0[0],xmm1[0],xmm0[2,3]
+; SSE41-64-NEXT:    movddup {{.*#+}} xmm0 = xmm0[0,0]
+; SSE41-64-NEXT:    retq
+;
+; AVX-32-LABEL: PR37502:
+; AVX-32:       # %bb.0:
+; AVX-32-NEXT:    vmovddup {{.*#+}} xmm0 = mem[0,0]
+; AVX-32-NEXT:    retl
+;
+; AVX-64-LABEL: PR37502:
+; AVX-64:       # %bb.0:
+; AVX-64-NEXT:    vinsertps {{.*#+}} xmm0 = xmm0[0],xmm1[0],xmm0[2,3]
+; AVX-64-NEXT:    vmovddup {{.*#+}} xmm0 = xmm0[0,0]
+; AVX-64-NEXT:    retq
+  %i0 = insertelement <4 x float> undef, float %x, i32 0
+  %i1 = insertelement <4 x float> %i0, float %y, i32 1
+  %i2 = insertelement <4 x float> %i1, float %x, i32 2
+  %i3 = insertelement <4 x float> %i2, float %y, i32 3
+  ret <4 x float> %i3
+}
+

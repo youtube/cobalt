@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads, c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 // <atomic>
 
@@ -16,50 +15,17 @@
 #include <atomic>
 #include <cassert>
 
-#if !defined(__cpp_lib_atomic_is_always_lock_free)
-# error Feature test macro missing.
-#endif
+#include "test_macros.h"
 
-template <typename T> void checkAlwaysLockFree() {
-  if (std::atomic<T>::is_always_lock_free)
+template <typename T>
+void checkAlwaysLockFree() {
+  if (std::atomic<T>::is_always_lock_free) {
+    LIBCPP_ASSERT(sizeof(std::atomic<T>) == sizeof(T)); // technically not required, but libc++ does it that way
     assert(std::atomic<T>().is_lock_free());
+  }
 }
 
-// FIXME: This separate test is needed to work around llvm.org/PR31864
-// which causes ATOMIC_LLONG_LOCK_FREE to be defined as '1' in 32-bit builds
-// even though __atomic_always_lock_free returns true for the same type.
-constexpr bool NeedWorkaroundForPR31864 =
-#if defined(__clang__)
-(sizeof(void*) == 4); // Needed on 32 bit builds
-#else
-false;
-#endif
-
-template <bool Disable = NeedWorkaroundForPR31864,
-  std::enable_if_t<!Disable>* = nullptr,
-  class LLong = long long,
-  class ULLong = unsigned long long>
-void checkLongLongTypes() {
-  static_assert(std::atomic<LLong>::is_always_lock_free == (2 == ATOMIC_LLONG_LOCK_FREE));
-  static_assert(std::atomic<ULLong>::is_always_lock_free == (2 == ATOMIC_LLONG_LOCK_FREE));
-}
-
-// Used to make the calls to __atomic_always_lock_free dependent on a template
-// parameter.
-template <class T> constexpr size_t getSizeOf() { return sizeof(T); }
-
-template <bool Enable = NeedWorkaroundForPR31864,
-  std::enable_if_t<Enable>* = nullptr,
-  class LLong = long long,
-  class ULLong = unsigned long long>
-void checkLongLongTypes() {
-  constexpr bool ExpectLockFree = __atomic_always_lock_free(getSizeOf<LLong>(), 0);
-  static_assert(std::atomic<LLong>::is_always_lock_free == ExpectLockFree, "");
-  static_assert(std::atomic<ULLong>::is_always_lock_free == ExpectLockFree, "");
-  static_assert((0 != ATOMIC_LLONG_LOCK_FREE) == ExpectLockFree, "");
-}
-
-int main()
+void run()
 {
 // structs and unions can't be defined in the template invocation.
 // Work around this with a typedef.
@@ -73,6 +39,9 @@ int main()
     CHECK_ALWAYS_LOCK_FREE(char);
     CHECK_ALWAYS_LOCK_FREE(signed char);
     CHECK_ALWAYS_LOCK_FREE(unsigned char);
+#if TEST_STD_VER > 17 && defined(__cpp_char8_t)
+    CHECK_ALWAYS_LOCK_FREE(char8_t);
+#endif
     CHECK_ALWAYS_LOCK_FREE(char16_t);
     CHECK_ALWAYS_LOCK_FREE(char32_t);
     CHECK_ALWAYS_LOCK_FREE(wchar_t);
@@ -115,22 +84,36 @@ int main()
     CHECK_ALWAYS_LOCK_FREE(struct LLIArr16 { long long int i[16]; });
     CHECK_ALWAYS_LOCK_FREE(struct Padding { char c; /* padding */ long long int i; });
     CHECK_ALWAYS_LOCK_FREE(union IntFloat { int i; float f; });
+    CHECK_ALWAYS_LOCK_FREE(enum class CharEnumClass : char { foo });
 
     // C macro and static constexpr must be consistent.
-    static_assert(std::atomic<bool>::is_always_lock_free == (2 == ATOMIC_BOOL_LOCK_FREE));
-    static_assert(std::atomic<char>::is_always_lock_free == (2 == ATOMIC_CHAR_LOCK_FREE));
-    static_assert(std::atomic<signed char>::is_always_lock_free == (2 == ATOMIC_CHAR_LOCK_FREE));
-    static_assert(std::atomic<unsigned char>::is_always_lock_free == (2 == ATOMIC_CHAR_LOCK_FREE));
-    static_assert(std::atomic<char16_t>::is_always_lock_free == (2 == ATOMIC_CHAR16_T_LOCK_FREE));
-    static_assert(std::atomic<char32_t>::is_always_lock_free == (2 == ATOMIC_CHAR32_T_LOCK_FREE));
-    static_assert(std::atomic<wchar_t>::is_always_lock_free == (2 == ATOMIC_WCHAR_T_LOCK_FREE));
-    static_assert(std::atomic<short>::is_always_lock_free == (2 == ATOMIC_SHORT_LOCK_FREE));
-    static_assert(std::atomic<unsigned short>::is_always_lock_free == (2 == ATOMIC_SHORT_LOCK_FREE));
-    static_assert(std::atomic<int>::is_always_lock_free == (2 == ATOMIC_INT_LOCK_FREE));
-    static_assert(std::atomic<unsigned int>::is_always_lock_free == (2 == ATOMIC_INT_LOCK_FREE));
-    static_assert(std::atomic<long>::is_always_lock_free == (2 == ATOMIC_LONG_LOCK_FREE));
-    static_assert(std::atomic<unsigned long>::is_always_lock_free == (2 == ATOMIC_LONG_LOCK_FREE));
-    checkLongLongTypes();
-    static_assert(std::atomic<void*>::is_always_lock_free == (2 == ATOMIC_POINTER_LOCK_FREE));
-    static_assert(std::atomic<std::nullptr_t>::is_always_lock_free == (2 == ATOMIC_POINTER_LOCK_FREE));
+    enum class CharEnumClass : char { foo };
+    static_assert(std::atomic<bool>::is_always_lock_free == (2 == ATOMIC_BOOL_LOCK_FREE), "");
+    static_assert(std::atomic<char>::is_always_lock_free == (2 == ATOMIC_CHAR_LOCK_FREE), "");
+    static_assert(std::atomic<CharEnumClass>::is_always_lock_free == (2 == ATOMIC_CHAR_LOCK_FREE), "");
+    static_assert(std::atomic<signed char>::is_always_lock_free == (2 == ATOMIC_CHAR_LOCK_FREE), "");
+    static_assert(std::atomic<unsigned char>::is_always_lock_free == (2 == ATOMIC_CHAR_LOCK_FREE), "");
+#if TEST_STD_VER > 17 && defined(__cpp_char8_t)
+    static_assert(std::atomic<char8_t>::is_always_lock_free == (2 == ATOMIC_CHAR8_T_LOCK_FREE), "");
+#endif
+    static_assert(std::atomic<char16_t>::is_always_lock_free == (2 == ATOMIC_CHAR16_T_LOCK_FREE), "");
+    static_assert(std::atomic<char32_t>::is_always_lock_free == (2 == ATOMIC_CHAR32_T_LOCK_FREE), "");
+    static_assert(std::atomic<wchar_t>::is_always_lock_free == (2 == ATOMIC_WCHAR_T_LOCK_FREE), "");
+    static_assert(std::atomic<short>::is_always_lock_free == (2 == ATOMIC_SHORT_LOCK_FREE), "");
+    static_assert(std::atomic<unsigned short>::is_always_lock_free == (2 == ATOMIC_SHORT_LOCK_FREE), "");
+    static_assert(std::atomic<int>::is_always_lock_free == (2 == ATOMIC_INT_LOCK_FREE), "");
+    static_assert(std::atomic<unsigned int>::is_always_lock_free == (2 == ATOMIC_INT_LOCK_FREE), "");
+    static_assert(std::atomic<long>::is_always_lock_free == (2 == ATOMIC_LONG_LOCK_FREE), "");
+    static_assert(std::atomic<unsigned long>::is_always_lock_free == (2 == ATOMIC_LONG_LOCK_FREE), "");
+    static_assert(std::atomic<long long>::is_always_lock_free == (2 == ATOMIC_LLONG_LOCK_FREE), "");
+    static_assert(std::atomic<unsigned long long>::is_always_lock_free == (2 == ATOMIC_LLONG_LOCK_FREE), "");
+    static_assert(std::atomic<void*>::is_always_lock_free == (2 == ATOMIC_POINTER_LOCK_FREE), "");
+    static_assert(std::atomic<std::nullptr_t>::is_always_lock_free == (2 == ATOMIC_POINTER_LOCK_FREE), "");
+
+#if TEST_STD_VER >= 20
+    static_assert(std::atomic_signed_lock_free::is_always_lock_free, "");
+    static_assert(std::atomic_unsigned_lock_free::is_always_lock_free, "");
+#endif
 }
+
+int main(int, char**) { run(); return 0; }

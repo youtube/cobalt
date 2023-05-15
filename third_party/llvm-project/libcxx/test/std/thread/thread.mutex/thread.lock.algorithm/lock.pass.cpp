@@ -1,18 +1,21 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// UNSUPPORTED: libcpp-has-no-threads
+// UNSUPPORTED: no-threads
 
-// This test hangs forever when built against libstdc++ and MSVC. In order to allow
-// validation of the test suite against other STLs we have to mark it
-// unsupported.
-// UNSUPPORTED: libstdc++, msvc
+// This test hangs forever when built against libstdc++ (Oct 2016).
+// UNSUPPORTED: stdlib=libstdc++
+
+// This test isn't quite standards-conforming: it's testing our specific
+// algorithm, where when lx.try_lock() fails we start the next attempt
+// with an unconditional lx.lock(). Thus our algorithm can handle a list
+// of mutexes where at-most-one of them is of the evil type `class L1`,
+// but will loop forever if two or more of them are `class L1`.
 
 // <mutex>
 
@@ -93,7 +96,7 @@ public:
     bool locked() const {return locked_;}
 };
 
-int main()
+int main(int, char**)
 {
     {
         L0 l0;
@@ -388,7 +391,7 @@ int main()
             assert(!l2.locked());
         }
     }
-#endif  // TEST_HAS_NO_EXCEPTIONS
+#endif // TEST_HAS_NO_EXCEPTIONS
     {
         L0 l0;
         L0 l1;
@@ -517,6 +520,8 @@ int main()
             assert(!l3.locked());
         }
     }
-#endif  // TEST_HAS_NO_EXCEPTIONS
+#endif // TEST_HAS_NO_EXCEPTIONS
 #endif // TEST_STD_VER >= 11
+
+  return 0;
 }

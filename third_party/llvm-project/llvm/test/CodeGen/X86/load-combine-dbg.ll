@@ -11,21 +11,20 @@
 ; CHECK-NOT: .loc
 declare void @foo(double)
 
-define i32 @zext_load(i32* %arg) !dbg !30 {
-  %1 = bitcast i32* %arg to i8*
-  %2 = getelementptr inbounds i8, i8* %1, i32 1
-  %3 = load i8, i8* %2, align 1, !dbg !100
-  %4 = uitofp i8 %3 to double, !dbg !200
-  call void @foo(double %4), !dbg !200
-  %5 = zext i8 %3 to i32, !dbg !300
-  ret i32 %5
+define i32 @zext_load(ptr %arg) !dbg !30 {
+  %1 = getelementptr inbounds i8, ptr %arg, i32 1
+  %2 = load i8, ptr %1, align 1, !dbg !100
+  %3 = uitofp i8 %2 to double, !dbg !200
+  call void @foo(double %3), !dbg !200
+  %4 = zext i8 %2 to i32, !dbg !300
+  ret i32 %4
 }
 !llvm.dbg.cu = !{!1}
 !llvm.module.flags = !{!0}
 
 !0 = !{i32 2, !"Debug Info Version", i32 3}
 !1 = distinct !DICompileUnit(language: DW_LANG_Swift, file: !3, isOptimized: false, emissionKind: FullDebug)
-!2 = !DIModule(scope: null, name: "test", includePath: "", isysroot: "/")
+!2 = !DIModule(scope: null, name: "test", includePath: "")
 !3 = !DIFile(filename: "main.swift", directory: "/")
 
 !30 = distinct !DISubprogram(name: "main", scope: !2, file: !3, line: 1, type: !31, isLocal: false, isDefinition: true, isOptimized: false, unit: !1)

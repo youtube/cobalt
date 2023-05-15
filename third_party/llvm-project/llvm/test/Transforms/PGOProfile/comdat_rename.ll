@@ -1,6 +1,4 @@
-; RUN: opt < %s -mtriple=x86_64-unknown-linux -pgo-instr-gen -do-comdat-renaming=true -S | FileCheck %s
 ; RUN: opt < %s -mtriple=x86_64-unknown-linux -passes=pgo-instr-gen -do-comdat-renaming=true -S | FileCheck %s
-; RUN: opt < %s -mtriple=x86_64-pc-win32-coff -pgo-instr-gen -do-comdat-renaming=true -S | FileCheck %s
 ; RUN: opt < %s -mtriple=x86_64-pc-win32-coff -passes=pgo-instr-gen -do-comdat-renaming=true -S | FileCheck %s
 
 ; Rename Comdat group and its function.
@@ -9,6 +7,14 @@ $f = comdat any
 define linkonce_odr void @f() comdat($f) {
   ret void
 }
+
+; Not rename Comdat with an alias (an alias is an address-taken user).
+$f_with_alias = comdat any
+; CHECK: $f_with_alias = comdat any
+define linkonce_odr void @f_with_alias() comdat {
+  ret void
+}
+@f_alias = alias void (), ptr @f_with_alias
 
 ; Not rename Comdat with right linkage.
 $nf = comdat any
@@ -22,9 +28,9 @@ $f_with_var = comdat any
 ; CHECK: $f_with_var = comdat any
 @var = global i32 0, comdat($f_with_var)
 define linkonce_odr void @f_with_var() comdat($f_with_var) {
-  %tmp = load i32, i32* @var, align 4
+  %tmp = load i32, ptr @var, align 4
   %inc = add nsw i32 %tmp, 1
-  store i32 %inc, i32* @var, align 4
+  store i32 %inc, ptr @var, align 4
   ret void
 }
 
@@ -41,8 +47,8 @@ define linkonce void @tf2() comdat($tf) {
 ; Rename AvailableExternallyLinkage functions
 ; CHECK-DAG: $aef.[[SINGLEBB_HASH]] = comdat any
 
-; CHECK: @f = weak alias void (), void ()* @f.[[SINGLEBB_HASH]]
-; CHECK: @aef = weak alias void (), void ()* @aef.[[SINGLEBB_HASH]]
+; CHECK: @f = weak alias void (), ptr @f.[[SINGLEBB_HASH]]
+; CHECK: @aef = weak alias void (), ptr @aef.[[SINGLEBB_HASH]]
 
 define available_externally void @aef() {
 ; CHECK: define linkonce_odr void @aef.[[SINGLEBB_HASH]]() comdat {

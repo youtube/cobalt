@@ -1,14 +1,13 @@
 //===--- RefactoringActionRules.h - Clang refactoring library -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_ACTION_RULES_H
-#define LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_ACTION_RULES_H
+#ifndef LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGACTIONRULES_H
+#define LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGACTIONRULES_H
 
 #include "clang/Tooling/Refactoring/RefactoringActionRule.h"
 #include "clang/Tooling/Refactoring/RefactoringActionRulesInternal.h"
@@ -53,7 +52,7 @@ using RefactoringActionRules =
 class SourceChangeRefactoringRule : public RefactoringActionRuleBase {
 public:
   void invoke(RefactoringResultConsumer &Consumer,
-              RefactoringRuleContext &Context) final override {
+              RefactoringRuleContext &Context) final {
     Expected<AtomicChanges> Changes = createSourceReplacements(Context);
     if (!Changes)
       Consumer.handleError(Changes.takeError());
@@ -75,7 +74,7 @@ private:
 class FindSymbolOccurrencesRefactoringRule : public RefactoringActionRuleBase {
 public:
   void invoke(RefactoringResultConsumer &Consumer,
-              RefactoringRuleContext &Context) final override {
+              RefactoringRuleContext &Context) final {
     Expected<SymbolOccurrences> Occurrences = findSymbolOccurrences(Context);
     if (!Occurrences)
       Consumer.handleError(Occurrences.takeError());
@@ -91,4 +90,4 @@ private:
 } // end namespace tooling
 } // end namespace clang
 
-#endif // LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_ACTION_RULES_H
+#endif // LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGACTIONRULES_H

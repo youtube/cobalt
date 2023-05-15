@@ -1,13 +1,10 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// UNSUPPORTED: libcpp-has-no-threads
 
 // <atomic>
 
@@ -100,10 +97,6 @@ do_test()
 {
     A obj(T(0));
     assert(obj == T(0));
-    std::atomic_init(&obj, T(1));
-    assert(obj == T(1));
-    std::atomic_init(&obj, T(2));
-    assert(obj == T(2));
     bool b0 = obj.is_lock_free();
     ((void)b0); // mark as unused
     obj.store(T(0));
@@ -168,7 +161,7 @@ void test()
 }
 
 
-int main()
+int main(int, char**)
 {
     test<std::atomic_char, char>();
     test<std::atomic_schar, signed char>();
@@ -181,11 +174,14 @@ int main()
     test<std::atomic_ulong, unsigned long>();
     test<std::atomic_llong, long long>();
     test<std::atomic_ullong, unsigned long long>();
-#ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
+#if TEST_STD_VER > 17 && defined(__cpp_char8_t)
+    test<std::atomic_char8_t, char8_t>();
+#endif
     test<std::atomic_char16_t, char16_t>();
     test<std::atomic_char32_t, char32_t>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test<std::atomic_wchar_t, wchar_t>();
+#endif
 
     test<std::atomic_int8_t,    int8_t>();
     test<std::atomic_uint8_t,  uint8_t>();
@@ -207,11 +203,11 @@ int main()
     test<volatile std::atomic_ulong, unsigned long>();
     test<volatile std::atomic_llong, long long>();
     test<volatile std::atomic_ullong, unsigned long long>();
-#ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
     test<volatile std::atomic_char16_t, char16_t>();
     test<volatile std::atomic_char32_t, char32_t>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     test<volatile std::atomic_wchar_t, wchar_t>();
+#endif
 
     test<volatile std::atomic_int8_t,    int8_t>();
     test<volatile std::atomic_uint8_t,  uint8_t>();
@@ -221,4 +217,6 @@ int main()
     test<volatile std::atomic_uint32_t, uint32_t>();
     test<volatile std::atomic_int64_t,   int64_t>();
     test<volatile std::atomic_uint64_t, uint64_t>();
+
+  return 0;
 }

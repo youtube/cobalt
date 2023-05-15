@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -29,7 +28,7 @@ TEST_CONSTEXPR bool test_constexpr() {
     int ia[] = {1, 3, 6, 7};
     int ib[] = {1, 3};
     int ic[] = {1, 3, 5, 7};
-    typedef input_iterator<int*>         II;
+    typedef cpp17_input_iterator<int*>         II;
     typedef bidirectional_iterator<int*> BI;
 
     auto p1 = std::mismatch(std::begin(ia), std::end(ia), std::begin(ic));
@@ -59,14 +58,14 @@ TEST_CONSTEXPR bool test_constexpr() {
     }
 #endif
 
-int main()
+int main(int, char**)
 {
     int ia[] = {0, 1, 2, 2, 0, 1, 2, 3};
     const unsigned sa = sizeof(ia)/sizeof(ia[0]);
     int ib[] = {0, 1, 2, 3, 0, 1, 2, 3};
     const unsigned sb = sizeof(ib)/sizeof(ib[0]); ((void)sb); // unused in C++11
 
-    typedef input_iterator<const int*> II;
+    typedef cpp17_input_iterator<const int*> II;
     typedef random_access_iterator<const int*>  RAI;
 
     assert(std::mismatch(II(ia), II(ia + sa), II(ib))
@@ -90,4 +89,6 @@ int main()
 #if TEST_STD_VER > 17
     static_assert(test_constexpr());
 #endif
+
+  return 0;
 }

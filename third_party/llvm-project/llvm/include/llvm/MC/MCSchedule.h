@@ -1,9 +1,8 @@
 //===-- llvm/MC/MCSchedule.h - Scheduling -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,13 +14,13 @@
 #ifndef LLVM_MC_MCSCHEDULE_H
 #define LLVM_MC_MCSCHEDULE_H
 
-#include "llvm/ADT/Optional.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
 
 namespace llvm {
 
+template <typename T> class ArrayRef;
 struct InstrItinerary;
 class MCSubtargetInfo;
 class MCInstrInfo;
@@ -108,15 +107,16 @@ struct MCReadAdvanceEntry {
 ///
 /// Defined as an aggregate struct for creating tables with initializer lists.
 struct MCSchedClassDesc {
-  static const unsigned short InvalidNumMicroOps = (1U << 14) - 1;
+  static const unsigned short InvalidNumMicroOps = (1U << 13) - 1;
   static const unsigned short VariantNumMicroOps = InvalidNumMicroOps - 1;
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   const char* Name;
 #endif
-  uint16_t NumMicroOps : 14;
-  bool     BeginGroup : 1;
-  bool     EndGroup : 1;
+  uint16_t NumMicroOps : 13;
+  uint16_t BeginGroup : 1;
+  uint16_t EndGroup : 1;
+  uint16_t RetireOOO : 1;
   uint16_t WriteProcResIdx; // First index into WriteProcResTable.
   uint16_t NumWriteProcResEntries;
   uint16_t WriteLatencyIdx; // First index into WriteLatencyTable.
@@ -142,6 +142,7 @@ struct MCSchedClassDesc {
 struct MCRegisterCostEntry {
   unsigned RegisterClassID;
   unsigned Cost;
+  bool AllowMoveElimination;
 };
 
 /// A register file descriptor.
@@ -159,6 +160,12 @@ struct MCRegisterFileDesc {
   uint16_t NumRegisterCostEntries;
   // Index of the first cost entry in MCExtraProcessorInfo::RegisterCostTable.
   uint16_t RegisterCostEntryIdx;
+  // A value of zero means: there is no limit in the number of moves that can be
+  // eliminated every cycle.
+  uint16_t MaxMovesEliminatedPerCycle;
+  // Ture if this register file only knows how to optimize register moves from
+  // known zero registers.
+  bool AllowZeroMoveEliminationOnly;
 };
 
 /// Provide extra details about the machine processor.
@@ -176,18 +183,8 @@ struct MCExtraProcessorInfo {
   unsigned NumRegisterFiles;
   const MCRegisterCostEntry *RegisterCostTable;
   unsigned NumRegisterCostEntries;
-
-  struct PfmCountersInfo {
-    // An optional name of a performance counter that can be used to measure
-    // cycles.
-    const char *CycleCounter;
-
-    // For each MCProcResourceDesc defined by the processor, an optional list of
-    // names of performance counters that can be used to measure the resource
-    // utilization.
-    const char **IssueCounters;
-  };
-  PfmCountersInfo PfmCounters;
+  unsigned LoadQueueID;
+  unsigned StoreQueueID;
 };
 
 /// Machine model for scheduling, bundling, and heuristics.
@@ -208,7 +205,7 @@ struct MCExtraProcessorInfo {
 /// subtargets can't be done. Nonetheless, the abstract model is
 /// useful. Futhermore, subtargets typically extend this model with processor
 /// specific resources to model any hardware features that can be exploited by
-/// sceduling heuristics and aren't sufficiently represented in the abstract.
+/// scheduling heuristics and aren't sufficiently represented in the abstract.
 ///
 /// The abstract pipeline is built around the notion of an "issue point". This
 /// is merely a reference point for counting machine cycles. The physical
@@ -372,6 +369,11 @@ struct MCSchedModel {
   double
   getReciprocalThroughput(const MCSubtargetInfo &STI, const MCInstrInfo &MCII,
                           const MCInst &Inst) const;
+
+  /// Returns the maximum forwarding delay for register reads dependent on
+  /// writes of scheduling class WriteResourceIdx.
+  static unsigned getForwardingDelayCycles(ArrayRef<MCReadAdvanceEntry> Entries,
+                                           unsigned WriteResourceIdx = 0);
 
   /// Returns the default initialized model.
   static const MCSchedModel &GetDefaultSchedModel() { return Default; }

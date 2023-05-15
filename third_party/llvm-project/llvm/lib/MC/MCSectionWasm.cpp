@@ -1,25 +1,22 @@
 //===- lib/MC/MCSectionWasm.cpp - Wasm Code Section Representation --------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCSectionWasm.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolWasm.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
-MCSectionWasm::~MCSectionWasm() {} // anchor.
-
 // Decides whether a '.section' directive
 // should be printed before the section name.
-bool MCSectionWasm::ShouldOmitSectionDirective(StringRef Name,
+bool MCSectionWasm::shouldOmitSectionDirective(StringRef Name,
                                                const MCAsmInfo &MAI) const {
   return MAI.shouldOmitSectionDirective(Name);
 }
@@ -47,12 +44,12 @@ static void printName(raw_ostream &OS, StringRef Name) {
   OS << '"';
 }
 
-void MCSectionWasm::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
+void MCSectionWasm::printSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
                                          raw_ostream &OS,
                                          const MCExpr *Subsection) const {
 
-  if (ShouldOmitSectionDirective(SectionName, MAI)) {
-    OS << '\t' << getSectionName();
+  if (shouldOmitSectionDirective(getName(), MAI)) {
+    OS << '\t' << getName();
     if (Subsection) {
       OS << '\t';
       Subsection->print(OS, &MAI);
@@ -62,10 +59,17 @@ void MCSectionWasm::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
   }
 
   OS << "\t.section\t";
-  printName(OS, getSectionName());
+  printName(OS, getName());
   OS << ",\"";
 
-  // TODO: Print section flags.
+  if (IsPassive)
+    OS << 'p';
+  if (Group)
+    OS << 'G';
+  if (SegmentFlags & wasm::WASM_SEG_FLAG_STRINGS)
+    OS << 'S';
+  if (SegmentFlags & wasm::WASM_SEG_FLAG_TLS)
+    OS << 'T';
 
   OS << '"';
 
@@ -79,6 +83,12 @@ void MCSectionWasm::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
 
   // TODO: Print section type.
 
+  if (Group) {
+    OS << ",";
+    printName(OS, Group->getName());
+    OS << ",comdat";
+  }
+
   if (isUnique())
     OS << ",unique," << UniqueID;
 
@@ -91,6 +101,6 @@ void MCSectionWasm::PrintSwitchToSection(const MCAsmInfo &MAI, const Triple &T,
   }
 }
 
-bool MCSectionWasm::UseCodeAlign() const { return false; }
+bool MCSectionWasm::useCodeAlign() const { return false; }
 
 bool MCSectionWasm::isVirtualSection() const { return false; }

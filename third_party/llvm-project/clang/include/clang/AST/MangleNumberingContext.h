@@ -1,9 +1,8 @@
 //=== MangleNumberingContext.h - Context for mangling numbers ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -22,9 +21,7 @@ namespace clang {
 
 class BlockDecl;
 class CXXMethodDecl;
-class IdentifierInfo;
 class TagDecl;
-class Type;
 class VarDecl;
 
 /// Keeps track of the mangled names of lambda expressions and block
@@ -53,6 +50,11 @@ public:
   /// this context.
   virtual unsigned getManglingNumber(const TagDecl *TD,
                                      unsigned MSLocalManglingNumber) = 0;
+
+  /// Retrieve the mangling number of a new lambda expression with the
+  /// given call operator within the device context. No device number is
+  /// assigned if there's no device numbering context is associated.
+  virtual unsigned getDeviceManglingNumber(const CXXMethodDecl *) { return 0; }
 };
 
 } // end namespace clang

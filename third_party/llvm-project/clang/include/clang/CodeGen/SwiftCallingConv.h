@@ -1,13 +1,13 @@
 //==-- SwiftCallingConv.h - Swift ABI lowering ------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// Defines constants and types related to Swift ABI lowering.
+// Defines constants and types related to Swift ABI lowering. The same ABI
+// lowering applies to both sync and async functions.
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,7 +28,6 @@ namespace llvm {
 }
 
 namespace clang {
-class Decl;
 class FieldDecl;
 class ASTRecordLayout;
 
@@ -114,6 +113,9 @@ private:
   void addLegalTypedData(llvm::Type *type, CharUnits begin, CharUnits end);
   void addEntry(llvm::Type *type, CharUnits begin, CharUnits end);
   void splitVectorEntry(unsigned index);
+  static bool shouldMergeEntries(const StorageEntry &first,
+                                 const StorageEntry &second,
+                                 CharUnits chunkSize);
 };
 
 /// Should an aggregate which expands to the given type sequence

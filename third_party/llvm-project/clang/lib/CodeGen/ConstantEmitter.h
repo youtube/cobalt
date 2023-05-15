@@ -1,9 +1,8 @@
 //===--- ConstantEmitter.h - IR constant emission ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,7 +23,7 @@ namespace CodeGen {
 class ConstantEmitter {
 public:
   CodeGenModule &CGM;
-  CodeGenFunction *CGF;
+  CodeGenFunction *const CGF;
 
 private:
   bool Abstract = false;
@@ -37,6 +36,9 @@ private:
 
   /// Whether the constant-emission failed.
   bool Failed = false;
+
+  /// Whether we're in a constant context.
+  bool InConstantContext = false;
 
   /// The AST address space where this (non-abstract) initializer is going.
   /// Used for generating appropriate placeholders.
@@ -64,6 +66,9 @@ public:
   bool isAbstract() const {
     return Abstract;
   }
+
+  bool isInConstantContext() const { return InConstantContext; }
+  void setInConstantContext(bool var) { InConstantContext = var; }
 
   /// Try to emit the initiaizer of the given declaration as an abstract
   /// constant.  If this succeeds, the emission must be finalized.
@@ -107,6 +112,8 @@ public:
 
   llvm::Constant *tryEmitAbstract(const APValue &value, QualType T);
   llvm::Constant *tryEmitAbstractForMemory(const APValue &value, QualType T);
+
+  llvm::Constant *tryEmitConstantExpr(const ConstantExpr *CE);
 
   llvm::Constant *emitNullForMemory(QualType T) {
     return emitNullForMemory(CGM, T);

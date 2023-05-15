@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,7 @@
 #include <iterator>
 #include <cstddef>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 typedef int T;
@@ -36,10 +36,10 @@ testd(const C& c, int p, int l)
         assert(*i == t2[n2]);
     for (; n1 < size_t1; ++n1, ++i)
         assert(*i == t1[n1]);
-    assert(distance(c.begin(), c.end()) == size_t1 + l);
+    assert(std::distance(c.begin(), c.end()) == size_t1 + l);
 }
 
-int main()
+int main(int, char**)
 {
     {
     // splicing different containers
@@ -51,7 +51,7 @@ int main()
             C c1(std::begin(t1), std::end(t1));
             C c2(t2, t2+l);
 
-            c1.splice_after(next(c1.cbefore_begin(), p), std::move(c2));
+            c1.splice_after(std::next(c1.cbefore_begin(), p), std::move(c2));
             testd(c1, p, l);
         }
     }
@@ -67,10 +67,12 @@ int main()
             C c1(std::begin(t1), std::end(t1));
             C c2(t2, t2+l);
 
-            c1.splice_after(next(c1.cbefore_begin(), p), std::move(c2));
+            c1.splice_after(std::next(c1.cbefore_begin(), p), std::move(c2));
             testd(c1, p, l);
         }
     }
     }
 #endif
+
+  return 0;
 }

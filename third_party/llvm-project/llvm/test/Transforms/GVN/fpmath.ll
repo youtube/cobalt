@@ -1,4 +1,4 @@
-; RUN: opt -gvn -S < %s | FileCheck %s
+; RUN: opt -passes=gvn -S < %s | FileCheck %s
 
 define double @test1(double %x, double %y) {
 ; CHECK: @test1(double %x, double %y)
@@ -38,6 +38,16 @@ define double @test4(double %x, double %y) {
   %add1 = fadd double %x, %y, !fpmath !0
   %add2 = fadd double %x, %y, !fpmath !1
   %foo = fadd double %add1, %add2
+  ret double %foo
+}
+
+define double @test5(double %x, double %y) {
+; CHECK: @test5(double %x, double %y)
+; CHECK: %neg1 = fneg double %x, !fpmath !1
+; CHECK: %foo = fadd double %neg1, %neg1
+  %neg1 = fneg double %x, !fpmath !0
+  %neg2 = fneg double %x, !fpmath !1
+  %foo = fadd double %neg1, %neg2
   ret double %foo
 }
 

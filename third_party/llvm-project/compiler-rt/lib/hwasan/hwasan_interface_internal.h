@@ -1,9 +1,8 @@
-//===-- hwasan_interface_internal.h -------------------------------*- C++ -*-===//
+//===-- hwasan_interface_internal.h -----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,11 +15,24 @@
 #define HWASAN_INTERFACE_INTERNAL_H
 
 #include "sanitizer_common/sanitizer_internal_defs.h"
+#include "sanitizer_common/sanitizer_platform_limits_posix.h"
+#include <link.h>
 
 extern "C" {
 
 SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_init_static();
+
+SANITIZER_INTERFACE_ATTRIBUTE
 void __hwasan_init();
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_library_loaded(ElfW(Addr) base, const ElfW(Phdr) * phdr,
+                             ElfW(Half) phnum);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_library_unloaded(ElfW(Addr) base, const ElfW(Phdr) * phdr,
+                               ElfW(Half) phnum);
 
 using __sanitizer::uptr;
 using __sanitizer::sptr;
@@ -31,6 +43,9 @@ using __sanitizer::u64;
 using __sanitizer::u32;
 using __sanitizer::u16;
 using __sanitizer::u8;
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_init_frames(uptr, uptr);
 
 SANITIZER_INTERFACE_ATTRIBUTE
 extern uptr __hwasan_shadow_memory_dynamic_address;
@@ -91,6 +106,16 @@ SANITIZER_INTERFACE_ATTRIBUTE
 void __hwasan_tag_memory(uptr p, u8 tag, uptr sz);
 
 SANITIZER_INTERFACE_ATTRIBUTE
+uptr __hwasan_tag_pointer(uptr p, u8 tag);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_tag_mismatch(uptr addr, u8 ts);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_tag_mismatch4(uptr addr, uptr access_info, uptr *registers_frame,
+                            size_t outsize);
+
+SANITIZER_INTERFACE_ATTRIBUTE
 u8 __hwasan_generate_tag();
 
 // Returns the offset of the first tag mismatch or -1 if the whole range is
@@ -103,6 +128,12 @@ SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
 
 SANITIZER_INTERFACE_ATTRIBUTE
 void __hwasan_print_shadow(const void *x, uptr size);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_handle_longjmp(const void *sp_dst);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_handle_vfork(const void *sp_dst);
 
 SANITIZER_INTERFACE_ATTRIBUTE
 u16 __sanitizer_unaligned_load16(const uu16 *p);
@@ -128,6 +159,32 @@ void __hwasan_enable_allocator_tagging();
 SANITIZER_INTERFACE_ATTRIBUTE
 void __hwasan_disable_allocator_tagging();
 
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_thread_enter();
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_thread_exit();
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_print_memory_usage();
+
+// The compiler will generate this when
+// `-hwasan-record-stack-history-with-calls` is added as a flag, which will add
+// frame record information to the stack ring buffer. This is an alternative to
+// the compiler emitting instructions in the prologue for doing the same thing
+// by accessing the ring buffer directly.
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_add_frame_record(u64 frame_record_info);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void *__hwasan_memcpy(void *dst, const void *src, uptr size);
+SANITIZER_INTERFACE_ATTRIBUTE
+void *__hwasan_memset(void *s, int c, uptr n);
+SANITIZER_INTERFACE_ATTRIBUTE
+void *__hwasan_memmove(void *dest, const void *src, uptr n);
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __hwasan_set_error_report_callback(void (*callback)(const char *));
 }  // extern "C"
 
 #endif  // HWASAN_INTERFACE_INTERNAL_H

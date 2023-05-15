@@ -1,9 +1,8 @@
 #===- llvm/utils/docker/nvidia-cuda/build/Dockerfile ---------------------===//
 #
-#                     The LLVM Compiler Infrastructure
-#
-# This file is distributed under the University of Illinois Open Source
-# License. See LICENSE.TXT for details.
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
 #===----------------------------------------------------------------------===//
 # Stage 1. Check out LLVM source code and run the build.
@@ -12,7 +11,7 @@ LABEL maintainer "LLVM Developers"
 # Install llvm build dependencies.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates cmake python \
-        subversion ninja-build && \
+        subversion ninja-build git && \
     rm -rf /var/lib/apt/lists/*
 
 ADD checksums /tmp/checksums

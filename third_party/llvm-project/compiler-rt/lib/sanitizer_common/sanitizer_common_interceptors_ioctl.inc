@@ -1,9 +1,8 @@
 //===-- sanitizer_common_interceptors_ioctl.inc -----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -116,11 +115,19 @@ static void ioctl_table_fill() {
   // _(SOUND_MIXER_WRITE_MUTE, WRITE, sizeof(int)); // same as ...WRITE_ENHANCE
   _(BLKFLSBUF, NONE, 0);
   _(BLKGETSIZE, WRITE, sizeof(uptr));
-  _(BLKRAGET, WRITE, sizeof(int));
+  _(BLKRAGET, WRITE, sizeof(uptr));
   _(BLKRASET, NONE, 0);
   _(BLKROGET, WRITE, sizeof(int));
   _(BLKROSET, READ, sizeof(int));
   _(BLKRRPART, NONE, 0);
+  _(BLKFRASET, NONE, 0);
+  _(BLKFRAGET, WRITE, sizeof(uptr));
+  _(BLKSECTSET, READ, sizeof(short));
+  _(BLKSECTGET, WRITE, sizeof(short));
+  _(BLKSSZGET, WRITE, sizeof(int));
+  _(BLKBSZGET, WRITE, sizeof(int));
+  _(BLKBSZSET, READ, sizeof(uptr));
+  _(BLKGETSIZE64, WRITE, sizeof(u64));
   _(CDROMEJECT, NONE, 0);
   _(CDROMEJECT_SW, NONE, 0);
   _(CDROMMULTISESSION, WRITE, struct_cdrom_multisession_sz);
@@ -331,13 +338,17 @@ static void ioctl_table_fill() {
   _(SOUND_PCM_WRITE_CHANNELS, WRITE, sizeof(int));
   _(SOUND_PCM_WRITE_FILTER, WRITE, sizeof(int));
   _(TCFLSH, NONE, 0);
+#if SANITIZER_GLIBC
   _(TCGETA, WRITE, struct_termio_sz);
+#endif
   _(TCGETS, WRITE, struct_termios_sz);
   _(TCSBRK, NONE, 0);
   _(TCSBRKP, NONE, 0);
+#if SANITIZER_GLIBC
   _(TCSETA, READ, struct_termio_sz);
   _(TCSETAF, READ, struct_termio_sz);
   _(TCSETAW, READ, struct_termio_sz);
+#endif
   _(TCSETS, READ, struct_termios_sz);
   _(TCSETSF, READ, struct_termios_sz);
   _(TCSETSW, READ, struct_termios_sz);
@@ -365,17 +376,8 @@ static void ioctl_table_fill() {
   _(VT_WAITACTIVE, NONE, 0);
 #endif
 
-#if SANITIZER_LINUX && !SANITIZER_ANDROID
+#if SANITIZER_GLIBC
   // _(SIOCDEVPLIP, WRITE, struct_ifreq_sz); // the same as EQL_ENSLAVE
-  _(CYGETDEFTHRESH, WRITE, sizeof(int));
-  _(CYGETDEFTIMEOUT, WRITE, sizeof(int));
-  _(CYGETMON, WRITE, struct_cyclades_monitor_sz);
-  _(CYGETTHRESH, WRITE, sizeof(int));
-  _(CYGETTIMEOUT, WRITE, sizeof(int));
-  _(CYSETDEFTHRESH, NONE, 0);
-  _(CYSETDEFTIMEOUT, NONE, 0);
-  _(CYSETTHRESH, NONE, 0);
-  _(CYSETTIMEOUT, NONE, 0);
   _(EQL_EMANCIPATE, WRITE, struct_ifreq_sz);
   _(EQL_ENSLAVE, WRITE, struct_ifreq_sz);
   _(EQL_GETMASTRCFG, WRITE, struct_ifreq_sz);

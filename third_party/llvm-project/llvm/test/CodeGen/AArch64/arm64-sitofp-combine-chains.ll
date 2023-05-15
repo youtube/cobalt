@@ -5,17 +5,17 @@
 ; operations in this function both ended up direct successors to the EntryToken
 ; and could be reordered.
 
-@var = global i32 0, align 4
+@var = dso_local global i32 0, align 4
 
-define float @foo() {
+define dso_local float @foo() {
 ; CHECK-LABEL: foo:
   ; Load must come before we clobber @var
 ; CHECK: adrp x[[VARBASE:[0-9]+]], {{_?var}}
 ; CHECK: ldr [[SREG:s[0-9]+]], [x[[VARBASE]],
 ; CHECK: str wzr, [x[[VARBASE]],
 
-  %val = load i32, i32* @var, align 4
-  store i32 0, i32* @var, align 4
+  %val = load i32, ptr @var, align 4
+  store i32 0, ptr @var, align 4
 
   %fltval = sitofp i32 %val to float
   ret float %fltval

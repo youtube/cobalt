@@ -1,9 +1,8 @@
 //===- Consumed.h -----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -154,8 +153,7 @@ namespace consumed {
   public:
     ConsumedStateMap() = default;
     ConsumedStateMap(const ConsumedStateMap &Other)
-        : Reachable(Other.Reachable), From(Other.From), VarMap(Other.VarMap),
-          TmpMap() {}
+        : Reachable(Other.Reachable), From(Other.From), VarMap(Other.VarMap) {}
 
     /// Warn if any of the parameters being tracked are not in the state
     /// they were declared to be in upon return from a function.

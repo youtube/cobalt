@@ -2,7 +2,7 @@
 ; RUN: llc -mtriple=arm64-apple-ios -disable-post-ra -verify-machineinstrs -o - %s | FileCheck %s --check-prefix=CHECK-MACHO
 ; RUN: llc -mtriple=aarch64-none-linux-gnu -disable-post-ra -mattr=-fp-armv8 -verify-machineinstrs < %s | FileCheck --check-prefix=CHECK-NOFP-ARM64 %s
 
-declare void @use_addr(i8*)
+declare void @use_addr(ptr)
 
 define void @test_simple_alloca(i64 %n) {
 ; CHECK-LABEL: test_simple_alloca:
@@ -19,7 +19,7 @@ define void @test_simple_alloca(i64 %n) {
 ; CHECK: sub [[NEWSP:x[0-9]+]], [[TMP]], [[SPDELTA]]
 ; CHECK: mov sp, [[NEWSP]]
 
-  call void @use_addr(i8* %buf)
+  call void @use_addr(ptr %buf)
 ; CHECK: bl use_addr
 
   ret void
@@ -28,7 +28,7 @@ define void @test_simple_alloca(i64 %n) {
 ; CHECK: ret
 }
 
-declare void @use_addr_loc(i8*, i64*)
+declare void @use_addr_loc(ptr, ptr)
 
 define i64 @test_alloca_with_local(i64 %n) {
 ; CHECK-LABEL: test_alloca_with_local:
@@ -49,10 +49,10 @@ define i64 @test_alloca_with_local(i64 %n) {
 
 ; CHECK: sub {{x[0-9]+}}, x29, #[[LOC_FROM_FP:[0-9]+]]
 
-  call void @use_addr_loc(i8* %buf, i64* %loc)
+  call void @use_addr_loc(ptr %buf, ptr %loc)
 ; CHECK: bl use_addr
 
-  %val = load i64, i64* %loc
+  %val = load i64, ptr %loc
 
 ; CHECK: ldur x0, [x29, #-[[LOC_FROM_FP]]]
 
@@ -78,28 +78,28 @@ define void @test_variadic_alloca(i64 %n, ...) {
 ; CHECK: stp     x29, x30, [sp, #-16]!
 ; CHECK: mov     x29, sp
 ; CHECK: sub     sp, sp, #192
-; CHECK: stp     q6, q7, [x29, #-96]
+; CHECK-DAG: stp     q6, q7, [x29, #-96]
 ; [...]
-; CHECK: stp     q0, q1, [x29, #-192]
+; CHECK-DAG: stp     q0, q1, [x29, #-192]
 
-; CHECK: stp     x6, x7, [x29, #-16]
+; CHECK-DAG: stp     x5, x6, [x29, #-24]
 ; [...]
-; CHECK: stp     x2, x3, [x29, #-48]
+; CHECK-DAG: stp     x1, x2, [x29, #-56]
 
 ; CHECK-NOFP-ARM64: stp     x29, x30, [sp, #-16]!
 ; CHECK-NOFP-ARM64: mov     x29, sp
 ; CHECK-NOFP-ARM64: sub     sp, sp, #64
-; CHECK-NOFP-ARM64: stp     x6, x7, [x29, #-16]
+; CHECK-NOFP-ARM64-DAG: stp     x5, x6, [x29, #-24]
 ; [...]
-; CHECK-NOFP-ARM64: stp     x4, x5, [x29, #-32]
+; CHECK-NOFP-ARM64-DAG: stp     x3, x4, [x29, #-40]
 ; [...]
-; CHECK-NOFP-ARM64: stp     x2, x3, [x29, #-48]
+; CHECK-NOFP-ARM64-DAG: stp     x1, x2, [x29, #-56]
 ; [...]
 ; CHECK-NOFP-ARM64: mov     x8, sp
 
   %addr = alloca i8, i64 %n
 
-  call void @use_addr(i8* %addr)
+  call void @use_addr(ptr %addr)
 ; CHECK: bl use_addr
 
   ret void
@@ -117,9 +117,9 @@ define void @test_alloca_large_frame(i64 %n) {
 ; CHECK-MACHO-LABEL: test_alloca_large_frame:
 
 
-; CHECK: stp     x28, x19, [sp, #-32]!
-; CHECK: stp     x29, x30, [sp, #16]
-; CHECK: add     x29, sp, #16
+; CHECK: stp     x29, x30, [sp, #-32]!
+; CHECK: stp     x28, x19, [sp, #16]
+; CHECK: mov     x29, sp
 ; CHECK: sub     sp, sp, #1953, lsl #12
 ; CHECK: sub     sp, sp, #512
 
@@ -132,26 +132,27 @@ define void @test_alloca_large_frame(i64 %n) {
   %addr1 = alloca i8, i64 %n
   %addr2 = alloca i64, i64 1000000
 
-  call void @use_addr_loc(i8* %addr1, i64* %addr2)
+  call void @use_addr_loc(ptr %addr1, ptr %addr2)
 
   ret void
 
-; CHECK: sub     sp, x29, #16
-; CHECK: ldp     x29, x30, [sp, #16]
-; CHECK: ldp     x28, x19, [sp], #32
+; CHECK: mov     sp, x29
+; CHECK: ldp     x28, x19, [sp, #16]
+; CHECK: ldp     x29, x30, [sp], #32
 
 ; CHECK-MACHO: sub     sp, x29, #16
 ; CHECK-MACHO: ldp     x29, x30, [sp, #16]
 ; CHECK-MACHO: ldp     x20, x19, [sp], #32
 }
 
-declare i8* @llvm.stacksave()
-declare void @llvm.stackrestore(i8*)
+declare ptr @llvm.stacksave()
+declare void @llvm.stackrestore(ptr)
 
 define void @test_scoped_alloca(i64 %n) {
 ; CHECK-LABEL: test_scoped_alloca:
 
-  %sp = call i8* @llvm.stacksave()
+  %sp = call ptr @llvm.stacksave()
+; CHECK: mov x29, sp
 ; CHECK: mov [[SAVED_SP:x[0-9]+]], sp
 ; CHECK: mov [[OLDSP:x[0-9]+]], sp
 
@@ -160,10 +161,10 @@ define void @test_scoped_alloca(i64 %n) {
 ; CHECK-DAG: sub [[NEWSP:x[0-9]+]], [[OLDSP]], [[SPDELTA]]
 ; CHECK: mov sp, [[NEWSP]]
 
-  call void @use_addr(i8* %addr)
+  call void @use_addr(ptr %addr)
 ; CHECK: bl use_addr
 
-  call void @llvm.stackrestore(i8* %sp)
+  call void @llvm.stackrestore(ptr %sp)
 ; CHECK: mov sp, [[SAVED_SP]]
 
   ret void

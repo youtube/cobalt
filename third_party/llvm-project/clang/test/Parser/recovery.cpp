@@ -133,7 +133,10 @@ Foo<int> missingSemiBeforeFunctionReturningTemplateId2();
 namespace PR17084 {
 enum class EnumID {};
 template <typename> struct TempID;
-template <> struct TempID<BadType> : BadType, EnumID::Garbage; // expected-error{{use of undeclared identifier 'BadType'}}
+template <> struct TempID<BadType> // expected-error{{use of undeclared identifier 'BadType'}}
+  : BadType, // expected-error {{expected class name}}
+    EnumID::Garbage // expected-error {{expected class name}}
+  ; // expected-error@-1 {{expected '{' after base class list}}
 }
 
 namespace pr15133 {
@@ -206,7 +209,7 @@ namespace pr15133 {
 namespace InvalidEmptyNames {
 // These shouldn't crash, the diagnostics aren't important.
 struct ::, struct ::; // expected-error 2 {{expected identifier}} expected-error 2 {{declaration of anonymous struct must be a definition}} expected-warning {{declaration does not declare anything}}
-enum ::, enum ::; // expected-error 2 {{expected identifier}} expected-warning {{declaration does not declare anything}}
+enum ::, enum ::; // expected-error 2 {{expected identifier}}
 struct ::__super, struct ::__super; // expected-error 2 {{expected identifier}} expected-error 2 {{expected '::' after '__super'}}
 struct ::template foo, struct ::template bar; // expected-error 2 {{expected identifier}} expected-error 2 {{declaration of anonymous struct must be a definition}} expected-warning {{declaration does not declare anything}}
 struct ::foo struct::; // expected-error {{no struct named 'foo' in the global namespace}} expected-error {{expected identifier}} expected-error {{declaration of anonymous struct must be a definition}}

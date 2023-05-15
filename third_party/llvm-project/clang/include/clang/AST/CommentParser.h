@@ -1,9 +1,8 @@
 //===--- CommentParser.h - Doxygen comment parser ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -98,9 +97,8 @@ public:
   void parseTParamCommandArgs(TParamCommandComment *TPC,
                               TextTokenRetokenizer &Retokenizer);
 
-  void parseBlockCommandArgs(BlockCommandComment *BC,
-                             TextTokenRetokenizer &Retokenizer,
-                             unsigned NumArgs);
+  ArrayRef<Comment::Argument>
+  parseCommandArgs(TextTokenRetokenizer &Retokenizer, unsigned NumArgs);
 
   BlockCommandComment *parseBlockCommand();
   InlineCommandComment *parseInlineCommand();

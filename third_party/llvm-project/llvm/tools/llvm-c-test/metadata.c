@@ -1,9 +1,9 @@
 /*===-- object.c - tool for testing libLLVM and llvm-c API ----------------===*\
 |*                                                                            *|
-|*                     The LLVM Compiler Infrastructure                       *|
-|*                                                                            *|
-|* This file is distributed under the University of Illinois Open Source      *|
-|* License. See LICENSE.TXT for details.                                      *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
 |*                                                                            *|
 |*===----------------------------------------------------------------------===*|
 |*                                                                            *|
@@ -31,12 +31,11 @@ int llvm_set_metadata(void) {
   LLVMValueRef values[] = { LLVMConstInt(LLVMInt32Type(), 0, 0) };
 
   // This used to trigger an assertion
-  LLVMSetMetadata(
-      LLVMBuildRetVoid(b),
-      LLVMGetMDKindID("kind", 4),
-      LLVMMDNode(values, 1));
+  LLVMValueRef ret = LLVMBuildRetVoid(b);
+  LLVMSetMetadata(ret, LLVMGetMDKindID("kind", 4), LLVMMDNode(values, 1));
 
   LLVMDisposeBuilder(b);
+  LLVMDeleteInstruction(ret);
 
   return 0;
 }

@@ -1,4 +1,4 @@
-; RUN: opt -thinlto-bc -o %t %s
+; RUN: opt -thinlto-bc -thinlto-split-lto-unit -o %t %s
 ; RUN: llvm-modextract -n 1 -o - %t | llvm-dis | FileCheck %s
 
 ; The target assembly parser is required to parse the symver directives
@@ -14,9 +14,9 @@ declare !type !0 void @used()
 declare !type !0 void @unused()
 @variable = global i32 0
 
-define i32* @use() {
+define ptr @use() {
   call void @used()
-  ret i32* @variable
+  ret ptr @variable
 }
 
 ; CHECK: !symvers = !{![[SYMVER:[0-9]+]]}

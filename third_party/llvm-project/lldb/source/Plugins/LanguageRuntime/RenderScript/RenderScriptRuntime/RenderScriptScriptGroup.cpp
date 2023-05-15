@@ -1,9 +1,8 @@
-//===-- RenderScriptScriptGroup.cpp -----------------------------*- C++ -*-===//
+//===-- RenderScriptScriptGroup.cpp ---------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,7 +39,10 @@ public:
             interpreter, "renderscript scriptgroup breakpoint set",
             "Place a breakpoint on all kernels forming a script group.",
             "renderscript scriptgroup breakpoint set <group_name>",
-            eCommandRequiresProcess | eCommandProcessMustBeLaunched) {}
+            eCommandRequiresProcess | eCommandProcessMustBeLaunched) {
+    CommandArgumentData name_arg{eArgTypeName, eArgRepeatPlus};
+    m_arguments.push_back({name_arg});
+  }
 
   ~CommandObjectRenderScriptScriptGroupBreakpointSet() override = default;
 

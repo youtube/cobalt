@@ -1,9 +1,8 @@
 //===--- UseToStringCheck.cpp - clang-tidy---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,9 +10,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace boost {
+namespace clang::tidy::boost {
 
 namespace {
 AST_MATCHER(Type, isStrictlyInteger) {
@@ -23,9 +20,6 @@ AST_MATCHER(Type, isStrictlyInteger) {
 } // namespace
 
 void UseToStringCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   Finder->addMatcher(
       callExpr(
           hasDeclaration(functionDecl(
@@ -56,7 +50,7 @@ void UseToStringCheck::check(const MatchFinder::MatchResult &Result) {
   else
     return;
 
-  auto Loc = Call->getLocStart();
+  auto Loc = Call->getBeginLoc();
   auto Diag =
       diag(Loc, "use std::to_%0 instead of boost::lexical_cast<std::%0>")
       << StringType;
@@ -65,11 +59,9 @@ void UseToStringCheck::check(const MatchFinder::MatchResult &Result) {
     return;
 
   Diag << FixItHint::CreateReplacement(
-      CharSourceRange::getCharRange(Call->getLocStart(),
-                                    Call->getArg(0)->getLocStart()),
+      CharSourceRange::getCharRange(Call->getBeginLoc(),
+                                    Call->getArg(0)->getBeginLoc()),
       (llvm::Twine("std::to_") + StringType + "(").str());
 }
 
-} // namespace boost
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::boost

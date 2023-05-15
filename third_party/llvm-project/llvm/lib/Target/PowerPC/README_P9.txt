@@ -310,7 +310,7 @@ VSX:
   . I checked existing instruction "XSCMPUDP". They are different in target
     register. "XSCMPUDP" write to CR field, xscmp*dp write to VSX register
 
-  . Use instrinsic:
+  . Use intrinsic:
     (set i128:$XT, (int_ppc_vsx_xscmpeqdp f64:$XA, f64:$XB))
     (set i128:$XT, (int_ppc_vsx_xscmpgedp f64:$XA, f64:$XB))
     (set i128:$XT, (int_ppc_vsx_xscmpgtdp f64:$XA, f64:$XB))
@@ -322,7 +322,7 @@ VSX:
                                  "xvcmpeqdp", "$XT, $XA, $XB", IIC_VecFPCompare,
                                  int_ppc_vsx_xvcmpeqdp, v2i64, v2f64>;
 
-  . So we should use "XX3Form_Rcr" to implement instrinsic
+  . So we should use "XX3Form_Rcr" to implement intrinsic
 
 - Convert DP -> QP: xscvdpqp
   . Similar to XSCVDPSP:
@@ -512,8 +512,8 @@ Fixed Point Facility:
                         "lxsdx $XT, $src", IIC_LdStLFD,
                         [(set f64:$XT, (load xoaddr:$src))]>;
 
-  . (set f64:$XT, (load ixaddr:$src))
-    (set f64:$XT, (store ixaddr:$dst))
+  . (set f64:$XT, (load iaddrX4:$src))
+    (set f64:$XT, (store iaddrX4:$dst))
 
 - Load/Store SP, with conversion from/to DP: lxssp stxssp
   . Similar to lxsspx/stxsspx:
@@ -521,8 +521,8 @@ Fixed Point Facility:
                          "lxsspx $XT, $src", IIC_LdStLFD,
                          [(set f32:$XT, (load xoaddr:$src))]>;
 
-  . (set f32:$XT, (load ixaddr:$src))
-    (set f32:$XT, (store ixaddr:$dst))
+  . (set f32:$XT, (load iaddrX4:$src))
+    (set f32:$XT, (store iaddrX4:$dst))
 
 - Load as Integer Byte/Halfword & Zero Indexed: lxsibzx lxsihzx
   . Similar to lxsiwzx:
@@ -578,11 +578,6 @@ Atomic operations (l[dw]at, st[dw]at):
 - Ensure the operands are in the correct register (i.e. RT+1, RT+2)
 - Provide builtins since not all FC's necessarily have an existing LLVM
   atomic operation
-
-Load Doubleword Monitored (ldmx):
-- Investigate whether there are any uses for this. It seems to be related to
-  Garbage Collection so it isn't likely to be all that useful for most
-  languages we deal with.
 
 Move to CR from XER Extended (mcrxrx):
 - Is there a use for this in LLVM?

@@ -1,92 +1,80 @@
 //===-- PlatformMacOSX.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PlatformMacOSX_h_
-#define liblldb_PlatformMacOSX_h_
+#ifndef LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMMACOSX_H
+#define LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMMACOSX_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
-#include "PlatformDarwin.h"
+#include "PlatformDarwinDevice.h"
+#include "lldb/Target/Platform.h"
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/Utility/XcodeSDK.h"
+#include "lldb/lldb-forward.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 
-class PlatformMacOSX : public PlatformDarwin {
+#include <vector>
+
+namespace lldb_private {
+class ArchSpec;
+class FileSpec;
+class FileSpecList;
+class ModuleSpec;
+class Process;
+class Target;
+
+class PlatformMacOSX : public PlatformDarwinDevice {
 public:
-  PlatformMacOSX(bool is_host);
+  PlatformMacOSX();
 
-  ~PlatformMacOSX() override;
-
-  //------------------------------------------------------------
-  // Class functions
-  //------------------------------------------------------------
-  static lldb::PlatformSP CreateInstance(bool force,
-                                         const lldb_private::ArchSpec *arch);
+  static lldb::PlatformSP CreateInstance(bool force, const ArchSpec *arch);
 
   static void Initialize();
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic(bool is_host);
-
-  static const char *GetDescriptionStatic(bool is_host);
-
-  //------------------------------------------------------------
-  // lldb_private::PluginInterface functions
-  //------------------------------------------------------------
-  lldb_private::ConstString GetPluginName() override {
-    return GetPluginNameStatic(IsHost());
+  static llvm::StringRef GetPluginNameStatic() {
+    return Platform::GetHostPlatformName();
   }
 
-  uint32_t GetPluginVersion() override { return 1; }
+  static llvm::StringRef GetDescriptionStatic();
 
-  lldb_private::Status
-  GetSharedModule(const lldb_private::ModuleSpec &module_spec,
-                  lldb_private::Process *process, lldb::ModuleSP &module_sp,
-                  const lldb_private::FileSpecList *module_search_paths_ptr,
-                  lldb::ModuleSP *old_module_sp_ptr,
-                  bool *did_create_ptr) override;
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
-  const char *GetDescription() override {
-    return GetDescriptionStatic(IsHost());
-  }
+  Status GetSharedModule(const ModuleSpec &module_spec, Process *process,
+                         lldb::ModuleSP &module_sp,
+                         const FileSpecList *module_search_paths_ptr,
+                         llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules,
+                         bool *did_create_ptr) override;
 
-  lldb_private::Status
-  GetSymbolFile(const lldb_private::FileSpec &platform_file,
-                const lldb_private::UUID *uuid_ptr,
-                lldb_private::FileSpec &local_file);
+  llvm::StringRef GetDescription() override { return GetDescriptionStatic(); }
 
-  lldb_private::Status
-  GetFile(const lldb_private::FileSpec &source,
-          const lldb_private::FileSpec &destination) override {
+  Status GetFile(const FileSpec &source, const FileSpec &destination) override {
     return PlatformDarwin::GetFile(source, destination);
   }
 
-  lldb_private::Status
-  GetFileWithUUID(const lldb_private::FileSpec &platform_file,
-                  const lldb_private::UUID *uuid_ptr,
-                  lldb_private::FileSpec &local_file) override;
+  std::vector<ArchSpec>
+  GetSupportedArchitectures(const ArchSpec &process_host_arch) override;
 
-  bool GetSupportedArchitectureAtIndex(uint32_t idx,
-                                       lldb_private::ArchSpec &arch) override;
-
-  lldb_private::ConstString
-  GetSDKDirectory(lldb_private::Target &target) override;
+  ConstString GetSDKDirectory(Target &target) override;
 
   void
-  AddClangModuleCompilationOptions(lldb_private::Target *target,
+  AddClangModuleCompilationOptions(Target *target,
                                    std::vector<std::string> &options) override {
     return PlatformDarwin::AddClangModuleCompilationOptionsForSDKType(
-        target, options, PlatformDarwin::SDKType::MacOSX);
+        target, options, XcodeSDK::Type::MacOSX);
   }
 
-private:
-  DISALLOW_COPY_AND_ASSIGN(PlatformMacOSX);
+protected:
+  llvm::StringRef GetDeviceSupportDirectoryName() override;
+  llvm::StringRef GetPlatformName() override;
 };
 
-#endif // liblldb_PlatformMacOSX_h_
+} // namespace lldb_private
+
+#endif // LLDB_SOURCE_PLUGINS_PLATFORM_MACOSX_PLATFORMMACOSX_H

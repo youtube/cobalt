@@ -1,10 +1,9 @@
 ##===----------------------------------------------------------------------===##
-# 
-#                     The LLVM Compiler Infrastructure
 #
-# This file is dual licensed under the MIT and the University of Illinois Open
-# Source Licenses. See LICENSE.txt for details.
-# 
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#
 ##===----------------------------------------------------------------------===##
 #
 # Build offloading library libomptarget.so.
@@ -13,19 +12,33 @@
 
 libomptarget_say("Building offloading runtime library libomptarget.")
 
-set(src_files
+add_llvm_library(omptarget
+  SHARED
+
   api.cpp
   device.cpp
   interface.cpp
-  rtl.cpp
+  interop.cpp
   omptarget.cpp
+  ompt_callback.cpp
+  rtl.cpp
+  LegacyAPI.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${LIBOMPTARGET_INCLUDE_DIR}
+
+  LINK_COMPONENTS
+  Support
+  Object
+
+  LINK_LIBS
+  PRIVATE
+  "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports"
+  NO_INSTALL_RPATH
 )
+target_include_directories(omptarget PRIVATE ${LIBOMPTARGET_INCLUDE_DIR})
 
-# Build libomptarget library with libdl dependency.
-add_library(omptarget SHARED ${src_files})
-target_link_libraries(omptarget
-  ${CMAKE_DL_LIBS}
-  "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports")
-
-# Install libomptarget under the lib destination folder.
-install(TARGETS omptarget LIBRARY DESTINATION "${OPENMP_INSTALL_LIBDIR}")
+# libomptarget.so needs to be aware of where the plugins live as they
+# are now separated in the build directory.
+set_target_properties(omptarget PROPERTIES INSTALL_RPATH "$ORIGIN" BUILD_RPATH "$ORIGIN:${CMAKE_CURRENT_BINARY_DIR}/..")
+install(TARGETS omptarget LIBRARY COMPONENT omptarget DESTINATION "${OPENMP_INSTALL_LIBDIR}")

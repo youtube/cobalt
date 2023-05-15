@@ -1,26 +1,36 @@
 set(LLVM_LINK_COMPONENTS
   DebugInfoCodeView
   DebugInfoDWARF
+  Demangle
   Object
   BinaryFormat
+  Option
   Support
+  TargetParser
   DebugInfoCodeView
   DebugInfoMSF
   DebugInfoPDB
   )
+
+set(LLVM_TARGET_DEFINITIONS Opts.td)
+tablegen(LLVM Opts.inc -gen-opt-parser-defs)
+add_public_tablegen_target(ReadobjOptsTableGen)
 
 add_llvm_tool(llvm-readobj
   ARMWinEHPrinter.cpp
   COFFDumper.cpp
   COFFImportDumper.cpp
   ELFDumper.cpp
-  Error.cpp
   llvm-readobj.cpp
   MachODumper.cpp
   ObjDumper.cpp
   WasmDumper.cpp
   Win64EHDumper.cpp
   WindowsResourceDumper.cpp
+  XCOFFDumper.cpp
+  DEPENDS
+  ReadobjOptsTableGen
+  GENERATE_DRIVER
   )
 
 add_llvm_tool_symlink(llvm-readelf llvm-readobj)

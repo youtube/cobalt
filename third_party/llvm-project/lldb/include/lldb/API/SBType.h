@@ -1,14 +1,13 @@
 //===-- SBType.h ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_SBType_h_
-#define LLDB_SBType_h_
+#ifndef LLDB_API_SBTYPE_H
+#define LLDB_API_SBTYPE_H
 
 #include "lldb/API/SBDefines.h"
 
@@ -25,6 +24,8 @@ public:
   ~SBTypeMember();
 
   lldb::SBTypeMember &operator=(const lldb::SBTypeMember &rhs);
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -52,7 +53,7 @@ protected:
 
   const lldb_private::TypeMemberImpl &ref() const;
 
-  std::unique_ptr<lldb_private::TypeMemberImpl> m_opaque_ap;
+  std::unique_ptr<lldb_private::TypeMemberImpl> m_opaque_up;
 };
 
 class SBTypeMemberFunction {
@@ -64,6 +65,8 @@ public:
   ~SBTypeMemberFunction();
 
   lldb::SBTypeMemberFunction &operator=(const lldb::SBTypeMemberFunction &rhs);
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -103,8 +106,11 @@ public:
   SBType();
 
   SBType(const lldb::SBType &rhs);
+  SBType(const lldb::TypeImplSP &);
 
   ~SBType();
+
+  explicit operator bool() const;
 
   bool IsValid() const;
 
@@ -126,6 +132,10 @@ public:
 
   bool IsAnonymousType();
 
+  bool IsScopedEnumerationType();
+
+  bool IsAggregateType();
+
   lldb::SBType GetPointerType();
 
   lldb::SBType GetPointeeType();
@@ -145,6 +155,9 @@ public:
   lldb::SBType GetVectorElementType();
 
   lldb::SBType GetCanonicalType();
+
+  lldb::SBType GetEnumerationIntegerType();
+
   // Get the "lldb::BasicType" enumeration for a type. If a type is not a basic
   // type eBasicTypeInvalid will be returned
   lldb::BasicType GetBasicType();
@@ -170,6 +183,8 @@ public:
 
   lldb::SBType GetTemplateArgumentType(uint32_t idx);
 
+  /// Return the TemplateArgumentKind of the template argument at index idx.
+  /// Variadic argument packs are automatically expanded.
   lldb::TemplateArgumentKind GetTemplateArgumentKind(uint32_t idx);
 
   lldb::SBType GetFunctionReturnType();
@@ -179,6 +194,8 @@ public:
   uint32_t GetNumberOfMemberFunctions();
 
   lldb::SBTypeMemberFunction GetMemberFunctionAtIndex(uint32_t idx);
+
+  lldb::SBModule GetModule();
 
   const char *GetName();
 
@@ -223,7 +240,6 @@ protected:
 
   SBType(const lldb_private::CompilerType &);
   SBType(const lldb::TypeSP &);
-  SBType(const lldb::TypeImplSP &);
 };
 
 class SBTypeList {
@@ -236,6 +252,8 @@ public:
 
   lldb::SBTypeList &operator=(const lldb::SBTypeList &rhs);
 
+  explicit operator bool() const;
+
   bool IsValid();
 
   void Append(lldb::SBType type);
@@ -245,11 +263,11 @@ public:
   uint32_t GetSize();
 
 private:
-  std::unique_ptr<lldb_private::TypeListImpl> m_opaque_ap;
+  std::unique_ptr<lldb_private::TypeListImpl> m_opaque_up;
   friend class SBModule;
   friend class SBCompileUnit;
 };
 
 } // namespace lldb
 
-#endif // LLDB_SBType_h_
+#endif // LLDB_API_SBTYPE_H

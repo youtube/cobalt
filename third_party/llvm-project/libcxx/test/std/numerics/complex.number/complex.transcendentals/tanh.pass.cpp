@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,6 +15,7 @@
 #include <complex>
 #include <cassert>
 
+#include "test_macros.h"
 #include "../cases.h"
 
 template <class T>
@@ -57,18 +57,18 @@ void test_edges()
         }
         else if (std::isinf(testcases[i].real()) && std::isfinite(testcases[i].imag()))
         {
-            assert(r.real() == 1);
+            assert(r.real() == (testcases[i].real() > 0 ? 1 : -1));
             assert(r.imag() == 0);
-            assert(std::signbit(r.imag()) == std::signbit(sin(2*testcases[i].imag())));
+            assert(std::signbit(r.imag()) == std::signbit(sin(2 * testcases[i].imag())));
         }
         else if (std::isinf(testcases[i].real()) && std::isinf(testcases[i].imag()))
         {
-            assert(r.real() == 1);
+            assert(r.real() == (testcases[i].real() > 0 ? 1 : -1));
             assert(r.imag() == 0);
         }
         else if (std::isinf(testcases[i].real()) && std::isnan(testcases[i].imag()))
         {
-            assert(r.real() == 1);
+            assert(r.real() == (testcases[i].real() > 0 ? 1 : -1));
             assert(r.imag() == 0);
         }
         else if (std::isnan(testcases[i].real()) && testcases[i].imag() == 0)
@@ -90,10 +90,12 @@ void test_edges()
     }
 }
 
-int main()
+int main(int, char**)
 {
     test<float>();
     test<double>();
     test<long double>();
     test_edges();
+
+  return 0;
 }

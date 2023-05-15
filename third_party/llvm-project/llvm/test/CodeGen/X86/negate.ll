@@ -42,8 +42,9 @@ define <4 x i32> @negate_zero_or_minsigned_nsw_vec(<4 x i32> %x) {
 define i8 @negate_zero_or_minsigned(i8 %x) {
 ; CHECK-LABEL: negate_zero_or_minsigned:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    shlb $7, %dil
 ; CHECK-NEXT:    movl %edi, %eax
+; CHECK-NEXT:    shlb $7, %al
+; CHECK-NEXT:    # kill: def $al killed $al killed $eax
 ; CHECK-NEXT:    retq
   %signbit = shl i8 %x, 7
   %neg = sub i8 0, %signbit
@@ -53,7 +54,7 @@ define i8 @negate_zero_or_minsigned(i8 %x) {
 define <4 x i32> @negate_zero_or_minsigned_vec(<4 x i32> %x) {
 ; CHECK-LABEL: negate_zero_or_minsigned_vec:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    andps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    andps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %signbit = and <4 x i32> %x, <i32 2147483648, i32 2147483648, i32 2147483648, i32 2147483648>
   %neg = sub <4 x i32> zeroinitializer, %signbit

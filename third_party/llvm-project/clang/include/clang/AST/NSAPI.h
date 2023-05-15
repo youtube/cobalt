@@ -1,9 +1,8 @@
 //===--- NSAPI.h - NSFoundation APIs ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,7 @@
 
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 
 namespace clang {
   class ASTContext;
@@ -56,9 +55,6 @@ public:
   /// The Objective-C NSString selectors.
   Selector getNSStringSelector(NSStringMethodKind MK) const;
 
-  /// Return NSStringMethodKind if \param Sel is such a selector.
-  Optional<NSStringMethodKind> getNSStringMethodKind(Selector Sel) const;
-
   /// Returns true if the expression \param E is a reference of
   /// "NSUTF8StringEncoding" enum constant.
   bool isNSUTF8StringEncodingConstant(const Expr *E) const {
@@ -93,7 +89,7 @@ public:
   Selector getNSArraySelector(NSArrayMethodKind MK) const;
 
   /// Return NSArrayMethodKind if \p Sel is such a selector.
-  Optional<NSArrayMethodKind> getNSArrayMethodKind(Selector Sel);
+  std::optional<NSArrayMethodKind> getNSArrayMethodKind(Selector Sel);
 
   /// Enumerates the NSDictionary/NSMutableDictionary methods used
   /// to generate literals and to apply some checks.
@@ -118,7 +114,7 @@ public:
   Selector getNSDictionarySelector(NSDictionaryMethodKind MK) const;
 
   /// Return NSDictionaryMethodKind if \p Sel is such a selector.
-  Optional<NSDictionaryMethodKind> getNSDictionaryMethodKind(Selector Sel);
+  std::optional<NSDictionaryMethodKind> getNSDictionaryMethodKind(Selector Sel);
 
   /// Enumerates the NSMutableSet/NSOrderedSet methods used
   /// to apply some checks.
@@ -135,7 +131,7 @@ public:
   Selector getNSSetSelector(NSSetMethodKind MK) const;
 
   /// Return NSSetMethodKind if \p Sel is such a selector.
-  Optional<NSSetMethodKind> getNSSetMethodKind(Selector Sel);
+  std::optional<NSSetMethodKind> getNSSetMethodKind(Selector Sel);
 
   /// Returns selector for "objectForKeyedSubscript:".
   Selector getObjectForKeyedSubscriptSelector() const {
@@ -164,6 +160,14 @@ public:
   /// Returns selector for "isEqual:".
   Selector getIsEqualSelector() const {
     return getOrInitSelector(StringRef("isEqual"), isEqualSel);
+  }
+
+  Selector getNewSelector() const {
+    return getOrInitNullarySelector("new", NewSel);
+  }
+
+  Selector getInitSelector() const {
+    return getOrInitNullarySelector("init", InitSel);
   }
 
   /// Enumerates the NSNumber methods used to generate literals.
@@ -199,13 +203,13 @@ public:
   }
 
   /// Return NSNumberLiteralMethodKind if \p Sel is such a selector.
-  Optional<NSNumberLiteralMethodKind>
-      getNSNumberLiteralMethodKind(Selector Sel) const;
+  std::optional<NSNumberLiteralMethodKind>
+  getNSNumberLiteralMethodKind(Selector Sel) const;
 
   /// Determine the appropriate NSNumber factory method kind for a
   /// literal of the given type.
-  Optional<NSNumberLiteralMethodKind>
-      getNSNumberFactoryMethodKind(QualType T) const;
+  std::optional<NSNumberLiteralMethodKind>
+  getNSNumberFactoryMethodKind(QualType T) const;
 
   /// Returns true if \param T is a typedef of "BOOL" in objective-c.
   bool isObjCBOOLType(QualType T) const;
@@ -229,6 +233,7 @@ private:
   bool isObjCEnumerator(const Expr *E,
                         StringRef name, IdentifierInfo *&II) const;
   Selector getOrInitSelector(ArrayRef<StringRef> Ids, Selector &Sel) const;
+  Selector getOrInitNullarySelector(StringRef Id, Selector &Sel) const;
 
   ASTContext &Ctx;
 
@@ -251,7 +256,7 @@ private:
 
   mutable Selector objectForKeyedSubscriptSel, objectAtIndexedSubscriptSel,
                    setObjectForKeyedSubscriptSel,setObjectAtIndexedSubscriptSel,
-                   isEqualSel;
+                   isEqualSel, InitSel, NewSel;
 
   mutable IdentifierInfo *BOOLId, *NSIntegerId, *NSUIntegerId;
   mutable IdentifierInfo *NSASCIIStringEncodingId, *NSUTF8StringEncodingId;

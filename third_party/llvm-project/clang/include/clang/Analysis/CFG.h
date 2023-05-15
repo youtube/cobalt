@@ -1,9 +1,8 @@
 //===- CFG.h - Classes for representing and building CFGs -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -22,8 +21,6 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Allocator.h"
@@ -33,6 +30,7 @@
 #include <cstddef>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace clang {
@@ -104,12 +102,11 @@ public:
     return t;
   }
 
-  /// Convert to the specified CFGElement type, returning None if this
+  /// Convert to the specified CFGElement type, returning std::nullopt if this
   /// CFGElement is not of the desired type.
-  template<typename T>
-  Optional<T> getAs() const {
+  template <typename T> std::optional<T> getAs() const {
     if (!T::isKind(*this))
-      return None;
+      return std::nullopt;
     T t;
     CFGElement& e = t;
     e = *this;
@@ -122,11 +119,17 @@ public:
     x |= Data1.getInt();
     return (Kind) x;
   }
+
+  void dumpToStream(llvm::raw_ostream &OS) const;
+
+  void dump() const {
+    dumpToStream(llvm::errs());
+  }
 };
 
 class CFGStmt : public CFGElement {
 public:
-  explicit CFGStmt(Stmt *S, Kind K = Statement) : CFGElement(K, S) {
+  explicit CFGStmt(const Stmt *S, Kind K = Statement) : CFGElement(K, S) {
     assert(isKind(*this));
   }
 
@@ -150,7 +153,8 @@ protected:
 /// this is only used by the analyzer's CFG.
 class CFGConstructor : public CFGStmt {
 public:
-  explicit CFGConstructor(CXXConstructExpr *CE, const ConstructionContext *C)
+  explicit CFGConstructor(const CXXConstructExpr *CE,
+                          const ConstructionContext *C)
       : CFGStmt(CE, Constructor) {
     assert(C);
     Data2.setPointer(const_cast<ConstructionContext *>(C));
@@ -180,7 +184,7 @@ class CFGCXXRecordTypedCall : public CFGStmt {
 public:
   /// Returns true when call expression \p CE needs to be represented
   /// by CFGCXXRecordTypedCall, as opposed to a regular CFGStmt.
-  static bool isCXXRecordTypedCall(Expr *E) {
+  static bool isCXXRecordTypedCall(const Expr *E) {
     assert(isa<CallExpr>(E) || isa<ObjCMessageExpr>(E));
     // There is no such thing as reference-type expression. If the function
     // returns a reference, it'll return the respective lvalue or xvalue
@@ -189,7 +193,7 @@ public:
            E->getType().getCanonicalType()->getAsCXXRecordDecl();
   }
 
-  explicit CFGCXXRecordTypedCall(Expr *E, const ConstructionContext *C)
+  explicit CFGCXXRecordTypedCall(const Expr *E, const ConstructionContext *C)
       : CFGStmt(E, CXXRecordTypedCall) {
     assert(isCXXRecordTypedCall(E));
     assert(C && (isa<TemporaryObjectConstructionContext>(C) ||
@@ -197,7 +201,8 @@ public:
                  isa<ReturnedValueConstructionContext>(C) ||
                  isa<VariableConstructionContext>(C) ||
                  isa<ConstructorInitializerConstructionContext>(C) ||
-                 isa<ArgumentConstructionContext>(C)));
+                 isa<ArgumentConstructionContext>(C) ||
+                 isa<LambdaCaptureConstructionContext>(C)));
     Data2.setPointer(const_cast<ConstructionContext *>(C));
   }
 
@@ -219,7 +224,7 @@ private:
 /// list.
 class CFGInitializer : public CFGElement {
 public:
-  explicit CFGInitializer(CXXCtorInitializer *initializer)
+  explicit CFGInitializer(const CXXCtorInitializer *initializer)
       : CFGElement(Initializer, initializer) {}
 
   CXXCtorInitializer* getInitializer() const {
@@ -258,7 +263,7 @@ private:
 };
 
 /// Represents the point where a loop ends.
-/// This element is is only produced when building the CFG for the static
+/// This element is only produced when building the CFG for the static
 /// analyzer and hidden behind the 'cfg-loopexit' analyzer config flag.
 ///
 /// Note: a loop exit element can be reached even when the loop body was never
@@ -476,7 +481,7 @@ private:
 /// expression for temporary object.
 class CFGTemporaryDtor : public CFGImplicitDtor {
 public:
-  CFGTemporaryDtor(CXXBindTemporaryExpr *expr)
+  CFGTemporaryDtor(const CXXBindTemporaryExpr *expr)
       : CFGImplicitDtor(TemporaryDtor, expr, nullptr) {}
 
   const CXXBindTemporaryExpr *getBindTemporaryExpr() const {
@@ -495,33 +500,51 @@ private:
 
 /// Represents CFGBlock terminator statement.
 ///
-/// TemporaryDtorsBranch bit is set to true if the terminator marks a branch
-/// in control flow of destructors of temporaries. In this case terminator
-/// statement is the same statement that branches control flow in evaluation
-/// of matching full expression.
 class CFGTerminator {
-  llvm::PointerIntPair<Stmt *, 1> Data;
+public:
+  enum Kind {
+    /// A branch that corresponds to a statement in the code,
+    /// such as an if-statement.
+    StmtBranch,
+    /// A branch in control flow of destructors of temporaries. In this case
+    /// terminator statement is the same statement that branches control flow
+    /// in evaluation of matching full expression.
+    TemporaryDtorsBranch,
+    /// A shortcut around virtual base initializers. It gets taken when
+    /// virtual base classes have already been initialized by the constructor
+    /// of the most derived class while we're in the base class.
+    VirtualBaseBranch,
+
+    /// Number of different kinds, for assertions. We subtract 1 so that
+    /// to keep receiving compiler warnings when we don't cover all enum values
+    /// in a switch.
+    NumKindsMinusOne = VirtualBaseBranch
+  };
+
+private:
+  static constexpr int KindBits = 2;
+  static_assert((1 << KindBits) > NumKindsMinusOne,
+                "Not enough room for kind!");
+  llvm::PointerIntPair<Stmt *, KindBits> Data;
 
 public:
-  CFGTerminator() = default;
-  CFGTerminator(Stmt *S, bool TemporaryDtorsBranch = false)
-      : Data(S, TemporaryDtorsBranch) {}
+  CFGTerminator() { assert(!isValid()); }
+  CFGTerminator(Stmt *S, Kind K = StmtBranch) : Data(S, K) {}
 
+  bool isValid() const { return Data.getOpaqueValue() != nullptr; }
   Stmt *getStmt() { return Data.getPointer(); }
   const Stmt *getStmt() const { return Data.getPointer(); }
+  Kind getKind() const { return static_cast<Kind>(Data.getInt()); }
 
-  bool isTemporaryDtorsBranch() const { return Data.getInt(); }
-
-  operator Stmt *() { return getStmt(); }
-  operator const Stmt *() const { return getStmt(); }
-
-  Stmt *operator->() { return getStmt(); }
-  const Stmt *operator->() const { return getStmt(); }
-
-  Stmt &operator*() { return *getStmt(); }
-  const Stmt &operator*() const { return *getStmt(); }
-
-  explicit operator bool() const { return getStmt(); }
+  bool isStmtBranch() const {
+    return getKind() == StmtBranch;
+  }
+  bool isTemporaryDtorsBranch() const {
+    return getKind() == TemporaryDtorsBranch;
+  }
+  bool isVirtualBaseBranch() const {
+    return getKind() == VirtualBaseBranch;
+  }
 };
 
 /// Represents a single basic block in a source-level CFG.
@@ -542,11 +565,12 @@ public:
 /// Successors: the order in the set of successors is NOT arbitrary.  We
 ///  currently have the following orderings based on the terminator:
 ///
-///     Terminator       Successor Ordering
-///  -----------------------------------------------------
-///       if            Then Block;  Else Block
-///     ? operator      LHS expression;  RHS expression
-///     &&, ||          expression that uses result of && or ||, RHS
+///     Terminator     |   Successor Ordering
+///  ------------------|------------------------------------
+///       if           |  Then Block;  Else Block
+///     ? operator     |  LHS expression;  RHS expression
+///     logical and/or |  expression that consumes the op, RHS
+///     vbase inits    |  already handled by the most derived class; not yet
 ///
 /// But note that any of that may be NULL in case of optimized-out edges.
 class CFGBlock {
@@ -592,6 +616,152 @@ class CFGBlock {
     bool empty() const { return Impl.empty(); }
   };
 
+  /// A convenience class for comparing CFGElements, since methods of CFGBlock
+  /// like operator[] return CFGElements by value. This is practically a wrapper
+  /// around a (CFGBlock, Index) pair.
+  template <bool IsConst> class ElementRefImpl {
+
+    template <bool IsOtherConst> friend class ElementRefImpl;
+
+    using CFGBlockPtr =
+        std::conditional_t<IsConst, const CFGBlock *, CFGBlock *>;
+
+    using CFGElementPtr =
+        std::conditional_t<IsConst, const CFGElement *, CFGElement *>;
+
+  protected:
+    CFGBlockPtr Parent;
+    size_t Index;
+
+  public:
+    ElementRefImpl(CFGBlockPtr Parent, size_t Index)
+        : Parent(Parent), Index(Index) {}
+
+    template <bool IsOtherConst>
+    ElementRefImpl(ElementRefImpl<IsOtherConst> Other)
+        : ElementRefImpl(Other.Parent, Other.Index) {}
+
+    size_t getIndexInBlock() const { return Index; }
+
+    CFGBlockPtr getParent() { return Parent; }
+    CFGBlockPtr getParent() const { return Parent; }
+
+    bool operator<(ElementRefImpl Other) const {
+      return std::make_pair(Parent, Index) <
+             std::make_pair(Other.Parent, Other.Index);
+    }
+
+    bool operator==(ElementRefImpl Other) const {
+      return Parent == Other.Parent && Index == Other.Index;
+    }
+
+    bool operator!=(ElementRefImpl Other) const { return !(*this == Other); }
+    CFGElement operator*() const { return (*Parent)[Index]; }
+    CFGElementPtr operator->() const { return &*(Parent->begin() + Index); }
+
+    void dumpToStream(llvm::raw_ostream &OS) const {
+      OS << getIndexInBlock() + 1 << ": ";
+      (*this)->dumpToStream(OS);
+    }
+
+    void dump() const {
+      dumpToStream(llvm::errs());
+    }
+  };
+
+  template <bool IsReverse, bool IsConst> class ElementRefIterator {
+
+    template <bool IsOtherReverse, bool IsOtherConst>
+    friend class ElementRefIterator;
+
+    using CFGBlockRef =
+        std::conditional_t<IsConst, const CFGBlock *, CFGBlock *>;
+
+    using UnderlayingIteratorTy = std::conditional_t<
+        IsConst,
+        std::conditional_t<IsReverse, ElementList::const_reverse_iterator,
+                           ElementList::const_iterator>,
+        std::conditional_t<IsReverse, ElementList::reverse_iterator,
+                           ElementList::iterator>>;
+
+    using IteratorTraits = typename std::iterator_traits<UnderlayingIteratorTy>;
+    using ElementRef = typename CFGBlock::ElementRefImpl<IsConst>;
+
+  public:
+    using difference_type = typename IteratorTraits::difference_type;
+    using value_type = ElementRef;
+    using pointer = ElementRef *;
+    using iterator_category = typename IteratorTraits::iterator_category;
+
+  private:
+    CFGBlockRef Parent;
+    UnderlayingIteratorTy Pos;
+
+  public:
+    ElementRefIterator(CFGBlockRef Parent, UnderlayingIteratorTy Pos)
+        : Parent(Parent), Pos(Pos) {}
+
+    template <bool IsOtherConst>
+    ElementRefIterator(ElementRefIterator<false, IsOtherConst> E)
+        : ElementRefIterator(E.Parent, E.Pos.base()) {}
+
+    template <bool IsOtherConst>
+    ElementRefIterator(ElementRefIterator<true, IsOtherConst> E)
+        : ElementRefIterator(E.Parent, std::make_reverse_iterator(E.Pos)) {}
+
+    bool operator<(ElementRefIterator Other) const {
+      assert(Parent == Other.Parent);
+      return Pos < Other.Pos;
+    }
+
+    bool operator==(ElementRefIterator Other) const {
+      return Parent == Other.Parent && Pos == Other.Pos;
+    }
+
+    bool operator!=(ElementRefIterator Other) const {
+      return !(*this == Other);
+    }
+
+  private:
+    template <bool IsOtherConst>
+    static size_t
+    getIndexInBlock(CFGBlock::ElementRefIterator<true, IsOtherConst> E) {
+      return E.Parent->size() - (E.Pos - E.Parent->rbegin()) - 1;
+    }
+
+    template <bool IsOtherConst>
+    static size_t
+    getIndexInBlock(CFGBlock::ElementRefIterator<false, IsOtherConst> E) {
+      return E.Pos - E.Parent->begin();
+    }
+
+  public:
+    value_type operator*() { return {Parent, getIndexInBlock(*this)}; }
+
+    difference_type operator-(ElementRefIterator Other) const {
+      return Pos - Other.Pos;
+    }
+
+    ElementRefIterator operator++() {
+      ++this->Pos;
+      return *this;
+    }
+    ElementRefIterator operator++(int) {
+      ElementRefIterator Ret = *this;
+      ++*this;
+      return Ret;
+    }
+    ElementRefIterator operator+(size_t count) {
+      this->Pos += count;
+      return *this;
+    }
+    ElementRefIterator operator-(size_t count) {
+      this->Pos -= count;
+      return *this;
+    }
+  };
+
+public:
   /// The set of statements in the basic block.
   ElementList Elements;
 
@@ -697,6 +867,8 @@ public:
   using reverse_iterator = ElementList::reverse_iterator;
   using const_reverse_iterator = ElementList::const_reverse_iterator;
 
+  size_t getIndexInCFG() const;
+
   CFGElement                 front()       const { return Elements.front();   }
   CFGElement                 back()        const { return Elements.back();    }
 
@@ -709,6 +881,38 @@ public:
   reverse_iterator           rend()              { return Elements.rend();    }
   const_reverse_iterator     rbegin()      const { return Elements.rbegin();  }
   const_reverse_iterator     rend()        const { return Elements.rend();    }
+
+  using CFGElementRef = ElementRefImpl<false>;
+  using ConstCFGElementRef = ElementRefImpl<true>;
+
+  using ref_iterator = ElementRefIterator<false, false>;
+  using ref_iterator_range = llvm::iterator_range<ref_iterator>;
+  using const_ref_iterator = ElementRefIterator<false, true>;
+  using const_ref_iterator_range = llvm::iterator_range<const_ref_iterator>;
+
+  using reverse_ref_iterator = ElementRefIterator<true, false>;
+  using reverse_ref_iterator_range = llvm::iterator_range<reverse_ref_iterator>;
+
+  using const_reverse_ref_iterator = ElementRefIterator<true, true>;
+  using const_reverse_ref_iterator_range =
+      llvm::iterator_range<const_reverse_ref_iterator>;
+
+  ref_iterator ref_begin() { return {this, begin()}; }
+  ref_iterator ref_end() { return {this, end()}; }
+  const_ref_iterator ref_begin() const { return {this, begin()}; }
+  const_ref_iterator ref_end() const { return {this, end()}; }
+
+  reverse_ref_iterator rref_begin() { return {this, rbegin()}; }
+  reverse_ref_iterator rref_end() { return {this, rend()}; }
+  const_reverse_ref_iterator rref_begin() const { return {this, rbegin()}; }
+  const_reverse_ref_iterator rref_end() const { return {this, rend()}; }
+
+  ref_iterator_range refs() { return {ref_begin(), ref_end()}; }
+  const_ref_iterator_range refs() const { return {ref_begin(), ref_end()}; }
+  reverse_ref_iterator_range rrefs() { return {rref_begin(), rref_end()}; }
+  const_reverse_ref_iterator_range rrefs() const {
+    return {rref_begin(), rref_end()};
+  }
 
   unsigned                   size()        const { return Elements.size();    }
   bool                       empty()       const { return Elements.empty();   }
@@ -837,8 +1041,22 @@ public:
   void setLoopTarget(const Stmt *loopTarget) { LoopTarget = loopTarget; }
   void setHasNoReturnElement() { HasNoReturnElement = true; }
 
-  CFGTerminator getTerminator() { return Terminator; }
-  const CFGTerminator getTerminator() const { return Terminator; }
+  /// Returns true if the block would eventually end with a sink (a noreturn
+  /// node).
+  bool isInevitablySinking() const;
+
+  CFGTerminator getTerminator() const { return Terminator; }
+
+  Stmt *getTerminatorStmt() { return Terminator.getStmt(); }
+  const Stmt *getTerminatorStmt() const { return Terminator.getStmt(); }
+
+  /// \returns the last (\c rbegin()) condition, e.g. observe the following code
+  /// snippet:
+  ///   if (A && B && C)
+  /// A block would be created for \c A, \c B, and \c C. For the latter,
+  /// \c getTerminatorStmt() would retrieve the entire condition, rather than
+  /// C itself, while this method would only return C.
+  const Expr *getLastCondition() const;
 
   Stmt *getTerminatorCondition(bool StripParens = true);
 
@@ -862,7 +1080,11 @@ public:
   void dump(const CFG *cfg, const LangOptions &LO, bool ShowColors = false) const;
   void print(raw_ostream &OS, const CFG* cfg, const LangOptions &LO,
              bool ShowColors) const;
+
   void printTerminator(raw_ostream &OS, const LangOptions &LO) const;
+  void printTerminatorJson(raw_ostream &Out, const LangOptions &LO,
+                           bool AddQuotes) const;
+
   void printAsOperand(raw_ostream &OS, bool /*PrintType*/) {
     OS << "BB#" << getBlockID();
   }
@@ -978,7 +1200,6 @@ public:
     *I = CFGScopeEnd(VD, S);
     return ++I;
   }
-
 };
 
 /// CFGCallback defines methods that should be called when a logical
@@ -991,6 +1212,7 @@ public:
   virtual void compareAlwaysTrue(const BinaryOperator *B, bool isAlwaysTrue) {}
   virtual void compareBitwiseEquality(const BinaryOperator *B,
                                       bool isAlwaysTrue) {}
+  virtual void compareBitwiseOr(const BinaryOperator *B) {}
 };
 
 /// Represents a source-level, intra-procedural CFG that represents the
@@ -1025,8 +1247,11 @@ public:
     bool AddStaticInitBranches = false;
     bool AddCXXNewAllocator = false;
     bool AddCXXDefaultInitExprInCtors = false;
+    bool AddCXXDefaultInitExprInAggregates = false;
     bool AddRichCXXConstructors = false;
     bool MarkElidedCXXConstructors = false;
+    bool AddVirtualBaseBranches = false;
+    bool OmitImplicitValueInitializers = false;
 
     BuildOptions() = default;
 
@@ -1082,6 +1307,12 @@ public:
 
   iterator nodes_begin() { return iterator(Blocks.begin()); }
   iterator nodes_end() { return iterator(Blocks.end()); }
+
+  llvm::iterator_range<iterator> nodes() { return {begin(), end()}; }
+  llvm::iterator_range<const_iterator> const_nodes() const {
+    return {begin(), end()};
+  }
+
   const_iterator nodes_begin() const { return const_iterator(Blocks.begin()); }
   const_iterator nodes_end() const { return const_iterator(Blocks.end()); }
 
@@ -1089,6 +1320,13 @@ public:
   reverse_iterator          rend()                 { return Blocks.rend(); }
   const_reverse_iterator    rbegin()      const    { return Blocks.rbegin(); }
   const_reverse_iterator    rend()        const    { return Blocks.rend(); }
+
+  llvm::iterator_range<reverse_iterator> reverse_nodes() {
+    return {rbegin(), rend()};
+  }
+  llvm::iterator_range<const_reverse_iterator> const_reverse_nodes() const {
+    return {rbegin(), rend()};
+  }
 
   CFGBlock &                getEntry()             { return *Entry; }
   const CFGBlock &          getEntry()    const    { return *Entry; }
@@ -1099,6 +1337,7 @@ public:
   const CFGBlock * getIndirectGotoBlock() const { return IndirectGotoBlock; }
 
   using try_block_iterator = std::vector<const CFGBlock *>::const_iterator;
+  using try_block_range = llvm::iterator_range<try_block_iterator>;
 
   try_block_iterator try_blocks_begin() const {
     return TryDispatchBlocks.begin();
@@ -1106,6 +1345,10 @@ public:
 
   try_block_iterator try_blocks_end() const {
     return TryDispatchBlocks.end();
+  }
+
+  try_block_range try_blocks() const {
+    return try_block_range(try_blocks_begin(), try_blocks_end());
   }
 
   void addTryDispatchBlock(const CFGBlock *block) {
@@ -1151,13 +1394,12 @@ public:
   // Member templates useful for various batch operations over CFGs.
   //===--------------------------------------------------------------------===//
 
-  template <typename CALLBACK>
-  void VisitBlockStmts(CALLBACK& O) const {
+  template <typename Callback> void VisitBlockStmts(Callback &O) const {
     for (const_iterator I = begin(), E = end(); I != E; ++I)
       for (CFGBlock::const_iterator BI = (*I)->begin(), BE = (*I)->end();
            BI != BE; ++BI) {
-        if (Optional<CFGStmt> stmt = BI->getAs<CFGStmt>())
-          O(const_cast<Stmt*>(stmt->getStmt()));
+        if (std::optional<CFGStmt> stmt = BI->getAs<CFGStmt>())
+          O(const_cast<Stmt *>(stmt->getStmt()));
       }
   }
 
@@ -1172,6 +1414,12 @@ public:
   /// renaming of the getNumBlockIDs(). This is necessary because the dominator
   /// implementation needs such an interface.
   unsigned size() const { return NumBlockIDs; }
+
+  /// Returns true if the CFG has no branches. Usually it boils down to the CFG
+  /// having exactly three blocks (entry, the actual code, exit), but sometimes
+  /// more blocks appear due to having control flow that can be fully
+  /// resolved in compile time.
+  bool isLinear() const;
 
   //===--------------------------------------------------------------------===//
   // CFG Debugging: Pretty-Printing and Visualization.
@@ -1216,6 +1464,8 @@ private:
   /// source DeclStmt.
   llvm::DenseMap<const DeclStmt *, const DeclStmt *> SyntheticDeclStmts;
 };
+
+Expr *extractElementInitializerFromNestedAILE(const ArrayInitLoopExpr *AILE);
 
 } // namespace clang
 

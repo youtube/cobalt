@@ -1,9 +1,8 @@
 //===-- BitcodeWriterPass.h - Bitcode writing pass --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -15,7 +14,6 @@
 #ifndef LLVM_BITCODE_BITCODEWRITERPASS_H
 #define LLVM_BITCODE_BITCODEWRITERPASS_H
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
@@ -72,6 +70,8 @@ public:
   /// Run the bitcode writer pass, and output the module to the selected
   /// output stream.
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &);
+
+  static bool isRequired() { return true; }
 };
 
 }

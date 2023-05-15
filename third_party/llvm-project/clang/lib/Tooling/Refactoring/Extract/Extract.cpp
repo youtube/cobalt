@@ -1,9 +1,8 @@
 //===--- Extract.cpp - Clang refactoring library --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -14,12 +13,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Tooling/Refactoring/Extract/Extract.h"
-#include "SourceExtraction.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/Tooling/Refactoring/Extract/SourceExtraction.h"
+#include <optional>
 
 namespace clang {
 namespace tooling {
@@ -52,7 +52,7 @@ SourceLocation computeFunctionExtractionLocation(const Decl *D) {
     while (const auto *RD = dyn_cast<CXXRecordDecl>(D->getLexicalDeclContext()))
       D = RD;
   }
-  return D->getLocStart();
+  return D->getBeginLoc();
 }
 
 } // end anonymous namespace
@@ -69,7 +69,7 @@ const RefactoringDescriptor &ExtractFunction::describe() {
 Expected<ExtractFunction>
 ExtractFunction::initiate(RefactoringRuleContext &Context,
                           CodeRangeASTSelection Code,
-                          Optional<std::string> DeclName) {
+                          std::optional<std::string> DeclName) {
   // We would like to extract code out of functions/methods/blocks.
   // Prohibit extraction from things like global variable / field
   // initializers and other top-level expressions.
@@ -102,8 +102,8 @@ ExtractFunction::createSourceReplacements(RefactoringRuleContext &Context) {
   assert(ParentDecl && "missing parent");
 
   // Compute the source range of the code that should be extracted.
-  SourceRange ExtractedRange(Code[0]->getLocStart(),
-                             Code[Code.size() - 1]->getLocEnd());
+  SourceRange ExtractedRange(Code[0]->getBeginLoc(),
+                             Code[Code.size() - 1]->getEndLoc());
   // FIXME (Alex L): Add code that accounts for macro locations.
 
   ASTContext &AST = Context.getASTContext();

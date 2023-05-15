@@ -1,4 +1,5 @@
-; RUN: llc < %s -filetype=obj | llvm-readobj - -codeview | FileCheck %s
+; RUN: llc < %s -filetype=obj | llvm-readobj - --codeview | FileCheck %s
+; RUN: llc < %s | llvm-mc -filetype=obj --triple=x86_64-windows | llvm-readobj - --codeview | FileCheck %s
 
 ; C++ source to regenerate:
 ; $ cat t.cpp
@@ -27,7 +28,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: int (0x74)
-; CHECK:     PointerAttributes: 0x804C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToDataMember (0x2)
 ; CHECK:     IsFlat: 0
@@ -41,7 +41,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: int (0x74)
-; CHECK:     PointerAttributes: 0x804C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToDataMember (0x2)
 ; CHECK:     IsFlat: 0
@@ -55,7 +54,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: int (0x74)
-; CHECK:     PointerAttributes: 0x1004C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToDataMember (0x2)
 ; CHECK:     IsFlat: 0
@@ -69,7 +67,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: int (0x74)
-; CHECK:     PointerAttributes: 0x1804C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToDataMember (0x2)
 ; CHECK:     IsFlat: 0
@@ -86,7 +83,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: void A::()
-; CHECK:     PointerAttributes: 0x1006C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToMemberFunction (0x3)
 ; CHECK:     IsFlat: 0
@@ -100,7 +96,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: void C::()
-; CHECK:     PointerAttributes: 0x2006C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToMemberFunction (0x3)
 ; CHECK:     IsFlat: 0
@@ -114,7 +109,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: void D::()
-; CHECK:     PointerAttributes: 0x2006C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToMemberFunction (0x3)
 ; CHECK:     IsFlat: 0
@@ -128,7 +122,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: void E::()
-; CHECK:     PointerAttributes: 0x3006C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToMemberFunction (0x3)
 ; CHECK:     IsFlat: 0
@@ -144,7 +137,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: int
-; CHECK:     PointerAttributes: 0x4C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToDataMember (0x2)
 ; CHECK:     IsFlat: 0
@@ -160,7 +152,6 @@
 ; CHECK:   Pointer ({{.*}}) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: void Incomplete::()
-; CHECK:     PointerAttributes: 0x6C
 ; CHECK:     PtrType: Near64 (0xC)
 ; CHECK:     PtrMode: PointerToMemberFunction (0x3)
 ; CHECK:     IsFlat: 0
@@ -188,12 +179,12 @@ target triple = "x86_64-pc-windows-msvc19.0.23918"
 @"\01?pmd_b@@3PEQC@@HEQ1@" = global i32 -1, align 8, !dbg !6
 @"\01?pmd_c@@3PEQD@@HEQ1@" = global { i32, i32 } { i32 0, i32 -1 }, align 8, !dbg !21
 @"\01?pmd_d@@3PEQE@@HEQ1@" = global { i32, i32, i32 } { i32 0, i32 0, i32 -1 }, align 8, !dbg !25
-@"\01?pmf_a@@3P8A@@EAAXXZEQ1@" = global i8* null, align 8, !dbg !29
-@"\01?pmf_b@@3P8C@@EAAXXZEQ1@" = global { i8*, i32 } zeroinitializer, align 8, !dbg !35
-@"\01?pmf_c@@3P8D@@EAAXXZEQ1@" = global { i8*, i32, i32 } zeroinitializer, align 8, !dbg !41
-@"\01?pmf_d@@3P8E@@EAAXXZEQ1@" = global { i8*, i32, i32, i32 } zeroinitializer, align 8, !dbg !47
-@"\01?ppmd@@3PEAPEQIncomplete@@HEA" = global %0* null, align 8, !dbg !53
-@"\01?ppmf@@3PEAP8Incomplete@@EAAXXZEA" = global %1* null, align 8, !dbg !58
+@"\01?pmf_a@@3P8A@@EAAXXZEQ1@" = global ptr null, align 8, !dbg !29
+@"\01?pmf_b@@3P8C@@EAAXXZEQ1@" = global { ptr, i32 } zeroinitializer, align 8, !dbg !35
+@"\01?pmf_c@@3P8D@@EAAXXZEQ1@" = global { ptr, i32, i32 } zeroinitializer, align 8, !dbg !41
+@"\01?pmf_d@@3P8E@@EAAXXZEQ1@" = global { ptr, i32, i32, i32 } zeroinitializer, align 8, !dbg !47
+@"\01?ppmd@@3PEAPEQIncomplete@@HEA" = global ptr null, align 8, !dbg !53
+@"\01?ppmf@@3PEAP8Incomplete@@EAAXXZEA" = global ptr null, align 8, !dbg !58
 
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!66, !67, !68}

@@ -1,22 +1,22 @@
 //===- llvm/ADT/SmallSet.h - 'Normally small' sets --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// This file defines the SmallSet class.
-//
+///
+/// \file
+/// This file defines the SmallSet class.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ADT_SMALLSET_H
 #define LLVM_ADT_SMALLSET_H
 
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/type_traits.h"
@@ -140,6 +140,7 @@ class SmallSet {
   std::set<T, C> Set;
 
   using VIterator = typename SmallVector<T, N>::const_iterator;
+  using SIterator = typename std::set<T, C>::const_iterator;
   using mutable_iterator = typename SmallVector<T, N>::iterator;
 
   // In small mode SmallPtrSet uses linear search for the elements, so it is
@@ -153,9 +154,7 @@ public:
 
   SmallSet() = default;
 
-  LLVM_NODISCARD bool empty() const {
-    return Vector.empty() && Set.empty();
-  }
+  [[nodiscard]] bool empty() const { return Vector.empty() && Set.empty(); }
 
   size_type size() const {
     return isSmall() ? Vector.size() : Set.size();
@@ -172,22 +171,21 @@ public:
   }
 
   /// insert - Insert an element into the set if it isn't already there.
-  /// Returns true if the element is inserted (it was not in the set before).
-  /// The first value of the returned pair is unused and provided for
-  /// partial compatibility with the standard library self-associative container
-  /// concept.
-  // FIXME: Add iterators that abstract over the small and large form, and then
-  // return those here.
-  std::pair<NoneType, bool> insert(const T &V) {
-    if (!isSmall())
-      return std::make_pair(None, Set.insert(V).second);
+  /// Returns a pair. The first value of it is an iterator to the inserted
+  /// element or the existing element in the set. The second value is true
+  /// if the element is inserted (it was not in the set before).
+  std::pair<const_iterator, bool> insert(const T &V) {
+    if (!isSmall()) {
+      auto [I, Inserted] = Set.insert(V);
+      return std::make_pair(const_iterator(I), Inserted);
+    }
 
     VIterator I = vfind(V);
     if (I != Vector.end())    // Don't reinsert if it already exists.
-      return std::make_pair(None, false);
+      return std::make_pair(const_iterator(I), false);
     if (Vector.size() < N) {
       Vector.push_back(V);
-      return std::make_pair(None, true);
+      return std::make_pair(const_iterator(std::prev(Vector.end())), true);
     }
 
     // Otherwise, grow from vector to set.
@@ -195,8 +193,7 @@ public:
       Set.insert(Vector.back());
       Vector.pop_back();
     }
-    Set.insert(V);
-    return std::make_pair(None, true);
+    return std::make_pair(const_iterator(Set.insert(V).first), true);
   }
 
   template <typename IterT>
@@ -233,6 +230,13 @@ public:
     return {Set.end()};
   }
 
+  /// Check if the SmallSet contains the given element.
+  bool contains(const T &V) const {
+    if (isSmall())
+      return vfind(V) != Vector.end();
+    return Set.find(V) != Set.end();
+  }
+
 private:
   bool isSmall() const { return Set.empty(); }
 
@@ -248,6 +252,31 @@ private:
 /// SmallPtrSet for performance.
 template <typename PointeeType, unsigned N>
 class SmallSet<PointeeType*, N> : public SmallPtrSet<PointeeType*, N> {};
+
+/// Equality comparison for SmallSet.
+///
+/// Iterates over elements of LHS confirming that each element is also a member
+/// of RHS, and that RHS contains no additional values.
+/// Equivalent to N calls to RHS.count.
+/// For small-set mode amortized complexity is O(N^2)
+/// For large-set mode amortized complexity is linear, worst case is O(N^2) (if
+/// every hash collides).
+template <typename T, unsigned LN, unsigned RN, typename C>
+bool operator==(const SmallSet<T, LN, C> &LHS, const SmallSet<T, RN, C> &RHS) {
+  if (LHS.size() != RHS.size())
+    return false;
+
+  // All elements in LHS must also be in RHS
+  return all_of(LHS, [&RHS](const T &E) { return RHS.count(E); });
+}
+
+/// Inequality comparison for SmallSet.
+///
+/// Equivalent to !(LHS == RHS). See operator== for performance notes.
+template <typename T, unsigned LN, unsigned RN, typename C>
+bool operator!=(const SmallSet<T, LN, C> &LHS, const SmallSet<T, RN, C> &RHS) {
+  return !(LHS == RHS);
+}
 
 } // end namespace llvm
 

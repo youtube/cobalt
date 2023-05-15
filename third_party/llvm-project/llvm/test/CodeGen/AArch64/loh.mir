@@ -1,4 +1,5 @@
 # RUN: llc -o /dev/null %s -mtriple=aarch64-apple-ios -run-pass=aarch64-collect-loh -debug-only=aarch64-collect-loh 2>&1 | FileCheck %s
+# RUN: llc -debugify-and-strip-all-safe -o /dev/null %s -mtriple=aarch64-apple-ios -run-pass=aarch64-collect-loh -debug-only=aarch64-collect-loh 2>&1 | FileCheck %s
 # REQUIRES: asserts
 --- |
   define void @func0() { ret void }
@@ -189,4 +190,13 @@ body: |
   bb.14:
     liveins: $x10
     $x12 = ADDXri $x10, target-flags(aarch64-pageoff) @g0, 0
+
+  bb.15:
+    ; Should not produce a LOH when reg is clobbered by bundled regmask
+    ; CHECK-NOT: MCLOH_AdrpAdrp
+    $x8 = ADRP target-flags(aarch64-page) @g0
+    BUNDLE {
+      BL @extfunc, csr_aarch64_aapcs
+    }
+    $x8 = ADRP target-flags(aarch64-page) @g1
 ...

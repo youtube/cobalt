@@ -1,9 +1,8 @@
 //===- LTO.h ----------------------------------------------------*- C++ -*-===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -22,36 +21,44 @@
 #define LLD_COFF_LTO_H
 
 #include "lld/Common/LLVM.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 #include <memory>
 #include <vector>
 
-namespace llvm {
-namespace lto {
+namespace llvm::lto {
+struct Config;
 class LTO;
 }
-}
 
-namespace lld {
-namespace coff {
+namespace lld::coff {
 
 class BitcodeFile;
 class InputFile;
+class COFFLinkerContext;
 
 class BitcodeCompiler {
 public:
-  BitcodeCompiler();
+  BitcodeCompiler(COFFLinkerContext &ctx);
   ~BitcodeCompiler();
 
-  void add(BitcodeFile &F);
-  std::vector<StringRef> compile();
+  void add(BitcodeFile &f);
+  std::vector<InputFile *> compile();
 
 private:
-  std::unique_ptr<llvm::lto::LTO> LTOObj;
-  std::vector<SmallString<0>> Buf;
-  std::vector<std::unique_ptr<MemoryBuffer>> Files;
+  std::unique_ptr<llvm::lto::LTO> ltoObj;
+  std::vector<std::pair<std::string, SmallString<0>>> buf;
+  std::vector<std::unique_ptr<MemoryBuffer>> files;
+  std::vector<std::string> file_names;
+  std::unique_ptr<llvm::raw_fd_ostream> indexFile;
+  llvm::DenseSet<StringRef> thinIndices;
+
+  std::string getThinLTOOutputFile(StringRef path);
+  llvm::lto::Config createConfig();
+
+  COFFLinkerContext &ctx;
 };
-}
 }
 
 #endif

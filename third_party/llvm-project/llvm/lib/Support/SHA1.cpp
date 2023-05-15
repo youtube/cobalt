@@ -1,9 +1,8 @@
 //====- SHA1.cpp - Private copy of the SHA1 implementation ---*- C++ -* ======//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,55 +16,52 @@
 
 #include "llvm/Support/SHA1.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/Support/Host.h"
-using namespace llvm;
-
-#include <stdint.h>
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Endian.h"
+#include "llvm/Support/SwapByteOrder.h"
 #include <string.h>
 
-#if defined(BYTE_ORDER) && defined(BIG_ENDIAN) && BYTE_ORDER == BIG_ENDIAN
-#define SHA_BIG_ENDIAN
-#endif
+using namespace llvm;
 
-static uint32_t rol(uint32_t Number, int Bits) {
+static inline uint32_t rol(uint32_t Number, int Bits) {
   return (Number << Bits) | (Number >> (32 - Bits));
 }
 
-static uint32_t blk0(uint32_t *Buf, int I) { return Buf[I]; }
+static inline uint32_t blk0(uint32_t *Buf, int I) { return Buf[I]; }
 
-static uint32_t blk(uint32_t *Buf, int I) {
+static inline uint32_t blk(uint32_t *Buf, int I) {
   Buf[I & 15] = rol(Buf[(I + 13) & 15] ^ Buf[(I + 8) & 15] ^ Buf[(I + 2) & 15] ^
                         Buf[I & 15],
                     1);
   return Buf[I & 15];
 }
 
-static void r0(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D, uint32_t &E,
-               int I, uint32_t *Buf) {
+static inline void r0(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D,
+                      uint32_t &E, int I, uint32_t *Buf) {
   E += ((B & (C ^ D)) ^ D) + blk0(Buf, I) + 0x5A827999 + rol(A, 5);
   B = rol(B, 30);
 }
 
-static void r1(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D, uint32_t &E,
-               int I, uint32_t *Buf) {
+static inline void r1(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D,
+                      uint32_t &E, int I, uint32_t *Buf) {
   E += ((B & (C ^ D)) ^ D) + blk(Buf, I) + 0x5A827999 + rol(A, 5);
   B = rol(B, 30);
 }
 
-static void r2(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D, uint32_t &E,
-               int I, uint32_t *Buf) {
+static inline void r2(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D,
+                      uint32_t &E, int I, uint32_t *Buf) {
   E += (B ^ C ^ D) + blk(Buf, I) + 0x6ED9EBA1 + rol(A, 5);
   B = rol(B, 30);
 }
 
-static void r3(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D, uint32_t &E,
-               int I, uint32_t *Buf) {
+static inline void r3(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D,
+                      uint32_t &E, int I, uint32_t *Buf) {
   E += (((B | C) & D) | (B & C)) + blk(Buf, I) + 0x8F1BBCDC + rol(A, 5);
   B = rol(B, 30);
 }
 
-static void r4(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D, uint32_t &E,
-               int I, uint32_t *Buf) {
+static inline void r4(uint32_t &A, uint32_t &B, uint32_t &C, uint32_t &D,
+                      uint32_t &E, int I, uint32_t *Buf) {
   E += (B ^ C ^ D) + blk(Buf, I) + 0xCA62C1D6 + rol(A, 5);
   B = rol(B, 30);
 }
@@ -192,11 +188,10 @@ void SHA1::hashBlock() {
 }
 
 void SHA1::addUncounted(uint8_t Data) {
-#ifdef SHA_BIG_ENDIAN
-  InternalState.Buffer.C[InternalState.BufferOffset] = Data;
-#else
-  InternalState.Buffer.C[InternalState.BufferOffset ^ 3] = Data;
-#endif
+  if constexpr (sys::IsBigEndianHost)
+    InternalState.Buffer.C[InternalState.BufferOffset] = Data;
+  else
+    InternalState.Buffer.C[InternalState.BufferOffset ^ 3] = Data;
 
   InternalState.BufferOffset++;
   if (InternalState.BufferOffset == BLOCK_LENGTH) {
@@ -211,8 +206,36 @@ void SHA1::writebyte(uint8_t Data) {
 }
 
 void SHA1::update(ArrayRef<uint8_t> Data) {
-  for (auto &C : Data)
-    writebyte(C);
+  InternalState.ByteCount += Data.size();
+
+  // Finish the current block.
+  if (InternalState.BufferOffset > 0) {
+    const size_t Remainder = std::min<size_t>(
+        Data.size(), BLOCK_LENGTH - InternalState.BufferOffset);
+    for (size_t I = 0; I < Remainder; ++I)
+      addUncounted(Data[I]);
+    Data = Data.drop_front(Remainder);
+  }
+
+  // Fast buffer filling for large inputs.
+  while (Data.size() >= BLOCK_LENGTH) {
+    assert(InternalState.BufferOffset == 0);
+    static_assert(BLOCK_LENGTH % 4 == 0);
+    constexpr size_t BLOCK_LENGTH_32 = BLOCK_LENGTH / 4;
+    for (size_t I = 0; I < BLOCK_LENGTH_32; ++I)
+      InternalState.Buffer.L[I] = support::endian::read32be(&Data[I * 4]);
+    hashBlock();
+    Data = Data.drop_front(BLOCK_LENGTH);
+  }
+
+  // Finish the remainder.
+  for (uint8_t C : Data)
+    addUncounted(C);
+}
+
+void SHA1::update(StringRef Str) {
+  update(
+      ArrayRef<uint8_t>((uint8_t *)const_cast<char *>(Str.data()), Str.size()));
 }
 
 void SHA1::pad() {
@@ -235,30 +258,34 @@ void SHA1::pad() {
   addUncounted(InternalState.ByteCount << 3);
 }
 
-StringRef SHA1::final() {
+void SHA1::final(std::array<uint32_t, HASH_LENGTH / 4> &HashResult) {
   // Pad to complete the last block
   pad();
 
-#ifdef SHA_BIG_ENDIAN
-  // Just copy the current state
-  for (int i = 0; i < 5; i++) {
-    HashResult[i] = InternalState.State[i];
+  if constexpr (sys::IsBigEndianHost) {
+    // Just copy the current state
+    for (int i = 0; i < 5; i++) {
+      HashResult[i] = InternalState.State[i];
+    }
+  } else {
+    // Swap byte order back
+    for (int i = 0; i < 5; i++) {
+      HashResult[i] = sys::getSwappedBytes(InternalState.State[i]);
+    }
   }
-#else
-  // Swap byte order back
-  for (int i = 0; i < 5; i++) {
-    HashResult[i] = (((InternalState.State[i]) << 24) & 0xff000000) |
-                    (((InternalState.State[i]) << 8) & 0x00ff0000) |
-                    (((InternalState.State[i]) >> 8) & 0x0000ff00) |
-                    (((InternalState.State[i]) >> 24) & 0x000000ff);
-  }
-#endif
-
-  // Return pointer to hash (20 characters)
-  return StringRef((char *)HashResult, HASH_LENGTH);
 }
 
-StringRef SHA1::result() {
+std::array<uint8_t, 20> SHA1::final() {
+  union {
+    std::array<uint32_t, HASH_LENGTH / 4> HashResult;
+    std::array<uint8_t, HASH_LENGTH> ReturnResult;
+  };
+  static_assert(sizeof(HashResult) == sizeof(ReturnResult));
+  final(HashResult);
+  return ReturnResult;
+}
+
+std::array<uint8_t, 20> SHA1::result() {
   auto StateToRestore = InternalState;
 
   auto Hash = final();
@@ -273,9 +300,5 @@ StringRef SHA1::result() {
 std::array<uint8_t, 20> SHA1::hash(ArrayRef<uint8_t> Data) {
   SHA1 Hash;
   Hash.update(Data);
-  StringRef S = Hash.final();
-
-  std::array<uint8_t, 20> Arr;
-  memcpy(Arr.data(), S.data(), S.size());
-  return Arr;
+  return Hash.final();
 }

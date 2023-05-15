@@ -1,15 +1,12 @@
 //===- InfoStream.cpp - PDB Info Stream (Stream 1) Access -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/PDB/Native/InfoStream.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/DebugInfo/PDB/Native/RawConstants.h"
 #include "llvm/DebugInfo/PDB/Native/RawError.h"
 #include "llvm/DebugInfo/PDB/Native/RawTypes.h"
@@ -17,7 +14,7 @@
 
 using namespace llvm;
 using namespace llvm::codeview;
-using namespace llvm::msf;
+// using namespace llvm::msf;
 using namespace llvm::pdb;
 
 InfoStream::InfoStream(std::unique_ptr<BinaryStream> Stream)
@@ -66,7 +63,7 @@ Error InfoStream::reload() {
     case uint32_t(PdbRaw_FeatureSig::VC110):
       // No other flags for VC110 PDB.
       Stop = true;
-      LLVM_FALLTHROUGH;
+      [[fallthrough]];
     case uint32_t(PdbRaw_FeatureSig::VC140):
       Features |= PdbFeatureContainsIdStream;
       break;

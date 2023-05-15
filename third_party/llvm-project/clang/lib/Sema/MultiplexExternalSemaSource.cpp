@@ -1,9 +1,8 @@
 //===--- MultiplexExternalSemaSource.cpp  ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,29 +10,36 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Sema/MultiplexExternalSemaSource.h"
-#include "clang/AST/DeclContextInternals.h"
 #include "clang/Sema/Lookup.h"
 
 using namespace clang;
 
-///Constructs a new multiplexing external sema source and appends the
+char MultiplexExternalSemaSource::ID;
+
+/// Constructs a new multiplexing external sema source and appends the
 /// given element to it.
 ///
-MultiplexExternalSemaSource::MultiplexExternalSemaSource(ExternalSemaSource &s1,
-                                                        ExternalSemaSource &s2){
-  Sources.push_back(&s1);
-  Sources.push_back(&s2);
+MultiplexExternalSemaSource::MultiplexExternalSemaSource(
+    ExternalSemaSource *S1, ExternalSemaSource *S2) {
+  S1->Retain();
+  S2->Retain();
+  Sources.push_back(S1);
+  Sources.push_back(S2);
 }
 
 // pin the vtable here.
-MultiplexExternalSemaSource::~MultiplexExternalSemaSource() {}
+MultiplexExternalSemaSource::~MultiplexExternalSemaSource() {
+  for (auto *S : Sources)
+    S->Release();
+}
 
-///Appends new source to the source list.
+/// Appends new source to the source list.
 ///
 ///\param[in] source - An ExternalSemaSource.
 ///
-void MultiplexExternalSemaSource::addSource(ExternalSemaSource &source) {
-  Sources.push_back(&source);
+void MultiplexExternalSemaSource::AddSource(ExternalSemaSource *Source) {
+  Source->Retain();
+  Sources.push_back(Source);
 }
 
 //===----------------------------------------------------------------------===//
@@ -171,13 +177,6 @@ Module *MultiplexExternalSemaSource::getModule(unsigned ID) {
   return nullptr;
 }
 
-bool MultiplexExternalSemaSource::DeclIsFromPCHWithObjectFile(const Decl *D) {
-  for (auto *S : Sources)
-    if (S->DeclIsFromPCHWithObjectFile(D))
-      return true;
-  return false;
-}
-
 bool MultiplexExternalSemaSource::layoutRecordType(const RecordDecl *Record,
                                                    uint64_t &Size,
                                                    uint64_t &Alignment,
@@ -272,6 +271,12 @@ void MultiplexExternalSemaSource::ReadExtVectorDecls(
                                      SmallVectorImpl<TypedefNameDecl*> &Decls) {
   for(size_t i = 0; i < Sources.size(); ++i)
     Sources[i]->ReadExtVectorDecls(Decls);
+}
+
+void MultiplexExternalSemaSource::ReadDeclsToCheckForDeferredDiags(
+    llvm::SmallSetVector<Decl *, 4> &Decls) {
+  for(size_t i = 0; i < Sources.size(); ++i)
+    Sources[i]->ReadDeclsToCheckForDeferredDiags(Decls);
 }
 
 void MultiplexExternalSemaSource::ReadUnusedLocalTypedefNameCandidates(

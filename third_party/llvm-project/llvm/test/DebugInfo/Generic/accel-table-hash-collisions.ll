@@ -1,4 +1,4 @@
-; REQUIRES: object-emission
+; XFAIL: target={{.*}}-aix{{.*}}
 ; RUN: %llc_dwarf -accel-tables=Apple -filetype=obj -o - < %s \
 ; RUN:   | llvm-dwarfdump -apple-names - | FileCheck %s
 

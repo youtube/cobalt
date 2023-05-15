@@ -1,9 +1,8 @@
 //===--- BackendUtil.h - LLVM Backend Utilities -----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -40,17 +39,14 @@ namespace clang {
   void EmitBackendOutput(DiagnosticsEngine &Diags, const HeaderSearchOptions &,
                          const CodeGenOptions &CGOpts,
                          const TargetOptions &TOpts, const LangOptions &LOpts,
-                         const llvm::DataLayout &TDesc, llvm::Module *M,
-                         BackendAction Action,
+                         StringRef TDesc, llvm::Module *M, BackendAction Action,
                          std::unique_ptr<raw_pwrite_stream> OS);
 
   void EmbedBitcode(llvm::Module *M, const CodeGenOptions &CGOpts,
                     llvm::MemoryBufferRef Buf);
 
-  llvm::Expected<llvm::BitcodeModule>
-  FindThinLTOModule(llvm::MemoryBufferRef MBRef);
-  llvm::BitcodeModule *
-  FindThinLTOModule(llvm::MutableArrayRef<llvm::BitcodeModule> BMs);
+  void EmbedObject(llvm::Module *M, const CodeGenOptions &CGOpts,
+                   DiagnosticsEngine &Diags);
 }
 
 #endif

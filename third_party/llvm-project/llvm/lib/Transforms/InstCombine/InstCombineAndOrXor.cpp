@@ -1,9 +1,8 @@
 //===- InstCombineAndOrXor.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,50 +13,26 @@
 #include "InstCombineInternal.h"
 #include "llvm/Analysis/CmpInstAnalysis.h"
 #include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/ConstantRange.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/Transforms/InstCombine/InstCombiner.h"
+#include "llvm/Transforms/Utils/Local.h"
+
 using namespace llvm;
 using namespace PatternMatch;
 
 #define DEBUG_TYPE "instcombine"
 
-/// Similar to getICmpCode but for FCmpInst. This encodes a fcmp predicate into
-/// a four bit mask.
-static unsigned getFCmpCode(FCmpInst::Predicate CC) {
-  assert(FCmpInst::FCMP_FALSE <= CC && CC <= FCmpInst::FCMP_TRUE &&
-         "Unexpected FCmp predicate!");
-  // Take advantage of the bit pattern of FCmpInst::Predicate here.
-  //                                                 U L G E
-  static_assert(FCmpInst::FCMP_FALSE ==  0, "");  // 0 0 0 0
-  static_assert(FCmpInst::FCMP_OEQ   ==  1, "");  // 0 0 0 1
-  static_assert(FCmpInst::FCMP_OGT   ==  2, "");  // 0 0 1 0
-  static_assert(FCmpInst::FCMP_OGE   ==  3, "");  // 0 0 1 1
-  static_assert(FCmpInst::FCMP_OLT   ==  4, "");  // 0 1 0 0
-  static_assert(FCmpInst::FCMP_OLE   ==  5, "");  // 0 1 0 1
-  static_assert(FCmpInst::FCMP_ONE   ==  6, "");  // 0 1 1 0
-  static_assert(FCmpInst::FCMP_ORD   ==  7, "");  // 0 1 1 1
-  static_assert(FCmpInst::FCMP_UNO   ==  8, "");  // 1 0 0 0
-  static_assert(FCmpInst::FCMP_UEQ   ==  9, "");  // 1 0 0 1
-  static_assert(FCmpInst::FCMP_UGT   == 10, "");  // 1 0 1 0
-  static_assert(FCmpInst::FCMP_UGE   == 11, "");  // 1 0 1 1
-  static_assert(FCmpInst::FCMP_ULT   == 12, "");  // 1 1 0 0
-  static_assert(FCmpInst::FCMP_ULE   == 13, "");  // 1 1 0 1
-  static_assert(FCmpInst::FCMP_UNE   == 14, "");  // 1 1 1 0
-  static_assert(FCmpInst::FCMP_TRUE  == 15, "");  // 1 1 1 1
-  return CC;
-}
-
 /// This is the complement of getICmpCode, which turns an opcode and two
 /// operands into either a constant true or false, or a brand new ICmp
 /// instruction. The sign is passed in to determine which kind of predicate to
 /// use in the new icmp instruction.
-static Value *getNewICmpValue(bool Sign, unsigned Code, Value *LHS, Value *RHS,
+static Value *getNewICmpValue(unsigned Code, bool Sign, Value *LHS, Value *RHS,
                               InstCombiner::BuilderTy &Builder) {
   ICmpInst::Predicate NewPred;
-  if (Value *NewConstant = getICmpValue(Sign, Code, LHS, RHS, NewPred))
-    return NewConstant;
+  if (Constant *TorF = getPredForICmpCode(Code, Sign, LHS->getType(), NewPred))
+    return TorF;
   return Builder.CreateICmp(NewPred, LHS, RHS);
 }
 
@@ -65,14 +40,10 @@ static Value *getNewICmpValue(bool Sign, unsigned Code, Value *LHS, Value *RHS,
 /// operands into either a FCmp instruction, or a true/false constant.
 static Value *getFCmpValue(unsigned Code, Value *LHS, Value *RHS,
                            InstCombiner::BuilderTy &Builder) {
-  const auto Pred = static_cast<FCmpInst::Predicate>(Code);
-  assert(FCmpInst::FCMP_FALSE <= Pred && Pred <= FCmpInst::FCMP_TRUE &&
-         "Unexpected FCmp predicate!");
-  if (Pred == FCmpInst::FCMP_FALSE)
-    return ConstantInt::get(CmpInst::makeCmpResultType(LHS->getType()), 0);
-  if (Pred == FCmpInst::FCMP_TRUE)
-    return ConstantInt::get(CmpInst::makeCmpResultType(LHS->getType()), 1);
-  return Builder.CreateFCmp(Pred, LHS, RHS);
+  FCmpInst::Predicate NewPred;
+  if (Constant *TorF = getPredForFCmpCode(Code, LHS->getType(), NewPred))
+    return TorF;
+  return Builder.CreateFCmp(NewPred, LHS, RHS);
 }
 
 /// Transform BITWISE_OP(BSWAP(A),BSWAP(B)) or
@@ -113,64 +84,16 @@ static Value *SimplifyBSwap(BinaryOperator &I,
   return Builder.CreateCall(F, BinOp);
 }
 
-/// This handles expressions of the form ((val OP C1) & C2).  Where
-/// the Op parameter is 'OP', OpRHS is 'C1', and AndRHS is 'C2'.
-Instruction *InstCombiner::OptAndOp(BinaryOperator *Op,
-                                    ConstantInt *OpRHS,
-                                    ConstantInt *AndRHS,
-                                    BinaryOperator &TheAnd) {
-  Value *X = Op->getOperand(0);
-
-  switch (Op->getOpcode()) {
-  default: break;
-  case Instruction::Add:
-    if (Op->hasOneUse()) {
-      // Adding a one to a single bit bit-field should be turned into an XOR
-      // of the bit.  First thing to check is to see if this AND is with a
-      // single bit constant.
-      const APInt &AndRHSV = AndRHS->getValue();
-
-      // If there is only one bit set.
-      if (AndRHSV.isPowerOf2()) {
-        // Ok, at this point, we know that we are masking the result of the
-        // ADD down to exactly one bit.  If the constant we are adding has
-        // no bits set below this bit, then we can eliminate the ADD.
-        const APInt& AddRHS = OpRHS->getValue();
-
-        // Check to see if any bits below the one bit set in AndRHSV are set.
-        if ((AddRHS & (AndRHSV - 1)).isNullValue()) {
-          // If not, the only thing that can effect the output of the AND is
-          // the bit specified by AndRHSV.  If that bit is set, the effect of
-          // the XOR is to toggle the bit.  If it is clear, then the ADD has
-          // no effect.
-          if ((AddRHS & AndRHSV).isNullValue()) { // Bit is not set, noop
-            TheAnd.setOperand(0, X);
-            return &TheAnd;
-          } else {
-            // Pull the XOR out of the AND.
-            Value *NewAnd = Builder.CreateAnd(X, AndRHS);
-            NewAnd->takeName(Op);
-            return BinaryOperator::CreateXor(NewAnd, AndRHS);
-          }
-        }
-      }
-    }
-    break;
-  }
-  return nullptr;
-}
-
 /// Emit a computation of: (V >= Lo && V < Hi) if Inside is true, otherwise
-/// (V < Lo || V >= Hi). This method expects that Lo <= Hi. IsSigned indicates
+/// (V < Lo || V >= Hi). This method expects that Lo < Hi. IsSigned indicates
 /// whether to treat V, Lo, and Hi as signed or not.
-Value *InstCombiner::insertRangeTest(Value *V, const APInt &Lo, const APInt &Hi,
-                                     bool isSigned, bool Inside) {
-  assert((isSigned ? Lo.sle(Hi) : Lo.ule(Hi)) &&
-         "Lo is not <= Hi in range emission code!");
+Value *InstCombinerImpl::insertRangeTest(Value *V, const APInt &Lo,
+                                         const APInt &Hi, bool isSigned,
+                                         bool Inside) {
+  assert((isSigned ? Lo.slt(Hi) : Lo.ult(Hi)) &&
+         "Lo is not < Hi in range emission code!");
 
   Type *Ty = V->getType();
-  if (Lo == Hi)
-    return Inside ? ConstantInt::getFalse(Ty) : ConstantInt::getTrue(Ty);
 
   // V >= Min && V <  Hi --> V <  Hi
   // V <  Min || V >= Hi --> V >= Hi
@@ -232,14 +155,15 @@ enum MaskedICmpType {
 /// satisfies.
 static unsigned getMaskedICmpType(Value *A, Value *B, Value *C,
                                   ICmpInst::Predicate Pred) {
-  ConstantInt *ACst = dyn_cast<ConstantInt>(A);
-  ConstantInt *BCst = dyn_cast<ConstantInt>(B);
-  ConstantInt *CCst = dyn_cast<ConstantInt>(C);
+  const APInt *ConstA = nullptr, *ConstB = nullptr, *ConstC = nullptr;
+  match(A, m_APInt(ConstA));
+  match(B, m_APInt(ConstB));
+  match(C, m_APInt(ConstC));
   bool IsEq = (Pred == ICmpInst::ICMP_EQ);
-  bool IsAPow2 = (ACst && !ACst->isZero() && ACst->getValue().isPowerOf2());
-  bool IsBPow2 = (BCst && !BCst->isZero() && BCst->getValue().isPowerOf2());
+  bool IsAPow2 = ConstA && ConstA->isPowerOf2();
+  bool IsBPow2 = ConstB && ConstB->isPowerOf2();
   unsigned MaskVal = 0;
-  if (CCst && CCst->isZero()) {
+  if (ConstC && ConstC->isZero()) {
     // if C is zero, then both A and B qualify as mask
     MaskVal |= (IsEq ? (Mask_AllZeros | AMask_Mixed | BMask_Mixed)
                      : (Mask_NotAllZeros | AMask_NotMixed | BMask_NotMixed));
@@ -258,7 +182,7 @@ static unsigned getMaskedICmpType(Value *A, Value *B, Value *C,
     if (IsAPow2)
       MaskVal |= (IsEq ? (Mask_NotAllZeros | AMask_NotMixed)
                        : (Mask_AllZeros | AMask_Mixed));
-  } else if (ACst && CCst && ConstantExpr::getAnd(ACst, CCst) == CCst) {
+  } else if (ConstA && ConstC && ConstC->isSubsetOf(*ConstA)) {
     MaskVal |= (IsEq ? AMask_Mixed : AMask_NotMixed);
   }
 
@@ -268,7 +192,7 @@ static unsigned getMaskedICmpType(Value *A, Value *B, Value *C,
     if (IsBPow2)
       MaskVal |= (IsEq ? (Mask_NotAllZeros | BMask_NotMixed)
                        : (Mask_AllZeros | BMask_Mixed));
-  } else if (BCst && CCst && ConstantExpr::getAnd(BCst, CCst) == CCst) {
+  } else if (ConstB && ConstC && ConstC->isSubsetOf(*ConstB)) {
     MaskVal |= (IsEq ? BMask_Mixed : BMask_NotMixed);
   }
 
@@ -309,17 +233,13 @@ static bool decomposeBitTestICmp(Value *LHS, Value *RHS, CmpInst::Predicate &Pre
 /// the right hand side as a pair.
 /// LHS and RHS are the left hand side and the right hand side ICmps and PredL
 /// and PredR are their predicates, respectively.
-static
-Optional<std::pair<unsigned, unsigned>>
-getMaskedTypeForICmpPair(Value *&A, Value *&B, Value *&C,
-                         Value *&D, Value *&E, ICmpInst *LHS,
-                         ICmpInst *RHS,
-                         ICmpInst::Predicate &PredL,
-                         ICmpInst::Predicate &PredR) {
-  // vectors are not (yet?) supported. Don't support pointers either.
-  if (!LHS->getOperand(0)->getType()->isIntegerTy() ||
-      !RHS->getOperand(0)->getType()->isIntegerTy())
-    return None;
+static std::optional<std::pair<unsigned, unsigned>> getMaskedTypeForICmpPair(
+    Value *&A, Value *&B, Value *&C, Value *&D, Value *&E, ICmpInst *LHS,
+    ICmpInst *RHS, ICmpInst::Predicate &PredL, ICmpInst::Predicate &PredR) {
+  // Don't allow pointers. Splat vectors are fine.
+  if (!LHS->getOperand(0)->getType()->isIntOrIntVectorTy() ||
+      !RHS->getOperand(0)->getType()->isIntOrIntVectorTy())
+    return std::nullopt;
 
   // Here comes the tricky part:
   // LHS might be of the form L11 & L12 == X, X == L21 & L22,
@@ -350,7 +270,7 @@ getMaskedTypeForICmpPair(Value *&A, Value *&B, Value *&C,
 
   // Bail if LHS was a icmp that can't be decomposed into an equality.
   if (!ICmpInst::isEquality(PredL))
-    return None;
+    return std::nullopt;
 
   Value *R1 = RHS->getOperand(0);
   Value *R2 = RHS->getOperand(1);
@@ -364,7 +284,7 @@ getMaskedTypeForICmpPair(Value *&A, Value *&B, Value *&C,
       A = R12;
       D = R11;
     } else {
-      return None;
+      return std::nullopt;
     }
     E = R2;
     R1 = nullptr;
@@ -392,7 +312,7 @@ getMaskedTypeForICmpPair(Value *&A, Value *&B, Value *&C,
 
   // Bail if RHS was a icmp that can't be decomposed into an equality.
   if (!ICmpInst::isEquality(PredR))
-    return None;
+    return std::nullopt;
 
   // Look for ANDs on the right side of the RHS icmp.
   if (!Ok) {
@@ -412,11 +332,11 @@ getMaskedTypeForICmpPair(Value *&A, Value *&B, Value *&C,
       E = R1;
       Ok = true;
     } else {
-      return None;
+      return std::nullopt;
     }
+
+    assert(Ok && "Failed to find AND on the right side of the RHS icmp.");
   }
-  if (!Ok)
-    return None;
 
   if (L11 == A) {
     B = L12;
@@ -434,18 +354,19 @@ getMaskedTypeForICmpPair(Value *&A, Value *&B, Value *&C,
 
   unsigned LeftType = getMaskedICmpType(A, B, C, PredL);
   unsigned RightType = getMaskedICmpType(A, D, E, PredR);
-  return Optional<std::pair<unsigned, unsigned>>(std::make_pair(LeftType, RightType));
+  return std::optional<std::pair<unsigned, unsigned>>(
+      std::make_pair(LeftType, RightType));
 }
 
 /// Try to fold (icmp(A & B) ==/!= C) &/| (icmp(A & D) ==/!= E) into a single
 /// (icmp(A & X) ==/!= Y), where the left-hand side is of type Mask_NotAllZeros
 /// and the right hand side is of type BMask_Mixed. For example,
 /// (icmp (A & 12) != 0) & (icmp (A & 15) == 8) -> (icmp (A & 15) == 8).
-static Value * foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
-    ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
-    Value *A, Value *B, Value *C, Value *D, Value *E,
-    ICmpInst::Predicate PredL, ICmpInst::Predicate PredR,
-    llvm::InstCombiner::BuilderTy &Builder) {
+/// Also used for logical and/or, must be poison safe.
+static Value *foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
+    ICmpInst *LHS, ICmpInst *RHS, bool IsAnd, Value *A, Value *B, Value *C,
+    Value *D, Value *E, ICmpInst::Predicate PredL, ICmpInst::Predicate PredR,
+    InstCombiner::BuilderTy &Builder) {
   // We are given the canonical form:
   //   (icmp ne (A & B), 0) & (icmp eq (A & D), E).
   // where D & E == E.
@@ -456,17 +377,9 @@ static Value * foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
   //
   // We currently handle the case of B, C, D, E are constant.
   //
-  ConstantInt *BCst = dyn_cast<ConstantInt>(B);
-  if (!BCst)
-    return nullptr;
-  ConstantInt *CCst = dyn_cast<ConstantInt>(C);
-  if (!CCst)
-    return nullptr;
-  ConstantInt *DCst = dyn_cast<ConstantInt>(D);
-  if (!DCst)
-    return nullptr;
-  ConstantInt *ECst = dyn_cast<ConstantInt>(E);
-  if (!ECst)
+  const APInt *BCst, *CCst, *DCst, *OrigECst;
+  if (!match(B, m_APInt(BCst)) || !match(C, m_APInt(CCst)) ||
+      !match(D, m_APInt(DCst)) || !match(E, m_APInt(OrigECst)))
     return nullptr;
 
   ICmpInst::Predicate NewCC = IsAnd ? ICmpInst::ICMP_EQ : ICmpInst::ICMP_NE;
@@ -475,19 +388,20 @@ static Value * foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
   // canonicalized as,
   // (icmp ne (A & D), 0) -> (icmp eq (A & D), D) or
   // (icmp ne (A & D), D) -> (icmp eq (A & D), 0).
+  APInt ECst = *OrigECst;
   if (PredR != NewCC)
-    ECst = cast<ConstantInt>(ConstantExpr::getXor(DCst, ECst));
+    ECst ^= *DCst;
 
   // If B or D is zero, skip because if LHS or RHS can be trivially folded by
   // other folding rules and this pattern won't apply any more.
-  if (BCst->getValue() == 0 || DCst->getValue() == 0)
+  if (*BCst == 0 || *DCst == 0)
     return nullptr;
 
   // If B and D don't intersect, ie. (B & D) == 0, no folding because we can't
   // deduce anything from it.
   // For example,
   // (icmp ne (A & 12), 0) & (icmp eq (A & 3), 1) -> no folding.
-  if ((BCst->getValue() & DCst->getValue()) == 0)
+  if ((*BCst & *DCst) == 0)
     return nullptr;
 
   // If the following two conditions are met:
@@ -506,22 +420,21 @@ static Value * foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
   // For example,
   // (icmp ne (A & 12), 0) & (icmp eq (A & 7), 1) -> (icmp eq (A & 15), 9)
   // (icmp ne (A & 15), 0) & (icmp eq (A & 7), 0) -> (icmp eq (A & 15), 8)
-  if ((((BCst->getValue() & DCst->getValue()) & ECst->getValue()) == 0) &&
-      (BCst->getValue() & (BCst->getValue() ^ DCst->getValue())).isPowerOf2()) {
-    APInt BorD = BCst->getValue() | DCst->getValue();
-    APInt BandBxorDorE = (BCst->getValue() & (BCst->getValue() ^ DCst->getValue())) |
-        ECst->getValue();
-    Value *NewMask = ConstantInt::get(BCst->getType(), BorD);
-    Value *NewMaskedValue = ConstantInt::get(BCst->getType(), BandBxorDorE);
+  if ((((*BCst & *DCst) & ECst) == 0) &&
+      (*BCst & (*BCst ^ *DCst)).isPowerOf2()) {
+    APInt BorD = *BCst | *DCst;
+    APInt BandBxorDorE = (*BCst & (*BCst ^ *DCst)) | ECst;
+    Value *NewMask = ConstantInt::get(A->getType(), BorD);
+    Value *NewMaskedValue = ConstantInt::get(A->getType(), BandBxorDorE);
     Value *NewAnd = Builder.CreateAnd(A, NewMask);
     return Builder.CreateICmp(NewCC, NewAnd, NewMaskedValue);
   }
 
-  auto IsSubSetOrEqual = [](ConstantInt *C1, ConstantInt *C2) {
-    return (C1->getValue() & C2->getValue()) == C1->getValue();
+  auto IsSubSetOrEqual = [](const APInt *C1, const APInt *C2) {
+    return (*C1 & *C2) == *C1;
   };
-  auto IsSuperSetOrEqual = [](ConstantInt *C1, ConstantInt *C2) {
-    return (C1->getValue() & C2->getValue()) == C2->getValue();
+  auto IsSuperSetOrEqual = [](const APInt *C1, const APInt *C2) {
+    return (*C1 & *C2) == *C2;
   };
 
   // In the following, we consider only the cases where B is a superset of D, B
@@ -541,7 +454,7 @@ static Value * foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
   // For example,
   // (icmp ne (A & 3), 0) & (icmp eq (A & 7), 0) -> false.
   // (icmp ne (A & 15), 0) & (icmp eq (A & 3), 0) -> no folding.
-  if (ECst->isZero()) {
+  if (ECst.isZero()) {
     if (IsSubSetOrEqual(BCst, DCst))
       return ConstantInt::get(LHS->getType(), !IsAnd);
     return nullptr;
@@ -559,7 +472,7 @@ static Value * foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
   // ie. (B & E) != 0, then LHS is subsumed by RHS. For example.
   // (icmp ne (A & 12), 0) & (icmp eq (A & 15), 8) -> (icmp eq (A & 15), 8).
   assert(IsSubSetOrEqual(BCst, DCst) && "Precondition due to above code");
-  if ((BCst->getValue() & ECst->getValue()) != 0)
+  if ((*BCst & ECst) != 0)
     return RHS;
   // Otherwise, LHS and RHS contradict and the whole expression becomes false
   // (or true if negated.) For example,
@@ -571,12 +484,11 @@ static Value * foldLogOpOfMaskedICmps_NotAllZeros_BMask_Mixed(
 /// Try to fold (icmp(A & B) ==/!= 0) &/| (icmp(A & D) ==/!= E) into a single
 /// (icmp(A & X) ==/!= Y), where the left-hand side and the right hand side
 /// aren't of the common mask pattern type.
+/// Also used for logical and/or, must be poison safe.
 static Value *foldLogOpOfMaskedICmpsAsymmetric(
-    ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
-    Value *A, Value *B, Value *C, Value *D, Value *E,
-    ICmpInst::Predicate PredL, ICmpInst::Predicate PredR,
-    unsigned LHSMask, unsigned RHSMask,
-    llvm::InstCombiner::BuilderTy &Builder) {
+    ICmpInst *LHS, ICmpInst *RHS, bool IsAnd, Value *A, Value *B, Value *C,
+    Value *D, Value *E, ICmpInst::Predicate PredL, ICmpInst::Predicate PredR,
+    unsigned LHSMask, unsigned RHSMask, InstCombiner::BuilderTy &Builder) {
   assert(ICmpInst::isEquality(PredL) && ICmpInst::isEquality(PredR) &&
          "Expected equality predicates for masked type of icmps.");
   // Handle Mask_NotAllZeros-BMask_Mixed cases.
@@ -607,10 +519,11 @@ static Value *foldLogOpOfMaskedICmpsAsymmetric(
 /// Try to fold (icmp(A & B) ==/!= C) &/| (icmp(A & D) ==/!= E)
 /// into a single (icmp(A & X) ==/!= Y).
 static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
-                                     llvm::InstCombiner::BuilderTy &Builder) {
+                                     bool IsLogical,
+                                     InstCombiner::BuilderTy &Builder) {
   Value *A = nullptr, *B = nullptr, *C = nullptr, *D = nullptr, *E = nullptr;
   ICmpInst::Predicate PredL = LHS->getPredicate(), PredR = RHS->getPredicate();
-  Optional<std::pair<unsigned, unsigned>> MaskPair =
+  std::optional<std::pair<unsigned, unsigned>> MaskPair =
       getMaskedTypeForICmpPair(A, B, C, D, E, LHS, RHS, PredL, PredR);
   if (!MaskPair)
     return nullptr;
@@ -651,6 +564,8 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
   if (Mask & Mask_AllZeros) {
     // (icmp eq (A & B), 0) & (icmp eq (A & D), 0)
     // -> (icmp eq (A & (B|D)), 0)
+    if (IsLogical && !isGuaranteedNotToBeUndefOrPoison(D))
+      return nullptr; // TODO: Use freeze?
     Value *NewOr = Builder.CreateOr(B, D);
     Value *NewAnd = Builder.CreateAnd(A, NewOr);
     // We can't use C as zero because we might actually handle
@@ -662,6 +577,8 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
   if (Mask & BMask_AllOnes) {
     // (icmp eq (A & B), B) & (icmp eq (A & D), D)
     // -> (icmp eq (A & (B|D)), (B|D))
+    if (IsLogical && !isGuaranteedNotToBeUndefOrPoison(D))
+      return nullptr; // TODO: Use freeze?
     Value *NewOr = Builder.CreateOr(B, D);
     Value *NewAnd = Builder.CreateAnd(A, NewOr);
     return Builder.CreateICmp(NewCC, NewAnd, NewOr);
@@ -669,6 +586,8 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
   if (Mask & AMask_AllOnes) {
     // (icmp eq (A & B), A) & (icmp eq (A & D), A)
     // -> (icmp eq (A & (B&D)), A)
+    if (IsLogical && !isGuaranteedNotToBeUndefOrPoison(D))
+      return nullptr; // TODO: Use freeze?
     Value *NewAnd1 = Builder.CreateAnd(B, D);
     Value *NewAnd2 = Builder.CreateAnd(A, NewAnd1);
     return Builder.CreateICmp(NewCC, NewAnd2, A);
@@ -677,11 +596,8 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
   // Remaining cases assume at least that B and D are constant, and depend on
   // their actual values. This isn't strictly necessary, just a "handle the
   // easy cases for now" decision.
-  ConstantInt *BCst = dyn_cast<ConstantInt>(B);
-  if (!BCst)
-    return nullptr;
-  ConstantInt *DCst = dyn_cast<ConstantInt>(D);
-  if (!DCst)
+  const APInt *ConstB, *ConstD;
+  if (!match(B, m_APInt(ConstB)) || !match(D, m_APInt(ConstD)))
     return nullptr;
 
   if (Mask & (Mask_NotAllZeros | BMask_NotAllOnes)) {
@@ -690,11 +606,10 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
     //     -> (icmp ne (A & B), 0) or (icmp ne (A & D), 0)
     // Only valid if one of the masks is a superset of the other (check "B&D" is
     // the same as either B or D).
-    APInt NewMask = BCst->getValue() & DCst->getValue();
-
-    if (NewMask == BCst->getValue())
+    APInt NewMask = *ConstB & *ConstD;
+    if (NewMask == *ConstB)
       return LHS;
-    else if (NewMask == DCst->getValue())
+    else if (NewMask == *ConstD)
       return RHS;
   }
 
@@ -703,11 +618,10 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
     //     -> (icmp ne (A & B), A) or (icmp ne (A & D), A)
     // Only valid if one of the masks is a superset of the other (check "B|D" is
     // the same as either B or D).
-    APInt NewMask = BCst->getValue() | DCst->getValue();
-
-    if (NewMask == BCst->getValue())
+    APInt NewMask = *ConstB | *ConstD;
+    if (NewMask == *ConstB)
       return LHS;
-    else if (NewMask == DCst->getValue())
+    else if (NewMask == *ConstD)
       return RHS;
   }
 
@@ -722,26 +636,21 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
     // We can't simply use C and E because we might actually handle
     //   (icmp ne (A & B), B) & (icmp eq (A & D), D)
     // with B and D, having a single bit set.
-    ConstantInt *CCst = dyn_cast<ConstantInt>(C);
-    if (!CCst)
+    const APInt *OldConstC, *OldConstE;
+    if (!match(C, m_APInt(OldConstC)) || !match(E, m_APInt(OldConstE)))
       return nullptr;
-    ConstantInt *ECst = dyn_cast<ConstantInt>(E);
-    if (!ECst)
-      return nullptr;
-    if (PredL != NewCC)
-      CCst = cast<ConstantInt>(ConstantExpr::getXor(BCst, CCst));
-    if (PredR != NewCC)
-      ECst = cast<ConstantInt>(ConstantExpr::getXor(DCst, ECst));
+
+    const APInt ConstC = PredL != NewCC ? *ConstB ^ *OldConstC : *OldConstC;
+    const APInt ConstE = PredR != NewCC ? *ConstD ^ *OldConstE : *OldConstE;
 
     // If there is a conflict, we should actually return a false for the
     // whole construct.
-    if (((BCst->getValue() & DCst->getValue()) &
-         (CCst->getValue() ^ ECst->getValue())).getBoolValue())
+    if (((*ConstB & *ConstD) & (ConstC ^ ConstE)).getBoolValue())
       return ConstantInt::get(LHS->getType(), !IsAnd);
 
     Value *NewOr1 = Builder.CreateOr(B, D);
-    Value *NewOr2 = ConstantExpr::getOr(CCst, ECst);
     Value *NewAnd = Builder.CreateAnd(A, NewOr1);
+    Constant *NewOr2 = ConstantInt::get(A->getType(), ConstC | ConstE);
     return Builder.CreateICmp(NewCC, NewAnd, NewOr2);
   }
 
@@ -752,8 +661,8 @@ static Value *foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
 /// Example: (icmp sge x, 0) & (icmp slt x, n) --> icmp ult x, n
 /// If \p Inverted is true then the check is for the inverted range, e.g.
 /// (icmp slt x, 0) | (icmp sgt x, n) --> icmp ugt x, n
-Value *InstCombiner::simplifyRangeCheck(ICmpInst *Cmp0, ICmpInst *Cmp1,
-                                        bool Inverted) {
+Value *InstCombinerImpl::simplifyRangeCheck(ICmpInst *Cmp0, ICmpInst *Cmp1,
+                                            bool Inverted) {
   // Check the lower range comparison, e.g. x >= 0
   // InstCombine already ensured that if there is a constant it's on the RHS.
   ConstantInt *RangeStart = dyn_cast<ConstantInt>(Cmp0->getOperand(1));
@@ -803,94 +712,39 @@ Value *InstCombiner::simplifyRangeCheck(ICmpInst *Cmp0, ICmpInst *Cmp1,
   return Builder.CreateICmp(NewPred, Input, RangeEnd);
 }
 
-static Value *
-foldAndOrOfEqualityCmpsWithConstants(ICmpInst *LHS, ICmpInst *RHS,
-                                     bool JoinedByAnd,
-                                     InstCombiner::BuilderTy &Builder) {
-  Value *X = LHS->getOperand(0);
-  if (X != RHS->getOperand(0))
-    return nullptr;
-
-  const APInt *C1, *C2;
-  if (!match(LHS->getOperand(1), m_APInt(C1)) ||
-      !match(RHS->getOperand(1), m_APInt(C2)))
-    return nullptr;
-
-  // We only handle (X != C1 && X != C2) and (X == C1 || X == C2).
-  ICmpInst::Predicate Pred = LHS->getPredicate();
-  if (Pred !=  RHS->getPredicate())
-    return nullptr;
-  if (JoinedByAnd && Pred != ICmpInst::ICMP_NE)
-    return nullptr;
-  if (!JoinedByAnd && Pred != ICmpInst::ICMP_EQ)
-    return nullptr;
-
-  // The larger unsigned constant goes on the right.
-  if (C1->ugt(*C2))
-    std::swap(C1, C2);
-
-  APInt Xor = *C1 ^ *C2;
-  if (Xor.isPowerOf2()) {
-    // If LHSC and RHSC differ by only one bit, then set that bit in X and
-    // compare against the larger constant:
-    // (X == C1 || X == C2) --> (X | (C1 ^ C2)) == C2
-    // (X != C1 && X != C2) --> (X | (C1 ^ C2)) != C2
-    // We choose an 'or' with a Pow2 constant rather than the inverse mask with
-    // 'and' because that may lead to smaller codegen from a smaller constant.
-    Value *Or = Builder.CreateOr(X, ConstantInt::get(X->getType(), Xor));
-    return Builder.CreateICmp(Pred, Or, ConstantInt::get(X->getType(), *C2));
-  }
-
-  // Special case: get the ordering right when the values wrap around zero.
-  // Ie, we assumed the constants were unsigned when swapping earlier.
-  if (C1->isNullValue() && C2->isAllOnesValue())
-    std::swap(C1, C2);
-
-  if (*C1 == *C2 - 1) {
-    // (X == 13 || X == 14) --> X - 13 <=u 1
-    // (X != 13 && X != 14) --> X - 13  >u 1
-    // An 'add' is the canonical IR form, so favor that over a 'sub'.
-    Value *Add = Builder.CreateAdd(X, ConstantInt::get(X->getType(), -(*C1)));
-    auto NewPred = JoinedByAnd ? ICmpInst::ICMP_UGT : ICmpInst::ICMP_ULE;
-    return Builder.CreateICmp(NewPred, Add, ConstantInt::get(X->getType(), 1));
-  }
-
-  return nullptr;
-}
-
 // Fold (iszero(A & K1) | iszero(A & K2)) -> (A & (K1 | K2)) != (K1 | K2)
 // Fold (!iszero(A & K1) & !iszero(A & K2)) -> (A & (K1 | K2)) == (K1 | K2)
-Value *InstCombiner::foldAndOrOfICmpsOfAndWithPow2(ICmpInst *LHS, ICmpInst *RHS,
-                                                   bool JoinedByAnd,
-                                                   Instruction &CxtI) {
-  ICmpInst::Predicate Pred = LHS->getPredicate();
-  if (Pred != RHS->getPredicate())
-    return nullptr;
-  if (JoinedByAnd && Pred != ICmpInst::ICMP_NE)
-    return nullptr;
-  if (!JoinedByAnd && Pred != ICmpInst::ICMP_EQ)
+Value *InstCombinerImpl::foldAndOrOfICmpsOfAndWithPow2(ICmpInst *LHS,
+                                                       ICmpInst *RHS,
+                                                       Instruction *CxtI,
+                                                       bool IsAnd,
+                                                       bool IsLogical) {
+  CmpInst::Predicate Pred = IsAnd ? CmpInst::ICMP_NE : CmpInst::ICMP_EQ;
+  if (LHS->getPredicate() != Pred || RHS->getPredicate() != Pred)
     return nullptr;
 
-  // TODO support vector splats
-  ConstantInt *LHSC = dyn_cast<ConstantInt>(LHS->getOperand(1));
-  ConstantInt *RHSC = dyn_cast<ConstantInt>(RHS->getOperand(1));
-  if (!LHSC || !RHSC || !LHSC->isZero() || !RHSC->isZero())
+  if (!match(LHS->getOperand(1), m_Zero()) ||
+      !match(RHS->getOperand(1), m_Zero()))
     return nullptr;
 
-  Value *A, *B, *C, *D;
-  if (match(LHS->getOperand(0), m_And(m_Value(A), m_Value(B))) &&
-      match(RHS->getOperand(0), m_And(m_Value(C), m_Value(D)))) {
-    if (A == D || B == D)
-      std::swap(C, D);
-    if (B == C)
-      std::swap(A, B);
+  Value *L1, *L2, *R1, *R2;
+  if (match(LHS->getOperand(0), m_And(m_Value(L1), m_Value(L2))) &&
+      match(RHS->getOperand(0), m_And(m_Value(R1), m_Value(R2)))) {
+    if (L1 == R2 || L2 == R2)
+      std::swap(R1, R2);
+    if (L2 == R1)
+      std::swap(L1, L2);
 
-    if (A == C &&
-        isKnownToBeAPowerOfTwo(B, false, 0, &CxtI) &&
-        isKnownToBeAPowerOfTwo(D, false, 0, &CxtI)) {
-      Value *Mask = Builder.CreateOr(B, D);
-      Value *Masked = Builder.CreateAnd(A, Mask);
-      auto NewPred = JoinedByAnd ? ICmpInst::ICMP_EQ : ICmpInst::ICMP_NE;
+    if (L1 == R1 &&
+        isKnownToBeAPowerOfTwo(L2, false, 0, CxtI) &&
+        isKnownToBeAPowerOfTwo(R2, false, 0, CxtI)) {
+      // If this is a logical and/or, then we must prevent propagation of a
+      // poison value from the RHS by inserting freeze.
+      if (IsLogical)
+        R2 = Builder.CreateFreeze(R2);
+      Value *Mask = Builder.CreateOr(L2, R2);
+      Value *Masked = Builder.CreateAnd(L1, Mask);
+      auto NewPred = IsAnd ? CmpInst::ICMP_EQ : CmpInst::ICMP_NE;
       return Builder.CreateICmp(NewPred, Masked, Mask);
     }
   }
@@ -898,192 +752,502 @@ Value *InstCombiner::foldAndOrOfICmpsOfAndWithPow2(ICmpInst *LHS, ICmpInst *RHS,
   return nullptr;
 }
 
-/// Fold (icmp)&(icmp) if possible.
-Value *InstCombiner::foldAndOfICmps(ICmpInst *LHS, ICmpInst *RHS,
-                                    Instruction &CxtI) {
-  // Fold (!iszero(A & K1) & !iszero(A & K2)) ->  (A & (K1 | K2)) == (K1 | K2)
-  // if K1 and K2 are a one-bit mask.
-  if (Value *V = foldAndOrOfICmpsOfAndWithPow2(LHS, RHS, true, CxtI))
-    return V;
+/// General pattern:
+///   X & Y
+///
+/// Where Y is checking that all the high bits (covered by a mask 4294967168)
+/// are uniform, i.e.  %arg & 4294967168  can be either  4294967168  or  0
+/// Pattern can be one of:
+///   %t = add        i32 %arg,    128
+///   %r = icmp   ult i32 %t,      256
+/// Or
+///   %t0 = shl       i32 %arg,    24
+///   %t1 = ashr      i32 %t0,     24
+///   %r  = icmp  eq  i32 %t1,     %arg
+/// Or
+///   %t0 = trunc     i32 %arg  to i8
+///   %t1 = sext      i8  %t0   to i32
+///   %r  = icmp  eq  i32 %t1,     %arg
+/// This pattern is a signed truncation check.
+///
+/// And X is checking that some bit in that same mask is zero.
+/// I.e. can be one of:
+///   %r = icmp sgt i32   %arg,    -1
+/// Or
+///   %t = and      i32   %arg,    2147483648
+///   %r = icmp eq  i32   %t,      0
+///
+/// Since we are checking that all the bits in that mask are the same,
+/// and a particular bit is zero, what we are really checking is that all the
+/// masked bits are zero.
+/// So this should be transformed to:
+///   %r = icmp ult i32 %arg, 128
+static Value *foldSignedTruncationCheck(ICmpInst *ICmp0, ICmpInst *ICmp1,
+                                        Instruction &CxtI,
+                                        InstCombiner::BuilderTy &Builder) {
+  assert(CxtI.getOpcode() == Instruction::And);
 
-  ICmpInst::Predicate PredL = LHS->getPredicate(), PredR = RHS->getPredicate();
+  // Match  icmp ult (add %arg, C01), C1   (C1 == C01 << 1; powers of two)
+  auto tryToMatchSignedTruncationCheck = [](ICmpInst *ICmp, Value *&X,
+                                            APInt &SignBitMask) -> bool {
+    CmpInst::Predicate Pred;
+    const APInt *I01, *I1; // powers of two; I1 == I01 << 1
+    if (!(match(ICmp,
+                m_ICmp(Pred, m_Add(m_Value(X), m_Power2(I01)), m_Power2(I1))) &&
+          Pred == ICmpInst::ICMP_ULT && I1->ugt(*I01) && I01->shl(1) == *I1))
+      return false;
+    // Which bit is the new sign bit as per the 'signed truncation' pattern?
+    SignBitMask = *I01;
+    return true;
+  };
 
-  // (icmp1 A, B) & (icmp2 A, B) --> (icmp3 A, B)
-  if (PredicatesFoldable(PredL, PredR)) {
-    if (LHS->getOperand(0) == RHS->getOperand(1) &&
-        LHS->getOperand(1) == RHS->getOperand(0))
-      LHS->swapOperands();
-    if (LHS->getOperand(0) == RHS->getOperand(0) &&
-        LHS->getOperand(1) == RHS->getOperand(1)) {
-      Value *Op0 = LHS->getOperand(0), *Op1 = LHS->getOperand(1);
-      unsigned Code = getICmpCode(LHS) & getICmpCode(RHS);
-      bool isSigned = LHS->isSigned() || RHS->isSigned();
-      return getNewICmpValue(isSigned, Code, Op0, Op1, Builder);
-    }
-  }
-
-  // handle (roughly):  (icmp eq (A & B), C) & (icmp eq (A & D), E)
-  if (Value *V = foldLogOpOfMaskedICmps(LHS, RHS, true, Builder))
-    return V;
-
-  // E.g. (icmp sge x, 0) & (icmp slt x, n) --> icmp ult x, n
-  if (Value *V = simplifyRangeCheck(LHS, RHS, /*Inverted=*/false))
-    return V;
-
-  // E.g. (icmp slt x, n) & (icmp sge x, 0) --> icmp ult x, n
-  if (Value *V = simplifyRangeCheck(RHS, LHS, /*Inverted=*/false))
-    return V;
-
-  if (Value *V = foldAndOrOfEqualityCmpsWithConstants(LHS, RHS, true, Builder))
-    return V;
-
-  // This only handles icmp of constants: (icmp1 A, C1) & (icmp2 B, C2).
-  Value *LHS0 = LHS->getOperand(0), *RHS0 = RHS->getOperand(0);
-  ConstantInt *LHSC = dyn_cast<ConstantInt>(LHS->getOperand(1));
-  ConstantInt *RHSC = dyn_cast<ConstantInt>(RHS->getOperand(1));
-  if (!LHSC || !RHSC)
-    return nullptr;
-
-  if (LHSC == RHSC && PredL == PredR) {
-    // (icmp ult A, C) & (icmp ult B, C) --> (icmp ult (A|B), C)
-    // where C is a power of 2 or
-    // (icmp eq A, 0) & (icmp eq B, 0) --> (icmp eq (A|B), 0)
-    if ((PredL == ICmpInst::ICMP_ULT && LHSC->getValue().isPowerOf2()) ||
-        (PredL == ICmpInst::ICMP_EQ && LHSC->isZero())) {
-      Value *NewOr = Builder.CreateOr(LHS0, RHS0);
-      return Builder.CreateICmp(PredL, NewOr, LHSC);
-    }
-  }
-
-  // (trunc x) == C1 & (and x, CA) == C2 -> (and x, CA|CMAX) == C1|C2
-  // where CMAX is the all ones value for the truncated type,
-  // iff the lower bits of C2 and CA are zero.
-  if (PredL == ICmpInst::ICMP_EQ && PredL == PredR && LHS->hasOneUse() &&
-      RHS->hasOneUse()) {
-    Value *V;
-    ConstantInt *AndC, *SmallC = nullptr, *BigC = nullptr;
-
-    // (trunc x) == C1 & (and x, CA) == C2
-    // (and x, CA) == C2 & (trunc x) == C1
-    if (match(RHS0, m_Trunc(m_Value(V))) &&
-        match(LHS0, m_And(m_Specific(V), m_ConstantInt(AndC)))) {
-      SmallC = RHSC;
-      BigC = LHSC;
-    } else if (match(LHS0, m_Trunc(m_Value(V))) &&
-               match(RHS0, m_And(m_Specific(V), m_ConstantInt(AndC)))) {
-      SmallC = LHSC;
-      BigC = RHSC;
-    }
-
-    if (SmallC && BigC) {
-      unsigned BigBitSize = BigC->getType()->getBitWidth();
-      unsigned SmallBitSize = SmallC->getType()->getBitWidth();
-
-      // Check that the low bits are zero.
-      APInt Low = APInt::getLowBitsSet(BigBitSize, SmallBitSize);
-      if ((Low & AndC->getValue()).isNullValue() &&
-          (Low & BigC->getValue()).isNullValue()) {
-        Value *NewAnd = Builder.CreateAnd(V, Low | AndC->getValue());
-        APInt N = SmallC->getValue().zext(BigBitSize) | BigC->getValue();
-        Value *NewVal = ConstantInt::get(AndC->getType()->getContext(), N);
-        return Builder.CreateICmp(PredL, NewAnd, NewVal);
-      }
-    }
-  }
-
-  // From here on, we only handle:
-  //    (icmp1 A, C1) & (icmp2 A, C2) --> something simpler.
-  if (LHS0 != RHS0)
-    return nullptr;
-
-  // ICMP_[US][GL]E X, C is folded to ICMP_[US][GL]T elsewhere.
-  if (PredL == ICmpInst::ICMP_UGE || PredL == ICmpInst::ICMP_ULE ||
-      PredR == ICmpInst::ICMP_UGE || PredR == ICmpInst::ICMP_ULE ||
-      PredL == ICmpInst::ICMP_SGE || PredL == ICmpInst::ICMP_SLE ||
-      PredR == ICmpInst::ICMP_SGE || PredR == ICmpInst::ICMP_SLE)
-    return nullptr;
-
-  // We can't fold (ugt x, C) & (sgt x, C2).
-  if (!PredicatesFoldable(PredL, PredR))
-    return nullptr;
-
-  // Ensure that the larger constant is on the RHS.
-  bool ShouldSwap;
-  if (CmpInst::isSigned(PredL) ||
-      (ICmpInst::isEquality(PredL) && CmpInst::isSigned(PredR)))
-    ShouldSwap = LHSC->getValue().sgt(RHSC->getValue());
+  // One icmp needs to be 'signed truncation check'.
+  // We need to match this first, else we will mismatch commutative cases.
+  Value *X1;
+  APInt HighestBit;
+  ICmpInst *OtherICmp;
+  if (tryToMatchSignedTruncationCheck(ICmp1, X1, HighestBit))
+    OtherICmp = ICmp0;
+  else if (tryToMatchSignedTruncationCheck(ICmp0, X1, HighestBit))
+    OtherICmp = ICmp1;
   else
-    ShouldSwap = LHSC->getValue().ugt(RHSC->getValue());
+    return nullptr;
 
-  if (ShouldSwap) {
-    std::swap(LHS, RHS);
-    std::swap(LHSC, RHSC);
-    std::swap(PredL, PredR);
+  assert(HighestBit.isPowerOf2() && "expected to be power of two (non-zero)");
+
+  // Try to match/decompose into:  icmp eq (X & Mask), 0
+  auto tryToDecompose = [](ICmpInst *ICmp, Value *&X,
+                           APInt &UnsetBitsMask) -> bool {
+    CmpInst::Predicate Pred = ICmp->getPredicate();
+    // Can it be decomposed into  icmp eq (X & Mask), 0  ?
+    if (llvm::decomposeBitTestICmp(ICmp->getOperand(0), ICmp->getOperand(1),
+                                   Pred, X, UnsetBitsMask,
+                                   /*LookThroughTrunc=*/false) &&
+        Pred == ICmpInst::ICMP_EQ)
+      return true;
+    // Is it  icmp eq (X & Mask), 0  already?
+    const APInt *Mask;
+    if (match(ICmp, m_ICmp(Pred, m_And(m_Value(X), m_APInt(Mask)), m_Zero())) &&
+        Pred == ICmpInst::ICMP_EQ) {
+      UnsetBitsMask = *Mask;
+      return true;
+    }
+    return false;
+  };
+
+  // And the other icmp needs to be decomposable into a bit test.
+  Value *X0;
+  APInt UnsetBitsMask;
+  if (!tryToDecompose(OtherICmp, X0, UnsetBitsMask))
+    return nullptr;
+
+  assert(!UnsetBitsMask.isZero() && "empty mask makes no sense.");
+
+  // Are they working on the same value?
+  Value *X;
+  if (X1 == X0) {
+    // Ok as is.
+    X = X1;
+  } else if (match(X0, m_Trunc(m_Specific(X1)))) {
+    UnsetBitsMask = UnsetBitsMask.zext(X1->getType()->getScalarSizeInBits());
+    X = X1;
+  } else
+    return nullptr;
+
+  // So which bits should be uniform as per the 'signed truncation check'?
+  // (all the bits starting with (i.e. including) HighestBit)
+  APInt SignBitsMask = ~(HighestBit - 1U);
+
+  // UnsetBitsMask must have some common bits with SignBitsMask,
+  if (!UnsetBitsMask.intersects(SignBitsMask))
+    return nullptr;
+
+  // Does UnsetBitsMask contain any bits outside of SignBitsMask?
+  if (!UnsetBitsMask.isSubsetOf(SignBitsMask)) {
+    APInt OtherHighestBit = (~UnsetBitsMask) + 1U;
+    if (!OtherHighestBit.isPowerOf2())
+      return nullptr;
+    HighestBit = APIntOps::umin(HighestBit, OtherHighestBit);
   }
+  // Else, if it does not, then all is ok as-is.
 
-  // At this point, we know we have two icmp instructions
-  // comparing a value against two constants and and'ing the result
-  // together.  Because of the above check, we know that we only have
-  // icmp eq, icmp ne, icmp [su]lt, and icmp [SU]gt here. We also know
-  // (from the icmp folding check above), that the two constants
-  // are not equal and that the larger constant is on the RHS
-  assert(LHSC != RHSC && "Compares not folded above?");
+  // %r = icmp ult %X, SignBit
+  return Builder.CreateICmpULT(X, ConstantInt::get(X->getType(), HighestBit),
+                               CxtI.getName() + ".simplified");
+}
 
-  switch (PredL) {
-  default:
-    llvm_unreachable("Unknown integer condition code!");
-  case ICmpInst::ICMP_NE:
-    switch (PredR) {
-    default:
-      llvm_unreachable("Unknown integer condition code!");
-    case ICmpInst::ICMP_ULT:
-      if (LHSC == SubOne(RHSC)) // (X != 13 & X u< 14) -> X < 13
-        return Builder.CreateICmpULT(LHS0, LHSC);
-      if (LHSC->isZero()) // (X !=  0 & X u< 14) -> X-1 u< 13
-        return insertRangeTest(LHS0, LHSC->getValue() + 1, RHSC->getValue(),
-                               false, true);
-      break; // (X != 13 & X u< 15) -> no change
-    case ICmpInst::ICMP_SLT:
-      if (LHSC == SubOne(RHSC)) // (X != 13 & X s< 14) -> X < 13
-        return Builder.CreateICmpSLT(LHS0, LHSC);
-      break;                 // (X != 13 & X s< 15) -> no change
-    case ICmpInst::ICMP_NE:
-      // Potential folds for this case should already be handled.
-      break;
-    }
-    break;
-  case ICmpInst::ICMP_UGT:
-    switch (PredR) {
-    default:
-      llvm_unreachable("Unknown integer condition code!");
-    case ICmpInst::ICMP_NE:
-      if (RHSC == AddOne(LHSC)) // (X u> 13 & X != 14) -> X u> 14
-        return Builder.CreateICmp(PredL, LHS0, RHSC);
-      break;                 // (X u> 13 & X != 15) -> no change
-    case ICmpInst::ICMP_ULT: // (X u> 13 & X u< 15) -> (X-14) <u 1
-      return insertRangeTest(LHS0, LHSC->getValue() + 1, RHSC->getValue(),
-                             false, true);
-    }
-    break;
-  case ICmpInst::ICMP_SGT:
-    switch (PredR) {
-    default:
-      llvm_unreachable("Unknown integer condition code!");
-    case ICmpInst::ICMP_NE:
-      if (RHSC == AddOne(LHSC)) // (X s> 13 & X != 14) -> X s> 14
-        return Builder.CreateICmp(PredL, LHS0, RHSC);
-      break;                 // (X s> 13 & X != 15) -> no change
-    case ICmpInst::ICMP_SLT: // (X s> 13 & X s< 15) -> (X-14) s< 1
-      return insertRangeTest(LHS0, LHSC->getValue() + 1, RHSC->getValue(), true,
-                             true);
-    }
-    break;
-  }
+/// Fold (icmp eq ctpop(X) 1) | (icmp eq X 0) into (icmp ult ctpop(X) 2) and
+/// fold (icmp ne ctpop(X) 1) & (icmp ne X 0) into (icmp ugt ctpop(X) 1).
+/// Also used for logical and/or, must be poison safe.
+static Value *foldIsPowerOf2OrZero(ICmpInst *Cmp0, ICmpInst *Cmp1, bool IsAnd,
+                                   InstCombiner::BuilderTy &Builder) {
+  CmpInst::Predicate Pred0, Pred1;
+  Value *X;
+  if (!match(Cmp0, m_ICmp(Pred0, m_Intrinsic<Intrinsic::ctpop>(m_Value(X)),
+                          m_SpecificInt(1))) ||
+      !match(Cmp1, m_ICmp(Pred1, m_Specific(X), m_ZeroInt())))
+    return nullptr;
+
+  Value *CtPop = Cmp0->getOperand(0);
+  if (IsAnd && Pred0 == ICmpInst::ICMP_NE && Pred1 == ICmpInst::ICMP_NE)
+    return Builder.CreateICmpUGT(CtPop, ConstantInt::get(CtPop->getType(), 1));
+  if (!IsAnd && Pred0 == ICmpInst::ICMP_EQ && Pred1 == ICmpInst::ICMP_EQ)
+    return Builder.CreateICmpULT(CtPop, ConstantInt::get(CtPop->getType(), 2));
 
   return nullptr;
 }
 
-Value *InstCombiner::foldLogicOfFCmps(FCmpInst *LHS, FCmpInst *RHS, bool IsAnd) {
+/// Reduce a pair of compares that check if a value has exactly 1 bit set.
+/// Also used for logical and/or, must be poison safe.
+static Value *foldIsPowerOf2(ICmpInst *Cmp0, ICmpInst *Cmp1, bool JoinedByAnd,
+                             InstCombiner::BuilderTy &Builder) {
+  // Handle 'and' / 'or' commutation: make the equality check the first operand.
+  if (JoinedByAnd && Cmp1->getPredicate() == ICmpInst::ICMP_NE)
+    std::swap(Cmp0, Cmp1);
+  else if (!JoinedByAnd && Cmp1->getPredicate() == ICmpInst::ICMP_EQ)
+    std::swap(Cmp0, Cmp1);
+
+  // (X != 0) && (ctpop(X) u< 2) --> ctpop(X) == 1
+  CmpInst::Predicate Pred0, Pred1;
+  Value *X;
+  if (JoinedByAnd && match(Cmp0, m_ICmp(Pred0, m_Value(X), m_ZeroInt())) &&
+      match(Cmp1, m_ICmp(Pred1, m_Intrinsic<Intrinsic::ctpop>(m_Specific(X)),
+                         m_SpecificInt(2))) &&
+      Pred0 == ICmpInst::ICMP_NE && Pred1 == ICmpInst::ICMP_ULT) {
+    Value *CtPop = Cmp1->getOperand(0);
+    return Builder.CreateICmpEQ(CtPop, ConstantInt::get(CtPop->getType(), 1));
+  }
+  // (X == 0) || (ctpop(X) u> 1) --> ctpop(X) != 1
+  if (!JoinedByAnd && match(Cmp0, m_ICmp(Pred0, m_Value(X), m_ZeroInt())) &&
+      match(Cmp1, m_ICmp(Pred1, m_Intrinsic<Intrinsic::ctpop>(m_Specific(X)),
+                         m_SpecificInt(1))) &&
+      Pred0 == ICmpInst::ICMP_EQ && Pred1 == ICmpInst::ICMP_UGT) {
+    Value *CtPop = Cmp1->getOperand(0);
+    return Builder.CreateICmpNE(CtPop, ConstantInt::get(CtPop->getType(), 1));
+  }
+  return nullptr;
+}
+
+/// Commuted variants are assumed to be handled by calling this function again
+/// with the parameters swapped.
+static Value *foldUnsignedUnderflowCheck(ICmpInst *ZeroICmp,
+                                         ICmpInst *UnsignedICmp, bool IsAnd,
+                                         const SimplifyQuery &Q,
+                                         InstCombiner::BuilderTy &Builder) {
+  Value *ZeroCmpOp;
+  ICmpInst::Predicate EqPred;
+  if (!match(ZeroICmp, m_ICmp(EqPred, m_Value(ZeroCmpOp), m_Zero())) ||
+      !ICmpInst::isEquality(EqPred))
+    return nullptr;
+
+  auto IsKnownNonZero = [&](Value *V) {
+    return isKnownNonZero(V, Q.DL, /*Depth=*/0, Q.AC, Q.CxtI, Q.DT);
+  };
+
+  ICmpInst::Predicate UnsignedPred;
+
+  Value *A, *B;
+  if (match(UnsignedICmp,
+            m_c_ICmp(UnsignedPred, m_Specific(ZeroCmpOp), m_Value(A))) &&
+      match(ZeroCmpOp, m_c_Add(m_Specific(A), m_Value(B))) &&
+      (ZeroICmp->hasOneUse() || UnsignedICmp->hasOneUse())) {
+    auto GetKnownNonZeroAndOther = [&](Value *&NonZero, Value *&Other) {
+      if (!IsKnownNonZero(NonZero))
+        std::swap(NonZero, Other);
+      return IsKnownNonZero(NonZero);
+    };
+
+    // Given  ZeroCmpOp = (A + B)
+    //   ZeroCmpOp <  A && ZeroCmpOp != 0  -->  (0-X) <  Y  iff
+    //   ZeroCmpOp >= A || ZeroCmpOp == 0  -->  (0-X) >= Y  iff
+    //     with X being the value (A/B) that is known to be non-zero,
+    //     and Y being remaining value.
+    if (UnsignedPred == ICmpInst::ICMP_ULT && EqPred == ICmpInst::ICMP_NE &&
+        IsAnd && GetKnownNonZeroAndOther(B, A))
+      return Builder.CreateICmpULT(Builder.CreateNeg(B), A);
+    if (UnsignedPred == ICmpInst::ICMP_UGE && EqPred == ICmpInst::ICMP_EQ &&
+        !IsAnd && GetKnownNonZeroAndOther(B, A))
+      return Builder.CreateICmpUGE(Builder.CreateNeg(B), A);
+  }
+
+  Value *Base, *Offset;
+  if (!match(ZeroCmpOp, m_Sub(m_Value(Base), m_Value(Offset))))
+    return nullptr;
+
+  if (!match(UnsignedICmp,
+             m_c_ICmp(UnsignedPred, m_Specific(Base), m_Specific(Offset))) ||
+      !ICmpInst::isUnsigned(UnsignedPred))
+    return nullptr;
+
+  // Base >=/> Offset && (Base - Offset) != 0  <-->  Base > Offset
+  // (no overflow and not null)
+  if ((UnsignedPred == ICmpInst::ICMP_UGE ||
+       UnsignedPred == ICmpInst::ICMP_UGT) &&
+      EqPred == ICmpInst::ICMP_NE && IsAnd)
+    return Builder.CreateICmpUGT(Base, Offset);
+
+  // Base <=/< Offset || (Base - Offset) == 0  <-->  Base <= Offset
+  // (overflow or null)
+  if ((UnsignedPred == ICmpInst::ICMP_ULE ||
+       UnsignedPred == ICmpInst::ICMP_ULT) &&
+      EqPred == ICmpInst::ICMP_EQ && !IsAnd)
+    return Builder.CreateICmpULE(Base, Offset);
+
+  // Base <= Offset && (Base - Offset) != 0  -->  Base < Offset
+  if (UnsignedPred == ICmpInst::ICMP_ULE && EqPred == ICmpInst::ICMP_NE &&
+      IsAnd)
+    return Builder.CreateICmpULT(Base, Offset);
+
+  // Base > Offset || (Base - Offset) == 0  -->  Base >= Offset
+  if (UnsignedPred == ICmpInst::ICMP_UGT && EqPred == ICmpInst::ICMP_EQ &&
+      !IsAnd)
+    return Builder.CreateICmpUGE(Base, Offset);
+
+  return nullptr;
+}
+
+struct IntPart {
+  Value *From;
+  unsigned StartBit;
+  unsigned NumBits;
+};
+
+/// Match an extraction of bits from an integer.
+static std::optional<IntPart> matchIntPart(Value *V) {
+  Value *X;
+  if (!match(V, m_OneUse(m_Trunc(m_Value(X)))))
+    return std::nullopt;
+
+  unsigned NumOriginalBits = X->getType()->getScalarSizeInBits();
+  unsigned NumExtractedBits = V->getType()->getScalarSizeInBits();
+  Value *Y;
+  const APInt *Shift;
+  // For a trunc(lshr Y, Shift) pattern, make sure we're only extracting bits
+  // from Y, not any shifted-in zeroes.
+  if (match(X, m_OneUse(m_LShr(m_Value(Y), m_APInt(Shift)))) &&
+      Shift->ule(NumOriginalBits - NumExtractedBits))
+    return {{Y, (unsigned)Shift->getZExtValue(), NumExtractedBits}};
+  return {{X, 0, NumExtractedBits}};
+}
+
+/// Materialize an extraction of bits from an integer in IR.
+static Value *extractIntPart(const IntPart &P, IRBuilderBase &Builder) {
+  Value *V = P.From;
+  if (P.StartBit)
+    V = Builder.CreateLShr(V, P.StartBit);
+  Type *TruncTy = V->getType()->getWithNewBitWidth(P.NumBits);
+  if (TruncTy != V->getType())
+    V = Builder.CreateTrunc(V, TruncTy);
+  return V;
+}
+
+/// (icmp eq X0, Y0) & (icmp eq X1, Y1) -> icmp eq X01, Y01
+/// (icmp ne X0, Y0) | (icmp ne X1, Y1) -> icmp ne X01, Y01
+/// where X0, X1 and Y0, Y1 are adjacent parts extracted from an integer.
+Value *InstCombinerImpl::foldEqOfParts(ICmpInst *Cmp0, ICmpInst *Cmp1,
+                                       bool IsAnd) {
+  if (!Cmp0->hasOneUse() || !Cmp1->hasOneUse())
+    return nullptr;
+
+  CmpInst::Predicate Pred = IsAnd ? CmpInst::ICMP_EQ : CmpInst::ICMP_NE;
+  if (Cmp0->getPredicate() != Pred || Cmp1->getPredicate() != Pred)
+    return nullptr;
+
+  std::optional<IntPart> L0 = matchIntPart(Cmp0->getOperand(0));
+  std::optional<IntPart> R0 = matchIntPart(Cmp0->getOperand(1));
+  std::optional<IntPart> L1 = matchIntPart(Cmp1->getOperand(0));
+  std::optional<IntPart> R1 = matchIntPart(Cmp1->getOperand(1));
+  if (!L0 || !R0 || !L1 || !R1)
+    return nullptr;
+
+  // Make sure the LHS/RHS compare a part of the same value, possibly after
+  // an operand swap.
+  if (L0->From != L1->From || R0->From != R1->From) {
+    if (L0->From != R1->From || R0->From != L1->From)
+      return nullptr;
+    std::swap(L1, R1);
+  }
+
+  // Make sure the extracted parts are adjacent, canonicalizing to L0/R0 being
+  // the low part and L1/R1 being the high part.
+  if (L0->StartBit + L0->NumBits != L1->StartBit ||
+      R0->StartBit + R0->NumBits != R1->StartBit) {
+    if (L1->StartBit + L1->NumBits != L0->StartBit ||
+        R1->StartBit + R1->NumBits != R0->StartBit)
+      return nullptr;
+    std::swap(L0, L1);
+    std::swap(R0, R1);
+  }
+
+  // We can simplify to a comparison of these larger parts of the integers.
+  IntPart L = {L0->From, L0->StartBit, L0->NumBits + L1->NumBits};
+  IntPart R = {R0->From, R0->StartBit, R0->NumBits + R1->NumBits};
+  Value *LValue = extractIntPart(L, Builder);
+  Value *RValue = extractIntPart(R, Builder);
+  return Builder.CreateICmp(Pred, LValue, RValue);
+}
+
+/// Reduce logic-of-compares with equality to a constant by substituting a
+/// common operand with the constant. Callers are expected to call this with
+/// Cmp0/Cmp1 switched to handle logic op commutativity.
+static Value *foldAndOrOfICmpsWithConstEq(ICmpInst *Cmp0, ICmpInst *Cmp1,
+                                          bool IsAnd, bool IsLogical,
+                                          InstCombiner::BuilderTy &Builder,
+                                          const SimplifyQuery &Q) {
+  // Match an equality compare with a non-poison constant as Cmp0.
+  // Also, give up if the compare can be constant-folded to avoid looping.
+  ICmpInst::Predicate Pred0;
+  Value *X;
+  Constant *C;
+  if (!match(Cmp0, m_ICmp(Pred0, m_Value(X), m_Constant(C))) ||
+      !isGuaranteedNotToBeUndefOrPoison(C) || isa<Constant>(X))
+    return nullptr;
+  if ((IsAnd && Pred0 != ICmpInst::ICMP_EQ) ||
+      (!IsAnd && Pred0 != ICmpInst::ICMP_NE))
+    return nullptr;
+
+  // The other compare must include a common operand (X). Canonicalize the
+  // common operand as operand 1 (Pred1 is swapped if the common operand was
+  // operand 0).
+  Value *Y;
+  ICmpInst::Predicate Pred1;
+  if (!match(Cmp1, m_c_ICmp(Pred1, m_Value(Y), m_Deferred(X))))
+    return nullptr;
+
+  // Replace variable with constant value equivalence to remove a variable use:
+  // (X == C) && (Y Pred1 X) --> (X == C) && (Y Pred1 C)
+  // (X != C) || (Y Pred1 X) --> (X != C) || (Y Pred1 C)
+  // Can think of the 'or' substitution with the 'and' bool equivalent:
+  // A || B --> A || (!A && B)
+  Value *SubstituteCmp = simplifyICmpInst(Pred1, Y, C, Q);
+  if (!SubstituteCmp) {
+    // If we need to create a new instruction, require that the old compare can
+    // be removed.
+    if (!Cmp1->hasOneUse())
+      return nullptr;
+    SubstituteCmp = Builder.CreateICmp(Pred1, Y, C);
+  }
+  if (IsLogical)
+    return IsAnd ? Builder.CreateLogicalAnd(Cmp0, SubstituteCmp)
+                 : Builder.CreateLogicalOr(Cmp0, SubstituteCmp);
+  return Builder.CreateBinOp(IsAnd ? Instruction::And : Instruction::Or, Cmp0,
+                             SubstituteCmp);
+}
+
+/// Fold (icmp Pred1 V1, C1) & (icmp Pred2 V2, C2)
+/// or   (icmp Pred1 V1, C1) | (icmp Pred2 V2, C2)
+/// into a single comparison using range-based reasoning.
+/// NOTE: This is also used for logical and/or, must be poison-safe!
+Value *InstCombinerImpl::foldAndOrOfICmpsUsingRanges(ICmpInst *ICmp1,
+                                                     ICmpInst *ICmp2,
+                                                     bool IsAnd) {
+  ICmpInst::Predicate Pred1, Pred2;
+  Value *V1, *V2;
+  const APInt *C1, *C2;
+  if (!match(ICmp1, m_ICmp(Pred1, m_Value(V1), m_APInt(C1))) ||
+      !match(ICmp2, m_ICmp(Pred2, m_Value(V2), m_APInt(C2))))
+    return nullptr;
+
+  // Look through add of a constant offset on V1, V2, or both operands. This
+  // allows us to interpret the V + C' < C'' range idiom into a proper range.
+  const APInt *Offset1 = nullptr, *Offset2 = nullptr;
+  if (V1 != V2) {
+    Value *X;
+    if (match(V1, m_Add(m_Value(X), m_APInt(Offset1))))
+      V1 = X;
+    if (match(V2, m_Add(m_Value(X), m_APInt(Offset2))))
+      V2 = X;
+  }
+
+  if (V1 != V2)
+    return nullptr;
+
+  ConstantRange CR1 = ConstantRange::makeExactICmpRegion(
+      IsAnd ? ICmpInst::getInversePredicate(Pred1) : Pred1, *C1);
+  if (Offset1)
+    CR1 = CR1.subtract(*Offset1);
+
+  ConstantRange CR2 = ConstantRange::makeExactICmpRegion(
+      IsAnd ? ICmpInst::getInversePredicate(Pred2) : Pred2, *C2);
+  if (Offset2)
+    CR2 = CR2.subtract(*Offset2);
+
+  Type *Ty = V1->getType();
+  Value *NewV = V1;
+  std::optional<ConstantRange> CR = CR1.exactUnionWith(CR2);
+  if (!CR) {
+    if (!(ICmp1->hasOneUse() && ICmp2->hasOneUse()) || CR1.isWrappedSet() ||
+        CR2.isWrappedSet())
+      return nullptr;
+
+    // Check whether we have equal-size ranges that only differ by one bit.
+    // In that case we can apply a mask to map one range onto the other.
+    APInt LowerDiff = CR1.getLower() ^ CR2.getLower();
+    APInt UpperDiff = (CR1.getUpper() - 1) ^ (CR2.getUpper() - 1);
+    APInt CR1Size = CR1.getUpper() - CR1.getLower();
+    if (!LowerDiff.isPowerOf2() || LowerDiff != UpperDiff ||
+        CR1Size != CR2.getUpper() - CR2.getLower())
+      return nullptr;
+
+    CR = CR1.getLower().ult(CR2.getLower()) ? CR1 : CR2;
+    NewV = Builder.CreateAnd(NewV, ConstantInt::get(Ty, ~LowerDiff));
+  }
+
+  if (IsAnd)
+    CR = CR->inverse();
+
+  CmpInst::Predicate NewPred;
+  APInt NewC, Offset;
+  CR->getEquivalentICmp(NewPred, NewC, Offset);
+
+  if (Offset != 0)
+    NewV = Builder.CreateAdd(NewV, ConstantInt::get(Ty, Offset));
+  return Builder.CreateICmp(NewPred, NewV, ConstantInt::get(Ty, NewC));
+}
+
+/// Ignore all operations which only change the sign of a value, returning the
+/// underlying magnitude value.
+static Value *stripSignOnlyFPOps(Value *Val) {
+  match(Val, m_FNeg(m_Value(Val)));
+  match(Val, m_FAbs(m_Value(Val)));
+  match(Val, m_CopySign(m_Value(Val), m_Value()));
+  return Val;
+}
+
+/// Matches canonical form of isnan, fcmp ord x, 0
+static bool matchIsNotNaN(FCmpInst::Predicate P, Value *LHS, Value *RHS) {
+  return P == FCmpInst::FCMP_ORD && match(RHS, m_AnyZeroFP());
+}
+
+/// Matches fcmp u__ x, +/-inf
+static bool matchUnorderedInfCompare(FCmpInst::Predicate P, Value *LHS,
+                                     Value *RHS) {
+  return FCmpInst::isUnordered(P) && match(RHS, m_Inf());
+}
+
+/// and (fcmp ord x, 0), (fcmp u* x, inf) -> fcmp o* x, inf
+///
+/// Clang emits this pattern for doing an isfinite check in __builtin_isnormal.
+static Value *matchIsFiniteTest(InstCombiner::BuilderTy &Builder, FCmpInst *LHS,
+                                FCmpInst *RHS) {
+  Value *LHS0 = LHS->getOperand(0), *LHS1 = LHS->getOperand(1);
+  Value *RHS0 = RHS->getOperand(0), *RHS1 = RHS->getOperand(1);
+  FCmpInst::Predicate PredL = LHS->getPredicate(), PredR = RHS->getPredicate();
+
+  if (!matchIsNotNaN(PredL, LHS0, LHS1) ||
+      !matchUnorderedInfCompare(PredR, RHS0, RHS1))
+    return nullptr;
+
+  IRBuilder<>::FastMathFlagGuard FMFG(Builder);
+  FastMathFlags FMF = LHS->getFastMathFlags();
+  FMF &= RHS->getFastMathFlags();
+  Builder.setFastMathFlags(FMF);
+
+  return Builder.CreateFCmp(FCmpInst::getOrderedPredicate(PredR), RHS0, RHS1);
+}
+
+Value *InstCombinerImpl::foldLogicOfFCmps(FCmpInst *LHS, FCmpInst *RHS,
+                                          bool IsAnd, bool IsLogicalSelect) {
   Value *LHS0 = LHS->getOperand(0), *LHS1 = LHS->getOperand(1);
   Value *RHS0 = RHS->getOperand(0), *RHS1 = RHS->getOperand(1);
   FCmpInst::Predicate PredL = LHS->getPredicate(), PredR = RHS->getPredicate();
@@ -1112,11 +1276,22 @@ Value *InstCombiner::foldLogicOfFCmps(FCmpInst *LHS, FCmpInst *RHS, bool IsAnd) 
     unsigned FCmpCodeL = getFCmpCode(PredL);
     unsigned FCmpCodeR = getFCmpCode(PredR);
     unsigned NewPred = IsAnd ? FCmpCodeL & FCmpCodeR : FCmpCodeL | FCmpCodeR;
+
+    // Intersect the fast math flags.
+    // TODO: We can union the fast math flags unless this is a logical select.
+    IRBuilder<>::FastMathFlagGuard FMFG(Builder);
+    FastMathFlags FMF = LHS->getFastMathFlags();
+    FMF &= RHS->getFastMathFlags();
+    Builder.setFastMathFlags(FMF);
+
     return getFCmpValue(NewPred, LHS0, LHS1, Builder);
   }
 
-  if ((PredL == FCmpInst::FCMP_ORD && PredR == FCmpInst::FCMP_ORD && IsAnd) ||
-      (PredL == FCmpInst::FCMP_UNO && PredR == FCmpInst::FCMP_UNO && !IsAnd)) {
+  // This transform is not valid for a logical select.
+  if (!IsLogicalSelect &&
+      ((PredL == FCmpInst::FCMP_ORD && PredR == FCmpInst::FCMP_ORD && IsAnd) ||
+       (PredL == FCmpInst::FCMP_UNO && PredR == FCmpInst::FCMP_UNO &&
+        !IsAnd))) {
     if (LHS0->getType() != RHS0->getType())
       return nullptr;
 
@@ -1129,34 +1304,165 @@ Value *InstCombiner::foldLogicOfFCmps(FCmpInst *LHS, FCmpInst *RHS, bool IsAnd) 
       return Builder.CreateFCmp(PredL, LHS0, RHS0);
   }
 
-  return nullptr;
-}
-
-/// Match De Morgan's Laws:
-/// (~A & ~B) == (~(A | B))
-/// (~A | ~B) == (~(A & B))
-static Instruction *matchDeMorgansLaws(BinaryOperator &I,
-                                       InstCombiner::BuilderTy &Builder) {
-  auto Opcode = I.getOpcode();
-  assert((Opcode == Instruction::And || Opcode == Instruction::Or) &&
-         "Trying to match De Morgan's Laws with something other than and/or");
-
-  // Flip the logic operation.
-  Opcode = (Opcode == Instruction::And) ? Instruction::Or : Instruction::And;
-
-  Value *A, *B;
-  if (match(I.getOperand(0), m_OneUse(m_Not(m_Value(A)))) &&
-      match(I.getOperand(1), m_OneUse(m_Not(m_Value(B)))) &&
-      !IsFreeToInvert(A, A->hasOneUse()) &&
-      !IsFreeToInvert(B, B->hasOneUse())) {
-    Value *AndOr = Builder.CreateBinOp(Opcode, A, B, I.getName() + ".demorgan");
-    return BinaryOperator::CreateNot(AndOr);
+  if (IsAnd && stripSignOnlyFPOps(LHS0) == stripSignOnlyFPOps(RHS0)) {
+    // and (fcmp ord x, 0), (fcmp u* x, inf) -> fcmp o* x, inf
+    // and (fcmp ord x, 0), (fcmp u* fabs(x), inf) -> fcmp o* x, inf
+    if (Value *Left = matchIsFiniteTest(Builder, LHS, RHS))
+      return Left;
+    if (Value *Right = matchIsFiniteTest(Builder, RHS, LHS))
+      return Right;
   }
 
   return nullptr;
 }
 
-bool InstCombiner::shouldOptimizeCast(CastInst *CI) {
+/// or (is_fpclass x, mask0), (is_fpclass x, mask1)
+///     -> is_fpclass x, (mask0 | mask1)
+/// and (is_fpclass x, mask0), (is_fpclass x, mask1)
+///     -> is_fpclass x, (mask0 & mask1)
+/// xor (is_fpclass x, mask0), (is_fpclass x, mask1)
+///     -> is_fpclass x, (mask0 ^ mask1)
+Instruction *InstCombinerImpl::foldLogicOfIsFPClass(BinaryOperator &BO,
+                                                    Value *Op0, Value *Op1) {
+  Value *ClassVal;
+  uint64_t ClassMask0, ClassMask1;
+
+  if (match(Op0, m_OneUse(m_Intrinsic<Intrinsic::is_fpclass>(
+                     m_Value(ClassVal), m_ConstantInt(ClassMask0)))) &&
+      match(Op1, m_OneUse(m_Intrinsic<Intrinsic::is_fpclass>(
+                     m_Specific(ClassVal), m_ConstantInt(ClassMask1))))) {
+    unsigned NewClassMask;
+    switch (BO.getOpcode()) {
+    case Instruction::And:
+      NewClassMask = ClassMask0 & ClassMask1;
+      break;
+    case Instruction::Or:
+      NewClassMask = ClassMask0 | ClassMask1;
+      break;
+    case Instruction::Xor:
+      NewClassMask = ClassMask0 ^ ClassMask1;
+      break;
+    default:
+      llvm_unreachable("not a binary logic operator");
+    }
+
+    // TODO: Also check for special fcmps
+    auto *II = cast<IntrinsicInst>(Op0);
+    II->setArgOperand(
+        1, ConstantInt::get(II->getArgOperand(1)->getType(), NewClassMask));
+    return replaceInstUsesWith(BO, II);
+  }
+
+  return nullptr;
+}
+
+/// Look for the pattern that conditionally negates a value via math operations:
+///   cond.splat = sext i1 cond
+///   sub = add cond.splat, x
+///   xor = xor sub, cond.splat
+/// and rewrite it to do the same, but via logical operations:
+///   value.neg = sub 0, value
+///   cond = select i1 neg, value.neg, value
+Instruction *InstCombinerImpl::canonicalizeConditionalNegationViaMathToSelect(
+    BinaryOperator &I) {
+  assert(I.getOpcode() == BinaryOperator::Xor && "Only for xor!");
+  Value *Cond, *X;
+  // As per complexity ordering, `xor` is not commutative here.
+  if (!match(&I, m_c_BinOp(m_OneUse(m_Value()), m_Value())) ||
+      !match(I.getOperand(1), m_SExt(m_Value(Cond))) ||
+      !Cond->getType()->isIntOrIntVectorTy(1) ||
+      !match(I.getOperand(0), m_c_Add(m_SExt(m_Deferred(Cond)), m_Value(X))))
+    return nullptr;
+  return SelectInst::Create(Cond, Builder.CreateNeg(X, X->getName() + ".neg"),
+                            X);
+}
+
+/// This a limited reassociation for a special case (see above) where we are
+/// checking if two values are either both NAN (unordered) or not-NAN (ordered).
+/// This could be handled more generally in '-reassociation', but it seems like
+/// an unlikely pattern for a large number of logic ops and fcmps.
+static Instruction *reassociateFCmps(BinaryOperator &BO,
+                                     InstCombiner::BuilderTy &Builder) {
+  Instruction::BinaryOps Opcode = BO.getOpcode();
+  assert((Opcode == Instruction::And || Opcode == Instruction::Or) &&
+         "Expecting and/or op for fcmp transform");
+
+  // There are 4 commuted variants of the pattern. Canonicalize operands of this
+  // logic op so an fcmp is operand 0 and a matching logic op is operand 1.
+  Value *Op0 = BO.getOperand(0), *Op1 = BO.getOperand(1), *X;
+  FCmpInst::Predicate Pred;
+  if (match(Op1, m_FCmp(Pred, m_Value(), m_AnyZeroFP())))
+    std::swap(Op0, Op1);
+
+  // Match inner binop and the predicate for combining 2 NAN checks into 1.
+  Value *BO10, *BO11;
+  FCmpInst::Predicate NanPred = Opcode == Instruction::And ? FCmpInst::FCMP_ORD
+                                                           : FCmpInst::FCMP_UNO;
+  if (!match(Op0, m_FCmp(Pred, m_Value(X), m_AnyZeroFP())) || Pred != NanPred ||
+      !match(Op1, m_BinOp(Opcode, m_Value(BO10), m_Value(BO11))))
+    return nullptr;
+
+  // The inner logic op must have a matching fcmp operand.
+  Value *Y;
+  if (!match(BO10, m_FCmp(Pred, m_Value(Y), m_AnyZeroFP())) ||
+      Pred != NanPred || X->getType() != Y->getType())
+    std::swap(BO10, BO11);
+
+  if (!match(BO10, m_FCmp(Pred, m_Value(Y), m_AnyZeroFP())) ||
+      Pred != NanPred || X->getType() != Y->getType())
+    return nullptr;
+
+  // and (fcmp ord X, 0), (and (fcmp ord Y, 0), Z) --> and (fcmp ord X, Y), Z
+  // or  (fcmp uno X, 0), (or  (fcmp uno Y, 0), Z) --> or  (fcmp uno X, Y), Z
+  Value *NewFCmp = Builder.CreateFCmp(Pred, X, Y);
+  if (auto *NewFCmpInst = dyn_cast<FCmpInst>(NewFCmp)) {
+    // Intersect FMF from the 2 source fcmps.
+    NewFCmpInst->copyIRFlags(Op0);
+    NewFCmpInst->andIRFlags(BO10);
+  }
+  return BinaryOperator::Create(Opcode, NewFCmp, BO11);
+}
+
+/// Match variations of De Morgan's Laws:
+/// (~A & ~B) == (~(A | B))
+/// (~A | ~B) == (~(A & B))
+static Instruction *matchDeMorgansLaws(BinaryOperator &I,
+                                       InstCombiner::BuilderTy &Builder) {
+  const Instruction::BinaryOps Opcode = I.getOpcode();
+  assert((Opcode == Instruction::And || Opcode == Instruction::Or) &&
+         "Trying to match De Morgan's Laws with something other than and/or");
+
+  // Flip the logic operation.
+  const Instruction::BinaryOps FlippedOpcode =
+      (Opcode == Instruction::And) ? Instruction::Or : Instruction::And;
+
+  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+  Value *A, *B;
+  if (match(Op0, m_OneUse(m_Not(m_Value(A)))) &&
+      match(Op1, m_OneUse(m_Not(m_Value(B)))) &&
+      !InstCombiner::isFreeToInvert(A, A->hasOneUse()) &&
+      !InstCombiner::isFreeToInvert(B, B->hasOneUse())) {
+    Value *AndOr =
+        Builder.CreateBinOp(FlippedOpcode, A, B, I.getName() + ".demorgan");
+    return BinaryOperator::CreateNot(AndOr);
+  }
+
+  // The 'not' ops may require reassociation.
+  // (A & ~B) & ~C --> A & ~(B | C)
+  // (~B & A) & ~C --> A & ~(B | C)
+  // (A | ~B) | ~C --> A | ~(B & C)
+  // (~B | A) | ~C --> A | ~(B & C)
+  Value *C;
+  if (match(Op0, m_OneUse(m_c_BinOp(Opcode, m_Value(A), m_Not(m_Value(B))))) &&
+      match(Op1, m_Not(m_Value(C)))) {
+    Value *FlippedBO = Builder.CreateBinOp(FlippedOpcode, B, C);
+    return BinaryOperator::Create(Opcode, A, Builder.CreateNot(FlippedBO));
+  }
+
+  return nullptr;
+}
+
+bool InstCombinerImpl::shouldOptimizeCast(CastInst *CI) {
   Value *CastSrc = CI->getOperand(0);
 
   // Noop casts and casts of constants should be eliminated trivially.
@@ -1212,7 +1518,7 @@ static Instruction *foldLogicCastConstant(BinaryOperator &Logic, CastInst *Cast,
 }
 
 /// Fold {and,or,xor} (cast X), Y.
-Instruction *InstCombiner::foldCastedBitwiseLogic(BinaryOperator &I) {
+Instruction *InstCombinerImpl::foldCastedBitwiseLogic(BinaryOperator &I) {
   auto LogicOpc = I.getOpcode();
   assert(I.isBitwiseLogicOp() && "Unexpected opcode for bitwise logic folding");
 
@@ -1235,19 +1541,42 @@ Instruction *InstCombiner::foldCastedBitwiseLogic(BinaryOperator &I) {
   if (!Cast1)
     return nullptr;
 
-  // Both operands of the logic operation are casts. The casts must be of the
-  // same type for reduction.
-  auto CastOpcode = Cast0->getOpcode();
-  if (CastOpcode != Cast1->getOpcode() || SrcTy != Cast1->getSrcTy())
+  // Both operands of the logic operation are casts. The casts must be the
+  // same kind for reduction.
+  Instruction::CastOps CastOpcode = Cast0->getOpcode();
+  if (CastOpcode != Cast1->getOpcode())
     return nullptr;
+
+  // If the source types do not match, but the casts are matching extends, we
+  // can still narrow the logic op.
+  if (SrcTy != Cast1->getSrcTy()) {
+    Value *X, *Y;
+    if (match(Cast0, m_OneUse(m_ZExtOrSExt(m_Value(X)))) &&
+        match(Cast1, m_OneUse(m_ZExtOrSExt(m_Value(Y))))) {
+      // Cast the narrower source to the wider source type.
+      unsigned XNumBits = X->getType()->getScalarSizeInBits();
+      unsigned YNumBits = Y->getType()->getScalarSizeInBits();
+      if (XNumBits < YNumBits)
+        X = Builder.CreateCast(CastOpcode, X, Y->getType());
+      else
+        Y = Builder.CreateCast(CastOpcode, Y, X->getType());
+      // Do the logic op in the intermediate width, then widen more.
+      Value *NarrowLogic = Builder.CreateBinOp(LogicOpc, X, Y);
+      return CastInst::Create(CastOpcode, NarrowLogic, DestTy);
+    }
+
+    // Give up for other cast opcodes.
+    return nullptr;
+  }
 
   Value *Cast0Src = Cast0->getOperand(0);
   Value *Cast1Src = Cast1->getOperand(0);
 
   // fold logic(cast(A), cast(B)) -> cast(logic(A, B))
-  if (shouldOptimizeCast(Cast0) && shouldOptimizeCast(Cast1)) {
+  if ((Cast0->hasOneUse() || Cast1->hasOneUse()) &&
+      shouldOptimizeCast(Cast0) && shouldOptimizeCast(Cast1)) {
     Value *NewOp = Builder.CreateBinOp(LogicOpc, Cast0Src, Cast1Src,
-                                        I.getName());
+                                       I.getName());
     return CastInst::Create(CastOpcode, NewOp, DestTy);
   }
 
@@ -1260,9 +1589,8 @@ Instruction *InstCombiner::foldCastedBitwiseLogic(BinaryOperator &I) {
   ICmpInst *ICmp0 = dyn_cast<ICmpInst>(Cast0Src);
   ICmpInst *ICmp1 = dyn_cast<ICmpInst>(Cast1Src);
   if (ICmp0 && ICmp1) {
-    Value *Res = LogicOpc == Instruction::And ? foldAndOfICmps(ICmp0, ICmp1, I)
-                                              : foldOrOfICmps(ICmp0, ICmp1, I);
-    if (Res)
+    if (Value *Res =
+            foldAndOrOfICmps(ICmp0, ICmp1, I, LogicOpc == Instruction::And))
       return CastInst::Create(CastOpcode, Res, DestTy);
     return nullptr;
   }
@@ -1319,6 +1647,14 @@ static Instruction *foldOrToXor(BinaryOperator &I,
         match(Op1, m_Not(m_c_Or(m_Specific(A), m_Specific(B)))))
       return BinaryOperator::CreateNot(Builder.CreateXor(A, B));
 
+  // Operand complexity canonicalization guarantees that the 'xor' is Op0.
+  // (A ^ B) | ~(A | B) --> ~(A & B)
+  // (A ^ B) | ~(B | A) --> ~(A & B)
+  if (Op0->hasOneUse() || Op1->hasOneUse())
+    if (match(Op0, m_Xor(m_Value(A), m_Value(B))) &&
+        match(Op1, m_Not(m_c_Or(m_Specific(A), m_Specific(B)))))
+      return BinaryOperator::CreateNot(Builder.CreateAnd(A, B));
+
   // (A & ~B) | (~A & B) --> A ^ B
   // (A & ~B) | (B & ~A) --> A ^ B
   // (~B & A) | (~A & B) --> A ^ B
@@ -1333,32 +1669,13 @@ static Instruction *foldOrToXor(BinaryOperator &I,
 /// Return true if a constant shift amount is always less than the specified
 /// bit-width. If not, the shift could create poison in the narrower type.
 static bool canNarrowShiftAmt(Constant *C, unsigned BitWidth) {
-  if (auto *ScalarC = dyn_cast<ConstantInt>(C))
-    return ScalarC->getZExtValue() < BitWidth;
-
-  if (C->getType()->isVectorTy()) {
-    // Check each element of a constant vector.
-    unsigned NumElts = C->getType()->getVectorNumElements();
-    for (unsigned i = 0; i != NumElts; ++i) {
-      Constant *Elt = C->getAggregateElement(i);
-      if (!Elt)
-        return false;
-      if (isa<UndefValue>(Elt))
-        continue;
-      auto *CI = dyn_cast<ConstantInt>(Elt);
-      if (!CI || CI->getZExtValue() >= BitWidth)
-        return false;
-    }
-    return true;
-  }
-
-  // The constant is a constant expression or unknown.
-  return false;
+  APInt Threshold(C->getType()->getScalarSizeInBits(), BitWidth);
+  return match(C, m_SpecificInt_ICMP(ICmpInst::ICMP_ULT, Threshold));
 }
 
 /// Try to use narrower ops (sink zext ops) for an 'and' with binop operand and
 /// a common zext operand: and (binop (zext X), C), (zext X).
-Instruction *InstCombiner::narrowMaskedBinOp(BinaryOperator &And) {
+Instruction *InstCombinerImpl::narrowMaskedBinOp(BinaryOperator &And) {
   // This transform could also apply to {or, and, xor}, but there are better
   // folds for those cases, so we don't expect those patterns here. AShr is not
   // handled because it should always be transformed to LShr in this sequence.
@@ -1397,19 +1714,236 @@ Instruction *InstCombiner::narrowMaskedBinOp(BinaryOperator &And) {
   return new ZExtInst(Builder.CreateAnd(NewBO, X), Ty);
 }
 
+/// Try folding relatively complex patterns for both And and Or operations
+/// with all And and Or swapped.
+static Instruction *foldComplexAndOrPatterns(BinaryOperator &I,
+                                             InstCombiner::BuilderTy &Builder) {
+  const Instruction::BinaryOps Opcode = I.getOpcode();
+  assert(Opcode == Instruction::And || Opcode == Instruction::Or);
+
+  // Flip the logic operation.
+  const Instruction::BinaryOps FlippedOpcode =
+      (Opcode == Instruction::And) ? Instruction::Or : Instruction::And;
+
+  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+  Value *A, *B, *C, *X, *Y, *Dummy;
+
+  // Match following expressions:
+  // (~(A | B) & C)
+  // (~(A & B) | C)
+  // Captures X = ~(A | B) or ~(A & B)
+  const auto matchNotOrAnd =
+      [Opcode, FlippedOpcode](Value *Op, auto m_A, auto m_B, auto m_C,
+                              Value *&X, bool CountUses = false) -> bool {
+    if (CountUses && !Op->hasOneUse())
+      return false;
+
+    if (match(Op, m_c_BinOp(FlippedOpcode,
+                            m_CombineAnd(m_Value(X),
+                                         m_Not(m_c_BinOp(Opcode, m_A, m_B))),
+                            m_C)))
+      return !CountUses || X->hasOneUse();
+
+    return false;
+  };
+
+  // (~(A | B) & C) | ... --> ...
+  // (~(A & B) | C) & ... --> ...
+  // TODO: One use checks are conservative. We just need to check that a total
+  //       number of multiple used values does not exceed reduction
+  //       in operations.
+  if (matchNotOrAnd(Op0, m_Value(A), m_Value(B), m_Value(C), X)) {
+    // (~(A | B) & C) | (~(A | C) & B) --> (B ^ C) & ~A
+    // (~(A & B) | C) & (~(A & C) | B) --> ~((B ^ C) & A)
+    if (matchNotOrAnd(Op1, m_Specific(A), m_Specific(C), m_Specific(B), Dummy,
+                      true)) {
+      Value *Xor = Builder.CreateXor(B, C);
+      return (Opcode == Instruction::Or)
+                 ? BinaryOperator::CreateAnd(Xor, Builder.CreateNot(A))
+                 : BinaryOperator::CreateNot(Builder.CreateAnd(Xor, A));
+    }
+
+    // (~(A | B) & C) | (~(B | C) & A) --> (A ^ C) & ~B
+    // (~(A & B) | C) & (~(B & C) | A) --> ~((A ^ C) & B)
+    if (matchNotOrAnd(Op1, m_Specific(B), m_Specific(C), m_Specific(A), Dummy,
+                      true)) {
+      Value *Xor = Builder.CreateXor(A, C);
+      return (Opcode == Instruction::Or)
+                 ? BinaryOperator::CreateAnd(Xor, Builder.CreateNot(B))
+                 : BinaryOperator::CreateNot(Builder.CreateAnd(Xor, B));
+    }
+
+    // (~(A | B) & C) | ~(A | C) --> ~((B & C) | A)
+    // (~(A & B) | C) & ~(A & C) --> ~((B | C) & A)
+    if (match(Op1, m_OneUse(m_Not(m_OneUse(
+                       m_c_BinOp(Opcode, m_Specific(A), m_Specific(C)))))))
+      return BinaryOperator::CreateNot(Builder.CreateBinOp(
+          Opcode, Builder.CreateBinOp(FlippedOpcode, B, C), A));
+
+    // (~(A | B) & C) | ~(B | C) --> ~((A & C) | B)
+    // (~(A & B) | C) & ~(B & C) --> ~((A | C) & B)
+    if (match(Op1, m_OneUse(m_Not(m_OneUse(
+                       m_c_BinOp(Opcode, m_Specific(B), m_Specific(C)))))))
+      return BinaryOperator::CreateNot(Builder.CreateBinOp(
+          Opcode, Builder.CreateBinOp(FlippedOpcode, A, C), B));
+
+    // (~(A | B) & C) | ~(C | (A ^ B)) --> ~((A | B) & (C | (A ^ B)))
+    // Note, the pattern with swapped and/or is not handled because the
+    // result is more undefined than a source:
+    // (~(A & B) | C) & ~(C & (A ^ B)) --> (A ^ B ^ C) | ~(A | C) is invalid.
+    if (Opcode == Instruction::Or && Op0->hasOneUse() &&
+        match(Op1, m_OneUse(m_Not(m_CombineAnd(
+                       m_Value(Y),
+                       m_c_BinOp(Opcode, m_Specific(C),
+                                 m_c_Xor(m_Specific(A), m_Specific(B)))))))) {
+      // X = ~(A | B)
+      // Y = (C | (A ^ B)
+      Value *Or = cast<BinaryOperator>(X)->getOperand(0);
+      return BinaryOperator::CreateNot(Builder.CreateAnd(Or, Y));
+    }
+  }
+
+  // (~A & B & C) | ... --> ...
+  // (~A | B | C) | ... --> ...
+  // TODO: One use checks are conservative. We just need to check that a total
+  //       number of multiple used values does not exceed reduction
+  //       in operations.
+  if (match(Op0,
+            m_OneUse(m_c_BinOp(FlippedOpcode,
+                               m_BinOp(FlippedOpcode, m_Value(B), m_Value(C)),
+                               m_CombineAnd(m_Value(X), m_Not(m_Value(A)))))) ||
+      match(Op0, m_OneUse(m_c_BinOp(
+                     FlippedOpcode,
+                     m_c_BinOp(FlippedOpcode, m_Value(C),
+                               m_CombineAnd(m_Value(X), m_Not(m_Value(A)))),
+                     m_Value(B))))) {
+    // X = ~A
+    // (~A & B & C) | ~(A | B | C) --> ~(A | (B ^ C))
+    // (~A | B | C) & ~(A & B & C) --> (~A | (B ^ C))
+    if (match(Op1, m_OneUse(m_Not(m_c_BinOp(
+                       Opcode, m_c_BinOp(Opcode, m_Specific(A), m_Specific(B)),
+                       m_Specific(C))))) ||
+        match(Op1, m_OneUse(m_Not(m_c_BinOp(
+                       Opcode, m_c_BinOp(Opcode, m_Specific(B), m_Specific(C)),
+                       m_Specific(A))))) ||
+        match(Op1, m_OneUse(m_Not(m_c_BinOp(
+                       Opcode, m_c_BinOp(Opcode, m_Specific(A), m_Specific(C)),
+                       m_Specific(B)))))) {
+      Value *Xor = Builder.CreateXor(B, C);
+      return (Opcode == Instruction::Or)
+                 ? BinaryOperator::CreateNot(Builder.CreateOr(Xor, A))
+                 : BinaryOperator::CreateOr(Xor, X);
+    }
+
+    // (~A & B & C) | ~(A | B) --> (C | ~B) & ~A
+    // (~A | B | C) & ~(A & B) --> (C & ~B) | ~A
+    if (match(Op1, m_OneUse(m_Not(m_OneUse(
+                       m_c_BinOp(Opcode, m_Specific(A), m_Specific(B)))))))
+      return BinaryOperator::Create(
+          FlippedOpcode, Builder.CreateBinOp(Opcode, C, Builder.CreateNot(B)),
+          X);
+
+    // (~A & B & C) | ~(A | C) --> (B | ~C) & ~A
+    // (~A | B | C) & ~(A & C) --> (B & ~C) | ~A
+    if (match(Op1, m_OneUse(m_Not(m_OneUse(
+                       m_c_BinOp(Opcode, m_Specific(A), m_Specific(C)))))))
+      return BinaryOperator::Create(
+          FlippedOpcode, Builder.CreateBinOp(Opcode, B, Builder.CreateNot(C)),
+          X);
+  }
+
+  return nullptr;
+}
+
+/// Try to reassociate a pair of binops so that values with one use only are
+/// part of the same instruction. This may enable folds that are limited with
+/// multi-use restrictions and makes it more likely to match other patterns that
+/// are looking for a common operand.
+static Instruction *reassociateForUses(BinaryOperator &BO,
+                                       InstCombinerImpl::BuilderTy &Builder) {
+  Instruction::BinaryOps Opcode = BO.getOpcode();
+  Value *X, *Y, *Z;
+  if (match(&BO,
+            m_c_BinOp(Opcode, m_OneUse(m_BinOp(Opcode, m_Value(X), m_Value(Y))),
+                      m_OneUse(m_Value(Z))))) {
+    if (!isa<Constant>(X) && !isa<Constant>(Y) && !isa<Constant>(Z)) {
+      // (X op Y) op Z --> (Y op Z) op X
+      if (!X->hasOneUse()) {
+        Value *YZ = Builder.CreateBinOp(Opcode, Y, Z);
+        return BinaryOperator::Create(Opcode, YZ, X);
+      }
+      // (X op Y) op Z --> (X op Z) op Y
+      if (!Y->hasOneUse()) {
+        Value *XZ = Builder.CreateBinOp(Opcode, X, Z);
+        return BinaryOperator::Create(Opcode, XZ, Y);
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+// Match
+// (X + C2) | C
+// (X + C2) ^ C
+// (X + C2) & C
+// and convert to do the bitwise logic first:
+// (X | C) + C2
+// (X ^ C) + C2
+// (X & C) + C2
+// iff bits affected by logic op are lower than last bit affected by math op
+static Instruction *canonicalizeLogicFirst(BinaryOperator &I,
+                                           InstCombiner::BuilderTy &Builder) {
+  Type *Ty = I.getType();
+  Instruction::BinaryOps OpC = I.getOpcode();
+  Value *Op0 = I.getOperand(0);
+  Value *Op1 = I.getOperand(1);
+  Value *X;
+  const APInt *C, *C2;
+
+  if (!(match(Op0, m_OneUse(m_Add(m_Value(X), m_APInt(C2)))) &&
+        match(Op1, m_APInt(C))))
+    return nullptr;
+
+  unsigned Width = Ty->getScalarSizeInBits();
+  unsigned LastOneMath = Width - C2->countTrailingZeros();
+
+  switch (OpC) {
+  case Instruction::And:
+    if (C->countLeadingOnes() < LastOneMath)
+      return nullptr;
+    break;
+  case Instruction::Xor:
+  case Instruction::Or:
+    if (C->countLeadingZeros() < LastOneMath)
+      return nullptr;
+    break;
+  default:
+    llvm_unreachable("Unexpected BinaryOp!");
+  }
+
+  Value *NewBinOp = Builder.CreateBinOp(OpC, X, ConstantInt::get(Ty, *C));
+  return BinaryOperator::CreateAdd(NewBinOp, ConstantInt::get(Ty, *C2));
+}
+
 // FIXME: We use commutative matchers (m_c_*) for some, but not all, matches
 // here. We should standardize that construct where it is needed or choose some
 // other way to ensure that commutated variants of patterns are not missed.
-Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
-  if (Value *V = SimplifyAndInst(I.getOperand(0), I.getOperand(1),
+Instruction *InstCombinerImpl::visitAnd(BinaryOperator &I) {
+  Type *Ty = I.getType();
+
+  if (Value *V = simplifyAndInst(I.getOperand(0), I.getOperand(1),
                                  SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
 
   if (SimplifyAssociativeOrCommutative(I))
     return &I;
 
-  if (Instruction *X = foldShuffledBinop(I))
+  if (Instruction *X = foldVectorBinop(I))
     return X;
+
+  if (Instruction *Phi = foldBinopWithPhiOperands(I))
+    return Phi;
 
   // See if we can simplify any instructions used by the instruction whose sole
   // purpose is to compute bits we don't care about.
@@ -1420,29 +1954,43 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
   if (Instruction *Xor = foldAndToXor(I, Builder))
     return Xor;
 
+  if (Instruction *X = foldComplexAndOrPatterns(I, Builder))
+    return X;
+
   // (A|B)&(A|C) -> A|(B&C) etc
-  if (Value *V = SimplifyUsingDistributiveLaws(I))
+  if (Value *V = foldUsingDistributiveLaws(I))
     return replaceInstUsesWith(I, V);
 
   if (Value *V = SimplifyBSwap(I, Builder))
     return replaceInstUsesWith(I, V);
 
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+
+  Value *X, *Y;
+  if (match(Op0, m_OneUse(m_LogicalShift(m_One(), m_Value(X)))) &&
+      match(Op1, m_One())) {
+    // (1 << X) & 1 --> zext(X == 0)
+    // (1 >> X) & 1 --> zext(X == 0)
+    Value *IsZero = Builder.CreateICmpEQ(X, ConstantInt::get(Ty, 0));
+    return new ZExtInst(IsZero, Ty);
+  }
+
+  // (-(X & 1)) & Y --> (X & 1) == 0 ? 0 : Y
+  Value *Neg;
+  if (match(&I,
+            m_c_And(m_CombineAnd(m_Value(Neg),
+                                 m_OneUse(m_Neg(m_And(m_Value(), m_One())))),
+                    m_Value(Y)))) {
+    Value *Cmp = Builder.CreateIsNull(Neg);
+    return SelectInst::Create(Cmp, ConstantInt::getNullValue(Ty), Y);
+  }
+
   const APInt *C;
   if (match(Op1, m_APInt(C))) {
-    Value *X, *Y;
-    if (match(Op0, m_OneUse(m_LogicalShift(m_One(), m_Value(X)))) &&
-        C->isOneValue()) {
-      // (1 << X) & 1 --> zext(X == 0)
-      // (1 >> X) & 1 --> zext(X == 0)
-      Value *IsZero = Builder.CreateICmpEQ(X, ConstantInt::get(I.getType(), 0));
-      return new ZExtInst(IsZero, I.getType());
-    }
-
     const APInt *XorC;
     if (match(Op0, m_OneUse(m_Xor(m_Value(X), m_APInt(XorC))))) {
       // (X ^ C1) & C2 --> (X & C2) ^ (C1&C2)
-      Constant *NewC = ConstantInt::get(I.getType(), *C & *XorC);
+      Constant *NewC = ConstantInt::get(Ty, *C & *XorC);
       Value *And = Builder.CreateAnd(X, Op1);
       And->takeName(Op0);
       return BinaryOperator::CreateXor(And, NewC);
@@ -1457,13 +2005,111 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
       // that aren't set in C2. Meaning we can replace (C1&C2) with C1 in
       // above, but this feels safer.
       APInt Together = *C & *OrC;
-      Value *And = Builder.CreateAnd(X, ConstantInt::get(I.getType(),
-                                                         Together ^ *C));
+      Value *And = Builder.CreateAnd(X, ConstantInt::get(Ty, Together ^ *C));
       And->takeName(Op0);
-      return BinaryOperator::CreateOr(And, ConstantInt::get(I.getType(),
-                                                            Together));
+      return BinaryOperator::CreateOr(And, ConstantInt::get(Ty, Together));
     }
 
+    unsigned Width = Ty->getScalarSizeInBits();
+    const APInt *ShiftC;
+    if (match(Op0, m_OneUse(m_SExt(m_AShr(m_Value(X), m_APInt(ShiftC))))) &&
+        ShiftC->ult(Width)) {
+      if (*C == APInt::getLowBitsSet(Width, Width - ShiftC->getZExtValue())) {
+        // We are clearing high bits that were potentially set by sext+ashr:
+        // and (sext (ashr X, ShiftC)), C --> lshr (sext X), ShiftC
+        Value *Sext = Builder.CreateSExt(X, Ty);
+        Constant *ShAmtC = ConstantInt::get(Ty, ShiftC->zext(Width));
+        return BinaryOperator::CreateLShr(Sext, ShAmtC);
+      }
+    }
+
+    // If this 'and' clears the sign-bits added by ashr, replace with lshr:
+    // and (ashr X, ShiftC), C --> lshr X, ShiftC
+    if (match(Op0, m_AShr(m_Value(X), m_APInt(ShiftC))) && ShiftC->ult(Width) &&
+        C->isMask(Width - ShiftC->getZExtValue()))
+      return BinaryOperator::CreateLShr(X, ConstantInt::get(Ty, *ShiftC));
+
+    const APInt *AddC;
+    if (match(Op0, m_Add(m_Value(X), m_APInt(AddC)))) {
+      // If we add zeros to every bit below a mask, the add has no effect:
+      // (X + AddC) & LowMaskC --> X & LowMaskC
+      unsigned Ctlz = C->countLeadingZeros();
+      APInt LowMask(APInt::getLowBitsSet(Width, Width - Ctlz));
+      if ((*AddC & LowMask).isZero())
+        return BinaryOperator::CreateAnd(X, Op1);
+
+      // If we are masking the result of the add down to exactly one bit and
+      // the constant we are adding has no bits set below that bit, then the
+      // add is flipping a single bit. Example:
+      // (X + 4) & 4 --> (X & 4) ^ 4
+      if (Op0->hasOneUse() && C->isPowerOf2() && (*AddC & (*C - 1)) == 0) {
+        assert((*C & *AddC) != 0 && "Expected common bit");
+        Value *NewAnd = Builder.CreateAnd(X, Op1);
+        return BinaryOperator::CreateXor(NewAnd, Op1);
+      }
+    }
+
+    // ((C1 OP zext(X)) & C2) -> zext((C1 OP X) & C2) if C2 fits in the
+    // bitwidth of X and OP behaves well when given trunc(C1) and X.
+    auto isNarrowableBinOpcode = [](BinaryOperator *B) {
+      switch (B->getOpcode()) {
+      case Instruction::Xor:
+      case Instruction::Or:
+      case Instruction::Mul:
+      case Instruction::Add:
+      case Instruction::Sub:
+        return true;
+      default:
+        return false;
+      }
+    };
+    BinaryOperator *BO;
+    if (match(Op0, m_OneUse(m_BinOp(BO))) && isNarrowableBinOpcode(BO)) {
+      Instruction::BinaryOps BOpcode = BO->getOpcode();
+      Value *X;
+      const APInt *C1;
+      // TODO: The one-use restrictions could be relaxed a little if the AND
+      // is going to be removed.
+      // Try to narrow the 'and' and a binop with constant operand:
+      // and (bo (zext X), C1), C --> zext (and (bo X, TruncC1), TruncC)
+      if (match(BO, m_c_BinOp(m_OneUse(m_ZExt(m_Value(X))), m_APInt(C1))) &&
+          C->isIntN(X->getType()->getScalarSizeInBits())) {
+        unsigned XWidth = X->getType()->getScalarSizeInBits();
+        Constant *TruncC1 = ConstantInt::get(X->getType(), C1->trunc(XWidth));
+        Value *BinOp = isa<ZExtInst>(BO->getOperand(0))
+                           ? Builder.CreateBinOp(BOpcode, X, TruncC1)
+                           : Builder.CreateBinOp(BOpcode, TruncC1, X);
+        Constant *TruncC = ConstantInt::get(X->getType(), C->trunc(XWidth));
+        Value *And = Builder.CreateAnd(BinOp, TruncC);
+        return new ZExtInst(And, Ty);
+      }
+
+      // Similar to above: if the mask matches the zext input width, then the
+      // 'and' can be eliminated, so we can truncate the other variable op:
+      // and (bo (zext X), Y), C --> zext (bo X, (trunc Y))
+      if (isa<Instruction>(BO->getOperand(0)) &&
+          match(BO->getOperand(0), m_OneUse(m_ZExt(m_Value(X)))) &&
+          C->isMask(X->getType()->getScalarSizeInBits())) {
+        Y = BO->getOperand(1);
+        Value *TrY = Builder.CreateTrunc(Y, X->getType(), Y->getName() + ".tr");
+        Value *NewBO =
+            Builder.CreateBinOp(BOpcode, X, TrY, BO->getName() + ".narrow");
+        return new ZExtInst(NewBO, Ty);
+      }
+      // and (bo Y, (zext X)), C --> zext (bo (trunc Y), X)
+      if (isa<Instruction>(BO->getOperand(1)) &&
+          match(BO->getOperand(1), m_OneUse(m_ZExt(m_Value(X)))) &&
+          C->isMask(X->getType()->getScalarSizeInBits())) {
+        Y = BO->getOperand(0);
+        Value *TrY = Builder.CreateTrunc(Y, X->getType(), Y->getName() + ".tr");
+        Value *NewBO =
+            Builder.CreateBinOp(BOpcode, TrY, X, BO->getName() + ".narrow");
+        return new ZExtInst(NewBO, Ty);
+      }
+    }
+
+    // This is intentionally placed after the narrowing transforms for
+    // efficiency (transform directly to the narrow logic op if possible).
     // If the mask is only needed on one incoming arm, push the 'and' op up.
     if (match(Op0, m_OneUse(m_Xor(m_Value(X), m_Value(Y)))) ||
         match(Op0, m_OneUse(m_Or(m_Value(X), m_Value(Y))))) {
@@ -1483,65 +2129,97 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
       }
     }
 
-  }
+    // When the mask is a power-of-2 constant and op0 is a shifted-power-of-2
+    // constant, test if the shift amount equals the offset bit index:
+    // (ShiftC << X) & C --> X == (log2(C) - log2(ShiftC)) ? C : 0
+    // (ShiftC >> X) & C --> X == (log2(ShiftC) - log2(C)) ? C : 0
+    if (C->isPowerOf2() &&
+        match(Op0, m_OneUse(m_LogicalShift(m_Power2(ShiftC), m_Value(X))))) {
+      int Log2ShiftC = ShiftC->exactLogBase2();
+      int Log2C = C->exactLogBase2();
+      bool IsShiftLeft =
+         cast<BinaryOperator>(Op0)->getOpcode() == Instruction::Shl;
+      int BitNum = IsShiftLeft ? Log2C - Log2ShiftC : Log2ShiftC - Log2C;
+      assert(BitNum >= 0 && "Expected demanded bits to handle impossible mask");
+      Value *Cmp = Builder.CreateICmpEQ(X, ConstantInt::get(Ty, BitNum));
+      return SelectInst::Create(Cmp, ConstantInt::get(Ty, *C),
+                                ConstantInt::getNullValue(Ty));
+    }
 
-  if (ConstantInt *AndRHS = dyn_cast<ConstantInt>(Op1)) {
-    const APInt &AndRHSMask = AndRHS->getValue();
-
-    // Optimize a variety of ((val OP C1) & C2) combinations...
-    if (BinaryOperator *Op0I = dyn_cast<BinaryOperator>(Op0)) {
-      // ((C1 OP zext(X)) & C2) -> zext((C1-X) & C2) if C2 fits in the bitwidth
-      // of X and OP behaves well when given trunc(C1) and X.
-      switch (Op0I->getOpcode()) {
-      default:
-        break;
-      case Instruction::Xor:
-      case Instruction::Or:
-      case Instruction::Mul:
-      case Instruction::Add:
-      case Instruction::Sub:
-        Value *X;
-        ConstantInt *C1;
-        if (match(Op0I, m_c_BinOp(m_ZExt(m_Value(X)), m_ConstantInt(C1)))) {
-          if (AndRHSMask.isIntN(X->getType()->getScalarSizeInBits())) {
-            auto *TruncC1 = ConstantExpr::getTrunc(C1, X->getType());
-            Value *BinOp;
-            Value *Op0LHS = Op0I->getOperand(0);
-            if (isa<ZExtInst>(Op0LHS))
-              BinOp = Builder.CreateBinOp(Op0I->getOpcode(), X, TruncC1);
-            else
-              BinOp = Builder.CreateBinOp(Op0I->getOpcode(), TruncC1, X);
-            auto *TruncC2 = ConstantExpr::getTrunc(AndRHS, X->getType());
-            auto *And = Builder.CreateAnd(BinOp, TruncC2);
-            return new ZExtInst(And, I.getType());
-          }
+    Constant *C1, *C2;
+    const APInt *C3 = C;
+    Value *X;
+    if (C3->isPowerOf2()) {
+      Constant *Log2C3 = ConstantInt::get(Ty, C3->countTrailingZeros());
+      if (match(Op0, m_OneUse(m_LShr(m_Shl(m_ImmConstant(C1), m_Value(X)),
+                                     m_ImmConstant(C2)))) &&
+          match(C1, m_Power2())) {
+        Constant *Log2C1 = ConstantExpr::getExactLogBase2(C1);
+        Constant *LshrC = ConstantExpr::getAdd(C2, Log2C3);
+        KnownBits KnownLShrc = computeKnownBits(LshrC, 0, nullptr);
+        if (KnownLShrc.getMaxValue().ult(Width)) {
+          // iff C1,C3 is pow2 and C2 + cttz(C3) < BitWidth:
+          // ((C1 << X) >> C2) & C3 -> X == (cttz(C3)+C2-cttz(C1)) ? C3 : 0
+          Constant *CmpC = ConstantExpr::getSub(LshrC, Log2C1);
+          Value *Cmp = Builder.CreateICmpEQ(X, CmpC);
+          return SelectInst::Create(Cmp, ConstantInt::get(Ty, *C3),
+                                    ConstantInt::getNullValue(Ty));
         }
       }
 
-      if (ConstantInt *Op0CI = dyn_cast<ConstantInt>(Op0I->getOperand(1)))
-        if (Instruction *Res = OptAndOp(Op0I, Op0CI, AndRHS, I))
-          return Res;
-    }
-
-    // If this is an integer truncation, and if the source is an 'and' with
-    // immediate, transform it.  This frequently occurs for bitfield accesses.
-    {
-      Value *X = nullptr; ConstantInt *YC = nullptr;
-      if (match(Op0, m_Trunc(m_And(m_Value(X), m_ConstantInt(YC))))) {
-        // Change: and (trunc (and X, YC) to T), C2
-        // into  : and (trunc X to T), trunc(YC) & C2
-        // This will fold the two constants together, which may allow
-        // other simplifications.
-        Value *NewCast = Builder.CreateTrunc(X, I.getType(), "and.shrunk");
-        Constant *C3 = ConstantExpr::getTrunc(YC, I.getType());
-        C3 = ConstantExpr::getAnd(C3, AndRHS);
-        return BinaryOperator::CreateAnd(NewCast, C3);
+      if (match(Op0, m_OneUse(m_Shl(m_LShr(m_ImmConstant(C1), m_Value(X)),
+                                    m_ImmConstant(C2)))) &&
+          match(C1, m_Power2())) {
+        Constant *Log2C1 = ConstantExpr::getExactLogBase2(C1);
+        Constant *Cmp =
+            ConstantExpr::getCompare(ICmpInst::ICMP_ULT, Log2C3, C2);
+        if (Cmp->isZeroValue()) {
+          // iff C1,C3 is pow2 and Log2(C3) >= C2:
+          // ((C1 >> X) << C2) & C3 -> X == (cttz(C1)+C2-cttz(C3)) ? C3 : 0
+          Constant *ShlC = ConstantExpr::getAdd(C2, Log2C1);
+          Constant *CmpC = ConstantExpr::getSub(ShlC, Log2C3);
+          Value *Cmp = Builder.CreateICmpEQ(X, CmpC);
+          return SelectInst::Create(Cmp, ConstantInt::get(Ty, *C3),
+                                    ConstantInt::getNullValue(Ty));
+        }
       }
     }
+  }
+
+  if (match(&I, m_And(m_OneUse(m_Shl(m_ZExt(m_Value(X)), m_Value(Y))),
+                      m_SignMask())) &&
+      match(Y, m_SpecificInt_ICMP(
+                   ICmpInst::Predicate::ICMP_EQ,
+                   APInt(Ty->getScalarSizeInBits(),
+                         Ty->getScalarSizeInBits() -
+                             X->getType()->getScalarSizeInBits())))) {
+    auto *SExt = Builder.CreateSExt(X, Ty, X->getName() + ".signext");
+    auto *SanitizedSignMask = cast<Constant>(Op1);
+    // We must be careful with the undef elements of the sign bit mask, however:
+    // the mask elt can be undef iff the shift amount for that lane was undef,
+    // otherwise we need to sanitize undef masks to zero.
+    SanitizedSignMask = Constant::replaceUndefsWith(
+        SanitizedSignMask, ConstantInt::getNullValue(Ty->getScalarType()));
+    SanitizedSignMask =
+        Constant::mergeUndefsWith(SanitizedSignMask, cast<Constant>(Y));
+    return BinaryOperator::CreateAnd(SExt, SanitizedSignMask);
   }
 
   if (Instruction *Z = narrowMaskedBinOp(I))
     return Z;
+
+  if (I.getType()->isIntOrIntVectorTy(1)) {
+    if (auto *SI0 = dyn_cast<SelectInst>(Op0)) {
+      if (auto *I =
+              foldAndOrOfSelectUsingImpliedCond(Op1, *SI0, /* IsAnd */ true))
+        return I;
+    }
+    if (auto *SI1 = dyn_cast<SelectInst>(Op1)) {
+      if (auto *I =
+              foldAndOrOfSelectUsingImpliedCond(Op0, *SI1, /* IsAnd */ true))
+        return I;
+    }
+  }
 
   if (Instruction *FoldedLogic = foldBinOpIntoSelectOrPhi(I))
     return FoldedLogic;
@@ -1558,135 +2236,353 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
     if (match(Op0, m_OneUse(m_c_Xor(m_Specific(Op1), m_Value(B)))))
       return BinaryOperator::CreateAnd(Op1, Builder.CreateNot(B));
 
+    // A & ~(A ^ B) --> A & B
+    if (match(Op1, m_Not(m_c_Xor(m_Specific(Op0), m_Value(B)))))
+      return BinaryOperator::CreateAnd(Op0, B);
+    // ~(A ^ B) & A --> A & B
+    if (match(Op0, m_Not(m_c_Xor(m_Specific(Op1), m_Value(B)))))
+      return BinaryOperator::CreateAnd(Op1, B);
+
     // (A ^ B) & ((B ^ C) ^ A) -> (A ^ B) & ~C
     if (match(Op0, m_Xor(m_Value(A), m_Value(B))))
       if (match(Op1, m_Xor(m_Xor(m_Specific(B), m_Value(C)), m_Specific(A))))
-        if (Op1->hasOneUse() || IsFreeToInvert(C, C->hasOneUse()))
+        if (Op1->hasOneUse() || isFreeToInvert(C, C->hasOneUse()))
           return BinaryOperator::CreateAnd(Op0, Builder.CreateNot(C));
 
     // ((A ^ C) ^ B) & (B ^ A) -> (B ^ A) & ~C
     if (match(Op0, m_Xor(m_Xor(m_Value(A), m_Value(C)), m_Value(B))))
       if (match(Op1, m_Xor(m_Specific(B), m_Specific(A))))
-        if (Op0->hasOneUse() || IsFreeToInvert(C, C->hasOneUse()))
+        if (Op0->hasOneUse() || isFreeToInvert(C, C->hasOneUse()))
           return BinaryOperator::CreateAnd(Op1, Builder.CreateNot(C));
 
-    // (A | B) & ((~A) ^ B) -> (A & B)
-    // (A | B) & (B ^ (~A)) -> (A & B)
-    // (B | A) & ((~A) ^ B) -> (A & B)
-    // (B | A) & (B ^ (~A)) -> (A & B)
+    // (A | B) & (~A ^ B) -> A & B
+    // (A | B) & (B ^ ~A) -> A & B
+    // (B | A) & (~A ^ B) -> A & B
+    // (B | A) & (B ^ ~A) -> A & B
     if (match(Op1, m_c_Xor(m_Not(m_Value(A)), m_Value(B))) &&
         match(Op0, m_c_Or(m_Specific(A), m_Specific(B))))
       return BinaryOperator::CreateAnd(A, B);
 
-    // ((~A) ^ B) & (A | B) -> (A & B)
-    // ((~A) ^ B) & (B | A) -> (A & B)
-    // (B ^ (~A)) & (A | B) -> (A & B)
-    // (B ^ (~A)) & (B | A) -> (A & B)
+    // (~A ^ B) & (A | B) -> A & B
+    // (~A ^ B) & (B | A) -> A & B
+    // (B ^ ~A) & (A | B) -> A & B
+    // (B ^ ~A) & (B | A) -> A & B
     if (match(Op0, m_c_Xor(m_Not(m_Value(A)), m_Value(B))) &&
         match(Op1, m_c_Or(m_Specific(A), m_Specific(B))))
       return BinaryOperator::CreateAnd(A, B);
+
+    // (~A | B) & (A ^ B) -> ~A & B
+    // (~A | B) & (B ^ A) -> ~A & B
+    // (B | ~A) & (A ^ B) -> ~A & B
+    // (B | ~A) & (B ^ A) -> ~A & B
+    if (match(Op0, m_c_Or(m_Not(m_Value(A)), m_Value(B))) &&
+        match(Op1, m_c_Xor(m_Specific(A), m_Specific(B))))
+      return BinaryOperator::CreateAnd(Builder.CreateNot(A), B);
+
+    // (A ^ B) & (~A | B) -> ~A & B
+    // (B ^ A) & (~A | B) -> ~A & B
+    // (A ^ B) & (B | ~A) -> ~A & B
+    // (B ^ A) & (B | ~A) -> ~A & B
+    if (match(Op1, m_c_Or(m_Not(m_Value(A)), m_Value(B))) &&
+        match(Op0, m_c_Xor(m_Specific(A), m_Specific(B))))
+      return BinaryOperator::CreateAnd(Builder.CreateNot(A), B);
   }
 
   {
     ICmpInst *LHS = dyn_cast<ICmpInst>(Op0);
     ICmpInst *RHS = dyn_cast<ICmpInst>(Op1);
     if (LHS && RHS)
-      if (Value *Res = foldAndOfICmps(LHS, RHS, I))
+      if (Value *Res = foldAndOrOfICmps(LHS, RHS, I, /* IsAnd */ true))
         return replaceInstUsesWith(I, Res);
 
     // TODO: Make this recursive; it's a little tricky because an arbitrary
     // number of 'and' instructions might have to be created.
-    Value *X, *Y;
-    if (LHS && match(Op1, m_OneUse(m_And(m_Value(X), m_Value(Y))))) {
+    if (LHS && match(Op1, m_OneUse(m_LogicalAnd(m_Value(X), m_Value(Y))))) {
+      bool IsLogical = isa<SelectInst>(Op1);
+      // LHS & (X && Y) --> (LHS && X) && Y
       if (auto *Cmp = dyn_cast<ICmpInst>(X))
-        if (Value *Res = foldAndOfICmps(LHS, Cmp, I))
-          return replaceInstUsesWith(I, Builder.CreateAnd(Res, Y));
+        if (Value *Res =
+                foldAndOrOfICmps(LHS, Cmp, I, /* IsAnd */ true, IsLogical))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalAnd(Res, Y)
+                                            : Builder.CreateAnd(Res, Y));
+      // LHS & (X && Y) --> X && (LHS & Y)
       if (auto *Cmp = dyn_cast<ICmpInst>(Y))
-        if (Value *Res = foldAndOfICmps(LHS, Cmp, I))
-          return replaceInstUsesWith(I, Builder.CreateAnd(Res, X));
+        if (Value *Res = foldAndOrOfICmps(LHS, Cmp, I, /* IsAnd */ true,
+                                          /* IsLogical */ false))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalAnd(X, Res)
+                                            : Builder.CreateAnd(X, Res));
     }
-    if (RHS && match(Op0, m_OneUse(m_And(m_Value(X), m_Value(Y))))) {
+    if (RHS && match(Op0, m_OneUse(m_LogicalAnd(m_Value(X), m_Value(Y))))) {
+      bool IsLogical = isa<SelectInst>(Op0);
+      // (X && Y) & RHS --> (X && RHS) && Y
       if (auto *Cmp = dyn_cast<ICmpInst>(X))
-        if (Value *Res = foldAndOfICmps(Cmp, RHS, I))
-          return replaceInstUsesWith(I, Builder.CreateAnd(Res, Y));
+        if (Value *Res =
+                foldAndOrOfICmps(Cmp, RHS, I, /* IsAnd */ true, IsLogical))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalAnd(Res, Y)
+                                            : Builder.CreateAnd(Res, Y));
+      // (X && Y) & RHS --> X && (Y & RHS)
       if (auto *Cmp = dyn_cast<ICmpInst>(Y))
-        if (Value *Res = foldAndOfICmps(Cmp, RHS, I))
-          return replaceInstUsesWith(I, Builder.CreateAnd(Res, X));
+        if (Value *Res = foldAndOrOfICmps(Cmp, RHS, I, /* IsAnd */ true,
+                                          /* IsLogical */ false))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalAnd(X, Res)
+                                            : Builder.CreateAnd(X, Res));
     }
   }
 
   if (FCmpInst *LHS = dyn_cast<FCmpInst>(I.getOperand(0)))
     if (FCmpInst *RHS = dyn_cast<FCmpInst>(I.getOperand(1)))
-      if (Value *Res = foldLogicOfFCmps(LHS, RHS, true))
+      if (Value *Res = foldLogicOfFCmps(LHS, RHS, /*IsAnd*/ true))
         return replaceInstUsesWith(I, Res);
+
+  if (Instruction *FoldedFCmps = reassociateFCmps(I, Builder))
+    return FoldedFCmps;
 
   if (Instruction *CastedAnd = foldCastedBitwiseLogic(I))
     return CastedAnd;
 
+  if (Instruction *Sel = foldBinopOfSextBoolToSelect(I))
+    return Sel;
+
   // and(sext(A), B) / and(B, sext(A)) --> A ? B : 0, where A is i1 or <N x i1>.
+  // TODO: Move this into foldBinopOfSextBoolToSelect as a more generalized fold
+  //       with binop identity constant. But creating a select with non-constant
+  //       arm may not be reversible due to poison semantics. Is that a good
+  //       canonicalization?
   Value *A;
   if (match(Op0, m_OneUse(m_SExt(m_Value(A)))) &&
       A->getType()->isIntOrIntVectorTy(1))
-    return SelectInst::Create(A, Op1, Constant::getNullValue(I.getType()));
+    return SelectInst::Create(A, Op1, Constant::getNullValue(Ty));
   if (match(Op1, m_OneUse(m_SExt(m_Value(A)))) &&
       A->getType()->isIntOrIntVectorTy(1))
-    return SelectInst::Create(A, Op0, Constant::getNullValue(I.getType()));
+    return SelectInst::Create(A, Op0, Constant::getNullValue(Ty));
+
+  // Similarly, a 'not' of the bool translates to a swap of the select arms:
+  // ~sext(A) & Op1 --> A ? 0 : Op1
+  // Op0 & ~sext(A) --> A ? 0 : Op0
+  if (match(Op0, m_Not(m_SExt(m_Value(A)))) &&
+      A->getType()->isIntOrIntVectorTy(1))
+    return SelectInst::Create(A, Constant::getNullValue(Ty), Op1);
+  if (match(Op1, m_Not(m_SExt(m_Value(A)))) &&
+      A->getType()->isIntOrIntVectorTy(1))
+    return SelectInst::Create(A, Constant::getNullValue(Ty), Op0);
+
+  // (iN X s>> (N-1)) & Y --> (X s< 0) ? Y : 0 -- with optional sext
+  if (match(&I, m_c_And(m_OneUse(m_SExtOrSelf(
+                            m_AShr(m_Value(X), m_APIntAllowUndef(C)))),
+                        m_Value(Y))) &&
+      *C == X->getType()->getScalarSizeInBits() - 1) {
+    Value *IsNeg = Builder.CreateIsNeg(X, "isneg");
+    return SelectInst::Create(IsNeg, Y, ConstantInt::getNullValue(Ty));
+  }
+  // If there's a 'not' of the shifted value, swap the select operands:
+  // ~(iN X s>> (N-1)) & Y --> (X s< 0) ? 0 : Y -- with optional sext
+  if (match(&I, m_c_And(m_OneUse(m_SExtOrSelf(
+                            m_Not(m_AShr(m_Value(X), m_APIntAllowUndef(C))))),
+                        m_Value(Y))) &&
+      *C == X->getType()->getScalarSizeInBits() - 1) {
+    Value *IsNeg = Builder.CreateIsNeg(X, "isneg");
+    return SelectInst::Create(IsNeg, ConstantInt::getNullValue(Ty), Y);
+  }
+
+  // (~x) & y  -->  ~(x | (~y))  iff that gets rid of inversions
+  if (sinkNotIntoOtherHandOfLogicalOp(I))
+    return &I;
+
+  // An and recurrence w/loop invariant step is equivelent to (and start, step)
+  PHINode *PN = nullptr;
+  Value *Start = nullptr, *Step = nullptr;
+  if (matchSimpleRecurrence(&I, PN, Start, Step) && DT.dominates(Step, PN))
+    return replaceInstUsesWith(I, Builder.CreateAnd(Start, Step));
+
+  if (Instruction *R = reassociateForUses(I, Builder))
+    return R;
+
+  if (Instruction *Canonicalized = canonicalizeLogicFirst(I, Builder))
+    return Canonicalized;
+
+  if (Instruction *Folded = foldLogicOfIsFPClass(I, Op0, Op1))
+    return Folded;
 
   return nullptr;
 }
 
-/// Given an OR instruction, check to see if this is a bswap idiom. If so,
-/// insert the new intrinsic and return it.
-Instruction *InstCombiner::MatchBSwap(BinaryOperator &I) {
-  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-
-  // Look through zero extends.
-  if (Instruction *Ext = dyn_cast<ZExtInst>(Op0))
-    Op0 = Ext->getOperand(0);
-
-  if (Instruction *Ext = dyn_cast<ZExtInst>(Op1))
-    Op1 = Ext->getOperand(0);
-
-  // (A | B) | C  and  A | (B | C)                  -> bswap if possible.
-  bool OrOfOrs = match(Op0, m_Or(m_Value(), m_Value())) ||
-                 match(Op1, m_Or(m_Value(), m_Value()));
-
-  // (A >> B) | (C << D)  and  (A << B) | (B >> C)  -> bswap if possible.
-  bool OrOfShifts = match(Op0, m_LogicalShift(m_Value(), m_Value())) &&
-                    match(Op1, m_LogicalShift(m_Value(), m_Value()));
-
-  // (A & B) | (C & D)                              -> bswap if possible.
-  bool OrOfAnds = match(Op0, m_And(m_Value(), m_Value())) &&
-                  match(Op1, m_And(m_Value(), m_Value()));
-
-  // (A << B) | (C & D)                              -> bswap if possible.
-  // The bigger pattern here is ((A & C1) << C2) | ((B >> C2) & C1), which is a
-  // part of the bswap idiom for specific values of C1, C2 (e.g. C1 = 16711935,
-  // C2 = 8 for i32).
-  // This pattern can occur when the operands of the 'or' are not canonicalized
-  // for some reason (not having only one use, for example).
-  bool OrOfAndAndSh = (match(Op0, m_LogicalShift(m_Value(), m_Value())) &&
-                       match(Op1, m_And(m_Value(), m_Value()))) ||
-                      (match(Op0, m_And(m_Value(), m_Value())) &&
-                       match(Op1, m_LogicalShift(m_Value(), m_Value())));
-
-  if (!OrOfOrs && !OrOfShifts && !OrOfAnds && !OrOfAndAndSh)
-    return nullptr;
-
-  SmallVector<Instruction*, 4> Insts;
-  if (!recognizeBSwapOrBitReverseIdiom(&I, true, false, Insts))
+Instruction *InstCombinerImpl::matchBSwapOrBitReverse(Instruction &I,
+                                                      bool MatchBSwaps,
+                                                      bool MatchBitReversals) {
+  SmallVector<Instruction *, 4> Insts;
+  if (!recognizeBSwapOrBitReverseIdiom(&I, MatchBSwaps, MatchBitReversals,
+                                       Insts))
     return nullptr;
   Instruction *LastInst = Insts.pop_back_val();
   LastInst->removeFromParent();
 
   for (auto *Inst : Insts)
-    Worklist.Add(Inst);
+    Worklist.push(Inst);
   return LastInst;
+}
+
+/// Match UB-safe variants of the funnel shift intrinsic.
+static Instruction *matchFunnelShift(Instruction &Or, InstCombinerImpl &IC) {
+  // TODO: Can we reduce the code duplication between this and the related
+  // rotate matching code under visitSelect and visitTrunc?
+  unsigned Width = Or.getType()->getScalarSizeInBits();
+
+  // First, find an or'd pair of opposite shifts:
+  // or (lshr ShVal0, ShAmt0), (shl ShVal1, ShAmt1)
+  BinaryOperator *Or0, *Or1;
+  if (!match(Or.getOperand(0), m_BinOp(Or0)) ||
+      !match(Or.getOperand(1), m_BinOp(Or1)))
+    return nullptr;
+
+  Value *ShVal0, *ShVal1, *ShAmt0, *ShAmt1;
+  if (!match(Or0, m_OneUse(m_LogicalShift(m_Value(ShVal0), m_Value(ShAmt0)))) ||
+      !match(Or1, m_OneUse(m_LogicalShift(m_Value(ShVal1), m_Value(ShAmt1)))) ||
+      Or0->getOpcode() == Or1->getOpcode())
+    return nullptr;
+
+  // Canonicalize to or(shl(ShVal0, ShAmt0), lshr(ShVal1, ShAmt1)).
+  if (Or0->getOpcode() == BinaryOperator::LShr) {
+    std::swap(Or0, Or1);
+    std::swap(ShVal0, ShVal1);
+    std::swap(ShAmt0, ShAmt1);
+  }
+  assert(Or0->getOpcode() == BinaryOperator::Shl &&
+         Or1->getOpcode() == BinaryOperator::LShr &&
+         "Illegal or(shift,shift) pair");
+
+  // Match the shift amount operands for a funnel shift pattern. This always
+  // matches a subtraction on the R operand.
+  auto matchShiftAmount = [&](Value *L, Value *R, unsigned Width) -> Value * {
+    // Check for constant shift amounts that sum to the bitwidth.
+    const APInt *LI, *RI;
+    if (match(L, m_APIntAllowUndef(LI)) && match(R, m_APIntAllowUndef(RI)))
+      if (LI->ult(Width) && RI->ult(Width) && (*LI + *RI) == Width)
+        return ConstantInt::get(L->getType(), *LI);
+
+    Constant *LC, *RC;
+    if (match(L, m_Constant(LC)) && match(R, m_Constant(RC)) &&
+        match(L, m_SpecificInt_ICMP(ICmpInst::ICMP_ULT, APInt(Width, Width))) &&
+        match(R, m_SpecificInt_ICMP(ICmpInst::ICMP_ULT, APInt(Width, Width))) &&
+        match(ConstantExpr::getAdd(LC, RC), m_SpecificIntAllowUndef(Width)))
+      return ConstantExpr::mergeUndefsWith(LC, RC);
+
+    // (shl ShVal, X) | (lshr ShVal, (Width - x)) iff X < Width.
+    // We limit this to X < Width in case the backend re-expands the intrinsic,
+    // and has to reintroduce a shift modulo operation (InstCombine might remove
+    // it after this fold). This still doesn't guarantee that the final codegen
+    // will match this original pattern.
+    if (match(R, m_OneUse(m_Sub(m_SpecificInt(Width), m_Specific(L))))) {
+      KnownBits KnownL = IC.computeKnownBits(L, /*Depth*/ 0, &Or);
+      return KnownL.getMaxValue().ult(Width) ? L : nullptr;
+    }
+
+    // For non-constant cases, the following patterns currently only work for
+    // rotation patterns.
+    // TODO: Add general funnel-shift compatible patterns.
+    if (ShVal0 != ShVal1)
+      return nullptr;
+
+    // For non-constant cases we don't support non-pow2 shift masks.
+    // TODO: Is it worth matching urem as well?
+    if (!isPowerOf2_32(Width))
+      return nullptr;
+
+    // The shift amount may be masked with negation:
+    // (shl ShVal, (X & (Width - 1))) | (lshr ShVal, ((-X) & (Width - 1)))
+    Value *X;
+    unsigned Mask = Width - 1;
+    if (match(L, m_And(m_Value(X), m_SpecificInt(Mask))) &&
+        match(R, m_And(m_Neg(m_Specific(X)), m_SpecificInt(Mask))))
+      return X;
+
+    // Similar to above, but the shift amount may be extended after masking,
+    // so return the extended value as the parameter for the intrinsic.
+    if (match(L, m_ZExt(m_And(m_Value(X), m_SpecificInt(Mask)))) &&
+        match(R, m_And(m_Neg(m_ZExt(m_And(m_Specific(X), m_SpecificInt(Mask)))),
+                       m_SpecificInt(Mask))))
+      return L;
+
+    if (match(L, m_ZExt(m_And(m_Value(X), m_SpecificInt(Mask)))) &&
+        match(R, m_ZExt(m_And(m_Neg(m_Specific(X)), m_SpecificInt(Mask)))))
+      return L;
+
+    return nullptr;
+  };
+
+  Value *ShAmt = matchShiftAmount(ShAmt0, ShAmt1, Width);
+  bool IsFshl = true; // Sub on LSHR.
+  if (!ShAmt) {
+    ShAmt = matchShiftAmount(ShAmt1, ShAmt0, Width);
+    IsFshl = false; // Sub on SHL.
+  }
+  if (!ShAmt)
+    return nullptr;
+
+  Intrinsic::ID IID = IsFshl ? Intrinsic::fshl : Intrinsic::fshr;
+  Function *F = Intrinsic::getDeclaration(Or.getModule(), IID, Or.getType());
+  return CallInst::Create(F, {ShVal0, ShVal1, ShAmt});
+}
+
+/// Attempt to combine or(zext(x),shl(zext(y),bw/2) concat packing patterns.
+static Instruction *matchOrConcat(Instruction &Or,
+                                  InstCombiner::BuilderTy &Builder) {
+  assert(Or.getOpcode() == Instruction::Or && "bswap requires an 'or'");
+  Value *Op0 = Or.getOperand(0), *Op1 = Or.getOperand(1);
+  Type *Ty = Or.getType();
+
+  unsigned Width = Ty->getScalarSizeInBits();
+  if ((Width & 1) != 0)
+    return nullptr;
+  unsigned HalfWidth = Width / 2;
+
+  // Canonicalize zext (lower half) to LHS.
+  if (!isa<ZExtInst>(Op0))
+    std::swap(Op0, Op1);
+
+  // Find lower/upper half.
+  Value *LowerSrc, *ShlVal, *UpperSrc;
+  const APInt *C;
+  if (!match(Op0, m_OneUse(m_ZExt(m_Value(LowerSrc)))) ||
+      !match(Op1, m_OneUse(m_Shl(m_Value(ShlVal), m_APInt(C)))) ||
+      !match(ShlVal, m_OneUse(m_ZExt(m_Value(UpperSrc)))))
+    return nullptr;
+  if (*C != HalfWidth || LowerSrc->getType() != UpperSrc->getType() ||
+      LowerSrc->getType()->getScalarSizeInBits() != HalfWidth)
+    return nullptr;
+
+  auto ConcatIntrinsicCalls = [&](Intrinsic::ID id, Value *Lo, Value *Hi) {
+    Value *NewLower = Builder.CreateZExt(Lo, Ty);
+    Value *NewUpper = Builder.CreateZExt(Hi, Ty);
+    NewUpper = Builder.CreateShl(NewUpper, HalfWidth);
+    Value *BinOp = Builder.CreateOr(NewLower, NewUpper);
+    Function *F = Intrinsic::getDeclaration(Or.getModule(), id, Ty);
+    return Builder.CreateCall(F, BinOp);
+  };
+
+  // BSWAP: Push the concat down, swapping the lower/upper sources.
+  // concat(bswap(x),bswap(y)) -> bswap(concat(x,y))
+  Value *LowerBSwap, *UpperBSwap;
+  if (match(LowerSrc, m_BSwap(m_Value(LowerBSwap))) &&
+      match(UpperSrc, m_BSwap(m_Value(UpperBSwap))))
+    return ConcatIntrinsicCalls(Intrinsic::bswap, UpperBSwap, LowerBSwap);
+
+  // BITREVERSE: Push the concat down, swapping the lower/upper sources.
+  // concat(bitreverse(x),bitreverse(y)) -> bitreverse(concat(x,y))
+  Value *LowerBRev, *UpperBRev;
+  if (match(LowerSrc, m_BitReverse(m_Value(LowerBRev))) &&
+      match(UpperSrc, m_BitReverse(m_Value(UpperBRev))))
+    return ConcatIntrinsicCalls(Intrinsic::bitreverse, UpperBRev, LowerBRev);
+
+  return nullptr;
 }
 
 /// If all elements of two constant vectors are 0/-1 and inverses, return true.
 static bool areInverseVectorBitmasks(Constant *C1, Constant *C2) {
-  unsigned NumElts = C1->getType()->getVectorNumElements();
+  unsigned NumElts = cast<FixedVectorType>(C1->getType())->getNumElements();
   for (unsigned i = 0; i != NumElts; ++i) {
     Constant *EltC1 = C1->getAggregateElement(i);
     Constant *EltC2 = C2->getAggregateElement(i);
@@ -1704,22 +2600,66 @@ static bool areInverseVectorBitmasks(Constant *C1, Constant *C2) {
 /// We have an expression of the form (A & C) | (B & D). If A is a scalar or
 /// vector composed of all-zeros or all-ones values and is the bitwise 'not' of
 /// B, it can be used as the condition operand of a select instruction.
-static Value *getSelectCondition(Value *A, Value *B,
-                                 InstCombiner::BuilderTy &Builder) {
-  // If these are scalars or vectors of i1, A can be used directly.
+/// We will detect (A & C) | ~(B | D) when the flag ABIsTheSame enabled.
+Value *InstCombinerImpl::getSelectCondition(Value *A, Value *B,
+                                            bool ABIsTheSame) {
+  // We may have peeked through bitcasts in the caller.
+  // Exit immediately if we don't have (vector) integer types.
   Type *Ty = A->getType();
-  if (match(A, m_Not(m_Specific(B))) && Ty->isIntOrIntVectorTy(1))
-    return A;
+  if (!Ty->isIntOrIntVectorTy() || !B->getType()->isIntOrIntVectorTy())
+    return nullptr;
 
-  // If A and B are sign-extended, look through the sexts to find the booleans.
+  // If A is the 'not' operand of B and has enough signbits, we have our answer.
+  if (ABIsTheSame ? (A == B) : match(B, m_Not(m_Specific(A)))) {
+    // If these are scalars or vectors of i1, A can be used directly.
+    if (Ty->isIntOrIntVectorTy(1))
+      return A;
+
+    // If we look through a vector bitcast, the caller will bitcast the operands
+    // to match the condition's number of bits (N x i1).
+    // To make this poison-safe, disallow bitcast from wide element to narrow
+    // element. That could allow poison in lanes where it was not present in the
+    // original code.
+    A = peekThroughBitcast(A);
+    if (A->getType()->isIntOrIntVectorTy()) {
+      unsigned NumSignBits = ComputeNumSignBits(A);
+      if (NumSignBits == A->getType()->getScalarSizeInBits() &&
+          NumSignBits <= Ty->getScalarSizeInBits())
+        return Builder.CreateTrunc(A, CmpInst::makeCmpResultType(A->getType()));
+    }
+    return nullptr;
+  }
+
+  // TODO: add support for sext and constant case
+  if (ABIsTheSame)
+    return nullptr;
+
+  // If both operands are constants, see if the constants are inverse bitmasks.
+  Constant *AConst, *BConst;
+  if (match(A, m_Constant(AConst)) && match(B, m_Constant(BConst)))
+    if (AConst == ConstantExpr::getNot(BConst) &&
+        ComputeNumSignBits(A) == Ty->getScalarSizeInBits())
+      return Builder.CreateZExtOrTrunc(A, CmpInst::makeCmpResultType(Ty));
+
+  // Look for more complex patterns. The 'not' op may be hidden behind various
+  // casts. Look through sexts and bitcasts to find the booleans.
   Value *Cond;
   Value *NotB;
   if (match(A, m_SExt(m_Value(Cond))) &&
-      Cond->getType()->isIntOrIntVectorTy(1) &&
-      match(B, m_OneUse(m_Not(m_Value(NotB))))) {
-    NotB = peekThroughBitcast(NotB, true);
-    if (match(NotB, m_SExt(m_Specific(Cond))))
+      Cond->getType()->isIntOrIntVectorTy(1)) {
+    // A = sext i1 Cond; B = sext (not (i1 Cond))
+    if (match(B, m_SExt(m_Not(m_Specific(Cond)))))
       return Cond;
+
+    // A = sext i1 Cond; B = not ({bitcast} (sext (i1 Cond)))
+    // TODO: The one-use checks are unnecessary or misplaced. If the caller
+    //       checked for uses on logic ops/casts, that should be enough to
+    //       make this transform worthwhile.
+    if (match(B, m_OneUse(m_Not(m_Value(NotB))))) {
+      NotB = peekThroughBitcast(NotB, true);
+      if (match(NotB, m_SExt(m_Specific(Cond))))
+        return Cond;
+    }
   }
 
   // All scalar (and most vector) possibilities should be handled now.
@@ -1727,41 +2667,50 @@ static Value *getSelectCondition(Value *A, Value *B,
   if (!Ty->isVectorTy())
     return nullptr;
 
-  // If both operands are constants, see if the constants are inverse bitmasks.
-  Constant *AC, *BC;
-  if (match(A, m_Constant(AC)) && match(B, m_Constant(BC)) &&
-      areInverseVectorBitmasks(AC, BC)) {
-    return Builder.CreateZExtOrTrunc(AC, CmpInst::makeCmpResultType(Ty));
-  }
-
   // If both operands are xor'd with constants using the same sexted boolean
   // operand, see if the constants are inverse bitmasks.
-  if (match(A, (m_Xor(m_SExt(m_Value(Cond)), m_Constant(AC)))) &&
-      match(B, (m_Xor(m_SExt(m_Specific(Cond)), m_Constant(BC)))) &&
+  // TODO: Use ConstantExpr::getNot()?
+  if (match(A, (m_Xor(m_SExt(m_Value(Cond)), m_Constant(AConst)))) &&
+      match(B, (m_Xor(m_SExt(m_Specific(Cond)), m_Constant(BConst)))) &&
       Cond->getType()->isIntOrIntVectorTy(1) &&
-      areInverseVectorBitmasks(AC, BC)) {
-    AC = ConstantExpr::getTrunc(AC, CmpInst::makeCmpResultType(Ty));
-    return Builder.CreateXor(Cond, AC);
+      areInverseVectorBitmasks(AConst, BConst)) {
+    AConst = ConstantExpr::getTrunc(AConst, CmpInst::makeCmpResultType(Ty));
+    return Builder.CreateXor(Cond, AConst);
   }
   return nullptr;
 }
 
 /// We have an expression of the form (A & C) | (B & D). Try to simplify this
 /// to "A' ? C : D", where A' is a boolean or vector of booleans.
-static Value *matchSelectFromAndOr(Value *A, Value *C, Value *B, Value *D,
-                                   InstCombiner::BuilderTy &Builder) {
+/// When InvertFalseVal is set to true, we try to match the pattern
+/// where we have peeked through a 'not' op and A and B are the same:
+/// (A & C) | ~(A | D) --> (A & C) | (~A & ~D) --> A' ? C : ~D
+Value *InstCombinerImpl::matchSelectFromAndOr(Value *A, Value *C, Value *B,
+                                              Value *D, bool InvertFalseVal) {
   // The potential condition of the select may be bitcasted. In that case, look
   // through its bitcast and the corresponding bitcast of the 'not' condition.
   Type *OrigType = A->getType();
   A = peekThroughBitcast(A, true);
   B = peekThroughBitcast(B, true);
-
-  if (Value *Cond = getSelectCondition(A, B, Builder)) {
+  if (Value *Cond = getSelectCondition(A, B, InvertFalseVal)) {
     // ((bc Cond) & C) | ((bc ~Cond) & D) --> bc (select Cond, (bc C), (bc D))
+    // If this is a vector, we may need to cast to match the condition's length.
     // The bitcasts will either all exist or all not exist. The builder will
     // not create unnecessary casts if the types already match.
-    Value *BitcastC = Builder.CreateBitCast(C, A->getType());
-    Value *BitcastD = Builder.CreateBitCast(D, A->getType());
+    Type *SelTy = A->getType();
+    if (auto *VecTy = dyn_cast<VectorType>(Cond->getType())) {
+      // For a fixed or scalable vector get N from <{vscale x} N x iM>
+      unsigned Elts = VecTy->getElementCount().getKnownMinValue();
+      // For a fixed or scalable vector, get the size in bits of N x iM; for a
+      // scalar this is just M.
+      unsigned SelEltSize = SelTy->getPrimitiveSizeInBits().getKnownMinValue();
+      Type *EltTy = Builder.getIntNTy(SelEltSize / Elts);
+      SelTy = VectorType::get(EltTy, VecTy->getElementCount());
+    }
+    Value *BitcastC = Builder.CreateBitCast(C, SelTy);
+    if (InvertFalseVal)
+      D = Builder.CreateNot(D);
+    Value *BitcastD = Builder.CreateBitCast(D, SelTy);
     Value *Select = Builder.CreateSelect(Cond, BitcastC, BitcastD);
     return Builder.CreateBitCast(Select, OrigType);
   }
@@ -1769,246 +2718,238 @@ static Value *matchSelectFromAndOr(Value *A, Value *C, Value *B, Value *D,
   return nullptr;
 }
 
-/// Fold (icmp)|(icmp) if possible.
-Value *InstCombiner::foldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS,
-                                   Instruction &CxtI) {
+// (icmp eq X, 0) | (icmp ult Other, X) -> (icmp ule Other, X-1)
+// (icmp ne X, 0) & (icmp uge Other, X) -> (icmp ugt Other, X-1)
+static Value *foldAndOrOfICmpEqZeroAndICmp(ICmpInst *LHS, ICmpInst *RHS,
+                                           bool IsAnd, bool IsLogical,
+                                           IRBuilderBase &Builder) {
+  ICmpInst::Predicate LPred =
+      IsAnd ? LHS->getInversePredicate() : LHS->getPredicate();
+  ICmpInst::Predicate RPred =
+      IsAnd ? RHS->getInversePredicate() : RHS->getPredicate();
+  Value *LHS0 = LHS->getOperand(0);
+  if (LPred != ICmpInst::ICMP_EQ || !match(LHS->getOperand(1), m_Zero()) ||
+      !LHS0->getType()->isIntOrIntVectorTy() ||
+      !(LHS->hasOneUse() || RHS->hasOneUse()))
+    return nullptr;
+
+  Value *Other;
+  if (RPred == ICmpInst::ICMP_ULT && RHS->getOperand(1) == LHS0)
+    Other = RHS->getOperand(0);
+  else if (RPred == ICmpInst::ICMP_UGT && RHS->getOperand(0) == LHS0)
+    Other = RHS->getOperand(1);
+  else
+    return nullptr;
+
+  if (IsLogical)
+    Other = Builder.CreateFreeze(Other);
+  return Builder.CreateICmp(
+      IsAnd ? ICmpInst::ICMP_ULT : ICmpInst::ICMP_UGE,
+      Builder.CreateAdd(LHS0, Constant::getAllOnesValue(LHS0->getType())),
+      Other);
+}
+
+/// Fold (icmp)&(icmp) or (icmp)|(icmp) if possible.
+/// If IsLogical is true, then the and/or is in select form and the transform
+/// must be poison-safe.
+Value *InstCombinerImpl::foldAndOrOfICmps(ICmpInst *LHS, ICmpInst *RHS,
+                                          Instruction &I, bool IsAnd,
+                                          bool IsLogical) {
+  const SimplifyQuery Q = SQ.getWithInstruction(&I);
+
   // Fold (iszero(A & K1) | iszero(A & K2)) ->  (A & (K1 | K2)) != (K1 | K2)
+  // Fold (!iszero(A & K1) & !iszero(A & K2)) ->  (A & (K1 | K2)) == (K1 | K2)
   // if K1 and K2 are a one-bit mask.
-  if (Value *V = foldAndOrOfICmpsOfAndWithPow2(LHS, RHS, false, CxtI))
+  if (Value *V = foldAndOrOfICmpsOfAndWithPow2(LHS, RHS, &I, IsAnd, IsLogical))
     return V;
 
   ICmpInst::Predicate PredL = LHS->getPredicate(), PredR = RHS->getPredicate();
-
-  ConstantInt *LHSC = dyn_cast<ConstantInt>(LHS->getOperand(1));
-  ConstantInt *RHSC = dyn_cast<ConstantInt>(RHS->getOperand(1));
-
-  // Fold (icmp ult/ule (A + C1), C3) | (icmp ult/ule (A + C2), C3)
-  //                   -->  (icmp ult/ule ((A & ~(C1 ^ C2)) + max(C1, C2)), C3)
-  // The original condition actually refers to the following two ranges:
-  // [MAX_UINT-C1+1, MAX_UINT-C1+1+C3] and [MAX_UINT-C2+1, MAX_UINT-C2+1+C3]
-  // We can fold these two ranges if:
-  // 1) C1 and C2 is unsigned greater than C3.
-  // 2) The two ranges are separated.
-  // 3) C1 ^ C2 is one-bit mask.
-  // 4) LowRange1 ^ LowRange2 and HighRange1 ^ HighRange2 are one-bit mask.
-  // This implies all values in the two ranges differ by exactly one bit.
-
-  if ((PredL == ICmpInst::ICMP_ULT || PredL == ICmpInst::ICMP_ULE) &&
-      PredL == PredR && LHSC && RHSC && LHS->hasOneUse() && RHS->hasOneUse() &&
-      LHSC->getType() == RHSC->getType() &&
-      LHSC->getValue() == (RHSC->getValue())) {
-
-    Value *LAdd = LHS->getOperand(0);
-    Value *RAdd = RHS->getOperand(0);
-
-    Value *LAddOpnd, *RAddOpnd;
-    ConstantInt *LAddC, *RAddC;
-    if (match(LAdd, m_Add(m_Value(LAddOpnd), m_ConstantInt(LAddC))) &&
-        match(RAdd, m_Add(m_Value(RAddOpnd), m_ConstantInt(RAddC))) &&
-        LAddC->getValue().ugt(LHSC->getValue()) &&
-        RAddC->getValue().ugt(LHSC->getValue())) {
-
-      APInt DiffC = LAddC->getValue() ^ RAddC->getValue();
-      if (LAddOpnd == RAddOpnd && DiffC.isPowerOf2()) {
-        ConstantInt *MaxAddC = nullptr;
-        if (LAddC->getValue().ult(RAddC->getValue()))
-          MaxAddC = RAddC;
-        else
-          MaxAddC = LAddC;
-
-        APInt RRangeLow = -RAddC->getValue();
-        APInt RRangeHigh = RRangeLow + LHSC->getValue();
-        APInt LRangeLow = -LAddC->getValue();
-        APInt LRangeHigh = LRangeLow + LHSC->getValue();
-        APInt LowRangeDiff = RRangeLow ^ LRangeLow;
-        APInt HighRangeDiff = RRangeHigh ^ LRangeHigh;
-        APInt RangeDiff = LRangeLow.sgt(RRangeLow) ? LRangeLow - RRangeLow
-                                                   : RRangeLow - LRangeLow;
-
-        if (LowRangeDiff.isPowerOf2() && LowRangeDiff == HighRangeDiff &&
-            RangeDiff.ugt(LHSC->getValue())) {
-          Value *MaskC = ConstantInt::get(LAddC->getType(), ~DiffC);
-
-          Value *NewAnd = Builder.CreateAnd(LAddOpnd, MaskC);
-          Value *NewAdd = Builder.CreateAdd(NewAnd, MaxAddC);
-          return Builder.CreateICmp(LHS->getPredicate(), NewAdd, LHSC);
-        }
-      }
-    }
-  }
+  Value *LHS0 = LHS->getOperand(0), *RHS0 = RHS->getOperand(0);
+  Value *LHS1 = LHS->getOperand(1), *RHS1 = RHS->getOperand(1);
+  const APInt *LHSC = nullptr, *RHSC = nullptr;
+  match(LHS1, m_APInt(LHSC));
+  match(RHS1, m_APInt(RHSC));
 
   // (icmp1 A, B) | (icmp2 A, B) --> (icmp3 A, B)
-  if (PredicatesFoldable(PredL, PredR)) {
-    if (LHS->getOperand(0) == RHS->getOperand(1) &&
-        LHS->getOperand(1) == RHS->getOperand(0))
-      LHS->swapOperands();
-    if (LHS->getOperand(0) == RHS->getOperand(0) &&
-        LHS->getOperand(1) == RHS->getOperand(1)) {
-      Value *Op0 = LHS->getOperand(0), *Op1 = LHS->getOperand(1);
-      unsigned Code = getICmpCode(LHS) | getICmpCode(RHS);
-      bool isSigned = LHS->isSigned() || RHS->isSigned();
-      return getNewICmpValue(isSigned, Code, Op0, Op1, Builder);
+  // (icmp1 A, B) & (icmp2 A, B) --> (icmp3 A, B)
+  if (predicatesFoldable(PredL, PredR)) {
+    if (LHS0 == RHS1 && LHS1 == RHS0) {
+      PredL = ICmpInst::getSwappedPredicate(PredL);
+      std::swap(LHS0, LHS1);
+    }
+    if (LHS0 == RHS0 && LHS1 == RHS1) {
+      unsigned Code = IsAnd ? getICmpCode(PredL) & getICmpCode(PredR)
+                            : getICmpCode(PredL) | getICmpCode(PredR);
+      bool IsSigned = LHS->isSigned() || RHS->isSigned();
+      return getNewICmpValue(Code, IsSigned, LHS0, LHS1, Builder);
     }
   }
 
   // handle (roughly):
   // (icmp ne (A & B), C) | (icmp ne (A & D), E)
-  if (Value *V = foldLogOpOfMaskedICmps(LHS, RHS, false, Builder))
+  // (icmp eq (A & B), C) & (icmp eq (A & D), E)
+  if (Value *V = foldLogOpOfMaskedICmps(LHS, RHS, IsAnd, IsLogical, Builder))
     return V;
 
-  Value *LHS0 = LHS->getOperand(0), *RHS0 = RHS->getOperand(0);
-  if (LHS->hasOneUse() || RHS->hasOneUse()) {
-    // (icmp eq B, 0) | (icmp ult A, B) -> (icmp ule A, B-1)
-    // (icmp eq B, 0) | (icmp ugt B, A) -> (icmp ule A, B-1)
-    Value *A = nullptr, *B = nullptr;
-    if (PredL == ICmpInst::ICMP_EQ && LHSC && LHSC->isZero()) {
-      B = LHS0;
-      if (PredR == ICmpInst::ICMP_ULT && LHS0 == RHS->getOperand(1))
-        A = RHS0;
-      else if (PredR == ICmpInst::ICMP_UGT && LHS0 == RHS0)
-        A = RHS->getOperand(1);
-    }
-    // (icmp ult A, B) | (icmp eq B, 0) -> (icmp ule A, B-1)
-    // (icmp ugt B, A) | (icmp eq B, 0) -> (icmp ule A, B-1)
-    else if (PredR == ICmpInst::ICMP_EQ && RHSC && RHSC->isZero()) {
-      B = RHS0;
-      if (PredL == ICmpInst::ICMP_ULT && RHS0 == LHS->getOperand(1))
-        A = LHS0;
-      else if (PredL == ICmpInst::ICMP_UGT && LHS0 == RHS0)
-        A = LHS->getOperand(1);
-    }
-    if (A && B)
-      return Builder.CreateICmp(
-          ICmpInst::ICMP_UGE,
-          Builder.CreateAdd(B, ConstantInt::getSigned(B->getType(), -1)), A);
+  if (Value *V =
+          foldAndOrOfICmpEqZeroAndICmp(LHS, RHS, IsAnd, IsLogical, Builder))
+    return V;
+  // We can treat logical like bitwise here, because both operands are used on
+  // the LHS, and as such poison from both will propagate.
+  if (Value *V = foldAndOrOfICmpEqZeroAndICmp(RHS, LHS, IsAnd,
+                                              /*IsLogical*/ false, Builder))
+    return V;
+
+  if (Value *V =
+          foldAndOrOfICmpsWithConstEq(LHS, RHS, IsAnd, IsLogical, Builder, Q))
+    return V;
+  // We can convert this case to bitwise and, because both operands are used
+  // on the LHS, and as such poison from both will propagate.
+  if (Value *V = foldAndOrOfICmpsWithConstEq(RHS, LHS, IsAnd,
+                                             /*IsLogical*/ false, Builder, Q))
+    return V;
+
+  if (Value *V = foldIsPowerOf2OrZero(LHS, RHS, IsAnd, Builder))
+    return V;
+  if (Value *V = foldIsPowerOf2OrZero(RHS, LHS, IsAnd, Builder))
+    return V;
+
+  // TODO: One of these directions is fine with logical and/or, the other could
+  // be supported by inserting freeze.
+  if (!IsLogical) {
+    // E.g. (icmp slt x, 0) | (icmp sgt x, n) --> icmp ugt x, n
+    // E.g. (icmp sge x, 0) & (icmp slt x, n) --> icmp ult x, n
+    if (Value *V = simplifyRangeCheck(LHS, RHS, /*Inverted=*/!IsAnd))
+      return V;
+
+    // E.g. (icmp sgt x, n) | (icmp slt x, 0) --> icmp ugt x, n
+    // E.g. (icmp slt x, n) & (icmp sge x, 0) --> icmp ult x, n
+    if (Value *V = simplifyRangeCheck(RHS, LHS, /*Inverted=*/!IsAnd))
+      return V;
   }
 
-  // E.g. (icmp slt x, 0) | (icmp sgt x, n) --> icmp ugt x, n
-  if (Value *V = simplifyRangeCheck(LHS, RHS, /*Inverted=*/true))
+  // TODO: Add conjugated or fold, check whether it is safe for logical and/or.
+  if (IsAnd && !IsLogical)
+    if (Value *V = foldSignedTruncationCheck(LHS, RHS, I, Builder))
+      return V;
+
+  if (Value *V = foldIsPowerOf2(LHS, RHS, IsAnd, Builder))
     return V;
 
-  // E.g. (icmp sgt x, n) | (icmp slt x, 0) --> icmp ugt x, n
-  if (Value *V = simplifyRangeCheck(RHS, LHS, /*Inverted=*/true))
-    return V;
+  // TODO: Verify whether this is safe for logical and/or.
+  if (!IsLogical) {
+    if (Value *X = foldUnsignedUnderflowCheck(LHS, RHS, IsAnd, Q, Builder))
+      return X;
+    if (Value *X = foldUnsignedUnderflowCheck(RHS, LHS, IsAnd, Q, Builder))
+      return X;
+  }
 
-  if (Value *V = foldAndOrOfEqualityCmpsWithConstants(LHS, RHS, false, Builder))
-    return V;
+  if (Value *X = foldEqOfParts(LHS, RHS, IsAnd))
+    return X;
+
+  // (icmp ne A, 0) | (icmp ne B, 0) --> (icmp ne (A|B), 0)
+  // (icmp eq A, 0) & (icmp eq B, 0) --> (icmp eq (A|B), 0)
+  // TODO: Remove this when foldLogOpOfMaskedICmps can handle undefs.
+  if (!IsLogical && PredL == (IsAnd ? ICmpInst::ICMP_EQ : ICmpInst::ICMP_NE) &&
+      PredL == PredR && match(LHS1, m_ZeroInt()) && match(RHS1, m_ZeroInt()) &&
+      LHS0->getType() == RHS0->getType()) {
+    Value *NewOr = Builder.CreateOr(LHS0, RHS0);
+    return Builder.CreateICmp(PredL, NewOr,
+                              Constant::getNullValue(NewOr->getType()));
+  }
 
   // This only handles icmp of constants: (icmp1 A, C1) | (icmp2 B, C2).
   if (!LHSC || !RHSC)
     return nullptr;
 
-  if (LHSC == RHSC && PredL == PredR) {
-    // (icmp ne A, 0) | (icmp ne B, 0) --> (icmp ne (A|B), 0)
-    if (PredL == ICmpInst::ICMP_NE && LHSC->isZero()) {
-      Value *NewOr = Builder.CreateOr(LHS0, RHS0);
-      return Builder.CreateICmp(PredL, NewOr, LHSC);
+  // (trunc x) == C1 & (and x, CA) == C2 -> (and x, CA|CMAX) == C1|C2
+  // (trunc x) != C1 | (and x, CA) != C2 -> (and x, CA|CMAX) != C1|C2
+  // where CMAX is the all ones value for the truncated type,
+  // iff the lower bits of C2 and CA are zero.
+  if (PredL == (IsAnd ? ICmpInst::ICMP_EQ : ICmpInst::ICMP_NE) &&
+      PredL == PredR && LHS->hasOneUse() && RHS->hasOneUse()) {
+    Value *V;
+    const APInt *AndC, *SmallC = nullptr, *BigC = nullptr;
+
+    // (trunc x) == C1 & (and x, CA) == C2
+    // (and x, CA) == C2 & (trunc x) == C1
+    if (match(RHS0, m_Trunc(m_Value(V))) &&
+        match(LHS0, m_And(m_Specific(V), m_APInt(AndC)))) {
+      SmallC = RHSC;
+      BigC = LHSC;
+    } else if (match(LHS0, m_Trunc(m_Value(V))) &&
+               match(RHS0, m_And(m_Specific(V), m_APInt(AndC)))) {
+      SmallC = LHSC;
+      BigC = RHSC;
+    }
+
+    if (SmallC && BigC) {
+      unsigned BigBitSize = BigC->getBitWidth();
+      unsigned SmallBitSize = SmallC->getBitWidth();
+
+      // Check that the low bits are zero.
+      APInt Low = APInt::getLowBitsSet(BigBitSize, SmallBitSize);
+      if ((Low & *AndC).isZero() && (Low & *BigC).isZero()) {
+        Value *NewAnd = Builder.CreateAnd(V, Low | *AndC);
+        APInt N = SmallC->zext(BigBitSize) | *BigC;
+        Value *NewVal = ConstantInt::get(NewAnd->getType(), N);
+        return Builder.CreateICmp(PredL, NewAnd, NewVal);
+      }
     }
   }
 
-  // (icmp ult (X + CA), C1) | (icmp eq X, C2) -> (icmp ule (X + CA), C1)
-  //   iff C2 + CA == C1.
-  if (PredL == ICmpInst::ICMP_ULT && PredR == ICmpInst::ICMP_EQ) {
-    ConstantInt *AddC;
-    if (match(LHS0, m_Add(m_Specific(RHS0), m_ConstantInt(AddC))))
-      if (RHSC->getValue() + AddC->getValue() == LHSC->getValue())
-        return Builder.CreateICmpULE(LHS0, LHSC);
+  // Match naive pattern (and its inverted form) for checking if two values
+  // share same sign. An example of the pattern:
+  // (icmp slt (X & Y), 0) | (icmp sgt (X | Y), -1) -> (icmp sgt (X ^ Y), -1)
+  // Inverted form (example):
+  // (icmp slt (X | Y), 0) & (icmp sgt (X & Y), -1) -> (icmp slt (X ^ Y), 0)
+  bool TrueIfSignedL, TrueIfSignedR;
+  if (isSignBitCheck(PredL, *LHSC, TrueIfSignedL) &&
+      isSignBitCheck(PredR, *RHSC, TrueIfSignedR) &&
+      (RHS->hasOneUse() || LHS->hasOneUse())) {
+    Value *X, *Y;
+    if (IsAnd) {
+      if ((TrueIfSignedL && !TrueIfSignedR &&
+           match(LHS0, m_Or(m_Value(X), m_Value(Y))) &&
+           match(RHS0, m_c_And(m_Specific(X), m_Specific(Y)))) ||
+          (!TrueIfSignedL && TrueIfSignedR &&
+           match(LHS0, m_And(m_Value(X), m_Value(Y))) &&
+           match(RHS0, m_c_Or(m_Specific(X), m_Specific(Y))))) {
+        Value *NewXor = Builder.CreateXor(X, Y);
+        return Builder.CreateIsNeg(NewXor);
+      }
+    } else {
+      if ((TrueIfSignedL && !TrueIfSignedR &&
+            match(LHS0, m_And(m_Value(X), m_Value(Y))) &&
+            match(RHS0, m_c_Or(m_Specific(X), m_Specific(Y)))) ||
+          (!TrueIfSignedL && TrueIfSignedR &&
+           match(LHS0, m_Or(m_Value(X), m_Value(Y))) &&
+           match(RHS0, m_c_And(m_Specific(X), m_Specific(Y))))) {
+        Value *NewXor = Builder.CreateXor(X, Y);
+        return Builder.CreateIsNotNeg(NewXor);
+      }
+    }
   }
 
-  // From here on, we only handle:
-  //    (icmp1 A, C1) | (icmp2 A, C2) --> something simpler.
-  if (LHS0 != RHS0)
-    return nullptr;
-
-  // ICMP_[US][GL]E X, C is folded to ICMP_[US][GL]T elsewhere.
-  if (PredL == ICmpInst::ICMP_UGE || PredL == ICmpInst::ICMP_ULE ||
-      PredR == ICmpInst::ICMP_UGE || PredR == ICmpInst::ICMP_ULE ||
-      PredL == ICmpInst::ICMP_SGE || PredL == ICmpInst::ICMP_SLE ||
-      PredR == ICmpInst::ICMP_SGE || PredR == ICmpInst::ICMP_SLE)
-    return nullptr;
-
-  // We can't fold (ugt x, C) | (sgt x, C2).
-  if (!PredicatesFoldable(PredL, PredR))
-    return nullptr;
-
-  // Ensure that the larger constant is on the RHS.
-  bool ShouldSwap;
-  if (CmpInst::isSigned(PredL) ||
-      (ICmpInst::isEquality(PredL) && CmpInst::isSigned(PredR)))
-    ShouldSwap = LHSC->getValue().sgt(RHSC->getValue());
-  else
-    ShouldSwap = LHSC->getValue().ugt(RHSC->getValue());
-
-  if (ShouldSwap) {
-    std::swap(LHS, RHS);
-    std::swap(LHSC, RHSC);
-    std::swap(PredL, PredR);
-  }
-
-  // At this point, we know we have two icmp instructions
-  // comparing a value against two constants and or'ing the result
-  // together.  Because of the above check, we know that we only have
-  // ICMP_EQ, ICMP_NE, ICMP_LT, and ICMP_GT here. We also know (from the
-  // icmp folding check above), that the two constants are not
-  // equal.
-  assert(LHSC != RHSC && "Compares not folded above?");
-
-  switch (PredL) {
-  default:
-    llvm_unreachable("Unknown integer condition code!");
-  case ICmpInst::ICMP_EQ:
-    switch (PredR) {
-    default:
-      llvm_unreachable("Unknown integer condition code!");
-    case ICmpInst::ICMP_EQ:
-      // Potential folds for this case should already be handled.
-      break;
-    case ICmpInst::ICMP_UGT: // (X == 13 | X u> 14) -> no change
-    case ICmpInst::ICMP_SGT: // (X == 13 | X s> 14) -> no change
-      break;
-    }
-    break;
-  case ICmpInst::ICMP_ULT:
-    switch (PredR) {
-    default:
-      llvm_unreachable("Unknown integer condition code!");
-    case ICmpInst::ICMP_EQ: // (X u< 13 | X == 14) -> no change
-      break;
-    case ICmpInst::ICMP_UGT: // (X u< 13 | X u> 15) -> (X-13) u> 2
-      assert(!RHSC->isMaxValue(false) && "Missed icmp simplification");
-      return insertRangeTest(LHS0, LHSC->getValue(), RHSC->getValue() + 1,
-                             false, false);
-    }
-    break;
-  case ICmpInst::ICMP_SLT:
-    switch (PredR) {
-    default:
-      llvm_unreachable("Unknown integer condition code!");
-    case ICmpInst::ICMP_EQ: // (X s< 13 | X == 14) -> no change
-      break;
-    case ICmpInst::ICMP_SGT: // (X s< 13 | X s> 15) -> (X-13) s> 2
-      assert(!RHSC->isMaxValue(true) && "Missed icmp simplification");
-      return insertRangeTest(LHS0, LHSC->getValue(), RHSC->getValue() + 1, true,
-                             false);
-    }
-    break;
-  }
-  return nullptr;
+  return foldAndOrOfICmpsUsingRanges(LHS, RHS, IsAnd);
 }
 
 // FIXME: We use commutative matchers (m_c_*) for some, but not all, matches
 // here. We should standardize that construct where it is needed or choose some
 // other way to ensure that commutated variants of patterns are not missed.
-Instruction *InstCombiner::visitOr(BinaryOperator &I) {
-  if (Value *V = SimplifyOrInst(I.getOperand(0), I.getOperand(1),
+Instruction *InstCombinerImpl::visitOr(BinaryOperator &I) {
+  if (Value *V = simplifyOrInst(I.getOperand(0), I.getOperand(1),
                                 SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
 
   if (SimplifyAssociativeOrCommutative(I))
     return &I;
 
-  if (Instruction *X = foldShuffledBinop(I))
+  if (Instruction *X = foldVectorBinop(I))
     return X;
+
+  if (Instruction *Phi = foldBinopWithPhiOperands(I))
+    return Phi;
 
   // See if we can simplify any instructions used by the instruction whose sole
   // purpose is to compute bits we don't care about.
@@ -2019,101 +2960,117 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
   if (Instruction *Xor = foldOrToXor(I, Builder))
     return Xor;
 
+  if (Instruction *X = foldComplexAndOrPatterns(I, Builder))
+    return X;
+
   // (A&B)|(A&C) -> A&(B|C) etc
-  if (Value *V = SimplifyUsingDistributiveLaws(I))
+  if (Value *V = foldUsingDistributiveLaws(I))
     return replaceInstUsesWith(I, V);
 
   if (Value *V = SimplifyBSwap(I, Builder))
     return replaceInstUsesWith(I, V);
 
-  if (Instruction *FoldedLogic = foldBinOpIntoSelectOrPhi(I))
-    return FoldedLogic;
-
-  // Given an OR instruction, check to see if this is a bswap.
-  if (Instruction *BSwap = MatchBSwap(I))
-    return BSwap;
-
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-  {
-    Value *A;
-    const APInt *C;
-    // (X^C)|Y -> (X|Y)^C iff Y&C == 0
-    if (match(Op0, m_OneUse(m_Xor(m_Value(A), m_APInt(C)))) &&
-        MaskedValueIsZero(Op1, *C, 0, &I)) {
-      Value *NOr = Builder.CreateOr(A, Op1);
-      NOr->takeName(Op0);
-      return BinaryOperator::CreateXor(NOr,
-                                       ConstantInt::get(NOr->getType(), *C));
+  Type *Ty = I.getType();
+  if (Ty->isIntOrIntVectorTy(1)) {
+    if (auto *SI0 = dyn_cast<SelectInst>(Op0)) {
+      if (auto *I =
+              foldAndOrOfSelectUsingImpliedCond(Op1, *SI0, /* IsAnd */ false))
+        return I;
     }
-
-    // Y|(X^C) -> (X|Y)^C iff Y&C == 0
-    if (match(Op1, m_OneUse(m_Xor(m_Value(A), m_APInt(C)))) &&
-        MaskedValueIsZero(Op0, *C, 0, &I)) {
-      Value *NOr = Builder.CreateOr(A, Op0);
-      NOr->takeName(Op0);
-      return BinaryOperator::CreateXor(NOr,
-                                       ConstantInt::get(NOr->getType(), *C));
+    if (auto *SI1 = dyn_cast<SelectInst>(Op1)) {
+      if (auto *I =
+              foldAndOrOfSelectUsingImpliedCond(Op0, *SI1, /* IsAnd */ false))
+        return I;
     }
   }
 
-  Value *A, *B;
+  if (Instruction *FoldedLogic = foldBinOpIntoSelectOrPhi(I))
+    return FoldedLogic;
 
-  // (A & C)|(B & D)
-  Value *C = nullptr, *D = nullptr;
+  if (Instruction *BitOp = matchBSwapOrBitReverse(I, /*MatchBSwaps*/ true,
+                                                  /*MatchBitReversals*/ true))
+    return BitOp;
+
+  if (Instruction *Funnel = matchFunnelShift(I, *this))
+    return Funnel;
+
+  if (Instruction *Concat = matchOrConcat(I, Builder))
+    return replaceInstUsesWith(I, Concat);
+
+  Value *X, *Y;
+  const APInt *CV;
+  if (match(&I, m_c_Or(m_OneUse(m_Xor(m_Value(X), m_APInt(CV))), m_Value(Y))) &&
+      !CV->isAllOnes() && MaskedValueIsZero(Y, *CV, 0, &I)) {
+    // (X ^ C) | Y -> (X | Y) ^ C iff Y & C == 0
+    // The check for a 'not' op is for efficiency (if Y is known zero --> ~X).
+    Value *Or = Builder.CreateOr(X, Y);
+    return BinaryOperator::CreateXor(Or, ConstantInt::get(Ty, *CV));
+  }
+
+  // If the operands have no common bits set:
+  // or (mul X, Y), X --> add (mul X, Y), X --> mul X, (Y + 1)
+  if (match(&I,
+            m_c_Or(m_OneUse(m_Mul(m_Value(X), m_Value(Y))), m_Deferred(X))) &&
+      haveNoCommonBitsSet(Op0, Op1, DL)) {
+    Value *IncrementY = Builder.CreateAdd(Y, ConstantInt::get(Ty, 1));
+    return BinaryOperator::CreateMul(X, IncrementY);
+  }
+
+  // X | (X ^ Y) --> X | Y (4 commuted patterns)
+  if (match(&I, m_c_Or(m_Value(X), m_c_Xor(m_Deferred(X), m_Value(Y)))))
+    return BinaryOperator::CreateOr(X, Y);
+
+  // (A & C) | (B & D)
+  Value *A, *B, *C, *D;
   if (match(Op0, m_And(m_Value(A), m_Value(C))) &&
       match(Op1, m_And(m_Value(B), m_Value(D)))) {
-    ConstantInt *C1 = dyn_cast<ConstantInt>(C);
-    ConstantInt *C2 = dyn_cast<ConstantInt>(D);
-    if (C1 && C2) {  // (A & C1)|(B & C2)
-      Value *V1 = nullptr, *V2 = nullptr;
-      if ((C1->getValue() & C2->getValue()).isNullValue()) {
-        // ((V | N) & C1) | (V & C2) --> (V|N) & (C1|C2)
-        // iff (C1&C2) == 0 and (N&~C1) == 0
-        if (match(A, m_Or(m_Value(V1), m_Value(V2))) &&
-            ((V1 == B &&
-              MaskedValueIsZero(V2, ~C1->getValue(), 0, &I)) || // (V|N)
-             (V2 == B &&
-              MaskedValueIsZero(V1, ~C1->getValue(), 0, &I))))  // (N|V)
-          return BinaryOperator::CreateAnd(A,
-                                Builder.getInt(C1->getValue()|C2->getValue()));
-        // Or commutes, try both ways.
-        if (match(B, m_Or(m_Value(V1), m_Value(V2))) &&
-            ((V1 == A &&
-              MaskedValueIsZero(V2, ~C2->getValue(), 0, &I)) || // (V|N)
-             (V2 == A &&
-              MaskedValueIsZero(V1, ~C2->getValue(), 0, &I))))  // (N|V)
-          return BinaryOperator::CreateAnd(B,
-                                 Builder.getInt(C1->getValue()|C2->getValue()));
 
-        // ((V|C3)&C1) | ((V|C4)&C2) --> (V|C3|C4)&(C1|C2)
-        // iff (C1&C2) == 0 and (C3&~C1) == 0 and (C4&~C2) == 0.
-        ConstantInt *C3 = nullptr, *C4 = nullptr;
-        if (match(A, m_Or(m_Value(V1), m_ConstantInt(C3))) &&
-            (C3->getValue() & ~C1->getValue()).isNullValue() &&
-            match(B, m_Or(m_Specific(V1), m_ConstantInt(C4))) &&
-            (C4->getValue() & ~C2->getValue()).isNullValue()) {
-          V2 = Builder.CreateOr(V1, ConstantExpr::getOr(C3, C4), "bitfield");
-          return BinaryOperator::CreateAnd(V2,
-                                 Builder.getInt(C1->getValue()|C2->getValue()));
-        }
+    // (A & C0) | (B & C1)
+    const APInt *C0, *C1;
+    if (match(C, m_APInt(C0)) && match(D, m_APInt(C1))) {
+      Value *X;
+      if (*C0 == ~*C1) {
+        // ((X | B) & MaskC) | (B & ~MaskC) -> (X & MaskC) | B
+        if (match(A, m_c_Or(m_Value(X), m_Specific(B))))
+          return BinaryOperator::CreateOr(Builder.CreateAnd(X, *C0), B);
+        // (A & MaskC) | ((X | A) & ~MaskC) -> (X & ~MaskC) | A
+        if (match(B, m_c_Or(m_Specific(A), m_Value(X))))
+          return BinaryOperator::CreateOr(Builder.CreateAnd(X, *C1), A);
+
+        // ((X ^ B) & MaskC) | (B & ~MaskC) -> (X & MaskC) ^ B
+        if (match(A, m_c_Xor(m_Value(X), m_Specific(B))))
+          return BinaryOperator::CreateXor(Builder.CreateAnd(X, *C0), B);
+        // (A & MaskC) | ((X ^ A) & ~MaskC) -> (X & ~MaskC) ^ A
+        if (match(B, m_c_Xor(m_Specific(A), m_Value(X))))
+          return BinaryOperator::CreateXor(Builder.CreateAnd(X, *C1), A);
       }
 
-      if (C1->getValue() == ~C2->getValue()) {
-        Value *X;
-
-        // ((X|B)&C1)|(B&C2) -> (X&C1) | B iff C1 == ~C2
-        if (match(A, m_c_Or(m_Value(X), m_Specific(B))))
-          return BinaryOperator::CreateOr(Builder.CreateAnd(X, C1), B);
-        // (A&C2)|((X|A)&C1) -> (X&C2) | A iff C1 == ~C2
-        if (match(B, m_c_Or(m_Specific(A), m_Value(X))))
-          return BinaryOperator::CreateOr(Builder.CreateAnd(X, C2), A);
-
-        // ((X^B)&C1)|(B&C2) -> (X&C1) ^ B iff C1 == ~C2
-        if (match(A, m_c_Xor(m_Value(X), m_Specific(B))))
-          return BinaryOperator::CreateXor(Builder.CreateAnd(X, C1), B);
-        // (A&C2)|((X^A)&C1) -> (X&C2) ^ A iff C1 == ~C2
-        if (match(B, m_c_Xor(m_Specific(A), m_Value(X))))
-          return BinaryOperator::CreateXor(Builder.CreateAnd(X, C2), A);
+      if ((*C0 & *C1).isZero()) {
+        // ((X | B) & C0) | (B & C1) --> (X | B) & (C0 | C1)
+        // iff (C0 & C1) == 0 and (X & ~C0) == 0
+        if (match(A, m_c_Or(m_Value(X), m_Specific(B))) &&
+            MaskedValueIsZero(X, ~*C0, 0, &I)) {
+          Constant *C01 = ConstantInt::get(Ty, *C0 | *C1);
+          return BinaryOperator::CreateAnd(A, C01);
+        }
+        // (A & C0) | ((X | A) & C1) --> (X | A) & (C0 | C1)
+        // iff (C0 & C1) == 0 and (X & ~C1) == 0
+        if (match(B, m_c_Or(m_Value(X), m_Specific(A))) &&
+            MaskedValueIsZero(X, ~*C1, 0, &I)) {
+          Constant *C01 = ConstantInt::get(Ty, *C0 | *C1);
+          return BinaryOperator::CreateAnd(B, C01);
+        }
+        // ((X | C2) & C0) | ((X | C3) & C1) --> (X | C2 | C3) & (C0 | C1)
+        // iff (C0 & C1) == 0 and (C2 & ~C0) == 0 and (C3 & ~C1) == 0.
+        const APInt *C2, *C3;
+        if (match(A, m_Or(m_Value(X), m_APInt(C2))) &&
+            match(B, m_Or(m_Specific(X), m_APInt(C3))) &&
+            (*C2 & ~*C0).isZero() && (*C3 & ~*C1).isZero()) {
+          Value *Or = Builder.CreateOr(X, *C2 | *C3, "bitfield");
+          Constant *C01 = ConstantInt::get(Ty, *C0 | *C1);
+          return BinaryOperator::CreateAnd(Or, C01);
+        }
       }
     }
 
@@ -2122,23 +3079,37 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     // 'or' that it is replacing.
     if (Op0->hasOneUse() || Op1->hasOneUse()) {
       // (Cond & C) | (~Cond & D) -> Cond ? C : D, and commuted variants.
-      if (Value *V = matchSelectFromAndOr(A, C, B, D, Builder))
+      if (Value *V = matchSelectFromAndOr(A, C, B, D))
         return replaceInstUsesWith(I, V);
-      if (Value *V = matchSelectFromAndOr(A, C, D, B, Builder))
+      if (Value *V = matchSelectFromAndOr(A, C, D, B))
         return replaceInstUsesWith(I, V);
-      if (Value *V = matchSelectFromAndOr(C, A, B, D, Builder))
+      if (Value *V = matchSelectFromAndOr(C, A, B, D))
         return replaceInstUsesWith(I, V);
-      if (Value *V = matchSelectFromAndOr(C, A, D, B, Builder))
+      if (Value *V = matchSelectFromAndOr(C, A, D, B))
         return replaceInstUsesWith(I, V);
-      if (Value *V = matchSelectFromAndOr(B, D, A, C, Builder))
+      if (Value *V = matchSelectFromAndOr(B, D, A, C))
         return replaceInstUsesWith(I, V);
-      if (Value *V = matchSelectFromAndOr(B, D, C, A, Builder))
+      if (Value *V = matchSelectFromAndOr(B, D, C, A))
         return replaceInstUsesWith(I, V);
-      if (Value *V = matchSelectFromAndOr(D, B, A, C, Builder))
+      if (Value *V = matchSelectFromAndOr(D, B, A, C))
         return replaceInstUsesWith(I, V);
-      if (Value *V = matchSelectFromAndOr(D, B, C, A, Builder))
+      if (Value *V = matchSelectFromAndOr(D, B, C, A))
         return replaceInstUsesWith(I, V);
     }
+  }
+
+  if (match(Op0, m_And(m_Value(A), m_Value(C))) &&
+      match(Op1, m_Not(m_Or(m_Value(B), m_Value(D)))) &&
+      (Op0->hasOneUse() || Op1->hasOneUse())) {
+    // (Cond & C) | ~(Cond | D) -> Cond ? C : ~D
+    if (Value *V = matchSelectFromAndOr(A, C, B, D, true))
+      return replaceInstUsesWith(I, V);
+    if (Value *V = matchSelectFromAndOr(A, C, D, B, true))
+      return replaceInstUsesWith(I, V);
+    if (Value *V = matchSelectFromAndOr(C, A, B, D, true))
+      return replaceInstUsesWith(I, V);
+    if (Value *V = matchSelectFromAndOr(C, A, D, B, true))
+      return replaceInstUsesWith(I, V);
   }
 
   // (A ^ B) | ((B ^ C) ^ A) -> (A ^ B) | C
@@ -2150,6 +3121,14 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
   if (match(Op0, m_Xor(m_Xor(m_Value(A), m_Value(C)), m_Value(B))))
     if (match(Op1, m_Xor(m_Specific(B), m_Specific(A))))
       return BinaryOperator::CreateOr(Op1, C);
+
+  // ((A & B) ^ C) | B -> C | B
+  if (match(Op0, m_c_Xor(m_c_And(m_Value(A), m_Specific(Op1)), m_Value(C))))
+    return BinaryOperator::CreateOr(C, Op1);
+
+  // B | ((A & B) ^ C) -> B | C
+  if (match(Op1, m_c_Xor(m_c_And(m_Value(A), m_Specific(Op0)), m_Value(C))))
+    return BinaryOperator::CreateOr(Op0, C);
 
   // ((B | C) & A) | B -> B | (A & C)
   if (match(Op0, m_And(m_Or(m_Specific(Op1), m_Value(C)), m_Value(A))))
@@ -2165,24 +3144,58 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     SwappedForXor = true;
   }
 
-  // A | ( A ^ B) -> A |  B
-  // A | (~A ^ B) -> A | ~B
-  // (A & B) | (A ^ B)
   if (match(Op1, m_Xor(m_Value(A), m_Value(B)))) {
-    if (Op0 == A || Op0 == B)
-      return BinaryOperator::CreateOr(A, B);
+    // (A | ?) | (A ^ B) --> (A | ?) | B
+    // (B | ?) | (A ^ B) --> (B | ?) | A
+    if (match(Op0, m_c_Or(m_Specific(A), m_Value())))
+      return BinaryOperator::CreateOr(Op0, B);
+    if (match(Op0, m_c_Or(m_Specific(B), m_Value())))
+      return BinaryOperator::CreateOr(Op0, A);
 
+    // (A & B) | (A ^ B) --> A | B
+    // (B & A) | (A ^ B) --> A | B
     if (match(Op0, m_And(m_Specific(A), m_Specific(B))) ||
         match(Op0, m_And(m_Specific(B), m_Specific(A))))
       return BinaryOperator::CreateOr(A, B);
 
+    // ~A | (A ^ B) --> ~(A & B)
+    // ~B | (A ^ B) --> ~(A & B)
+    // The swap above should always make Op0 the 'not'.
+    if ((Op0->hasOneUse() || Op1->hasOneUse()) &&
+        (match(Op0, m_Not(m_Specific(A))) || match(Op0, m_Not(m_Specific(B)))))
+      return BinaryOperator::CreateNot(Builder.CreateAnd(A, B));
+
+    // Same as above, but peek through an 'and' to the common operand:
+    // ~(A & ?) | (A ^ B) --> ~((A & ?) & B)
+    // ~(B & ?) | (A ^ B) --> ~((B & ?) & A)
+    Instruction *And;
+    if ((Op0->hasOneUse() || Op1->hasOneUse()) &&
+        match(Op0, m_Not(m_CombineAnd(m_Instruction(And),
+                                      m_c_And(m_Specific(A), m_Value())))))
+      return BinaryOperator::CreateNot(Builder.CreateAnd(And, B));
+    if ((Op0->hasOneUse() || Op1->hasOneUse()) &&
+        match(Op0, m_Not(m_CombineAnd(m_Instruction(And),
+                                      m_c_And(m_Specific(B), m_Value())))))
+      return BinaryOperator::CreateNot(Builder.CreateAnd(And, A));
+
+    // (~A | C) | (A ^ B) --> ~(A & B) | C
+    // (~B | C) | (A ^ B) --> ~(A & B) | C
+    if (Op0->hasOneUse() && Op1->hasOneUse() &&
+        (match(Op0, m_c_Or(m_Not(m_Specific(A)), m_Value(C))) ||
+         match(Op0, m_c_Or(m_Not(m_Specific(B)), m_Value(C))))) {
+      Value *Nand = Builder.CreateNot(Builder.CreateAnd(A, B), "nand");
+      return BinaryOperator::CreateOr(Nand, C);
+    }
+
+    // A | (~A ^ B) --> ~B | A
+    // B | (A ^ ~B) --> ~A | B
     if (Op1->hasOneUse() && match(A, m_Not(m_Specific(Op0)))) {
-      Value *Not = Builder.CreateNot(B, B->getName() + ".not");
-      return BinaryOperator::CreateOr(Not, Op0);
+      Value *NotB = Builder.CreateNot(B, B->getName() + ".not");
+      return BinaryOperator::CreateOr(NotB, Op0);
     }
     if (Op1->hasOneUse() && match(B, m_Not(m_Specific(Op0)))) {
-      Value *Not = Builder.CreateNot(A, A->getName() + ".not");
-      return BinaryOperator::CreateOr(Not, Op0);
+      Value *NotA = Builder.CreateNot(A, A->getName() + ".not");
+      return BinaryOperator::CreateOr(NotA, Op0);
     }
   }
 
@@ -2206,57 +3219,85 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     ICmpInst *LHS = dyn_cast<ICmpInst>(Op0);
     ICmpInst *RHS = dyn_cast<ICmpInst>(Op1);
     if (LHS && RHS)
-      if (Value *Res = foldOrOfICmps(LHS, RHS, I))
+      if (Value *Res = foldAndOrOfICmps(LHS, RHS, I, /* IsAnd */ false))
         return replaceInstUsesWith(I, Res);
 
     // TODO: Make this recursive; it's a little tricky because an arbitrary
     // number of 'or' instructions might have to be created.
     Value *X, *Y;
-    if (LHS && match(Op1, m_OneUse(m_Or(m_Value(X), m_Value(Y))))) {
+    if (LHS && match(Op1, m_OneUse(m_LogicalOr(m_Value(X), m_Value(Y))))) {
+      bool IsLogical = isa<SelectInst>(Op1);
+      // LHS | (X || Y) --> (LHS || X) || Y
       if (auto *Cmp = dyn_cast<ICmpInst>(X))
-        if (Value *Res = foldOrOfICmps(LHS, Cmp, I))
-          return replaceInstUsesWith(I, Builder.CreateOr(Res, Y));
+        if (Value *Res =
+                foldAndOrOfICmps(LHS, Cmp, I, /* IsAnd */ false, IsLogical))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalOr(Res, Y)
+                                            : Builder.CreateOr(Res, Y));
+      // LHS | (X || Y) --> X || (LHS | Y)
       if (auto *Cmp = dyn_cast<ICmpInst>(Y))
-        if (Value *Res = foldOrOfICmps(LHS, Cmp, I))
-          return replaceInstUsesWith(I, Builder.CreateOr(Res, X));
+        if (Value *Res = foldAndOrOfICmps(LHS, Cmp, I, /* IsAnd */ false,
+                                          /* IsLogical */ false))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalOr(X, Res)
+                                            : Builder.CreateOr(X, Res));
     }
-    if (RHS && match(Op0, m_OneUse(m_Or(m_Value(X), m_Value(Y))))) {
+    if (RHS && match(Op0, m_OneUse(m_LogicalOr(m_Value(X), m_Value(Y))))) {
+      bool IsLogical = isa<SelectInst>(Op0);
+      // (X || Y) | RHS --> (X || RHS) || Y
       if (auto *Cmp = dyn_cast<ICmpInst>(X))
-        if (Value *Res = foldOrOfICmps(Cmp, RHS, I))
-          return replaceInstUsesWith(I, Builder.CreateOr(Res, Y));
+        if (Value *Res =
+                foldAndOrOfICmps(Cmp, RHS, I, /* IsAnd */ false, IsLogical))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalOr(Res, Y)
+                                            : Builder.CreateOr(Res, Y));
+      // (X || Y) | RHS --> X || (Y | RHS)
       if (auto *Cmp = dyn_cast<ICmpInst>(Y))
-        if (Value *Res = foldOrOfICmps(Cmp, RHS, I))
-          return replaceInstUsesWith(I, Builder.CreateOr(Res, X));
+        if (Value *Res = foldAndOrOfICmps(Cmp, RHS, I, /* IsAnd */ false,
+                                          /* IsLogical */ false))
+          return replaceInstUsesWith(I, IsLogical
+                                            ? Builder.CreateLogicalOr(X, Res)
+                                            : Builder.CreateOr(X, Res));
     }
   }
 
   if (FCmpInst *LHS = dyn_cast<FCmpInst>(I.getOperand(0)))
     if (FCmpInst *RHS = dyn_cast<FCmpInst>(I.getOperand(1)))
-      if (Value *Res = foldLogicOfFCmps(LHS, RHS, false))
+      if (Value *Res = foldLogicOfFCmps(LHS, RHS, /*IsAnd*/ false))
         return replaceInstUsesWith(I, Res);
+
+  if (Instruction *FoldedFCmps = reassociateFCmps(I, Builder))
+    return FoldedFCmps;
 
   if (Instruction *CastedOr = foldCastedBitwiseLogic(I))
     return CastedOr;
 
+  if (Instruction *Sel = foldBinopOfSextBoolToSelect(I))
+    return Sel;
+
   // or(sext(A), B) / or(B, sext(A)) --> A ? -1 : B, where A is i1 or <N x i1>.
+  // TODO: Move this into foldBinopOfSextBoolToSelect as a more generalized fold
+  //       with binop identity constant. But creating a select with non-constant
+  //       arm may not be reversible due to poison semantics. Is that a good
+  //       canonicalization?
   if (match(Op0, m_OneUse(m_SExt(m_Value(A)))) &&
       A->getType()->isIntOrIntVectorTy(1))
-    return SelectInst::Create(A, ConstantInt::getSigned(I.getType(), -1), Op1);
+    return SelectInst::Create(A, ConstantInt::getAllOnesValue(Ty), Op1);
   if (match(Op1, m_OneUse(m_SExt(m_Value(A)))) &&
       A->getType()->isIntOrIntVectorTy(1))
-    return SelectInst::Create(A, ConstantInt::getSigned(I.getType(), -1), Op0);
+    return SelectInst::Create(A, ConstantInt::getAllOnesValue(Ty), Op0);
 
   // Note: If we've gotten to the point of visiting the outer OR, then the
   // inner one couldn't be simplified.  If it was a constant, then it won't
   // be simplified by a later pass either, so we try swapping the inner/outer
   // ORs in the hopes that we'll be able to simplify it this way.
   // (X|C) | V --> (X|V) | C
-  ConstantInt *C1;
-  if (Op0->hasOneUse() && !isa<ConstantInt>(Op1) &&
-      match(Op0, m_Or(m_Value(A), m_ConstantInt(C1)))) {
+  ConstantInt *CI;
+  if (Op0->hasOneUse() && !match(Op1, m_ConstantInt()) &&
+      match(Op0, m_Or(m_Value(A), m_ConstantInt(CI)))) {
     Value *Inner = Builder.CreateOr(A, Op1);
     Inner->takeName(Op0);
-    return BinaryOperator::CreateOr(Inner, C1);
+    return BinaryOperator::CreateOr(Inner, CI);
   }
 
   // Change (or (bool?A:B),(bool?C:D)) --> (bool?(or A,C):(or B,D))
@@ -2272,6 +3313,108 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
       return SelectInst::Create(X, orTrue, orFalse);
     }
   }
+
+  // or(ashr(subNSW(Y, X), ScalarSizeInBits(Y) - 1), X)  --> X s> Y ? -1 : X.
+  {
+    Value *X, *Y;
+    if (match(&I, m_c_Or(m_OneUse(m_AShr(
+                             m_NSWSub(m_Value(Y), m_Value(X)),
+                             m_SpecificInt(Ty->getScalarSizeInBits() - 1))),
+                         m_Deferred(X)))) {
+      Value *NewICmpInst = Builder.CreateICmpSGT(X, Y);
+      Value *AllOnes = ConstantInt::getAllOnesValue(Ty);
+      return SelectInst::Create(NewICmpInst, AllOnes, X);
+    }
+  }
+
+  if (Instruction *V =
+          canonicalizeCondSignextOfHighBitExtractToSignextHighBitExtract(I))
+    return V;
+
+  CmpInst::Predicate Pred;
+  Value *Mul, *Ov, *MulIsNotZero, *UMulWithOv;
+  // Check if the OR weakens the overflow condition for umul.with.overflow by
+  // treating any non-zero result as overflow. In that case, we overflow if both
+  // umul.with.overflow operands are != 0, as in that case the result can only
+  // be 0, iff the multiplication overflows.
+  if (match(&I,
+            m_c_Or(m_CombineAnd(m_ExtractValue<1>(m_Value(UMulWithOv)),
+                                m_Value(Ov)),
+                   m_CombineAnd(m_ICmp(Pred,
+                                       m_CombineAnd(m_ExtractValue<0>(
+                                                        m_Deferred(UMulWithOv)),
+                                                    m_Value(Mul)),
+                                       m_ZeroInt()),
+                                m_Value(MulIsNotZero)))) &&
+      (Ov->hasOneUse() || (MulIsNotZero->hasOneUse() && Mul->hasOneUse())) &&
+      Pred == CmpInst::ICMP_NE) {
+    Value *A, *B;
+    if (match(UMulWithOv, m_Intrinsic<Intrinsic::umul_with_overflow>(
+                              m_Value(A), m_Value(B)))) {
+      Value *NotNullA = Builder.CreateIsNotNull(A);
+      Value *NotNullB = Builder.CreateIsNotNull(B);
+      return BinaryOperator::CreateAnd(NotNullA, NotNullB);
+    }
+  }
+
+  // (~x) | y  -->  ~(x & (~y))  iff that gets rid of inversions
+  if (sinkNotIntoOtherHandOfLogicalOp(I))
+    return &I;
+
+  // Improve "get low bit mask up to and including bit X" pattern:
+  //   (1 << X) | ((1 << X) + -1)  -->  -1 l>> (bitwidth(x) - 1 - X)
+  if (match(&I, m_c_Or(m_Add(m_Shl(m_One(), m_Value(X)), m_AllOnes()),
+                       m_Shl(m_One(), m_Deferred(X)))) &&
+      match(&I, m_c_Or(m_OneUse(m_Value()), m_Value()))) {
+    Value *Sub = Builder.CreateSub(
+        ConstantInt::get(Ty, Ty->getScalarSizeInBits() - 1), X);
+    return BinaryOperator::CreateLShr(Constant::getAllOnesValue(Ty), Sub);
+  }
+
+  // An or recurrence w/loop invariant step is equivelent to (or start, step)
+  PHINode *PN = nullptr;
+  Value *Start = nullptr, *Step = nullptr;
+  if (matchSimpleRecurrence(&I, PN, Start, Step) && DT.dominates(Step, PN))
+    return replaceInstUsesWith(I, Builder.CreateOr(Start, Step));
+
+  // (A & B) | (C | D) or (C | D) | (A & B)
+  // Can be combined if C or D is of type (A/B & X)
+  if (match(&I, m_c_Or(m_OneUse(m_And(m_Value(A), m_Value(B))),
+                       m_OneUse(m_Or(m_Value(C), m_Value(D)))))) {
+    // (A & B) | (C | ?) -> C | (? | (A & B))
+    // (A & B) | (C | ?) -> C | (? | (A & B))
+    // (A & B) | (C | ?) -> C | (? | (A & B))
+    // (A & B) | (C | ?) -> C | (? | (A & B))
+    // (C | ?) | (A & B) -> C | (? | (A & B))
+    // (C | ?) | (A & B) -> C | (? | (A & B))
+    // (C | ?) | (A & B) -> C | (? | (A & B))
+    // (C | ?) | (A & B) -> C | (? | (A & B))
+    if (match(D, m_OneUse(m_c_And(m_Specific(A), m_Value()))) ||
+        match(D, m_OneUse(m_c_And(m_Specific(B), m_Value()))))
+      return BinaryOperator::CreateOr(
+          C, Builder.CreateOr(D, Builder.CreateAnd(A, B)));
+    // (A & B) | (? | D) -> (? | (A & B)) | D
+    // (A & B) | (? | D) -> (? | (A & B)) | D
+    // (A & B) | (? | D) -> (? | (A & B)) | D
+    // (A & B) | (? | D) -> (? | (A & B)) | D
+    // (? | D) | (A & B) -> (? | (A & B)) | D
+    // (? | D) | (A & B) -> (? | (A & B)) | D
+    // (? | D) | (A & B) -> (? | (A & B)) | D
+    // (? | D) | (A & B) -> (? | (A & B)) | D
+    if (match(C, m_OneUse(m_c_And(m_Specific(A), m_Value()))) ||
+        match(C, m_OneUse(m_c_And(m_Specific(B), m_Value()))))
+      return BinaryOperator::CreateOr(
+          Builder.CreateOr(C, Builder.CreateAnd(A, B)), D);
+  }
+
+  if (Instruction *R = reassociateForUses(I, Builder))
+    return R;
+
+  if (Instruction *Canonicalized = canonicalizeLogicFirst(I, Builder))
+    return Canonicalized;
+
+  if (Instruction *Folded = foldLogicOfIsFPClass(I, Op0, Op1))
+    return Folded;
 
   return nullptr;
 }
@@ -2292,33 +3435,24 @@ static Instruction *foldXorToXor(BinaryOperator &I,
   // (A | B) ^ (A & B) -> A ^ B
   // (A | B) ^ (B & A) -> A ^ B
   if (match(&I, m_c_Xor(m_And(m_Value(A), m_Value(B)),
-                        m_c_Or(m_Deferred(A), m_Deferred(B))))) {
-    I.setOperand(0, A);
-    I.setOperand(1, B);
-    return &I;
-  }
+                        m_c_Or(m_Deferred(A), m_Deferred(B)))))
+    return BinaryOperator::CreateXor(A, B);
 
   // (A | ~B) ^ (~A | B) -> A ^ B
   // (~B | A) ^ (~A | B) -> A ^ B
   // (~A | B) ^ (A | ~B) -> A ^ B
   // (B | ~A) ^ (A | ~B) -> A ^ B
   if (match(&I, m_Xor(m_c_Or(m_Value(A), m_Not(m_Value(B))),
-                      m_c_Or(m_Not(m_Deferred(A)), m_Deferred(B))))) {
-    I.setOperand(0, A);
-    I.setOperand(1, B);
-    return &I;
-  }
+                      m_c_Or(m_Not(m_Deferred(A)), m_Deferred(B)))))
+    return BinaryOperator::CreateXor(A, B);
 
   // (A & ~B) ^ (~A & B) -> A ^ B
   // (~B & A) ^ (~A & B) -> A ^ B
   // (~A & B) ^ (A & ~B) -> A ^ B
   // (B & ~A) ^ (A & ~B) -> A ^ B
   if (match(&I, m_Xor(m_c_And(m_Value(A), m_Not(m_Value(B))),
-                      m_c_And(m_Not(m_Deferred(A)), m_Deferred(B))))) {
-    I.setOperand(0, A);
-    I.setOperand(1, B);
-    return &I;
-  }
+                      m_c_And(m_Not(m_Deferred(A)), m_Deferred(B)))))
+    return BinaryOperator::CreateXor(A, B);
 
   // For the remaining cases we need to get rid of one of the operands.
   if (!Op0->hasOneUse() && !Op1->hasOneUse())
@@ -2338,47 +3472,63 @@ static Instruction *foldXorToXor(BinaryOperator &I,
   return nullptr;
 }
 
-Value *InstCombiner::foldXorOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
-  if (PredicatesFoldable(LHS->getPredicate(), RHS->getPredicate())) {
-    if (LHS->getOperand(0) == RHS->getOperand(1) &&
-        LHS->getOperand(1) == RHS->getOperand(0))
-      LHS->swapOperands();
-    if (LHS->getOperand(0) == RHS->getOperand(0) &&
-        LHS->getOperand(1) == RHS->getOperand(1)) {
+Value *InstCombinerImpl::foldXorOfICmps(ICmpInst *LHS, ICmpInst *RHS,
+                                        BinaryOperator &I) {
+  assert(I.getOpcode() == Instruction::Xor && I.getOperand(0) == LHS &&
+         I.getOperand(1) == RHS && "Should be 'xor' with these operands");
+
+  ICmpInst::Predicate PredL = LHS->getPredicate(), PredR = RHS->getPredicate();
+  Value *LHS0 = LHS->getOperand(0), *LHS1 = LHS->getOperand(1);
+  Value *RHS0 = RHS->getOperand(0), *RHS1 = RHS->getOperand(1);
+
+  if (predicatesFoldable(PredL, PredR)) {
+    if (LHS0 == RHS1 && LHS1 == RHS0) {
+      std::swap(LHS0, LHS1);
+      PredL = ICmpInst::getSwappedPredicate(PredL);
+    }
+    if (LHS0 == RHS0 && LHS1 == RHS1) {
       // (icmp1 A, B) ^ (icmp2 A, B) --> (icmp3 A, B)
-      Value *Op0 = LHS->getOperand(0), *Op1 = LHS->getOperand(1);
-      unsigned Code = getICmpCode(LHS) ^ getICmpCode(RHS);
-      bool isSigned = LHS->isSigned() || RHS->isSigned();
-      return getNewICmpValue(isSigned, Code, Op0, Op1, Builder);
+      unsigned Code = getICmpCode(PredL) ^ getICmpCode(PredR);
+      bool IsSigned = LHS->isSigned() || RHS->isSigned();
+      return getNewICmpValue(Code, IsSigned, LHS0, LHS1, Builder);
     }
   }
 
   // TODO: This can be generalized to compares of non-signbits using
   // decomposeBitTestICmp(). It could be enhanced more by using (something like)
   // foldLogOpOfMaskedICmps().
-  ICmpInst::Predicate PredL = LHS->getPredicate(), PredR = RHS->getPredicate();
-  Value *LHS0 = LHS->getOperand(0), *LHS1 = LHS->getOperand(1);
-  Value *RHS0 = RHS->getOperand(0), *RHS1 = RHS->getOperand(1);
-  if ((LHS->hasOneUse() || RHS->hasOneUse()) &&
-      LHS0->getType() == RHS0->getType()) {
+  const APInt *LC, *RC;
+  if (match(LHS1, m_APInt(LC)) && match(RHS1, m_APInt(RC)) &&
+      LHS0->getType() == RHS0->getType() &&
+      LHS0->getType()->isIntOrIntVectorTy() &&
+      (LHS->hasOneUse() || RHS->hasOneUse())) {
+    // Convert xor of signbit tests to signbit test of xor'd values:
     // (X > -1) ^ (Y > -1) --> (X ^ Y) < 0
     // (X <  0) ^ (Y <  0) --> (X ^ Y) < 0
-    if ((PredL == CmpInst::ICMP_SGT && match(LHS1, m_AllOnes()) &&
-         PredR == CmpInst::ICMP_SGT && match(RHS1, m_AllOnes())) ||
-        (PredL == CmpInst::ICMP_SLT && match(LHS1, m_Zero()) &&
-         PredR == CmpInst::ICMP_SLT && match(RHS1, m_Zero()))) {
-      Value *Zero = ConstantInt::getNullValue(LHS0->getType());
-      return Builder.CreateICmpSLT(Builder.CreateXor(LHS0, RHS0), Zero);
-    }
     // (X > -1) ^ (Y <  0) --> (X ^ Y) > -1
     // (X <  0) ^ (Y > -1) --> (X ^ Y) > -1
-    if ((PredL == CmpInst::ICMP_SGT && match(LHS1, m_AllOnes()) &&
-         PredR == CmpInst::ICMP_SLT && match(RHS1, m_Zero())) ||
-        (PredL == CmpInst::ICMP_SLT && match(LHS1, m_Zero()) &&
-         PredR == CmpInst::ICMP_SGT && match(RHS1, m_AllOnes()))) {
-      Value *MinusOne = ConstantInt::getAllOnesValue(LHS0->getType());
-      return Builder.CreateICmpSGT(Builder.CreateXor(LHS0, RHS0), MinusOne);
+    bool TrueIfSignedL, TrueIfSignedR;
+    if (isSignBitCheck(PredL, *LC, TrueIfSignedL) &&
+        isSignBitCheck(PredR, *RC, TrueIfSignedR)) {
+      Value *XorLR = Builder.CreateXor(LHS0, RHS0);
+      return TrueIfSignedL == TrueIfSignedR ? Builder.CreateIsNeg(XorLR) :
+                                              Builder.CreateIsNotNeg(XorLR);
     }
+
+    // (X > C) ^ (X < C + 2) --> X != C + 1
+    // (X < C + 2) ^ (X > C) --> X != C + 1
+    // Considering the correctness of this pattern, we should avoid that C is
+    // non-negative and C + 2 is negative, although it will be matched by other
+    // patterns.
+    const APInt *C1, *C2;
+    if ((PredL == CmpInst::ICMP_SGT && match(LHS1, m_APInt(C1)) &&
+         PredR == CmpInst::ICMP_SLT && match(RHS1, m_APInt(C2))) ||
+        (PredL == CmpInst::ICMP_SLT && match(LHS1, m_APInt(C2)) &&
+         PredR == CmpInst::ICMP_SGT && match(RHS1, m_APInt(C1))))
+      if (LHS0 == RHS0 && *C1 + 2 == *C2 &&
+          (C1->isNegative() || C2->isNonNegative()))
+        return Builder.CreateICmpNE(LHS0,
+                                    ConstantInt::get(LHS0->getType(), *C1 + 1));
   }
 
   // Instead of trying to imitate the folds for and/or, decompose this 'xor'
@@ -2387,19 +3537,41 @@ Value *InstCombiner::foldXorOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
   //
   // This is based on a truth table definition of xor:
   // X ^ Y --> (X | Y) & !(X & Y)
-  if (Value *OrICmp = SimplifyBinOp(Instruction::Or, LHS, RHS, SQ)) {
+  if (Value *OrICmp = simplifyBinOp(Instruction::Or, LHS, RHS, SQ)) {
     // TODO: If OrICmp is true, then the definition of xor simplifies to !(X&Y).
     // TODO: If OrICmp is false, the whole thing is false (InstSimplify?).
-    if (Value *AndICmp = SimplifyBinOp(Instruction::And, LHS, RHS, SQ)) {
+    if (Value *AndICmp = simplifyBinOp(Instruction::And, LHS, RHS, SQ)) {
       // TODO: Independently handle cases where the 'and' side is a constant.
-      if (OrICmp == LHS && AndICmp == RHS && RHS->hasOneUse()) {
-        // (LHS | RHS) & !(LHS & RHS) --> LHS & !RHS
-        RHS->setPredicate(RHS->getInversePredicate());
-        return Builder.CreateAnd(LHS, RHS);
+      ICmpInst *X = nullptr, *Y = nullptr;
+      if (OrICmp == LHS && AndICmp == RHS) {
+        // (LHS | RHS) & !(LHS & RHS) --> LHS & !RHS  --> X & !Y
+        X = LHS;
+        Y = RHS;
       }
-      if (OrICmp == RHS && AndICmp == LHS && LHS->hasOneUse()) {
-        // !(LHS & RHS) & (LHS | RHS) --> !LHS & RHS
-        LHS->setPredicate(LHS->getInversePredicate());
+      if (OrICmp == RHS && AndICmp == LHS) {
+        // !(LHS & RHS) & (LHS | RHS) --> !LHS & RHS  --> !Y & X
+        X = RHS;
+        Y = LHS;
+      }
+      if (X && Y && (Y->hasOneUse() || canFreelyInvertAllUsersOf(Y, &I))) {
+        // Invert the predicate of 'Y', thus inverting its output.
+        Y->setPredicate(Y->getInversePredicate());
+        // So, are there other uses of Y?
+        if (!Y->hasOneUse()) {
+          // We need to adapt other uses of Y though. Get a value that matches
+          // the original value of Y before inversion. While this increases
+          // immediate instruction count, we have just ensured that all the
+          // users are freely-invertible, so that 'not' *will* get folded away.
+          BuilderTy::InsertPointGuard Guard(Builder);
+          // Set insertion point to right after the Y.
+          Builder.SetInsertPoint(Y->getParent(), ++(Y->getIterator()));
+          Value *NotY = Builder.CreateNot(Y, Y->getName() + ".not");
+          // Replace all uses of Y (excluding the one in NotY!) with NotY.
+          Worklist.pushUsersToWorkList(*Y);
+          Y->replaceUsesWithIf(NotY,
+                               [NotY](Use &U) { return U.getUser() != NotY; });
+        }
+        // All done.
         return Builder.CreateAnd(LHS, RHS);
       }
     }
@@ -2442,6 +3614,9 @@ static Instruction *visitMaskedMerge(BinaryOperator &I,
 
   Constant *C;
   if (D->hasOneUse() && match(M, m_Constant(C))) {
+    // Propagating undef is unsafe. Clamp undef elements to -1.
+    Type *EltTy = C->getType()->getScalarType();
+    C = Constant::replaceUndefsWith(C, ConstantInt::getAllOnesValue(EltTy));
     // Unfold.
     Value *LHS = Builder.CreateAnd(X, C);
     Value *NotC = Builder.CreateNot(C);
@@ -2452,25 +3627,420 @@ static Instruction *visitMaskedMerge(BinaryOperator &I,
   return nullptr;
 }
 
+// Transform
+//   ~(x ^ y)
+// into:
+//   (~x) ^ y
+// or into
+//   x ^ (~y)
+static Instruction *sinkNotIntoXor(BinaryOperator &I, Value *X, Value *Y,
+                                   InstCombiner::BuilderTy &Builder) {
+  // We only want to do the transform if it is free to do.
+  if (InstCombiner::isFreeToInvert(X, X->hasOneUse())) {
+    // Ok, good.
+  } else if (InstCombiner::isFreeToInvert(Y, Y->hasOneUse())) {
+    std::swap(X, Y);
+  } else
+    return nullptr;
+
+  Value *NotX = Builder.CreateNot(X, X->getName() + ".not");
+  return BinaryOperator::CreateXor(NotX, Y, I.getName() + ".demorgan");
+}
+
+static Instruction *foldNotXor(BinaryOperator &I,
+                               InstCombiner::BuilderTy &Builder) {
+  Value *X, *Y;
+  // FIXME: one-use check is not needed in general, but currently we are unable
+  // to fold 'not' into 'icmp', if that 'icmp' has multiple uses. (D35182)
+  if (!match(&I, m_Not(m_OneUse(m_Xor(m_Value(X), m_Value(Y))))))
+    return nullptr;
+
+  if (Instruction *NewXor = sinkNotIntoXor(I, X, Y, Builder))
+    return NewXor;
+
+  auto hasCommonOperand = [](Value *A, Value *B, Value *C, Value *D) {
+    return A == C || A == D || B == C || B == D;
+  };
+
+  Value *A, *B, *C, *D;
+  // Canonicalize ~((A & B) ^ (A | ?)) -> (A & B) | ~(A | ?)
+  // 4 commuted variants
+  if (match(X, m_And(m_Value(A), m_Value(B))) &&
+      match(Y, m_Or(m_Value(C), m_Value(D))) && hasCommonOperand(A, B, C, D)) {
+    Value *NotY = Builder.CreateNot(Y);
+    return BinaryOperator::CreateOr(X, NotY);
+  };
+
+  // Canonicalize ~((A | ?) ^ (A & B)) -> (A & B) | ~(A | ?)
+  // 4 commuted variants
+  if (match(Y, m_And(m_Value(A), m_Value(B))) &&
+      match(X, m_Or(m_Value(C), m_Value(D))) && hasCommonOperand(A, B, C, D)) {
+    Value *NotX = Builder.CreateNot(X);
+    return BinaryOperator::CreateOr(Y, NotX);
+  };
+
+  return nullptr;
+}
+
+/// Canonicalize a shifty way to code absolute value to the more common pattern
+/// that uses negation and select.
+static Instruction *canonicalizeAbs(BinaryOperator &Xor,
+                                    InstCombiner::BuilderTy &Builder) {
+  assert(Xor.getOpcode() == Instruction::Xor && "Expected an xor instruction.");
+
+  // There are 4 potential commuted variants. Move the 'ashr' candidate to Op1.
+  // We're relying on the fact that we only do this transform when the shift has
+  // exactly 2 uses and the add has exactly 1 use (otherwise, we might increase
+  // instructions).
+  Value *Op0 = Xor.getOperand(0), *Op1 = Xor.getOperand(1);
+  if (Op0->hasNUses(2))
+    std::swap(Op0, Op1);
+
+  Type *Ty = Xor.getType();
+  Value *A;
+  const APInt *ShAmt;
+  if (match(Op1, m_AShr(m_Value(A), m_APInt(ShAmt))) &&
+      Op1->hasNUses(2) && *ShAmt == Ty->getScalarSizeInBits() - 1 &&
+      match(Op0, m_OneUse(m_c_Add(m_Specific(A), m_Specific(Op1))))) {
+    // Op1 = ashr i32 A, 31   ; smear the sign bit
+    // xor (add A, Op1), Op1  ; add -1 and flip bits if negative
+    // --> (A < 0) ? -A : A
+    Value *IsNeg = Builder.CreateIsNeg(A);
+    // Copy the nuw/nsw flags from the add to the negate.
+    auto *Add = cast<BinaryOperator>(Op0);
+    Value *NegA = Builder.CreateNeg(A, "", Add->hasNoUnsignedWrap(),
+                                   Add->hasNoSignedWrap());
+    return SelectInst::Create(IsNeg, NegA, A);
+  }
+  return nullptr;
+}
+
+// Transform
+//   z = ~(x &/| y)
+// into:
+//   z = ((~x) |/& (~y))
+// iff both x and y are free to invert and all uses of z can be freely updated.
+bool InstCombinerImpl::sinkNotIntoLogicalOp(Instruction &I) {
+  Value *Op0, *Op1;
+  if (!match(&I, m_LogicalOp(m_Value(Op0), m_Value(Op1))))
+    return false;
+
+  // If this logic op has not been simplified yet, just bail out and let that
+  // happen first. Otherwise, the code below may wrongly invert.
+  if (Op0 == Op1)
+    return false;
+
+  Instruction::BinaryOps NewOpc =
+      match(&I, m_LogicalAnd()) ? Instruction::Or : Instruction::And;
+  bool IsBinaryOp = isa<BinaryOperator>(I);
+
+  // Can our users be adapted?
+  if (!InstCombiner::canFreelyInvertAllUsersOf(&I, /*IgnoredUser=*/nullptr))
+    return false;
+
+  // And can the operands be adapted?
+  for (Value *Op : {Op0, Op1})
+    if (!(InstCombiner::isFreeToInvert(Op, /*WillInvertAllUses=*/true) &&
+          (match(Op, m_ImmConstant()) ||
+           (isa<Instruction>(Op) &&
+            InstCombiner::canFreelyInvertAllUsersOf(cast<Instruction>(Op),
+                                                    /*IgnoredUser=*/&I)))))
+      return false;
+
+  for (Value **Op : {&Op0, &Op1}) {
+    Value *NotOp;
+    if (auto *C = dyn_cast<Constant>(*Op)) {
+      NotOp = ConstantExpr::getNot(C);
+    } else {
+      Builder.SetInsertPoint(
+          &*cast<Instruction>(*Op)->getInsertionPointAfterDef());
+      NotOp = Builder.CreateNot(*Op, (*Op)->getName() + ".not");
+      (*Op)->replaceUsesWithIf(
+          NotOp, [NotOp](Use &U) { return U.getUser() != NotOp; });
+      freelyInvertAllUsersOf(NotOp, /*IgnoredUser=*/&I);
+    }
+    *Op = NotOp;
+  }
+
+  Builder.SetInsertPoint(I.getInsertionPointAfterDef());
+  Value *NewLogicOp;
+  if (IsBinaryOp)
+    NewLogicOp = Builder.CreateBinOp(NewOpc, Op0, Op1, I.getName() + ".not");
+  else
+    NewLogicOp =
+        Builder.CreateLogicalOp(NewOpc, Op0, Op1, I.getName() + ".not");
+
+  replaceInstUsesWith(I, NewLogicOp);
+  // We can not just create an outer `not`, it will most likely be immediately
+  // folded back, reconstructing our initial pattern, and causing an
+  // infinite combine loop, so immediately manually fold it away.
+  freelyInvertAllUsersOf(NewLogicOp);
+  return true;
+}
+
+// Transform
+//   z = (~x) &/| y
+// into:
+//   z = ~(x |/& (~y))
+// iff y is free to invert and all uses of z can be freely updated.
+bool InstCombinerImpl::sinkNotIntoOtherHandOfLogicalOp(Instruction &I) {
+  Value *Op0, *Op1;
+  if (!match(&I, m_LogicalOp(m_Value(Op0), m_Value(Op1))))
+    return false;
+  Instruction::BinaryOps NewOpc =
+      match(&I, m_LogicalAnd()) ? Instruction::Or : Instruction::And;
+  bool IsBinaryOp = isa<BinaryOperator>(I);
+
+  Value *NotOp0 = nullptr;
+  Value *NotOp1 = nullptr;
+  Value **OpToInvert = nullptr;
+  if (match(Op0, m_Not(m_Value(NotOp0))) &&
+      InstCombiner::isFreeToInvert(Op1, /*WillInvertAllUses=*/true) &&
+      (match(Op1, m_ImmConstant()) ||
+       (isa<Instruction>(Op1) &&
+        InstCombiner::canFreelyInvertAllUsersOf(cast<Instruction>(Op1),
+                                                /*IgnoredUser=*/&I)))) {
+    Op0 = NotOp0;
+    OpToInvert = &Op1;
+  } else if (match(Op1, m_Not(m_Value(NotOp1))) &&
+             InstCombiner::isFreeToInvert(Op0, /*WillInvertAllUses=*/true) &&
+             (match(Op0, m_ImmConstant()) ||
+              (isa<Instruction>(Op0) &&
+               InstCombiner::canFreelyInvertAllUsersOf(cast<Instruction>(Op0),
+                                                       /*IgnoredUser=*/&I)))) {
+    Op1 = NotOp1;
+    OpToInvert = &Op0;
+  } else
+    return false;
+
+  // And can our users be adapted?
+  if (!InstCombiner::canFreelyInvertAllUsersOf(&I, /*IgnoredUser=*/nullptr))
+    return false;
+
+  if (auto *C = dyn_cast<Constant>(*OpToInvert)) {
+    *OpToInvert = ConstantExpr::getNot(C);
+  } else {
+    Builder.SetInsertPoint(
+        &*cast<Instruction>(*OpToInvert)->getInsertionPointAfterDef());
+    Value *NotOpToInvert =
+        Builder.CreateNot(*OpToInvert, (*OpToInvert)->getName() + ".not");
+    (*OpToInvert)->replaceUsesWithIf(NotOpToInvert, [NotOpToInvert](Use &U) {
+      return U.getUser() != NotOpToInvert;
+    });
+    freelyInvertAllUsersOf(NotOpToInvert, /*IgnoredUser=*/&I);
+    *OpToInvert = NotOpToInvert;
+  }
+
+  Builder.SetInsertPoint(&*I.getInsertionPointAfterDef());
+  Value *NewBinOp;
+  if (IsBinaryOp)
+    NewBinOp = Builder.CreateBinOp(NewOpc, Op0, Op1, I.getName() + ".not");
+  else
+    NewBinOp = Builder.CreateLogicalOp(NewOpc, Op0, Op1, I.getName() + ".not");
+  replaceInstUsesWith(I, NewBinOp);
+  // We can not just create an outer `not`, it will most likely be immediately
+  // folded back, reconstructing our initial pattern, and causing an
+  // infinite combine loop, so immediately manually fold it away.
+  freelyInvertAllUsersOf(NewBinOp);
+  return true;
+}
+
+Instruction *InstCombinerImpl::foldNot(BinaryOperator &I) {
+  Value *NotOp;
+  if (!match(&I, m_Not(m_Value(NotOp))))
+    return nullptr;
+
+  // Apply DeMorgan's Law for 'nand' / 'nor' logic with an inverted operand.
+  // We must eliminate the and/or (one-use) for these transforms to not increase
+  // the instruction count.
+  //
+  // ~(~X & Y) --> (X | ~Y)
+  // ~(Y & ~X) --> (X | ~Y)
+  //
+  // Note: The logical matches do not check for the commuted patterns because
+  //       those are handled via SimplifySelectsFeedingBinaryOp().
+  Type *Ty = I.getType();
+  Value *X, *Y;
+  if (match(NotOp, m_OneUse(m_c_And(m_Not(m_Value(X)), m_Value(Y))))) {
+    Value *NotY = Builder.CreateNot(Y, Y->getName() + ".not");
+    return BinaryOperator::CreateOr(X, NotY);
+  }
+  if (match(NotOp, m_OneUse(m_LogicalAnd(m_Not(m_Value(X)), m_Value(Y))))) {
+    Value *NotY = Builder.CreateNot(Y, Y->getName() + ".not");
+    return SelectInst::Create(X, ConstantInt::getTrue(Ty), NotY);
+  }
+
+  // ~(~X | Y) --> (X & ~Y)
+  // ~(Y | ~X) --> (X & ~Y)
+  if (match(NotOp, m_OneUse(m_c_Or(m_Not(m_Value(X)), m_Value(Y))))) {
+    Value *NotY = Builder.CreateNot(Y, Y->getName() + ".not");
+    return BinaryOperator::CreateAnd(X, NotY);
+  }
+  if (match(NotOp, m_OneUse(m_LogicalOr(m_Not(m_Value(X)), m_Value(Y))))) {
+    Value *NotY = Builder.CreateNot(Y, Y->getName() + ".not");
+    return SelectInst::Create(X, NotY, ConstantInt::getFalse(Ty));
+  }
+
+  // Is this a 'not' (~) fed by a binary operator?
+  BinaryOperator *NotVal;
+  if (match(NotOp, m_BinOp(NotVal))) {
+    // ~((-X) | Y) --> (X - 1) & (~Y)
+    if (match(NotVal,
+              m_OneUse(m_c_Or(m_OneUse(m_Neg(m_Value(X))), m_Value(Y))))) {
+      Value *DecX = Builder.CreateAdd(X, ConstantInt::getAllOnesValue(Ty));
+      Value *NotY = Builder.CreateNot(Y);
+      return BinaryOperator::CreateAnd(DecX, NotY);
+    }
+
+    // ~(~X >>s Y) --> (X >>s Y)
+    if (match(NotVal, m_AShr(m_Not(m_Value(X)), m_Value(Y))))
+      return BinaryOperator::CreateAShr(X, Y);
+
+    // If we are inverting a right-shifted constant, we may be able to eliminate
+    // the 'not' by inverting the constant and using the opposite shift type.
+    // Canonicalization rules ensure that only a negative constant uses 'ashr',
+    // but we must check that in case that transform has not fired yet.
+
+    // ~(C >>s Y) --> ~C >>u Y (when inverting the replicated sign bits)
+    Constant *C;
+    if (match(NotVal, m_AShr(m_Constant(C), m_Value(Y))) &&
+        match(C, m_Negative())) {
+      // We matched a negative constant, so propagating undef is unsafe.
+      // Clamp undef elements to -1.
+      Type *EltTy = Ty->getScalarType();
+      C = Constant::replaceUndefsWith(C, ConstantInt::getAllOnesValue(EltTy));
+      return BinaryOperator::CreateLShr(ConstantExpr::getNot(C), Y);
+    }
+
+    // ~(C >>u Y) --> ~C >>s Y (when inverting the replicated sign bits)
+    if (match(NotVal, m_LShr(m_Constant(C), m_Value(Y))) &&
+        match(C, m_NonNegative())) {
+      // We matched a non-negative constant, so propagating undef is unsafe.
+      // Clamp undef elements to 0.
+      Type *EltTy = Ty->getScalarType();
+      C = Constant::replaceUndefsWith(C, ConstantInt::getNullValue(EltTy));
+      return BinaryOperator::CreateAShr(ConstantExpr::getNot(C), Y);
+    }
+
+    // ~(X + C) --> ~C - X
+    if (match(NotVal, m_c_Add(m_Value(X), m_ImmConstant(C))))
+      return BinaryOperator::CreateSub(ConstantExpr::getNot(C), X);
+
+    // ~(X - Y) --> ~X + Y
+    // FIXME: is it really beneficial to sink the `not` here?
+    if (match(NotVal, m_Sub(m_Value(X), m_Value(Y))))
+      if (isa<Constant>(X) || NotVal->hasOneUse())
+        return BinaryOperator::CreateAdd(Builder.CreateNot(X), Y);
+
+    // ~(~X + Y) --> X - Y
+    if (match(NotVal, m_c_Add(m_Not(m_Value(X)), m_Value(Y))))
+      return BinaryOperator::CreateWithCopiedFlags(Instruction::Sub, X, Y,
+                                                   NotVal);
+  }
+
+  // not (cmp A, B) = !cmp A, B
+  CmpInst::Predicate Pred;
+  if (match(NotOp, m_Cmp(Pred, m_Value(), m_Value())) &&
+      (NotOp->hasOneUse() ||
+       InstCombiner::canFreelyInvertAllUsersOf(cast<Instruction>(NotOp),
+                                               /*IgnoredUser=*/nullptr))) {
+    cast<CmpInst>(NotOp)->setPredicate(CmpInst::getInversePredicate(Pred));
+    freelyInvertAllUsersOf(NotOp);
+    return &I;
+  }
+
+  if (auto *NotOpI = dyn_cast<Instruction>(NotOp))
+    if (sinkNotIntoLogicalOp(*NotOpI))
+      return &I;
+
+  // Eliminate a bitwise 'not' op of 'not' min/max by inverting the min/max:
+  // ~min(~X, ~Y) --> max(X, Y)
+  // ~max(~X, Y) --> min(X, ~Y)
+  auto *II = dyn_cast<IntrinsicInst>(NotOp);
+  if (II && II->hasOneUse()) {
+    if (match(NotOp, m_MaxOrMin(m_Value(X), m_Value(Y))) &&
+        isFreeToInvert(X, X->hasOneUse()) &&
+        isFreeToInvert(Y, Y->hasOneUse())) {
+      Intrinsic::ID InvID = getInverseMinMaxIntrinsic(II->getIntrinsicID());
+      Value *NotX = Builder.CreateNot(X);
+      Value *NotY = Builder.CreateNot(Y);
+      Value *InvMaxMin = Builder.CreateBinaryIntrinsic(InvID, NotX, NotY);
+      return replaceInstUsesWith(I, InvMaxMin);
+    }
+    if (match(NotOp, m_c_MaxOrMin(m_Not(m_Value(X)), m_Value(Y)))) {
+      Intrinsic::ID InvID = getInverseMinMaxIntrinsic(II->getIntrinsicID());
+      Value *NotY = Builder.CreateNot(Y);
+      Value *InvMaxMin = Builder.CreateBinaryIntrinsic(InvID, X, NotY);
+      return replaceInstUsesWith(I, InvMaxMin);
+    }
+
+    if (II->getIntrinsicID() == Intrinsic::is_fpclass) {
+      ConstantInt *ClassMask = cast<ConstantInt>(II->getArgOperand(1));
+      II->setArgOperand(
+          1, ConstantInt::get(ClassMask->getType(),
+                              ~ClassMask->getZExtValue() & fcAllFlags));
+      return replaceInstUsesWith(I, II);
+    }
+  }
+
+  if (NotOp->hasOneUse()) {
+    // Pull 'not' into operands of select if both operands are one-use compares
+    // or one is one-use compare and the other one is a constant.
+    // Inverting the predicates eliminates the 'not' operation.
+    // Example:
+    //   not (select ?, (cmp TPred, ?, ?), (cmp FPred, ?, ?) -->
+    //     select ?, (cmp InvTPred, ?, ?), (cmp InvFPred, ?, ?)
+    //   not (select ?, (cmp TPred, ?, ?), true -->
+    //     select ?, (cmp InvTPred, ?, ?), false
+    if (auto *Sel = dyn_cast<SelectInst>(NotOp)) {
+      Value *TV = Sel->getTrueValue();
+      Value *FV = Sel->getFalseValue();
+      auto *CmpT = dyn_cast<CmpInst>(TV);
+      auto *CmpF = dyn_cast<CmpInst>(FV);
+      bool InvertibleT = (CmpT && CmpT->hasOneUse()) || isa<Constant>(TV);
+      bool InvertibleF = (CmpF && CmpF->hasOneUse()) || isa<Constant>(FV);
+      if (InvertibleT && InvertibleF) {
+        if (CmpT)
+          CmpT->setPredicate(CmpT->getInversePredicate());
+        else
+          Sel->setTrueValue(ConstantExpr::getNot(cast<Constant>(TV)));
+        if (CmpF)
+          CmpF->setPredicate(CmpF->getInversePredicate());
+        else
+          Sel->setFalseValue(ConstantExpr::getNot(cast<Constant>(FV)));
+        return replaceInstUsesWith(I, Sel);
+      }
+    }
+  }
+
+  if (Instruction *NewXor = foldNotXor(I, Builder))
+    return NewXor;
+
+  return nullptr;
+}
+
 // FIXME: We use commutative matchers (m_c_*) for some, but not all, matches
 // here. We should standardize that construct where it is needed or choose some
 // other way to ensure that commutated variants of patterns are not missed.
-Instruction *InstCombiner::visitXor(BinaryOperator &I) {
-  if (Value *V = SimplifyXorInst(I.getOperand(0), I.getOperand(1),
+Instruction *InstCombinerImpl::visitXor(BinaryOperator &I) {
+  if (Value *V = simplifyXorInst(I.getOperand(0), I.getOperand(1),
                                  SQ.getWithInstruction(&I)))
     return replaceInstUsesWith(I, V);
 
   if (SimplifyAssociativeOrCommutative(I))
     return &I;
 
-  if (Instruction *X = foldShuffledBinop(I))
+  if (Instruction *X = foldVectorBinop(I))
     return X;
+
+  if (Instruction *Phi = foldBinopWithPhiOperands(I))
+    return Phi;
 
   if (Instruction *NewXor = foldXorToXor(I, Builder))
     return NewXor;
 
   // (A&B)^(A&C) -> A&(B^C) etc
-  if (Value *V = SimplifyUsingDistributiveLaws(I))
+  if (Value *V = foldUsingDistributiveLaws(I))
     return replaceInstUsesWith(I, V);
 
   // See if we can simplify any instructions used by the instruction whose sole
@@ -2481,301 +4051,250 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
   if (Value *V = SimplifyBSwap(I, Builder))
     return replaceInstUsesWith(I, V);
 
-  // A^B --> A|B iff A and B have no bits set in common.
+  if (Instruction *R = foldNot(I))
+    return R;
+
+  // Fold (X & M) ^ (Y & ~M) -> (X & M) | (Y & ~M)
+  // This it a special case in haveNoCommonBitsSet, but the computeKnownBits
+  // calls in there are unnecessary as SimplifyDemandedInstructionBits should
+  // have already taken care of those cases.
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-  if (haveNoCommonBitsSet(Op0, Op1, DL, &AC, &I, &DT))
+  Value *M;
+  if (match(&I, m_c_Xor(m_c_And(m_Not(m_Value(M)), m_Value()),
+                        m_c_And(m_Deferred(M), m_Value()))))
     return BinaryOperator::CreateOr(Op0, Op1);
-
-  // Apply DeMorgan's Law for 'nand' / 'nor' logic with an inverted operand.
-  Value *X, *Y;
-
-  // We must eliminate the and/or (one-use) for these transforms to not increase
-  // the instruction count.
-  // ~(~X & Y) --> (X | ~Y)
-  // ~(Y & ~X) --> (X | ~Y)
-  if (match(&I, m_Not(m_OneUse(m_c_And(m_Not(m_Value(X)), m_Value(Y)))))) {
-    Value *NotY = Builder.CreateNot(Y, Y->getName() + ".not");
-    return BinaryOperator::CreateOr(X, NotY);
-  }
-  // ~(~X | Y) --> (X & ~Y)
-  // ~(Y | ~X) --> (X & ~Y)
-  if (match(&I, m_Not(m_OneUse(m_c_Or(m_Not(m_Value(X)), m_Value(Y)))))) {
-    Value *NotY = Builder.CreateNot(Y, Y->getName() + ".not");
-    return BinaryOperator::CreateAnd(X, NotY);
-  }
 
   if (Instruction *Xor = visitMaskedMerge(I, Builder))
     return Xor;
 
-  // Is this a 'not' (~) fed by a binary operator?
-  BinaryOperator *NotVal;
-  if (match(&I, m_Not(m_BinOp(NotVal)))) {
-    if (NotVal->getOpcode() == Instruction::And ||
-        NotVal->getOpcode() == Instruction::Or) {
-      // Apply DeMorgan's Law when inverts are free:
-      // ~(X & Y) --> (~X | ~Y)
-      // ~(X | Y) --> (~X & ~Y)
-      if (IsFreeToInvert(NotVal->getOperand(0),
-                         NotVal->getOperand(0)->hasOneUse()) &&
-          IsFreeToInvert(NotVal->getOperand(1),
-                         NotVal->getOperand(1)->hasOneUse())) {
-        Value *NotX = Builder.CreateNot(NotVal->getOperand(0), "notlhs");
-        Value *NotY = Builder.CreateNot(NotVal->getOperand(1), "notrhs");
-        if (NotVal->getOpcode() == Instruction::And)
-          return BinaryOperator::CreateOr(NotX, NotY);
-        return BinaryOperator::CreateAnd(NotX, NotY);
-      }
+  Value *X, *Y;
+  Constant *C1;
+  if (match(Op1, m_Constant(C1))) {
+    Constant *C2;
+
+    if (match(Op0, m_OneUse(m_Or(m_Value(X), m_ImmConstant(C2)))) &&
+        match(C1, m_ImmConstant())) {
+      // (X | C2) ^ C1 --> (X & ~C2) ^ (C1^C2)
+      C2 = Constant::replaceUndefsWith(
+          C2, Constant::getAllOnesValue(C2->getType()->getScalarType()));
+      Value *And = Builder.CreateAnd(
+          X, Constant::mergeUndefsWith(ConstantExpr::getNot(C2), C1));
+      return BinaryOperator::CreateXor(
+          And, Constant::mergeUndefsWith(ConstantExpr::getXor(C1, C2), C1));
     }
 
-    // ~(X - Y) --> ~X + Y
-    if (match(NotVal, m_OneUse(m_Sub(m_Value(X), m_Value(Y)))))
-      return BinaryOperator::CreateAdd(Builder.CreateNot(X), Y);
-
-    // ~(~X >>s Y) --> (X >>s Y)
-    if (match(NotVal, m_AShr(m_Not(m_Value(X)), m_Value(Y))))
-      return BinaryOperator::CreateAShr(X, Y);
-
-    // If we are inverting a right-shifted constant, we may be able to eliminate
-    // the 'not' by inverting the constant and using the opposite shift type.
-    // Canonicalization rules ensure that only a negative constant uses 'ashr',
-    // but we must check that in case that transform has not fired yet.
-    Constant *C;
-    if (match(NotVal, m_AShr(m_Constant(C), m_Value(Y))) &&
-        match(C, m_Negative())) {
-      // ~(C >>s Y) --> ~C >>u Y (when inverting the replicated sign bits)
-      Constant *NotC = ConstantExpr::getNot(C);
-      return BinaryOperator::CreateLShr(NotC, Y);
+    // Use DeMorgan and reassociation to eliminate a 'not' op.
+    if (match(Op0, m_OneUse(m_Or(m_Not(m_Value(X)), m_Constant(C2))))) {
+      // (~X | C2) ^ C1 --> ((X & ~C2) ^ -1) ^ C1 --> (X & ~C2) ^ ~C1
+      Value *And = Builder.CreateAnd(X, ConstantExpr::getNot(C2));
+      return BinaryOperator::CreateXor(And, ConstantExpr::getNot(C1));
+    }
+    if (match(Op0, m_OneUse(m_And(m_Not(m_Value(X)), m_Constant(C2))))) {
+      // (~X & C2) ^ C1 --> ((X | ~C2) ^ -1) ^ C1 --> (X | ~C2) ^ ~C1
+      Value *Or = Builder.CreateOr(X, ConstantExpr::getNot(C2));
+      return BinaryOperator::CreateXor(Or, ConstantExpr::getNot(C1));
     }
 
-    if (match(NotVal, m_LShr(m_Constant(C), m_Value(Y))) &&
-        match(C, m_NonNegative())) {
-      // ~(C >>u Y) --> ~C >>s Y (when inverting the replicated sign bits)
-      Constant *NotC = ConstantExpr::getNot(C);
-      return BinaryOperator::CreateAShr(NotC, Y);
+    // Convert xor ([trunc] (ashr X, BW-1)), C =>
+    //   select(X >s -1, C, ~C)
+    // The ashr creates "AllZeroOrAllOne's", which then optionally inverses the
+    // constant depending on whether this input is less than 0.
+    const APInt *CA;
+    if (match(Op0, m_OneUse(m_TruncOrSelf(
+                       m_AShr(m_Value(X), m_APIntAllowUndef(CA))))) &&
+        *CA == X->getType()->getScalarSizeInBits() - 1 &&
+        !match(C1, m_AllOnes())) {
+      assert(!C1->isZeroValue() && "Unexpected xor with 0");
+      Value *IsNotNeg = Builder.CreateIsNotNeg(X);
+      return SelectInst::Create(IsNotNeg, Op1, Builder.CreateNot(Op1));
     }
   }
 
-  // not (cmp A, B) = !cmp A, B
-  CmpInst::Predicate Pred;
-  if (match(&I, m_Not(m_OneUse(m_Cmp(Pred, m_Value(), m_Value()))))) {
-    cast<CmpInst>(Op0)->setPredicate(CmpInst::getInversePredicate(Pred));
-    return replaceInstUsesWith(I, Op0);
-  }
-
+  Type *Ty = I.getType();
   {
     const APInt *RHSC;
     if (match(Op1, m_APInt(RHSC))) {
       Value *X;
       const APInt *C;
-      if (match(Op0, m_Sub(m_APInt(C), m_Value(X)))) {
-        // ~(c-X) == X-c-1 == X+(-c-1)
-        if (RHSC->isAllOnesValue()) {
-          Constant *NewC = ConstantInt::get(I.getType(), -(*C) - 1);
-          return BinaryOperator::CreateAdd(X, NewC);
-        }
-        if (RHSC->isSignMask()) {
-          // (C - X) ^ signmask -> (C + signmask - X)
-          Constant *NewC = ConstantInt::get(I.getType(), *C + *RHSC);
-          return BinaryOperator::CreateSub(NewC, X);
-        }
-      } else if (match(Op0, m_Add(m_Value(X), m_APInt(C)))) {
-        // ~(X-c) --> (-c-1)-X
-        if (RHSC->isAllOnesValue()) {
-          Constant *NewC = ConstantInt::get(I.getType(), -(*C) - 1);
-          return BinaryOperator::CreateSub(NewC, X);
-        }
-        if (RHSC->isSignMask()) {
-          // (X + C) ^ signmask -> (X + C + signmask)
-          Constant *NewC = ConstantInt::get(I.getType(), *C + *RHSC);
-          return BinaryOperator::CreateAdd(X, NewC);
+      // (C - X) ^ signmaskC --> (C + signmaskC) - X
+      if (RHSC->isSignMask() && match(Op0, m_Sub(m_APInt(C), m_Value(X))))
+        return BinaryOperator::CreateSub(ConstantInt::get(Ty, *C + *RHSC), X);
+
+      // (X + C) ^ signmaskC --> X + (C + signmaskC)
+      if (RHSC->isSignMask() && match(Op0, m_Add(m_Value(X), m_APInt(C))))
+        return BinaryOperator::CreateAdd(X, ConstantInt::get(Ty, *C + *RHSC));
+
+      // (X | C) ^ RHSC --> X ^ (C ^ RHSC) iff X & C == 0
+      if (match(Op0, m_Or(m_Value(X), m_APInt(C))) &&
+          MaskedValueIsZero(X, *C, 0, &I))
+        return BinaryOperator::CreateXor(X, ConstantInt::get(Ty, *C ^ *RHSC));
+
+      // When X is a power-of-two or zero and zero input is poison:
+      // ctlz(i32 X) ^ 31 --> cttz(X)
+      // cttz(i32 X) ^ 31 --> ctlz(X)
+      auto *II = dyn_cast<IntrinsicInst>(Op0);
+      if (II && II->hasOneUse() && *RHSC == Ty->getScalarSizeInBits() - 1) {
+        Intrinsic::ID IID = II->getIntrinsicID();
+        if ((IID == Intrinsic::ctlz || IID == Intrinsic::cttz) &&
+            match(II->getArgOperand(1), m_One()) &&
+            isKnownToBeAPowerOfTwo(II->getArgOperand(0), /*OrZero */ true)) {
+          IID = (IID == Intrinsic::ctlz) ? Intrinsic::cttz : Intrinsic::ctlz;
+          Function *F = Intrinsic::getDeclaration(II->getModule(), IID, Ty);
+          return CallInst::Create(F, {II->getArgOperand(0), Builder.getTrue()});
         }
       }
 
-      // (X|C1)^C2 -> X^(C1^C2) iff X&~C1 == 0
-      if (match(Op0, m_Or(m_Value(X), m_APInt(C))) &&
-          MaskedValueIsZero(X, *C, 0, &I)) {
-        Constant *NewC = ConstantInt::get(I.getType(), *C ^ *RHSC);
-        Worklist.Add(cast<Instruction>(Op0));
-        I.setOperand(0, X);
-        I.setOperand(1, NewC);
-        return &I;
+      // If RHSC is inverting the remaining bits of shifted X,
+      // canonicalize to a 'not' before the shift to help SCEV and codegen:
+      // (X << C) ^ RHSC --> ~X << C
+      if (match(Op0, m_OneUse(m_Shl(m_Value(X), m_APInt(C)))) &&
+          *RHSC == APInt::getAllOnes(Ty->getScalarSizeInBits()).shl(*C)) {
+        Value *NotX = Builder.CreateNot(X);
+        return BinaryOperator::CreateShl(NotX, ConstantInt::get(Ty, *C));
       }
+      // (X >>u C) ^ RHSC --> ~X >>u C
+      if (match(Op0, m_OneUse(m_LShr(m_Value(X), m_APInt(C)))) &&
+          *RHSC == APInt::getAllOnes(Ty->getScalarSizeInBits()).lshr(*C)) {
+        Value *NotX = Builder.CreateNot(X);
+        return BinaryOperator::CreateLShr(NotX, ConstantInt::get(Ty, *C));
+      }
+      // TODO: We could handle 'ashr' here as well. That would be matching
+      //       a 'not' op and moving it before the shift. Doing that requires
+      //       preventing the inverse fold in canShiftBinOpWithConstantRHS().
     }
   }
 
-  if (ConstantInt *RHSC = dyn_cast<ConstantInt>(Op1)) {
-    if (BinaryOperator *Op0I = dyn_cast<BinaryOperator>(Op0)) {
-      if (ConstantInt *Op0CI = dyn_cast<ConstantInt>(Op0I->getOperand(1))) {
-        if (Op0I->getOpcode() == Instruction::LShr) {
-          // ((X^C1) >> C2) ^ C3 -> (X>>C2) ^ ((C1>>C2)^C3)
-          // E1 = "X ^ C1"
-          BinaryOperator *E1;
-          ConstantInt *C1;
-          if (Op0I->hasOneUse() &&
-              (E1 = dyn_cast<BinaryOperator>(Op0I->getOperand(0))) &&
-              E1->getOpcode() == Instruction::Xor &&
-              (C1 = dyn_cast<ConstantInt>(E1->getOperand(1)))) {
-            // fold (C1 >> C2) ^ C3
-            ConstantInt *C2 = Op0CI, *C3 = RHSC;
-            APInt FoldConst = C1->getValue().lshr(C2->getValue());
-            FoldConst ^= C3->getValue();
-            // Prepare the two operands.
-            Value *Opnd0 = Builder.CreateLShr(E1->getOperand(0), C2);
-            Opnd0->takeName(Op0I);
-            cast<Instruction>(Opnd0)->setDebugLoc(I.getDebugLoc());
-            Value *FoldVal = ConstantInt::get(Opnd0->getType(), FoldConst);
-
-            return BinaryOperator::CreateXor(Opnd0, FoldVal);
-          }
-        }
-      }
+  // FIXME: This should not be limited to scalar (pull into APInt match above).
+  {
+    Value *X;
+    ConstantInt *C1, *C2, *C3;
+    // ((X^C1) >> C2) ^ C3 -> (X>>C2) ^ ((C1>>C2)^C3)
+    if (match(Op1, m_ConstantInt(C3)) &&
+        match(Op0, m_LShr(m_Xor(m_Value(X), m_ConstantInt(C1)),
+                          m_ConstantInt(C2))) &&
+        Op0->hasOneUse()) {
+      // fold (C1 >> C2) ^ C3
+      APInt FoldConst = C1->getValue().lshr(C2->getValue());
+      FoldConst ^= C3->getValue();
+      // Prepare the two operands.
+      auto *Opnd0 = Builder.CreateLShr(X, C2);
+      Opnd0->takeName(Op0);
+      return BinaryOperator::CreateXor(Opnd0, ConstantInt::get(Ty, FoldConst));
     }
   }
 
   if (Instruction *FoldedLogic = foldBinOpIntoSelectOrPhi(I))
     return FoldedLogic;
 
-  {
-    Value *A, *B;
-    if (match(Op1, m_OneUse(m_Or(m_Value(A), m_Value(B))))) {
-      if (A == Op0) {                                      // A^(A|B) == A^(B|A)
-        cast<BinaryOperator>(Op1)->swapOperands();
-        std::swap(A, B);
-      }
-      if (B == Op0) {                                      // A^(B|A) == (B|A)^A
-        I.swapOperands();     // Simplified below.
-        std::swap(Op0, Op1);
-      }
-    } else if (match(Op1, m_OneUse(m_And(m_Value(A), m_Value(B))))) {
-      if (A == Op0) {                                      // A^(A&B) -> A^(B&A)
-        cast<BinaryOperator>(Op1)->swapOperands();
-        std::swap(A, B);
-      }
-      if (B == Op0) {                                      // A^(B&A) -> (B&A)^A
-        I.swapOperands();     // Simplified below.
-        std::swap(Op0, Op1);
-      }
-    }
-  }
+  // Y ^ (X | Y) --> X & ~Y
+  // Y ^ (Y | X) --> X & ~Y
+  if (match(Op1, m_OneUse(m_c_Or(m_Value(X), m_Specific(Op0)))))
+    return BinaryOperator::CreateAnd(X, Builder.CreateNot(Op0));
+  // (X | Y) ^ Y --> X & ~Y
+  // (Y | X) ^ Y --> X & ~Y
+  if (match(Op0, m_OneUse(m_c_Or(m_Value(X), m_Specific(Op1)))))
+    return BinaryOperator::CreateAnd(X, Builder.CreateNot(Op1));
 
-  {
-    Value *A, *B;
-    if (match(Op0, m_OneUse(m_Or(m_Value(A), m_Value(B))))) {
-      if (A == Op1)                                  // (B|A)^B == (A|B)^B
-        std::swap(A, B);
-      if (B == Op1)                                  // (A|B)^B == A & ~B
-        return BinaryOperator::CreateAnd(A, Builder.CreateNot(Op1));
-    } else if (match(Op0, m_OneUse(m_And(m_Value(A), m_Value(B))))) {
-      if (A == Op1)                                        // (A&B)^A -> (B&A)^A
-        std::swap(A, B);
-      const APInt *C;
-      if (B == Op1 &&                                      // (B&A)^A == ~B & A
-          !match(Op1, m_APInt(C))) {  // Canonical form is (B&C)^C
-        return BinaryOperator::CreateAnd(Builder.CreateNot(A), Op1);
-      }
-    }
-  }
+  // Y ^ (X & Y) --> ~X & Y
+  // Y ^ (Y & X) --> ~X & Y
+  if (match(Op1, m_OneUse(m_c_And(m_Value(X), m_Specific(Op0)))))
+    return BinaryOperator::CreateAnd(Op0, Builder.CreateNot(X));
+  // (X & Y) ^ Y --> ~X & Y
+  // (Y & X) ^ Y --> ~X & Y
+  // Canonical form is (X & C) ^ C; don't touch that.
+  // TODO: A 'not' op is better for analysis and codegen, but demanded bits must
+  //       be fixed to prefer that (otherwise we get infinite looping).
+  if (!match(Op1, m_Constant()) &&
+      match(Op0, m_OneUse(m_c_And(m_Value(X), m_Specific(Op1)))))
+    return BinaryOperator::CreateAnd(Op1, Builder.CreateNot(X));
 
-  {
-    Value *A, *B, *C, *D;
-    // (A ^ C)^(A | B) -> ((~A) & B) ^ C
-    if (match(Op0, m_Xor(m_Value(D), m_Value(C))) &&
-        match(Op1, m_Or(m_Value(A), m_Value(B)))) {
-      if (D == A)
-        return BinaryOperator::CreateXor(
-            Builder.CreateAnd(Builder.CreateNot(A), B), C);
-      if (D == B)
-        return BinaryOperator::CreateXor(
-            Builder.CreateAnd(Builder.CreateNot(B), A), C);
-    }
-    // (A | B)^(A ^ C) -> ((~A) & B) ^ C
-    if (match(Op0, m_Or(m_Value(A), m_Value(B))) &&
-        match(Op1, m_Xor(m_Value(D), m_Value(C)))) {
-      if (D == A)
-        return BinaryOperator::CreateXor(
-            Builder.CreateAnd(Builder.CreateNot(A), B), C);
-      if (D == B)
-        return BinaryOperator::CreateXor(
-            Builder.CreateAnd(Builder.CreateNot(B), A), C);
-    }
-    // (A & B) ^ (A ^ B) -> (A | B)
-    if (match(Op0, m_And(m_Value(A), m_Value(B))) &&
-        match(Op1, m_c_Xor(m_Specific(A), m_Specific(B))))
-      return BinaryOperator::CreateOr(A, B);
-    // (A ^ B) ^ (A & B) -> (A | B)
-    if (match(Op0, m_Xor(m_Value(A), m_Value(B))) &&
-        match(Op1, m_c_And(m_Specific(A), m_Specific(B))))
-      return BinaryOperator::CreateOr(A, B);
-  }
+  Value *A, *B, *C;
+  // (A ^ B) ^ (A | C) --> (~A & C) ^ B -- There are 4 commuted variants.
+  if (match(&I, m_c_Xor(m_OneUse(m_Xor(m_Value(A), m_Value(B))),
+                        m_OneUse(m_c_Or(m_Deferred(A), m_Value(C))))))
+      return BinaryOperator::CreateXor(
+          Builder.CreateAnd(Builder.CreateNot(A), C), B);
+
+  // (A ^ B) ^ (B | C) --> (~B & C) ^ A -- There are 4 commuted variants.
+  if (match(&I, m_c_Xor(m_OneUse(m_Xor(m_Value(A), m_Value(B))),
+                        m_OneUse(m_c_Or(m_Deferred(B), m_Value(C))))))
+      return BinaryOperator::CreateXor(
+          Builder.CreateAnd(Builder.CreateNot(B), C), A);
+
+  // (A & B) ^ (A ^ B) -> (A | B)
+  if (match(Op0, m_And(m_Value(A), m_Value(B))) &&
+      match(Op1, m_c_Xor(m_Specific(A), m_Specific(B))))
+    return BinaryOperator::CreateOr(A, B);
+  // (A ^ B) ^ (A & B) -> (A | B)
+  if (match(Op0, m_Xor(m_Value(A), m_Value(B))) &&
+      match(Op1, m_c_And(m_Specific(A), m_Specific(B))))
+    return BinaryOperator::CreateOr(A, B);
 
   // (A & ~B) ^ ~A -> ~(A & B)
   // (~B & A) ^ ~A -> ~(A & B)
-  Value *A, *B;
   if (match(Op0, m_c_And(m_Value(A), m_Not(m_Value(B)))) &&
       match(Op1, m_Not(m_Specific(A))))
     return BinaryOperator::CreateNot(Builder.CreateAnd(A, B));
 
+  // (~A & B) ^ A --> A | B -- There are 4 commuted variants.
+  if (match(&I, m_c_Xor(m_c_And(m_Not(m_Value(A)), m_Value(B)), m_Deferred(A))))
+    return BinaryOperator::CreateOr(A, B);
+
+  // (~A | B) ^ A --> ~(A & B)
+  if (match(Op0, m_OneUse(m_c_Or(m_Not(m_Specific(Op1)), m_Value(B)))))
+    return BinaryOperator::CreateNot(Builder.CreateAnd(Op1, B));
+
+  // A ^ (~A | B) --> ~(A & B)
+  if (match(Op1, m_OneUse(m_c_Or(m_Not(m_Specific(Op0)), m_Value(B)))))
+    return BinaryOperator::CreateNot(Builder.CreateAnd(Op0, B));
+
+  // (A | B) ^ (A | C) --> (B ^ C) & ~A -- There are 4 commuted variants.
+  // TODO: Loosen one-use restriction if common operand is a constant.
+  Value *D;
+  if (match(Op0, m_OneUse(m_Or(m_Value(A), m_Value(B)))) &&
+      match(Op1, m_OneUse(m_Or(m_Value(C), m_Value(D))))) {
+    if (B == C || B == D)
+      std::swap(A, B);
+    if (A == C)
+      std::swap(C, D);
+    if (A == D) {
+      Value *NotA = Builder.CreateNot(A);
+      return BinaryOperator::CreateAnd(Builder.CreateXor(B, C), NotA);
+    }
+  }
+
   if (auto *LHS = dyn_cast<ICmpInst>(I.getOperand(0)))
     if (auto *RHS = dyn_cast<ICmpInst>(I.getOperand(1)))
-      if (Value *V = foldXorOfICmps(LHS, RHS))
+      if (Value *V = foldXorOfICmps(LHS, RHS, I))
         return replaceInstUsesWith(I, V);
 
   if (Instruction *CastedXor = foldCastedBitwiseLogic(I))
     return CastedXor;
 
-  // Canonicalize a shifty way to code absolute value to the common pattern.
-  // There are 4 potential commuted variants. Move the 'ashr' candidate to Op1.
-  // We're relying on the fact that we only do this transform when the shift has
-  // exactly 2 uses and the add has exactly 1 use (otherwise, we might increase
-  // instructions).
-  if (Op0->hasNUses(2))
-    std::swap(Op0, Op1);
+  if (Instruction *Abs = canonicalizeAbs(I, Builder))
+    return Abs;
 
-  const APInt *ShAmt;
-  Type *Ty = I.getType();
-  if (match(Op1, m_AShr(m_Value(A), m_APInt(ShAmt))) &&
-      Op1->hasNUses(2) && *ShAmt == Ty->getScalarSizeInBits() - 1 &&
-      match(Op0, m_OneUse(m_c_Add(m_Specific(A), m_Specific(Op1))))) {
-    // B = ashr i32 A, 31 ; smear the sign bit
-    // xor (add A, B), B  ; add -1 and flip bits if negative
-    // --> (A < 0) ? -A : A
-    Value *Cmp = Builder.CreateICmpSLT(A, ConstantInt::getNullValue(Ty));
-    // Copy the nuw/nsw flags from the add to the negate.
-    auto *Add = cast<BinaryOperator>(Op0);
-    Value *Neg = Builder.CreateNeg(A, "", Add->hasNoUnsignedWrap(),
-                                   Add->hasNoSignedWrap());
-    return SelectInst::Create(Cmp, Neg, A);
-  }
+  // Otherwise, if all else failed, try to hoist the xor-by-constant:
+  //   (X ^ C) ^ Y --> (X ^ Y) ^ C
+  // Just like we do in other places, we completely avoid the fold
+  // for constantexprs, at least to avoid endless combine loop.
+  if (match(&I, m_c_Xor(m_OneUse(m_Xor(m_CombineAnd(m_Value(X),
+                                                    m_Unless(m_ConstantExpr())),
+                                       m_ImmConstant(C1))),
+                        m_Value(Y))))
+    return BinaryOperator::CreateXor(Builder.CreateXor(X, Y), C1);
 
-  // Eliminate a bitwise 'not' op of 'not' min/max by inverting the min/max:
-  //
-  //   %notx = xor i32 %x, -1
-  //   %cmp1 = icmp sgt i32 %notx, %y
-  //   %smax = select i1 %cmp1, i32 %notx, i32 %y
-  //   %res = xor i32 %smax, -1
-  // =>
-  //   %noty = xor i32 %y, -1
-  //   %cmp2 = icmp slt %x, %noty
-  //   %res = select i1 %cmp2, i32 %x, i32 %noty
-  //
-  // Same is applicable for smin/umax/umin.
-  {
-    Value *LHS, *RHS;
-    SelectPatternFlavor SPF = matchSelectPattern(Op0, LHS, RHS).Flavor;
-    if (Op0->hasOneUse() && SelectPatternResult::isMinOrMax(SPF) &&
-        match(Op1, m_AllOnes())) {
+  if (Instruction *R = reassociateForUses(I, Builder))
+    return R;
 
-      Value *X;
-      if (match(RHS, m_Not(m_Value(X))))
-        std::swap(RHS, LHS);
+  if (Instruction *Canonicalized = canonicalizeLogicFirst(I, Builder))
+    return Canonicalized;
 
-      if (match(LHS, m_Not(m_Value(X)))) {
-        Value *NotY = Builder.CreateNot(RHS);
-        return SelectInst::Create(
-            Builder.CreateICmp(getInverseMinMaxPred(SPF), X, NotY), X, NotY);
-      }
-    }
-  }
+  if (Instruction *Folded = foldLogicOfIsFPClass(I, Op0, Op1))
+    return Folded;
+
+  if (Instruction *Folded = canonicalizeConditionalNegationViaMathToSelect(I))
+    return Folded;
 
   return nullptr;
 }

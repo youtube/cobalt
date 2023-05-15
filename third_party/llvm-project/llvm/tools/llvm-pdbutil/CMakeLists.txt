@@ -9,14 +9,10 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_llvm_tool(llvm-pdbutil
-  Analyze.cpp
   BytesOutputStyle.cpp
   DumpOutputStyle.cpp
   ExplainOutputStyle.cpp
-  InputFile.cpp
   llvm-pdbutil.cpp
-  FormatUtil.cpp
-  LinePrinter.cpp
   MinimalSymbolDumper.cpp
   MinimalTypeDumper.cpp
   PdbYaml.cpp
@@ -31,5 +27,6 @@ add_llvm_tool(llvm-pdbutil
   PrettyTypedefDumper.cpp
   PrettyVariableDumper.cpp
   StreamUtil.cpp
+  TypeReferenceTracker.cpp
   YAMLOutputStyle.cpp
   )

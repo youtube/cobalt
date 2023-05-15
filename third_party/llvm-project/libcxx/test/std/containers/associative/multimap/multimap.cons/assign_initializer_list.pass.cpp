@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <map>
 
@@ -18,9 +17,10 @@
 #include <map>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::multimap<int, double> C;
@@ -39,7 +39,7 @@ int main()
                {3, 2}
            };
     assert(m.size() == 9);
-    assert(distance(m.begin(), m.end()) == 9);
+    assert(std::distance(m.begin(), m.end()) == 9);
     C::const_iterator i = m.cbegin();
     assert(*i == V(1, 1));
     assert(*++i == V(1, 1.5));
@@ -68,7 +68,7 @@ int main()
                {3, 2}
            };
     assert(m.size() == 9);
-    assert(distance(m.begin(), m.end()) == 9);
+    assert(std::distance(m.begin(), m.end()) == 9);
     C::const_iterator i = m.cbegin();
     assert(*i == V(1, 1));
     assert(*++i == V(1, 1.5));
@@ -80,4 +80,6 @@ int main()
     assert(*++i == V(3, 1.5));
     assert(*++i == V(3, 2));
     }
+
+  return 0;
 }

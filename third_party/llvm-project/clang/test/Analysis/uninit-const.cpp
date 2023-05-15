@@ -1,5 +1,14 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=cplusplus.NewDelete,core,alpha.core.CallAndMessageUnInitRefArg -analyzer-output=text -verify %s
-// RUN: %clang_analyze_cc1 -analyzer-checker=cplusplus.NewDelete,core,alpha.core.CallAndMessageUnInitRefArg -analyzer-output=text -DTEST_INLINABLE_ALLOCATORS -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-output=text -verify %s \
+// RUN:   -analyzer-checker=core \
+// RUN:   -analyzer-checker=cplusplus.NewDelete \
+// RUN:   -analyzer-config core.CallAndMessage:ArgPointeeInitializedness=true
+
+// RUN: %clang_analyze_cc1 -analyzer-output=text -verify %s \
+// RUN:   -DTEST_INLINABLE_ALLOCATORS \
+// RUN:   -analyzer-checker=core \
+// RUN:   -analyzer-checker=cplusplus.NewDelete \
+// RUN:   -analyzer-config core.CallAndMessage:ArgPointeeInitializedness=true
+
 // Passing uninitialized const data to unknown function
 
 #include "Inputs/system-header-simulator-cxx.h"
@@ -12,9 +21,11 @@ void doStuff_uninit(const int *u);
 
 int f10(void) {
   int *ptr;
-
-  ptr = new int; //
-  if(*ptr) {
+                 // FIXME: The message is misleading -- we should state that
+                 // a pointer to an uninitialized value is stored.
+  ptr = new int; // expected-note{{Storing uninitialized value}}
+  if(*ptr) { // expected-warning{{Branch condition evaluates to a garbage value [core.uninitialized.Branch]}}
+             // expected-note@-1 {{Branch condition evaluates to a garbage value}}
     doStuff4(*ptr);
   }
   delete ptr;
@@ -23,10 +34,12 @@ int f10(void) {
 
 int f9(void) {
   int *ptr;
-
-  ptr = new int; //
-
-  doStuff_uninit(ptr); // no warning
+                 // FIXME: The message is misleading -- we should state that
+                 // a pointer to an uninitialized value is stored.
+  ptr = new int; // expected-note{{Storing uninitialized value}}
+                 // expected-note@-1{{Value assigned to 'ptr'}}
+  doStuff_uninit(ptr); // expected-warning{{1st function call argument is a pointer to uninitialized value [core.CallAndMessage]}}
+                       // expected-note@-1{{1st function call argument is a pointer to uninitialized value}}
   delete ptr;
   return 0;
 }
@@ -49,24 +62,26 @@ void f7(void) {
 
 
 int& f6_1_sub(int &p) {
-  return p;
+  return p; // expected-note{{Returning without writing to 'p'}}
+            // expected-note@-1{{Returning pointer (reference to 't')}}
 }
 
 void f6_1(void) {
-  int t; // expected-note{{'t' declared without an initial value}}
+  int t;               // expected-note{{'t' declared without an initial value}}
   int p = f6_1_sub(t); //expected-warning {{Assigned value is garbage or undefined}}
-                       //expected-note@-1 {{Calling 'f6_1_sub'}}
-                       //expected-note@-2 {{Returning from 'f6_1_sub'}}
-                       //expected-note@-3 {{Assigned value is garbage or undefined}}
+                       //expected-note@-1 {{Passing value via 1st parameter 'p'}}
+                       //expected-note@-2 {{Calling 'f6_1_sub'}}
+                       //expected-note@-3 {{Returning from 'f6_1_sub'}}
+                       //expected-note@-4 {{Assigned value is garbage or undefined}}
   int q = p;
   doStuff6(q);
 }
 
 void f6_2(void) {
   int t;       //expected-note {{'t' declared without an initial value}}
-  int &p = t;
-  int &s = p;
-  int &q = s;  //expected-note {{'q' initialized here}}
+  int &p = t;  //expected-note {{'p' initialized here}}
+  int &s = p;  //expected-note {{'s' initialized to the value of 'p'}}
+  int &q = s;  //expected-note {{'q' initialized to the value of 's'}}
   doStuff6(q); //expected-warning {{1st function call argument is an uninitialized value}}
                //expected-note@-1 {{1st function call argument is an uninitialized value}}
 }
@@ -94,7 +109,7 @@ void f6(void) {
 
 
 void f5(void) {
-  int t;
+  int t;               // expected-note {{'t' declared without an initial value}}
   int* tp = &t;        // expected-note {{'tp' initialized here}}
   doStuff_uninit(tp);  // expected-warning {{1st function call argument is a pointer to uninitialized value}}
                        // expected-note@-1 {{1st function call argument is a pointer to uninitialized value}}

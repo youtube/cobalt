@@ -1,9 +1,8 @@
 //===- lib/CodeGen/MachineTraceMetrics.h - Super-scalar metrics -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -50,7 +49,6 @@
 #include "llvm/ADT/SparseSet.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -141,13 +139,13 @@ public:
   /// successors.
   struct LiveInReg {
     /// The virtual register required, or a register unit.
-    unsigned Reg;
+    Register Reg;
 
     /// For virtual registers: Minimum height of the defining instruction.
     /// For regunits: Height of the highest user in the trace.
     unsigned Height;
 
-    LiveInReg(unsigned Reg, unsigned Height = 0) : Reg(Reg), Height(Height) {}
+    LiveInReg(Register Reg, unsigned Height = 0) : Reg(Reg), Height(Height) {}
   };
 
   /// Per-basic block information that relates to a specific trace through the
@@ -285,9 +283,9 @@ public:
     /// classes are included. For the caller to account for extra machine
     /// instructions, it must first resolve each instruction's scheduling class.
     unsigned getResourceLength(
-        ArrayRef<const MachineBasicBlock *> Extrablocks = None,
-        ArrayRef<const MCSchedClassDesc *> ExtraInstrs = None,
-        ArrayRef<const MCSchedClassDesc *> RemoveInstrs = None) const;
+        ArrayRef<const MachineBasicBlock *> Extrablocks = std::nullopt,
+        ArrayRef<const MCSchedClassDesc *> ExtraInstrs = std::nullopt,
+        ArrayRef<const MCSchedClassDesc *> RemoveInstrs = std::nullopt) const;
 
     /// Return the length of the (data dependency) critical path through the
     /// trace.

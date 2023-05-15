@@ -1,13 +1,11 @@
 //===-- HexagonAsmBackend.cpp - Hexagon Assembler Backend -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#include "Hexagon.h"
 #include "HexagonFixupKinds.h"
 #include "MCTargetDesc/HexagonBaseInfo.h"
 #include "MCTargetDesc/HexagonMCChecker.h"
@@ -23,8 +21,10 @@
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
+#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/EndianStream.h"
 
 #include <sstream>
 
@@ -45,6 +45,7 @@ class HexagonAsmBackend : public MCAsmBackend {
   std::unique_ptr <MCInstrInfo> MCII;
   std::unique_ptr <MCInst *> RelaxTarget;
   MCInst * Extender;
+  unsigned MaxPacketSize;
 
   void ReplaceInstruction(MCCodeEmitter &E, MCRelaxableFragment &RF,
                           MCInst &HMB) const {
@@ -62,9 +63,10 @@ class HexagonAsmBackend : public MCAsmBackend {
 public:
   HexagonAsmBackend(const Target &T, const Triple &TT, uint8_t OSABI,
                     StringRef CPU)
-      : MCAsmBackend(support::little), OSABI(OSABI), CPU(CPU),
+      : MCAsmBackend(support::little), OSABI(OSABI), CPU(CPU), relaxedCnt(0),
         MCII(T.createMCInstrInfo()), RelaxTarget(new MCInst *),
-        Extender(nullptr) {}
+        Extender(nullptr), MaxPacketSize(HexagonMCInstrInfo::packetSize(CPU))
+        {}
 
   std::unique_ptr<MCObjectTargetWriter>
   createObjectTargetWriter() const override {
@@ -73,7 +75,7 @@ public:
 
   void setExtender(MCContext &Context) const {
     if (Extender == nullptr)
-      const_cast<HexagonAsmBackend *>(this)->Extender = new (Context) MCInst;
+      const_cast<HexagonAsmBackend *>(this)->Extender = Context.createMCInst();
   }
 
   MCInst *takeExtender() const {
@@ -203,9 +205,7 @@ public:
 
   bool shouldForceRelocation(const MCAssembler &Asm, const MCFixup &Fixup,
                              const MCValue &Target) override {
-    MCFixupKind Kind = Fixup.getKind();
-
-    switch((unsigned)Kind) {
+    switch(Fixup.getTargetKind()) {
       default:
         llvm_unreachable("Unknown Fixup Kind!");
 
@@ -445,7 +445,7 @@ public:
       case fixup_Hexagon_B7_PCREL:
         if (!(isIntN(7, sValue)))
           HandleFixupError(7, 2, (int64_t)FixupValue, "B7_PCREL");
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case fixup_Hexagon_B7_PCREL_X:
         InstMask = 0x00001f18;  // Word32_B7
         Reloc = (((Value >> 2) & 0x1f) << 8) |    // Value 6-2 = Target 12-8
@@ -455,7 +455,7 @@ public:
       case fixup_Hexagon_B9_PCREL:
         if (!(isIntN(9, sValue)))
           HandleFixupError(9, 2, (int64_t)FixupValue, "B9_PCREL");
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case fixup_Hexagon_B9_PCREL_X:
         InstMask = 0x003000fe;  // Word32_B9
         Reloc = (((Value >> 7) & 0x3) << 20) |    // Value 8-7 = Target 21-20
@@ -467,7 +467,7 @@ public:
       case fixup_Hexagon_B13_PCREL:
         if (!(isIntN(13, sValue)))
           HandleFixupError(13, 2, (int64_t)FixupValue, "B13_PCREL");
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case fixup_Hexagon_B13_PCREL_X:
         InstMask = 0x00202ffe;  // Word32_B13
         Reloc = (((Value >> 12) & 0x1) << 21) |    // Value 12   = Target 21
@@ -478,7 +478,7 @@ public:
       case fixup_Hexagon_B15_PCREL:
         if (!(isIntN(15, sValue)))
           HandleFixupError(15, 2, (int64_t)FixupValue, "B15_PCREL");
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case fixup_Hexagon_B15_PCREL_X:
         InstMask = 0x00df20fe;  // Word32_B15
         Reloc = (((Value >> 13) & 0x3) << 22) |    // Value 14-13 = Target 23-22
@@ -490,7 +490,7 @@ public:
       case fixup_Hexagon_B22_PCREL:
         if (!(isIntN(22, sValue)))
           HandleFixupError(22, 2, (int64_t)FixupValue, "B22_PCREL");
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       case fixup_Hexagon_B22_PCREL_X:
         InstMask = 0x01ff3ffe;  // Word32_B22
         Reloc = (((Value >> 13) & 0x1ff) << 16) |  // Value 21-13 = Target 24-16
@@ -585,10 +585,10 @@ public:
       return false;
     // If we cannot resolve the fixup value, it requires relaxation.
     if (!Resolved) {
-      switch ((unsigned)Fixup.getKind()) {
+      switch (Fixup.getTargetKind()) {
       case fixup_Hexagon_B22_PCREL:
         // GetFixupCount assumes B22 won't relax
-        LLVM_FALLTHROUGH;
+        [[fallthrough]];
       default:
         return false;
         break;
@@ -652,11 +652,12 @@ public:
     llvm_unreachable("Handled by fixupNeedsRelaxationAdvanced");
   }
 
-  void relaxInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
-                        MCInst &Res) const override {
+  void relaxInstruction(MCInst &Inst,
+                        const MCSubtargetInfo &STI) const override {
     assert(HexagonMCInstrInfo::isBundle(Inst) &&
            "Hexagon relaxInstruction only works on bundles");
 
+    MCInst Res;
     Res.setOpcode(Hexagon::BUNDLE);
     Res.addOperand(MCOperand::createImm(Inst.getOperand(0).getImm()));
     // Copy the results into the bundle.
@@ -680,16 +681,19 @@ public:
       // now copy over the original instruction(the one we may have extended)
       Res.addOperand(MCOperand::createInst(I.getInst()));
     }
+
+    Inst = std::move(Res);
     (void)Update;
     assert(Update && "Didn't find relaxation target");
   }
 
-  bool writeNopData(raw_ostream &OS, uint64_t Count) const override {
-    static const uint32_t Nopcode  = 0x7f000000, // Hard-coded NOP.
-                          ParseIn  = 0x00004000, // In packet parse-bits.
-                          ParseEnd = 0x0000c000; // End of packet parse-bits.
+  bool writeNopData(raw_ostream &OS, uint64_t Count,
+                    const MCSubtargetInfo *STI) const override {
+    static const uint32_t Nopcode = 0x7f000000, // Hard-coded NOP.
+        ParseIn = 0x00004000,                   // In packet parse-bits.
+        ParseEnd = 0x0000c000;                  // End of packet parse-bits.
 
-    while(Count % HEXAGON_INSTR_SIZE) {
+    while (Count % HEXAGON_INSTR_SIZE) {
       LLVM_DEBUG(dbgs() << "Alignment not a multiple of the instruction size:"
                         << Count % HEXAGON_INSTR_SIZE << "/"
                         << HEXAGON_INSTR_SIZE << "\n");
@@ -697,11 +701,11 @@ public:
       OS << '\0';
     }
 
-    while(Count) {
+    while (Count) {
       Count -= HEXAGON_INSTR_SIZE;
       // Close the packet whenever a multiple of the maximum packet size remains
-      uint32_t ParseBits = (Count % (HEXAGON_PACKET_SIZE * HEXAGON_INSTR_SIZE))?
-                           ParseIn: ParseEnd;
+      uint32_t ParseBits = (Count % (MaxPacketSize * HEXAGON_INSTR_SIZE)) ?
+                           ParseIn : ParseEnd;
       support::endian::write<uint32_t>(OS, Nopcode | ParseBits, Endian);
     }
     return true;
@@ -709,7 +713,7 @@ public:
 
   void finishLayout(MCAssembler const &Asm,
                     MCAsmLayout &Layout) const override {
-    for (auto I : Layout.getSectionOrder()) {
+    for (auto *I : Layout.getSectionOrder()) {
       auto &Fragments = I->getFragmentList();
       for (auto &J : Fragments) {
         switch (J.getKind()) {
@@ -732,8 +736,9 @@ public:
               MCContext &Context = Asm.getContext();
               auto &RF = cast<MCRelaxableFragment>(*K);
               auto &Inst = const_cast<MCInst &>(RF.getInst());
-              while (Size > 0 && HexagonMCInstrInfo::bundleSize(Inst) < 4) {
-                MCInst *Nop = new (Context) MCInst;
+              while (Size > 0 &&
+                     HexagonMCInstrInfo::bundleSize(Inst) < MaxPacketSize) {
+                MCInst *Nop = Context.createMCInst();
                 Nop->setOpcode(Hexagon::A2_nop);
                 Inst.addOperand(MCOperand::createInst(Nop));
                 Size -= 4;

@@ -50,7 +50,7 @@ const int &compat_use_after_redecl3 = compat::g;
 // CHECK-DAG: @_ZN6compat1aE = weak_odr constant i32 1
 // CHECK-DAG: @_ZN6compat1cE = weak_odr constant i32 3
 // CHECK-DAG: @_ZN6compat1dE = linkonce_odr constant i32 4
-// CHECK-DAG: @_ZN6compat1eE = constant i32 5
+// CHECK-DAG: @_ZN6compat1eE ={{.*}} constant i32 5
 // CHECK-DAG: @_ZN6compat1fE = weak_odr constant i32 6
 // CHECK-DAG: @_ZN6compat1gE = linkonce_odr constant i32 7
 
@@ -62,7 +62,7 @@ template<typename T> struct X {
   static int e;
 };
 // CHECK: @_ZN1XIiE1aE = linkonce_odr global i32 10
-// CHECK: @_ZN1XIiE1bE = global i32 20
+// CHECK: @_ZN1XIiE1bE ={{.*}} global i32 20
 // CHECK-NOT: @_ZN1XIiE1cE
 // CHECK: @_ZN1XIiE1dE = linkonce_odr constant i32 40
 // CHECK: @_ZN1XIiE1eE = linkonce_odr global i32 50
@@ -88,29 +88,27 @@ const int &yib = Y<int>::b;
 // CHECK-NOT: @_ZN1YIiE1cE
 
 // CHECK-LABEL: define {{.*}}global_var_init
-// CHECK: call i32 @_Z1fv
+// CHECK: call noundef i32 @_Z1fv
+
+// CHECK-LABEL: define {{.*}}global_var_init{{.*}} comdat($b)
+// CHECK: load atomic {{.*}} acquire, align
+// CHECK: br
+// CHECK: __cxa_guard_acquire(ptr @_ZGV1b)
+// CHECK: br
+// CHECK: call noundef i32 @_Z1fv
+// CHECK: __cxa_guard_release(ptr @_ZGV1b)
 
 // CHECK-LABEL: define {{.*}}global_var_init
-// CHECK-NOT: comdat
-// CHECK-SAME: {{$}}
-// CHECK: load atomic {{.*}} acquire
-// CHECK: br
-// CHECK: __cxa_guard_acquire(i64* @_ZGV1b)
-// CHECK: br
-// CHECK: call i32 @_Z1fv
-// CHECK: __cxa_guard_release(i64* @_ZGV1b)
-
-// CHECK-LABEL: define {{.*}}global_var_init
-// CHECK: call i32 @_Z1fv
+// CHECK: call noundef i32 @_Z1fv
 
 template<typename T> inline int d = f();
 int e = d<int>;
 
 // CHECK-LABEL: define {{.*}}global_var_init{{.*}}comdat
 // CHECK: _ZGV1dIiE
-// CHECK-NOT: __cxa_guard_acquire(i64* @_ZGV1b)
-// CHECK: call i32 @_Z1fv
-// CHECK-NOT: __cxa_guard_release(i64* @_ZGV1b)
+// CHECK-NOT: __cxa_guard_acquire(ptr @_ZGV1b)
+// CHECK: call noundef i32 @_Z1fv
+// CHECK-NOT: __cxa_guard_release(ptr @_ZGV1b)
 
 namespace PR35599 {
 struct Marker1 {};

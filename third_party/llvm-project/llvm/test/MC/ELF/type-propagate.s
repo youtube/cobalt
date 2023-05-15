@@ -1,4 +1,4 @@
-// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -o - | llvm-readobj -t - | FileCheck %s
+// RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -o - | llvm-readobj --symbols - | FileCheck %s
 
 // This tests that types are propagated from symbols to their aliases. Our
 // behavior is a bit different than gas. If the type of a symbol changes,
@@ -105,6 +105,15 @@ sym10:
 // CHECK-NEXT:    Section: .text
 // CHECK-NEXT:  }
 // CHECK-NEXT:  Symbol {
+// CHECK-NEXT:    Name: sym10
+// CHECK-NEXT:    Value: 0x0
+// CHECK-NEXT:    Size: 0
+// CHECK-NEXT:    Binding: Local (0x0)
+// CHECK-NEXT:    Type: Function (0x2)
+// CHECK-NEXT:    Other: 0
+// CHECK-NEXT:    Section: .text
+// CHECK-NEXT:  }
+// CHECK-NEXT:  Symbol {
 // CHECK-NEXT:    Name: sym09
 // CHECK-NEXT:    Value: 0x1
 // CHECK-NEXT:    Size: 0
@@ -113,15 +122,6 @@ sym10:
 // GAS:           Type: None (0x0)
 // CHECK-NEXT:    Type: Function (0x2)
 
-// CHECK-NEXT:    Other: 0
-// CHECK-NEXT:    Section: .text
-// CHECK-NEXT:  }
-// CHECK-NEXT:  Symbol {
-// CHECK-NEXT:    Name: sym10
-// CHECK-NEXT:    Value: 0x0
-// CHECK-NEXT:    Size: 0
-// CHECK-NEXT:    Binding: Local (0x0)
-// CHECK-NEXT:    Type: Function (0x2)
 // CHECK-NEXT:    Other: 0
 // CHECK-NEXT:    Section: .text
 // CHECK-NEXT:  }

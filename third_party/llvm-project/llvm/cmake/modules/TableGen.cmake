@@ -1,22 +1,18 @@
-# LLVM_TARGET_DEFINITIONS must contain the name of the .td file to process.
+# LLVM_TARGET_DEFINITIONS must contain the name of the .td file to process,
+# while LLVM_TARGET_DEPENDS may contain additional file dependencies.
 # Extra parameters for `tblgen' may come after `ofn' parameter.
 # Adds the name of the generated file to TABLEGEN_OUTPUT.
-
-include(LLVMExternalProjectUtils)
-
-if(LLVM_MAIN_INCLUDE_DIR)
-  set(LLVM_TABLEGEN_FLAGS -I ${LLVM_MAIN_INCLUDE_DIR})
-endif()
+include(LLVMDistributionSupport)
 
 function(tablegen project ofn)
+  cmake_parse_arguments(ARG "" "" "DEPENDS;EXTRA_INCLUDES" ${ARGN})
   # Validate calling context.
   if(NOT ${project}_TABLEGEN_EXE)
     message(FATAL_ERROR "${project}_TABLEGEN_EXE not set")
   endif()
 
-  # Use depfile instead of globbing arbitrary *.td(s)
-  # DEPFILE is available for Ninja Generator with CMake>=3.7.
-  if(CMAKE_GENERATOR STREQUAL "Ninja" AND NOT CMAKE_VERSION VERSION_LESS 3.7)
+  # Use depfile instead of globbing arbitrary *.td(s) for Ninja.
+  if(CMAKE_GENERATOR MATCHES "Ninja")
     # Make output path relative to build.ninja, assuming located on
     # ${CMAKE_BINARY_DIR}.
     # CMake emits build targets as relative paths but Ninja doesn't identify
@@ -25,7 +21,7 @@ function(tablegen project ofn)
     file(RELATIVE_PATH ofn_rel
       ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${ofn})
     set(additional_cmdline
-      -o ${ofn_rel}.tmp
+      -o ${ofn_rel}
       -d ${ofn_rel}.d
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
       DEPFILE ${CMAKE_CURRENT_BINARY_DIR}/${ofn}.d
@@ -36,7 +32,7 @@ function(tablegen project ofn)
     file(GLOB local_tds "*.td")
     file(GLOB_RECURSE global_tds "${LLVM_MAIN_INCLUDE_DIR}/llvm/*.td")
     set(additional_cmdline
-      -o ${CMAKE_CURRENT_BINARY_DIR}/${ofn}.tmp
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
       )
   endif()
 
@@ -59,6 +55,33 @@ function(tablegen project ofn)
       list(APPEND LLVM_TABLEGEN_FLAGS "-gisel-coverage-file=${LLVM_GISEL_COV_PREFIX}all")
     endif()
   endif()
+  if (LLVM_OMIT_DAGISEL_COMMENTS)
+    list(FIND ARGN "-gen-dag-isel" idx)
+    if (NOT idx EQUAL -1)
+      list(APPEND LLVM_TABLEGEN_FLAGS "-omit-comments")
+    endif()
+  endif()
+
+  # MSVC can't support long string literals ("long" > 65534 bytes)[1], so if there's
+  # a possibility of generated tables being consumed by MSVC, generate arrays of
+  # char literals, instead. If we're cross-compiling, then conservatively assume
+  # that the source might be consumed by MSVC.
+  # [1] https://docs.microsoft.com/en-us/cpp/cpp/compiler-limits?view=vs-2017
+  if (MSVC AND project STREQUAL LLVM)
+    list(APPEND LLVM_TABLEGEN_FLAGS "--long-string-literals=0")
+  endif()
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    # Visual Studio has problems with llvm-tblgen's native --write-if-changed
+    # behavior. Since it doesn't do restat optimizations anyway, just don't
+    # pass --write-if-changed there.
+    set(tblgen_change_flag)
+  else()
+    set(tblgen_change_flag "--write-if-changed")
+  endif()
+
+  if (NOT LLVM_ENABLE_WARNINGS)
+    list(APPEND LLVM_TABLEGEN_FLAGS "-no-warn-on-unused-template-args")
+  endif()
 
   # We need both _TABLEGEN_TARGET and _TABLEGEN_EXE in the  DEPENDS list
   # (both the target and the file) to have .inc files rebuilt on
@@ -69,34 +92,34 @@ function(tablegen project ofn)
   # dependency twice in the result file when
   # ("${${project}_TABLEGEN_TARGET}" STREQUAL "${${project}_TABLEGEN_EXE}")
   # but lets us having smaller and cleaner code here.
-  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${ofn}.tmp
-    # Generate tablegen output in a temporary file.
-    COMMAND ${${project}_TABLEGEN_EXE} ${ARGN} -I ${CMAKE_CURRENT_SOURCE_DIR}
+  get_directory_property(tblgen_includes INCLUDE_DIRECTORIES)
+  list(APPEND tblgen_includes ${ARG_EXTRA_INCLUDES})
+  # Filter out empty items before prepending each entry with -I
+  list(REMOVE_ITEM tblgen_includes "")
+  list(TRANSFORM tblgen_includes PREPEND -I)
+
+  set(tablegen_exe ${${project}_TABLEGEN_EXE})
+  set(tablegen_depends ${${project}_TABLEGEN_TARGET} ${tablegen_exe})
+
+  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
+    COMMAND ${tablegen_exe} ${ARG_UNPARSED_ARGUMENTS} -I ${CMAKE_CURRENT_SOURCE_DIR}
+    ${tblgen_includes}
     ${LLVM_TABLEGEN_FLAGS}
     ${LLVM_TARGET_DEFINITIONS_ABSOLUTE}
+    ${tblgen_change_flag}
     ${additional_cmdline}
     # The file in LLVM_TARGET_DEFINITIONS may be not in the current
     # directory and local_tds may not contain it, so we must
     # explicitly list it here:
-    DEPENDS ${${project}_TABLEGEN_TARGET} ${${project}_TABLEGEN_EXE}
+    DEPENDS ${ARG_DEPENDS} ${tablegen_depends}
       ${local_tds} ${global_tds}
     ${LLVM_TARGET_DEFINITIONS_ABSOLUTE}
+    ${LLVM_TARGET_DEPENDS}
     COMMENT "Building ${ofn}..."
-    )
-  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
-    # Only update the real output file if there are any differences.
-    # This prevents recompilation of all the files depending on it if there
-    # aren't any.
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_BINARY_DIR}/${ofn}.tmp
-        ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${ofn}.tmp
-    COMMENT "Updating ${ofn}..."
     )
 
   # `make clean' must remove all those generated files:
-  set_property(DIRECTORY APPEND
-    PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${ofn}.tmp ${ofn})
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${ofn})
 
   set(TABLEGEN_OUTPUT ${TABLEGEN_OUTPUT} ${CMAKE_CURRENT_BINARY_DIR}/${ofn} PARENT_SCOPE)
   set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${ofn} PROPERTIES
@@ -118,29 +141,23 @@ function(add_public_tablegen_target target)
 endfunction()
 
 macro(add_tablegen target project)
+  cmake_parse_arguments(ADD_TABLEGEN "" "DESTINATION;EXPORT" "" ${ARGN})
+
   set(${target}_OLD_LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS})
   set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} TableGen)
 
-  # CMake-3.9 doesn't let compilation units depend on their dependent libraries.
-  if(NOT (CMAKE_GENERATOR STREQUAL "Ninja" AND NOT CMAKE_VERSION VERSION_LESS 3.9) AND NOT XCODE)
+  # CMake doesn't let compilation units depend on their dependent libraries on some generators.
+  if(NOT CMAKE_GENERATOR MATCHES "Ninja" AND NOT XCODE)
     # FIXME: It leaks to user, callee of add_tablegen.
     set(LLVM_ENABLE_OBJLIB ON)
   endif()
 
-  add_llvm_executable(${target} DISABLE_LLVM_LINK_LLVM_DYLIB ${ARGN})
+  add_llvm_executable(${target} DISABLE_LLVM_LINK_LLVM_DYLIB
+    ${ADD_TABLEGEN_UNPARSED_ARGUMENTS})
   set(LLVM_LINK_COMPONENTS ${${target}_OLD_LLVM_LINK_COMPONENTS})
 
   set(${project}_TABLEGEN "${target}" CACHE
       STRING "Native TableGen executable. Saves building one when cross-compiling.")
-
-  # Upgrade existing LLVM_TABLEGEN setting.
-  if(${project} STREQUAL LLVM)
-    if(${LLVM_TABLEGEN} STREQUAL tblgen)
-      set(LLVM_TABLEGEN "${target}" CACHE
-          STRING "Native TableGen executable. Saves building one when cross-compiling."
-          FORCE)
-    endif()
-  endif()
 
   # Effective tblgen executable to be used:
   set(${project}_TABLEGEN_EXE ${${project}_TABLEGEN} PARENT_SCOPE)
@@ -148,36 +165,49 @@ macro(add_tablegen target project)
 
   if(LLVM_USE_HOST_TOOLS)
     if( ${${project}_TABLEGEN} STREQUAL "${target}" )
-      if (NOT CMAKE_CONFIGURATION_TYPES)
-        set(${project}_TABLEGEN_EXE "${LLVM_NATIVE_BUILD}/bin/${target}")
-      else()
-        set(${project}_TABLEGEN_EXE "${LLVM_NATIVE_BUILD}/Release/bin/${target}")
-      endif()
+      # The NATIVE tablegen executable *must* depend on the current target one
+      # otherwise the native one won't get rebuilt when the tablgen sources
+      # change, and we end up with incorrect builds.
+      build_native_tool(${target} ${project}_TABLEGEN_EXE DEPENDS ${target})
       set(${project}_TABLEGEN_EXE ${${project}_TABLEGEN_EXE} PARENT_SCOPE)
 
-      llvm_ExternalProject_BuildCmd(tblgen_build_cmd ${target}
-                                    ${LLVM_NATIVE_BUILD}
-                                    CONFIGURATION Release)
-      add_custom_command(OUTPUT ${${project}_TABLEGEN_EXE}
-        COMMAND ${tblgen_build_cmd}
-        DEPENDS CONFIGURE_LLVM_NATIVE ${target}
-        WORKING_DIRECTORY ${LLVM_NATIVE_BUILD}
-        COMMENT "Building native TableGen..."
-        USES_TERMINAL)
       add_custom_target(${project}-tablegen-host DEPENDS ${${project}_TABLEGEN_EXE})
       set(${project}_TABLEGEN_TARGET ${project}-tablegen-host PARENT_SCOPE)
+
+      # Create an artificial dependency between tablegen projects, because they
+      # compile the same dependencies, thus using the same build folders.
+      # FIXME: A proper fix requires sequentially chaining tablegens.
+      if (NOT ${project} STREQUAL LLVM AND TARGET ${project}-tablegen-host AND
+          TARGET LLVM-tablegen-host)
+        add_dependencies(${project}-tablegen-host LLVM-tablegen-host)
+      endif()
+
+      # If we're using the host tablegen, and utils were not requested, we have no
+      # need to build this tablegen.
+      if ( NOT LLVM_BUILD_UTILS )
+        set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL ON)
+      endif()
     endif()
   endif()
 
-  if (${project} STREQUAL LLVM AND NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
-    if(${target} IN_LIST LLVM_DISTRIBUTION_COMPONENTS OR
-        NOT LLVM_DISTRIBUTION_COMPONENTS)
-      set(export_to_llvmexports EXPORT LLVMExports)
+  if (ADD_TABLEGEN_DESTINATION AND NOT LLVM_INSTALL_TOOLCHAIN_ONLY AND
+      (LLVM_BUILD_UTILS OR ${target} IN_LIST LLVM_DISTRIBUTION_COMPONENTS))
+    set(export_arg)
+    if(ADD_TABLEGEN_EXPORT)
+      get_target_export_arg(${target} ${ADD_TABLEGEN_EXPORT} export_arg)
     endif()
-
     install(TARGETS ${target}
-            ${export_to_llvmexports}
-            RUNTIME DESTINATION ${LLVM_TOOLS_INSTALL_DIR})
+            ${export_arg}
+            COMPONENT ${target}
+            RUNTIME DESTINATION "${ADD_TABLEGEN_DESTINATION}")
+    if(NOT LLVM_ENABLE_IDE)
+      add_llvm_install_targets("install-${target}"
+                               DEPENDS ${target}
+                               COMPONENT ${target})
+    endif()
   endif()
-  set_property(GLOBAL APPEND PROPERTY LLVM_EXPORTS ${target})
+  if(ADD_TABLEGEN_EXPORT)
+    string(TOUPPER ${ADD_TABLEGEN_EXPORT} export_upper)
+    set_property(GLOBAL APPEND PROPERTY ${export_upper}_EXPORTS ${target})
+  endif()
 endmacro()

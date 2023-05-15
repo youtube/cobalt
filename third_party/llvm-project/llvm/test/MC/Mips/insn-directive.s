@@ -1,7 +1,7 @@
 # RUN: llvm-mc %s -arch=mips -mcpu=mips32 | FileCheck %s --check-prefix=ASM
 
 # RUN: llvm-mc %s -arch=mips -mcpu=mips32 -filetype=obj -o - | \
-# RUN:   llvm-readobj -symbols - | FileCheck %s --check-prefix=OBJ
+# RUN:   llvm-readobj --symbols - | FileCheck %s --check-prefix=OBJ
 
   .set micromips
 
@@ -78,17 +78,17 @@ bar:
 # OBJ: Name: f_mm_insn_instr
 # OBJ: Other [ (0x80)
 
-# OBJ: Name: f_normal_insn_data
-# OBJ: Other: 0
-
-# OBJ: Name: f_normal_insn_instr
-# OBJ: Other: 0
-
 # OBJ: Name: o_mm_insn_data
 # OBJ: Other [ (0x80)
 
 # OBJ: Name: o_mm_insn_instr
 # OBJ: Other [ (0x80)
+
+# OBJ: Name: f_normal_insn_data
+# OBJ: Other: 0
+
+# OBJ: Name: f_normal_insn_instr
+# OBJ: Other: 0
 
 # OBJ: Name: o_normal_insn_data
 # OBJ: Other: 0

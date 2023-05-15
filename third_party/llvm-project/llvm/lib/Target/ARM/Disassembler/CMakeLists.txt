@@ -1,3 +1,14 @@
-add_llvm_library(LLVMARMDisassembler
+add_llvm_component_library(LLVMARMDisassembler
   ARMDisassembler.cpp
+
+  LINK_COMPONENTS
+  ARMDesc
+  ARMInfo
+  MCDisassembler
+  MC
+  Support
+  ARMUtils
+
+  ADD_TO_COMPONENT
+  ARM
   )

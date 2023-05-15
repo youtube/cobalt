@@ -1,36 +1,30 @@
 //===-- OptionValueArgs.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueArgs_h_
-#define liblldb_OptionValueArgs_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEARGS_H
+#define LLDB_INTERPRETER_OPTIONVALUEARGS_H
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/OptionValueArray.h"
 
 namespace lldb_private {
 
-class OptionValueArgs : public OptionValueArray {
+class OptionValueArgs : public Cloneable<OptionValueArgs, OptionValueArray> {
 public:
   OptionValueArgs()
-      : OptionValueArray(
-            OptionValue::ConvertTypeToMask(OptionValue::eTypeString)) {}
+      : Cloneable(OptionValue::ConvertTypeToMask(OptionValue::eTypeString)) {}
 
-  ~OptionValueArgs() override {}
+  ~OptionValueArgs() override = default;
 
-  size_t GetArgs(Args &args);
+  size_t GetArgs(Args &args) const;
 
   Type GetType() const override { return eTypeArgs; }
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueArgs_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEARGS_H

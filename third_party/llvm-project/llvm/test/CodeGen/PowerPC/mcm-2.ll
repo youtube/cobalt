@@ -11,9 +11,9 @@ target triple = "powerpc64-unknown-linux-gnu"
 
 define signext i32 @test_fn_static() nounwind {
 entry:
-  %0 = load i32, i32* @test_fn_static.si, align 4
+  %0 = load i32, ptr @test_fn_static.si, align 4
   %inc = add nsw i32 %0, 1
-  store i32 %inc, i32* @test_fn_static.si, align 4
+  store i32 %inc, ptr @test_fn_static.si, align 4
   ret i32 %0
 }
 
@@ -21,7 +21,9 @@ entry:
 ; MEDIUM: addis [[REG1:[0-9]+]], 2, [[VAR:[a-z0-9A-Z_.]+]]@toc@ha
 ; MEDIUM: addi [[REG2:[0-9]+]], [[REG1]], [[VAR]]@toc@l
 ; MEDIUM: lwz {{[0-9]+}}, 0([[REG2]])
-; MEDIUM: stw {{[0-9]+}}, 0([[REG2]])
+; MEDIUM: addis [[REG3:[0-9]+]], 2, [[VAR]]@toc@ha
+; MEDIUM: addi [[REG4:[0-9]+]], [[REG3]], [[VAR]]@toc@l
+; MEDIUM: stw {{[0-9]+}}, 0([[REG4]])
 ; MEDIUM: .type [[VAR]],@object
 ; MEDIUM: .lcomm [[VAR]],4,4
 
@@ -29,9 +31,12 @@ entry:
 ; LARGE: addis [[REG1:[0-9]+]], 2, [[VAR:[a-z0-9A-Z_.]+]]@toc@ha
 ; LARGE: ld [[REG2:[0-9]+]], [[VAR]]@toc@l([[REG1]])
 ; LARGE: lwz {{[0-9]+}}, 0([[REG2]])
-; LARGE: stw {{[0-9]+}}, 0([[REG2]])
-; LARGE: [[VAR]]:
-; LARGE: .tc [[VAR2:[a-z0-9A-Z_.]+]][TC],[[VAR2]]
-; LARGE: .type [[VAR2]],@object
-; LARGE: .lcomm [[VAR2]],4,4
+; LARGE: addis [[REG3:[0-9]+]], 2, [[VAR]]@toc@ha
+; LARGE: ld [[REG4:[0-9]+]], [[VAR]]@toc@l([[REG3]])
+; LARGE: stw {{[0-9]+}}, 0([[REG4]])
+; LARGE:      .type test_fn_static.si,@object
+; LARGE-NEXT: .lcomm test_fn_static.si,4,4
 
+; LARGE:      .section .toc,"aw",@progbits
+; LARGE-NEXT: [[VAR]]:
+; LARGE-NEXT: .tc test_fn_static.si[TC],test_fn_static.si

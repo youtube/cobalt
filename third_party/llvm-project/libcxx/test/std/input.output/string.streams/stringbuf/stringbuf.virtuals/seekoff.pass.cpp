@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,7 +17,9 @@
 #include <sstream>
 #include <cassert>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
     {
         std::stringbuf sb(std::ios_base::in);
@@ -104,6 +105,7 @@ int main()
         assert(sb.sputc('c') == 'c');
         assert(sb.str() == "0123456c89");
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         std::wstringbuf sb(L"0123456789", std::ios_base::in);
         assert(sb.pubseekoff(3, std::ios_base::beg, std::ios_base::out) == -1);
@@ -164,4 +166,7 @@ int main()
         assert(sb.sputc(L'c') == L'c');
         assert(sb.str() == L"0123456c89");
     }
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
+
+  return 0;
 }

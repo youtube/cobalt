@@ -128,7 +128,7 @@ namespace PR9323 {
 #if __cplusplus <= 199711L // C++03 or earlier modes
     // expected-warning@-2 {{C++98 requires an accessible copy constructor}}
 #else
-    // expected-warning@-4 {{copying parameter of type 'PR9323::(anonymous namespace)::Uncopyable' when binding a reference to a temporary would invoke an inaccessible constructor in C++98}}
+    // expected-warning@-4 {{copying parameter of type 'Uncopyable' when binding a reference to a temporary would invoke an inaccessible constructor in C++98}}
 #endif
   };
 }
@@ -206,12 +206,12 @@ namespace OverloadUse {
 }
 
 namespace test7 {
-  typedef struct {
-    void bar();
+  typedef struct { // expected-warning {{add a tag name}}
+    void bar(); // expected-note {{this member}}
     void foo() {
       bar();
     }
-  } A;
+  } A; // expected-note {{this typedef}}
 }
 
 namespace test8 {

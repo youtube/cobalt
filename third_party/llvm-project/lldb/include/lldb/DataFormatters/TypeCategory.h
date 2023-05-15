@@ -1,25 +1,21 @@
 //===-- TypeCategory.h ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_TypeCategory_h_
-#define lldb_TypeCategory_h_
+#ifndef LLDB_DATAFORMATTERS_TYPECATEGORY_H
+#define LLDB_DATAFORMATTERS_TYPECATEGORY_H
 
-// C Includes
-// C++ Includes
+#include <array>
 #include <initializer_list>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/lldb-enumerations.h"
 #include "lldb/lldb-public.h"
 
@@ -28,260 +24,188 @@
 
 namespace lldb_private {
 
-template <typename FormatterImpl> class FormatterContainerPair {
+// A formatter container with sub-containers for different priority tiers, that
+// also exposes a flat view of all formatters in it.
+//
+// Formatters have different priority during matching, depending on the type of
+// matching specified at registration. Exact matchers are processed first, then
+// regex, and finally callback matchers. However, the scripting API presents a
+// flat view of formatters in a category, with methods like `GetNumFormats()`
+// and `GetFormatAtIndex(i)`. So we need something that can behave like both
+// representations.
+template <typename FormatterImpl> class TieredFormatterContainer {
 public:
-  typedef FormattersContainer<ConstString, FormatterImpl> ExactMatchContainer;
-  typedef FormattersContainer<lldb::RegularExpressionSP, FormatterImpl>
-      RegexMatchContainer;
+  using Subcontainer = FormattersContainer<FormatterImpl>;
+  using SubcontainerSP = std::shared_ptr<Subcontainer>;
+  using ForEachCallback = typename Subcontainer::ForEachCallback;
+  using MapValueType = typename Subcontainer::ValueSP;
 
-  typedef typename ExactMatchContainer::MapType ExactMatchMap;
-  typedef typename RegexMatchContainer::MapType RegexMatchMap;
-
-  typedef typename ExactMatchContainer::MapValueType MapValueType;
-
-  typedef typename ExactMatchContainer::SharedPointer ExactMatchContainerSP;
-  typedef typename RegexMatchContainer::SharedPointer RegexMatchContainerSP;
-
-  typedef
-      typename ExactMatchContainer::ForEachCallback ExactMatchForEachCallback;
-  typedef
-      typename RegexMatchContainer::ForEachCallback RegexMatchForEachCallback;
-
-  FormatterContainerPair(const char *exact_name, const char *regex_name,
-                         IFormatChangeListener *clist)
-      : m_exact_sp(new ExactMatchContainer(std::string(exact_name), clist)),
-        m_regex_sp(new RegexMatchContainer(std::string(regex_name), clist)) {}
-
-  ~FormatterContainerPair() = default;
-
-  ExactMatchContainerSP GetExactMatch() const { return m_exact_sp; }
-
-  RegexMatchContainerSP GetRegexMatch() const { return m_regex_sp; }
-
-  uint32_t GetCount() {
-    return GetExactMatch()->GetCount() + GetRegexMatch()->GetCount();
+  TieredFormatterContainer(IFormatChangeListener *change_listener) {
+    for (auto& sc : m_subcontainers)
+      sc = std::make_shared<Subcontainer>(change_listener);
   }
 
-private:
-  ExactMatchContainerSP m_exact_sp;
-  RegexMatchContainerSP m_regex_sp;
+  /// Clears all subcontainers.
+  void Clear() {
+    for (auto sc : m_subcontainers)
+      sc->Clear();
+  }
+
+  /// Adds a formatter to the right subcontainer depending on the matching type
+  /// specified by `type_sp`.
+  void Add(lldb::TypeNameSpecifierImplSP type_sp,
+           std::shared_ptr<FormatterImpl> format_sp) {
+    m_subcontainers[type_sp->GetMatchType()]->Add(TypeMatcher(type_sp),
+                                                  format_sp);
+  }
+
+  /// Deletes the formatter specified by `type_sp`.
+  bool Delete(lldb::TypeNameSpecifierImplSP type_sp) {
+    return m_subcontainers[type_sp->GetMatchType()]->Delete(
+        TypeMatcher(type_sp));
+  }
+
+  /// Deletes all formatters registered with the string `name`, in all
+  /// subcontainers.
+  bool Delete(ConstString name) {
+    bool success = false;
+    for (auto sc : m_subcontainers)
+      success = sc->Delete(name) || success;
+    return success;
+  }
+
+  /// Returns the total count of elements across all subcontainers.
+  uint32_t GetCount() {
+    uint32_t result = 0;
+    for (auto sc : m_subcontainers)
+      result += sc->GetCount();
+    return result;
+  }
+
+  /// Returns the formatter at `index`, simulating a flattened view of all
+  /// subcontainers in priority order.
+  MapValueType GetAtIndex(size_t index) {
+    for (auto sc : m_subcontainers) {
+      if (index < sc->GetCount())
+        return sc->GetAtIndex(index);
+      index -= sc->GetCount();
+    }
+    return MapValueType();
+  }
+
+  /// Looks for a matching candidate across all priority tiers, in priority
+  /// order. If a match is found, returns `true` and puts the matching entry in
+  /// `entry`.
+  bool Get(const FormattersMatchVector &candidates,
+           std::shared_ptr<FormatterImpl> &entry) {
+    for (auto sc : m_subcontainers) {
+      if (sc->Get(candidates, entry))
+        return true;
+    }
+    return false;
+  }
+
+  bool AnyMatches(const FormattersMatchCandidate &candidate) {
+    std::shared_ptr<FormatterImpl> entry;
+    for (auto sc : m_subcontainers) {
+      if (sc->Get(FormattersMatchVector{candidate}, entry))
+        return true;
+    }
+    return false;
+  }
+
+  /// Returns a formatter that is an exact match for `type_specifier_sp`. It
+  /// looks for a formatter with the same matching type that was created from
+  /// the same string. This is useful so we can refer to a formatter using the
+  /// same string used to register it.
+  ///
+  /// For example, `type_specifier_sp` can be something like
+  /// {"std::vector<.*>", eFormatterMatchRegex}, and we'd look for a regex
+  /// matcher with that exact regex string, NOT try to match that string using
+  /// regex.
+  MapValueType
+  GetForTypeNameSpecifier(lldb::TypeNameSpecifierImplSP type_specifier_sp) {
+    MapValueType retval;
+    if (type_specifier_sp) {
+      m_subcontainers[type_specifier_sp->GetMatchType()]->GetExact(
+          ConstString(type_specifier_sp->GetName()), retval);
+    }
+    return retval;
+  }
+
+  /// Returns the type name specifier at `index`, simulating a flattened view of
+  /// all subcontainers in priority order.
+  lldb::TypeNameSpecifierImplSP GetTypeNameSpecifierAtIndex(size_t index) {
+    for (auto sc : m_subcontainers) {
+      if (index < sc->GetCount())
+        return sc->GetTypeNameSpecifierAtIndex(index);
+      index -= sc->GetCount();
+    }
+    return lldb::TypeNameSpecifierImplSP();
+  }
+
+  /// Iterates through tiers in order, running `callback` on each element of
+  /// each tier.
+  void ForEach(std::function<bool(const TypeMatcher &,
+                                  const std::shared_ptr<FormatterImpl> &)>
+                   callback) {
+    for (auto sc : m_subcontainers) {
+      sc->ForEach(callback);
+    }
+  }
+
+  void AutoComplete(CompletionRequest &request) {
+    for (auto sc: m_subcontainers)
+      sc->AutoComplete(request);
+  }
+
+ private:
+  std::array<std::shared_ptr<Subcontainer>, lldb::eLastFormatterMatchType + 1>
+      m_subcontainers;
 };
 
 class TypeCategoryImpl {
 private:
-  typedef FormatterContainerPair<TypeFormatImpl> FormatContainer;
-  typedef FormatterContainerPair<TypeSummaryImpl> SummaryContainer;
-  typedef FormatterContainerPair<TypeFilterImpl> FilterContainer;
-  typedef FormatterContainerPair<TypeValidatorImpl> ValidatorContainer;
-
-#ifndef LLDB_DISABLE_PYTHON
-  typedef FormatterContainerPair<SyntheticChildren> SynthContainer;
-#endif // LLDB_DISABLE_PYTHON
+  typedef TieredFormatterContainer<TypeFormatImpl> FormatContainer;
+  typedef TieredFormatterContainer<TypeSummaryImpl> SummaryContainer;
+  typedef TieredFormatterContainer<TypeFilterImpl> FilterContainer;
+  typedef TieredFormatterContainer<SyntheticChildren> SynthContainer;
 
 public:
   typedef uint16_t FormatCategoryItems;
   static const uint16_t ALL_ITEM_TYPES = UINT16_MAX;
 
-  typedef FormatContainer::ExactMatchContainerSP FormatContainerSP;
-  typedef FormatContainer::RegexMatchContainerSP RegexFormatContainerSP;
-
-  typedef SummaryContainer::ExactMatchContainerSP SummaryContainerSP;
-  typedef SummaryContainer::RegexMatchContainerSP RegexSummaryContainerSP;
-
-  typedef FilterContainer::ExactMatchContainerSP FilterContainerSP;
-  typedef FilterContainer::RegexMatchContainerSP RegexFilterContainerSP;
-#ifndef LLDB_DISABLE_PYTHON
-  typedef SynthContainer::ExactMatchContainerSP SynthContainerSP;
-  typedef SynthContainer::RegexMatchContainerSP RegexSynthContainerSP;
-#endif // LLDB_DISABLE_PYTHON
-
-  typedef ValidatorContainer::ExactMatchContainerSP ValidatorContainerSP;
-  typedef ValidatorContainer::RegexMatchContainerSP RegexValidatorContainerSP;
-
-  template <typename T> class ForEachCallbacks {
-  public:
-    ForEachCallbacks() = default;
-    ~ForEachCallbacks() = default;
-
-    template <typename U = TypeFormatImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetExact(FormatContainer::ExactMatchForEachCallback callback) {
-      m_format_exact = callback;
-      return *this;
-    }
-    template <typename U = TypeFormatImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetWithRegex(FormatContainer::RegexMatchForEachCallback callback) {
-      m_format_regex = callback;
-      return *this;
-    }
-
-    template <typename U = TypeSummaryImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetExact(SummaryContainer::ExactMatchForEachCallback callback) {
-      m_summary_exact = callback;
-      return *this;
-    }
-    template <typename U = TypeSummaryImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetWithRegex(SummaryContainer::RegexMatchForEachCallback callback) {
-      m_summary_regex = callback;
-      return *this;
-    }
-
-    template <typename U = TypeFilterImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetExact(FilterContainer::ExactMatchForEachCallback callback) {
-      m_filter_exact = callback;
-      return *this;
-    }
-    template <typename U = TypeFilterImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetWithRegex(FilterContainer::RegexMatchForEachCallback callback) {
-      m_filter_regex = callback;
-      return *this;
-    }
-
-#ifndef LLDB_DISABLE_PYTHON
-    template <typename U = SyntheticChildren>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetExact(SynthContainer::ExactMatchForEachCallback callback) {
-      m_synth_exact = callback;
-      return *this;
-    }
-    template <typename U = SyntheticChildren>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetWithRegex(SynthContainer::RegexMatchForEachCallback callback) {
-      m_synth_regex = callback;
-      return *this;
-    }
-#endif // LLDB_DISABLE_PYTHON
-    template <typename U = TypeValidatorImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetExact(ValidatorContainer::ExactMatchForEachCallback callback) {
-      m_validator_exact = callback;
-      return *this;
-    }
-    template <typename U = TypeValidatorImpl>
-    typename std::enable_if<std::is_same<U, T>::value, ForEachCallbacks &>::type
-    SetWithRegex(ValidatorContainer::RegexMatchForEachCallback callback) {
-      m_validator_regex = callback;
-      return *this;
-    }
-
-    FormatContainer::ExactMatchForEachCallback GetFormatExactCallback() const {
-      return m_format_exact;
-    }
-    FormatContainer::RegexMatchForEachCallback GetFormatRegexCallback() const {
-      return m_format_regex;
-    }
-
-    SummaryContainer::ExactMatchForEachCallback
-    GetSummaryExactCallback() const {
-      return m_summary_exact;
-    }
-    SummaryContainer::RegexMatchForEachCallback
-    GetSummaryRegexCallback() const {
-      return m_summary_regex;
-    }
-
-    FilterContainer::ExactMatchForEachCallback GetFilterExactCallback() const {
-      return m_filter_exact;
-    }
-    FilterContainer::RegexMatchForEachCallback GetFilterRegexCallback() const {
-      return m_filter_regex;
-    }
-
-#ifndef LLDB_DISABLE_PYTHON
-    SynthContainer::ExactMatchForEachCallback GetSynthExactCallback() const {
-      return m_synth_exact;
-    }
-    SynthContainer::RegexMatchForEachCallback GetSynthRegexCallback() const {
-      return m_synth_regex;
-    }
-#endif // LLDB_DISABLE_PYTHON
-
-    ValidatorContainer::ExactMatchForEachCallback
-    GetValidatorExactCallback() const {
-      return m_validator_exact;
-    }
-    ValidatorContainer::RegexMatchForEachCallback
-    GetValidatorRegexCallback() const {
-      return m_validator_regex;
-    }
-
-  private:
-    FormatContainer::ExactMatchForEachCallback m_format_exact;
-    FormatContainer::RegexMatchForEachCallback m_format_regex;
-
-    SummaryContainer::ExactMatchForEachCallback m_summary_exact;
-    SummaryContainer::RegexMatchForEachCallback m_summary_regex;
-
-    FilterContainer::ExactMatchForEachCallback m_filter_exact;
-    FilterContainer::RegexMatchForEachCallback m_filter_regex;
-
-#ifndef LLDB_DISABLE_PYTHON
-    SynthContainer::ExactMatchForEachCallback m_synth_exact;
-    SynthContainer::RegexMatchForEachCallback m_synth_regex;
-#endif // LLDB_DISABLE_PYTHON
-
-    ValidatorContainer::ExactMatchForEachCallback m_validator_exact;
-    ValidatorContainer::RegexMatchForEachCallback m_validator_regex;
+  // TypeFilterImpl inherits from SyntheticChildren, so we can't simply overload
+  // ForEach on the type of the callback because it would result in "call to
+  // member function 'ForEach' is ambiguous" errors. Instead we use this
+  // templated struct to hold the formatter type and the callback.
+  template<typename T>
+  struct ForEachCallback {
+    // Make it constructible from any callable that fits. This allows us to use
+    // lambdas a bit more easily at the call site. For example:
+    // ForEachCallback<TypeFormatImpl> callback = [](...) {...};
+    template <typename Callable> ForEachCallback(Callable c) : callback(c) {}
+    std::function<bool(const TypeMatcher &, const std::shared_ptr<T> &)>
+        callback;
   };
 
-  TypeCategoryImpl(IFormatChangeListener *clist, ConstString name,
-                   std::initializer_list<lldb::LanguageType> langs = {});
+  TypeCategoryImpl(IFormatChangeListener *clist, ConstString name);
 
-  template <typename T> void ForEach(const ForEachCallbacks<T> &foreach) {
-    GetTypeFormatsContainer()->ForEach(foreach.GetFormatExactCallback());
-    GetRegexTypeFormatsContainer()->ForEach(foreach.GetFormatRegexCallback());
-
-    GetTypeSummariesContainer()->ForEach(foreach.GetSummaryExactCallback());
-    GetRegexTypeSummariesContainer()->ForEach(
-        foreach.GetSummaryRegexCallback());
-
-    GetTypeFiltersContainer()->ForEach(foreach.GetFilterExactCallback());
-    GetRegexTypeFiltersContainer()->ForEach(foreach.GetFilterRegexCallback());
-
-#ifndef LLDB_DISABLE_PYTHON
-    GetTypeSyntheticsContainer()->ForEach(foreach.GetSynthExactCallback());
-    GetRegexTypeSyntheticsContainer()->ForEach(foreach.GetSynthRegexCallback());
-#endif // LLDB_DISABLE_PYTHON
-
-    GetTypeValidatorsContainer()->ForEach(foreach.GetValidatorExactCallback());
-    GetRegexTypeValidatorsContainer()->ForEach(
-        foreach.GetValidatorRegexCallback());
+  void ForEach(ForEachCallback<TypeFormatImpl> callback) {
+    m_format_cont.ForEach(callback.callback);
   }
 
-  FormatContainerSP GetTypeFormatsContainer() {
-    return m_format_cont.GetExactMatch();
+  void ForEach(ForEachCallback<TypeSummaryImpl> callback) {
+    m_summary_cont.ForEach(callback.callback);
   }
 
-  RegexFormatContainerSP GetRegexTypeFormatsContainer() {
-    return m_format_cont.GetRegexMatch();
+  void ForEach(ForEachCallback<TypeFilterImpl> callback) {
+    m_filter_cont.ForEach(callback.callback);
   }
 
-  FormatContainer &GetFormatContainer() { return m_format_cont; }
-
-  SummaryContainerSP GetTypeSummariesContainer() {
-    return m_summary_cont.GetExactMatch();
+  void ForEach(ForEachCallback<SyntheticChildren> callback) {
+    m_synth_cont.ForEach(callback.callback);
   }
-
-  RegexSummaryContainerSP GetRegexTypeSummariesContainer() {
-    return m_summary_cont.GetRegexMatch();
-  }
-
-  SummaryContainer &GetSummaryContainer() { return m_summary_cont; }
-
-  FilterContainerSP GetTypeFiltersContainer() {
-    return m_filter_cont.GetExactMatch();
-  }
-
-  RegexFilterContainerSP GetRegexTypeFiltersContainer() {
-    return m_filter_cont.GetRegexMatch();
-  }
-
-  FilterContainer &GetFilterContainer() { return m_filter_cont; }
 
   FormatContainer::MapValueType
   GetFormatForType(lldb::TypeNameSpecifierImplSP type_sp);
@@ -292,13 +216,81 @@ public:
   FilterContainer::MapValueType
   GetFilterForType(lldb::TypeNameSpecifierImplSP type_sp);
 
-#ifndef LLDB_DISABLE_PYTHON
   SynthContainer::MapValueType
   GetSyntheticForType(lldb::TypeNameSpecifierImplSP type_sp);
-#endif
 
-  ValidatorContainer::MapValueType
-  GetValidatorForType(lldb::TypeNameSpecifierImplSP type_sp);
+  void AddTypeFormat(lldb::TypeNameSpecifierImplSP type_sp,
+                     lldb::TypeFormatImplSP format_sp) {
+    m_format_cont.Add(type_sp, format_sp);
+  }
+
+  void AddTypeFormat(llvm::StringRef name, lldb::FormatterMatchType match_type,
+                     lldb::TypeFormatImplSP format_sp) {
+    AddTypeFormat(
+        std::make_shared<lldb_private::TypeNameSpecifierImpl>(name, match_type),
+        format_sp);
+  }
+
+  void AddTypeSummary(lldb::TypeNameSpecifierImplSP type_sp,
+                      lldb::TypeSummaryImplSP summary_sp) {
+    m_summary_cont.Add(type_sp, summary_sp);
+  }
+
+  void AddTypeSummary(llvm::StringRef name, lldb::FormatterMatchType match_type,
+                      lldb::TypeSummaryImplSP summary_sp) {
+    AddTypeSummary(
+        std::make_shared<lldb_private::TypeNameSpecifierImpl>(name, match_type),
+        summary_sp);
+  }
+
+  void AddTypeFilter(lldb::TypeNameSpecifierImplSP type_sp,
+                     lldb::TypeFilterImplSP filter_sp) {
+    m_filter_cont.Add(type_sp, filter_sp);
+  }
+
+  void AddTypeFilter(llvm::StringRef name, lldb::FormatterMatchType match_type,
+                     lldb::TypeFilterImplSP filter_sp) {
+    AddTypeFilter(
+        std::make_shared<lldb_private::TypeNameSpecifierImpl>(name, match_type),
+        filter_sp);
+  }
+
+  void AddTypeSynthetic(lldb::TypeNameSpecifierImplSP type_sp,
+                        lldb::SyntheticChildrenSP synth_sp) {
+    m_synth_cont.Add(type_sp, synth_sp);
+  }
+
+  void AddTypeSynthetic(llvm::StringRef name,
+                        lldb::FormatterMatchType match_type,
+                        lldb::SyntheticChildrenSP synth_sp) {
+    AddTypeSynthetic(
+        std::make_shared<lldb_private::TypeNameSpecifierImpl>(name, match_type),
+        synth_sp);
+  }
+
+  bool DeleteTypeFormat(lldb::TypeNameSpecifierImplSP type_sp) {
+    return m_format_cont.Delete(type_sp);
+  }
+
+  bool DeleteTypeSummary(lldb::TypeNameSpecifierImplSP type_sp) {
+    return m_summary_cont.Delete(type_sp);
+  }
+
+  bool DeleteTypeFilter(lldb::TypeNameSpecifierImplSP type_sp) {
+    return m_filter_cont.Delete(type_sp);
+  }
+
+  bool DeleteTypeSynthetic(lldb::TypeNameSpecifierImplSP type_sp) {
+    return m_synth_cont.Delete(type_sp);
+  }
+
+  uint32_t GetNumFormats() { return m_format_cont.GetCount(); }
+
+  uint32_t GetNumSummaries() { return m_summary_cont.GetCount(); }
+
+  uint32_t GetNumFilters() { return m_filter_cont.GetCount(); }
+
+  uint32_t GetNumSynthetics() { return m_synth_cont.GetCount(); }
 
   lldb::TypeNameSpecifierImplSP
   GetTypeNameSpecifierForFormatAtIndex(size_t index);
@@ -306,65 +298,37 @@ public:
   lldb::TypeNameSpecifierImplSP
   GetTypeNameSpecifierForSummaryAtIndex(size_t index);
 
+  lldb::TypeNameSpecifierImplSP
+  GetTypeNameSpecifierForFilterAtIndex(size_t index);
+
+  lldb::TypeNameSpecifierImplSP
+  GetTypeNameSpecifierForSyntheticAtIndex(size_t index);
+
   FormatContainer::MapValueType GetFormatAtIndex(size_t index);
 
   SummaryContainer::MapValueType GetSummaryAtIndex(size_t index);
 
   FilterContainer::MapValueType GetFilterAtIndex(size_t index);
 
-  lldb::TypeNameSpecifierImplSP
-  GetTypeNameSpecifierForFilterAtIndex(size_t index);
-
-#ifndef LLDB_DISABLE_PYTHON
-  SynthContainerSP GetTypeSyntheticsContainer() {
-    return m_synth_cont.GetExactMatch();
-  }
-
-  RegexSynthContainerSP GetRegexTypeSyntheticsContainer() {
-    return m_synth_cont.GetRegexMatch();
-  }
-
-  SynthContainer &GetSyntheticsContainer() { return m_synth_cont; }
-
   SynthContainer::MapValueType GetSyntheticAtIndex(size_t index);
-
-  lldb::TypeNameSpecifierImplSP
-  GetTypeNameSpecifierForSyntheticAtIndex(size_t index);
-#endif // LLDB_DISABLE_PYTHON
-
-  ValidatorContainerSP GetTypeValidatorsContainer() {
-    return m_validator_cont.GetExactMatch();
-  }
-
-  RegexValidatorContainerSP GetRegexTypeValidatorsContainer() {
-    return m_validator_cont.GetRegexMatch();
-  }
-
-  ValidatorContainer::MapValueType GetValidatorAtIndex(size_t index);
-
-  lldb::TypeNameSpecifierImplSP
-  GetTypeNameSpecifierForValidatorAtIndex(size_t index);
 
   bool IsEnabled() const { return m_enabled; }
 
   uint32_t GetEnabledPosition() {
-    if (m_enabled == false)
+    if (!m_enabled)
       return UINT32_MAX;
     else
       return m_enabled_position;
   }
 
-  bool Get(ValueObject &valobj, const FormattersMatchVector &candidates,
-           lldb::TypeFormatImplSP &entry, uint32_t *reason = nullptr);
+  bool Get(lldb::LanguageType lang, const FormattersMatchVector &candidates,
+           lldb::TypeFormatImplSP &entry);
 
-  bool Get(ValueObject &valobj, const FormattersMatchVector &candidates,
-           lldb::TypeSummaryImplSP &entry, uint32_t *reason = nullptr);
+  bool Get(lldb::LanguageType lang, const FormattersMatchVector &candidates,
+           lldb::TypeSummaryImplSP &entry);
 
-  bool Get(ValueObject &valobj, const FormattersMatchVector &candidates,
-           lldb::SyntheticChildrenSP &entry, uint32_t *reason = nullptr);
-
-  bool Get(ValueObject &valobj, const FormattersMatchVector &candidates,
-           lldb::TypeValidatorImplSP &entry, uint32_t *reason = nullptr);
+  bool Get(lldb::LanguageType lang, const FormattersMatchVector &candidates,
+           lldb::SyntheticChildrenSP &entry);
 
   void Clear(FormatCategoryItems items = ALL_ITEM_TYPES);
 
@@ -380,15 +344,15 @@ public:
 
   void AddLanguage(lldb::LanguageType lang);
 
-  bool HasLanguage(lldb::LanguageType lang);
-
   std::string GetDescription();
 
-  bool AnyMatches(ConstString type_name,
+  bool AnyMatches(const FormattersMatchCandidate &candidate_type,
                   FormatCategoryItems items = ALL_ITEM_TYPES,
                   bool only_enabled = true,
                   const char **matching_category = nullptr,
                   FormatCategoryItems *matching_type = nullptr);
+
+  void AutoComplete(CompletionRequest &request, FormatCategoryItems items);
 
   typedef std::shared_ptr<TypeCategoryImpl> SharedPointer;
 
@@ -396,10 +360,7 @@ private:
   FormatContainer m_format_cont;
   SummaryContainer m_summary_cont;
   FilterContainer m_filter_cont;
-#ifndef LLDB_DISABLE_PYTHON
   SynthContainer m_synth_cont;
-#endif // LLDB_DISABLE_PYTHON
-  ValidatorContainer m_validator_cont;
 
   bool m_enabled;
 
@@ -411,13 +372,13 @@ private:
 
   std::vector<lldb::LanguageType> m_languages;
 
-  uint32_t m_enabled_position;
+  uint32_t m_enabled_position = 0;
 
   void Enable(bool value, uint32_t position);
 
   void Disable() { Enable(false, UINT32_MAX); }
 
-  bool IsApplicable(ValueObject &valobj);
+  bool IsApplicable(lldb::LanguageType lang);
 
   uint32_t GetLastEnabledPosition() { return m_enabled_position; }
 
@@ -427,26 +388,15 @@ private:
   friend class LanguageCategory;
   friend class TypeCategoryMap;
 
-  friend class FormattersContainer<ConstString, TypeFormatImpl>;
-  friend class FormattersContainer<lldb::RegularExpressionSP, TypeFormatImpl>;
+  friend class FormattersContainer<TypeFormatImpl>;
 
-  friend class FormattersContainer<ConstString, TypeSummaryImpl>;
-  friend class FormattersContainer<lldb::RegularExpressionSP, TypeSummaryImpl>;
+  friend class FormattersContainer<TypeSummaryImpl>;
 
-  friend class FormattersContainer<ConstString, TypeFilterImpl>;
-  friend class FormattersContainer<lldb::RegularExpressionSP, TypeFilterImpl>;
+  friend class FormattersContainer<TypeFilterImpl>;
 
-#ifndef LLDB_DISABLE_PYTHON
-  friend class FormattersContainer<ConstString, ScriptedSyntheticChildren>;
-  friend class FormattersContainer<lldb::RegularExpressionSP,
-                                   ScriptedSyntheticChildren>;
-#endif // LLDB_DISABLE_PYTHON
-
-  friend class FormattersContainer<ConstString, TypeValidatorImpl>;
-  friend class FormattersContainer<lldb::RegularExpressionSP,
-                                   TypeValidatorImpl>;
+  friend class FormattersContainer<ScriptedSyntheticChildren>;
 };
 
 } // namespace lldb_private
 
-#endif // lldb_TypeCategory_h_
+#endif // LLDB_DATAFORMATTERS_TYPECATEGORY_H

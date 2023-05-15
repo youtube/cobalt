@@ -1,9 +1,8 @@
 //===--- CloexecDupCheck.h - clang-tidy-------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,7 +19,7 @@ namespace android {
 /// Find the usage of dup() and redirect user to use fcntl().
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/android-cloexec-dup.html
+/// http://clang.llvm.org/extra/clang-tidy/checks/android/cloexec-dup.html
 class CloexecDupCheck : public CloexecCheck {
 public:
   CloexecDupCheck(StringRef Name, ClangTidyContext *Context)

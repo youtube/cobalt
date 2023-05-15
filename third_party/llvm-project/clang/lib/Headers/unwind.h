@@ -1,22 +1,8 @@
 /*===---- unwind.h - Stack unwinding ----------------------------------------===
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+ * See https://llvm.org/LICENSE.txt for license information.
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  *
  *===-----------------------------------------------------------------------===
  */
@@ -66,8 +52,8 @@ extern "C" {
 #pragma GCC visibility push(default)
 #endif
 
-typedef uintptr_t _Unwind_Word;
-typedef intptr_t _Unwind_Sword;
+typedef uintptr_t _Unwind_Word __attribute__((__mode__(__unwind_word__)));
+typedef intptr_t _Unwind_Sword __attribute__((__mode__(__unwind_word__)));
 typedef uintptr_t _Unwind_Ptr;
 typedef uintptr_t _Unwind_Internal_Ptr;
 typedef uint64_t _Unwind_Exception_Class;
@@ -76,9 +62,11 @@ typedef intptr_t _sleb128_t;
 typedef uintptr_t _uleb128_t;
 
 struct _Unwind_Context;
-#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || defined(__ARM_DWARF_EH__))
+#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || \
+                          defined(__ARM_DWARF_EH__) || defined(__SEH__))
 struct _Unwind_Control_Block;
-typedef struct _Unwind_Control_Block _Unwind_Exception; /* Alias */
+typedef struct _Unwind_Control_Block _Unwind_Control_Block;
+#define _Unwind_Exception _Unwind_Control_Block /* Alias */
 #else
 struct _Unwind_Exception;
 typedef struct _Unwind_Exception _Unwind_Exception;
@@ -86,7 +74,7 @@ typedef struct _Unwind_Exception _Unwind_Exception;
 typedef enum {
   _URC_NO_REASON = 0,
 #if defined(__arm__) && !defined(__USING_SJLJ_EXCEPTIONS__) && \
-    !defined(__ARM_DWARF_EH__)
+    !defined(__ARM_DWARF_EH__) && !defined(__SEH__)
   _URC_OK = 0, /* used by ARM EHABI */
 #endif
   _URC_FOREIGN_EXCEPTION_CAUGHT = 1,
@@ -100,7 +88,7 @@ typedef enum {
   _URC_INSTALL_CONTEXT = 7,
   _URC_CONTINUE_UNWIND = 8,
 #if defined(__arm__) && !defined(__USING_SJLJ_EXCEPTIONS__) && \
-    !defined(__ARM_DWARF_EH__)
+    !defined(__ARM_DWARF_EH__) && !defined(__SEH__)
   _URC_FAILURE = 9 /* used by ARM EHABI */
 #endif
 } _Unwind_Reason_Code;
@@ -117,7 +105,8 @@ typedef enum {
 typedef void (*_Unwind_Exception_Cleanup_Fn)(_Unwind_Reason_Code,
                                              _Unwind_Exception *);
 
-#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || defined(__ARM_DWARF_EH__))
+#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || \
+                          defined(__ARM_DWARF_EH__) || defined(__SEH__))
 typedef struct _Unwind_Control_Block _Unwind_Control_Block;
 typedef uint32_t _Unwind_EHT_Header;
 
@@ -181,12 +170,14 @@ typedef _Unwind_Personality_Fn __personality_routine;
 typedef _Unwind_Reason_Code (*_Unwind_Trace_Fn)(struct _Unwind_Context *,
                                                 void *);
 
-#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) || defined(__ARM_DWARF_EH__))
+#if defined(__arm__) && !(defined(__USING_SJLJ_EXCEPTIONS__) ||                \
+                          defined(__ARM_DWARF_EH__) || defined(__SEH__))
 typedef enum {
   _UVRSC_CORE = 0,        /* integer register */
   _UVRSC_VFP = 1,         /* vfp */
   _UVRSC_WMMXD = 3,       /* Intel WMMX data register */
-  _UVRSC_WMMXC = 4        /* Intel WMMX control register */
+  _UVRSC_WMMXC = 4,       /* Intel WMMX control register */
+  _UVRSC_PSEUDO = 5       /* Special purpose pseudo register */
 } _Unwind_VRS_RegClass;
 
 typedef enum {

@@ -1,9 +1,8 @@
 //===- DbiModuleList.h - PDB module information list ------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,14 +31,13 @@ struct FileInfoSubstreamHeader;
 class DbiModuleSourceFilesIterator
     : public iterator_facade_base<DbiModuleSourceFilesIterator,
                                   std::random_access_iterator_tag, StringRef> {
-  using BaseType =
-      iterator_facade_base<DbiModuleSourceFilesIterator,
-                           std::random_access_iterator_tag, StringRef>;
+  using BaseType = typename DbiModuleSourceFilesIterator::iterator_facade_base;
 
 public:
   DbiModuleSourceFilesIterator(const DbiModuleList &Modules, uint32_t Modi,
                                uint16_t Filei);
   DbiModuleSourceFilesIterator() = default;
+  DbiModuleSourceFilesIterator(const DbiModuleSourceFilesIterator &R) = default;
   DbiModuleSourceFilesIterator &
   operator=(const DbiModuleSourceFilesIterator &R) = default;
 

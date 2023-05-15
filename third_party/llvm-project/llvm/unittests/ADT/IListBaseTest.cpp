@@ -1,9 +1,8 @@
 //===- unittests/ADT/IListBaseTest.cpp - ilist_base unit tests ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,7 +19,7 @@ template <typename T> class IListBaseTest : public ::testing::Test {};
 // Test variants with the same test.
 typedef ::testing::Types<ilist_base<false>, ilist_base<true>>
     IListBaseTestTypes;
-TYPED_TEST_CASE(IListBaseTest, IListBaseTestTypes);
+TYPED_TEST_SUITE(IListBaseTest, IListBaseTestTypes, );
 
 TYPED_TEST(IListBaseTest, insertBeforeImpl) {
   typedef TypeParam list_base_type;

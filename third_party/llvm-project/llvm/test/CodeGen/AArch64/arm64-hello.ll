@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple=arm64-apple-ios7.0 -disable-post-ra -disable-fp-elim | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-apple-ios7.0 -disable-post-ra -frame-pointer=all | FileCheck %s
 ; RUN: llc < %s -mtriple=arm64-linux-gnu -disable-post-ra | FileCheck %s --check-prefix=CHECK-LINUX
 
 ; CHECK-LABEL: main:
@@ -27,9 +27,9 @@
 define i32 @main() nounwind ssp {
 entry:
   %retval = alloca i32, align 4
-  store i32 0, i32* %retval
-  %call = call i32 @puts(i8* getelementptr inbounds ([7 x i8], [7 x i8]* @.str, i32 0, i32 0))
+  store i32 0, ptr %retval
+  %call = call i32 @puts(ptr @.str)
   ret i32 %call
 }
 
-declare i32 @puts(i8*)
+declare i32 @puts(ptr)

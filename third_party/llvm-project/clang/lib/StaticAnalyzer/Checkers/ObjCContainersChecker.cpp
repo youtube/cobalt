@@ -1,9 +1,8 @@
 //== ObjCContainersChecker.cpp - Path sensitive checker for CFArray *- C++ -*=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,7 +15,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
@@ -48,15 +47,15 @@ class ObjCContainersChecker : public Checker< check::PreStmt<CallExpr>,
                    CheckerContext &C) const;
 
 public:
-  /// A tag to id this checker.
-  static void *getTag() { static int Tag; return &Tag; }
-
   void checkPostStmt(const CallExpr *CE, CheckerContext &C) const;
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
   ProgramStateRef checkPointerEscape(ProgramStateRef State,
                                      const InvalidatedSymbols &Escaped,
                                      const CallEvent *Call,
                                      PointerEscapeKind Kind) const;
+
+  void printState(raw_ostream &OS, ProgramStateRef State,
+                  const char *NL, const char *Sep) const override;
 };
 } // end anonymous namespace
 
@@ -135,15 +134,19 @@ void ObjCContainersChecker::checkPreStmt(const CallExpr *CE,
 
     // Now, check if 'Idx in [0, Size-1]'.
     const QualType T = IdxExpr->getType();
-    ProgramStateRef StInBound = State->assumeInBound(Idx, *Size, true, T);
-    ProgramStateRef StOutBound = State->assumeInBound(Idx, *Size, false, T);
+    ProgramStateRef StInBound, StOutBound;
+    std::tie(StInBound, StOutBound) = State->assumeInBoundDual(Idx, *Size, T);
     if (StOutBound && !StInBound) {
       ExplodedNode *N = C.generateErrorNode(StOutBound);
       if (!N)
         return;
       initBugType();
-      auto R = llvm::make_unique<BugReport>(*BT, "Index is out of bounds", N);
+      auto R = std::make_unique<PathSensitiveBugReport>(
+          *BT, "Index is out of bounds", N);
       R->addRange(IdxExpr->getSourceRange());
+      bugreporter::trackExpressionValue(N, IdxExpr, *R,
+                                        {bugreporter::TrackingKind::Thorough,
+                                         /*EnableNullFPSuppression=*/false});
       C.emitReport(std::move(R));
       return;
     }
@@ -166,7 +169,23 @@ ObjCContainersChecker::checkPointerEscape(ProgramStateRef State,
   return State;
 }
 
+void ObjCContainersChecker::printState(raw_ostream &OS, ProgramStateRef State,
+                                       const char *NL, const char *Sep) const {
+  ArraySizeMapTy Map = State->get<ArraySizeMap>();
+  if (Map.isEmpty())
+    return;
+
+  OS << Sep << "ObjC container sizes :" << NL;
+  for (auto I : Map) {
+    OS << I.first << " : " << I.second << NL;
+  }
+}
+
 /// Register checker.
 void ento::registerObjCContainersChecker(CheckerManager &mgr) {
   mgr.registerChecker<ObjCContainersChecker>();
+}
+
+bool ento::shouldRegisterObjCContainersChecker(const CheckerManager &mgr) {
+  return true;
 }

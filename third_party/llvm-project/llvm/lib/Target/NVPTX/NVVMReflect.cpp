@@ -1,9 +1,8 @@
 //===- NVVMReflect.cpp - NVVM Emulate conditional compilation -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -28,7 +27,9 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -39,6 +40,7 @@
 #include <sstream>
 #include <string>
 #define NVVM_REFLECT_FUNCTION "__nvvm_reflect"
+#define NVVM_REFLECT_OCL_FUNCTION "__nvvm_reflect_ocl"
 
 using namespace llvm;
 
@@ -50,7 +52,9 @@ namespace {
 class NVVMReflect : public FunctionPass {
 public:
   static char ID;
-  NVVMReflect() : FunctionPass(ID) {
+  unsigned int SmVersion;
+  NVVMReflect() : NVVMReflect(0) {}
+  explicit NVVMReflect(unsigned int Sm) : FunctionPass(ID), SmVersion(Sm) {
     initializeNVVMReflectPass(*PassRegistry::getPassRegistry());
   }
 
@@ -58,7 +62,9 @@ public:
 };
 }
 
-FunctionPass *llvm::createNVVMReflectPass() { return new NVVMReflect(); }
+FunctionPass *llvm::createNVVMReflectPass(unsigned int SmVersion) {
+  return new NVVMReflect(SmVersion);
+}
 
 static cl::opt<bool>
 NVVMReflectEnabled("nvvm-reflect-enable", cl::init(true), cl::Hidden,
@@ -69,11 +75,12 @@ INITIALIZE_PASS(NVVMReflect, "nvvm-reflect",
                 "Replace occurrences of __nvvm_reflect() calls with 0/1", false,
                 false)
 
-bool NVVMReflect::runOnFunction(Function &F) {
+static bool runNVVMReflect(Function &F, unsigned SmVersion) {
   if (!NVVMReflectEnabled)
     return false;
 
-  if (F.getName() == NVVM_REFLECT_FUNCTION) {
+  if (F.getName() == NVVM_REFLECT_FUNCTION ||
+      F.getName() == NVVM_REFLECT_OCL_FUNCTION) {
     assert(F.isDeclaration() && "_reflect function should not have a body");
     assert(F.getReturnType()->isIntegerTy() &&
            "_reflect's return type should be integer");
@@ -114,6 +121,7 @@ bool NVVMReflect::runOnFunction(Function &F) {
       continue;
     Function *Callee = Call->getCalledFunction();
     if (!Callee || (Callee->getName() != NVVM_REFLECT_FUNCTION &&
+                    Callee->getName() != NVVM_REFLECT_OCL_FUNCTION &&
                     Callee->getIntrinsicID() != Intrinsic::nvvm_reflect))
       continue;
 
@@ -128,15 +136,13 @@ bool NVVMReflect::runOnFunction(Function &F) {
       // FIXME: Add assertions about ConvCall.
       Str = ConvCall->getArgOperand(0);
     }
-    assert(isa<ConstantExpr>(Str) &&
-           "Format of __nvvm__reflect function not recognized");
-    const ConstantExpr *GEP = cast<ConstantExpr>(Str);
-
-    const Value *Sym = GEP->getOperand(0);
-    assert(isa<Constant>(Sym) &&
+    // Pre opaque pointers we have a constant expression wrapping the constant
+    // string.
+    Str = Str->stripPointerCasts();
+    assert(isa<Constant>(Str) &&
            "Format of __nvvm_reflect function not recognized");
 
-    const Value *Operand = cast<Constant>(Sym)->getOperand(0);
+    const Value *Operand = cast<Constant>(Str)->getOperand(0);
     if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(Operand)) {
       // For CUDA-7.0 style __nvvm_reflect calls, we need to find the operand's
       // initializer.
@@ -163,6 +169,8 @@ bool NVVMReflect::runOnFunction(Function &F) {
       if (auto *Flag = mdconst::extract_or_null<ConstantInt>(
               F.getParent()->getModuleFlag("nvvm-reflect-ftz")))
         ReflectVal = Flag->getSExtValue();
+    } else if (ReflectArg == "__CUDA_ARCH") {
+      ReflectVal = SmVersion * 10;
     }
     Call->replaceAllUsesWith(ConstantInt::get(Call->getType(), ReflectVal));
     ToRemove.push_back(Call);
@@ -172,4 +180,16 @@ bool NVVMReflect::runOnFunction(Function &F) {
     I->eraseFromParent();
 
   return ToRemove.size() > 0;
+}
+
+bool NVVMReflect::runOnFunction(Function &F) {
+  return runNVVMReflect(F, SmVersion);
+}
+
+NVVMReflectPass::NVVMReflectPass() : NVVMReflectPass(0) {}
+
+PreservedAnalyses NVVMReflectPass::run(Function &F,
+                                       FunctionAnalysisManager &AM) {
+  return runNVVMReflect(F, SmVersion) ? PreservedAnalyses::none()
+                                      : PreservedAnalyses::all();
 }

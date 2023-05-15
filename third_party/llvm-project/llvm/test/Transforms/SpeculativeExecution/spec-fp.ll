@@ -1,4 +1,4 @@
-; RUN: opt < %s -S -speculative-execution \
+; RUN: opt < %s -S -passes=speculative-execution \
 ; RUN:   -spec-exec-max-speculation-cost 4 -spec-exec-max-not-hoisted 3 \
 ; RUN:   | FileCheck %s
 
@@ -30,14 +30,28 @@ b:
   ret void
 }
 
-; CHECK-LABEL: @ifThen_fneg(
+; CHECK-LABEL: @ifThen_binary_fneg(
 ; CHECK: fsub float -0.0
 ; CHECK: br i1 true
-define void @ifThen_fneg() {
+define void @ifThen_binary_fneg() {
   br i1 true, label %a, label %b
 
 a:
   %x = fsub float -0.0, undef
+  br label %b
+
+b:
+  ret void
+}
+
+; CHECK-LABEL: @ifThen_unary_fneg(
+; CHECK: fneg float
+; CHECK: br i1 true
+define void @ifThen_unary_fneg() {
+  br i1 true, label %a, label %b
+
+a:
+  %x = fneg float undef
   br label %b
 
 b:

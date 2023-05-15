@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-#                     The LLVM Compiler Infrastructure
-#
-# This file is distributed under the University of Illinois Open Source
-# License. See LICENSE.TXT for details.
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 import unittest
 import re
@@ -19,9 +18,9 @@ class ReportDirectoryTest(unittest.TestCase):
     # scan-build can be easily matched up to compare results.
     def test_directory_name_comparison(self):
         with libear.TemporaryDirectory() as tmpdir, \
-             sut.report_directory(tmpdir, False) as report_dir1, \
-             sut.report_directory(tmpdir, False) as report_dir2, \
-             sut.report_directory(tmpdir, False) as report_dir3:
+             sut.report_directory(tmpdir, False, 'html') as report_dir1, \
+             sut.report_directory(tmpdir, False, 'html') as report_dir2, \
+             sut.report_directory(tmpdir, False, 'html') as report_dir3:
             self.assertLess(report_dir1, report_dir2)
             self.assertLess(report_dir2, report_dir3)
 
@@ -129,7 +128,7 @@ class Spy(object):
 class RunAnalyzerTest(unittest.TestCase):
 
     @staticmethod
-    def run_analyzer(content, failures_report):
+    def run_analyzer(content, failures_report, output_format='plist'):
         with libear.TemporaryDirectory() as tmpdir:
             filename = os.path.join(tmpdir, 'test.cpp')
             with open(filename, 'w') as handle:
@@ -142,30 +141,45 @@ class RunAnalyzerTest(unittest.TestCase):
                 'direct_args': [],
                 'file': filename,
                 'output_dir': tmpdir,
-                'output_format': 'plist',
+                'output_format': output_format,
                 'output_failures': failures_report
             }
             spy = Spy()
             result = sut.run_analyzer(opts, spy.call)
-            return (result, spy.arg)
+            output_files = []
+            for entry in os.listdir(tmpdir):
+                output_files.append(entry)
+            return (result, spy.arg, output_files)
 
     def test_run_analyzer(self):
         content = "int div(int n, int d) { return n / d; }"
-        (result, fwds) = RunAnalyzerTest.run_analyzer(content, False)
+        (result, fwds, _) = RunAnalyzerTest.run_analyzer(content, False)
         self.assertEqual(None, fwds)
         self.assertEqual(0, result['exit_code'])
 
     def test_run_analyzer_crash(self):
         content = "int div(int n, int d) { return n / d }"
-        (result, fwds) = RunAnalyzerTest.run_analyzer(content, False)
+        (result, fwds, _) = RunAnalyzerTest.run_analyzer(content, False)
         self.assertEqual(None, fwds)
         self.assertEqual(1, result['exit_code'])
 
     def test_run_analyzer_crash_and_forwarded(self):
         content = "int div(int n, int d) { return n / d }"
-        (_, fwds) = RunAnalyzerTest.run_analyzer(content, True)
+        (_, fwds, _) = RunAnalyzerTest.run_analyzer(content, True)
         self.assertEqual(1, fwds['exit_code'])
         self.assertTrue(len(fwds['error_output']) > 0)
+
+    def test_run_analyzer_with_sarif(self):
+        content = "int div(int n, int d) { return n / d; }"
+        (result, fwds, output_files) = RunAnalyzerTest.run_analyzer(content, False, output_format='sarif')
+        self.assertEqual(None, fwds)
+        self.assertEqual(0, result['exit_code'])
+
+        pattern = re.compile(r'^result-.+\.sarif$')
+        for f in output_files:
+            if re.match(pattern, f):
+                return
+        self.fail('no result sarif files found in output')
 
 
 class ReportFailureTest(unittest.TestCase):
@@ -349,14 +363,14 @@ class PrefixWithTest(unittest.TestCase):
 class MergeCtuMapTest(unittest.TestCase):
 
     def test_no_map_gives_empty(self):
-        pairs = sut.create_global_ctu_function_map([])
+        pairs = sut.create_global_ctu_extdef_map([])
         self.assertFalse(pairs)
 
     def test_multiple_maps_merged(self):
         concat_map = ['c:@F@fun1#I# ast/fun1.c.ast',
                       'c:@F@fun2#I# ast/fun2.c.ast',
                       'c:@F@fun3#I# ast/fun3.c.ast']
-        pairs = sut.create_global_ctu_function_map(concat_map)
+        pairs = sut.create_global_ctu_extdef_map(concat_map)
         self.assertTrue(('c:@F@fun1#I#', 'ast/fun1.c.ast') in pairs)
         self.assertTrue(('c:@F@fun2#I#', 'ast/fun2.c.ast') in pairs)
         self.assertTrue(('c:@F@fun3#I#', 'ast/fun3.c.ast') in pairs)
@@ -366,7 +380,7 @@ class MergeCtuMapTest(unittest.TestCase):
         concat_map = ['c:@F@fun1#I# ast/fun1.c.ast',
                       'c:@F@fun2#I# ast/fun2.c.ast',
                       'c:@F@fun1#I# ast/fun7.c.ast']
-        pairs = sut.create_global_ctu_function_map(concat_map)
+        pairs = sut.create_global_ctu_extdef_map(concat_map)
         self.assertFalse(('c:@F@fun1#I#', 'ast/fun1.c.ast') in pairs)
         self.assertFalse(('c:@F@fun1#I#', 'ast/fun7.c.ast') in pairs)
         self.assertTrue(('c:@F@fun2#I#', 'ast/fun2.c.ast') in pairs)
@@ -376,28 +390,28 @@ class MergeCtuMapTest(unittest.TestCase):
         concat_map = ['c:@F@fun1#I# ast/fun1.c.ast',
                       'c:@F@fun2#I# ast/fun2.c.ast',
                       'c:@F@fun1#I# ast/fun1.c.ast']
-        pairs = sut.create_global_ctu_function_map(concat_map)
+        pairs = sut.create_global_ctu_extdef_map(concat_map)
         self.assertTrue(('c:@F@fun1#I#', 'ast/fun1.c.ast') in pairs)
         self.assertTrue(('c:@F@fun2#I#', 'ast/fun2.c.ast') in pairs)
         self.assertEqual(2, len(pairs))
 
     def test_space_handled_in_source(self):
         concat_map = ['c:@F@fun1#I# ast/f un.c.ast']
-        pairs = sut.create_global_ctu_function_map(concat_map)
+        pairs = sut.create_global_ctu_extdef_map(concat_map)
         self.assertTrue(('c:@F@fun1#I#', 'ast/f un.c.ast') in pairs)
         self.assertEqual(1, len(pairs))
 
 
-class FuncMapSrcToAstTest(unittest.TestCase):
+class ExtdefMapSrcToAstTest(unittest.TestCase):
 
     def test_empty_gives_empty(self):
-        fun_ast_lst = sut.func_map_list_src_to_ast([])
+        fun_ast_lst = sut.extdef_map_list_src_to_ast([])
         self.assertFalse(fun_ast_lst)
 
     def test_sources_to_asts(self):
         fun_src_lst = ['c:@F@f1#I# ' + os.path.join(os.sep + 'path', 'f1.c'),
                        'c:@F@f2#I# ' + os.path.join(os.sep + 'path', 'f2.c')]
-        fun_ast_lst = sut.func_map_list_src_to_ast(fun_src_lst)
+        fun_ast_lst = sut.extdef_map_list_src_to_ast(fun_src_lst)
         self.assertTrue('c:@F@f1#I# ' +
                         os.path.join('ast', 'path', 'f1.c.ast')
                         in fun_ast_lst)
@@ -408,7 +422,7 @@ class FuncMapSrcToAstTest(unittest.TestCase):
 
     def test_spaces_handled(self):
         fun_src_lst = ['c:@F@f1#I# ' + os.path.join(os.sep + 'path', 'f 1.c')]
-        fun_ast_lst = sut.func_map_list_src_to_ast(fun_src_lst)
+        fun_ast_lst = sut.extdef_map_list_src_to_ast(fun_src_lst)
         self.assertTrue('c:@F@f1#I# ' +
                         os.path.join('ast', 'path', 'f 1.c.ast')
                         in fun_ast_lst)

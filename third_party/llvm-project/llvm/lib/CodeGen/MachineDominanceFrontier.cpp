@@ -1,16 +1,17 @@
 //===- MachineDominanceFrontier.cpp ---------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineDominanceFrontier.h"
-#include "llvm/Analysis/DominanceFrontierImpl.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Pass.h"
+#include "llvm/PassRegistry.h"
 
 using namespace llvm;
 
@@ -29,9 +30,7 @@ INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_END(MachineDominanceFrontier, "machine-domfrontier",
                 "Machine Dominance Frontier Construction", true, true)
 
-MachineDominanceFrontier::MachineDominanceFrontier()
-  : MachineFunctionPass(ID),
-    Base() {
+MachineDominanceFrontier::MachineDominanceFrontier() : MachineFunctionPass(ID) {
   initializeMachineDominanceFrontierPass(*PassRegistry::getPassRegistry());
 }
 

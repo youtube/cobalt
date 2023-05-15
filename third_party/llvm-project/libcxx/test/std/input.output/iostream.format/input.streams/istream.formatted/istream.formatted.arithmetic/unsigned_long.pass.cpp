@@ -1,11 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+
+// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12|13|14}}
 
 // <istream>
 
@@ -16,6 +17,7 @@
 
 #include <istream>
 #include <cassert>
+#include "test_macros.h"
 
 template <class CharT>
 struct testbuf
@@ -41,7 +43,7 @@ public:
     CharT* egptr() const {return base::egptr();}
 };
 
-int main()
+int main(int, char**)
 {
     {
         std::istream is((std::streambuf*)0);
@@ -67,6 +69,7 @@ int main()
         assert(!is.eof());
         assert(!is.fail());
     }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
     {
         testbuf<wchar_t> sb(L" 123 ");
         std::wistream is(&sb);
@@ -76,4 +79,45 @@ int main()
         assert(!is.eof());
         assert(!is.fail());
     }
+#endif
+#ifndef TEST_HAS_NO_EXCEPTIONS
+    {
+        testbuf<char> sb;
+        std::basic_istream<char> is(&sb);
+        is.exceptions(std::ios_base::failbit);
+
+        bool threw = false;
+        try {
+            unsigned long n = 0;
+            is >> n;
+        } catch (std::ios_base::failure const&) {
+            threw = true;
+        }
+
+        assert(!is.bad());
+        assert(is.fail());
+        assert(is.eof());
+        assert(threw);
+    }
+    {
+        testbuf<char> sb;
+        std::basic_istream<char> is(&sb);
+        is.exceptions(std::ios_base::eofbit);
+
+        bool threw = false;
+        try {
+            unsigned long n = 0;
+            is >> n;
+        } catch (std::ios_base::failure const&) {
+            threw = true;
+        }
+
+        assert(!is.bad());
+        assert(is.fail());
+        assert(is.eof());
+        assert(threw);
+    }
+#endif // TEST_HAS_NO_EXCEPTIONS
+
+    return 0;
 }

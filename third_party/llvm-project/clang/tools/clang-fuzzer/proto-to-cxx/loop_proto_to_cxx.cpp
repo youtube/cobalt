@@ -1,17 +1,16 @@
 //==-- loop_proto_to_cxx.cpp - Protobuf-C++ conversion ---------------------==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
 // Implements functions for converting between protobufs and C++. Differs from
-// proto_to_cxx.cpp by wrapping all the generated C++ code in a single for
-// loop. Also coutputs a different function signature that includes a
-// size_t parameter for the loop to use. The C++ code generated is meant to
-// stress the LLVM loop vectorizer.
+// proto_to_cxx.cpp by wrapping all the generated C++ code in either a single
+// for loop or two nested loops. Also outputs a different function signature
+// that includes a size_t parameter for the loop to use. The C++ code generated
+// is meant to stress the LLVM loop vectorizer.
 //
 // Still a work in progress.
 //
@@ -28,6 +27,17 @@
 
 namespace clang_fuzzer {
 
+static bool inner_loop = false;
+class InnerLoop {
+  public:
+  InnerLoop() {
+    inner_loop = true;
+  }
+  ~InnerLoop() {
+    inner_loop = false;
+  }
+};
+
 // Forward decls.
 std::ostream &operator<<(std::ostream &os, const BinaryOp &x);
 std::ostream &operator<<(std::ostream &os, const StatementSeq &x);
@@ -37,13 +47,14 @@ std::ostream &operator<<(std::ostream &os, const Const &x) {
   return os << "(" << x.val() << ")";
 }
 std::ostream &operator<<(std::ostream &os, const VarRef &x) {
+  std::string which_loop = inner_loop ? "j" : "i";
   switch (x.arr()) {
     case VarRef::ARR_A:
-      return os << "a[i]";
+      return os << "a[" << which_loop << "]";
     case VarRef::ARR_B:
-      return os << "b[i]";
+      return os << "b[" << which_loop << "]";
     case VarRef::ARR_C:
-      return os << "c[i]";
+      return os << "c[" << which_loop << "]";
   }
 }
 std::ostream &operator<<(std::ostream &os, const Rvalue &x) {
@@ -108,10 +119,27 @@ std::ostream &operator<<(std::ostream &os, const StatementSeq &x) {
     os << st;
   return os;
 }
+void NestedLoopToString(std::ostream &os, const LoopFunction &x) {
+  os << "void foo(int *a, int *b, int *__restrict__ c, size_t s) {\n"
+     << "for (int i=0; i<s; i++){\n"
+     << "for (int j=0; j<s; j++){\n";
+  {
+    InnerLoop IL;
+    os << x.inner_statements() << "}\n";
+  }
+  os << x.outer_statements() << "}\n}\n";
+}
+void SingleLoopToString(std::ostream &os, const LoopFunction &x) {
+  os << "void foo(int *a, int *b, int *__restrict__ c, size_t s) {\n"
+     << "for (int i=0; i<s; i++){\n"
+     << x.outer_statements() << "}\n}\n";
+}
 std::ostream &operator<<(std::ostream &os, const LoopFunction &x) {
-  return os << "void foo(int *a, int *b, int *__restrict__ c, size_t s) {\n"
-            << "for (int i=0; i<s; i++){\n"
-            << x.statements() << "}\n}\n";
+  if (x.has_inner_statements())
+    NestedLoopToString(os, x);
+  else
+    SingleLoopToString(os, x);
+  return os;
 }
 
 // ---------------------------------

@@ -1,13 +1,19 @@
 set(LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
+  AllTargetsAsmParsers
+  AllTargetsCodeGens
+  AllTargetsDescs
+  AllTargetsInfos
   BitReader
+  CodeGen
   Core
   Linker
   LTO
   MC
   Object
+  Passes
   Support
   Target
+  TargetParser
   )
 
 add_llvm_tool(llvm-lto2
@@ -16,3 +22,4 @@ add_llvm_tool(llvm-lto2
   DEPENDS
   intrinsics_gen
   )
+export_executable_symbols_for_plugins(llvm-lto2)

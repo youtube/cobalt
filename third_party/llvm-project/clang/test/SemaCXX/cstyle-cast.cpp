@@ -127,8 +127,8 @@ void t_529_5_8()
   (void)(C1&)(*((A*)0)); // expected-error {{cannot cast 'A' to 'C1 &' via virtual base 'B'}}
   (void)(D*)((A*)0); // expected-error {{cannot cast 'A *' to 'D *' via virtual base 'B'}}
   (void)(D&)(*((A*)0)); // expected-error {{cannot cast 'A' to 'D &' via virtual base 'B'}}
-  (void)(H*)((A*)0); // expected-error {{ambiguous cast from base 'A' to derived 'H':\n    struct A -> struct B -> struct G1 -> struct H\n    struct A -> struct B -> struct G2 -> struct H}}
-  (void)(H&)(*((A*)0)); // expected-error {{ambiguous cast from base 'A' to derived 'H':\n    struct A -> struct B -> struct G1 -> struct H\n    struct A -> struct B -> struct G2 -> struct H}}
+  (void)(H*)((A*)0); // expected-error {{ambiguous cast from base 'A' to derived 'H':\n    A -> B -> G1 -> struct H\n    A -> B -> G2 -> struct H}}
+  (void)(H&)(*((A*)0)); // expected-error {{ambiguous cast from base 'A' to derived 'H':\n    A -> B -> G1 -> struct H\n    A -> B -> G2 -> struct H}}
 
   // TODO: Test DR427. This requires user-defined conversions, though.
 }
@@ -178,6 +178,11 @@ void integral_conversion()
   fnptr fnp = (fnptr)(l);
   (void)(char)(fnp); // expected-error {{cast from pointer to smaller type 'char' loses information}}
   (void)(long)(fnp);
+
+  (void)(bool)((void*)0);
+  (void)(bool)((int*)0);
+  (void)(char)((void*)0); // expected-error {{cast from pointer to smaller type 'char' loses information}}
+  (void)(char)((int*)0);  // expected-error {{cast from pointer to smaller type 'char' loses information}}
 }
 
 void pointer_conversion()

@@ -2,7 +2,7 @@
 ; RUN: llc < %s -mtriple=i686-unknown -mattr=+avx | FileCheck %s --check-prefix=X86
 ; RUN: llc < %s -mtriple=x86_64-unknown -mattr=+avx | FileCheck %s --check-prefix=X64
 
-@b = external local_unnamed_addr global i32, align 4
+@b = external dso_local local_unnamed_addr global i32, align 4
 
 define void @PR33960() {
 ; X86-LABEL: PR33960:
@@ -12,7 +12,7 @@ define void @PR33960() {
 ;
 ; X64-LABEL: PR33960:
 ; X64:       # %bb.0: # %entry
-; X64-NEXT:    movl $-1, {{.*}}(%rip)
+; X64-NEXT:    movl $-1, b(%rip)
 ; X64-NEXT:    retq
 entry:
   %tmp = insertelement <4 x i32> <i32 undef, i32 -7, i32 -3, i32 undef>, i32 -2, i32 3
@@ -34,6 +34,6 @@ entry:
   %bin.rdx19 = or <4 x i32> %bin.rdx, undef
   %tmp13 = extractelement <4 x i32> %bin.rdx19, i32 0
   %or = or i32 0, %tmp13
-  store i32 %or, i32* @b, align 4
+  store i32 %or, ptr @b, align 4
   ret void
 }

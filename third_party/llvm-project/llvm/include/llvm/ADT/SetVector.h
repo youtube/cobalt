@@ -1,20 +1,20 @@
 //===- llvm/ADT/SetVector.h - Set with insert order iteration ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// This file implements a set that has insertion order iteration
-// characteristics. This is useful for keeping a set of things that need to be
-// visited later but in a deterministic order (insertion order). The interface
-// is purposefully minimal.
-//
-// This file defines SetVector and SmallSetVector, which performs no allocations
-// if the SetVector has less than a certain number of elements.
-//
+///
+/// \file
+/// This file implements a set that has insertion order iteration
+/// characteristics. This is useful for keeping a set of things that need to be
+/// visited later but in a deterministic order (insertion order). The interface
+/// is purposefully minimal.
+///
+/// This file defines SetVector and SmallSetVector, which performs no
+/// allocations if the SetVector has less than a certain number of elements.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ADT_SETVECTOR_H
@@ -24,7 +24,6 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Compiler.h"
-#include <algorithm>
 #include <cassert>
 #include <iterator>
 #include <vector>
@@ -169,18 +168,11 @@ public:
   /// \returns an iterator pointing to the next element that followed the
   /// element erased. This is the end of the SetVector if the last element is
   /// erased.
-  iterator erase(iterator I) {
+  iterator erase(const_iterator I) {
     const key_type &V = *I;
     assert(set_.count(V) && "Corrupted SetVector instances!");
     set_.erase(V);
-
-    // FIXME: No need to use the non-const iterator when built with
-    // std:vector.erase(const_iterator) as defined in C++11. This is for
-    // compatibility with non-standard libstdc++ up to 4.8 (fixed in 4.9).
-    auto NI = vector_.begin();
-    std::advance(NI, std::distance<iterator>(NI, I));
-
-    return vector_.erase(NI);
+    return vector_.erase(I);
   }
 
   /// Remove items from the set vector based on a predicate function.
@@ -206,6 +198,11 @@ public:
     return true;
   }
 
+  /// Check if the SetVector contains the given key.
+  bool contains(const key_type &key) const {
+    return set_.find(key) != set_.end();
+  }
+
   /// Count the number of elements of a given key in the SetVector.
   /// \returns 0 if the element is not in the SetVector, 1 if it is.
   size_type count(const key_type &key) const {
@@ -225,7 +222,7 @@ public:
     vector_.pop_back();
   }
 
-  LLVM_NODISCARD T pop_back_val() {
+  [[nodiscard]] T pop_back_val() {
     T Ret = back();
     pop_back();
     return Ret;
@@ -262,6 +259,11 @@ public:
     for (typename STy::const_iterator SI = S.begin(), SE = S.end(); SI != SE;
          ++SI)
       remove(*SI);
+  }
+
+  void swap(SetVector<T, Vector, Set> &RHS) {
+    set_.swap(RHS.set_);
+    vector_.swap(RHS.vector_);
   }
 
 private:
@@ -308,5 +310,23 @@ public:
 };
 
 } // end namespace llvm
+
+namespace std {
+
+/// Implement std::swap in terms of SetVector swap.
+template<typename T, typename V, typename S>
+inline void
+swap(llvm::SetVector<T, V, S> &LHS, llvm::SetVector<T, V, S> &RHS) {
+  LHS.swap(RHS);
+}
+
+/// Implement std::swap in terms of SmallSetVector swap.
+template<typename T, unsigned N>
+inline void
+swap(llvm::SmallSetVector<T, N> &LHS, llvm::SmallSetVector<T, N> &RHS) {
+  LHS.swap(RHS);
+}
+
+} // end namespace std
 
 #endif // LLVM_ADT_SETVECTOR_H

@@ -6,10 +6,10 @@
 
 ; CHECK-NOT: alias
 ; CHECK: @c = global i32 1
-; CHECK-NEXT: @d = global i32* @a
+; CHECK-NEXT: @d = global ptr @a
 ; CHECK-EMPTY:
-; CHECK-NEXT: @a = weak alias i32, i32* @b
-; CHECK-NEXT: @b = internal alias i32, i32* @c
+; CHECK-NEXT: @a = weak alias i32, ptr @b
+; CHECK-NEXT: @b = internal alias i32, ptr @c
 
 ; RES: 1.o{{$}}
 ; RES-NEXT: {{^}}-r={{.*}}1.o,c,p{{$}}
@@ -19,7 +19,7 @@
 ; RES-NEXT: {{^}}-r={{.*}}2.o,a,{{$}}
 ; RES-NEXT: {{^}}-r={{.*}}2.o,d,px{{$}}
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 @a = weak alias i32, i32* @b

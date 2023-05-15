@@ -1,9 +1,8 @@
 //===-- llvm/CodeGen/MachineModuleInfo.h ------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,9 +30,9 @@
 #ifndef LLVM_CODEGEN_MACHINEMODULEINFO_H
 #define LLVM_CODEGEN_MACHINEMODULEINFO_H
 
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerIntPair.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Pass.h"
@@ -43,19 +42,16 @@
 
 namespace llvm {
 
-class BasicBlock;
-class CallInst;
 class Function;
+class LLVMTargetMachine;
 class MachineFunction;
-class MMIAddrLabelMap;
 class Module;
-class TargetMachine;
 
 //===----------------------------------------------------------------------===//
 /// This class can be derived from and used by targets to hold private
 /// target-specific information for each Module.  Objects of type are
-/// accessed/created with MMI::getInfo and destroyed when the MachineModuleInfo
-/// is destroyed.
+/// accessed/created with MachineModuleInfo::getObjFileInfo and destroyed when
+/// the MachineModuleInfo is destroyed.
 ///
 class MachineModuleInfoImpl {
 public:
@@ -75,11 +71,17 @@ protected:
 /// made by different debugging and exception handling schemes and reformated
 /// for specific use.
 ///
-class MachineModuleInfo : public ImmutablePass {
-  const TargetMachine &TM;
+class MachineModuleInfo {
+  friend class MachineModuleInfoWrapperPass;
+  friend class MachineModuleAnalysis;
+
+  const LLVMTargetMachine &TM;
 
   /// This is the MCContext used for the entire code generator.
   MCContext Context;
+  // This is an external context, that if assigned, will be used instead of the
+  // internal context.
+  MCContext *ExternalContext = nullptr;
 
   /// This is the LLVM Module being worked on.
   const Module *TheModule;
@@ -92,18 +94,10 @@ class MachineModuleInfo : public ImmutablePass {
   /// \name Exception Handling
   /// \{
 
-  /// Vector of all personality functions ever seen. Used to emit common EH
-  /// frames.
-  std::vector<const Function *> Personalities;
-
   /// The current call site index being processed, if any. 0 if none.
   unsigned CurCallSite;
 
   /// \}
-
-  /// This map keeps track of which symbol is being used for the specified
-  /// basic block's address of label.
-  MMIAddrLabelMap *AddrLabelSymbols;
 
   // TODO: Ideally, what we'd like is to have a switch that allows emitting
   // synchronous (precise at call-sites only) CFA into .eh_frame. However,
@@ -114,26 +108,9 @@ class MachineModuleInfo : public ImmutablePass {
   /// True if debugging information is available in this module.
   bool DbgInfoAvailable;
 
-  /// True if this module calls VarArg function with floating-point arguments.
-  /// This is used to emit an undefined reference to _fltused on Windows
-  /// targets.
-  bool UsesVAFloatArgument;
-
-  /// True if the module calls the __morestack function indirectly, as is
-  /// required under the large code model on x86. This is used to emit
-  /// a definition of a symbol, __morestack_addr, containing the address. See
-  /// comments in lib/Target/X86/X86FrameLowering.cpp for more details.
-  bool UsesMorestackAddr;
-
-  /// True if the module contains split-stack functions. This is used to
-  /// emit .note.GNU-split-stack section as required by the linker for
-  /// special handling split-stack function calling no-split-stack function.
-  bool HasSplitStack;
-
-  /// True if the module contains no-split-stack functions. This is used to
-  /// emit .note.GNU-no-split-stack section when it also contains split-stack
-  /// functions.
-  bool HasNosplitStack;
+  /// True if this module is being built for windows/msvc, and uses floating
+  /// point.  This is used to emit an undefined reference to _fltused.
+  bool UsesMSVCFloatingPoint;
 
   /// Maps IR Functions to their corresponding MachineFunctions.
   DenseMap<const Function*, std::unique_ptr<MachineFunction>> MachineFunctions;
@@ -142,26 +119,37 @@ class MachineModuleInfo : public ImmutablePass {
   const Function *LastRequest = nullptr; ///< Used for shortcut/cache.
   MachineFunction *LastResult = nullptr; ///< Used for shortcut/cache.
 
+  MachineModuleInfo &operator=(MachineModuleInfo &&MMII) = delete;
+
 public:
-  static char ID; // Pass identification, replacement for typeid
+  explicit MachineModuleInfo(const LLVMTargetMachine *TM = nullptr);
 
-  explicit MachineModuleInfo(const TargetMachine *TM = nullptr);
-  ~MachineModuleInfo() override;
+  explicit MachineModuleInfo(const LLVMTargetMachine *TM,
+                             MCContext *ExtContext);
 
-  // Initialization and Finalization
-  bool doInitialization(Module &) override;
-  bool doFinalization(Module &) override;
+  MachineModuleInfo(MachineModuleInfo &&MMII);
 
-  const MCContext &getContext() const { return Context; }
-  MCContext &getContext() { return Context; }
+  ~MachineModuleInfo();
+
+  void initialize();
+  void finalize();
+
+  const LLVMTargetMachine &getTarget() const { return TM; }
+
+  const MCContext &getContext() const {
+    return ExternalContext ? *ExternalContext : Context;
+  }
+  MCContext &getContext() {
+    return ExternalContext ? *ExternalContext : Context;
+  }
 
   const Module *getModule() const { return TheModule; }
 
   /// Returns the MachineFunction constructed for the IR function \p F.
   /// Creates a new MachineFunction if none exists yet.
-  MachineFunction &getOrCreateMachineFunction(const Function &F);
+  MachineFunction &getOrCreateMachineFunction(Function &F);
 
-  /// \bried Returns the MachineFunction associated to IR function \p F if there
+  /// \brief Returns the MachineFunction associated to IR function \p F if there
   /// is one, otherwise nullptr.
   MachineFunction *getMachineFunction(const Function &F) const;
 
@@ -169,7 +157,10 @@ public:
   /// Machine Function map.
   void deleteMachineFunctionFor(Function &F);
 
-  /// Keep track of various per-function pieces of information for backends
+  /// Add an externally created MachineFunction \p MF for \p F.
+  void insertFunction(const Function &F, std::unique_ptr<MachineFunction> &&MF);
+
+  /// Keep track of various per-module pieces of information for backends
   /// that would like to do so.
   template<typename Ty>
   Ty &getObjFileInfo() {
@@ -185,58 +176,10 @@ public:
 
   /// Returns true if valid debug info is present.
   bool hasDebugInfo() const { return DbgInfoAvailable; }
-  void setDebugInfoAvailability(bool avail) { DbgInfoAvailable = avail; }
 
-  bool usesVAFloatArgument() const {
-    return UsesVAFloatArgument;
-  }
+  bool usesMSVCFloatingPoint() const { return UsesMSVCFloatingPoint; }
 
-  void setUsesVAFloatArgument(bool b) {
-    UsesVAFloatArgument = b;
-  }
-
-  bool usesMorestackAddr() const {
-    return UsesMorestackAddr;
-  }
-
-  void setUsesMorestackAddr(bool b) {
-    UsesMorestackAddr = b;
-  }
-
-  bool hasSplitStack() const {
-    return HasSplitStack;
-  }
-
-  void setHasSplitStack(bool b) {
-    HasSplitStack = b;
-  }
-
-  bool hasNosplitStack() const {
-    return HasNosplitStack;
-  }
-
-  void setHasNosplitStack(bool b) {
-    HasNosplitStack = b;
-  }
-
-  /// Return the symbol to be used for the specified basic block when its
-  /// address is taken.  This cannot be its normal LBB label because the block
-  /// may be accessed outside its containing function.
-  MCSymbol *getAddrLabelSymbol(const BasicBlock *BB) {
-    return getAddrLabelSymbolToEmit(BB).front();
-  }
-
-  /// Return the symbol to be used for the specified basic block when its
-  /// address is taken.  If other blocks were RAUW'd to this one, we may have
-  /// to emit them as well, return the whole set.
-  ArrayRef<MCSymbol *> getAddrLabelSymbolToEmit(const BasicBlock *BB);
-
-  /// If the specified function has had any references to address-taken blocks
-  /// generated, but the block got deleted, return the symbol now so we can
-  /// emit it.  This prevents emitting a reference to a symbol that has no
-  /// definition.
-  void takeDeletedSymbolsForFunction(const Function *F,
-                                     std::vector<MCSymbol*> &Result);
+  void setUsesMSVCFloatingPoint(bool b) { UsesMSVCFloatingPoint = b; }
 
   /// \name Exception Handling
   /// \{
@@ -248,23 +191,49 @@ public:
   /// none.
   unsigned getCurrentCallSite() { return CurCallSite; }
 
-  /// Provide the personality function for the exception information.
-  void addPersonality(const Function *Personality);
-
-  /// Return array of personality functions ever seen.
-  const std::vector<const Function *>& getPersonalities() const {
-    return Personalities;
-  }
   /// \}
+
+  // MMI owes MCContext. It should never be invalidated.
+  bool invalidate(Module &, const PreservedAnalyses &,
+                  ModuleAnalysisManager::Invalidator &) {
+    return false;
+  }
 }; // End class MachineModuleInfo
 
-//===- MMI building helpers -----------------------------------------------===//
+class MachineModuleInfoWrapperPass : public ImmutablePass {
+  MachineModuleInfo MMI;
 
-/// Determine if any floating-point values are being passed to this variadic
-/// function, and set the MachineModuleInfo's usesVAFloatArgument flag if so.
-/// This flag is used to emit an undefined reference to _fltused on Windows,
-/// which will link in MSVCRT's floating-point support.
-void computeUsesVAFloatArgument(const CallInst &I, MachineModuleInfo &MMI);
+public:
+  static char ID; // Pass identification, replacement for typeid
+  explicit MachineModuleInfoWrapperPass(const LLVMTargetMachine *TM = nullptr);
+
+  explicit MachineModuleInfoWrapperPass(const LLVMTargetMachine *TM,
+                                        MCContext *ExtContext);
+
+  // Initialization and Finalization
+  bool doInitialization(Module &) override;
+  bool doFinalization(Module &) override;
+
+  MachineModuleInfo &getMMI() { return MMI; }
+  const MachineModuleInfo &getMMI() const { return MMI; }
+};
+
+/// An analysis that produces \c MachineInfo for a module.
+class MachineModuleAnalysis : public AnalysisInfoMixin<MachineModuleAnalysis> {
+  friend AnalysisInfoMixin<MachineModuleAnalysis>;
+  static AnalysisKey Key;
+
+  const LLVMTargetMachine *TM;
+
+public:
+  /// Provide the result type for this analysis pass.
+  using Result = MachineModuleInfo;
+
+  MachineModuleAnalysis(const LLVMTargetMachine *TM) : TM(TM) {}
+
+  /// Run the analysis pass and produce machine module information.
+  MachineModuleInfo run(Module &M, ModuleAnalysisManager &);
+};
 
 } // end namespace llvm
 

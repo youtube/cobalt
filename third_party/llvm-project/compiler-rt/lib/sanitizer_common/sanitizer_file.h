@@ -1,9 +1,8 @@
 //===-- sanitizer_file.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 //
@@ -16,7 +15,6 @@
 #ifndef SANITIZER_FILE_H
 #define SANITIZER_FILE_H
 
-#include "sanitizer_interface_internal.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
 #include "sanitizer_mutex.h"
@@ -27,6 +25,7 @@ struct ReportFile {
   void Write(const char *buffer, uptr length);
   bool SupportsColors();
   void SetReportPath(const char *path);
+  const char *GetReportPath();
 
   // Don't use fields directly. They are only declared public to allow
   // aggregate initialization.
@@ -66,9 +65,6 @@ bool ReadFromFile(fd_t fd, void *buff, uptr buff_size,
 bool WriteToFile(fd_t fd, const void *buff, uptr buff_size,
                  uptr *bytes_written = nullptr, error_t *error_p = nullptr);
 
-bool RenameFile(const char *oldpath, const char *newpath,
-                error_t *error_p = nullptr);
-
 // Scoped file handle closer.
 struct FileCloser {
   explicit FileCloser(fd_t fd) : fd(fd) {}
@@ -81,9 +77,12 @@ bool SupportsColoredOutput(fd_t fd);
 // OS
 const char *GetPwd();
 bool FileExists(const char *filename);
+bool DirExists(const char *path);
 char *FindPathToBinary(const char *name);
 bool IsPathSeparator(const char c);
 bool IsAbsolutePath(const char *path);
+// Returns true on success, false on failure.
+bool CreateDir(const char *pathname);
 // Starts a subprocess and returs its pid.
 // If *_fd parameters are not kInvalidFd their corresponding input/output
 // streams will be redirect to the file. The files will always be closed
@@ -91,8 +90,8 @@ bool IsAbsolutePath(const char *path);
 // The child process will close all fds after STDERR_FILENO
 // before passing control to a program.
 pid_t StartSubprocess(const char *filename, const char *const argv[],
-                      fd_t stdin_fd = kInvalidFd, fd_t stdout_fd = kInvalidFd,
-                      fd_t stderr_fd = kInvalidFd);
+                      const char *const envp[], fd_t stdin_fd = kInvalidFd,
+                      fd_t stdout_fd = kInvalidFd, fd_t stderr_fd = kInvalidFd);
 // Checks if specified process is still running
 bool IsProcessRunning(pid_t pid);
 // Waits for the process to finish and returns its exit code.

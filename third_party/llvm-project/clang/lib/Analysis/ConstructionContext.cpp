@@ -1,9 +1,8 @@
 //===- ConstructionContext.cpp - CFG constructor information --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -157,6 +156,12 @@ const ConstructionContext *ConstructionContext::createBoundTemporaryFromLayers(
     return create<CXX17ElidedCopyConstructorInitializerConstructionContext>(
         C, I, BTE);
   }
+  case ConstructionContextItem::LambdaCaptureKind: {
+    assert(ParentLayer->isLast());
+    const auto *E = cast<LambdaExpr>(ParentItem.getStmt());
+    return create<LambdaCaptureConstructionContext>(C, E,
+                                                    ParentItem.getIndex());
+  }
   } // switch (ParentItem.getKind())
 
   llvm_unreachable("Unexpected construction context with destructor!");
@@ -200,6 +205,11 @@ const ConstructionContext *ConstructionContext::createFromLayers(
   }
   case ConstructionContextItem::ElidableConstructorKind: {
     llvm_unreachable("The argument needs to be materialized first!");
+  }
+  case ConstructionContextItem::LambdaCaptureKind: {
+    assert(TopLayer->isLast());
+    const auto *E = cast<LambdaExpr>(TopItem.getStmt());
+    return create<LambdaCaptureConstructionContext>(C, E, TopItem.getIndex());
   }
   case ConstructionContextItem::InitializerKind: {
     assert(TopLayer->isLast());

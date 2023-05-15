@@ -1,16 +1,16 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// 'do_bytes' throws a std::range_error unexpectedly
-// XFAIL: LIBCXX-WINDOWS-FIXME
+// XFAIL: no-wide-characters
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
+
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
 
 // <locale>
 
@@ -22,17 +22,21 @@
 #include <codecvt>
 #include <cassert>
 
-int main()
+#include "test_macros.h"
+
+int main(int, char**)
 {
     typedef std::codecvt_utf8<wchar_t> Codecvt;
     typedef std::wstring_convert<Codecvt> Myconv;
     // create a converter and perform some conversions to generate some
     // interesting state.
     Myconv myconv;
-    myconv.from_bytes("\xF1\x80\x80\x83");
+    myconv.from_bytes("\xEF\xBF\xBD");
     const auto old_converted = myconv.converted();
-    assert(myconv.converted() == 4);
+    assert(myconv.converted() == 3);
     // move construct a new converter and make sure the state is the same.
     Myconv myconv2(std::move(myconv));
     assert(myconv2.converted() == old_converted);
+
+  return 0;
 }

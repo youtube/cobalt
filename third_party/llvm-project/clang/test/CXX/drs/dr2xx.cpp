@@ -2,6 +2,7 @@
 // RUN: %clang_cc1 -std=c++11 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++14 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++17 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++20 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 
 // PR13819 -- __SIZE_TYPE__ is incompatible.
 typedef __SIZE_TYPE__ size_t; // expected-error 0-1 {{extension}}
@@ -81,12 +82,12 @@ namespace dr213 { // dr213: yes
   template <class T> struct A : T {
     void h(T t) {
       char &r1 = f(t);
-      int &r2 = g(t); // expected-error {{undeclared}}
+      int &r2 = g(t); // expected-error {{explicit qualification required to use member 'g' from dependent base class}}
     }
   };
   struct B {
     int &f(B);
-    int &g(B); // expected-note {{in dependent base class}}
+    int &g(B); // expected-note {{here}}
   };
   char &f(B);
 
@@ -140,6 +141,7 @@ namespace dr217 { // dr217: yes
 }
 
 namespace dr218 { // dr218: yes
+                  // NB: also dup 405
   namespace A {
     struct S {};
     void f(S);
@@ -224,11 +226,17 @@ namespace dr222 { // dr222: dup 637
     void((a += b) += c);
     void((a += b) + (a += c)); // expected-warning {{multiple unsequenced modifications to 'a'}}
 
-    x[a++] = a; // expected-warning {{unsequenced modification and access to 'a'}}
+    x[a++] = a;
+#if __cplusplus < 201703L
+    // expected-warning@-2 {{unsequenced modification and access to 'a'}}
+#endif
 
     a = b = 0; // ok, read and write of 'b' are sequenced
 
-    a = (b = a++); // expected-warning {{multiple unsequenced modifications to 'a'}}
+    a = (b = a++);
+#if __cplusplus < 201703L
+    // expected-warning@-2 {{multiple unsequenced modifications to 'a'}}
+#endif
     a = (b = ++a);
 #pragma clang diagnostic pop
   }
@@ -236,13 +244,16 @@ namespace dr222 { // dr222: dup 637
 
 // dr223: na
 
-namespace dr224 { // dr224: no
+namespace dr224 { // dr224: 16
   namespace example1 {
     template <class T> class A {
       typedef int type;
       A::type a;
       A<T>::type b;
-      A<T*>::type c; // expected-error {{missing 'typename'}}
+      A<T*>::type c;
+#if __cplusplus <= 201703L
+      // expected-error@-2 {{implicit 'typename' is a C++20 extension}}
+#endif
       ::dr224::example1::A<T>::type d;
 
       class B {
@@ -250,12 +261,18 @@ namespace dr224 { // dr224: no
 
         A::type a;
         A<T>::type b;
-        A<T*>::type c; // expected-error {{missing 'typename'}}
+        A<T*>::type c;
+#if __cplusplus <= 201703L
+        // expected-error@-2 {{implicit 'typename' is a C++20 extension}}
+#endif
         ::dr224::example1::A<T>::type d;
 
         B::type e;
         A<T>::B::type f;
-        A<T*>::B::type g; // expected-error {{missing 'typename'}}
+        A<T*>::B::type g;
+#if __cplusplus <= 201703L
+        // expected-error@-2 {{implicit 'typename' is a C++20 extension}}
+#endif
         typename A<T*>::B::type h;
       };
     };
@@ -263,21 +280,32 @@ namespace dr224 { // dr224: no
     template <class T> class A<T*> {
       typedef int type;
       A<T*>::type a;
-      A<T>::type b; // expected-error {{missing 'typename'}}
+      A<T>::type b;
+#if __cplusplus <= 201703L
+        // expected-error@-2 {{implicit 'typename' is a C++20 extension}}
+#endif
     };
 
     template <class T1, class T2, int I> struct B {
       typedef int type;
       B<T1, T2, I>::type b1;
-      B<T2, T1, I>::type b2; // expected-error {{missing 'typename'}}
+      B<T2, T1, I>::type b2;
+#if __cplusplus <= 201703L
+      // expected-error@-2 {{implicit 'typename' is a C++20 extension}}
+#endif
 
       typedef T1 my_T1;
       static const int my_I = I;
       static const int my_I2 = I+0;
       static const int my_I3 = my_I;
-      B<my_T1, T2, my_I>::type b3; // FIXME: expected-error {{missing 'typename'}}
-      B<my_T1, T2, my_I2>::type b4; // expected-error {{missing 'typename'}}
-      B<my_T1, T2, my_I3>::type b5; // FIXME: expected-error {{missing 'typename'}}
+      B<my_T1, T2, my_I>::type b3;
+      B<my_T1, T2, my_I2>::type b4;
+      B<my_T1, T2, my_I3>::type b5;
+#if __cplusplus <= 201703L
+      // expected-error@-4 {{implicit 'typename' is a C++20 extension}}
+      // expected-error@-4 {{implicit 'typename' is a C++20 extension}}
+      // expected-error@-4 {{implicit 'typename' is a C++20 extension}}
+#endif
     };
   }
 
@@ -285,10 +313,13 @@ namespace dr224 { // dr224: no
     template <int, typename T> struct X { typedef T type; };
     template <class T> class A {
       static const int i = 5;
-      X<i, int>::type w; // FIXME: expected-error {{missing 'typename'}}
-      X<A::i, char>::type x; // FIXME: expected-error {{missing 'typename'}}
-      X<A<T>::i, double>::type y; // FIXME: expected-error {{missing 'typename'}}
-      X<A<T*>::i, long>::type z; // expected-error {{missing 'typename'}}
+      X<i, int>::type w;
+      X<A::i, char>::type x;
+      X<A<T>::i, double>::type y;
+      X<A<T*>::i, long>::type z;
+#if __cplusplus <= 201703L
+      // expected-error@-2 {{implicit 'typename' is a C++20 extension}}
+#endif
       int f();
     };
     template <class T> int A<T>::f() {
@@ -434,7 +465,7 @@ namespace dr239 { // dr239: yes
 namespace dr241 { // dr241: yes
   namespace A {
     struct B {};
-    template <int X> void f(); // expected-note 2{{candidate}}
+    template <int X> void f(); // expected-note 3{{candidate}}
     template <int X> void g(B);
   }
   namespace C {
@@ -442,8 +473,8 @@ namespace dr241 { // dr241: yes
     template <class T> void g(T t); // expected-note {{candidate}}
   }
   void h(A::B b) {
-    f<3>(b); // expected-error {{undeclared identifier}}
-    g<3>(b); // expected-error {{undeclared identifier}}
+    f<3>(b); // expected-error 0-1{{C++20 extension}} expected-error {{no matching}}
+    g<3>(b); // expected-error 0-1{{C++20 extension}}
     A::f<3>(b); // expected-error {{no matching}}
     A::g<3>(b);
     C::f<3>(b); // expected-error {{no matching}}
@@ -467,45 +498,82 @@ namespace dr243 { // dr243: yes
   A a2 = b; // expected-error {{ambiguous}}
 }
 
-namespace dr244 { // dr244: partial
-  struct B {}; struct D : B {}; // expected-note {{here}}
+namespace dr244 { // dr244: 11
+  struct B {}; // expected-note {{type 'dr244::B' found by destructor name lookup}}
+  struct D : B {};
 
   D D_object;
   typedef B B_alias;
   B* B_ptr = &D_object;
 
   void f() {
-    D_object.~B(); // expected-error {{expression does not match the type}}
+    D_object.~B(); // expected-error {{does not match the type 'D' of the object being destroyed}}
     D_object.B::~B();
+    D_object.D::~B(); // FIXME: Missing diagnostic for this.
     B_ptr->~B();
     B_ptr->~B_alias();
     B_ptr->B_alias::~B();
-    // This is valid under DR244.
     B_ptr->B_alias::~B_alias();
     B_ptr->dr244::~B(); // expected-error {{refers to a member in namespace}}
     B_ptr->dr244::~B_alias(); // expected-error {{refers to a member in namespace}}
   }
+
+  template<typename T, typename U>
+  void f(T *B_ptr, U D_object) {
+    D_object.~B(); // FIXME: Missing diagnostic for this.
+    D_object.B::~B();
+    D_object.D::~B(); // FIXME: Missing diagnostic for this.
+    B_ptr->~B();
+    B_ptr->~B_alias();
+    B_ptr->B_alias::~B();
+    B_ptr->B_alias::~B_alias();
+    B_ptr->dr244::~B(); // expected-error {{does not refer to a type name}}
+    B_ptr->dr244::~B_alias(); // expected-error {{does not refer to a type name}}
+  }
+  template void f<B, D>(B*, D);
 
   namespace N {
     template<typename T> struct E {};
     typedef E<int> F;
   }
   void g(N::F f) {
-    typedef N::F G;
+    typedef N::F G; // expected-note {{found by destructor name lookup}}
     f.~G();
-    f.G::~E();
-    f.G::~F(); // expected-error {{expected the class name after '~' to name a destructor}}
+    f.G::~E(); // expected-error {{ISO C++ requires the name after '::~' to be found in the same scope as the name before '::~'}}
+    f.G::~F(); // expected-error {{undeclared identifier 'F' in destructor name}}
     f.G::~G();
     // This is technically ill-formed; E is looked up in 'N::' and names the
     // class template, not the injected-class-name of the class. But that's
     // probably a bug in the standard.
-    f.N::F::~E();
+    f.N::F::~E(); // expected-error {{ISO C++ requires the name after '::~' to be found in the same scope as the name before '::~'}}
     // This is valid; we look up the second F in the same scope in which we
     // found the first one, that is, 'N::'.
-    f.N::F::~F(); // FIXME: expected-error {{expected the class name after '~' to name a destructor}}
-    // This is technically ill-formed; G is looked up in 'N::' and is not found;
-    // as above, this is probably a bug in the standard.
-    f.N::F::~G();
+    f.N::F::~F();
+    // This is technically ill-formed; G is looked up in 'N::' and is not found.
+    // Rejecting this seems correct, but most compilers accept, so we do also.
+    f.N::F::~G(); // expected-error {{qualified destructor name only found in lexical scope; omit the qualifier to find this type name by unqualified lookup}}
+  }
+
+  // Bizarrely, compilers perform lookup in the scope for qualified destructor
+  // names, if the nested-name-specifier is non-dependent. Ensure we diagnose
+  // this.
+  namespace QualifiedLookupInScope {
+    namespace N {
+      template <typename> struct S { struct Inner {}; };
+    }
+    template <typename U> void f(typename N::S<U>::Inner *p) {
+      typedef typename N::S<U>::Inner T;
+      p->::dr244::QualifiedLookupInScope::N::S<U>::Inner::~T(); // expected-error {{no type named 'T' in}}
+    }
+    template void f<int>(N::S<int>::Inner *); // expected-note {{instantiation of}}
+
+    template <typename U> void g(U *p) {
+      typedef U T;
+      p->T::~T();
+      p->U::~T();
+      p->::dr244::QualifiedLookupInScope::N::S<int>::Inner::~T(); // expected-error {{'T' does not refer to a type name}}
+    }
+    template void g(N::S<int>::Inner *);
   }
 }
 
@@ -553,12 +621,8 @@ namespace dr247 { // dr247: yes
   void (F::*i)() = &F::f;
 }
 
-namespace dr248 { // dr248: yes c++11
-  // FIXME: Should this also apply to c++98 mode? This was a DR against C++98.
+namespace dr248 { // dr248: sup P1949
   int \u040d\u040e = 0;
-#if __cplusplus < 201103L
-  // FIXME: expected-error@-2 {{expected ';'}}
-#endif
 }
 
 namespace dr249 { // dr249: yes
@@ -640,7 +704,7 @@ namespace dr257 { // dr257: yes
     C() {}
   };
   struct D : B {
-    D() {} // expected-error {{must explicitly initialize the base class 'dr257::A'}}
+    D() {} // expected-error {{must explicitly initialize the base class 'A'}}
     void f();
   };
 }
@@ -718,7 +782,7 @@ namespace dr261 { // dr261: no
     A() {}
   };
 
-  // FIXME: These are ill-formed, with a required diagnostic, for the same
+  // FIXME: This is ill-formed, with a required diagnostic, for the same
   // reason.
   struct B {
     inline void operator delete(void*) __attribute__((unused));
@@ -726,7 +790,7 @@ namespace dr261 { // dr261: no
   };
   struct C {
     inline void operator delete(void*) __attribute__((unused));
-    virtual ~C() {}
+    virtual ~C() {} // expected-warning {{'operator delete' was marked unused but was used}}
   };
 
   struct D {
@@ -750,9 +814,12 @@ namespace dr263 { // dr263: yes
 #if __cplusplus < 201103L
     friend X::X() throw();
     friend X::~X() throw();
-#else
+#elif __cplusplus <= 201703L
     friend constexpr X::X() noexcept;
     friend X::~X();
+#else
+    friend constexpr X::X() noexcept;
+    friend constexpr X::~X();
 #endif
     Y::Y(); // expected-error {{extra qualification}}
     Y::~Y(); // expected-error {{extra qualification}}
@@ -870,13 +937,13 @@ namespace dr280 { // dr280: yes
     operator f2*(); // expected-note {{candidate}}
     operator f3*(); // expected-note {{candidate}}
   };
-  struct D : private A, B { // expected-note 2{{here}}
+  struct D : private A, B { // expected-note {{here}}
     operator f2*(); // expected-note {{candidate}}
   } d;
   struct E : C, D {} e;
   void g() {
     d(); // ok, public
-    d(0); // expected-error {{private member of 'dr280::A'}} expected-error {{private base class 'dr280::A'}}
+    d(0); // expected-error {{private member of 'dr280::A'}}
     d(0, 0); // ok, suppressed by member in D
     d(0, 0, 0); // expected-error {{private member of 'dr280::B'}}
     e(); // expected-error {{ambiguous}}
@@ -1014,7 +1081,7 @@ namespace dr294 { // dr294: no
 
 namespace dr295 { // dr295: 3.7
   typedef int f();
-  const f g; // expected-warning {{'const' qualifier on function type 'dr295::f' (aka 'int ()') has no effect}}
+  const f g; // expected-warning {{'const' qualifier on function type 'f' (aka 'int ()') has no effect}}
   f &r = g;
   template<typename T> struct X {
     const T &f;
@@ -1022,10 +1089,10 @@ namespace dr295 { // dr295: 3.7
   X<f> x = {g};
 
   typedef int U();
-  typedef const U U; // expected-warning {{'const' qualifier on function type 'dr295::U' (aka 'int ()') has no effect}}
+  typedef const U U; // expected-warning {{'const' qualifier on function type 'U' (aka 'int ()') has no effect}}
 
   typedef int (*V)();
-  typedef volatile U *V; // expected-warning {{'volatile' qualifier on function type 'dr295::U' (aka 'int ()') has no effect}}
+  typedef volatile U *V; // expected-warning {{'volatile' qualifier on function type 'U' (aka 'int ()') has no effect}}
 }
 
 namespace dr296 { // dr296: yes
@@ -1051,9 +1118,9 @@ namespace dr298 { // dr298: yes
   struct B b; // expected-error {{typedef 'B' cannot be referenced with a struct specifier}}
   struct C c; // expected-error {{typedef 'C' cannot be referenced with a struct specifier}}
 
-  B::B() {} // expected-error {{requires a type specifier}}
+  B::B() {} // expected-error {{a type specifier is required}}
   B::A() {} // ok
-  C::~C() {} // expected-error {{destructor cannot be declared using a typedef 'dr298::C' (aka 'const dr298::A') of the class name}}
+  C::~C() {} // expected-error {{destructor cannot be declared using a typedef 'C' (aka 'const dr298::A') of the class name}}
 
   typedef struct D E; // expected-note {{here}}
   struct E {}; // expected-error {{conflicts with typedef}}

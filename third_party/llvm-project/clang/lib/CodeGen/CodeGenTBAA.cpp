@@ -1,9 +1,8 @@
-//===--- CodeGenTypes.cpp - TBAA information for LLVM CodeGen -------------===//
+//===-- CodeGenTBAA.cpp - TBAA information for LLVM CodeGen ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,7 +19,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
-#include "clang/Frontend/CodeGenOptions.h"
+#include "clang/Basic/CodeGenOptions.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/LLVMContext.h"
@@ -79,17 +78,18 @@ llvm::MDNode *CodeGenTBAA::getChar() {
 
 static bool TypeHasMayAlias(QualType QTy) {
   // Tagged types have declarations, and therefore may have attributes.
-  if (const TagType *TTy = dyn_cast<TagType>(QTy))
-    return TTy->getDecl()->hasAttr<MayAliasAttr>();
-
-  // Typedef types have declarations, and therefore may have attributes.
-  if (const TypedefType *TTy = dyn_cast<TypedefType>(QTy)) {
-    if (TTy->getDecl()->hasAttr<MayAliasAttr>())
+  if (auto *TD = QTy->getAsTagDecl())
+    if (TD->hasAttr<MayAliasAttr>())
       return true;
-    // Also, their underlying types may have relevant attributes.
-    return TypeHasMayAlias(TTy->desugar());
-  }
 
+  // Also look for may_alias as a declaration attribute on a typedef.
+  // FIXME: We should follow GCC and model may_alias as a type attribute
+  // rather than as a declaration attribute.
+  while (auto *TT = QTy->getAs<TypedefType>()) {
+    if (TT->getDecl()->hasAttr<MayAliasAttr>())
+      return true;
+    QTy = TT->desugar();
+  }
   return false;
 }
 
@@ -141,6 +141,34 @@ llvm::MDNode *CodeGenTBAA::getTypeInfoHelper(const Type *Ty) {
     case BuiltinType::UInt128:
       return getTypeInfo(Context.Int128Ty);
 
+    case BuiltinType::UShortFract:
+      return getTypeInfo(Context.ShortFractTy);
+    case BuiltinType::UFract:
+      return getTypeInfo(Context.FractTy);
+    case BuiltinType::ULongFract:
+      return getTypeInfo(Context.LongFractTy);
+
+    case BuiltinType::SatUShortFract:
+      return getTypeInfo(Context.SatShortFractTy);
+    case BuiltinType::SatUFract:
+      return getTypeInfo(Context.SatFractTy);
+    case BuiltinType::SatULongFract:
+      return getTypeInfo(Context.SatLongFractTy);
+
+    case BuiltinType::UShortAccum:
+      return getTypeInfo(Context.ShortAccumTy);
+    case BuiltinType::UAccum:
+      return getTypeInfo(Context.AccumTy);
+    case BuiltinType::ULongAccum:
+      return getTypeInfo(Context.LongAccumTy);
+
+    case BuiltinType::SatUShortAccum:
+      return getTypeInfo(Context.SatShortAccumTy);
+    case BuiltinType::SatUAccum:
+      return getTypeInfo(Context.SatAccumTy);
+    case BuiltinType::SatULongAccum:
+      return getTypeInfo(Context.SatLongAccumTy);
+
     // Treat all other builtin types as distinct types. This includes
     // treating wchar_t, char16_t, and char32_t as distinct from their
     // "underlying types".
@@ -178,6 +206,15 @@ llvm::MDNode *CodeGenTBAA::getTypeInfoHelper(const Type *Ty) {
     SmallString<256> OutName;
     llvm::raw_svector_ostream Out(OutName);
     MContext.mangleTypeName(QualType(ETy, 0), Out);
+    return createScalarTypeNode(OutName, getChar(), Size);
+  }
+
+  if (const auto *EIT = dyn_cast<BitIntType>(Ty)) {
+    SmallString<256> OutName;
+    llvm::raw_svector_ostream Out(OutName);
+    // Don't specify signed/unsigned since integer types can alias despite sign
+    // differences.
+    Out << "_BitInt(" << EIT->getNumBits() << ')';
     return createScalarTypeNode(OutName, getChar(), Size);
   }
 
@@ -258,6 +295,8 @@ CodeGenTBAA::CollectFields(uint64_t BaseOffset,
     unsigned idx = 0;
     for (RecordDecl::field_iterator i = RD->field_begin(),
          e = RD->field_end(); i != e; ++i, ++idx) {
+      if ((*i)->isZeroSize(Context) || (*i)->isUnnamedBitfield())
+        continue;
       uint64_t Offset = BaseOffset +
                         Layout.getFieldOffset(idx) / Context.getCharWidth();
       QualType FieldQTy = i->getType();
@@ -296,8 +335,45 @@ llvm::MDNode *CodeGenTBAA::getBaseTypeInfoHelper(const Type *Ty) {
   if (auto *TTy = dyn_cast<RecordType>(Ty)) {
     const RecordDecl *RD = TTy->getDecl()->getDefinition();
     const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
-    SmallVector<llvm::MDBuilder::TBAAStructField, 4> Fields;
+    using TBAAStructField = llvm::MDBuilder::TBAAStructField;
+    SmallVector<TBAAStructField, 4> Fields;
+    if (const CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(RD)) {
+      // Handle C++ base classes. Non-virtual bases can treated a kind of
+      // field. Virtual bases are more complex and omitted, but avoid an
+      // incomplete view for NewStructPathTBAA.
+      if (CodeGenOpts.NewStructPathTBAA && CXXRD->getNumVBases() != 0)
+        return BaseTypeMetadataCache[Ty] = nullptr;
+      for (const CXXBaseSpecifier &B : CXXRD->bases()) {
+        if (B.isVirtual())
+          continue;
+        QualType BaseQTy = B.getType();
+        const CXXRecordDecl *BaseRD = BaseQTy->getAsCXXRecordDecl();
+        if (BaseRD->isEmpty())
+          continue;
+        llvm::MDNode *TypeNode = isValidBaseType(BaseQTy)
+                                     ? getBaseTypeInfo(BaseQTy)
+                                     : getTypeInfo(BaseQTy);
+        if (!TypeNode)
+          return BaseTypeMetadataCache[Ty] = nullptr;
+        uint64_t Offset = Layout.getBaseClassOffset(BaseRD).getQuantity();
+        uint64_t Size =
+            Context.getASTRecordLayout(BaseRD).getDataSize().getQuantity();
+        Fields.push_back(
+            llvm::MDBuilder::TBAAStructField(Offset, Size, TypeNode));
+      }
+      // The order in which base class subobjects are allocated is unspecified,
+      // so may differ from declaration order. In particular, Itanium ABI will
+      // allocate a primary base first.
+      // Since we exclude empty subobjects, the objects are not overlapping and
+      // their offsets are unique.
+      llvm::sort(Fields,
+                 [](const TBAAStructField &A, const TBAAStructField &B) {
+                   return A.Offset < B.Offset;
+                 });
+    }
     for (FieldDecl *Field : RD->fields()) {
+      if (Field->isZeroSize(Context) || Field->isUnnamedBitfield())
+        continue;
       QualType FieldQTy = Field->getType();
       llvm::MDNode *TypeNode = isValidBaseType(FieldQTy) ?
           getBaseTypeInfo(FieldQTy) : getTypeInfo(FieldQTy);

@@ -1,6 +1,10 @@
 // RUN: %clang_cc1 -fblocks -x objective-c-header -emit-pch -o %t.pch %S/Inputs/localization-pch.h
 
-// RUN: %clang_analyze_cc1 -fblocks -analyzer-store=region  -analyzer-checker=optin.osx.cocoa.localizability.NonLocalizedStringChecker -analyzer-checker=optin.osx.cocoa.localizability.EmptyLocalizationContextChecker -include-pch %t.pch -verify  -analyzer-config AggressiveReport=true %s
+// RUN: %clang_analyze_cc1 -fblocks \
+// RUN:   -analyzer-config optin.osx.cocoa.localizability.NonLocalizedStringChecker:AggressiveReport=true \
+// RUN:   -analyzer-checker=optin.osx.cocoa.localizability.NonLocalizedStringChecker \
+// RUN:   -analyzer-checker=optin.osx.cocoa.localizability.EmptyLocalizationContextChecker \
+// RUN:   -include-pch %t.pch -verify  %s
 
 // These declarations were reduced using Delta-Debugging from Foundation.h
 // on Mac OS X.
@@ -56,7 +60,7 @@ typedef struct CGPoint CGPoint;
 NSString *ForceLocalized(NSString *str)
     __attribute__((annotate("returns_localized_nsstring")));
 CGPoint CGPointMake(CGFloat x, CGFloat y);
-int random();
+int random(void);
 // This next one is a made up API
 NSString *CFNumberFormatterCreateStringWithNumber(float x);
 + (NSString *)forceLocalized:(NSString *)str
@@ -288,4 +292,12 @@ NSString *ForceLocalized(NSString *str) { return str; }
   [LocalizationTestSuite takesLocalizedString:@"not localized"]; // expected-warning {{User-facing text should use localized string macro}}
   takesLocalizedString(@"not localized"); // expected-warning {{User-facing text should use localized string macro}}
 }
+@end
+
+@interface SynthesizedAccessors : NSObject
+@property (assign) NSObject *obj;
+@end
+
+@implementation SynthesizedAccessors
+// no-crash
 @end

@@ -1,40 +1,18 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 -Wthread-safety -Wthread-safety-beta -Wthread-safety-negative -fcxx-exceptions %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 -Wthread-safety -Wthread-safety-beta -Wthread-safety-negative -fcxx-exceptions -DUSE_CAPABILITY=0 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 -Wthread-safety -Wthread-safety-beta -Wthread-safety-negative -fcxx-exceptions -DUSE_CAPABILITY=1 %s
 
 // FIXME: should also run  %clang_cc1 -fsyntax-only -verify -Wthread-safety -std=c++11 -Wc++98-compat %s
 // FIXME: should also run  %clang_cc1 -fsyntax-only -verify -Wthread-safety %s
 
-#define LOCKABLE            __attribute__ ((lockable))
-#define SCOPED_LOCKABLE     __attribute__ ((scoped_lockable))
-#define GUARDED_BY(x)       __attribute__ ((guarded_by(x)))
-#define GUARDED_VAR         __attribute__ ((guarded_var))
-#define PT_GUARDED_BY(x)    __attribute__ ((pt_guarded_by(x)))
-#define PT_GUARDED_VAR      __attribute__ ((pt_guarded_var))
-#define ACQUIRED_AFTER(...) __attribute__ ((acquired_after(__VA_ARGS__)))
-#define ACQUIRED_BEFORE(...) __attribute__ ((acquired_before(__VA_ARGS__)))
-#define EXCLUSIVE_LOCK_FUNCTION(...)    __attribute__ ((exclusive_lock_function(__VA_ARGS__)))
-#define SHARED_LOCK_FUNCTION(...)       __attribute__ ((shared_lock_function(__VA_ARGS__)))
-#define ASSERT_EXCLUSIVE_LOCK(...)      __attribute__ ((assert_exclusive_lock(__VA_ARGS__)))
-#define ASSERT_SHARED_LOCK(...)         __attribute__ ((assert_shared_lock(__VA_ARGS__)))
-#define EXCLUSIVE_TRYLOCK_FUNCTION(...) __attribute__ ((exclusive_trylock_function(__VA_ARGS__)))
-#define SHARED_TRYLOCK_FUNCTION(...)    __attribute__ ((shared_trylock_function(__VA_ARGS__)))
-#define UNLOCK_FUNCTION(...)            __attribute__ ((unlock_function(__VA_ARGS__)))
-#define LOCK_RETURNED(x)    __attribute__ ((lock_returned(x)))
-#define LOCKS_EXCLUDED(...) __attribute__ ((locks_excluded(__VA_ARGS__)))
-#define EXCLUSIVE_LOCKS_REQUIRED(...) \
-  __attribute__ ((exclusive_locks_required(__VA_ARGS__)))
-#define SHARED_LOCKS_REQUIRED(...) \
-  __attribute__ ((shared_locks_required(__VA_ARGS__)))
-#define NO_THREAD_SAFETY_ANALYSIS  __attribute__ ((no_thread_safety_analysis))
+#include "thread-safety-annotations.h"
 
-
-class  __attribute__((lockable)) Mutex {
+class LOCKABLE Mutex {
  public:
-  void Lock() __attribute__((exclusive_lock_function));
-  void ReaderLock() __attribute__((shared_lock_function));
-  void Unlock() __attribute__((unlock_function));
-  bool TryLock() __attribute__((exclusive_trylock_function(true)));
-  bool ReaderTryLock() __attribute__((shared_trylock_function(true)));
-  void LockWhen(const int &cond) __attribute__((exclusive_lock_function));
+  void Lock() EXCLUSIVE_LOCK_FUNCTION();
+  void ReaderLock() SHARED_LOCK_FUNCTION();
+  void Unlock() UNLOCK_FUNCTION();
+  bool TryLock() EXCLUSIVE_TRYLOCK_FUNCTION(true);
+  bool ReaderTryLock() SHARED_TRYLOCK_FUNCTION(true);
 
   // for negative capabilities
   const Mutex& operator!() const { return *this; }
@@ -43,6 +21,12 @@ class  __attribute__((lockable)) Mutex {
   void AssertReaderHeld() ASSERT_SHARED_LOCK();
 };
 
+class SCOPED_LOCKABLE MutexLock {
+public:
+  MutexLock(Mutex *mu) EXCLUSIVE_LOCK_FUNCTION(mu);
+  MutexLock(Mutex *mu, bool adopt) EXCLUSIVE_LOCKS_REQUIRED(mu);
+  ~MutexLock() UNLOCK_FUNCTION();
+};
 
 namespace SimpleTest {
 
@@ -72,7 +56,7 @@ public:
   }
 
   void bar() {
-    baz();        // expected-warning {{calling function 'baz' requires holding  '!mu'}}
+    baz();        // expected-warning {{calling function 'baz' requires negative capability '!mu'}}
   }
 
   void baz() EXCLUSIVE_LOCKS_REQUIRED(!mu) {
@@ -99,9 +83,69 @@ public:
     mu.Unlock();
     baz();       // no warning -- !mu in set.
   }
+
+  void test4() {
+    MutexLock lock(&mu); // expected-warning {{acquiring mutex 'mu' requires negative capability '!mu'}}
+  }
 };
 
 }  // end namespace SimpleTest
+
+Mutex globalMutex;
+
+namespace ScopeTest {
+
+void f() EXCLUSIVE_LOCKS_REQUIRED(!globalMutex);
+void fq() EXCLUSIVE_LOCKS_REQUIRED(!::globalMutex);
+
+namespace ns {
+  Mutex globalMutex;
+  void f() EXCLUSIVE_LOCKS_REQUIRED(!globalMutex);
+  void fq() EXCLUSIVE_LOCKS_REQUIRED(!ns::globalMutex);
+}
+
+void testGlobals() EXCLUSIVE_LOCKS_REQUIRED(!ns::globalMutex) {
+  f();     // expected-warning {{calling function 'f' requires negative capability '!globalMutex'}}
+  fq();    // expected-warning {{calling function 'fq' requires negative capability '!globalMutex'}}
+  ns::f();
+  ns::fq();
+}
+
+void testNamespaceGlobals() EXCLUSIVE_LOCKS_REQUIRED(!globalMutex) {
+  f();
+  fq();
+  ns::f();  // expected-warning {{calling function 'f' requires negative capability '!globalMutex'}}
+  ns::fq(); // expected-warning {{calling function 'fq' requires negative capability '!globalMutex'}}
+}
+
+class StaticMembers {
+public:
+  void pub() EXCLUSIVE_LOCKS_REQUIRED(!publicMutex);
+  void prot() EXCLUSIVE_LOCKS_REQUIRED(!protectedMutex);
+  void priv() EXCLUSIVE_LOCKS_REQUIRED(!privateMutex);
+  void test() {
+    pub();
+    prot();
+    priv();
+  }
+
+  static Mutex publicMutex;
+
+protected:
+  static Mutex protectedMutex;
+
+private:
+  static Mutex privateMutex;
+};
+
+void testStaticMembers() {
+  StaticMembers x;
+  x.pub();
+  x.prot();
+  x.priv();
+}
+
+}  // end namespace ScopeTest
 
 namespace DoubleAttribute {
 

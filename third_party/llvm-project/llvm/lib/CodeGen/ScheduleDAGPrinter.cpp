@@ -1,9 +1,8 @@
 //===-- ScheduleDAGPrinter.cpp - Implement ScheduleDAG::viewGraph() -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -11,13 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -29,14 +23,14 @@ namespace llvm {
   DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
 
     static std::string getGraphName(const ScheduleDAG *G) {
-      return G->MF.getName();
+      return std::string(G->MF.getName());
     }
 
     static bool renderGraphFromBottomUp() {
       return true;
     }
 
-    static bool isNodeHidden(const SUnit *Node) {
+    static bool isNodeHidden(const SUnit *Node, const ScheduleDAG *G) {
       return (Node->NumPreds > 10 || Node->NumSuccs > 10);
     }
 

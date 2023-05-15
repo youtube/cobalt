@@ -1,9 +1,8 @@
 //===-- llvm-split: command line tool for testing module splitter ---------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,28 +20,37 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/WithColor.h"
 #include "llvm/Transforms/Utils/SplitModule.h"
 
 using namespace llvm;
 
-static cl::opt<std::string>
-InputFilename(cl::Positional, cl::desc("<input bitcode file>"),
-    cl::init("-"), cl::value_desc("filename"));
+static cl::OptionCategory SplitCategory("Split Options");
 
-static cl::opt<std::string>
-OutputFilename("o", cl::desc("Override output filename"),
-               cl::value_desc("filename"));
+static cl::opt<std::string> InputFilename(cl::Positional,
+                                          cl::desc("<input bitcode file>"),
+                                          cl::init("-"),
+                                          cl::value_desc("filename"),
+                                          cl::cat(SplitCategory));
+
+static cl::opt<std::string> OutputFilename("o",
+                                           cl::desc("Override output filename"),
+                                           cl::value_desc("filename"),
+                                           cl::cat(SplitCategory));
 
 static cl::opt<unsigned> NumOutputs("j", cl::Prefix, cl::init(2),
-                                    cl::desc("Number of output files"));
+                                    cl::desc("Number of output files"),
+                                    cl::cat(SplitCategory));
 
 static cl::opt<bool>
     PreserveLocals("preserve-locals", cl::Prefix, cl::init(false),
-                   cl::desc("Split without externalizing locals"));
+                   cl::desc("Split without externalizing locals"),
+                   cl::cat(SplitCategory));
 
 int main(int argc, char **argv) {
   LLVMContext Context;
   SMDiagnostic Err;
+  cl::HideUnrelatedOptions({&SplitCategory, &getColorCategory()});
   cl::ParseCommandLineOptions(argc, argv, "LLVM module splitter\n");
 
   std::unique_ptr<Module> M = parseIRFile(InputFilename, Err, Context);
@@ -53,21 +61,28 @@ int main(int argc, char **argv) {
   }
 
   unsigned I = 0;
-  SplitModule(std::move(M), NumOutputs, [&](std::unique_ptr<Module> MPart) {
-    std::error_code EC;
-    std::unique_ptr<ToolOutputFile> Out(
-        new ToolOutputFile(OutputFilename + utostr(I++), EC, sys::fs::F_None));
-    if (EC) {
-      errs() << EC.message() << '\n';
-      exit(1);
-    }
+  SplitModule(
+      *M, NumOutputs,
+      [&](std::unique_ptr<Module> MPart) {
+        std::error_code EC;
+        std::unique_ptr<ToolOutputFile> Out(new ToolOutputFile(
+            OutputFilename + utostr(I++), EC, sys::fs::OF_None));
+        if (EC) {
+          errs() << EC.message() << '\n';
+          exit(1);
+        }
 
-    verifyModule(*MPart);
-    WriteBitcodeToFile(*MPart, Out->os());
+        if (verifyModule(*MPart, &errs())) {
+          errs() << "Broken module!\n";
+          exit(1);
+        }
 
-    // Declare success.
-    Out->keep();
-  }, PreserveLocals);
+        WriteBitcodeToFile(*MPart, Out->os());
+
+        // Declare success.
+        Out->keep();
+      },
+      PreserveLocals);
 
   return 0;
 }

@@ -1,18 +1,18 @@
 //===-- SystemZTargetMachine.cpp - Define TargetMachine for SystemZ -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "SystemZTargetMachine.h"
 #include "MCTargetDesc/SystemZMCTargetDesc.h"
 #include "SystemZ.h"
+#include "SystemZMachineFunctionInfo.h"
 #include "SystemZMachineScheduler.h"
 #include "SystemZTargetTransformInfo.h"
-#include "llvm/ADT/Optional.h"
+#include "TargetInfo/SystemZTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -21,44 +21,30 @@
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CodeGen.h"
-#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Transforms/Scalar.h"
+#include <optional>
 #include <string>
 
 using namespace llvm;
 
-extern "C" void LLVMInitializeSystemZTarget() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSystemZTarget() {
   // Register the target.
   RegisterTargetMachine<SystemZTargetMachine> X(getTheSystemZTarget());
+  auto &PR = *PassRegistry::getPassRegistry();
+  initializeSystemZElimComparePass(PR);
+  initializeSystemZShortenInstPass(PR);
+  initializeSystemZLongBranchPass(PR);
+  initializeSystemZLDCleanupPass(PR);
+  initializeSystemZShortenInstPass(PR);
+  initializeSystemZPostRewritePass(PR);
+  initializeSystemZTDCPassPass(PR);
+  initializeSystemZDAGToDAGISelPass(PR);
 }
 
-// Determine whether we use the vector ABI.
-static bool UsesVectorABI(StringRef CPU, StringRef FS) {
-  // We use the vector ABI whenever the vector facility is avaiable.
-  // This is the case by default if CPU is z13 or later, and can be
-  // overridden via "[+-]vector" feature string elements.
-  bool VectorABI = true;
-  if (CPU.empty() || CPU == "generic" ||
-      CPU == "z10" || CPU == "z196" || CPU == "zEC12")
-    VectorABI = false;
-
-  SmallVector<StringRef, 3> Features;
-  FS.split(Features, ',', -1, false /* KeepEmpty */);
-  for (auto &Feature : Features) {
-    if (Feature == "vector" || Feature == "+vector")
-      VectorABI = true;
-    if (Feature == "-vector")
-      VectorABI = false;
-  }
-
-  return VectorABI;
-}
-
-static std::string computeDataLayout(const Triple &TT, StringRef CPU,
-                                     StringRef FS) {
-  bool VectorABI = UsesVectorABI(CPU, FS);
+static std::string computeDataLayout(const Triple &TT) {
   std::string Ret;
 
   // Big endian.
@@ -78,9 +64,9 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
   // 128-bit floats are aligned only to 64 bits.
   Ret += "-f128:64";
 
-  // When using the vector ABI, 128-bit vectors are also aligned to 64 bits.
-  if (VectorABI)
-    Ret += "-v128:64";
+  // The DataLayout string always holds a vector alignment of 64 bits, see
+  // comment in clang/lib/Basic/Targets/SystemZ.h.
+  Ret += "-v128:64";
 
   // We prefer 16 bits of aligned for all globals; see above.
   Ret += "-a:8:16";
@@ -91,10 +77,19 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
   return Ret;
 }
 
-static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
+static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
+  if (TT.isOSzOS())
+    return std::make_unique<TargetLoweringObjectFileGOFF>();
+
+  // Note: Some times run with -triple s390x-unknown.
+  // In this case, default to ELF unless z/OS specifically provided.
+  return std::make_unique<TargetLoweringObjectFileELF>();
+}
+
+static Reloc::Model getEffectiveRelocModel(std::optional<Reloc::Model> RM) {
   // Static code is suitable for use in a dynamic executable; there is no
   // separate DynamicNoPIC model.
-  if (!RM.hasValue() || *RM == Reloc::DynamicNoPIC)
+  if (!RM || *RM == Reloc::DynamicNoPIC)
     return Reloc::Static;
   return *RM;
 }
@@ -128,10 +123,16 @@ static Reloc::Model getEffectiveRelocModel(Optional<Reloc::Model> RM) {
 //   in range of LARL.  However, the JIT environment has no equivalent
 //   of copy relocs, so locally-binding data symbols might not be in
 //   the range of LARL.  We need the Medium model in that case.
-static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM,
-                                              Reloc::Model RM, bool JIT) {
-  if (CM)
+static CodeModel::Model
+getEffectiveSystemZCodeModel(std::optional<CodeModel::Model> CM,
+                             Reloc::Model RM, bool JIT) {
+  if (CM) {
+    if (*CM == CodeModel::Tiny)
+      report_fatal_error("Target does not support the tiny CodeModel", false);
+    if (*CM == CodeModel::Kernel)
+      report_fatal_error("Target does not support the kernel CodeModel", false);
     return *CM;
+  }
   if (JIT)
     return RM == Reloc::PIC_ ? CodeModel::Small : CodeModel::Medium;
   return CodeModel::Small;
@@ -140,19 +141,53 @@ static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM,
 SystemZTargetMachine::SystemZTargetMachine(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
-                                           Optional<Reloc::Model> RM,
-                                           Optional<CodeModel::Model> CM,
+                                           std::optional<Reloc::Model> RM,
+                                           std::optional<CodeModel::Model> CM,
                                            CodeGenOpt::Level OL, bool JIT)
     : LLVMTargetMachine(
-          T, computeDataLayout(TT, CPU, FS), TT, CPU, FS, Options,
+          T, computeDataLayout(TT), TT, CPU, FS, Options,
           getEffectiveRelocModel(RM),
-          getEffectiveCodeModel(CM, getEffectiveRelocModel(RM), JIT), OL),
-      TLOF(llvm::make_unique<TargetLoweringObjectFileELF>()),
-      Subtarget(TT, CPU, FS, *this) {
+          getEffectiveSystemZCodeModel(CM, getEffectiveRelocModel(RM), JIT),
+          OL),
+      TLOF(createTLOF(getTargetTriple())) {
   initAsmInfo();
 }
 
 SystemZTargetMachine::~SystemZTargetMachine() = default;
+
+const SystemZSubtarget *
+SystemZTargetMachine::getSubtargetImpl(const Function &F) const {
+  Attribute CPUAttr = F.getFnAttribute("target-cpu");
+  Attribute TuneAttr = F.getFnAttribute("tune-cpu");
+  Attribute FSAttr = F.getFnAttribute("target-features");
+
+  std::string CPU =
+      CPUAttr.isValid() ? CPUAttr.getValueAsString().str() : TargetCPU;
+  std::string TuneCPU =
+      TuneAttr.isValid() ? TuneAttr.getValueAsString().str() : CPU;
+  std::string FS =
+      FSAttr.isValid() ? FSAttr.getValueAsString().str() : TargetFS;
+
+  // FIXME: This is related to the code below to reset the target options,
+  // we need to know whether or not the soft float flag is set on the
+  // function, so we can enable it as a subtarget feature.
+  bool softFloat = F.getFnAttribute("use-soft-float").getValueAsBool();
+
+  if (softFloat)
+    FS += FS.empty() ? "+soft-float" : ",+soft-float";
+
+  auto &I = SubtargetMap[CPU + TuneCPU + FS];
+  if (!I) {
+    // This needs to be done before we create a new subtarget since any
+    // creation will depend on the TM and the code generation flags on the
+    // function that reside in TargetOptions.
+    resetTargetOptions(F);
+    I = std::make_unique<SystemZSubtarget>(TargetTriple, CPU, TuneCPU, FS,
+                                           *this);
+  }
+
+  return I.get();
+}
 
 namespace {
 
@@ -169,13 +204,16 @@ public:
   ScheduleDAGInstrs *
   createPostMachineScheduler(MachineSchedContext *C) const override {
     return new ScheduleDAGMI(C,
-                             llvm::make_unique<SystemZPostRASchedStrategy>(C),
+                             std::make_unique<SystemZPostRASchedStrategy>(C),
                              /*RemoveKillFlags=*/true);
   }
 
   void addIRPasses() override;
   bool addInstSelector() override;
   bool addILPOpts() override;
+  void addPreRegAlloc() override;
+  void addPostRewrite() override;
+  void addPostRegAlloc() override;
   void addPreSched2() override;
   void addPreEmitPass() override;
 };
@@ -205,9 +243,22 @@ bool SystemZPassConfig::addILPOpts() {
   return true;
 }
 
-void SystemZPassConfig::addPreSched2() {
-  addPass(createSystemZExpandPseudoPass(getSystemZTargetMachine()));
+void SystemZPassConfig::addPreRegAlloc() {
+  addPass(createSystemZCopyPhysRegsPass(getSystemZTargetMachine()));
+}
 
+void SystemZPassConfig::addPostRewrite() {
+  addPass(createSystemZPostRewritePass(getSystemZTargetMachine()));
+}
+
+void SystemZPassConfig::addPostRegAlloc() {
+  // PostRewrite needs to be run at -O0 also (in which case addPostRewrite()
+  // is not called).
+  if (getOptLevel() == CodeGenOpt::None)
+    addPass(createSystemZPostRewritePass(getSystemZTargetMachine()));
+}
+
+void SystemZPassConfig::addPreSched2() {
   if (getOptLevel() != CodeGenOpt::None)
     addPass(&IfConverterID);
 }
@@ -217,7 +268,7 @@ void SystemZPassConfig::addPreEmitPass() {
   // vector instructions will be shortened into opcodes that compare
   // elimination recognizes.
   if (getOptLevel() != CodeGenOpt::None)
-    addPass(createSystemZShortenInstPass(getSystemZTargetMachine()), false);
+    addPass(createSystemZShortenInstPass(getSystemZTargetMachine()));
 
   // We eliminate comparisons here rather than earlier because some
   // transformations can change the set of available CC values and we
@@ -243,7 +294,7 @@ void SystemZPassConfig::addPreEmitPass() {
   // between the comparison and the branch, but it isn't clear whether
   // preventing that would be a win or not.
   if (getOptLevel() != CodeGenOpt::None)
-    addPass(createSystemZElimComparePass(getSystemZTargetMachine()), false);
+    addPass(createSystemZElimComparePass(getSystemZTargetMachine()));
   addPass(createSystemZLongBranchPass(getSystemZTargetMachine()));
 
   // Do final scheduling after all other optimizations, to get an
@@ -258,6 +309,13 @@ TargetPassConfig *SystemZTargetMachine::createPassConfig(PassManagerBase &PM) {
 }
 
 TargetTransformInfo
-SystemZTargetMachine::getTargetTransformInfo(const Function &F) {
+SystemZTargetMachine::getTargetTransformInfo(const Function &F) const {
   return TargetTransformInfo(SystemZTTIImpl(this, F));
+}
+
+MachineFunctionInfo *SystemZTargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return SystemZMachineFunctionInfo::create<SystemZMachineFunctionInfo>(
+      Allocator, F, STI);
 }

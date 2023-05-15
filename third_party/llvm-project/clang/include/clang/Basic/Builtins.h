@@ -1,9 +1,8 @@
 //===--- Builtins.h - Builtin function header -------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -17,6 +16,8 @@
 #define LLVM_CLANG_BASIC_BUILTINS_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include <cstring>
 
 // VC++ defines 'alloca' as an object-like macro, which interferes with our
@@ -26,23 +27,25 @@
 namespace clang {
 class TargetInfo;
 class IdentifierTable;
-class ASTContext;
-class QualType;
 class LangOptions;
 
 enum LanguageID {
-  GNU_LANG = 0x1,     // builtin requires GNU mode.
-  C_LANG = 0x2,       // builtin for c only.
-  CXX_LANG = 0x4,     // builtin for cplusplus only.
-  OBJC_LANG = 0x8,    // builtin for objective-c and objective-c++
-  MS_LANG = 0x10,     // builtin requires MS mode.
-  OCLC20_LANG = 0x20, // builtin for OpenCL C 2.0 only.
-  OCLC1X_LANG = 0x40, // builtin for OpenCL C 1.x only.
-  OMP_LANG = 0x80,    // builtin requires OpenMP.
+  GNU_LANG = 0x1,            // builtin requires GNU mode.
+  C_LANG = 0x2,              // builtin for c only.
+  CXX_LANG = 0x4,            // builtin for cplusplus only.
+  OBJC_LANG = 0x8,           // builtin for objective-c and objective-c++
+  MS_LANG = 0x10,            // builtin requires MS mode.
+  OMP_LANG = 0x20,           // builtin requires OpenMP.
+  CUDA_LANG = 0x40,          // builtin requires CUDA.
+  COR_LANG = 0x80,           // builtin requires use of 'fcoroutine-ts' option.
+  OCL_GAS = 0x100,           // builtin requires OpenCL generic address space.
+  OCL_PIPE = 0x200,          // builtin requires OpenCL pipe.
+  OCL_DSE = 0x400,           // builtin requires OpenCL device side enqueue.
+  ALL_OCL_LANGUAGES = 0x800, // builtin for OCL languages.
+  HLSL_LANG = 0x1000,        // builtin requires HLSL.
   ALL_LANGUAGES = C_LANG | CXX_LANG | OBJC_LANG, // builtin for all languages.
   ALL_GNU_LANGUAGES = ALL_LANGUAGES | GNU_LANG,  // builtin requires GNU mode.
-  ALL_MS_LANGUAGES = ALL_LANGUAGES | MS_LANG,    // builtin requires MS mode.
-  ALL_OCLC_LANGUAGES = OCLC1X_LANG | OCLC20_LANG // builtin for OCLC languages.
+  ALL_MS_LANGUAGES = ALL_LANGUAGES | MS_LANG     // builtin requires MS mode.
 };
 
 namespace Builtin {
@@ -54,7 +57,8 @@ enum ID {
 };
 
 struct Info {
-  const char *Name, *Type, *Attributes, *HeaderName;
+  llvm::StringRef Name;
+  const char *Type, *Attributes, *HeaderName;
   LanguageID Langs;
   const char *Features;
 };
@@ -70,7 +74,7 @@ class Context {
   llvm::ArrayRef<Info> AuxTSRecords;
 
 public:
-  Context() {}
+  Context() = default;
 
   /// Perform target-specific initialization
   /// \param AuxTarget Target info to incorporate builtins from. May be nullptr.
@@ -83,9 +87,7 @@ public:
 
   /// Return the identifier name for the specified builtin,
   /// e.g. "__builtin_abs".
-  const char *getName(unsigned ID) const {
-    return getRecord(ID).Name;
-  }
+  llvm::StringRef getName(unsigned ID) const { return getRecord(ID).Name; }
 
   /// Get the type descriptor string for the specified builtin.
   const char *getTypeString(unsigned ID) const {
@@ -138,6 +140,10 @@ public:
   /// Determines whether this builtin is a predefined libc/libm
   /// function, such as "malloc", where we know the signature a
   /// priori.
+  /// In C, such functions behave as if they are predeclared,
+  /// possibly with a warning on first use. In Objective-C and C++,
+  /// they do not, but they are recognized as builtins once we see
+  /// a declaration.
   bool isPredefinedLibFunction(unsigned ID) const {
     return strchr(getRecord(ID).Attributes, 'f') != nullptr;
   }
@@ -156,9 +162,33 @@ public:
     return strchr(getRecord(ID).Attributes, 'i') != nullptr;
   }
 
+  /// Determines whether this builtin is a C++ standard library function
+  /// that lives in (possibly-versioned) namespace std, possibly a template
+  /// specialization, where the signature is determined by the standard library
+  /// declaration.
+  bool isInStdNamespace(unsigned ID) const {
+    return strchr(getRecord(ID).Attributes, 'z') != nullptr;
+  }
+
+  /// Determines whether this builtin can have its address taken with no
+  /// special action required.
+  bool isDirectlyAddressable(unsigned ID) const {
+    // Most standard library functions can have their addresses taken. C++
+    // standard library functions formally cannot in C++20 onwards, and when
+    // we allow it, we need to ensure we instantiate a definition.
+    return isPredefinedLibFunction(ID) && !isInStdNamespace(ID);
+  }
+
   /// Determines whether this builtin has custom typechecking.
   bool hasCustomTypechecking(unsigned ID) const {
     return strchr(getRecord(ID).Attributes, 't') != nullptr;
+  }
+
+  /// Determines whether a declaration of this builtin should be recognized
+  /// even if the type doesn't match the specified signature.
+  bool allowTypeMismatch(unsigned ID) const {
+    return strchr(getRecord(ID).Attributes, 'T') != nullptr ||
+           hasCustomTypechecking(ID);
   }
 
   /// Determines whether this builtin has a result or any arguments which
@@ -173,10 +203,6 @@ public:
     return strchr(getRecord(ID).Type, '&') != nullptr ||
            strchr(getRecord(ID).Type, 'A') != nullptr;
   }
-
-  /// Completely forget that the given ID was ever considered a builtin,
-  /// e.g., because the user provided a conflicting signature.
-  void forgetBuiltin(unsigned ID, IdentifierTable &Table);
 
   /// If this is a library function that comes from a specific
   /// header, retrieve that header name.
@@ -194,12 +220,23 @@ public:
   /// argument and whether this function as a va_list argument.
   bool isScanfLike(unsigned ID, unsigned &FormatIdx, bool &HasVAListArg);
 
+  /// Determine whether this builtin has callback behavior (see
+  /// llvm::AbstractCallSites for details). If so, add the index to the
+  /// callback callee argument and the callback payload arguments.
+  bool performsCallback(unsigned ID,
+                        llvm::SmallVectorImpl<int> &Encoding) const;
+
   /// Return true if this function has no side effects and doesn't
-  /// read memory, except for possibly errno.
+  /// read memory, except for possibly errno or raising FP exceptions.
   ///
-  /// Such functions can be const when the MathErrno lang option is disabled.
-  bool isConstWithoutErrno(unsigned ID) const {
+  /// Such functions can be const when the MathErrno lang option and FP
+  /// exceptions are disabled.
+  bool isConstWithoutErrnoAndExceptions(unsigned ID) const {
     return strchr(getRecord(ID).Attributes, 'e') != nullptr;
+  }
+
+  bool isConstWithoutExceptions(unsigned ID) const {
+    return strchr(getRecord(ID).Attributes, 'g') != nullptr;
   }
 
   const char *getRequiredFeatures(unsigned ID) const {
@@ -219,25 +256,34 @@ public:
 
   /// Returns true if this is a libc/libm function without the '__builtin_'
   /// prefix.
-  static bool isBuiltinFunc(const char *Name);
+  static bool isBuiltinFunc(llvm::StringRef Name);
 
   /// Returns true if this is a builtin that can be redeclared.  Returns true
   /// for non-builtins.
   bool canBeRedeclared(unsigned ID) const;
 
+  /// Return true if this function can be constant evaluated by Clang frontend.
+  bool isConstantEvaluated(unsigned ID) const {
+    return strchr(getRecord(ID).Attributes, 'E') != nullptr;
+  }
+
 private:
   const Info &getRecord(unsigned ID) const;
-
-  /// Is this builtin supported according to the given language options?
-  bool builtinIsSupported(const Builtin::Info &BuiltinInfo,
-                          const LangOptions &LangOpts);
 
   /// Helper function for isPrintfLike and isScanfLike.
   bool isLike(unsigned ID, unsigned &FormatIdx, bool &HasVAListArg,
               const char *Fmt) const;
 };
 
-}
+/// Returns true if the required target features of a builtin function are
+/// enabled.
+/// \p TargetFeatureMap maps a target feature to true if it is enabled and
+///    false if it is disabled.
+bool evaluateRequiredTargetFeatures(
+    llvm::StringRef RequiredFatures,
+    const llvm::StringMap<bool> &TargetFetureMap);
+
+} // namespace Builtin
 
 /// Kinds of BuiltinTemplateDecl.
 enum BuiltinTemplateKind : int {

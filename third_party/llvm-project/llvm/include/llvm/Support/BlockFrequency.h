@@ -1,9 +1,8 @@
 //===-------- BlockFrequency.h - Block Frequency Wrapper --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,12 +13,11 @@
 #ifndef LLVM_SUPPORT_BLOCKFREQUENCY_H
 #define LLVM_SUPPORT_BLOCKFREQUENCY_H
 
-#include "llvm/Support/BranchProbability.h"
-#include "llvm/Support/DataTypes.h"
+#include <cstdint>
 
 namespace llvm {
 
-class raw_ostream;
+class BranchProbability;
 
 // This class represents Block Frequency as a 64-bit value.
 class BlockFrequency {

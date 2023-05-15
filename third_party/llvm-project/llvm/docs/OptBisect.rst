@@ -75,6 +75,8 @@ passes run in the primary driver compilation phase are not affected by options
 passed via '-Wl,-plugin-opt' and LTO passes are not affected by options
 passed to the driver-invoked LLVM invocation via '-mllvm'.
 
+Passing ``-opt-bisect-print-ir-path=path/foo.ll`` will dump the IR to
+``path/foo.ll`` when -opt-bisect-limit starts skipping passes.
 
 Bisection Index Values
 ======================
@@ -157,7 +159,6 @@ to make this check uniform across all passes.  These helper functions are:
   bool ModulePass::skipModule(Module &M);
   bool CallGraphSCCPass::skipSCC(CallGraphSCC &SCC);
   bool FunctionPass::skipFunction(const Function &F);
-  bool BasicBlockPass::skipBasicBlock(const BasicBlock &BB);
   bool LoopPass::skipLoop(const Loop *L);
 
 A MachineFunctionPass should use FunctionPass::skipFunction() as such:

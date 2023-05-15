@@ -1,9 +1,8 @@
 //===- ARMRegisterBankInfo.cpp -----------------------------------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -14,9 +13,9 @@
 #include "ARMRegisterBankInfo.h"
 #include "ARMInstrInfo.h" // For the register classes
 #include "ARMSubtarget.h"
-#include "llvm/CodeGen/GlobalISel/RegisterBank.h"
-#include "llvm/CodeGen/GlobalISel/RegisterBankInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterBank.h"
+#include "llvm/CodeGen/RegisterBankInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 
 #define GET_TARGET_REGBANK_IMPL
@@ -130,58 +129,73 @@ static void checkValueMappings() {
 } // end namespace arm
 } // end namespace llvm
 
-ARMRegisterBankInfo::ARMRegisterBankInfo(const TargetRegisterInfo &TRI)
-    : ARMGenRegisterBankInfo() {
-  static bool AlreadyInit = false;
+ARMRegisterBankInfo::ARMRegisterBankInfo(const TargetRegisterInfo &TRI) {
   // We have only one set of register banks, whatever the subtarget
   // is. Therefore, the initialization of the RegBanks table should be
   // done only once. Indeed the table of all register banks
   // (ARM::RegBanks) is unique in the compiler. At some point, it
   // will get tablegen'ed and the whole constructor becomes empty.
-  if (AlreadyInit)
-    return;
-  AlreadyInit = true;
+  static llvm::once_flag InitializeRegisterBankFlag;
 
-  const RegisterBank &RBGPR = getRegBank(ARM::GPRRegBankID);
-  (void)RBGPR;
-  assert(&ARM::GPRRegBank == &RBGPR && "The order in RegBanks is messed up");
+  static auto InitializeRegisterBankOnce = [&]() {
+    const RegisterBank &RBGPR = getRegBank(ARM::GPRRegBankID);
+    (void)RBGPR;
+    assert(&ARM::GPRRegBank == &RBGPR && "The order in RegBanks is messed up");
 
-  // Initialize the GPR bank.
-  assert(RBGPR.covers(*TRI.getRegClass(ARM::GPRRegClassID)) &&
-         "Subclass not added?");
-  assert(RBGPR.covers(*TRI.getRegClass(ARM::GPRwithAPSRRegClassID)) &&
-         "Subclass not added?");
-  assert(RBGPR.covers(*TRI.getRegClass(ARM::GPRnopcRegClassID)) &&
-         "Subclass not added?");
-  assert(RBGPR.covers(*TRI.getRegClass(ARM::rGPRRegClassID)) &&
-         "Subclass not added?");
-  assert(RBGPR.covers(*TRI.getRegClass(ARM::tGPRRegClassID)) &&
-         "Subclass not added?");
-  assert(RBGPR.covers(*TRI.getRegClass(ARM::tcGPRRegClassID)) &&
-         "Subclass not added?");
-  assert(RBGPR.covers(*TRI.getRegClass(ARM::tGPR_and_tcGPRRegClassID)) &&
-         "Subclass not added?");
-  assert(RBGPR.getSize() == 32 && "GPRs should hold up to 32-bit");
+    // Initialize the GPR bank.
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::GPRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::GPRwithAPSRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::GPRnopcRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::rGPRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::tGPRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::tcGPRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::GPRnoip_and_tcGPRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(
+               ARM::tGPREven_and_GPRnoip_and_tcGPRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.covers(*TRI.getRegClass(ARM::tGPROdd_and_tcGPRRegClassID)) &&
+           "Subclass not added?");
+    assert(RBGPR.getSize() == 32 && "GPRs should hold up to 32-bit");
 
 #ifndef NDEBUG
-  ARM::checkPartialMappings();
-  ARM::checkValueMappings();
+    ARM::checkPartialMappings();
+    ARM::checkValueMappings();
 #endif
+  };
+
+  llvm::call_once(InitializeRegisterBankFlag, InitializeRegisterBankOnce);
 }
 
-const RegisterBank &ARMRegisterBankInfo::getRegBankFromRegClass(
-    const TargetRegisterClass &RC) const {
+const RegisterBank &
+ARMRegisterBankInfo::getRegBankFromRegClass(const TargetRegisterClass &RC,
+                                            LLT) const {
   using namespace ARM;
 
   switch (RC.getID()) {
   case GPRRegClassID:
   case GPRwithAPSRRegClassID:
+  case GPRnoipRegClassID:
   case GPRnopcRegClassID:
+  case GPRnoip_and_GPRnopcRegClassID:
   case rGPRRegClassID:
   case GPRspRegClassID:
-  case tGPR_and_tcGPRRegClassID:
+  case GPRnoip_and_tcGPRRegClassID:
   case tcGPRRegClassID:
   case tGPRRegClassID:
+  case tGPREvenRegClassID:
+  case tGPROddRegClassID:
+  case tGPR_and_tGPREvenRegClassID:
+  case tGPR_and_tGPROddRegClassID:
+  case tGPREven_and_tcGPRRegClassID:
+  case tGPREven_and_GPRnoip_and_tcGPRRegClassID:
+  case tGPROdd_and_tcGPRRegClassID:
     return getRegBank(ARM::GPRRegBankID);
   case HPRRegClassID:
   case SPR_8RegClassID:
@@ -218,7 +232,15 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
 
   switch (Opc) {
   case G_ADD:
-  case G_SUB:
+  case G_SUB: {
+    // Integer operations where the source and destination are in the
+    // same register class.
+    LLT Ty = MRI.getType(MI.getOperand(0).getReg());
+    OperandsMapping = Ty.getSizeInBits() == 64
+                          ? &ARM::ValueMappings[ARM::DPR3OpsIdx]
+                          : &ARM::ValueMappings[ARM::GPR3OpsIdx];
+    break;
+  }
   case G_MUL:
   case G_AND:
   case G_OR:
@@ -231,9 +253,10 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   case G_SEXT:
   case G_ZEXT:
   case G_ANYEXT:
-  case G_GEP:
+  case G_PTR_ADD:
   case G_INTTOPTR:
   case G_PTRTOINT:
+  case G_CTLZ:
     // FIXME: We're abusing the fact that everything lives in a GPR for now; in
     // the real world we would use different mappings.
     OperandsMapping = &ARM::ValueMappings[ARM::GPR3OpsIdx];
@@ -336,6 +359,14 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
                                     &ARM::ValueMappings[ARM::GPR3OpsIdx]});
     break;
   }
+  case G_FCONSTANT: {
+    LLT Ty = MRI.getType(MI.getOperand(0).getReg());
+    OperandsMapping = getOperandsMapping(
+        {Ty.getSizeInBits() == 64 ? &ARM::ValueMappings[ARM::DPR3OpsIdx]
+                                  : &ARM::ValueMappings[ARM::SPR3OpsIdx],
+         nullptr});
+    break;
+  }
   case G_CONSTANT:
   case G_FRAME_INDEX:
   case G_GLOBAL_VALUE:
@@ -423,6 +454,19 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     OperandsMapping =
         getOperandsMapping({&ARM::ValueMappings[ARM::GPR3OpsIdx], nullptr});
     break;
+  case DBG_VALUE: {
+    SmallVector<const ValueMapping *, 4> OperandBanks(NumOperands);
+    const MachineOperand &MaybeReg = MI.getOperand(0);
+    if (MaybeReg.isReg() && MaybeReg.getReg()) {
+      unsigned Size = MRI.getType(MaybeReg.getReg()).getSizeInBits();
+      if (Size > 32 && Size != 64)
+        return getInvalidInstructionMapping();
+      OperandBanks[0] = Size == 64 ? &ARM::ValueMappings[ARM::DPR3OpsIdx]
+                                   : &ARM::ValueMappings[ARM::GPR3OpsIdx];
+    }
+    OperandsMapping = getOperandsMapping(OperandBanks);
+    break;
+  }
   default:
     return getInvalidInstructionMapping();
   }
@@ -432,7 +476,7 @@ ARMRegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     for (const auto &Mapping : OperandsMapping[i]) {
       assert(
           (Mapping.RegBank->getID() != ARM::FPRRegBankID ||
-           MF.getSubtarget<ARMSubtarget>().hasVFP2()) &&
+           MF.getSubtarget<ARMSubtarget>().hasVFP2Base()) &&
           "Trying to use floating point register bank on target without vfp");
     }
   }

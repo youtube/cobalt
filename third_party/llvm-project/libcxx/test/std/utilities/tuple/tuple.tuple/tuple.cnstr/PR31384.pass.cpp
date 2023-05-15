@@ -1,22 +1,19 @@
-// -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
-// <tuple>
+// See https://llvm.org/PR31384.
 
-// template <class TupleLike> tuple(TupleLike&&); // libc++ extension
-
-// See llvm.org/PR31384
 #include <tuple>
 #include <cassert>
+
+#include "test_macros.h"
 
 int count = 0;
 
@@ -45,44 +42,55 @@ struct ExplicitDerived : std::tuple<T> {
   explicit operator std::tuple<U>() && { ++count; return {}; }
 };
 
-int main() {
+int main(int, char**) {
   {
     std::tuple<Explicit> foo = Derived<int>{42}; ((void)foo);
     assert(count == 1);
-    std::tuple<Explicit> bar(Derived<int>{42}); ((void)bar);
+    Derived<int> d{42};
+    std::tuple<Explicit> bar(std::move(d)); ((void)bar);
+#if TEST_STD_VER < 17
+    assert(count == 1);
+#else
     assert(count == 2);
+#endif
   }
   count = 0;
   {
     std::tuple<Implicit> foo = Derived<int>{42}; ((void)foo);
     assert(count == 1);
-    std::tuple<Implicit> bar(Derived<int>{42}); ((void)bar);
-    assert(count == 2);
-  }
-  count = 0;
-  {
-    static_assert(!std::is_convertible<
-        ExplicitDerived<int>, std::tuple<Explicit>>::value, "");
-    std::tuple<Explicit> bar(ExplicitDerived<int>{42}); ((void)bar);
+    Derived<int> d{42};
+    std::tuple<Implicit> bar(std::move(d)); ((void)bar);
+#if TEST_STD_VER < 17
     assert(count == 1);
-  }
-  count = 0;
-  {
-    // FIXME: Libc++ incorrectly rejects this code.
-#ifndef _LIBCPP_VERSION
-    std::tuple<Implicit> foo = ExplicitDerived<int>{42}; ((void)foo);
-    static_assert(std::is_convertible<
-        ExplicitDerived<int>, std::tuple<Implicit>>::value,
-        "correct STLs accept this");
 #else
-    static_assert(!std::is_convertible<
-        ExplicitDerived<int>, std::tuple<Implicit>>::value,
-        "libc++ incorrectly rejects this");
+    assert(count == 2);
 #endif
+  }
+  count = 0;
+  {
+    static_assert(!std::is_convertible<ExplicitDerived<int>, std::tuple<Explicit>>::value, "");
+    ExplicitDerived<int> d{42};
+    std::tuple<Explicit> bar(std::move(d)); ((void)bar);
+#if TEST_STD_VER < 17
     assert(count == 0);
-    std::tuple<Implicit> bar(ExplicitDerived<int>{42}); ((void)bar);
+#else
     assert(count == 1);
+#endif
+  }
+  count = 0;
+  {
+    std::tuple<Implicit> foo = ExplicitDerived<int>{42}; ((void)foo);
+    static_assert(std::is_convertible<ExplicitDerived<int>, std::tuple<Implicit>>::value, "");
+    assert(count == 0);
+    ExplicitDerived<int> d{42};
+    std::tuple<Implicit> bar(std::move(d)); ((void)bar);
+#if TEST_STD_VER < 17
+    assert(count == 0);
+#else
+    assert(count == 1);
+#endif
   }
   count = 0;
 
+  return 0;
 }

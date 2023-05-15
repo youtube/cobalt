@@ -1,9 +1,8 @@
 //===- DebugChecksumsSubsection.cpp ---------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -72,7 +71,7 @@ void DebugChecksumsSubsection::addChecksum(StringRef FileName,
   if (!Bytes.empty()) {
     uint8_t *Copy = Storage.Allocate<uint8_t>(Bytes.size());
     ::memcpy(Copy, Bytes.data(), Bytes.size());
-    Entry.Checksum = makeArrayRef(Copy, Bytes.size());
+    Entry.Checksum = ArrayRef(Copy, Bytes.size());
   }
 
   Entry.FileNameOffset = Strings.insert(FileName);
@@ -100,7 +99,7 @@ Error DebugChecksumsSubsection::commit(BinaryStreamWriter &Writer) const {
     Header.FileNameOffset = FC.FileNameOffset;
     if (auto EC = Writer.writeObject(Header))
       return EC;
-    if (auto EC = Writer.writeArray(makeArrayRef(FC.Checksum)))
+    if (auto EC = Writer.writeArray(ArrayRef(FC.Checksum)))
       return EC;
     if (auto EC = Writer.padToAlignment(4))
       return EC;

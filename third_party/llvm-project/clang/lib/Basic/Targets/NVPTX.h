@@ -1,9 +1,8 @@
 //===--- NVPTX.h - Declare NVPTX target feature support ---------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Compiler.h"
+#include <optional>
 
 namespace clang {
 namespace targets {
@@ -31,14 +31,34 @@ static const unsigned NVPTXAddrSpaceMap[] = {
     0, // opencl_private
     // FIXME: generic has to be added to the target
     0, // opencl_generic
+    1, // opencl_global_device
+    1, // opencl_global_host
     1, // cuda_device
     4, // cuda_constant
     3, // cuda_shared
+    1, // sycl_global
+    1, // sycl_global_device
+    1, // sycl_global_host
+    3, // sycl_local
+    0, // sycl_private
+    0, // ptr32_sptr
+    0, // ptr32_uptr
+    0, // ptr64
+    0, // hlsl_groupshared
+};
+
+/// The DWARF address class. Taken from
+/// https://docs.nvidia.com/cuda/archive/10.0/ptx-writers-guide-to-interoperability/index.html#cuda-specific-dwarf
+static const int NVPTXDWARFAddrSpaceMap[] = {
+    -1, // Default, opencl_private or opencl_generic - not defined
+    5,  // opencl_global
+    -1,
+    8,  // opencl_local or cuda_shared
+    4,  // opencl_constant or cuda_constant
 };
 
 class LLVM_LIBRARY_VISIBILITY NVPTXTargetInfo : public TargetInfo {
   static const char *const GCCRegNames[];
-  static const Builtin::Info BuiltinInfo[];
   CudaArch GPU;
   uint32_t PTXVersion;
   std::unique_ptr<TargetInfo> HostTarget;
@@ -67,7 +87,7 @@ public:
 
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
     // No aliases.
-    return None;
+    return std::nullopt;
   }
 
   bool validateAsmConstraint(const char *&Name,
@@ -102,7 +122,7 @@ public:
 
   void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override {
     for (int i = static_cast<int>(CudaArch::SM_20);
-         i < static_cast<int>(CudaArch::LAST); ++i)
+         i < static_cast<int>(CudaArch::Generic); ++i)
       Values.emplace_back(CudaArchToString(static_cast<CudaArch>(i)));
   }
 
@@ -113,16 +133,37 @@ public:
 
   void setSupportedOpenCLOpts() override {
     auto &Opts = getSupportedOpenCLOpts();
-    Opts.support("cl_clang_storage_class_specifiers");
-    Opts.support("cl_khr_gl_sharing");
-    Opts.support("cl_khr_icd");
+    Opts["cl_clang_storage_class_specifiers"] = true;
+    Opts["__cl_clang_function_pointers"] = true;
+    Opts["__cl_clang_variadic_functions"] = true;
+    Opts["__cl_clang_non_portable_kernel_param_types"] = true;
+    Opts["__cl_clang_bitfields"] = true;
 
-    Opts.support("cl_khr_fp64");
-    Opts.support("cl_khr_byte_addressable_store");
-    Opts.support("cl_khr_global_int32_base_atomics");
-    Opts.support("cl_khr_global_int32_extended_atomics");
-    Opts.support("cl_khr_local_int32_base_atomics");
-    Opts.support("cl_khr_local_int32_extended_atomics");
+    Opts["cl_khr_fp64"] = true;
+    Opts["__opencl_c_fp64"] = true;
+    Opts["cl_khr_byte_addressable_store"] = true;
+    Opts["cl_khr_global_int32_base_atomics"] = true;
+    Opts["cl_khr_global_int32_extended_atomics"] = true;
+    Opts["cl_khr_local_int32_base_atomics"] = true;
+    Opts["cl_khr_local_int32_extended_atomics"] = true;
+  }
+
+  const llvm::omp::GV &getGridValue() const override {
+    return llvm::omp::NVPTXGridValues;
+  }
+
+  /// \returns If a target requires an address within a target specific address
+  /// space \p AddressSpace to be converted in order to be used, then return the
+  /// corresponding target specific DWARF address space.
+  ///
+  /// \returns Otherwise return std::nullopt and no conversion will be emitted
+  /// in the DWARF.
+  std::optional<unsigned>
+  getDWARFAddressSpace(unsigned AddressSpace) const override {
+    if (AddressSpace >= std::size(NVPTXDWARFAddrSpaceMap) ||
+        NVPTXDWARFAddrSpaceMap[AddressSpace] < 0)
+      return std::nullopt;
+    return NVPTXDWARFAddrSpaceMap[AddressSpace];
   }
 
   CallingConvCheckResult checkCallingConvention(CallingConv CC) const override {
@@ -134,6 +175,10 @@ public:
       return HostTarget->checkCallingConvention(CC);
     return CCCR_Warning;
   }
+
+  bool hasBitIntType() const override { return true; }
+  bool hasBFloat16Type() const override { return true; }
+  const char *getBFloat16Mangling() const override { return "u6__bf16"; };
 };
 } // namespace targets
 } // namespace clang

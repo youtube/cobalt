@@ -1,9 +1,8 @@
 //===-- MipsAsmBackend.cpp - Mips Asm Backend  ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,6 +12,7 @@
 //
 
 #include "MCTargetDesc/MipsAsmBackend.h"
+#include "MCTargetDesc/MipsABIInfo.h"
 #include "MCTargetDesc/MipsFixupKinds.h"
 #include "MCTargetDesc/MipsMCExpr.h"
 #include "MCTargetDesc/MipsMCTargetDesc.h"
@@ -25,7 +25,6 @@
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCSymbolELF.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -198,7 +197,7 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
     Value = (int64_t)Value / 2;
     // We now check if Value can be encoded as a 26-bit signed immediate.
     if (!isInt<26>(Value)) {
-      Ctx.reportFatalError(Fixup.getLoc(), "out of range PC26 fixup");
+      Ctx.reportError(Fixup.getLoc(), "out of range PC26 fixup");
       return 0;
     }
     break;
@@ -301,11 +300,19 @@ void MipsAsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
   }
 }
 
-Optional<MCFixupKind> MipsAsmBackend::getFixupKind(StringRef Name) const {
-  return StringSwitch<Optional<MCFixupKind>>(Name)
-      .Case("R_MIPS_NONE", (MCFixupKind)Mips::fixup_Mips_NONE)
+std::optional<MCFixupKind> MipsAsmBackend::getFixupKind(StringRef Name) const {
+  unsigned Type = llvm::StringSwitch<unsigned>(Name)
+                      .Case("BFD_RELOC_NONE", ELF::R_MIPS_NONE)
+                      .Case("BFD_RELOC_16", ELF::R_MIPS_16)
+                      .Case("BFD_RELOC_32", ELF::R_MIPS_32)
+                      .Case("BFD_RELOC_64", ELF::R_MIPS_64)
+                      .Default(-1u);
+  if (Type != -1u)
+    return static_cast<MCFixupKind>(FirstLiteralRelocationKind + Type);
+
+  return StringSwitch<std::optional<MCFixupKind>>(Name)
+      .Case("R_MIPS_NONE", FK_NONE)
       .Case("R_MIPS_32", FK_Data_4)
-      .Case("R_MIPS_GOT_PAGE", (MCFixupKind)Mips::fixup_Mips_GOT_PAGE)
       .Case("R_MIPS_CALL_HI16", (MCFixupKind)Mips::fixup_Mips_CALL_HI16)
       .Case("R_MIPS_CALL_LO16", (MCFixupKind)Mips::fixup_Mips_CALL_LO16)
       .Case("R_MIPS_CALL16", (MCFixupKind)Mips::fixup_Mips_CALL16)
@@ -339,6 +346,8 @@ Optional<MCFixupKind> MipsAsmBackend::getFixupKind(StringRef Name) const {
             (MCFixupKind)Mips::fixup_MICROMIPS_TLS_TPREL_HI16)
       .Case("R_MICROMIPS_TLS_TPREL_LO16",
             (MCFixupKind)Mips::fixup_MICROMIPS_TLS_TPREL_LO16)
+      .Case("R_MIPS_JALR", (MCFixupKind)Mips::fixup_Mips_JALR)
+      .Case("R_MICROMIPS_JALR", (MCFixupKind)Mips::fixup_MICROMIPS_JALR)
       .Default(MCAsmBackend::getFixupKind(Name));
 }
 
@@ -349,7 +358,6 @@ getFixupKindInfo(MCFixupKind Kind) const {
     // MipsFixupKinds.h.
     //
     // name                    offset  bits  flags
-    { "fixup_Mips_NONE",         0,      0,   0 },
     { "fixup_Mips_16",           0,     16,   0 },
     { "fixup_Mips_32",           0,     32,   0 },
     { "fixup_Mips_REL32",        0,     32,   0 },
@@ -417,9 +425,11 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_MICROMIPS_TLS_TPREL_HI16",  0,     16,   0 },
     { "fixup_MICROMIPS_TLS_TPREL_LO16",  0,     16,   0 },
     { "fixup_Mips_SUB",                  0,     64,   0 },
-    { "fixup_MICROMIPS_SUB",             0,     64,   0 }
+    { "fixup_MICROMIPS_SUB",             0,     64,   0 },
+    { "fixup_Mips_JALR",                 0,     32,   0 },
+    { "fixup_MICROMIPS_JALR",            0,     32,   0 }
   };
-  static_assert(array_lengthof(LittleEndianInfos) == Mips::NumTargetFixupKinds,
+  static_assert(std::size(LittleEndianInfos) == Mips::NumTargetFixupKinds,
                 "Not all MIPS little endian fixup kinds added!");
 
   const static MCFixupKindInfo BigEndianInfos[] = {
@@ -427,7 +437,6 @@ getFixupKindInfo(MCFixupKind Kind) const {
     // MipsFixupKinds.h.
     //
     // name                    offset  bits  flags
-    { "fixup_Mips_NONE",         0,      0,   0 },
     { "fixup_Mips_16",          16,     16,   0 },
     { "fixup_Mips_32",           0,     32,   0 },
     { "fixup_Mips_REL32",        0,     32,   0 },
@@ -495,11 +504,15 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_MICROMIPS_TLS_TPREL_HI16",  16,     16,   0 },
     { "fixup_MICROMIPS_TLS_TPREL_LO16",  16,     16,   0 },
     { "fixup_Mips_SUB",                   0,     64,   0 },
-    { "fixup_MICROMIPS_SUB",              0,     64,   0 }
+    { "fixup_MICROMIPS_SUB",              0,     64,   0 },
+    { "fixup_Mips_JALR",                  0,     32,   0 },
+    { "fixup_MICROMIPS_JALR",             0,     32,   0 }
   };
-  static_assert(array_lengthof(BigEndianInfos) == Mips::NumTargetFixupKinds,
+  static_assert(std::size(BigEndianInfos) == Mips::NumTargetFixupKinds,
                 "Not all MIPS big endian fixup kinds added!");
 
+  if (Kind >= FirstLiteralRelocationKind)
+    return MCAsmBackend::getFixupKindInfo(FK_NONE);
   if (Kind < FirstTargetFixupKind)
     return MCAsmBackend::getFixupKindInfo(Kind);
 
@@ -516,7 +529,8 @@ getFixupKindInfo(MCFixupKind Kind) const {
 /// it should return an error.
 ///
 /// \return - True on success.
-bool MipsAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count) const {
+bool MipsAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
+                                  const MCSubtargetInfo *STI) const {
   // Check for a less than instruction size number of bytes
   // FIXME: 16 bit instructions are not handled yet here.
   // We shouldn't be using a hard coded number for instruction size.
@@ -531,6 +545,8 @@ bool MipsAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count) const {
 bool MipsAsmBackend::shouldForceRelocation(const MCAssembler &Asm,
                                            const MCFixup &Fixup,
                                            const MCValue &Target) {
+  if (Fixup.getKind() >= FirstLiteralRelocationKind)
+    return true;
   const unsigned FixupKind = Fixup.getKind();
   switch (FixupKind) {
   default:
@@ -553,6 +569,7 @@ bool MipsAsmBackend::shouldForceRelocation(const MCAssembler &Asm,
   case Mips::fixup_Mips_TLSLDM:
   case Mips::fixup_Mips_TPREL_HI:
   case Mips::fixup_Mips_TPREL_LO:
+  case Mips::fixup_Mips_JALR:
   case Mips::fixup_MICROMIPS_CALL16:
   case Mips::fixup_MICROMIPS_GOT_DISP:
   case Mips::fixup_MICROMIPS_GOT_PAGE:
@@ -565,6 +582,7 @@ bool MipsAsmBackend::shouldForceRelocation(const MCAssembler &Asm,
   case Mips::fixup_MICROMIPS_TLS_LDM:
   case Mips::fixup_MICROMIPS_TLS_TPREL_HI16:
   case Mips::fixup_MICROMIPS_TLS_TPREL_LO16:
+  case Mips::fixup_MICROMIPS_JALR:
     return true;
   }
 }
@@ -581,6 +599,8 @@ MCAsmBackend *llvm::createMipsAsmBackend(const Target &T,
                                          const MCSubtargetInfo &STI,
                                          const MCRegisterInfo &MRI,
                                          const MCTargetOptions &Options) {
+  MipsABIInfo ABI = MipsABIInfo::computeTargetABI(STI.getTargetTriple(),
+                                                  STI.getCPU(), Options);
   return new MipsAsmBackend(T, MRI, STI.getTargetTriple(), STI.getCPU(),
-                            Options.ABIName == "n32");
+                            ABI.IsN32());
 }

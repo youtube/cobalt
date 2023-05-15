@@ -1,9 +1,8 @@
-//===-- WindowsMiniDump.cpp -------------------------------------*- C++ -*-===//
+//===-- WindowsMiniDump.cpp -----------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,7 +15,7 @@
 
 #ifdef _WIN32
 #include "lldb/Host/windows/windows.h"
-#include <dbghelp.h> // for MiniDumpWriteDump
+#include <dbghelp.h>
 #endif
 
 namespace lldb_private {
@@ -29,7 +28,7 @@ bool SaveMiniDump(const lldb::ProcessSP &process_sp,
 #ifdef _WIN32
   HANDLE process_handle = ::OpenProcess(
       PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, process_sp->GetID());
-  const std::string file_name = outfile.GetCString();
+  const std::string file_name = outfile.GetPath();
   std::wstring wide_name;
   wide_name.resize(file_name.size() + 1);
   char *result_ptr = reinterpret_cast<char *>(&wide_name[0]);

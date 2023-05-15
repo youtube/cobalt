@@ -1,20 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // type_traits
 
 // is_destructible
-
-// Prevent warning when testing the Abstract test type.
-#if defined(__clang__)
-#pragma clang diagnostic ignored "-Wdelete-non-virtual-dtor"
-#endif
 
 #include <type_traits>
 #include "test_macros.h"
@@ -98,7 +92,7 @@ struct DeletedVirtualPrivateDestructor   { private:   virtual ~DeletedVirtualPri
 #endif
 
 
-int main()
+int main(int, char**)
 {
     test_is_destructible<A>();
     test_is_destructible<int&>();
@@ -143,4 +137,6 @@ int main()
     test_is_not_destructible<NotEmpty>();
 #endif
 
+
+  return 0;
 }

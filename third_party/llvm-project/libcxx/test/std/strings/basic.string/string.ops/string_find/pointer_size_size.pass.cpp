@@ -1,33 +1,34 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // <string>
 
-// size_type find(const charT* s, size_type pos, size_type n) const;
+// size_type find(const charT* s, size_type pos, size_type n) const; // constexpr since C++20
 
 #include <string>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 
 template <class S>
-void
+TEST_CONSTEXPR_CXX20 void
 test(const S& s, const typename S::value_type* str, typename S::size_type pos,
      typename S::size_type n, typename S::size_type x)
 {
+    LIBCPP_ASSERT_NOEXCEPT(s.find(str, pos, n));
     assert(s.find(str, pos, n) == x);
     if (x != S::npos)
         assert(pos <= x && x + n <= s.size());
 }
 
 template <class S>
-void test0()
+TEST_CONSTEXPR_CXX20 void test0()
 {
     test(S(""), "", 0, 0, 0);
     test(S(""), "abcde", 0, 0, 0);
@@ -132,7 +133,7 @@ void test0()
 }
 
 template <class S>
-void test1()
+TEST_CONSTEXPR_CXX20 void test1()
 {
     test(S("abcde"), "abcde", 5, 4, S::npos);
     test(S("abcde"), "abcde", 5, 5, S::npos);
@@ -237,7 +238,7 @@ void test1()
 }
 
 template <class S>
-void test2()
+TEST_CONSTEXPR_CXX20 void test2()
 {
     test(S("abcdeabcde"), "abcdeabcde", 10, 5, S::npos);
     test(S("abcdeabcde"), "abcdeabcde", 10, 9, S::npos);
@@ -342,7 +343,7 @@ void test2()
 }
 
 template <class S>
-void test3()
+TEST_CONSTEXPR_CXX20 void test3()
 {
     test(S("abcdeabcdeabcdeabcde"), "abcdeabcdeabcdeabcde", 20, 1, S::npos);
     test(S("abcdeabcdeabcdeabcde"), "abcdeabcdeabcdeabcde", 20, 10, S::npos);
@@ -366,22 +367,33 @@ void test3()
     test(S("abcdeabcdeabcdeabcde"), "abcdeabcdeabcdeabcde", 21, 20, S::npos);
 }
 
-int main()
-{
-    {
+TEST_CONSTEXPR_CXX20 bool test() {
+  {
     typedef std::string S;
     test0<S>();
     test1<S>();
     test2<S>();
     test3<S>();
-    }
+  }
 #if TEST_STD_VER >= 11
-    {
+  {
     typedef std::basic_string<char, std::char_traits<char>, min_allocator<char>> S;
     test0<S>();
     test1<S>();
     test2<S>();
     test3<S>();
-    }
+  }
 #endif
+
+  return true;
+}
+
+int main(int, char**)
+{
+  test();
+#if TEST_STD_VER > 17
+  static_assert(test());
+#endif
+
+  return 0;
 }

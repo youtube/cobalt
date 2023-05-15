@@ -1,5 +1,7 @@
 ; RUN: llc -verify-machineinstrs -mtriple=aarch64-apple-ios -o - %s | FileCheck %s
 ; RUN: llc -O0 -fast-isel -verify-machineinstrs -mtriple=aarch64-apple-ios -o - %s | FileCheck %s --check-prefix=CHECK-O0
+; RUN: llc -verify-machineinstrs -mtriple=arm64_32-apple-ios -o - %s | FileCheck %s
+; RUN: llc -O0 -fast-isel -verify-machineinstrs -mtriple=arm64_32-apple-ios -o - %s | FileCheck %s --check-prefix=CHECK-O0
 
 ; CHECK-LABEL: test1
 ; CHECK: bl      _gen
@@ -8,7 +10,7 @@
 ; CHECK-O0-LABEL: test1
 ; CHECK-O0: bl      _gen
 ; CHECK-O0: sxth    [[TMP:w.*]], w0
-; CHECK-O0: add     w0, [[TMP]], w1, sxtb
+; CHECK-O0: add     {{w[0-9]+}}, [[TMP]], w1, sxtb
 define i16 @test1(i32) {
 entry:
   %call = call swiftcc { i16, i8 } @gen(i32 %0)
@@ -26,8 +28,8 @@ declare swiftcc { i16, i8 } @gen(i32)
 ; CHECK-LABEL: test2
 ; CHECK:  bl      _gen2
 ; CHECK:  add     [[TMP:x.*]], x0, x1
-; CHECK:  add     [[TMP]], [[TMP]], x2
-; CHECK:  add     [[TMP]], [[TMP]], x3
+; CHECK:  add     [[TMP2:x.*]], x2, x3
+; CHECK:  add     [[TMP]], [[TMP]], [[TMP2]]
 ; CHECK:  add     x0, [[TMP]], x4
 ; CHECK-O0-LABEL: test2
 ; CHECK-O0:  bl      _gen2
@@ -39,8 +41,8 @@ declare swiftcc { i16, i8 } @gen(i32)
 define i64 @test2(i64 %key) {
 entry:
   %key.addr = alloca i64, align 4
-  store i64 %key, i64* %key.addr, align 4
-  %0 = load i64, i64* %key.addr, align 4
+  store i64 %key, ptr %key.addr, align 4
+  %0 = load i64, ptr %key.addr, align 4
   %call = call swiftcc { i64, i64, i64, i64, i64 } @gen2(i64 %0)
 
   %v3 = extractvalue { i64, i64, i64, i64, i64 } %call, 0
@@ -73,8 +75,8 @@ define swiftcc { i64, i64, i64, i64, i64 } @gen2(i64 %key) {
 ; CHECK-LABEL: test3
 ; CHECK: bl      _gen3
 ; CHECK: add             [[TMP:w.*]], w0, w1
-; CHECK: add             [[TMP]], [[TMP]], w2
-; CHECK: add             w0, [[TMP]], w3
+; CHECK: add             [[TMP2:w.*]], w2, w3
+; CHECK: add             w0, [[TMP]], [[TMP2]]
 ; CHECK-O0-LABEL: test3
 ; CHECK-O0: bl      _gen3
 ; CHECK-O0: add             [[TMP:w.*]], w0, w1
@@ -157,8 +159,8 @@ declare swiftcc { double, double, double, double } @gen5()
 ; CHECK-DAG:   fadd    d0, d0, d2
 ; CHECK-DAG:   fadd    d0, d0, d3
 ; CHECK-DAG:   add     [[TMP:w.*]], w0, w1
-; CHECK-DAG:   add     [[TMP]], [[TMP]], w2
-; CHECK-DAG:   add     w0, [[TMP]], w3
+; CHECK-DAG:   add     [[TMP2:w.*]], w2, w3
+; CHECK-DAG:   add     w0, [[TMP]], [[TMP2]]
 ; CHECK-O0-LABEL: test6
 ; CHECK-O0:   bl      _gen6
 ; CHECK-O0-DAG:   fadd    d0, d0, d1
@@ -201,10 +203,10 @@ declare swiftcc { double, double, double, double, i32, i32, i32, i32 } @gen6()
 ; CHECK-DAG:   mov      w3, w0
 ; CHECK:   ret
 ; CHECK-O0-LABEL: _gen7
-; CHECK-O0:  str     w0, [sp, #12]
-; CHECK-O0:  ldr     w1, [sp, #12]
-; CHECK-O0:  ldr     w2, [sp, #12]
-; CHECK-O0:  ldr     w3, [sp, #12]
+; CHECK-O0:  mov w3, w0
+; CHECK-O0:  mov w0, w3
+; CHECK-O0:  mov w1, w3
+; CHECK-O0:  mov w2, w3
 define swiftcc { i32, i32, i32, i32 } @gen7(i32 %key) {
   %v0 = insertvalue { i32, i32, i32, i32 } undef, i32 %key, 0
   %v1 = insertvalue { i32, i32, i32, i32 } %v0, i32 %key, 1
@@ -219,10 +221,10 @@ define swiftcc { i32, i32, i32, i32 } @gen7(i32 %key) {
 ; CHECK:  mov      w3, w0
 ; CHECK:  ret
 ; CHECK-O0-LABEL: _gen9
-; CHECK-O0:  str     w0, [sp, #12]
-; CHECK-O0:  ldr     w1, [sp, #12]
-; CHECK-O0:  ldr     w2, [sp, #12]
-; CHECK-O0:  ldr     w3, [sp, #12]
+; CHECK-O0:  mov w3, w0
+; CHECK-O0:  mov w0, w3
+; CHECK-O0:  mov w1, w3
+; CHECK-O0:  mov w2, w3
 define swiftcc { i8, i8, i8, i8 } @gen9(i8 %key) {
   %v0 = insertvalue { i8, i8, i8, i8 } undef, i8 %key, 0
   %v1 = insertvalue { i8, i8, i8, i8 } %v0, i8 %key, 1
@@ -232,9 +234,9 @@ define swiftcc { i8, i8, i8, i8 } @gen9(i8 %key) {
 }
 
 ; CHECK-LABEL: _gen10
-; CHECK:  mov.16b         v1, v0
-; CHECK:  mov.16b         v2, v0
-; CHECK:  mov.16b         v3, v0
+; CHECK:  fmov         d1, d0
+; CHECK:  fmov         d2, d0
+; CHECK:  fmov         d3, d0
 ; CHECK:  mov      w1, w0
 ; CHECK:  mov      w2, w0
 ; CHECK:  mov      w3, w0
@@ -275,8 +277,8 @@ declare swiftcc { <4 x float>, <4 x float>, <4 x float>, <4 x float> } @gen11()
 
 ; CHECK-LABEL: _test12
 ; CHECK:  fadd.4s v0, v0, v1
+; CHECK:  fmov s1, s3
 ; CHECK:  fadd.4s v0, v0, v2
-; CHECK:  mov.16b v1, v3
 define swiftcc { <4 x float>, float } @test12() #0 {
 entry:
   %call = call swiftcc { <4 x float>, <4 x float>, <4 x float>, float } @gen12()

@@ -10,26 +10,25 @@
 
 ; CHECK-NOT: xmm{{[0-9]+}}
 
-%struct.__va_list_tag = type { i32, i32, i8*, i8* }
+%struct.__va_list_tag = type { i32, i32, ptr, ptr }
 
 define i32 @t1(i32 %a, ...) nounwind {
 entry:
-	%va = alloca [1 x %struct.__va_list_tag], align 8		; <[1 x %struct.__va_list_tag]*> [#uses=2]
-	%va12 = bitcast [1 x %struct.__va_list_tag]* %va to i8*		; <i8*> [#uses=2]
-	call void @llvm.va_start(i8* %va12)
-	%va3 = getelementptr [1 x %struct.__va_list_tag], [1 x %struct.__va_list_tag]* %va, i64 0, i64 0		; <%struct.__va_list_tag*> [#uses=1]
-	call void @bar(%struct.__va_list_tag* %va3) nounwind
-	call void @llvm.va_end(i8* %va12)
+	%va = alloca [1 x %struct.__va_list_tag], align 8		; <ptr> [#uses=2]
+	call void @llvm.va_start(ptr %va)
+	%va3 = getelementptr [1 x %struct.__va_list_tag], ptr %va, i64 0, i64 0		; <ptr> [#uses=1]
+	call void @bar(ptr %va3) nounwind
+	call void @llvm.va_end(ptr %va)
 	ret i32 undef
 ; CHECK-LABEL: t1:
 ; CHECK:       ret{{[lq]}}
 }
 
-declare void @llvm.va_start(i8*) nounwind
+declare void @llvm.va_start(ptr) nounwind
 
-declare void @bar(%struct.__va_list_tag*)
+declare void @bar(ptr)
 
-declare void @llvm.va_end(i8*) nounwind
+declare void @llvm.va_end(ptr) nounwind
 
 define float @t2(float %a, float %b) nounwind readnone {
 entry:
@@ -53,5 +52,8 @@ entry:
 ; SOFT2-NOT:   xmm{{[0-9]+}}
 ; SSE1:        xmm{{[0-9]+}}
 ; SSE2:        xmm{{[0-9]+}}
-; CHECK:       ret{{[lq]}}
+; SOFT1:       ret{{[lq]}}
+; SOFT2:       ret{{[lq]}}
+; SSE1:       jmp __addtf3
+; SSE2:       jmp __addtf3
 }

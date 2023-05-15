@@ -1,9 +1,8 @@
 //===--- AArch64.h - Declare AArch64 target feature support -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,7 +15,8 @@
 
 #include "OSTargets.h"
 #include "clang/Basic/TargetBuiltins.h"
-#include "llvm/Support/TargetParser.h"
+#include "llvm/Support/AArch64TargetParser.h"
+#include <optional>
 
 namespace clang {
 namespace targets {
@@ -28,15 +28,56 @@ class LLVM_LIBRARY_VISIBILITY AArch64TargetInfo : public TargetInfo {
 
   enum FPUModeEnum { FPUMode, NeonMode = (1 << 0), SveMode = (1 << 1) };
 
-  unsigned FPU;
-  unsigned CRC;
-  unsigned Crypto;
-  unsigned Unaligned;
-  unsigned HasFullFP16;
-  unsigned HasDotProd;
-  llvm::AArch64::ArchKind ArchKind;
+  unsigned FPU = FPUMode;
+  bool HasCRC = false;
+  bool HasAES = false;
+  bool HasSHA2 = false;
+  bool HasSHA3 = false;
+  bool HasSM4 = false;
+  bool HasUnaligned = true;
+  bool HasFullFP16 = false;
+  bool HasDotProd = false;
+  bool HasFP16FML = false;
+  bool HasMTE = false;
+  bool HasTME = false;
+  bool HasPAuth = false;
+  bool HasLS64 = false;
+  bool HasRandGen = false;
+  bool HasMatMul = false;
+  bool HasBFloat16 = false;
+  bool HasSVE2 = false;
+  bool HasSVE2AES = false;
+  bool HasSVE2SHA3 = false;
+  bool HasSVE2SM4 = false;
+  bool HasSVE2BitPerm = false;
+  bool HasMatmulFP64 = false;
+  bool HasMatmulFP32 = false;
+  bool HasLSE = false;
+  bool HasFlagM = false;
+  bool HasAlternativeNZCV = false;
+  bool HasMOPS = false;
+  bool HasD128 = false;
+  bool HasRCPC = false;
+  bool HasRDM = false;
+  bool HasDIT = false;
+  bool HasCCPP = false;
+  bool HasCCDP = false;
+  bool HasFRInt3264 = false;
+  bool HasSME = false;
+  bool HasSMEF64 = false;
+  bool HasSMEI64 = false;
+  bool HasSB = false;
+  bool HasPredRes = false;
+  bool HasSSBS = false;
+  bool HasBTI = false;
+  bool HasWFxT = false;
+  bool HasJSCVT = false;
+  bool HasFCMA = false;
+  bool HasNoNeon = false;
+  bool HasNoSVE = false;
+  bool HasFMV = true;
 
-  static const Builtin::Info BuiltinInfo[];
+  const llvm::AArch64::ArchInfo *ArchInfo = &llvm::AArch64::ARMV8A;
 
   std::string ABI;
 
@@ -46,26 +87,75 @@ public:
   StringRef getABI() const override;
   bool setABI(const std::string &Name) override;
 
+  bool validateBranchProtection(StringRef Spec, StringRef Arch,
+                                BranchProtectionInfo &BPI,
+                                StringRef &Err) const override;
+
   bool isValidCPUName(StringRef Name) const override;
   void fillValidCPUList(SmallVectorImpl<StringRef> &Values) const override;
   bool setCPU(const std::string &Name) override;
 
+  unsigned multiVersionSortPriority(StringRef Name) const override;
+  unsigned multiVersionFeatureCost() const override;
+
+  bool
+  initFeatureMap(llvm::StringMap<bool> &Features, DiagnosticsEngine &Diags,
+                 StringRef CPU,
+                 const std::vector<std::string> &FeaturesVec) const override;
   bool useFP16ConversionIntrinsics() const override {
     return false;
   }
 
+  void setArchFeatures();
+
   void getTargetDefinesARMV81A(const LangOptions &Opts,
                                MacroBuilder &Builder) const;
   void getTargetDefinesARMV82A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV83A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV84A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV85A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV86A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV87A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV88A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV89A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV9A(const LangOptions &Opts,
+                              MacroBuilder &Builder) const;
+  void getTargetDefinesARMV91A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV92A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV93A(const LangOptions &Opts,
+                               MacroBuilder &Builder) const;
+  void getTargetDefinesARMV94A(const LangOptions &Opts,
                                MacroBuilder &Builder) const;
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override;
 
+  std::optional<std::pair<unsigned, unsigned>>
+  getVScaleRange(const LangOptions &LangOpts) const override;
+
+  bool getFeatureDepOptions(StringRef Feature,
+                            std::string &Options) const override;
+  bool validateCpuSupports(StringRef FeatureStr) const override;
   bool hasFeature(StringRef Feature) const override;
+  void setFeatureEnabled(llvm::StringMap<bool> &Features, StringRef Name,
+                         bool Enabled) const override;
   bool handleTargetFeatures(std::vector<std::string> &Features,
                             DiagnosticsEngine &Diags) override;
+  ParsedTargetAttr parseTargetAttr(StringRef Str) const override;
+  bool supportsTargetAttributeTune() const override { return true; }
+
+  bool hasBFloat16Type() const override;
 
   CallingConvCheckResult checkCallingConvention(CallingConv CC) const override;
 
@@ -75,6 +165,21 @@ public:
 
   ArrayRef<const char *> getGCCRegNames() const override;
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override;
+
+  std::string convertConstraint(const char *&Constraint) const override {
+    std::string R;
+    switch (*Constraint) {
+    case 'U': // Three-character constraint; add "@3" hint for later parsing.
+      R = std::string("@3") + std::string(Constraint, 3);
+      Constraint += 2;
+      break;
+    default:
+      R = TargetInfo::convertConstraint(Constraint);
+      break;
+    }
+    return R;
+  }
+
   bool validateAsmConstraint(const char *&Name,
                              TargetInfo::ConstraintInfo &Info) const override;
   bool
@@ -88,6 +193,11 @@ public:
   }
 
   int getEHDataRegisterNumber(unsigned RegNo) const override;
+
+  const char *getBFloat16Mangling() const override { return "u6__bf16"; };
+  bool hasInt128Type() const override;
+
+  bool hasBitIntType() const override { return true; }
 };
 
 class LLVM_LIBRARY_VISIBILITY AArch64leTargetInfo : public AArch64TargetInfo {
@@ -122,12 +232,12 @@ public:
   MicrosoftARM64TargetInfo(const llvm::Triple &Triple,
                            const TargetOptions &Opts);
 
-  void getVisualStudioDefines(const LangOptions &Opts,
-                              MacroBuilder &Builder) const;
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
   TargetInfo::CallingConvKind
   getCallingConvKind(bool ClangABICompat4) const override;
+
+  unsigned getMinGlobalAlign(uint64_t TypeSize) const override;
 };
 
 // ARM64 MinGW target

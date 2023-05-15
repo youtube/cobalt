@@ -1,9 +1,8 @@
 //==- SHA1.h - SHA1 implementation for LLVM                     --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This code is taken from public domain
@@ -15,8 +14,6 @@
 
 #ifndef LLVM_SUPPORT_SHA1_H
 #define LLVM_SUPPORT_SHA1_H
-
-#include "llvm/ADT/ArrayRef.h"
 
 #include <array>
 #include <cstdint>
@@ -37,22 +34,19 @@ public:
   void update(ArrayRef<uint8_t> Data);
 
   /// Digest more data.
-  void update(StringRef Str) {
-    update(ArrayRef<uint8_t>((uint8_t *)const_cast<char *>(Str.data()),
-                             Str.size()));
-  }
+  void update(StringRef Str);
 
-  /// Return a reference to the current raw 160-bits SHA1 for the digested data
+  /// Return the current raw 160-bits SHA1 for the digested data
   /// since the last call to init(). This call will add data to the internal
   /// state and as such is not suited for getting an intermediate result
   /// (see result()).
-  StringRef final();
+  std::array<uint8_t, 20> final();
 
-  /// Return a reference to the current raw 160-bits SHA1 for the digested data
+  /// Return the current raw 160-bits SHA1 for the digested data
   /// since the last call to init(). This is suitable for getting the SHA1 at
   /// any time without invalidating the internal state so that more calls can be
   /// made into update.
-  StringRef result();
+  std::array<uint8_t, 20> result();
 
   /// Returns a raw 160-bit SHA1 hash for the given data.
   static std::array<uint8_t, 20> hash(ArrayRef<uint8_t> Data);
@@ -74,14 +68,13 @@ private:
     uint8_t BufferOffset;
   } InternalState;
 
-  // Internal copy of the hash, populated and accessed on calls to result()
-  uint32_t HashResult[HASH_LENGTH / 4];
-
   // Helper
   void writebyte(uint8_t data);
   void hashBlock();
   void addUncounted(uint8_t data);
   void pad();
+
+  void final(std::array<uint32_t, HASH_LENGTH / 4> &HashResult);
 };
 
 } // end llvm namespace

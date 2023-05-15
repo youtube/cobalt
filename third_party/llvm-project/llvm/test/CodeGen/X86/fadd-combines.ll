@@ -17,11 +17,19 @@ define <4 x float> @fadd_zero_4f32(<4 x float> %x) #0 {
   ret <4 x float> %y
 }
 
+define <4 x float> @fadd_zero_4f32_undef(<4 x float> %x) {
+; CHECK-LABEL: fadd_zero_4f32_undef:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    retq
+  %y = fadd nsz <4 x float> %x, <float 0.0, float undef, float 0.0, float undef>
+  ret <4 x float> %y
+}
+
 ; CHECK: float 3
 define float @fadd_2const_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_2const_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    addss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    addss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd float %x, 1.0
   %z = fadd float %y, 2.0
@@ -35,7 +43,7 @@ define float @fadd_2const_f32(float %x) #0 {
 define <4 x float> @fadd_2const_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_2const_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    addps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    addps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd <4 x float> %x, <float 1.0, float 2.0, float 3.0, float 4.0>
   %z = fadd <4 x float> %y, <float 4.0, float 3.0, float 2.0, float 1.0>
@@ -46,7 +54,7 @@ define <4 x float> @fadd_2const_4f32(<4 x float> %x) #0 {
 define float @fadd_x_fmul_x_c_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_x_fmul_x_c_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fmul float %x, 2.0
   %z = fadd float %x, %y
@@ -60,7 +68,7 @@ define float @fadd_x_fmul_x_c_f32(float %x) #0 {
 define <4 x float> @fadd_x_fmul_x_c_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_x_fmul_x_c_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fmul <4 x float> %x, <float 1.0, float 2.0, float 3.0, float 4.0>
   %z = fadd <4 x float> %x, %y
@@ -71,7 +79,7 @@ define <4 x float> @fadd_x_fmul_x_c_4f32(<4 x float> %x) #0 {
 define float @fadd_fmul_x_c_x_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_fmul_x_c_x_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fmul float %x, 2.0
   %z = fadd float %y, %x
@@ -85,7 +93,7 @@ define float @fadd_fmul_x_c_x_f32(float %x) #0 {
 define <4 x float> @fadd_fmul_x_c_x_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_fmul_x_c_x_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fmul <4 x float> %x, <float 1.0, float 2.0, float 3.0, float 4.0>
   %z = fadd <4 x float> %y, %x
@@ -96,7 +104,7 @@ define <4 x float> @fadd_fmul_x_c_x_4f32(<4 x float> %x) #0 {
 define float @fadd_fadd_x_x_fmul_x_c_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_fadd_x_x_fmul_x_c_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd float %x, %x
   %z = fmul float %x, 2.0
@@ -111,7 +119,7 @@ define float @fadd_fadd_x_x_fmul_x_c_f32(float %x) #0 {
 define <4 x float> @fadd_fadd_x_x_fmul_x_c_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_fadd_x_x_fmul_x_c_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd <4 x float> %x, %x
   %z = fmul <4 x float> %x, <float 1.0, float 2.0, float 3.0, float 4.0>
@@ -123,7 +131,7 @@ define <4 x float> @fadd_fadd_x_x_fmul_x_c_4f32(<4 x float> %x) #0 {
 define float @fadd_fmul_x_c_fadd_x_x_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_fmul_x_c_fadd_x_x_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd float %x, %x
   %z = fmul float %x, 2.0
@@ -138,7 +146,7 @@ define float @fadd_fmul_x_c_fadd_x_x_f32(float %x) #0 {
 define <4 x float> @fadd_fmul_x_c_fadd_x_x_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_fmul_x_c_fadd_x_x_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd <4 x float> %x, %x
   %z = fmul <4 x float> %x, <float 1.0, float 2.0, float 3.0, float 4.0>
@@ -150,7 +158,7 @@ define <4 x float> @fadd_fmul_x_c_fadd_x_x_4f32(<4 x float> %x) #0 {
 define float @fadd_x_fadd_x_x_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_x_fadd_x_x_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd float %x, %x
   %z = fadd float %x, %y
@@ -164,7 +172,7 @@ define float @fadd_x_fadd_x_x_f32(float %x) #0 {
 define <4 x float> @fadd_x_fadd_x_x_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_x_fadd_x_x_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd <4 x float> %x, %x
   %z = fadd <4 x float> %x, %y
@@ -175,7 +183,7 @@ define <4 x float> @fadd_x_fadd_x_x_4f32(<4 x float> %x) #0 {
 define float @fadd_fadd_x_x_x_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_fadd_x_x_x_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd float %x, %x
   %z = fadd float %y, %x
@@ -189,7 +197,7 @@ define float @fadd_fadd_x_x_x_f32(float %x) #0 {
 define <4 x float> @fadd_fadd_x_x_x_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_fadd_x_x_x_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd <4 x float> %x, %x
   %z = fadd <4 x float> %y, %x
@@ -200,7 +208,7 @@ define <4 x float> @fadd_fadd_x_x_x_4f32(<4 x float> %x) #0 {
 define float @fadd_fadd_x_x_fadd_x_x_f32(float %x) #0 {
 ; CHECK-LABEL: fadd_fadd_x_x_fadd_x_x_f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd float %x, %x
   %z = fadd float %y, %y
@@ -214,7 +222,7 @@ define float @fadd_fadd_x_x_fadd_x_x_f32(float %x) #0 {
 define <4 x float> @fadd_fadd_x_x_fadd_x_x_4f32(<4 x float> %x) #0 {
 ; CHECK-LABEL: fadd_fadd_x_x_fadd_x_x_4f32:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    mulps {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    mulps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    retq
   %y = fadd <4 x float> %x, %x
   %z = fadd <4 x float> %y, %y
@@ -230,13 +238,41 @@ define float @fadd_const_multiuse_attr(float %x) #0 {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movss {{.*#+}} xmm1 = mem[0],zero,zero,zero
 ; CHECK-NEXT:    addss %xmm0, %xmm1
-; CHECK-NEXT:    addss {{.*}}(%rip), %xmm0
+; CHECK-NEXT:    addss {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
 ; CHECK-NEXT:    addss %xmm1, %xmm0
 ; CHECK-NEXT:    retq
   %a1 = fadd float %x, 42.0
   %a2 = fadd float %a1, 17.0
   %a3 = fadd float %a1, %a2
   ret float %a3
+}
+
+; PR32939 - https://bugs.llvm.org/show_bug.cgi?id=32939
+
+define double @fmul2_negated(double %a, double %b, double %c) {
+; CHECK-LABEL: fmul2_negated:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    addsd %xmm1, %xmm1
+; CHECK-NEXT:    mulsd %xmm2, %xmm1
+; CHECK-NEXT:    subsd %xmm1, %xmm0
+; CHECK-NEXT:    retq
+  %mul = fmul double %b, 2.0
+  %mul1 = fmul double %mul, %c
+  %sub = fsub double %a, %mul1
+  ret double %sub
+}
+
+define <2 x double> @fmul2_negated_vec(<2 x double> %a, <2 x double> %b, <2 x double> %c) {
+; CHECK-LABEL: fmul2_negated_vec:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    addpd %xmm1, %xmm1
+; CHECK-NEXT:    mulpd %xmm2, %xmm1
+; CHECK-NEXT:    subpd %xmm1, %xmm0
+; CHECK-NEXT:    retq
+  %mul = fmul <2 x double> %b, <double 2.0, double 2.0>
+  %mul1 = fmul <2 x double> %mul, %c
+  %sub = fsub <2 x double> %a, %mul1
+  ret <2 x double> %sub
 }
 
 attributes #0 = { "less-precise-fpmad"="true" "no-infs-fp-math"="true" "no-nans-fp-math"="true" "unsafe-fp-math"="true" "no-signed-zeros-fp-math"="true" }

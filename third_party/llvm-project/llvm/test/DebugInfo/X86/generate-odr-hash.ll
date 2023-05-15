@@ -1,12 +1,11 @@
-; REQUIRES: object-emission
 
 ; RUN: llc < %s -o %t -filetype=obj -O0 -generate-type-units -mtriple=x86_64-unknown-linux-gnu
 ; RUN: llvm-dwarfdump -v %t | FileCheck --check-prefix=CHECK --check-prefix=SINGLE %s
-; RUN: llvm-readobj -s -t %t | FileCheck --check-prefix=OBJ_SINGLE %s
+; RUN: llvm-readobj -S --symbols %t | FileCheck --check-prefix=OBJ_SINGLE %s
 
 ; RUN: llc < %s -split-dwarf-file=foo.dwo -o %t -filetype=obj -O0 -generate-type-units -mtriple=x86_64-unknown-linux-gnu
 ; RUN: llvm-dwarfdump -v %t | FileCheck --check-prefix=CHECK --check-prefix=FISSION %s
-; RUN: llvm-readobj -s -t %t | FileCheck --check-prefix=OBJ_FISSION %s
+; RUN: llvm-readobj -S --symbols %t | FileCheck --check-prefix=OBJ_FISSION %s
 
 ; Generated from bar.cpp:
 
@@ -80,7 +79,7 @@
 ; CHECK-NOT: type_signature
 ; CHECK-LABEL: type_signature = 0x1d02f3be30cc5688
 ; CHECK: DW_TAG_structure_type
-; FISSION-NEXT: DW_AT_name {{.*}} ( indexed {{.*}} "bar"
+; FISSION-NEXT: DW_AT_name {{.*}} (indexed {{.*}} "bar"
 ; SINGLE-NEXT: DW_AT_name {{.*}} "bar"
 
 ; Check that we generate a hash for fluffy and the value.
@@ -181,13 +180,13 @@ source_filename = "test/DebugInfo/X86/generate-odr-hash.ll"
 @_ZN7echidna8capybara8mongoose6animalE = global %"class.echidna::capybara::mongoose::fluffy" zeroinitializer, align 4, !dbg !6
 @w = internal global %"struct.<anonymous namespace>::walrus" zeroinitializer, align 1, !dbg !16
 @wom = global %struct.wombat zeroinitializer, align 4, !dbg !25
-@llvm.global_ctors = appending global [1 x { i32, void ()* }] [{ i32, void ()* } { i32 65535, void ()* @_GLOBAL__I_a }]
+@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @_GLOBAL__I_a, ptr null }]
 
 ; Function Attrs: nounwind uwtable
 define void @_Z3foov() #0 !dbg !40 {
 entry:
   %b = alloca %struct.baz, align 1
-  call void @llvm.dbg.declare(metadata %struct.baz* %b, metadata !43, metadata !45), !dbg !46
+  call void @llvm.dbg.declare(metadata ptr %b, metadata !43, metadata !45), !dbg !46
   ret void, !dbg !47
 }
 
@@ -196,17 +195,17 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 define internal void @__cxx_global_var_init() section ".text.startup" !dbg !48 {
 entry:
-  call void @_ZN12_GLOBAL__N_16walrusC2Ev(%"struct.<anonymous namespace>::walrus"* @w), !dbg !49
+  call void @_ZN12_GLOBAL__N_16walrusC2Ev(ptr @w), !dbg !49
   ret void, !dbg !49
 }
 
 ; Function Attrs: nounwind uwtable
-define internal void @_ZN12_GLOBAL__N_16walrusC2Ev(%"struct.<anonymous namespace>::walrus"* %this) unnamed_addr #0 align 2 !dbg !50 {
+define internal void @_ZN12_GLOBAL__N_16walrusC2Ev(ptr %this) unnamed_addr #0 align 2 !dbg !50 {
 entry:
-  %this.addr = alloca %"struct.<anonymous namespace>::walrus"*, align 8
-  store %"struct.<anonymous namespace>::walrus"* %this, %"struct.<anonymous namespace>::walrus"** %this.addr, align 8
-  call void @llvm.dbg.declare(metadata %"struct.<anonymous namespace>::walrus"** %this.addr, metadata !51, metadata !45), !dbg !53
-  %this1 = load %"struct.<anonymous namespace>::walrus"*, %"struct.<anonymous namespace>::walrus"** %this.addr
+  %this.addr = alloca ptr, align 8
+  store ptr %this, ptr %this.addr, align 8
+  call void @llvm.dbg.declare(metadata ptr %this.addr, metadata !51, metadata !45), !dbg !53
+  %this1 = load ptr, ptr %this.addr
   ret void, !dbg !54
 }
 
@@ -216,7 +215,7 @@ entry:
   ret void, !dbg !57
 }
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!34}

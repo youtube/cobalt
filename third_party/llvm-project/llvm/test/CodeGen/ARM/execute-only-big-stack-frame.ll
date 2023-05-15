@@ -2,6 +2,8 @@
 ; RUN:  | FileCheck --check-prefix=CHECK-SUBW-ADDW %s
 ; RUN: llc < %s -mtriple=thumbv8m.base -mattr=+execute-only -O0 %s -o - \
 ; RUN:  | FileCheck --check-prefix=CHECK-MOVW-MOVT-ADD %s
+; RUN: llc < %s -mtriple=thumbv8m.base -mcpu=cortex-m23 -mattr=+execute-only -O0 %s -o - \
+; RUN:  | FileCheck --check-prefix=CHECK-MOVW-MOVT-ADD %s
 ; RUN: llc < %s -mtriple=thumbv8m.main -mattr=+execute-only -O0 %s -o - \
 ; RUN:  | FileCheck --check-prefix=CHECK-SUBW-ADDW %s
 
@@ -38,9 +40,9 @@ define i8 @test_big_stack_frame() {
 entry:
   %s1 = alloca i8
   %buffer = alloca [65528 x i8], align 1
-  call void @foo(i8* %s1)
-  %load = load i8, i8* %s1
+  call void @foo(ptr %s1)
+  %load = load i8, ptr %s1
   ret i8 %load
 }
 
-declare void @foo(i8*)
+declare void @foo(ptr)

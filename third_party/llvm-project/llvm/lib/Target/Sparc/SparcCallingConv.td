@@ -1,9 +1,8 @@
 //===-- SparcCallingConv.td - Calling Conventions Sparc ----*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -68,7 +67,7 @@ def RetCC_Sparc32 : CallingConv<[
 // bits of an integer register while the float goes in a floating point
 // register.
 //
-// The difference is encoded in LLVM IR using the inreg atttribute on function
+// The difference is encoded in LLVM IR using the inreg attribute on function
 // arguments:
 //
 //   C:   void f(float, float);
@@ -126,16 +125,20 @@ def CC_Sparc64 : CallingConv<[
 def RetCC_Sparc64 : CallingConv<[
   // A single f32 return value always goes in %f0. The ABI doesn't specify what
   // happens to multiple f32 return values outside a struct.
-  CCIfType<[f32], CCCustom<"CC_Sparc64_Half">>,
+  CCIfType<[f32], CCCustom<"RetCC_Sparc64_Half">>,
 
-  // Otherwise, return values are passed exactly like arguments.
-  CCDelegateTo<CC_Sparc64>
+  // Otherwise, return values are passed exactly like arguments, except that
+  // returns that are too big to fit into the registers is passed as an sret
+  // instead.
+  CCIfInReg<CCIfType<[i32, f32], CCCustom<"RetCC_Sparc64_Half">>>,
+  CCIfType<[i32], CCPromoteToType<i64>>,
+  CCCustom<"RetCC_Sparc64_Full">
 ]>;
 
 // Callee-saved registers are handled by the register window mechanism.
 def CSR : CalleeSavedRegs<(add)> {
   let OtherPreserved = (add (sequence "I%u", 0, 7),
-                            (sequence "L%u", 0, 7));
+                            (sequence "L%u", 0, 7), O6);
 }
 
 // Callee-saved registers for calls with ReturnsTwice attribute.

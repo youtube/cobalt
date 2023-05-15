@@ -1,9 +1,8 @@
 //===- Action.cpp - Abstract compilation steps ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,11 +25,14 @@ const char *Action::getClassName(ActionClass AC) {
     return "offload";
   case PreprocessJobClass: return "preprocessor";
   case PrecompileJobClass: return "precompiler";
+  case ExtractAPIJobClass:
+    return "api-extractor";
   case AnalyzeJobClass: return "analyzer";
   case MigrateJobClass: return "migrator";
   case CompileJobClass: return "compiler";
   case BackendJobClass: return "backend";
   case AssembleJobClass: return "assembler";
+  case IfsMergeJobClass: return "interface-stub-merger";
   case LinkJobClass: return "linker";
   case LipoJobClass: return "lipo";
   case DsymutilJobClass: return "dsymutil";
@@ -40,12 +42,19 @@ const char *Action::getClassName(ActionClass AC) {
     return "clang-offload-bundler";
   case OffloadUnbundlingJobClass:
     return "clang-offload-unbundler";
+  case OffloadPackagerJobClass:
+    return "clang-offload-packager";
+  case LinkerWrapperJobClass:
+    return "clang-linker-wrapper";
+  case StaticLibJobClass:
+    return "static-lib-linker";
   }
 
   llvm_unreachable("invalid class");
 }
 
-void Action::propagateDeviceOffloadInfo(OffloadKind OKind, const char *OArch) {
+void Action::propagateDeviceOffloadInfo(OffloadKind OKind, const char *OArch,
+                                        const ToolChain *OToolChain) {
   // Offload action set its own kinds on their dependences.
   if (Kind == OffloadClass)
     return;
@@ -58,9 +67,10 @@ void Action::propagateDeviceOffloadInfo(OffloadKind OKind, const char *OArch) {
   assert(!ActiveOffloadKindMask && "Setting a device kind in a host action??");
   OffloadingDeviceKind = OKind;
   OffloadingArch = OArch;
+  OffloadingToolChain = OToolChain;
 
   for (auto *A : Inputs)
-    A->propagateDeviceOffloadInfo(OffloadingDeviceKind, OArch);
+    A->propagateDeviceOffloadInfo(OffloadingDeviceKind, OArch, OToolChain);
 }
 
 void Action::propagateHostOffloadInfo(unsigned OKinds, const char *OArch) {
@@ -82,7 +92,8 @@ void Action::propagateOffloadInfo(const Action *A) {
     propagateHostOffloadInfo(HK, A->getOffloadingArch());
   else
     propagateDeviceOffloadInfo(A->getOffloadingDeviceKind(),
-                               A->getOffloadingArch());
+                               A->getOffloadingArch(),
+                               A->getOffloadingToolChain());
 }
 
 std::string Action::getOffloadingKindPrefix() const {
@@ -160,8 +171,8 @@ StringRef Action::GetOffloadKindName(OffloadKind Kind) {
 
 void InputAction::anchor() {}
 
-InputAction::InputAction(const Arg &_Input, types::ID _Type)
-    : Action(InputClass, _Type), Input(_Input) {}
+InputAction::InputAction(const Arg &_Input, types::ID _Type, StringRef _Id)
+    : Action(InputClass, _Type), Input(_Input), Id(_Id.str()) {}
 
 void BindArchAction::anchor() {}
 
@@ -183,9 +194,10 @@ OffloadAction::OffloadAction(const DeviceDependences &DDeps, types::ID Ty)
       DevToolChains(DDeps.getToolChains()) {
   auto &OKinds = DDeps.getOffloadKinds();
   auto &BArchs = DDeps.getBoundArchs();
+  auto &OTCs = DDeps.getToolChains();
 
   // If all inputs agree on the same kind, use it also for this action.
-  if (llvm::all_of(OKinds, [&](OffloadKind K) { return K == OKinds.front(); }))
+  if (llvm::all_equal(OKinds))
     OffloadingDeviceKind = OKinds.front();
 
   // If we have a single dependency, inherit the architecture from it.
@@ -194,7 +206,7 @@ OffloadAction::OffloadAction(const DeviceDependences &DDeps, types::ID Ty)
 
   // Propagate info to the dependencies.
   for (unsigned i = 0, e = getInputs().size(); i != e; ++i)
-    getInputs()[i]->propagateDeviceOffloadInfo(OKinds[i], BArchs[i]);
+    getInputs()[i]->propagateDeviceOffloadInfo(OKinds[i], BArchs[i], OTCs[i]);
 }
 
 OffloadAction::OffloadAction(const HostDependence &HDep,
@@ -209,12 +221,17 @@ OffloadAction::OffloadAction(const HostDependence &HDep,
 
   // Add device inputs and propagate info to the device actions. Do work only if
   // we have dependencies.
-  for (unsigned i = 0, e = DDeps.getActions().size(); i != e; ++i)
+  for (unsigned i = 0, e = DDeps.getActions().size(); i != e; ++i) {
     if (auto *A = DDeps.getActions()[i]) {
       getInputs().push_back(A);
       A->propagateDeviceOffloadInfo(DDeps.getOffloadKinds()[i],
-                                    DDeps.getBoundArchs()[i]);
+                                    DDeps.getBoundArchs()[i],
+                                    DDeps.getToolChains()[i]);
+      // If this action is used to forward single dependency, set the toolchain.
+      if (DDeps.getActions().size() == 1)
+        OffloadingToolChain = DDeps.getToolChains()[i];
     }
+  }
 }
 
 void OffloadAction::doOnHostDependence(const OffloadActionWorkTy &Work) const {
@@ -293,6 +310,19 @@ void OffloadAction::DeviceDependences::add(Action &A, const ToolChain &TC,
   DeviceOffloadKinds.push_back(OKind);
 }
 
+void OffloadAction::DeviceDependences::add(Action &A, const ToolChain &TC,
+                                           const char *BoundArch,
+                                           unsigned OffloadKindMask) {
+  DeviceActions.push_back(&A);
+  DeviceToolChains.push_back(&TC);
+  DeviceBoundArchs.push_back(BoundArch);
+
+  // Add each active offloading kind from a mask.
+  for (OffloadKind OKind : {OFK_OpenMP, OFK_Cuda, OFK_HIP})
+    if (OKind & OffloadKindMask)
+      DeviceOffloadKinds.push_back(OKind);
+}
+
 OffloadAction::HostDependence::HostDependence(Action &A, const ToolChain &TC,
                                               const char *BoundArch,
                                               const DeviceDependences &DDeps)
@@ -319,6 +349,17 @@ void PrecompileJobAction::anchor() {}
 PrecompileJobAction::PrecompileJobAction(Action *Input, types::ID OutputType)
     : JobAction(PrecompileJobClass, Input, OutputType) {}
 
+PrecompileJobAction::PrecompileJobAction(ActionClass Kind, Action *Input,
+                                         types::ID OutputType)
+    : JobAction(Kind, Input, OutputType) {
+  assert(isa<PrecompileJobAction>((Action*)this) && "invalid action kind");
+}
+
+void ExtractAPIJobAction::anchor() {}
+
+ExtractAPIJobAction::ExtractAPIJobAction(Action *Inputs, types::ID OutputType)
+    : JobAction(ExtractAPIJobClass, Inputs, OutputType) {}
+
 void AnalyzeJobAction::anchor() {}
 
 AnalyzeJobAction::AnalyzeJobAction(Action *Input, types::ID OutputType)
@@ -343,6 +384,11 @@ void AssembleJobAction::anchor() {}
 
 AssembleJobAction::AssembleJobAction(Action *Input, types::ID OutputType)
     : JobAction(AssembleJobClass, Input, OutputType) {}
+
+void IfsMergeJobAction::anchor() {}
+
+IfsMergeJobAction::IfsMergeJobAction(ActionList &Inputs, types::ID Type)
+    : JobAction(IfsMergeJobClass, Inputs, Type) {}
 
 void LinkJobAction::anchor() {}
 
@@ -382,9 +428,26 @@ VerifyPCHJobAction::VerifyPCHJobAction(Action *Input, types::ID Type)
 void OffloadBundlingJobAction::anchor() {}
 
 OffloadBundlingJobAction::OffloadBundlingJobAction(ActionList &Inputs)
-    : JobAction(OffloadBundlingJobClass, Inputs, Inputs.front()->getType()) {}
+    : JobAction(OffloadBundlingJobClass, Inputs, Inputs.back()->getType()) {}
 
 void OffloadUnbundlingJobAction::anchor() {}
 
 OffloadUnbundlingJobAction::OffloadUnbundlingJobAction(Action *Input)
     : JobAction(OffloadUnbundlingJobClass, Input, Input->getType()) {}
+
+void OffloadPackagerJobAction::anchor() {}
+
+OffloadPackagerJobAction::OffloadPackagerJobAction(ActionList &Inputs,
+                                                   types::ID Type)
+    : JobAction(OffloadPackagerJobClass, Inputs, Type) {}
+
+void LinkerWrapperJobAction::anchor() {}
+
+LinkerWrapperJobAction::LinkerWrapperJobAction(ActionList &Inputs,
+                                               types::ID Type)
+    : JobAction(LinkerWrapperJobClass, Inputs, Type) {}
+
+void StaticLibJobAction::anchor() {}
+
+StaticLibJobAction::StaticLibJobAction(ActionList &Inputs, types::ID Type)
+    : JobAction(StaticLibJobClass, Inputs, Type) {}

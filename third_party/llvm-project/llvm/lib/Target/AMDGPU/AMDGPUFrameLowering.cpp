@@ -1,9 +1,8 @@
 //===----------------------- AMDGPUFrameLowering.cpp ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //==-----------------------------------------------------------------------===//
 //
@@ -14,16 +13,16 @@
 #include "AMDGPUFrameLowering.h"
 
 using namespace llvm;
-AMDGPUFrameLowering::AMDGPUFrameLowering(StackDirection D, unsigned StackAl,
-    int LAO, unsigned TransAl)
-  : TargetFrameLowering(D, StackAl, LAO, TransAl) { }
+AMDGPUFrameLowering::AMDGPUFrameLowering(StackDirection D, Align StackAl,
+                                         int LAO, Align TransAl)
+    : TargetFrameLowering(D, StackAl, LAO, TransAl) {}
 
 AMDGPUFrameLowering::~AMDGPUFrameLowering() = default;
 
 unsigned AMDGPUFrameLowering::getStackWidth(const MachineFunction &MF) const {
   // XXX: Hardcoding to 1 for now.
   //
-  // I think the StackWidth should stored as metadata associated with the
+  // I think the StackWidth should be stored as metadata associated with the
   // MachineFunction.  This metadata can either be added by a frontend, or
   // calculated by a R600 specific LLVM IR pass.
   //

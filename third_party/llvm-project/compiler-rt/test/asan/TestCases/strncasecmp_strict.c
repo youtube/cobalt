@@ -14,7 +14,7 @@
 // RUN: %env_asan_opts=strict_string_checks=false %run %t i 2>&1
 // RUN: %env_asan_opts=strict_string_checks=true not %run %t i 2>&1 | FileCheck %s
 
-// XFAIL: win32
+// XFAIL: target={{.*windows-msvc.*}}
 
 #include <assert.h>
 #include <stdlib.h>
@@ -24,7 +24,7 @@
 
 int main(int argc, char **argv) {
   assert(argc >= 2);
-  const size_t size = 100;
+  enum { size = 100 };
   char fill = 'o';
   char s1[size];
   char s2[size];

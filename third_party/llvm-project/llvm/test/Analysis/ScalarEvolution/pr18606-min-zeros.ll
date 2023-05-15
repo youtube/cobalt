@@ -1,8 +1,8 @@
-; RUN: opt -S -indvars < %s | FileCheck %s
+; RUN: opt -S -passes=indvars < %s | FileCheck %s
 
 ; CHECK: @test
 ; CHECK: %5 = add i32 %local_6_, %local_0_
-; CEHCK: %37 = mul i32 %36, %36
+; CHECK: %37 = mul i32 %36, %36
 
 define i32 @test(i32, i32) {
 bci_0:

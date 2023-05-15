@@ -1,799 +1,358 @@
-//===-- PPCCTRLoops.cpp - Identify and generate CTR loops -----------------===//
+//===-- PPCCTRLoops.cpp - Generate CTR loops ------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// This pass identifies loops where we can generate the PPC branch instructions
-// that decrement and test the count register (CTR) (bdnz and friends).
+// This pass generates machine instructions for the CTR loops related pseudos:
+// 1: MTCTRloop/DecreaseCTRloop
+// 2: MTCTR8loop/DecreaseCTR8loop
 //
-// The pattern that defines the induction variable can changed depending on
-// prior optimizations.  For example, the IndVarSimplify phase run by 'opt'
-// normalizes induction variables, and the Loop Strength Reduction pass
-// run by 'llc' may also make changes to the induction variable.
+// If a CTR loop can be generated:
+// 1: MTCTRloop/MTCTR8loop will be converted to "mtctr"
+// 2: DecreaseCTRloop/DecreaseCTR8loop will be converted to "bdnz/bdz" and
+//    its user branch instruction can be deleted.
 //
-// Criteria for CTR loops:
-//  - Countable loops (w/ ind. var for a trip count)
-//  - Try inner-most loops first
-//  - No nested CTR loops.
-//  - No function calls in loops.
+// If a CTR loop can not be generated due to clobber of CTR:
+// 1: MTCTRloop/MTCTR8loop can be deleted.
+// 2: DecreaseCTRloop/DecreaseCTR8loop will be converted to "addi -1" and
+//    a "cmplwi/cmpldi".
+//
+// This pass runs just before register allocation, because we don't want
+// register allocator to allocate register for DecreaseCTRloop if a CTR can be
+// generated or if a CTR loop can not be generated, we don't have any condition
+// register for the new added "cmplwi/cmpldi".
 //
 //===----------------------------------------------------------------------===//
 
 #include "PPC.h"
+#include "PPCInstrInfo.h"
 #include "PPCSubtarget.h"
-#include "PPCTargetMachine.h"
-#include "PPCTargetTransformInfo.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/AssumptionCache.h"
-#include "llvm/Analysis/CFG.h"
-#include "llvm/Analysis/CodeMetrics.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopIterator.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/CodeGen/TargetSchedule.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Dominators.h"
-#include "llvm/IR/InlineAsm.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicInst.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/ValueHandle.h"
-#include "llvm/PassSupport.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Utils.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/LoopUtils.h"
-
-#ifndef NDEBUG
-#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#endif
+#include "llvm/CodeGen/Register.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Pass.h"
+#include "llvm/PassRegistry.h"
+#include "llvm/Support/CodeGen.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
 
 using namespace llvm;
 
-#define DEBUG_TYPE "ctrloops"
+#define DEBUG_TYPE "ppc-ctrloops"
 
-#ifndef NDEBUG
-static cl::opt<int> CTRLoopLimit("ppc-max-ctrloop", cl::Hidden, cl::init(-1));
-#endif
-
-// The latency of mtctr is only justified if there are more than 4
-// comparisons that will be removed as a result.
-static cl::opt<unsigned>
-SmallCTRLoopThreshold("min-ctr-loop-threshold", cl::init(4), cl::Hidden,
-                      cl::desc("Loops with a constant trip count smaller than "
-                               "this value will not use the count register."));
-
-STATISTIC(NumCTRLoops, "Number of loops converted to CTR loops");
-
-namespace llvm {
-  void initializePPCCTRLoopsPass(PassRegistry&);
-#ifndef NDEBUG
-  void initializePPCCTRLoopsVerifyPass(PassRegistry&);
-#endif
-}
+STATISTIC(NumCTRLoops, "Number of CTR loops generated");
+STATISTIC(NumNormalLoops, "Number of normal compare + branch loops generated");
 
 namespace {
-  struct PPCCTRLoops : public FunctionPass {
+class PPCCTRLoops : public MachineFunctionPass {
+public:
+  static char ID;
 
-#ifndef NDEBUG
-    static int Counter;
-#endif
+  PPCCTRLoops() : MachineFunctionPass(ID) {
+    initializePPCCTRLoopsPass(*PassRegistry::getPassRegistry());
+  }
 
-  public:
-    static char ID;
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<MachineLoopInfo>();
+    MachineFunctionPass::getAnalysisUsage(AU);
+  }
 
-    PPCCTRLoops() : FunctionPass(ID) {
-      initializePPCCTRLoopsPass(*PassRegistry::getPassRegistry());
-    }
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-    bool runOnFunction(Function &F) override;
+private:
+  const PPCInstrInfo *TII = nullptr;
+  MachineRegisterInfo *MRI = nullptr;
 
-    void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<LoopInfoWrapperPass>();
-      AU.addPreserved<LoopInfoWrapperPass>();
-      AU.addRequired<DominatorTreeWrapperPass>();
-      AU.addPreserved<DominatorTreeWrapperPass>();
-      AU.addRequired<ScalarEvolutionWrapperPass>();
-      AU.addRequired<AssumptionCacheTracker>();
-      AU.addRequired<TargetTransformInfoWrapperPass>();
-    }
+  bool processLoop(MachineLoop *ML);
+  bool isCTRClobber(MachineInstr *MI, bool CheckReads) const;
+  void expandNormalLoops(MachineLoop *ML, MachineInstr *Start,
+                         MachineInstr *Dec);
+  void expandCTRLoops(MachineLoop *ML, MachineInstr *Start, MachineInstr *Dec);
+};
+} // namespace
 
-  private:
-    bool mightUseCTR(BasicBlock *BB);
-    bool convertToCTRLoop(Loop *L);
+char PPCCTRLoops::ID = 0;
 
-  private:
-    const PPCTargetMachine *TM;
-    const PPCSubtarget *STI;
-    const PPCTargetLowering *TLI;
-    const DataLayout *DL;
-    const TargetLibraryInfo *LibInfo;
-    const TargetTransformInfo *TTI;
-    LoopInfo *LI;
-    ScalarEvolution *SE;
-    DominatorTree *DT;
-    bool PreserveLCSSA;
-    TargetSchedModel SchedModel;
-  };
-
-  char PPCCTRLoops::ID = 0;
-#ifndef NDEBUG
-  int PPCCTRLoops::Counter = 0;
-#endif
-
-#ifndef NDEBUG
-  struct PPCCTRLoopsVerify : public MachineFunctionPass {
-  public:
-    static char ID;
-
-    PPCCTRLoopsVerify() : MachineFunctionPass(ID) {
-      initializePPCCTRLoopsVerifyPass(*PassRegistry::getPassRegistry());
-    }
-
-    void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<MachineDominatorTree>();
-      MachineFunctionPass::getAnalysisUsage(AU);
-    }
-
-    bool runOnMachineFunction(MachineFunction &MF) override;
-
-  private:
-    MachineDominatorTree *MDT;
-  };
-
-  char PPCCTRLoopsVerify::ID = 0;
-#endif // NDEBUG
-} // end anonymous namespace
-
-INITIALIZE_PASS_BEGIN(PPCCTRLoops, "ppc-ctr-loops", "PowerPC CTR Loops",
+INITIALIZE_PASS_BEGIN(PPCCTRLoops, DEBUG_TYPE, "PowerPC CTR loops generation",
                       false, false)
-INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
-INITIALIZE_PASS_END(PPCCTRLoops, "ppc-ctr-loops", "PowerPC CTR Loops",
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_END(PPCCTRLoops, DEBUG_TYPE, "PowerPC CTR loops generation",
                     false, false)
 
-FunctionPass *llvm::createPPCCTRLoops() { return new PPCCTRLoops(); }
+FunctionPass *llvm::createPPCCTRLoopsPass() { return new PPCCTRLoops(); }
+
+bool PPCCTRLoops::runOnMachineFunction(MachineFunction &MF) {
+  bool Changed = false;
+
+  auto &MLI = getAnalysis<MachineLoopInfo>();
+  TII = static_cast<const PPCInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  MRI = &MF.getRegInfo();
+
+  for (auto *ML : MLI) {
+    if (ML->isOutermost())
+      Changed |= processLoop(ML);
+  }
 
 #ifndef NDEBUG
-INITIALIZE_PASS_BEGIN(PPCCTRLoopsVerify, "ppc-ctr-loops-verify",
-                      "PowerPC CTR Loops Verify", false, false)
-INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_END(PPCCTRLoopsVerify, "ppc-ctr-loops-verify",
-                    "PowerPC CTR Loops Verify", false, false)
-
-FunctionPass *llvm::createPPCCTRLoopsVerify() {
-  return new PPCCTRLoopsVerify();
-}
-#endif // NDEBUG
-
-bool PPCCTRLoops::runOnFunction(Function &F) {
-  if (skipFunction(F))
-    return false;
-
-  auto *TPC = getAnalysisIfAvailable<TargetPassConfig>();
-  if (!TPC)
-    return false;
-
-  TM = &TPC->getTM<PPCTargetMachine>();
-  STI = TM->getSubtargetImpl(F);
-  TLI = STI->getTargetLowering();
-
-  LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
-  DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
-  DL = &F.getParent()->getDataLayout();
-  auto *TLIP = getAnalysisIfAvailable<TargetLibraryInfoWrapperPass>();
-  LibInfo = TLIP ? &TLIP->getTLI() : nullptr;
-  PreserveLCSSA = mustPreserveAnalysisID(LCSSAID);
-
-  bool MadeChange = false;
-
-  for (LoopInfo::iterator I = LI->begin(), E = LI->end();
-       I != E; ++I) {
-    Loop *L = *I;
-    if (!L->getParentLoop())
-      MadeChange |= convertToCTRLoop(L);
-  }
-
-  return MadeChange;
-}
-
-static bool isLargeIntegerTy(bool Is32Bit, Type *Ty) {
-  if (IntegerType *ITy = dyn_cast<IntegerType>(Ty))
-    return ITy->getBitWidth() > (Is32Bit ? 32U : 64U);
-
-  return false;
-}
-
-// Determining the address of a TLS variable results in a function call in
-// certain TLS models.
-static bool memAddrUsesCTR(const PPCTargetMachine &TM, const Value *MemAddr) {
-  const auto *GV = dyn_cast<GlobalValue>(MemAddr);
-  if (!GV) {
-    // Recurse to check for constants that refer to TLS global variables.
-    if (const auto *CV = dyn_cast<Constant>(MemAddr))
-      for (const auto &CO : CV->operands())
-        if (memAddrUsesCTR(TM, CO))
-          return true;
-
-    return false;
-  }
-
-  if (!GV->isThreadLocal())
-    return false;
-  TLSModel::Model Model = TM.getTLSModel(GV);
-  return Model == TLSModel::GeneralDynamic || Model == TLSModel::LocalDynamic;
-}
-
-// Loop through the inline asm constraints and look for something that clobbers
-// ctr.
-static bool asmClobbersCTR(InlineAsm *IA) {
-  InlineAsm::ConstraintInfoVector CIV = IA->ParseConstraints();
-  for (unsigned i = 0, ie = CIV.size(); i < ie; ++i) {
-    InlineAsm::ConstraintInfo &C = CIV[i];
-    if (C.Type != InlineAsm::isInput)
-      for (unsigned j = 0, je = C.Codes.size(); j < je; ++j)
-        if (StringRef(C.Codes[j]).equals_lower("{ctr}"))
-          return true;
-  }
-  return false;
-}
-
-bool PPCCTRLoops::mightUseCTR(BasicBlock *BB) {
-  for (BasicBlock::iterator J = BB->begin(), JE = BB->end();
-       J != JE; ++J) {
-    if (CallInst *CI = dyn_cast<CallInst>(J)) {
-      // Inline ASM is okay, unless it clobbers the ctr register.
-      if (InlineAsm *IA = dyn_cast<InlineAsm>(CI->getCalledValue())) {
-        if (asmClobbersCTR(IA))
-          return true;
-        continue;
-      }
-
-      if (Function *F = CI->getCalledFunction()) {
-        // Most intrinsics don't become function calls, but some might.
-        // sin, cos, exp and log are always calls.
-        unsigned Opcode = 0;
-        if (F->getIntrinsicID() != Intrinsic::not_intrinsic) {
-          switch (F->getIntrinsicID()) {
-          default: continue;
-          // If we have a call to ppc_is_decremented_ctr_nonzero, or ppc_mtctr
-          // we're definitely using CTR.
-          case Intrinsic::ppc_is_decremented_ctr_nonzero:
-          case Intrinsic::ppc_mtctr:
-            return true;
-
-// VisualStudio defines setjmp as _setjmp
-#if defined(_MSC_VER) && defined(setjmp) && \
-                       !defined(setjmp_undefined_for_msvc)
-#  pragma push_macro("setjmp")
-#  undef setjmp
-#  define setjmp_undefined_for_msvc
-#endif
-
-          case Intrinsic::setjmp:
-
-#if defined(_MSC_VER) && defined(setjmp_undefined_for_msvc)
- // let's return it to _setjmp state
-#  pragma pop_macro("setjmp")
-#  undef setjmp_undefined_for_msvc
-#endif
-
-          case Intrinsic::longjmp:
-
-          // Exclude eh_sjlj_setjmp; we don't need to exclude eh_sjlj_longjmp
-          // because, although it does clobber the counter register, the
-          // control can't then return to inside the loop unless there is also
-          // an eh_sjlj_setjmp.
-          case Intrinsic::eh_sjlj_setjmp:
-
-          case Intrinsic::memcpy:
-          case Intrinsic::memmove:
-          case Intrinsic::memset:
-          case Intrinsic::powi:
-          case Intrinsic::log:
-          case Intrinsic::log2:
-          case Intrinsic::log10:
-          case Intrinsic::exp:
-          case Intrinsic::exp2:
-          case Intrinsic::pow:
-          case Intrinsic::sin:
-          case Intrinsic::cos:
-            return true;
-          case Intrinsic::copysign:
-            if (CI->getArgOperand(0)->getType()->getScalarType()->
-                isPPC_FP128Ty())
-              return true;
-            else
-              continue; // ISD::FCOPYSIGN is never a library call.
-          case Intrinsic::sqrt:               Opcode = ISD::FSQRT;      break;
-          case Intrinsic::floor:              Opcode = ISD::FFLOOR;     break;
-          case Intrinsic::ceil:               Opcode = ISD::FCEIL;      break;
-          case Intrinsic::trunc:              Opcode = ISD::FTRUNC;     break;
-          case Intrinsic::rint:               Opcode = ISD::FRINT;      break;
-          case Intrinsic::nearbyint:          Opcode = ISD::FNEARBYINT; break;
-          case Intrinsic::round:              Opcode = ISD::FROUND;     break;
-          case Intrinsic::minnum:             Opcode = ISD::FMINNUM;    break;
-          case Intrinsic::maxnum:             Opcode = ISD::FMAXNUM;    break;
-          case Intrinsic::umul_with_overflow: Opcode = ISD::UMULO;      break;
-          case Intrinsic::smul_with_overflow: Opcode = ISD::SMULO;      break;
-          }
-        }
-
-        // PowerPC does not use [US]DIVREM or other library calls for
-        // operations on regular types which are not otherwise library calls
-        // (i.e. soft float or atomics). If adapting for targets that do,
-        // additional care is required here.
-
-        LibFunc Func;
-        if (!F->hasLocalLinkage() && F->hasName() && LibInfo &&
-            LibInfo->getLibFunc(F->getName(), Func) &&
-            LibInfo->hasOptimizedCodeGen(Func)) {
-          // Non-read-only functions are never treated as intrinsics.
-          if (!CI->onlyReadsMemory())
-            return true;
-
-          // Conversion happens only for FP calls.
-          if (!CI->getArgOperand(0)->getType()->isFloatingPointTy())
-            return true;
-
-          switch (Func) {
-          default: return true;
-          case LibFunc_copysign:
-          case LibFunc_copysignf:
-            continue; // ISD::FCOPYSIGN is never a library call.
-          case LibFunc_copysignl:
-            return true;
-          case LibFunc_fabs:
-          case LibFunc_fabsf:
-          case LibFunc_fabsl:
-            continue; // ISD::FABS is never a library call.
-          case LibFunc_sqrt:
-          case LibFunc_sqrtf:
-          case LibFunc_sqrtl:
-            Opcode = ISD::FSQRT; break;
-          case LibFunc_floor:
-          case LibFunc_floorf:
-          case LibFunc_floorl:
-            Opcode = ISD::FFLOOR; break;
-          case LibFunc_nearbyint:
-          case LibFunc_nearbyintf:
-          case LibFunc_nearbyintl:
-            Opcode = ISD::FNEARBYINT; break;
-          case LibFunc_ceil:
-          case LibFunc_ceilf:
-          case LibFunc_ceill:
-            Opcode = ISD::FCEIL; break;
-          case LibFunc_rint:
-          case LibFunc_rintf:
-          case LibFunc_rintl:
-            Opcode = ISD::FRINT; break;
-          case LibFunc_round:
-          case LibFunc_roundf:
-          case LibFunc_roundl:
-            Opcode = ISD::FROUND; break;
-          case LibFunc_trunc:
-          case LibFunc_truncf:
-          case LibFunc_truncl:
-            Opcode = ISD::FTRUNC; break;
-          case LibFunc_fmin:
-          case LibFunc_fminf:
-          case LibFunc_fminl:
-            Opcode = ISD::FMINNUM; break;
-          case LibFunc_fmax:
-          case LibFunc_fmaxf:
-          case LibFunc_fmaxl:
-            Opcode = ISD::FMAXNUM; break;
-          }
-        }
-
-        if (Opcode) {
-          EVT EVTy =
-              TLI->getValueType(*DL, CI->getArgOperand(0)->getType(), true);
-
-          if (EVTy == MVT::Other)
-            return true;
-
-          if (TLI->isOperationLegalOrCustom(Opcode, EVTy))
-            continue;
-          else if (EVTy.isVector() &&
-                   TLI->isOperationLegalOrCustom(Opcode, EVTy.getScalarType()))
-            continue;
-
-          return true;
-        }
-      }
-
-      return true;
-    } else if (isa<BinaryOperator>(J) &&
-               J->getType()->getScalarType()->isPPC_FP128Ty()) {
-      // Most operations on ppc_f128 values become calls.
-      return true;
-    } else if (isa<UIToFPInst>(J) || isa<SIToFPInst>(J) ||
-               isa<FPToUIInst>(J) || isa<FPToSIInst>(J)) {
-      CastInst *CI = cast<CastInst>(J);
-      if (CI->getSrcTy()->getScalarType()->isPPC_FP128Ty() ||
-          CI->getDestTy()->getScalarType()->isPPC_FP128Ty() ||
-          isLargeIntegerTy(!TM->isPPC64(), CI->getSrcTy()->getScalarType()) ||
-          isLargeIntegerTy(!TM->isPPC64(), CI->getDestTy()->getScalarType()))
-        return true;
-    } else if (isLargeIntegerTy(!TM->isPPC64(),
-                                J->getType()->getScalarType()) &&
-               (J->getOpcode() == Instruction::UDiv ||
-                J->getOpcode() == Instruction::SDiv ||
-                J->getOpcode() == Instruction::URem ||
-                J->getOpcode() == Instruction::SRem)) {
-      return true;
-    } else if (!TM->isPPC64() &&
-               isLargeIntegerTy(false, J->getType()->getScalarType()) &&
-               (J->getOpcode() == Instruction::Shl ||
-                J->getOpcode() == Instruction::AShr ||
-                J->getOpcode() == Instruction::LShr)) {
-      // Only on PPC32, for 128-bit integers (specifically not 64-bit
-      // integers), these might be runtime calls.
-      return true;
-    } else if (isa<IndirectBrInst>(J) || isa<InvokeInst>(J)) {
-      // On PowerPC, indirect jumps use the counter register.
-      return true;
-    } else if (SwitchInst *SI = dyn_cast<SwitchInst>(J)) {
-      if (SI->getNumCases() + 1 >= (unsigned)TLI->getMinimumJumpTableEntries())
-        return true;
-    }
-
-    // FREM is always a call.
-    if (J->getOpcode() == Instruction::FRem)
-      return true;
-
-    if (STI->useSoftFloat()) {
-      switch(J->getOpcode()) {
-      case Instruction::FAdd:
-      case Instruction::FSub:
-      case Instruction::FMul:
-      case Instruction::FDiv:
-      case Instruction::FPTrunc:
-      case Instruction::FPExt:
-      case Instruction::FPToUI:
-      case Instruction::FPToSI:
-      case Instruction::UIToFP:
-      case Instruction::SIToFP:
-      case Instruction::FCmp:
-        return true;
-      }
-    }
-
-    for (Value *Operand : J->operands())
-      if (memAddrUsesCTR(*TM, Operand))
-        return true;
-  }
-
-  return false;
-}
-bool PPCCTRLoops::convertToCTRLoop(Loop *L) {
-  bool MadeChange = false;
-
-  // Do not convert small short loops to CTR loop.
-  unsigned ConstTripCount = SE->getSmallConstantTripCount(L);
-  if (ConstTripCount && ConstTripCount < SmallCTRLoopThreshold) {
-    SmallPtrSet<const Value *, 32> EphValues;
-    auto AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(
-        *L->getHeader()->getParent());
-    CodeMetrics::collectEphemeralValues(L, &AC, EphValues);
-    CodeMetrics Metrics;
-    for (BasicBlock *BB : L->blocks())
-      Metrics.analyzeBasicBlock(BB, *TTI, EphValues);
-    // 6 is an approximate latency for the mtctr instruction.
-    if (Metrics.NumInsts <= (6 * SchedModel.getIssueWidth()))
-      return false;
-  }
-
-  // Process nested loops first.
-  for (Loop::iterator I = L->begin(), E = L->end(); I != E; ++I) {
-    MadeChange |= convertToCTRLoop(*I);
-    LLVM_DEBUG(dbgs() << "Nested loop converted\n");
-  }
-
-  // If a nested loop has been converted, then we can't convert this loop.
-  if (MadeChange)
-    return MadeChange;
-
-  // Bail out if the loop has irreducible control flow.
-  LoopBlocksRPO RPOT(L);
-  RPOT.perform(LI);
-  if (containsIrreducibleCFG<const BasicBlock *>(RPOT, *LI))
-    return false;
-
-#ifndef NDEBUG
-  // Stop trying after reaching the limit (if any).
-  int Limit = CTRLoopLimit;
-  if (Limit >= 0) {
-    if (Counter >= CTRLoopLimit)
-      return false;
-    Counter++;
+  for (const MachineBasicBlock &BB : MF) {
+    for (const MachineInstr &I : BB)
+      assert((I.getOpcode() != PPC::DecreaseCTRloop &&
+              I.getOpcode() != PPC::DecreaseCTR8loop) &&
+             "CTR loop pseudo is not expanded!");
   }
 #endif
 
-  // We don't want to spill/restore the counter register, and so we don't
-  // want to use the counter register if the loop contains calls.
-  for (Loop::block_iterator I = L->block_begin(), IE = L->block_end();
-       I != IE; ++I)
-    if (mightUseCTR(*I))
-      return MadeChange;
-
-  SmallVector<BasicBlock*, 4> ExitingBlocks;
-  L->getExitingBlocks(ExitingBlocks);
-
-  // If there is an exit edge known to be frequently taken,
-  // we should not transform this loop.
-  for (auto &BB : ExitingBlocks) {
-    Instruction *TI = BB->getTerminator();
-    if (!TI) continue;
-
-    if (BranchInst *BI = dyn_cast<BranchInst>(TI)) {
-      uint64_t TrueWeight = 0, FalseWeight = 0;
-      if (!BI->isConditional() ||
-          !BI->extractProfMetadata(TrueWeight, FalseWeight))
-        continue;
-
-      // If the exit path is more frequent than the loop path,
-      // we return here without further analysis for this loop.
-      bool TrueIsExit = !L->contains(BI->getSuccessor(0));
-      if (( TrueIsExit && FalseWeight < TrueWeight) ||
-          (!TrueIsExit && FalseWeight > TrueWeight))
-        return MadeChange;
-    }
-  }
-
-  BasicBlock *CountedExitBlock = nullptr;
-  const SCEV *ExitCount = nullptr;
-  BranchInst *CountedExitBranch = nullptr;
-  for (SmallVectorImpl<BasicBlock *>::iterator I = ExitingBlocks.begin(),
-       IE = ExitingBlocks.end(); I != IE; ++I) {
-    const SCEV *EC = SE->getExitCount(L, *I);
-    LLVM_DEBUG(dbgs() << "Exit Count for " << *L << " from block "
-                      << (*I)->getName() << ": " << *EC << "\n");
-    if (isa<SCEVCouldNotCompute>(EC))
-      continue;
-    if (const SCEVConstant *ConstEC = dyn_cast<SCEVConstant>(EC)) {
-      if (ConstEC->getValue()->isZero())
-        continue;
-    } else if (!SE->isLoopInvariant(EC, L))
-      continue;
-
-    if (SE->getTypeSizeInBits(EC->getType()) > (TM->isPPC64() ? 64 : 32))
-      continue;
-
-    // If this exiting block is contained in a nested loop, it is not eligible
-    // for insertion of the branch-and-decrement since the inner loop would
-    // end up messing up the value in the CTR.
-    if (LI->getLoopFor(*I) != L)
-      continue;
-
-    // We now have a loop-invariant count of loop iterations (which is not the
-    // constant zero) for which we know that this loop will not exit via this
-    // existing block.
-
-    // We need to make sure that this block will run on every loop iteration.
-    // For this to be true, we must dominate all blocks with backedges. Such
-    // blocks are in-loop predecessors to the header block.
-    bool NotAlways = false;
-    for (pred_iterator PI = pred_begin(L->getHeader()),
-         PIE = pred_end(L->getHeader()); PI != PIE; ++PI) {
-      if (!L->contains(*PI))
-        continue;
-
-      if (!DT->dominates(*I, *PI)) {
-        NotAlways = true;
-        break;
-      }
-    }
-
-    if (NotAlways)
-      continue;
-
-    // Make sure this blocks ends with a conditional branch.
-    Instruction *TI = (*I)->getTerminator();
-    if (!TI)
-      continue;
-
-    if (BranchInst *BI = dyn_cast<BranchInst>(TI)) {
-      if (!BI->isConditional())
-        continue;
-
-      CountedExitBranch = BI;
-    } else
-      continue;
-
-    // Note that this block may not be the loop latch block, even if the loop
-    // has a latch block.
-    CountedExitBlock = *I;
-    ExitCount = EC;
-    break;
-  }
-
-  if (!CountedExitBlock)
-    return MadeChange;
-
-  BasicBlock *Preheader = L->getLoopPreheader();
-
-  // If we don't have a preheader, then insert one. If we already have a
-  // preheader, then we can use it (except if the preheader contains a use of
-  // the CTR register because some such uses might be reordered by the
-  // selection DAG after the mtctr instruction).
-  if (!Preheader || mightUseCTR(Preheader))
-    Preheader = InsertPreheaderForLoop(L, DT, LI, PreserveLCSSA);
-  if (!Preheader)
-    return MadeChange;
-
-  LLVM_DEBUG(dbgs() << "Preheader for exit count: " << Preheader->getName()
-                    << "\n");
-
-  // Insert the count into the preheader and replace the condition used by the
-  // selected branch.
-  MadeChange = true;
-
-  SCEVExpander SCEVE(*SE, *DL, "loopcnt");
-  LLVMContext &C = SE->getContext();
-  Type *CountType = TM->isPPC64() ? Type::getInt64Ty(C) : Type::getInt32Ty(C);
-  if (!ExitCount->getType()->isPointerTy() &&
-      ExitCount->getType() != CountType)
-    ExitCount = SE->getZeroExtendExpr(ExitCount, CountType);
-  ExitCount = SE->getAddExpr(ExitCount, SE->getOne(CountType));
-  Value *ECValue =
-      SCEVE.expandCodeFor(ExitCount, CountType, Preheader->getTerminator());
-
-  IRBuilder<> CountBuilder(Preheader->getTerminator());
-  Module *M = Preheader->getParent()->getParent();
-  Value *MTCTRFunc = Intrinsic::getDeclaration(M, Intrinsic::ppc_mtctr,
-                                               CountType);
-  CountBuilder.CreateCall(MTCTRFunc, ECValue);
-
-  IRBuilder<> CondBuilder(CountedExitBranch);
-  Value *DecFunc =
-    Intrinsic::getDeclaration(M, Intrinsic::ppc_is_decremented_ctr_nonzero);
-  Value *NewCond = CondBuilder.CreateCall(DecFunc, {});
-  Value *OldCond = CountedExitBranch->getCondition();
-  CountedExitBranch->setCondition(NewCond);
-
-  // The false branch must exit the loop.
-  if (!L->contains(CountedExitBranch->getSuccessor(0)))
-    CountedExitBranch->swapSuccessors();
-
-  // The old condition may be dead now, and may have even created a dead PHI
-  // (the original induction variable).
-  RecursivelyDeleteTriviallyDeadInstructions(OldCond);
-  // Run through the basic blocks of the loop and see if any of them have dead
-  // PHIs that can be removed.
-  for (auto I : L->blocks())
-    DeleteDeadPHIs(I);
-
-  ++NumCTRLoops;
-  return MadeChange;
+  return Changed;
 }
 
-#ifndef NDEBUG
-static bool clobbersCTR(const MachineInstr &MI) {
-  for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI.getOperand(i);
-    if (MO.isReg()) {
-      if (MO.isDef() && (MO.getReg() == PPC::CTR || MO.getReg() == PPC::CTR8))
-        return true;
-    } else if (MO.isRegMask()) {
-      if (MO.clobbersPhysReg(PPC::CTR) || MO.clobbersPhysReg(PPC::CTR8))
-        return true;
-    }
+bool PPCCTRLoops::isCTRClobber(MachineInstr *MI, bool CheckReads) const {
+  if (!CheckReads) {
+    // If we are only checking for defs, that is we are going to find
+    // definitions before MTCTRloop, for this case:
+    // CTR defination inside the callee of a call instruction will not impact
+    // the defination of MTCTRloop, so we can use definesRegister() for the
+    // check, no need to check the regmask.
+    return MI->definesRegister(PPC::CTR) || MI->definesRegister(PPC::CTR8);
   }
 
-  return false;
-}
-
-static bool verifyCTRBranch(MachineBasicBlock *MBB,
-                            MachineBasicBlock::iterator I) {
-  MachineBasicBlock::iterator BI = I;
-  SmallSet<MachineBasicBlock *, 16>   Visited;
-  SmallVector<MachineBasicBlock *, 8> Preds;
-  bool CheckPreds;
-
-  if (I == MBB->begin()) {
-    Visited.insert(MBB);
-    goto queue_preds;
-  } else
-    --I;
-
-check_block:
-  Visited.insert(MBB);
-  if (I == MBB->end())
-    goto queue_preds;
-
-  CheckPreds = true;
-  for (MachineBasicBlock::iterator IE = MBB->begin();; --I) {
-    unsigned Opc = I->getOpcode();
-    if (Opc == PPC::MTCTRloop || Opc == PPC::MTCTR8loop) {
-      CheckPreds = false;
-      break;
-    }
-
-    if (I != BI && clobbersCTR(*I)) {
-      LLVM_DEBUG(dbgs() << printMBBReference(*MBB) << " (" << MBB->getFullName()
-                        << ") instruction " << *I
-                        << " clobbers CTR, invalidating "
-                        << printMBBReference(*BI->getParent()) << " ("
-                        << BI->getParent()->getFullName() << ") instruction "
-                        << *BI << "\n");
-      return false;
-    }
-
-    if (I == IE)
-      break;
-  }
-
-  if (!CheckPreds && Preds.empty())
+  if (MI->modifiesRegister(PPC::CTR) || MI->modifiesRegister(PPC::CTR8))
     return true;
 
-  if (CheckPreds) {
-queue_preds:
-    if (MachineFunction::iterator(MBB) == MBB->getParent()->begin()) {
-      LLVM_DEBUG(dbgs() << "Unable to find a MTCTR instruction for "
-                        << printMBBReference(*BI->getParent()) << " ("
-                        << BI->getParent()->getFullName() << ") instruction "
-                        << *BI << "\n");
-      return false;
+  if (MI->getDesc().isCall())
+    return true;
+
+  // We define the CTR in the loop preheader, so if there is any CTR reader in
+  // the loop, we also can not use CTR loop form.
+  if (MI->readsRegister(PPC::CTR) || MI->readsRegister(PPC::CTR8))
+    return true;
+
+  return false;
+}
+
+bool PPCCTRLoops::processLoop(MachineLoop *ML) {
+  bool Changed = false;
+
+  // Align with HardwareLoop pass, process inner loops first.
+  for (MachineLoop *I : *ML)
+    Changed |= processLoop(I);
+
+  // If any inner loop is changed, outter loop must be without hardware loop
+  // intrinsics.
+  if (Changed)
+    return true;
+
+  auto IsLoopStart = [](MachineInstr &MI) {
+    return MI.getOpcode() == PPC::MTCTRloop ||
+           MI.getOpcode() == PPC::MTCTR8loop;
+  };
+
+  auto SearchForStart =
+      [&IsLoopStart](MachineBasicBlock *MBB) -> MachineInstr * {
+    for (auto &MI : *MBB) {
+      if (IsLoopStart(MI))
+        return &MI;
+    }
+    return nullptr;
+  };
+
+  MachineInstr *Start = nullptr;
+  MachineInstr *Dec = nullptr;
+  bool InvalidCTRLoop = false;
+
+  MachineBasicBlock *Preheader = ML->getLoopPreheader();
+  // If there is no preheader for this loop, there must be no MTCTRloop
+  // either.
+  if (!Preheader)
+    return false;
+
+  Start = SearchForStart(Preheader);
+  // This is not a CTR loop candidate.
+  if (!Start)
+    return false;
+
+  // If CTR is live to the preheader, we can not redefine the CTR register.
+  if (Preheader->isLiveIn(PPC::CTR) || Preheader->isLiveIn(PPC::CTR8))
+    InvalidCTRLoop = true;
+
+  // Make sure there is also no CTR clobber in the block preheader between the
+  // begin and MTCTR.
+  for (MachineBasicBlock::reverse_instr_iterator I =
+           std::next(Start->getReverseIterator());
+       I != Preheader->instr_rend(); ++I)
+    // Only check the definitions of CTR. If there is non-dead definition for
+    // the CTR, we conservatively don't generate a CTR loop.
+    if (isCTRClobber(&*I, /* CheckReads */ false)) {
+      InvalidCTRLoop = true;
+      break;
     }
 
-    for (MachineBasicBlock::pred_iterator PI = MBB->pred_begin(),
-         PIE = MBB->pred_end(); PI != PIE; ++PI)
-      Preds.push_back(*PI);
+  // Make sure there is also no CTR clobber/user in the block preheader between
+  // MTCTR and the end.
+  for (MachineBasicBlock::instr_iterator I = std::next(Start->getIterator());
+       I != Preheader->instr_end(); ++I)
+    if (isCTRClobber(&*I, /* CheckReads */ true)) {
+      InvalidCTRLoop = true;
+      break;
+    }
+
+  // Find the CTR loop components and decide whether or not to fall back to a
+  // normal loop.
+  for (auto *MBB : reverse(ML->getBlocks())) {
+    for (auto &MI : *MBB) {
+      if (MI.getOpcode() == PPC::DecreaseCTRloop ||
+          MI.getOpcode() == PPC::DecreaseCTR8loop)
+        Dec = &MI;
+      else if (!InvalidCTRLoop)
+        // If any instruction clobber CTR, then we can not generate a CTR loop.
+        InvalidCTRLoop |= isCTRClobber(&MI, /* CheckReads */ true);
+    }
+    if (Dec && InvalidCTRLoop)
+      break;
   }
 
-  do {
-    MBB = Preds.pop_back_val();
-    if (!Visited.count(MBB)) {
-      I = MBB->getLastNonDebugInstr();
-      goto check_block;
-    }
-  } while (!Preds.empty());
+  assert(Dec && "CTR loop is not complete!");
 
+  if (InvalidCTRLoop) {
+    expandNormalLoops(ML, Start, Dec);
+    ++NumNormalLoops;
+  }
+  else {
+    expandCTRLoops(ML, Start, Dec);
+    ++NumCTRLoops;
+  }
   return true;
 }
 
-bool PPCCTRLoopsVerify::runOnMachineFunction(MachineFunction &MF) {
-  MDT = &getAnalysis<MachineDominatorTree>();
+void PPCCTRLoops::expandNormalLoops(MachineLoop *ML, MachineInstr *Start,
+                                    MachineInstr *Dec) {
+  bool Is64Bit =
+      Start->getParent()->getParent()->getSubtarget<PPCSubtarget>().isPPC64();
 
-  // Verify that all bdnz/bdz instructions are dominated by a loop mtctr before
-  // any other instructions that might clobber the ctr register.
-  for (MachineFunction::iterator I = MF.begin(), IE = MF.end();
-       I != IE; ++I) {
-    MachineBasicBlock *MBB = &*I;
-    if (!MDT->isReachableFromEntry(MBB))
-      continue;
+  MachineBasicBlock *Preheader = Start->getParent();
+  MachineBasicBlock *Exiting = Dec->getParent();
+  assert((Preheader && Exiting) &&
+         "Preheader and exiting should exist for CTR loop!");
 
-    for (MachineBasicBlock::iterator MII = MBB->getFirstTerminator(),
-      MIIE = MBB->end(); MII != MIIE; ++MII) {
-      unsigned Opc = MII->getOpcode();
-      if (Opc == PPC::BDNZ8 || Opc == PPC::BDNZ ||
-          Opc == PPC::BDZ8  || Opc == PPC::BDZ)
-        if (!verifyCTRBranch(MBB, MII))
-          llvm_unreachable("Invalid PPC CTR loop!");
+  assert(Dec->getOperand(1).getImm() == 1 &&
+         "Loop decrement stride must be 1");
+
+  unsigned ADDIOpcode = Is64Bit ? PPC::ADDI8 : PPC::ADDI;
+  unsigned CMPOpcode = Is64Bit ? PPC::CMPLDI : PPC::CMPLWI;
+
+  Register PHIDef =
+      MRI->createVirtualRegister(Is64Bit ? &PPC::G8RC_and_G8RC_NOX0RegClass
+                                         : &PPC::GPRC_and_GPRC_NOR0RegClass);
+
+  Start->getParent()->getParent()->getProperties().reset(
+      MachineFunctionProperties::Property::NoPHIs);
+
+  // Generate "PHI" in the header block.
+  auto PHIMIB = BuildMI(*ML->getHeader(), ML->getHeader()->getFirstNonPHI(),
+                        DebugLoc(), TII->get(TargetOpcode::PHI), PHIDef);
+  PHIMIB.addReg(Start->getOperand(0).getReg()).addMBB(Preheader);
+
+  Register ADDIDef =
+      MRI->createVirtualRegister(Is64Bit ? &PPC::G8RC_and_G8RC_NOX0RegClass
+                                         : &PPC::GPRC_and_GPRC_NOR0RegClass);
+  // Generate "addi -1" in the exiting block.
+  BuildMI(*Exiting, Dec, Dec->getDebugLoc(), TII->get(ADDIOpcode), ADDIDef)
+      .addReg(PHIDef)
+      .addImm(-1);
+
+  // Add other inputs for the PHI node.
+  if (ML->isLoopLatch(Exiting)) {
+    // There must be only two predecessors for the loop header, one is the
+    // Preheader and the other one is loop latch Exiting. In hardware loop
+    // insertion pass, the block containing DecreaseCTRloop must dominate all
+    // loop latches. So there must be only one latch.
+    assert(ML->getHeader()->pred_size() == 2 &&
+           "Loop header predecessor is not right!");
+    PHIMIB.addReg(ADDIDef).addMBB(Exiting);
+  } else {
+    // If the block containing DecreaseCTRloop is not a loop latch, we can use
+    // ADDIDef as the value for all other blocks for the PHI. In hardware loop
+    // insertion pass, the block containing DecreaseCTRloop must dominate all
+    // loop latches.
+    for (MachineBasicBlock *P : ML->getHeader()->predecessors()) {
+      if (ML->contains(P)) {
+        assert(ML->isLoopLatch(P) &&
+               "Loop's header in-loop predecessor is not loop latch!");
+        PHIMIB.addReg(ADDIDef).addMBB(P);
+      } else
+        assert(P == Preheader &&
+               "CTR loop should not be generated for irreducible loop!");
     }
   }
 
-  return false;
+  // Generate the compare in the exiting block.
+  Register CMPDef = MRI->createVirtualRegister(&PPC::CRRCRegClass);
+  auto CMPMIB =
+      BuildMI(*Exiting, Dec, Dec->getDebugLoc(), TII->get(CMPOpcode), CMPDef)
+          .addReg(ADDIDef)
+          .addImm(0);
+
+  BuildMI(*Exiting, Dec, Dec->getDebugLoc(), TII->get(TargetOpcode::COPY),
+          Dec->getOperand(0).getReg())
+      .addReg(CMPMIB->getOperand(0).getReg(), 0, PPC::sub_gt);
+
+  // Remove the pseudo instructions.
+  Start->eraseFromParent();
+  Dec->eraseFromParent();
 }
-#endif // NDEBUG
+
+void PPCCTRLoops::expandCTRLoops(MachineLoop *ML, MachineInstr *Start,
+                                 MachineInstr *Dec) {
+  bool Is64Bit =
+      Start->getParent()->getParent()->getSubtarget<PPCSubtarget>().isPPC64();
+
+  MachineBasicBlock *Preheader = Start->getParent();
+  MachineBasicBlock *Exiting = Dec->getParent();
+
+  (void)Preheader;
+  assert((Preheader && Exiting) &&
+         "Preheader and exiting should exist for CTR loop!");
+
+  assert(Dec->getOperand(1).getImm() == 1 && "Loop decrement must be 1!");
+
+  unsigned BDNZOpcode = Is64Bit ? PPC::BDNZ8 : PPC::BDNZ;
+  unsigned BDZOpcode = Is64Bit ? PPC::BDZ8 : PPC::BDZ;
+  auto BrInstr = MRI->use_instr_begin(Dec->getOperand(0).getReg());
+  assert(MRI->hasOneUse(Dec->getOperand(0).getReg()) &&
+         "There should be only one user for loop decrement pseudo!");
+
+  unsigned Opcode = 0;
+  switch (BrInstr->getOpcode()) {
+  case PPC::BC:
+    Opcode = BDNZOpcode;
+    (void) ML;
+    assert(ML->contains(BrInstr->getOperand(1).getMBB()) &&
+           "Invalid ctr loop!");
+    break;
+  case PPC::BCn:
+    Opcode = BDZOpcode;
+    assert(!ML->contains(BrInstr->getOperand(1).getMBB()) &&
+           "Invalid ctr loop!");
+    break;
+  default:
+    llvm_unreachable("Unhandled branch user for DecreaseCTRloop.");
+  }
+
+  // Generate "bdnz/bdz" in the exiting block just before the terminator.
+  BuildMI(*Exiting, &*BrInstr, BrInstr->getDebugLoc(), TII->get(Opcode))
+      .addMBB(BrInstr->getOperand(1).getMBB());
+
+  // Remove the pseudo instructions.
+  BrInstr->eraseFromParent();
+  Dec->eraseFromParent();
+}

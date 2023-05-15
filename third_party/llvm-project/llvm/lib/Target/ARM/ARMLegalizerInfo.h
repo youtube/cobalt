@@ -1,9 +1,8 @@
 //===- ARMLegalizerInfo ------------------------------------------*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -15,6 +14,7 @@
 #define LLVM_LIB_TARGET_ARM_ARMMACHINELEGALIZER_H
 
 #include "llvm/ADT/IndexedMap.h"
+#include "llvm/CodeGen/GlobalISel/GISelChangeObserver.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
 #include "llvm/CodeGen/RuntimeLibcalls.h"
 #include "llvm/IR/Instructions.h"
@@ -28,8 +28,7 @@ class ARMLegalizerInfo : public LegalizerInfo {
 public:
   ARMLegalizerInfo(const ARMSubtarget &ST);
 
-  bool legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
-                      MachineIRBuilder &MIRBuilder) const override;
+  bool legalizeCustom(LegalizerHelper &Helper, MachineInstr &MI) const override;
 
 private:
   void setFCmpLibcallsGNU();

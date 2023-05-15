@@ -21,7 +21,7 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         .. code-block:: console
 
-                clang -S -emit-llvm matmul.c -o matmul.s
+                clang -S -emit-llvm matmul.c -Xclang -disable-O0-optnone -o matmul.ll
 
 
 2. **Prepare the LLVM-IR for Polly**
@@ -29,12 +29,12 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         Polly is only able to work with code that matches a canonical form.
         To translate the LLVM-IR into this form we use a set of
-        canonicalication passes. They are scheduled by using
+        canonicalization passes. They are scheduled by using
         '-polly-canonicalize'.
 
         .. code-block:: console
 
-                opt -S -polly-canonicalize matmul.s > matmul.preopt.ll
+                opt -S -polly-canonicalize matmul.ll -o matmul.preopt.ll
 
 3. **Show the SCoPs detected by Polly (optional)**
 --------------------------------------------------
@@ -45,9 +45,9 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         .. code-block:: console
 
-                $ opt -polly-ast -analyze -q matmul.preopt.ll -polly-process-unprofitable
+                $ opt -basic-aa -polly-ast -analyze matmul.preopt.ll -polly-process-unprofitable -polly-use-llvm-names
 
-        .. code-block:: guess
+        .. code-block:: text
 
                 :: isl ast :: init_array :: %for.cond1.preheader---%for.end19
 
@@ -84,8 +84,8 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         .. code-block:: console
 
-                $ opt -view-scops -disable-output matmul.preopt.ll
-                $ opt -view-scops-only -disable-output matmul.preopt.ll
+                $ opt -polly-use-llvm-names -basic-aa -view-scops -disable-output matmul.preopt.ll
+                $ opt -polly-use-llvm-names -basic-aa -view-scops-only -disable-output matmul.preopt.ll
 
         The output for the different functions:
 
@@ -104,9 +104,9 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         .. code-block:: console
 
-                $ opt -polly-scops -analyze matmul.preopt.ll -polly-process-unprofitable
+                $ opt -polly-use-llvm-names -basic-aa -polly-scops -analyze matmul.preopt.ll -polly-process-unprofitable
 
-        .. code-block:: guess
+        .. code-block:: text
 
                 [...]Printing analysis 'Polly - Create polyhedral description of Scops' for region: 'for.cond1.preheader => for.end19' in function 'init_array':
                     Function: init_array
@@ -194,9 +194,9 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         .. code-block:: console
 
-	        $ opt -polly-dependences -analyze matmul.preopt.ll -polly-process-unprofitable
+	        $ opt -basic-aa -polly-use-llvm-names -polly-dependences -analyze matmul.preopt.ll -polly-process-unprofitable
 
-        .. code-block:: guess
+        .. code-block:: text
 
         	[...]Printing analysis 'Polly - Calculate dependences' for region: 'for.cond1.preheader => for.end19' in function 'init_array':
         		RAW dependences:
@@ -226,9 +226,9 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         .. code-block:: console
 
-        	$ opt -polly-export-jscop matmul.preopt.ll -polly-process-unprofitable
+        	$ opt -basic-aa -polly-use-llvm-names -polly-export-jscop matmul.preopt.ll -polly-process-unprofitable
 
-        .. code-block:: guess
+        .. code-block:: text
 
 	        [...]Writing JScop '%for.cond1.preheader---%for.end19' in function 'init_array' to './init_array___%for.cond1.preheader---%for.end19.jscop'.
 
@@ -254,7 +254,7 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-ast -analyze -polly-process-unprofitable
+		$ opt -basic-aa -polly-use-llvm-names matmul.preopt.ll -polly-import-jscop -polly-ast -analyze -polly-process-unprofitable
 
 	.. code-block:: c
 
@@ -282,7 +282,7 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged -polly-ast -analyze -polly-process-unprofitable
+		$ opt -basic-aa -polly-use-llvm-names matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged -polly-ast -analyze -polly-process-unprofitable
 
 	.. code-block:: c
 
@@ -311,7 +311,7 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled -polly-ast -analyze -polly-process-unprofitable
+		$ opt -basic-aa -polly-use-llvm-names matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled -polly-ast -analyze -polly-process-unprofitable
 
 	.. code-block:: c
 
@@ -346,7 +346,7 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled -polly-ast -analyze -polly-process-unprofitable
+		$ opt -basic-aa -polly-use-llvm-names matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled -polly-ast -analyze -polly-process-unprofitable
 
 	.. code-block:: c
 
@@ -383,13 +383,13 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll | opt -O3 > matmul.normalopt.ll
+		$ opt -S matmul.preopt.ll | opt -S -O3 -o matmul.normalopt.ll
 		
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged -polly-codegen -polly-process-unprofitable | opt -O3 > matmul.polly.interchanged.ll
+		$ opt -S matmul.preopt.ll -basic-aa -polly-use-llvm-names -polly-import-jscop -polly-import-jscop-postfix=interchanged -polly-codegen -polly-process-unprofitable | opt -S -O3 -o matmul.polly.interchanged.ll
 
-	.. code-block:: guess
+	.. code-block:: text
 
 		Reading JScop '%for.cond1.preheader---%for.end19' in function 'init_array' from './init_array___%for.cond1.preheader---%for.end19.jscop.interchanged'.
 		File could not be read: No such file or directory
@@ -397,9 +397,9 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled -polly-codegen -polly-process-unprofitable | opt -O3 > matmul.polly.interchanged+tiled.ll
+		$ opt -S matmul.preopt.ll -basic-aa -polly-use-llvm-names -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled -polly-codegen -polly-process-unprofitable | opt -S -O3 -o matmul.polly.interchanged+tiled.ll
 		
-	.. code-block:: guess
+	.. code-block:: text
 
 		Reading JScop '%for.cond1.preheader---%for.end19' in function 'init_array' from './init_array___%for.cond1.preheader---%for.end19.jscop.interchanged+tiled'.
 		File could not be read: No such file or directory
@@ -407,9 +407,9 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled+vector -polly-codegen -polly-vectorizer=polly -polly-process-unprofitable | opt -O3 > matmul.polly.interchanged+tiled+vector.ll
+		$ opt -S matmul.preopt.ll -basic-aa -polly-use-llvm-names -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled+vector -polly-codegen -polly-vectorizer=polly -polly-process-unprofitable | opt -S -O3 -o matmul.polly.interchanged+tiled+vector.ll
 
-	.. code-block:: guess
+	.. code-block:: text
 
 		Reading JScop '%for.cond1.preheader---%for.end19' in function 'init_array' from './init_array___%for.cond1.preheader---%for.end19.jscop.interchanged+tiled+vector'.
 		File could not be read: No such file or directory
@@ -417,9 +417,9 @@ performance improvement can be expected by an optimal automatic optimizer.
 
 	.. code-block:: console
 
-		$ opt matmul.preopt.ll -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled+vector -polly-codegen -polly-vectorizer=polly -polly-parallel -polly-process-unprofitable | opt -O3 > matmul.polly.interchanged+tiled+openmp.ll
+		$ opt -S matmul.preopt.ll -basic-aa -polly-use-llvm-names -polly-import-jscop -polly-import-jscop-postfix=interchanged+tiled+vector -polly-codegen -polly-vectorizer=polly -polly-parallel -polly-process-unprofitable | opt -S -O3 -o matmul.polly.interchanged+tiled+openmp.ll
 
-	.. code-block:: guess
+	.. code-block:: text
 
 		Reading JScop '%for.cond1.preheader---%for.end19' in function 'init_array' from './init_array___%for.cond1.preheader---%for.end19.jscop.interchanged+tiled+vector'.
 		File could not be read: No such file or directory
@@ -431,11 +431,16 @@ performance improvement can be expected by an optimal automatic optimizer.
 
         .. code-block:: console
 
-	        $ llc matmul.normalopt.ll -o matmul.normalopt.s && gcc matmul.normalopt.s -o matmul.normalopt.exe
-	        $ llc matmul.polly.interchanged.ll -o matmul.polly.interchanged.s && gcc matmul.polly.interchanged.s -o matmul.polly.interchanged.exe
-	        $ llc matmul.polly.interchanged+tiled.ll -o matmul.polly.interchanged+tiled.s && gcc matmul.polly.interchanged+tiled.s -o matmul.polly.interchanged+tiled.exe
-	        $ llc matmul.polly.interchanged+tiled+vector.ll -o matmul.polly.interchanged+tiled+vector.s && gcc matmul.polly.interchanged+tiled+vector.s -o matmul.polly.interchanged+tiled+vector.exe
-        	$ llc matmul.polly.interchanged+tiled+vector+openmp.ll -o matmul.polly.interchanged+tiled+vector+openmp.s && gcc -fopenmp matmul.polly.interchanged+tiled+vector+openmp.s -o matmul.polly.interchanged+tiled+vector+openmp.exe
+	        $ llc matmul.normalopt.ll -o matmul.normalopt.s -relocation-model=pic
+	        $ gcc matmul.normalopt.s -o matmul.normalopt.exe
+	        $ llc matmul.polly.interchanged.ll -o matmul.polly.interchanged.s -relocation-model=pic
+	        $ gcc matmul.polly.interchanged.s -o matmul.polly.interchanged.exe
+	        $ llc matmul.polly.interchanged+tiled.ll -o matmul.polly.interchanged+tiled.s -relocation-model=pic
+	        $ gcc matmul.polly.interchanged+tiled.s -o matmul.polly.interchanged+tiled.exe
+	        $ llc matmul.polly.interchanged+tiled+vector.ll -o matmul.polly.interchanged+tiled+vector.s -relocation-model=pic
+	        $ gcc matmul.polly.interchanged+tiled+vector.s -o matmul.polly.interchanged+tiled+vector.exe
+        	$ llc matmul.polly.interchanged+tiled+vector+openmp.ll -o matmul.polly.interchanged+tiled+vector+openmp.s -relocation-model=pic
+        	$ gcc matmul.polly.interchanged+tiled+vector+openmp.s -lgomp -o matmul.polly.interchanged+tiled+vector+openmp.exe
 
 11. **Compare the runtime of the executables**
 ----------------------------------------------

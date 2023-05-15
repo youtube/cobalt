@@ -1,9 +1,8 @@
-//===-- PlatformDarwinTest.cpp ----------------------------------*- C++ -*-===//
+//===-- PlatformDarwinTest.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,6 +16,11 @@
 
 using namespace lldb;
 using namespace lldb_private;
+
+struct PlatformDarwinTester : public PlatformDarwin {
+public:
+  using PlatformDarwin::FindComponentInPath;
+};
 
 TEST(PlatformDarwinTest, TestParseVersionBuildDir) {
   llvm::VersionTuple V;
@@ -44,4 +48,21 @@ TEST(PlatformDarwinTest, TestParseVersionBuildDir) {
 
   std::tie(V, D) = PlatformDarwin::ParseVersionBuildDir("3.4.5");
   EXPECT_EQ(llvm::VersionTuple(3, 4, 5), V);
+}
+
+TEST(PlatformDarwinTest, FindComponentInPath) {
+  EXPECT_EQ("/path/to/foo",
+            PlatformDarwinTester::FindComponentInPath("/path/to/foo/", "foo"));
+
+  EXPECT_EQ("/path/to/foo",
+            PlatformDarwinTester::FindComponentInPath("/path/to/foo", "foo"));
+
+  EXPECT_EQ("/path/to/foobar", PlatformDarwinTester::FindComponentInPath(
+                                   "/path/to/foobar", "foo"));
+
+  EXPECT_EQ("/path/to/foobar", PlatformDarwinTester::FindComponentInPath(
+                                   "/path/to/foobar", "bar"));
+
+  EXPECT_EQ("",
+            PlatformDarwinTester::FindComponentInPath("/path/to/foo", "bar"));
 }

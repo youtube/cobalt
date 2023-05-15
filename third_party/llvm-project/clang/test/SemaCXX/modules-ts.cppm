@@ -37,20 +37,25 @@ export {
 export int c;
 
 namespace N {
-  export void f() {}
-}
+export void f() {}
+} // namespace N
 
-export struct T {} t;
+export struct T {
+} t;
 #elif TEST == 3
 int use_a = a; // expected-error {{declaration of 'a' must be imported from module 'foo' before it is required}}
-// expected-note@-13 {{previous}}
+// expected-note@-14 {{declaration here is not visible}}
 
 #undef foo
 import foo;
 
 export {} // expected-error {{export declaration cannot be empty}}
-export { ; }
-export { static_assert(true); }
+export {  // expected-note {{begins here}}
+  ;       // expected-warning {{ISO C++20 does not permit an empty declaration to appear in an export block}}
+}
+export {               // expected-note {{begins here}}
+  static_assert(true); // expected-warning {{ISO C++20 does not permit a static_assert declaration to appear in an export block}}
+}
 
 int use_b = b;
 int use_n = n; // FIXME: this should not be visible, because it is not exported
@@ -59,10 +64,9 @@ extern int n;
 static_assert(&n != p);
 #endif
 
-
 #if TEST == 1
 struct S {
-  export int n; // expected-error {{expected member name or ';'}}
+  export int n;        // expected-error {{expected member name or ';'}}
   export static int n; // expected-error {{expected member name or ';'}}
 };
 #endif
@@ -74,13 +78,13 @@ struct S {
 // language rules right now, but (per personal correspondence between zygoloid
 // and gdr) is the intent.
 #if TEST == 1
-export {
+export { // expected-note {{export block begins here}}
   extern "C++" {
-    namespace NestedExport {
-      export { // expected-error {{appears within another export}}
-        int q;
-      }
-    }
+  namespace NestedExport {
+  export { // expected-error {{appears within another export}}
+    int q;
+  }
+  } // namespace NestedExport
   }
 }
 #endif

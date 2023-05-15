@@ -1,9 +1,8 @@
 //=- SyntheticCountsPropagation.cpp - Propagate function counts --*- C++ -*-=//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,18 +25,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/IPO/SyntheticCountsPropagation.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/BlockFrequencyInfo.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/SyntheticCountsUtils.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using Scaled64 = ScaledNumber<uint64_t>;
@@ -45,20 +39,20 @@ using ProfileCount = Function::ProfileCount;
 
 #define DEBUG_TYPE "synthetic-counts-propagation"
 
-/// Initial synthetic count assigned to functions.
-static cl::opt<int>
+namespace llvm {
+cl::opt<int>
     InitialSyntheticCount("initial-synthetic-count", cl::Hidden, cl::init(10),
-                          cl::ZeroOrMore,
-                          cl::desc("Initial value of synthetic entry count."));
+                          cl::desc("Initial value of synthetic entry count"));
+} // namespace llvm
 
 /// Initial synthetic count assigned to inline functions.
 static cl::opt<int> InlineSyntheticCount(
-    "inline-synthetic-count", cl::Hidden, cl::init(15), cl::ZeroOrMore,
+    "inline-synthetic-count", cl::Hidden, cl::init(15),
     cl::desc("Initial synthetic entry count for inline functions."));
 
 /// Initial synthetic count assigned to cold functions.
 static cl::opt<int> ColdSyntheticCount(
-    "cold-synthetic-count", cl::Hidden, cl::init(5), cl::ZeroOrMore,
+    "cold-synthetic-count", cl::Hidden, cl::init(5),
     cl::desc("Initial synthetic entry count for cold functions."));
 
 // Assign initial synthetic entry counts to functions.
@@ -98,43 +92,48 @@ PreservedAnalyses SyntheticCountsPropagation::run(Module &M,
                                                   ModuleAnalysisManager &MAM) {
   FunctionAnalysisManager &FAM =
       MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
-  DenseMap<Function *, uint64_t> Counts;
+  DenseMap<Function *, Scaled64> Counts;
   // Set initial entry counts.
-  initializeCounts(M, [&](Function *F, uint64_t Count) { Counts[F] = Count; });
+  initializeCounts(
+      M, [&](Function *F, uint64_t Count) { Counts[F] = Scaled64(Count, 0); });
 
-  // Compute the relative block frequency for a call edge. Use scaled numbers
-  // and not integers since the relative block frequency could be less than 1.
-  auto GetCallSiteRelFreq = [&](const CallGraphNode::CallRecord &Edge) {
-    Optional<Scaled64> Res = None;
+  // Edge includes information about the source. Hence ignore the first
+  // parameter.
+  auto GetCallSiteProfCount = [&](const CallGraphNode *,
+                                  const CallGraphNode::CallRecord &Edge) {
+    std::optional<Scaled64> Res;
     if (!Edge.first)
       return Res;
-    assert(isa<Instruction>(Edge.first));
-    CallSite CS(cast<Instruction>(Edge.first));
-    Function *Caller = CS.getCaller();
+    CallBase &CB = *cast<CallBase>(*Edge.first);
+    Function *Caller = CB.getCaller();
     auto &BFI = FAM.getResult<BlockFrequencyAnalysis>(*Caller);
-    BasicBlock *CSBB = CS.getInstruction()->getParent();
+
+    // Now compute the callsite count from relative frequency and
+    // entry count:
+    BasicBlock *CSBB = CB.getParent();
     Scaled64 EntryFreq(BFI.getEntryFreq(), 0);
-    Scaled64 BBFreq(BFI.getBlockFreq(CSBB).getFrequency(), 0);
-    BBFreq /= EntryFreq;
-    return Optional<Scaled64>(BBFreq);
+    Scaled64 BBCount(BFI.getBlockFreq(CSBB).getFrequency(), 0);
+    BBCount /= EntryFreq;
+    BBCount *= Counts[Caller];
+    return std::optional<Scaled64>(BBCount);
   };
 
   CallGraph CG(M);
   // Propgate the entry counts on the callgraph.
   SyntheticCountsUtils<const CallGraph *>::propagate(
-      &CG, GetCallSiteRelFreq,
-      [&](const CallGraphNode *N) { return Counts[N->getFunction()]; },
-      [&](const CallGraphNode *N, uint64_t New) {
+      &CG, GetCallSiteProfCount, [&](const CallGraphNode *N, Scaled64 New) {
         auto F = N->getFunction();
         if (!F || F->isDeclaration())
           return;
+
         Counts[F] += New;
       });
 
   // Set the counts as metadata.
-  for (auto Entry : Counts)
-    Entry.first->setEntryCount(
-        ProfileCount(Entry.second, Function::PCT_Synthetic));
+  for (auto Entry : Counts) {
+    Entry.first->setEntryCount(ProfileCount(
+        Entry.second.template toInt<uint64_t>(), Function::PCT_Synthetic));
+  }
 
   return PreservedAnalyses::all();
 }

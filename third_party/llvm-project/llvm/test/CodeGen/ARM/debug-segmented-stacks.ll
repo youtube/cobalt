@@ -7,7 +7,7 @@
 
 define void @test_basic() #0 !dbg !4 {
         %mem = alloca i32, i32 10
-        call void @dummy_use (i32* %mem, i32 10)
+        call void @dummy_use (ptr %mem, i32 10)
 	ret void
 
 ; ARM-linux:      test_basic:
@@ -35,8 +35,8 @@ define void @test_basic() #0 !dbg !4 {
 
 ; ARM-linux:      pop     {r4, r5}
 ; ARM-linux:      .cfi_def_cfa_offset 0
-; ARM-linux       .cfi_same_value r4
-; ARM-linux       .cfi_same_value r5
+; ARM-linux:      .cfi_same_value r4
+; ARM-linux:      .cfi_same_value r5
 }
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
@@ -74,6 +74,6 @@ define void @test_basic() #0 !dbg !4 {
 !33 = !DILocation(line: 13, scope: !4)
 
 ; Just to prevent the alloca from being optimized away
-declare void @dummy_use(i32*, i32)
+declare void @dummy_use(ptr, i32)
 
 attributes #0 = { "split-stack" }

@@ -3,8 +3,11 @@ include(CompilerRTUtils)
 set(SANITIZER_GEN_DYNAMIC_LIST
   ${COMPILER_RT_SOURCE_DIR}/lib/sanitizer_common/scripts/gen_dynamic_list.py)
 
-set(SANITIZER_LINT_SCRIPT
-  ${COMPILER_RT_SOURCE_DIR}/lib/sanitizer_common/scripts/check_lint.sh)
+if(CMAKE_NM)
+  set(SANITIZER_NM "${CMAKE_NM}")
+else()
+  set(SANITIZER_NM nm)
+endif()
 
 # Create a target "<name>-<arch>-symbols" that would generate the list of
 # symbols that need to be exported from sanitizer runtime "<name>". Function
@@ -28,9 +31,9 @@ macro(add_sanitizer_rt_symbols name)
       list(APPEND extra_args "--extra" ${arg})
     endforeach()
     add_custom_command(OUTPUT ${stamp}
-      COMMAND ${PYTHON_EXECUTABLE}
+      COMMAND ${Python3_EXECUTABLE}
         ${SANITIZER_GEN_DYNAMIC_LIST} ${extra_args} $<TARGET_FILE:${target_name}>
-        > $<TARGET_FILE:${target_name}>.syms
+        --nm-executable "${SANITIZER_NM}" -o $<TARGET_FILE:${target_name}>.syms
       COMMAND ${CMAKE_COMMAND} -E touch ${stamp}
       DEPENDS ${target_name} ${SANITIZER_GEN_DYNAMIC_LIST} ${ARG_EXTRA}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -51,7 +54,15 @@ endmacro()
 # This function is only used on Darwin, where undefined symbols must be specified
 # in the linker invocation.
 function(add_weak_symbols libname link_flags)
-  file(STRINGS "${COMPILER_RT_SOURCE_DIR}/lib/${libname}/weak_symbols.txt" WEAK_SYMBOLS)
+  set(weak_symbols_file "${COMPILER_RT_SOURCE_DIR}/lib/${libname}/weak_symbols.txt")
+  file(STRINGS  "${weak_symbols_file}" WEAK_SYMBOLS)
+  # Add this file as a configure-time dependency so that changes to this
+  # file trigger a re-configure. This is necessary so that `${link_flags}`
+  # is changed when appropriate.
+  set_property(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    APPEND
+    PROPERTY CMAKE_CONFIGURE_DEPENDS "${weak_symbols_file}")
   set(local_link_flags ${${link_flags}})
   foreach(SYMBOL ${WEAK_SYMBOLS})
     set(local_link_flags ${local_link_flags} -Wl,-U,${SYMBOL})
@@ -70,9 +81,9 @@ macro(add_sanitizer_rt_version_list name)
     list(APPEND args "$<TARGET_FILE:${arg}>")
   endforeach()
   add_custom_command(OUTPUT ${vers}
-    COMMAND ${PYTHON_EXECUTABLE}
+    COMMAND ${Python3_EXECUTABLE}
       ${SANITIZER_GEN_DYNAMIC_LIST} --version-list ${args}
-      > ${vers}
+      --nm-executable "${SANITIZER_NM}" -o ${vers}
     DEPENDS ${SANITIZER_GEN_DYNAMIC_LIST} ${ARG_EXTRA} ${ARG_LIBS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Generating version list for ${name}"
@@ -81,20 +92,3 @@ macro(add_sanitizer_rt_version_list name)
   add_custom_target(${name}-version-list ALL
     DEPENDS ${vers})
 endmacro()
-
-# Add target to check code style for sanitizer runtimes.
-if(CMAKE_HOST_UNIX AND NOT OS_NAME MATCHES "OpenBSD")
-  add_custom_target(SanitizerLintCheck
-    COMMAND env LLVM_CHECKOUT=${LLVM_MAIN_SRC_DIR} SILENT=1 TMPDIR=
-      PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}
-      COMPILER_RT=${COMPILER_RT_SOURCE_DIR}
-      ${SANITIZER_LINT_SCRIPT}
-    DEPENDS ${SANITIZER_LINT_SCRIPT}
-    COMMENT "Running lint check for sanitizer sources..."
-    VERBATIM)
-else()
-  add_custom_target(SanitizerLintCheck
-    COMMAND echo "No lint check")
-endif()
-set_target_properties(SanitizerLintCheck
-  PROPERTIES FOLDER "Compiler-RT Misc")

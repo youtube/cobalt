@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 // <filesystem>
 
@@ -16,12 +15,14 @@
 // file_status status() const;
 // file_status status(error_code const&) const noexcept;
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <cassert>
 
-#include "filesystem_test_helper.hpp"
-#include "rapid-cxx-test.hpp"
+#include "filesystem_test_helper.h"
+#include "rapid-cxx-test.h"
+
+#include "test_macros.h"
 
 TEST_SUITE(directory_entry_obs_testsuite)
 
@@ -64,9 +65,8 @@ TEST_CASE(test_without_ec) {
   scoped_test_env env;
   path f = env.create_file("foo", 42);
   path d = env.create_dir("dir");
-  path fifo = env.create_fifo("fifo");
   path hl = env.create_hardlink("foo", "hl");
-  for (auto p : {hl, f, d, fifo}) {
+  auto test_path = [=](const path &p) {
     directory_entry e(p);
     file_status st = status(p);
     file_status sym_st = symlink_status(p);
@@ -82,7 +82,14 @@ TEST_CASE(test_without_ec) {
     TEST_CHECK(e.is_regular_file() == is_regular_file(st));
     TEST_CHECK(e.is_socket() == is_socket(st));
     TEST_CHECK(e.is_symlink() == is_symlink(sym_st));
-  }
+  };
+  test_path(f);
+  test_path(d);
+  test_path(hl);
+#ifndef _WIN32
+  path fifo = env.create_fifo("fifo");
+  test_path(fifo);
+#endif
 }
 
 TEST_CASE(test_with_ec) {
@@ -94,9 +101,8 @@ TEST_CASE(test_with_ec) {
   scoped_test_env env;
   path f = env.create_file("foo", 42);
   path d = env.create_dir("dir");
-  path fifo = env.create_fifo("fifo");
   path hl = env.create_hardlink("foo", "hl");
-  for (auto p : {hl, f, d, fifo}) {
+  auto test_path = [=](const path &p) {
     directory_entry e(p);
     std::error_code status_ec = GetTestEC();
     std::error_code sym_status_ec = GetTestEC(1);
@@ -140,7 +146,14 @@ TEST_CASE(test_with_ec) {
 
     TEST_CHECK(e.is_symlink(ec) == is_symlink(sym_st));
     TEST_CHECK(CheckEC(sym_status_ec));
-  }
+  };
+  test_path(f);
+  test_path(d);
+  test_path(hl);
+#ifndef _WIN32
+  path fifo = env.create_fifo("fifo");
+  test_path(fifo);
+#endif
 }
 
 TEST_CASE(test_with_ec_dne) {
@@ -148,8 +161,8 @@ TEST_CASE(test_with_ec_dne) {
   using fs::directory_entry;
   using fs::file_status;
   using fs::path;
-
-  for (auto p : {StaticEnv::DNE, StaticEnv::BadSymlink}) {
+  static_test_env static_env;
+  for (auto p : {static_env.DNE, static_env.BadSymlink}) {
 
     directory_entry e(p);
     std::error_code status_ec = GetTestEC();
@@ -192,6 +205,9 @@ TEST_CASE(test_with_ec_dne) {
   }
 }
 
+#ifndef TEST_WIN_NO_FILESYSTEM_PERMS_NONE
+// Windows doesn't support setting perms::none to trigger failures
+// reading directories.
 TEST_CASE(test_with_ec_cannot_resolve) {
   using namespace fs;
   using fs::directory_entry;
@@ -254,5 +270,6 @@ TEST_CASE(test_with_ec_cannot_resolve) {
     TEST_CHECK(CheckEC(sym_status_ec));
   }
 }
+#endif
 
 TEST_SUITE_END()

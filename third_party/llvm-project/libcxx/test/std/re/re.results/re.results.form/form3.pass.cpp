@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,18 +15,15 @@
 //   format(const basic_string<char_type, ST, SA>& fmt,
 //          regex_constants::match_flag_type flags = regex_constants::format_default) const;
 
-#include <iostream>
-
 #include <regex>
 #include <cassert>
 
 #include "test_macros.h"
 #include "test_allocator.h"
 
-int main()
+int main(int, char**)
 {
     typedef std::basic_string<char, std::char_traits<char>, test_allocator<char> > nstr;
-    typedef std::basic_string<wchar_t, std::char_traits<wchar_t>, test_allocator<wchar_t> > wstr;
     {
         std::match_results<const char*> m;
         const char s[] = "abcdefghijk";
@@ -56,6 +52,8 @@ int main()
         assert(out == "match: cdefghi, m[1]: efg, m[2]: e");
     }
 
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
+    typedef std::basic_string<wchar_t, std::char_traits<wchar_t>, test_allocator<wchar_t> > wstr;
     {
         std::match_results<const wchar_t*> m;
         const wchar_t s[] = L"abcdefghijk";
@@ -83,4 +81,7 @@ int main()
         wstr out = m.format(fmt, std::regex_constants::format_sed);
         assert(out == L"match: cdefghi, m[1]: efg, m[2]: e");
     }
+#endif // TEST_HAS_NO_WIDE_CHARACTERS
+
+  return 0;
 }

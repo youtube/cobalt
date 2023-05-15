@@ -1,9 +1,8 @@
-//===-- HexagonDYLDRendezvous.cpp -------------------------------*- C++ -*-===//
+//===-- HexagonDYLDRendezvous.cpp -----------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -50,6 +49,10 @@ HexagonDYLDRendezvous::HexagonDYLDRendezvous(Process *process)
     : m_process(process), m_rendezvous_addr(LLDB_INVALID_ADDRESS), m_current(),
       m_previous(), m_soentries(), m_added_soentries(), m_removed_soentries() {
   m_thread_info.valid = false;
+  m_thread_info.dtv_offset = 0;
+  m_thread_info.dtv_slot_size = 0;
+  m_thread_info.modid_offset = 0;
+  m_thread_info.tls_offset = 0;
 
   // Cache a copy of the executable path
   if (m_process) {
@@ -165,8 +168,7 @@ bool HexagonDYLDRendezvous::UpdateSOEntriesForAddition() {
     if (entry.path.empty() || ::strcmp(entry.path.c_str(), m_exe_path) == 0)
       continue;
 
-    pos = std::find(m_soentries.begin(), m_soentries.end(), entry);
-    if (pos == m_soentries.end()) {
+    if (!llvm::is_contained(m_soentries, entry)) {
       m_soentries.push_back(entry);
       m_added_soentries.push_back(entry);
     }
@@ -185,8 +187,7 @@ bool HexagonDYLDRendezvous::UpdateSOEntriesForDeletion() {
     return false;
 
   for (iterator I = begin(); I != end(); ++I) {
-    pos = std::find(entry_list.begin(), entry_list.end(), *I);
-    if (pos == entry_list.end())
+    if (!llvm::is_contained(entry_list, *I))
       m_removed_soentries.push_back(*I);
   }
 
@@ -247,7 +248,7 @@ std::string HexagonDYLDRendezvous::ReadStringFromMemory(addr_t addr) {
     return std::string();
 
   for (;;) {
-    size = m_process->DoReadMemory(addr, &c, 1, error);
+    size = m_process->ReadMemory(addr, &c, 1, error);
     if (size != 1 || error.Fail())
       return std::string();
     if (c == 0)
@@ -291,8 +292,9 @@ bool HexagonDYLDRendezvous::FindMetadata(const char *name, PThreadField field,
   Target &target = m_process->GetTarget();
 
   SymbolContextList list;
-  if (!target.GetImages().FindSymbolsWithNameAndType(ConstString(name),
-                                                     eSymbolTypeAny, list))
+  target.GetImages().FindSymbolsWithNameAndType(ConstString(name),
+                                                eSymbolTypeAny, list);
+  if (list.IsEmpty())
     return false;
 
   Address address = list[0].symbol->GetAddress();
@@ -340,16 +342,16 @@ void HexagonDYLDRendezvous::DumpToLog(Log *log) const {
     return;
 
   log->PutCString("HexagonDYLDRendezvous:");
-  log->Printf("   Address: %" PRIx64, GetRendezvousAddress());
-  log->Printf("   Version: %" PRIu64, GetVersion());
-  log->Printf("   Link   : %" PRIx64, GetLinkMapAddress());
-  log->Printf("   Break  : %" PRIx64, GetBreakAddress());
-  log->Printf("   LDBase : %" PRIx64, GetLDBase());
-  log->Printf("   State  : %s",
-              (state == eConsistent)
-                  ? "consistent"
-                  : (state == eAdd) ? "add" : (state == eDelete) ? "delete"
-                                                                 : "unknown");
+  LLDB_LOGF(log, "   Address: %" PRIx64, GetRendezvousAddress());
+  LLDB_LOGF(log, "   Version: %" PRIu64, GetVersion());
+  LLDB_LOGF(log, "   Link   : %" PRIx64, GetLinkMapAddress());
+  LLDB_LOGF(log, "   Break  : %" PRIx64, GetBreakAddress());
+  LLDB_LOGF(log, "   LDBase : %" PRIx64, GetLDBase());
+  LLDB_LOGF(log, "   State  : %s",
+            (state == eConsistent)
+                ? "consistent"
+                : (state == eAdd) ? "add"
+                                  : (state == eDelete) ? "delete" : "unknown");
 
   iterator I = begin();
   iterator E = end();
@@ -358,11 +360,11 @@ void HexagonDYLDRendezvous::DumpToLog(Log *log) const {
     log->PutCString("HexagonDYLDRendezvous SOEntries:");
 
   for (int i = 1; I != E; ++I, ++i) {
-    log->Printf("\n   SOEntry [%d] %s", i, I->path.c_str());
-    log->Printf("      Base : %" PRIx64, I->base_addr);
-    log->Printf("      Path : %" PRIx64, I->path_addr);
-    log->Printf("      Dyn  : %" PRIx64, I->dyn_addr);
-    log->Printf("      Next : %" PRIx64, I->next);
-    log->Printf("      Prev : %" PRIx64, I->prev);
+    LLDB_LOGF(log, "\n   SOEntry [%d] %s", i, I->path.c_str());
+    LLDB_LOGF(log, "      Base : %" PRIx64, I->base_addr);
+    LLDB_LOGF(log, "      Path : %" PRIx64, I->path_addr);
+    LLDB_LOGF(log, "      Dyn  : %" PRIx64, I->dyn_addr);
+    LLDB_LOGF(log, "      Next : %" PRIx64, I->next);
+    LLDB_LOGF(log, "      Prev : %" PRIx64, I->prev);
   }
 }

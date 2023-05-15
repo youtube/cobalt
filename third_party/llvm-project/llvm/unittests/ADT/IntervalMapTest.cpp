@@ -1,14 +1,14 @@
 //===---- ADT/IntervalMapTest.cpp - IntervalMap unit tests ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/IntervalMap.h"
 #include "gtest/gtest.h"
+#include <type_traits>
 
 using namespace llvm;
 
@@ -50,6 +50,16 @@ TEST(IntervalMapTest, EmptyMap) {
   UUMap::iterator I2;
   I2 = map.end();
   EXPECT_TRUE(I2 == CI);
+}
+
+// Test one-element closed ranges.
+TEST(IntervalMapTest, OneElementRanges) {
+  UUMap::Allocator allocator;
+  UUMap map(allocator);
+  map.insert(1, 1, 1);
+  map.insert(2, 2, 2);
+  EXPECT_EQ(1u, map.lookup(1));
+  EXPECT_EQ(2u, map.lookup(2));
 }
 
 // Single entry map tests
@@ -609,6 +619,97 @@ TEST(IntervalMapTest, RandomCoalescing) {
   EXPECT_EQ(40959u, map.stop());
   EXPECT_EQ(1, std::distance(map.begin(), map.end()));
 
+}
+
+static void setupOverlaps(UUMap &M) {
+  M.insert(10, 20, 0);
+  M.insert(30, 40, 0);
+  M.insert(50, 60, 0);
+  // Add extra nodes to force allocations.
+  for (int i = 70; i < 100; i += 2)
+    M.insert(i, i + 1, i);
+}
+
+static void checkOverlaps(UUMap &M) {
+  EXPECT_FALSE(M.overlaps(0, 9));
+  EXPECT_TRUE(M.overlaps(0, 10));
+  EXPECT_TRUE(M.overlaps(0, 15));
+  EXPECT_TRUE(M.overlaps(0, 25));
+  EXPECT_TRUE(M.overlaps(0, 45));
+  EXPECT_TRUE(M.overlaps(10, 45));
+  EXPECT_TRUE(M.overlaps(30, 45));
+  EXPECT_TRUE(M.overlaps(35, 36));
+  EXPECT_TRUE(M.overlaps(40, 45));
+  EXPECT_FALSE(M.overlaps(45, 45));
+  EXPECT_TRUE(M.overlaps(60, 60));
+  EXPECT_TRUE(M.overlaps(60, 66));
+  EXPECT_FALSE(M.overlaps(66, 66));
+}
+
+TEST(IntervalMapTest, Copy) {
+  // Test that copy assignment and initialization works.
+  UUHalfOpenMap::Allocator Allocator;
+  UUMap Src(Allocator);
+  setupOverlaps(Src);
+
+  UUMap CopyAssignmentDst(Allocator);
+  CopyAssignmentDst = Src;
+
+  UUMap CopyInitDst(Src);
+
+  checkOverlaps(Src);
+  Src.clear();
+
+  checkOverlaps(CopyAssignmentDst);
+  checkOverlaps(CopyInitDst);
+}
+
+TEST(IntervalMapTest, Move) {
+  // Test that move assignment and initialization works.
+  UUHalfOpenMap::Allocator Allocator;
+  // Double check that MoveAssignmentDst owns all its data by moving from an
+  // object that is destroyed before we call checkOverlaps.
+  UUMap MoveAssignmentDst(Allocator);
+  {
+    UUMap Src(Allocator);
+    setupOverlaps(Src);
+    MoveAssignmentDst = std::move(Src);
+  }
+  checkOverlaps(MoveAssignmentDst);
+
+  UUMap MoveInitSrc(Allocator);
+  setupOverlaps(MoveInitSrc);
+  UUMap MoveInitDst(std::move(MoveInitSrc));
+  checkOverlaps(MoveInitDst);
+}
+
+TEST(IntervalMapTest, Overlaps) {
+  UUMap::Allocator allocator;
+  UUMap map(allocator);
+  setupOverlaps(map);
+  checkOverlaps(map);
+}
+
+TEST(IntervalMapTest, OverlapsHalfOpen) {
+  UUHalfOpenMap::Allocator allocator;
+  UUHalfOpenMap map(allocator);
+  map.insert(10, 20, 0);
+  map.insert(30, 40, 0);
+  map.insert(50, 60, 0);
+
+  EXPECT_FALSE(map.overlaps(0, 9));
+  EXPECT_FALSE(map.overlaps(0, 10));
+  EXPECT_TRUE(map.overlaps(0, 15));
+  EXPECT_TRUE(map.overlaps(0, 25));
+  EXPECT_TRUE(map.overlaps(0, 45));
+  EXPECT_TRUE(map.overlaps(10, 45));
+  EXPECT_TRUE(map.overlaps(30, 45));
+  EXPECT_TRUE(map.overlaps(35, 36));
+  EXPECT_FALSE(map.overlaps(40, 45));
+  EXPECT_FALSE(map.overlaps(45, 46));
+  EXPECT_FALSE(map.overlaps(60, 61));
+  EXPECT_FALSE(map.overlaps(60, 66));
+  EXPECT_FALSE(map.overlaps(66, 67));
 }
 
 TEST(IntervalMapOverlapsTest, SmallMaps) {

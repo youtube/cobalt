@@ -1,9 +1,8 @@
 //===---- OverlappingReplacementsTest.cpp - clang-tidy --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,8 +32,8 @@ public:
   }
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override {
     auto *VD = Result.Nodes.getNodeAs<VarDecl>(BoundDecl);
-    diag(VD->getLocStart(), "use char") << FixItHint::CreateReplacement(
-        CharSourceRange::getTokenRange(VD->getLocStart(), VD->getLocStart()),
+    diag(VD->getBeginLoc(), "use char") << FixItHint::CreateReplacement(
+        CharSourceRange::getTokenRange(VD->getBeginLoc(), VD->getBeginLoc()),
         "char");
   }
 };
@@ -52,7 +51,7 @@ public:
     auto *Cond = If->getCond();
     SourceRange Range = Cond->getSourceRange();
     if (auto *D = If->getConditionVariable()) {
-      Range = SourceRange(D->getLocStart(), D->getLocEnd());
+      Range = SourceRange(D->getBeginLoc(), D->getEndLoc());
     }
     diag(Range.getBegin(), "the cake is a lie") << FixItHint::CreateReplacement(
         CharSourceRange::getTokenRange(Range), "false");

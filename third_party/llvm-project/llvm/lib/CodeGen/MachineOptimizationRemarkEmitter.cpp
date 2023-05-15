@@ -1,9 +1,8 @@
 ///===- MachineOptimizationRemarkEmitter.cpp - Opt Diagnostic -*- C++ -*---===//
 ///
-///                     The LLVM Compiler Infrastructure
-///
-/// This file is distributed under the University of Illinois Open Source
-/// License. See LICENSE.TXT for details.
+/// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+/// See https://llvm.org/LICENSE.txt for license information.
+/// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 ///
 ///===---------------------------------------------------------------------===//
 /// \file
@@ -18,23 +17,24 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
+#include <optional>
 
 using namespace llvm;
 
 DiagnosticInfoMIROptimization::MachineArgument::MachineArgument(
-    StringRef MKey, const MachineInstr &MI)
-    : Argument() {
-  Key = MKey;
+    StringRef MKey, const MachineInstr &MI) {
+  Key = std::string(MKey);
 
   raw_string_ostream OS(Val);
   MI.print(OS, /*IsStandalone=*/true, /*SkipOpers=*/false,
            /*SkipDebugLoc=*/true);
 }
 
-Optional<uint64_t>
+std::optional<uint64_t>
 MachineOptimizationRemarkEmitter::computeHotness(const MachineBasicBlock &MBB) {
   if (!MBFI)
-    return None;
+    return std::nullopt;
 
   return MBFI->getBlockProfileCount(&MBB);
 }
@@ -54,10 +54,8 @@ void MachineOptimizationRemarkEmitter::emit(
   LLVMContext &Ctx = MF.getFunction().getContext();
 
   // Only emit it if its hotness meets the threshold.
-  if (OptDiag.getHotness().getValueOr(0) <
-      Ctx.getDiagnosticsHotnessThreshold()) {
+  if (OptDiag.getHotness().value_or(0) < Ctx.getDiagnosticsHotnessThreshold())
     return;
-  }
 
   Ctx.diagnose(OptDiag);
 }
@@ -77,7 +75,7 @@ bool MachineOptimizationRemarkEmitterPass::runOnMachineFunction(
   else
     MBFI = nullptr;
 
-  ORE = llvm::make_unique<MachineOptimizationRemarkEmitter>(MF, MBFI);
+  ORE = std::make_unique<MachineOptimizationRemarkEmitter>(MF, MBFI);
   return false;
 }
 
@@ -93,7 +91,7 @@ static const char ore_name[] = "Machine Optimization Remark Emitter";
 #define ORE_NAME "machine-opt-remark-emitter"
 
 INITIALIZE_PASS_BEGIN(MachineOptimizationRemarkEmitterPass, ORE_NAME, ore_name,
-                      false, true)
+                      true, true)
 INITIALIZE_PASS_DEPENDENCY(LazyMachineBlockFrequencyInfoPass)
 INITIALIZE_PASS_END(MachineOptimizationRemarkEmitterPass, ORE_NAME, ore_name,
-                    false, true)
+                    true, true)

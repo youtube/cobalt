@@ -7,7 +7,7 @@
 define zeroext i1 @test1(i32 %X)  nounwind {
 ; CHECK-LABEL: test1:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    movb {{[0-9]+}}(%esp), %al
+; CHECK-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
 ; CHECK-NEXT:    andb $1, %al
 ; CHECK-NEXT:    retl
     %Y = trunc i32 %X to i1
@@ -38,7 +38,7 @@ ret_false:
     ret i1 false
 }
 
-define i32 @test3(i8* %ptr) nounwind {
+define i32 @test3(ptr %ptr) nounwind {
 ; CHECK-LABEL: test3:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movl {{[0-9]+}}(%esp), %eax
@@ -50,7 +50,7 @@ define i32 @test3(i8* %ptr) nounwind {
 ; CHECK-NEXT:  .LBB2_2: # %cond_false
 ; CHECK-NEXT:    movl $42, %eax
 ; CHECK-NEXT:    retl
-    %val = load i8, i8* %ptr
+    %val = load i8, ptr %ptr
     %tmp = trunc i8 %val to i1
     br i1 %tmp, label %cond_true, label %cond_false
 cond_true:
@@ -59,7 +59,7 @@ cond_false:
     ret i32 42
 }
 
-define i32 @test4(i8* %ptr) nounwind {
+define i32 @test4(ptr %ptr) nounwind {
 ; CHECK-LABEL: test4:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    testb $1, {{[0-9]+}}(%esp)
@@ -70,7 +70,7 @@ define i32 @test4(i8* %ptr) nounwind {
 ; CHECK-NEXT:  .LBB3_2: # %cond_false
 ; CHECK-NEXT:    movl $42, %eax
 ; CHECK-NEXT:    retl
-    %tmp = ptrtoint i8* %ptr to i1
+    %tmp = ptrtoint ptr %ptr to i1
     br i1 %tmp, label %cond_true, label %cond_false
 cond_true:
     ret i32 21
@@ -81,24 +81,24 @@ cond_false:
 define i32 @test5(double %d) nounwind {
 ; CHECK-LABEL: test5:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    pushl %eax
+; CHECK-NEXT:    subl $8, %esp
 ; CHECK-NEXT:    fldl {{[0-9]+}}(%esp)
-; CHECK-NEXT:    fnstcw (%esp)
-; CHECK-NEXT:    movzwl (%esp), %eax
-; CHECK-NEXT:    movw $3199, (%esp) # imm = 0xC7F
-; CHECK-NEXT:    fldcw (%esp)
-; CHECK-NEXT:    movw %ax, (%esp)
+; CHECK-NEXT:    fnstcw {{[0-9]+}}(%esp)
+; CHECK-NEXT:    movzwl {{[0-9]+}}(%esp), %eax
+; CHECK-NEXT:    orl $3072, %eax # imm = 0xC00
+; CHECK-NEXT:    movw %ax, {{[0-9]+}}(%esp)
+; CHECK-NEXT:    fldcw {{[0-9]+}}(%esp)
 ; CHECK-NEXT:    fistps {{[0-9]+}}(%esp)
-; CHECK-NEXT:    fldcw (%esp)
+; CHECK-NEXT:    fldcw {{[0-9]+}}(%esp)
 ; CHECK-NEXT:    testb $1, {{[0-9]+}}(%esp)
 ; CHECK-NEXT:    je .LBB4_2
 ; CHECK-NEXT:  # %bb.1: # %cond_true
 ; CHECK-NEXT:    movl $21, %eax
-; CHECK-NEXT:    popl %ecx
+; CHECK-NEXT:    addl $8, %esp
 ; CHECK-NEXT:    retl
 ; CHECK-NEXT:  .LBB4_2: # %cond_false
 ; CHECK-NEXT:    movl $42, %eax
-; CHECK-NEXT:    popl %ecx
+; CHECK-NEXT:    addl $8, %esp
 ; CHECK-NEXT:    retl
     %tmp = fptosi double %d to i1
     br i1 %tmp, label %cond_true, label %cond_false

@@ -1,9 +1,8 @@
-; RUN: opt -mtriple=amdgcn--amdhsa -disable-output -disable-verify -debug-pass=Structure -O2 %s 2>&1 | FileCheck -check-prefix=GCN %s
+; RUN: opt -mtriple=amdgcn--amdhsa -disable-output -disable-verify -debug-pass-manager -passes='default<O2>' %s 2>&1 | FileCheck -check-prefix=NPM %s
 
-; GCN: Function Integration/Inlining
-; GCN: FunctionPass Manager
-; GCN: Infer address spaces
-; GCN: SROA
+; NPM: Running pass: InlinerPass
+; NPM: Running pass: InferAddressSpacesPass
+; NPM: Running pass: SROA
 
 define void @empty() {
   ret void

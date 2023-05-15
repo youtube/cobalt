@@ -8,5 +8,8 @@ add_clang_library(clangHandleCXX
   clangCodeGen
   clangFrontend
   clangLex
+  clangSerialization
   clangTooling
   )
+
+target_include_directories(clangHandleCXX PRIVATE .)

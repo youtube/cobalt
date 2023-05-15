@@ -1,9 +1,8 @@
 //===-- MSP430ISelLowering.h - MSP430 DAG Lowering Interface ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -36,6 +35,9 @@ namespace llvm {
       /// Y = RRC X, rotate right via carry
       RRC,
 
+      /// Rotate right via carry, carry gets cleared beforehand by clrc
+      RRCL,
+
       /// CALL - These operations represent an abstract call
       /// instruction, which includes a bunch of information.
       CALL,
@@ -61,8 +63,9 @@ namespace llvm {
       /// is condition code and operand 4 is flag operand.
       SELECT_CC,
 
-      /// SHL, SRA, SRL - Non-constant shifts.
-      SHL, SRA, SRL
+      /// DADD - Decimal addition with carry
+      /// TODO Nothing generates a node of this type yet.
+      DADD,
     };
   }
 
@@ -74,6 +77,10 @@ namespace llvm {
 
     MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
       return MVT::i8;
+    }
+
+    MVT::SimpleValueType getCmpLibcallReturnType() const override {
+      return MVT::i16;
     }
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
@@ -120,6 +127,9 @@ namespace llvm {
     bool isZExtFree(Type *Ty1, Type *Ty2) const override;
     bool isZExtFree(EVT VT1, EVT VT2) const override;
     bool isZExtFree(SDValue Val, EVT VT2) const override;
+
+    bool isLegalICmpImmediate(int64_t) const override;
+    bool shouldAvoidTransformToShift(EVT VT, unsigned Amount) const override;
 
     MachineBasicBlock *
     EmitInstrWithCustomInserter(MachineInstr &MI,

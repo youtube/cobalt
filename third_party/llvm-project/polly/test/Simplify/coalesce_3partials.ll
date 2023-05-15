@@ -1,4 +1,4 @@
-; RUN: opt %loadPolly -polly-stmt-granularity=bb -polly-import-jscop -polly-import-jscop-postfix=transformed -polly-simplify -analyze < %s | FileCheck -match-full-lines %s
+; RUN: opt %loadPolly -polly-stmt-granularity=bb -polly-import-jscop -polly-import-jscop-postfix=transformed -polly-print-simplify -disable-output < %s | FileCheck -match-full-lines %s
 ;
 ; Combine 3 partial accesses into one.
 ;
@@ -8,7 +8,7 @@
 ;   A[0] = 42.0;
 ; }
 ;
-define void @coalesce_3partials(i32 %n, double* noalias nonnull %A) {
+define void @coalesce_3partials(i32 %n, ptr noalias nonnull %A) {
 entry:
   br label %for
 
@@ -18,9 +18,9 @@ for:
   br i1 %j.cmp, label %body, label %exit
 
     body:
-      store double 42.0, double* %A
-      store double 42.0, double* %A
-      store double 42.0, double* %A
+      store double 42.0, ptr %A
+      store double 42.0, ptr %A
+      store double 42.0, ptr %A
       br label %inc
 
 inc:
@@ -44,5 +44,5 @@ return:
 ; CHECK-NEXT:     Stmt_body
 ; CHECK-NEXT:             MustWriteAccess :=  [Reduction Type: NONE] [Scalar: 0]
 ; CHECK-NEXT:                 [n] -> { Stmt_body[i0] -> MemRef_A[0] };
-; CHECK-NEXT:            new: [n] -> { Stmt_body[i0] -> MemRef_A[0] : n <= 2147483647 };
+; CHECK-NEXT:            new: [n] -> { Stmt_body[i0] -> MemRef_A[0] };
 ; CHECK-NEXT: }

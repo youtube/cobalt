@@ -5,13 +5,13 @@ target triple = "msp430---elf"
 
 define void @test() #0 {
 ; CHECK-LABEL: test:
-; CHECK: sub.w #2, r1
+; CHECK: sub #2, r1
   %1 = alloca i8, align 1
-; CHECK-NEXT: mov.b #0, 1(r1)
+; CHECK-NEXT: clr.b 1(r1)
   store i8 0, i8* %1, align 1
-; CHECK-NEXT: add.w #2, r1
+; CHECK-NEXT: add #2, r1
 ; CHECK-NEXT: ret
   ret void
 }
 
-attributes #0 = { nounwind "no-frame-pointer-elim"="false" }
+attributes #0 = { nounwind "frame-pointer"="none" }

@@ -8,13 +8,12 @@ add_lldb_library(lldbHostMacOSXObjCXX
   HostThreadMacOSX.mm
 
   LINK_LIBS
-    lldbCore
-    lldbSymbol
-    lldbTarget
     lldbUtility
     ${EXTRA_LIBS}
 
   LINK_COMPONENTS
-    Object
     Support
+    TargetParser
   )
+
+target_compile_options(lldbHostMacOSXObjCXX PRIVATE -fno-objc-exceptions)

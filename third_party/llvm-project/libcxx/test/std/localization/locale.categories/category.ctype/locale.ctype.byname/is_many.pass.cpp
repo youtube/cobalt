@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,6 +13,7 @@
 // const charT* do_is(const charT* low, const charT* high, mask* vec) const;
 
 // REQUIRES: locale.en_US.UTF-8
+// XFAIL: no-wide-characters
 
 #include <locale>
 #include <string>
@@ -22,9 +22,10 @@
 
 #include <stdio.h>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
-int main()
+int main(int, char**)
 {
     {
         std::locale l(LOCALE_en_US_UTF_8);
@@ -147,17 +148,27 @@ int main()
 
             // L'\x00DA'
             assert(!(m[0] & F::space));
-            assert(!(m[0] & F::print));
             assert(!(m[0] & F::cntrl));
-            assert(!(m[0] & F::upper));
             assert(!(m[0] & F::lower));
-            assert(!(m[0] & F::alpha));
             assert(!(m[0] & F::digit));
             assert(!(m[0] & F::punct));
             assert(!(m[0] & F::xdigit));
             assert(!(m[0] & F::blank));
+#if defined(_WIN32)
+            // On Windows, these wchars are classified according to their
+            // Unicode interpretation even in the "C" locale.
+            assert( (m[0] & F::alpha));
+            assert( (m[0] & F::upper));
+            assert( (m[0] & F::print));
+            assert( (m[0] & F::alnum));
+            assert( (m[0] & F::graph));
+#else
+            assert(!(m[0] & F::alpha));
+            assert(!(m[0] & F::upper));
+            assert(!(m[0] & F::print));
             assert(!(m[0] & F::alnum));
             assert(!(m[0] & F::graph));
+#endif
 
             // L' '
             assert( (m[1] & F::space));
@@ -244,4 +255,6 @@ int main()
             assert( (m[6] & F::graph));
         }
     }
+
+  return 0;
 }

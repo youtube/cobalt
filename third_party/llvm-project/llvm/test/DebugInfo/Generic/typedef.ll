@@ -1,5 +1,3 @@
-; REQUIRES: object-emission
-
 ; RUN: %llc_dwarf -O0 -filetype=obj < %s | llvm-dwarfdump -debug-info - | FileCheck %s
 
 ; From source:
@@ -14,7 +12,7 @@
 
 source_filename = "test/DebugInfo/Generic/typedef.ll"
 
-@y = global i8* null, align 8, !dbg !0
+@y = global ptr null, align 8, !dbg !0
 
 !llvm.dbg.cu = !{!5}
 !llvm.module.flags = !{!8, !9}

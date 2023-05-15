@@ -72,13 +72,14 @@ void testMergedMerged() {
 // Test merging when using anonymous namespaces, which does not
 // actually perform any merging.
 void testAnonymousNotMerged() {
-  N11::consumeFoo(N11::getFoo()); // expected-error{{cannot initialize a parameter of type 'N11::(anonymous namespace)::Foo *' with an rvalue of type 'N11::(anonymous namespace)::Foo *'}}
-  N12::consumeFoo(N12::getFoo()); // expected-error{{cannot initialize a parameter of type 'N12::(anonymous namespace)::Foo *' with an rvalue of type 'N12::(anonymous namespace)::Foo *'}}
+  N11::consumeFoo(N11::getFoo()); // expected-error{{cannot initialize a parameter of type 'Foo *' with an rvalue of type 'Foo *'}}
+  N12::consumeFoo(N12::getFoo()); // expected-error{{cannot initialize a parameter of type 'Foo *' with an rvalue of type 'Foo *'}}
 }
 
 // expected-note@Inputs/namespaces-right.h:60 {{passing argument to parameter here}}
 // expected-note@Inputs/namespaces-right.h:67 {{passing argument to parameter here}}
-
+// expected-note@Inputs/namespaces-left.h:63 {{'N11::(anonymous namespace)::Foo' is not defined, but forward declared here; conversion would be valid if it was derived from 'N11::(anonymous namespace)::Foo'}}
+// expected-note@Inputs/namespaces-left.h:70 {{'N12::(anonymous namespace)::Foo' is not defined, but forward declared here; conversion would be valid if it was derived from 'N12::(anonymous namespace)::Foo'}}
 // Test that bringing in one name from an overload set does not hide the rest.
 void testPartialImportOfOverloadSet() {
   void (*p)() = N13::p;

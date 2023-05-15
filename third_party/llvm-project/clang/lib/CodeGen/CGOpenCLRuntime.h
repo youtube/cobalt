@@ -1,9 +1,8 @@
 //===----- CGOpenCLRuntime.h - Interface to OpenCL Runtimes -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,8 +15,10 @@
 #ifndef LLVM_CLANG_LIB_CODEGEN_CGOPENCLRUNTIME_H
 #define LLVM_CLANG_LIB_CODEGEN_CGOPENCLRUNTIME_H
 
+#include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 
@@ -38,18 +39,21 @@ protected:
   llvm::Type *PipeROTy;
   llvm::Type *PipeWOTy;
   llvm::PointerType *SamplerTy;
+  llvm::StringMap<llvm::PointerType *> CachedTys;
 
   /// Structure for enqueued block information.
   struct EnqueuedBlockInfo {
     llvm::Function *InvokeFunc; /// Block invoke function.
     llvm::Function *Kernel;     /// Enqueued block kernel.
     llvm::Value *BlockArg;      /// The first argument to enqueued block kernel.
+    llvm::Type *BlockTy;        /// Type of the block argument.
   };
   /// Maps block expression to block information.
   llvm::DenseMap<const Expr *, EnqueuedBlockInfo> EnqueuedBlockMap;
 
   virtual llvm::Type *getPipeType(const PipeType *T, StringRef Name,
                                   llvm::Type *&PipeTy);
+  llvm::PointerType *getPointerType(const Type *T, StringRef Name);
 
 public:
   CGOpenCLRuntime(CodeGenModule &CGM) : CGM(CGM),
@@ -90,7 +94,7 @@ public:
   /// \param InvokeF invoke function emitted for the block expression.
   /// \param Block block literal emitted for the block expression.
   void recordBlockInfo(const BlockExpr *E, llvm::Function *InvokeF,
-                       llvm::Value *Block);
+                       llvm::Value *Block, llvm::Type *BlockTy);
 
   /// \return LLVM block invoke function emitted for an expression derived from
   /// the block expression.

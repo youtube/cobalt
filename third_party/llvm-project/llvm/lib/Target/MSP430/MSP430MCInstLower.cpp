@@ -1,9 +1,8 @@
 //===-- MSP430MCInstLower.cpp - Convert MSP430 MachineInstr to an MCInst --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -110,12 +109,13 @@ LowerSymbolOperand(const MachineOperand &MO, MCSymbol *Sym) const {
   return MCOperand::createExpr(Expr);
 }
 
+#define GET_REGINFO_ENUM
+#include "MSP430GenRegisterInfo.inc"
+
 void MSP430MCInstLower::Lower(const MachineInstr *MI, MCInst &OutMI) const {
   OutMI.setOpcode(MI->getOpcode());
 
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
-
+  for (const MachineOperand &MO : MI->operands()) {
     MCOperand MCOp;
     switch (MO.getType()) {
     default:

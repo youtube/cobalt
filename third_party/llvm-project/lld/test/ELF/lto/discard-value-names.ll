@@ -7,18 +7,18 @@
 ; CHECK: @GlobalValueName
 ; CHECK: @foo(i32 %in)
 ; CHECK: somelabel:
-; CHECK:  %GV = load i32, i32* @GlobalValueName
+; CHECK:  %GV = load i32, ptr @GlobalValueName
 ; CHECK:  %add = add i32 %in, %GV
 ; CHECK:  ret i32 %add
 
-target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
 @GlobalValueName = global i32 0
 
 define i32 @foo(i32 %in) {
 somelabel:
-  %GV = load i32, i32* @GlobalValueName
+  %GV = load i32, ptr @GlobalValueName
   %add = add i32 %in, %GV
   ret i32 %add
 }

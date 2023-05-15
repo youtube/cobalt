@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 // <optional>
 
 // void swap(optional&)
@@ -19,7 +18,7 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "archetypes.hpp"
+#include "archetypes.h"
 
 using std::optional;
 
@@ -64,13 +63,23 @@ public:
     friend void swap(Z&, Z&) {TEST_THROW(6);}
 };
 
+class W
+{
+    int i_;
+public:
+    constexpr W(int i) : i_(i) {}
 
-int main()
+    friend constexpr bool operator==(const W& x, const W& y) {return x.i_ == y.i_;}
+    friend TEST_CONSTEXPR_CXX20 void swap(W& x, W& y) noexcept {std::swap(x.i_, y.i_);}
+};
+
+template<class T>
+TEST_CONSTEXPR_CXX20 bool check_swap()
 {
     {
-        optional<int> opt1;
-        optional<int> opt2;
-        static_assert(noexcept(opt1.swap(opt2)) == true, "");
+        optional<T> opt1;
+        optional<T> opt2;
+        static_assert(noexcept(opt1.swap(opt2)) == true);
         assert(static_cast<bool>(opt1) == false);
         assert(static_cast<bool>(opt2) == false);
         opt1.swap(opt2);
@@ -78,9 +87,9 @@ int main()
         assert(static_cast<bool>(opt2) == false);
     }
     {
-        optional<int> opt1(1);
-        optional<int> opt2;
-        static_assert(noexcept(opt1.swap(opt2)) == true, "");
+        optional<T> opt1(1);
+        optional<T> opt2;
+        static_assert(noexcept(opt1.swap(opt2)) == true);
         assert(static_cast<bool>(opt1) == true);
         assert(*opt1 == 1);
         assert(static_cast<bool>(opt2) == false);
@@ -90,8 +99,8 @@ int main()
         assert(*opt2 == 1);
     }
     {
-        optional<int> opt1;
-        optional<int> opt2(2);
+        optional<T> opt1;
+        optional<T> opt2(2);
         static_assert(noexcept(opt1.swap(opt2)) == true, "");
         assert(static_cast<bool>(opt1) == false);
         assert(static_cast<bool>(opt2) == true);
@@ -102,8 +111,8 @@ int main()
         assert(static_cast<bool>(opt2) == false);
     }
     {
-        optional<int> opt1(1);
-        optional<int> opt2(2);
+        optional<T> opt1(1);
+        optional<T> opt2(2);
         static_assert(noexcept(opt1.swap(opt2)) == true, "");
         assert(static_cast<bool>(opt1) == true);
         assert(*opt1 == 1);
@@ -115,6 +124,17 @@ int main()
         assert(static_cast<bool>(opt2) == true);
         assert(*opt2 == 1);
     }
+    return true;
+}
+
+int main(int, char**)
+{
+    check_swap<int>();
+    check_swap<W>();
+#if TEST_STD_VER > 17
+    static_assert(check_swap<int>());
+    static_assert(check_swap<W>());
+#endif
     {
         optional<X> opt1;
         optional<X> opt2;
@@ -303,4 +323,6 @@ int main()
         assert(*opt2 == 2);
     }
 #endif
+
+  return 0;
 }

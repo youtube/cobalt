@@ -1,9 +1,9 @@
-; RUN: opt %loadPolly -polly-scops -analyze -polly-print-instructions < %s | FileCheck %s
+; RUN: opt %loadPolly -polly-print-scops -polly-print-instructions -disable-output < %s | FileCheck %s
 ;
 ; Verify that we remove the ignored intrinsics from the instruction list.
 ;
 ; CHECK:       Instructions {
-; CHECK-NEXT:      store i32 %i.0, i32* %arrayidx, align 4
+; CHECK-NEXT:      store i32 %i.0, ptr %arrayidx, align 4
 ; CHECK-NEXT:    }
 ;
 ;    int A[1024];
@@ -26,9 +26,9 @@ for.cond:                                         ; preds = %for.inc, %entry
 
 for.body:                                         ; preds = %for.cond
   %idxprom = sext i32 %i.0 to i64
-  %arrayidx = getelementptr inbounds [1024 x i32], [1024 x i32]* %A, i64 0, i64 %idxprom
+  %arrayidx = getelementptr inbounds [1024 x i32], ptr %A, i64 0, i64 %idxprom
   call void @llvm.donothing()
-  store i32 %i.0, i32* %arrayidx, align 4
+  store i32 %i.0, ptr %arrayidx, align 4
   br label %for.inc
 
 for.inc:                                          ; preds = %for.body
@@ -42,5 +42,5 @@ for.end:                                          ; preds = %for.cond
 ; Function Attrs: nounwind readnone
 declare void @llvm.donothing() #1
 
-attributes #0 = { noinline nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { noinline nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }

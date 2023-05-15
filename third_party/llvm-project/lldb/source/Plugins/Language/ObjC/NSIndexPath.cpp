@@ -1,27 +1,22 @@
-//===-- NSIndexPath.cpp -----------------------------------------*- C++ -*-===//
+//===-- NSIndexPath.cpp ---------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "Cocoa.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/DataFormatters/TypeSynthetic.h"
-#include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 
+#include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::formatters;
@@ -38,7 +33,7 @@ class NSIndexPathSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
 public:
   NSIndexPathSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
       : SyntheticChildrenFrontEnd(*valobj_sp.get()), m_descriptor_sp(nullptr),
-        m_impl(), m_ptr_size(0), m_uint_star_type() {
+        m_impl(), m_uint_star_type() {
     m_ptr_size =
         m_backend.GetTargetSP()->GetArchitecture().GetAddressByteSize();
   }
@@ -54,13 +49,12 @@ public:
   bool Update() override {
     m_impl.Clear();
 
-    TypeSystem *type_system = m_backend.GetCompilerType().GetTypeSystem();
+    auto type_system = m_backend.GetCompilerType().GetTypeSystem();
     if (!type_system)
       return false;
 
-    ClangASTContext *ast = m_backend.GetExecutionContextRef()
-                               .GetTargetSP()
-                               ->GetScratchClangASTContext();
+    auto ast = ScratchTypeSystemClang::GetForTarget(
+        *m_backend.GetExecutionContextRef().GetTargetSP());
     if (!ast)
       return false;
 
@@ -73,9 +67,7 @@ public:
     if (!process_sp)
       return false;
 
-    ObjCLanguageRuntime *runtime =
-        (ObjCLanguageRuntime *)process_sp->GetLanguageRuntime(
-            lldb::eLanguageTypeObjC);
+    ObjCLanguageRuntime *runtime = ObjCLanguageRuntime::Get(*process_sp);
 
     if (!runtime)
       return false;
@@ -130,13 +122,9 @@ public:
     return false;
   }
 
-  bool MightHaveChildren() override {
-    if (m_impl.m_mode == Mode::Invalid)
-      return false;
-    return true;
-  }
+  bool MightHaveChildren() override { return m_impl.m_mode != Mode::Invalid; }
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
+  size_t GetIndexOfChildWithName(ConstString name) override {
     const char *item_name = name.GetCString();
     uint32_t idx = ExtractIndexFromString(item_name);
     if (idx < UINT32_MAX && idx >= CalculateNumChildren())
@@ -221,14 +209,13 @@ protected:
         m_process = nullptr;
       }
 
-      InlinedIndexes()
-          : m_indexes(0), m_count(0), m_ptr_size(0), m_process(nullptr) {}
+      InlinedIndexes() {}
 
     private:
-      uint64_t m_indexes;
-      size_t m_count;
-      uint32_t m_ptr_size;
-      Process *m_process;
+      uint64_t m_indexes = 0;
+      size_t m_count = 0;
+      uint32_t m_ptr_size = 0;
+      Process *m_process = nullptr;
 
       // cfr. Foundation for the details of this code
       size_t _lengthForInlinePayload(uint32_t ptr_size) {
@@ -283,10 +270,10 @@ protected:
         m_count = 0;
       }
 
-      OutsourcedIndexes() : m_indexes(nullptr), m_count(0) {}
+      OutsourcedIndexes() {}
 
-      ValueObject *m_indexes;
-      size_t m_count;
+      ValueObject *m_indexes = nullptr;
+      size_t m_count = 0;
     };
 
     union {
@@ -295,17 +282,25 @@ protected:
     };
 
     void Clear() {
+      switch (m_mode) {
+      case Mode::Inlined:
+        m_inlined.Clear();
+        break;
+      case Mode::Outsourced:
+        m_outsourced.Clear();
+        break;
+      case Mode::Invalid:
+        break;
+      }
       m_mode = Mode::Invalid;
-      m_inlined.Clear();
-      m_outsourced.Clear();
     }
 
-    Impl() : m_mode(Mode::Invalid) {}
+    Impl() {}
 
-    Mode m_mode;
+    Mode m_mode = Mode::Invalid;
   } m_impl;
 
-  uint32_t m_ptr_size;
+  uint32_t m_ptr_size = 0;
   CompilerType m_uint_star_type;
 };
 

@@ -1,9 +1,9 @@
 ; Test the MSA intrinsics that are encoded with the 2R instruction format and
 ; convert scalars to vectors.
 
-; RUN: llc -march=mips -mattr=+msa,+fp64 -relocation-model=pic < %s | \
+; RUN: llc -march=mips -mattr=+msa,+fp64,+mips32r2 -relocation-model=pic < %s | \
 ; RUN:   FileCheck %s -check-prefixes=MIPS-ANY,MIPS32
-; RUN: llc -march=mipsel -mattr=+msa,+fp64 -relocation-model=pic < %s | \
+; RUN: llc -march=mipsel -mattr=+msa,+fp64,+mips32r2 -relocation-model=pic < %s | \
 ; RUN:   FileCheck %s -check-prefixes=MIPS-ANY,MIPS32
 ; RUN: llc -march=mips64 -mcpu=mips64r2 -mattr=+msa,+fp64 -relocation-model=pic < %s | \
 ; RUN:   FileCheck %s -check-prefixes=MIPS-ANY,MIPS64
@@ -15,9 +15,9 @@
 
 define void @llvm_mips_fill_b_test() nounwind {
 entry:
-  %0 = load i32, i32* @llvm_mips_fill_b_ARG1
+  %0 = load i32, ptr @llvm_mips_fill_b_ARG1
   %1 = tail call <16 x i8> @llvm.mips.fill.b(i32 %0)
-  store <16 x i8> %1, <16 x i8>* @llvm_mips_fill_b_RES
+  store <16 x i8> %1, ptr @llvm_mips_fill_b_RES
   ret void
 }
 
@@ -35,9 +35,9 @@ declare <16 x i8> @llvm.mips.fill.b(i32) nounwind
 
 define void @llvm_mips_fill_h_test() nounwind {
 entry:
-  %0 = load i32, i32* @llvm_mips_fill_h_ARG1
+  %0 = load i32, ptr @llvm_mips_fill_h_ARG1
   %1 = tail call <8 x i16> @llvm.mips.fill.h(i32 %0)
-  store <8 x i16> %1, <8 x i16>* @llvm_mips_fill_h_RES
+  store <8 x i16> %1, ptr @llvm_mips_fill_h_RES
   ret void
 }
 
@@ -55,9 +55,9 @@ declare <8 x i16> @llvm.mips.fill.h(i32) nounwind
 
 define void @llvm_mips_fill_w_test() nounwind {
 entry:
-  %0 = load i32, i32* @llvm_mips_fill_w_ARG1
+  %0 = load i32, ptr @llvm_mips_fill_w_ARG1
   %1 = tail call <4 x i32> @llvm.mips.fill.w(i32 %0)
-  store <4 x i32> %1, <4 x i32>* @llvm_mips_fill_w_RES
+  store <4 x i32> %1, ptr @llvm_mips_fill_w_RES
   ret void
 }
 
@@ -75,9 +75,9 @@ declare <4 x i32> @llvm.mips.fill.w(i32) nounwind
 
 define void @llvm_mips_fill_d_test() nounwind {
 entry:
-  %0 = load i64, i64* @llvm_mips_fill_d_ARG1
+  %0 = load i64, ptr @llvm_mips_fill_d_ARG1
   %1 = tail call <2 x i64> @llvm.mips.fill.d(i64 %0)
-  store <2 x i64> %1, <2 x i64>* @llvm_mips_fill_d_RES
+  store <2 x i64> %1, ptr @llvm_mips_fill_d_RES
   ret void
 }
 
@@ -86,9 +86,8 @@ declare <2 x i64> @llvm.mips.fill.d(i64) nounwind
 ; MIPS-ANY: llvm_mips_fill_d_test:
 ; MIPS32-DAG: lw [[R1:\$[0-9]+]], 0(
 ; MIPS32-DAG: lw [[R2:\$[0-9]+]], 4(
-; MIPS64-DAG: ld [[R1:\$[0-9]+]], %got_disp(llvm_mips_fill_d_ARG1)
-; MIPS32-DAG: ldi.b [[R3:\$w[0-9]+]], 0
-; MIPS32-DAG: insert.w [[R3]][0], [[R1]]
+; MIPS64-DAG: ld [[R1]], %got_disp(llvm_mips_fill_d_ARG1)
+; MIPS32-DAG: insert.w [[R3:\$w[0-9]+]][0], [[R1]]
 ; MIPS32-DAG: insert.w [[R3]][1], [[R2]]
 ; MIPS32-DAG: insert.w [[R3]][2], [[R1]]
 ; MIPS32-DAG: insert.w [[R3]][3], [[R2]]

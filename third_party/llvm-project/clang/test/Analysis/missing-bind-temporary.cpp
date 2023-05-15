@@ -1,6 +1,6 @@
-// RUN: %clang_analyze_cc1 -triple x86_64-unknown-linux -analyzer-checker=debug.DumpCFG -std=c++14 %s > %t 2>&1
+// RUN: %clang_analyze_cc1 -triple x86_64-unknown-linux -analyzer-checker=debug.DumpCFG -std=c++14 -analyzer-config eagerly-assume=false %s > %t 2>&1
 // RUN: FileCheck --input-file=%t %s
-// RUN: %clang_analyze_cc1 -triple x86_64-unknown-linux -analyzer-checker=core,debug.ExprInspection -std=c++14 -verify %s
+// RUN: %clang_analyze_cc1 -triple x86_64-unknown-linux -analyzer-checker=core,debug.ExprInspection -std=c++14 -verify -analyzer-config eagerly-assume=false %s
 
 void clang_analyzer_eval(bool);
 
@@ -21,8 +21,8 @@ class B {
 
 // CHECK: void foo(int)
 // CHECK:       [B1]
-// CHECK-NEXT:    1:  (CXXConstructExpr, [B1.2], class variant_0::B)
-// CHECK-NEXT:    2: variant_0::B i;
+// CHECK-NEXT:    1:  (CXXConstructExpr, [B1.2], B)
+// CHECK-NEXT:    2: B i;
 // CHECK-NEXT:    3: operator=
 // CHECK-NEXT:    4: [B1.3] (ImplicitCastExpr, FunctionToPointerDecay, class variant_0::B &(*)(class variant_0::B &&) noexcept)
 // CHECK-NEXT:    5: i
@@ -63,8 +63,8 @@ class B {
 // destructor.
 // CHECK: template<> void foo<int>(int)
 // CHECK:       [B1]
-// CHECK-NEXT:    1:  (CXXConstructExpr, [B1.2], class variant_1::B)
-// CHECK-NEXT:    2: variant_1::B i;
+// CHECK-NEXT:    1:  (CXXConstructExpr, [B1.2], B)
+// CHECK-NEXT:    2: B i;
 // CHECK-NEXT:    3: operator=
 // CHECK-NEXT:    4: [B1.3] (ImplicitCastExpr, FunctionToPointerDecay, class variant_1::B &(*)(class variant_1::B &&) noexcept)
 // CHECK-NEXT:    5: i
@@ -103,8 +103,8 @@ public:
 
 // CHECK: template<> void foo<int>(int)
 // CHECK:       [B1]
-// CHECK-NEXT:    1:  (CXXConstructExpr, [B1.2], class variant_2::B)
-// CHECK-NEXT:    2: variant_2::B i;
+// CHECK-NEXT:    1:  (CXXConstructExpr, [B1.2], B)
+// CHECK-NEXT:    2: B i;
 // CHECK-NEXT:    3: operator=
 // CHECK-NEXT:    4: [B1.3] (ImplicitCastExpr, FunctionToPointerDecay, class variant_2::B &(*)(class variant_2::B &&) noexcept)
 // CHECK-NEXT:    5: i

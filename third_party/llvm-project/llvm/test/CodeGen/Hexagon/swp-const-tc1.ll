@@ -1,7 +1,7 @@
 ; RUN: llc -march=hexagon -enable-pipeliner -enable-pipeliner-opt-size \
-; RUN:     -verify-machineinstrs \
+; RUN:     -verify-machineinstrs -hexagon-initial-cfg-cleanup=0 \
 ; RUN:     -enable-aa-sched-mi=false -hexagon-expand-condsets=0 \
-; RUN:     < %s | FileCheck %s
+; RUN:     < %s -pipeliner-experimental-cg=true | FileCheck %s
 
 ; Disable expand-condsets because it will assert on undefined registers.
 
@@ -13,14 +13,14 @@
 ; CHECK: memb(r{{[0-9]+}}+#0) =
 
 ; Function Attrs: nounwind optsize
-define void @f0() #0 {
+define void @f0(i1 %x) #0 {
 b0:
   br label %b1
 
 b1:                                               ; preds = %b5, %b0
-  %v0 = load i16, i16* undef, align 2, !tbaa !0
+  %v0 = load i16, ptr undef, align 2, !tbaa !0
   %v1 = sext i16 %v0 to i32
-  %v2 = load i16, i16* undef, align 2, !tbaa !0
+  %v2 = load i16, ptr undef, align 2, !tbaa !0
   %v3 = sext i16 %v2 to i32
   %v4 = and i32 %v1, 7
   %v5 = and i32 %v3, 7
@@ -34,10 +34,10 @@ b3:                                               ; preds = %b3, %b2
   %v7 = add i32 %v6, undef
   %v8 = icmp slt i32 undef, %v7
   %v9 = add nsw i32 %v7, 1
-  %v10 = select i1 undef, i32 undef, i32 %v9
+  %v10 = select i1 %x, i32 1, i32 %v9
   %v11 = add i32 %v10, 0
-  %v12 = getelementptr inbounds i8, i8* null, i32 %v11
-  %v13 = load i8, i8* %v12, align 1, !tbaa !4
+  %v12 = getelementptr inbounds i8, ptr null, i32 %v11
+  %v13 = load i8, ptr %v12, align 1, !tbaa !4
   %v14 = zext i8 %v13 to i32
   %v15 = mul i32 %v14, %v4
   %v16 = add i32 %v15, 0
@@ -46,7 +46,7 @@ b3:                                               ; preds = %b3, %b2
   %v19 = add i32 %v18, 0
   %v20 = lshr i32 %v19, 6
   %v21 = trunc i32 %v20 to i8
-  store i8 %v21, i8* undef, align 1, !tbaa !4
+  store i8 %v21, ptr undef, align 1, !tbaa !4
   %v22 = add i32 %v6, 1
   %v23 = icmp eq i32 %v22, 2
   br i1 %v23, label %b4, label %b3

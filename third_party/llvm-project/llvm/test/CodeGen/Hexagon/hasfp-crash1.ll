@@ -6,10 +6,10 @@
 target triple = "hexagon"
 
 ; Function Attrs: nounwind
-declare i32 @foo0(i32*, i32, i64, i32, i8 zeroext, i8 zeroext, i32) local_unnamed_addr #0
+declare i32 @foo0(ptr, i32, i64, i32, i8 zeroext, i8 zeroext, i32) local_unnamed_addr #0
 
 ; Function Attrs: nounwind
-define i32 @foo1(i32* %a0, i32 %a1, i32 %a2, i32 %a3, i8 zeroext %a4, i8 zeroext %a5, i32 %a6) local_unnamed_addr #0 !dbg !33 {
+define i32 @foo1(ptr %a0, i32 %a1, i32 %a2, i32 %a3, i8 zeroext %a4, i8 zeroext %a5, i32 %a6) local_unnamed_addr #0 !dbg !33 {
 entry:
   tail call void @llvm.dbg.value(metadata i32 %a6, i64 0, metadata !51, metadata !52), !dbg !53
   ret i32 undef, !dbg !54
@@ -18,7 +18,7 @@ entry:
 ; Function Attrs: nounwind readnone speculatable
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
 
-attributes #0 = { nounwind "disable-tail-calls"="true" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv5" "target-features"="-hvx,-long-calls" }
+attributes #0 = { nounwind "disable-tail-calls"="true" "frame-pointer"="all" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv5" "target-features"="-hvx,-long-calls" }
 attributes #1 = { nounwind readnone speculatable }
 
 !llvm.dbg.cu = !{!0}

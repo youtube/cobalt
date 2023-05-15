@@ -1,9 +1,8 @@
 //===---- ManagedMemoryRewrite.cpp - Rewrite global & malloc'd memory -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,47 +15,32 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "polly/CodeGen/CodeGeneration.h"
-#include "polly/CodeGen/IslAst.h"
-#include "polly/CodeGen/IslNodeBuilder.h"
+#include "polly/CodeGen/IRBuilder.h"
 #include "polly/CodeGen/PPCGCodeGeneration.h"
-#include "polly/CodeGen/Utils.h"
 #include "polly/DependenceInfo.h"
 #include "polly/LinkAllPasses.h"
 #include "polly/Options.h"
 #include "polly/ScopDetection.h"
-#include "polly/ScopInfo.h"
-#include "polly/Support/SCEVValidator.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/BasicAliasAnalysis.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/CaptureTracking.h"
-#include "llvm/Analysis/GlobalsModRef.h"
-#include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/IRReader/IRReader.h"
-#include "llvm/Linker/Linker.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
+
+using namespace llvm;
+using namespace polly;
 
 static cl::opt<bool> RewriteAllocas(
     "polly-acc-rewrite-allocas",
     cl::desc(
         "Ask the managed memory rewriter to also rewrite alloca instructions"),
-    cl::Hidden, cl::init(false), cl::ZeroOrMore, cl::cat(PollyCategory));
+    cl::Hidden, cl::cat(PollyCategory));
 
 static cl::opt<bool> IgnoreLinkageForGlobals(
     "polly-acc-rewrite-ignore-linkage-for-globals",
     cl::desc(
         "By default, we only rewrite globals with internal linkage. This flag "
         "enables rewriting of globals regardless of linkage"),
-    cl::Hidden, cl::init(false), cl::ZeroOrMore, cl::cat(PollyCategory));
+    cl::Hidden, cl::cat(PollyCategory));
 
 #define DEBUG_TYPE "polly-acc-rewrite-managed-memory"
 namespace {
@@ -179,7 +163,7 @@ static void rewriteOldValToNew(Instruction *Inst, Value *OldVal, Value *NewVal,
 // in an expression.
 // We need this auxiliary function, because if we have a
 // `Constant` that is a user of `V`, we need to recurse into the
-// `Constant`s uses to gather the root instruciton.
+// `Constant`s uses to gather the root instruction.
 static void getInstructionUsersOfValue(Value *V,
                                        SmallVector<Instruction *, 4> &Owners) {
   if (auto *I = dyn_cast<Instruction>(V)) {
@@ -196,7 +180,7 @@ static void
 replaceGlobalArray(Module &M, const DataLayout &DL, GlobalVariable &Array,
                    SmallPtrSet<GlobalVariable *, 4> &ReplacedGlobals) {
   // We only want arrays.
-  ArrayType *ArrayTy = dyn_cast<ArrayType>(Array.getType()->getElementType());
+  ArrayType *ArrayTy = dyn_cast<ArrayType>(Array.getValueType());
   if (!ArrayTy)
     return;
   Type *ElemTy = ArrayTy->getElementType();
@@ -229,14 +213,14 @@ replaceGlobalArray(Module &M, const DataLayout &DL, GlobalVariable &Array,
   // At this point, we have committed to replacing this array.
   ReplacedGlobals.insert(&Array);
 
-  std::string NewName = Array.getName();
+  std::string NewName = Array.getName().str();
   NewName += ".toptr";
   GlobalVariable *ReplacementToArr =
       cast<GlobalVariable>(M.getOrInsertGlobal(NewName, ElemPtrTy));
   ReplacementToArr->setInitializer(ConstantPointerNull::get(ElemPtrTy));
 
   Function *PollyMallocManaged = getOrCreatePollyMallocManaged(M);
-  std::string FnName = Array.getName();
+  std::string FnName = Array.getName().str();
   FnName += ".constructor";
   PollyIRBuilder Builder(M.getContext());
   FunctionType *Ty = FunctionType::get(Builder.getVoidTy(), false);
@@ -272,7 +256,8 @@ replaceGlobalArray(Module &M, const DataLayout &DL, GlobalVariable &Array,
 
     Builder.SetInsertPoint(UserOfArrayInst);
     // <ty>** -> <ty>*
-    Value *ArrPtrLoaded = Builder.CreateLoad(ReplacementToArr, "arrptr.load");
+    Value *ArrPtrLoaded =
+        Builder.CreateLoad(ElemPtrTy, ReplacementToArr, "arrptr.load");
     // <ty>* -> [ty]*
     Value *ArrPtrLoadedBitcasted = Builder.CreateBitCast(
         ArrPtrLoaded, ArrayTy->getPointerTo(), "arrptr.bitcast");
@@ -311,9 +296,9 @@ static void rewriteAllocaAsManagedMemory(AllocaInst *Alloca,
   PollyIRBuilder Builder(M->getContext());
   Builder.SetInsertPoint(Alloca);
 
-  Value *MallocManagedFn = getOrCreatePollyMallocManaged(*Alloca->getModule());
-  const uint64_t Size =
-      DL.getTypeAllocSize(Alloca->getType()->getElementType());
+  Function *MallocManagedFn =
+      getOrCreatePollyMallocManaged(*Alloca->getModule());
+  const uint64_t Size = DL.getTypeAllocSize(Alloca->getAllocatedType());
   Value *SizeVal = Builder.getInt64(Size);
   Value *RawManagedMem = Builder.CreateCall(MallocManagedFn, {SizeVal});
   Value *Bitcasted = Builder.CreateBitCast(RawManagedMem, Alloca->getType());
@@ -331,7 +316,7 @@ static void rewriteAllocaAsManagedMemory(AllocaInst *Alloca,
       continue;
     Builder.SetInsertPoint(Return);
 
-    Value *FreeManagedFn = getOrCreatePollyFreeManaged(*M);
+    Function *FreeManagedFn = getOrCreatePollyFreeManaged(*M);
     Builder.CreateCall(FreeManagedFn, {RawManagedMem});
   }
 }
@@ -363,14 +348,14 @@ static void replaceAllUsesAndConstantUses(Value *Old, Value *New,
     rewriteOldValToNew(I, Old, New, Builder);
 }
 
-class ManagedMemoryRewritePass : public ModulePass {
+class ManagedMemoryRewritePass final : public ModulePass {
 public:
   static char ID;
   GPUArch Architecture;
   GPURuntime Runtime;
 
   ManagedMemoryRewritePass() : ModulePass(ID) {}
-  virtual bool runOnModule(Module &M) {
+  bool runOnModule(Module &M) override {
     const DataLayout &DL = M.getDataLayout();
 
     Function *Malloc = M.getFunction("malloc");

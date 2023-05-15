@@ -1,9 +1,8 @@
 //===-- msan_flags.inc ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -25,7 +24,7 @@ MSAN_FLAG(bool, poison_heap_with_zeroes, false, "")
 MSAN_FLAG(bool, poison_stack_with_zeroes, false, "")
 MSAN_FLAG(bool, poison_in_malloc, true, "")
 MSAN_FLAG(bool, poison_in_free, true, "")
-MSAN_FLAG(bool, poison_in_dtor, false, "")
+MSAN_FLAG(bool, poison_in_dtor, true, "")
 MSAN_FLAG(bool, report_umrs, true, "")
 MSAN_FLAG(bool, wrap_signals, true, "")
 MSAN_FLAG(bool, print_stats, false, "")

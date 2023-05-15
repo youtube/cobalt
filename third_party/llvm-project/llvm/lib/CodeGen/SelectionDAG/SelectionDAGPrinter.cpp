@@ -1,9 +1,8 @@
 //===-- SelectionDAGPrinter.cpp - Implement SelectionDAG::viewGraph() -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,15 +13,11 @@
 #include "ScheduleDAGSDNodes.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/CodeGen/TargetRegisterInfo.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "dag-printer"
@@ -71,7 +66,7 @@ namespace llvm {
     }
 
     static std::string getGraphName(const SelectionDAG *G) {
-      return G->getMachineFunction().getName();
+      return std::string(G->getMachineFunction().getName());
     }
 
     static bool renderGraphFromBottomUp() {
@@ -165,14 +160,28 @@ void SelectionDAG::viewGraph() {
   viewGraph("");
 }
 
+/// Just dump dot graph to a user-provided path and title.
+/// This doesn't open the dot viewer program and
+/// helps visualization when outside debugging session.
+/// FileName expects absolute path. If provided
+/// without any path separators then the file
+/// will be created in the current directory.
+/// Error will be emitted if the path is insane.
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void SelectionDAG::dumpDotGraph(const Twine &FileName,
+                                                 const Twine &Title) {
+  dumpDotGraphToFile(this, FileName, Title);
+}
+#endif
+
 /// clearGraphAttrs - Clear all previously defined node graph attributes.
 /// Intended to be used from a debugging tool (eg. gdb).
 void SelectionDAG::clearGraphAttrs() {
-#ifndef NDEBUG
+#if LLVM_ENABLE_ABI_BREAKING_CHECKS
   NodeGraphAttrs.clear();
 #else
-  errs() << "SelectionDAG::clearGraphAttrs is only available in debug builds"
-         << " on systems with Graphviz or gv!\n";
+  errs() << "SelectionDAG::clearGraphAttrs is only available in builds with "
+         << "ABI breaking checks enabled on systems with Graphviz or gv!\n";
 #endif
 }
 
@@ -180,19 +189,19 @@ void SelectionDAG::clearGraphAttrs() {
 /// setGraphAttrs - Set graph attributes for a node. (eg. "color=red".)
 ///
 void SelectionDAG::setGraphAttrs(const SDNode *N, const char *Attrs) {
-#ifndef NDEBUG
+#if LLVM_ENABLE_ABI_BREAKING_CHECKS
   NodeGraphAttrs[N] = Attrs;
 #else
-  errs() << "SelectionDAG::setGraphAttrs is only available in debug builds"
-         << " on systems with Graphviz or gv!\n";
+  errs() << "SelectionDAG::setGraphAttrs is only available in builds with "
+         << "ABI breaking checks enabled on systems with Graphviz or gv!\n";
 #endif
 }
 
 
 /// getGraphAttrs - Get graph attributes for a node. (eg. "color=red".)
 /// Used from getNodeAttributes.
-const std::string SelectionDAG::getGraphAttrs(const SDNode *N) const {
-#ifndef NDEBUG
+std::string SelectionDAG::getGraphAttrs(const SDNode *N) const {
+#if LLVM_ENABLE_ABI_BREAKING_CHECKS
   std::map<const SDNode *, std::string>::const_iterator I =
     NodeGraphAttrs.find(N);
 
@@ -201,8 +210,8 @@ const std::string SelectionDAG::getGraphAttrs(const SDNode *N) const {
   else
     return "";
 #else
-  errs() << "SelectionDAG::getGraphAttrs is only available in debug builds"
-         << " on systems with Graphviz or gv!\n";
+  errs() << "SelectionDAG::getGraphAttrs is only available in builds with "
+         << "ABI breaking checks enabled on systems with Graphviz or gv!\n";
   return std::string();
 #endif
 }
@@ -210,11 +219,11 @@ const std::string SelectionDAG::getGraphAttrs(const SDNode *N) const {
 /// setGraphColor - Convenience for setting node color attribute.
 ///
 void SelectionDAG::setGraphColor(const SDNode *N, const char *Color) {
-#ifndef NDEBUG
+#if LLVM_ENABLE_ABI_BREAKING_CHECKS
   NodeGraphAttrs[N] = std::string("color=") + Color;
 #else
-  errs() << "SelectionDAG::setGraphColor is only available in debug builds"
-         << " on systems with Graphviz or gv!\n";
+  errs() << "SelectionDAG::setGraphColor is only available in builds with "
+         << "ABI breaking checks enabled on systems with Graphviz or gv!\n";
 #endif
 }
 

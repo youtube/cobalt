@@ -6,7 +6,7 @@
 # RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %s -o %t
 # RUN: ld.lld %t -o %t2 --icf=all --eh-frame-hdr
 # RUN: llvm-readobj -r %t | FileCheck %s --check-prefix=OBJ
-# RUN: llvm-readobj -s -section-data %t2 | FileCheck %s
+# RUN: llvm-readobj -S --section-data %t2 | FileCheck %s
 
 # OBJ:      Relocations [
 # OBJ-NEXT:   Section {{.*}} .rela.eh_frame {
@@ -32,10 +32,10 @@
 # CHECK-NEXT:   AddressAlignment:
 # CHECK-NEXT:   EntrySize: 0
 # CHECK-NEXT:   SectionData (
-# CHECK-NEXT:     0000: 011B033B 1C000000 02000000 A80E0000
+# CHECK-NEXT:     0000: 011B033B 1C000000 02000000 64100000
 ##                               ^        ^-- FDE(1) PC
 ##                               ^-- Number of FDEs
-# CHECK-NEXT:     0010: 38000000 AA0E0000 50000000
+# CHECK-NEXT:     0010: 38000000 66100000 4C000000
 ##                               ^-- FDE(2) PC
 # CHECK-NEXT:   )
 # CHECK-NEXT: }
@@ -52,17 +52,17 @@
 # CHECK-NEXT:   ]
 # CHECK-NEXT:   Address: 0x200178
 # CHECK-NEXT:   Offset: 0x178
-# CHECK-NEXT:   Size: 76
+# CHECK-NEXT:   Size: 68
 # CHECK-NEXT:   Link: 0
 # CHECK-NEXT:   Info: 0
 # CHECK-NEXT:   AddressAlignment: 8
 # CHECK-NEXT:   EntrySize: 0
 # CHECK-NEXT:   SectionData (
 # CHECK-NEXT:     0000: 14000000 00000000 017A5200 01781001
-# CHECK-NEXT:     0010: 1B0C0708 90010000 14000000 1C000000
-# CHECK-NEXT:     0020: 680E0000 01000000 00000000 00000000
-# CHECK-NEXT:     0030: 14000000 34000000 520E0000 01000000
-# CHECK-NEXT:     0040: 00000000 00000000 00000000
+# CHECK-NEXT:     0010: 1B0C0708 90010000 10000000 1C000000
+# CHECK-NEXT:     0020: 24100000 01000000 00000000 10000000
+# CHECK-NEXT:     0030: 30000000 12100000 01000000 00000000
+# CHECK-NEXT:     0040: 00000000
 # CHECK-NEXT:   )
 # CHECK-NEXT: }
 
@@ -74,7 +74,7 @@
 # CHECK-NEXT:    SHF_ALLOC
 # CHECK-NEXT:    SHF_EXECINSTR
 # CHECK-NEXT:  ]
-# CHECK-NEXT:  Address: 0x201000
+# CHECK-NEXT:  Address: 0x2011BC
 
 .section .text.f1, "ax"
 .cfi_startproc

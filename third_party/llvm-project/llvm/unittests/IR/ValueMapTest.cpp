@@ -1,9 +1,8 @@
 //===- llvm/unittest/ADT/ValueMapTest.cpp - ValueMap unit tests -*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -36,7 +35,7 @@ protected:
 // Run everything on Value*, a subtype to make sure that casting works as
 // expected, and a const subtype to make sure we cast const correctly.
 typedef ::testing::Types<Value, Instruction, const Instruction> KeyTypes;
-TYPED_TEST_CASE(ValueMapTest, KeyTypes);
+TYPED_TEST_SUITE(ValueMapTest, KeyTypes, );
 
 TYPED_TEST(ValueMapTest, Null) {
   ValueMap<TypeParam*, int> VM1;
@@ -116,8 +115,7 @@ TYPED_TEST(ValueMapTest, OperationsWork) {
 
 template<typename ExpectedType, typename VarType>
 void CompileAssertHasType(VarType) {
-  static_assert(std::is_same<ExpectedType, VarType>::value,
-                "Not the same type");
+  static_assert(std::is_same_v<ExpectedType, VarType>, "Not the same type");
 }
 
 TYPED_TEST(ValueMapTest, Iteration) {
@@ -197,9 +195,9 @@ struct LockMutex : ValueMapConfig<KeyT, MutexT> {
 // FIXME: These tests started failing on Windows.
 #if LLVM_ENABLE_THREADS && !defined(_WIN32)
 TYPED_TEST(ValueMapTest, LocksMutex) {
-  sys::Mutex M(false);  // Not recursive.
+  std::mutex M;
   bool CalledRAUW = false, CalledDeleted = false;
-  typedef LockMutex<TypeParam*, sys::Mutex> ConfigType;
+  typedef LockMutex<TypeParam*, std::mutex> ConfigType;
   typename ConfigType::ExtraData Data = {&M, &CalledRAUW, &CalledDeleted};
   ValueMap<TypeParam*, int, ConfigType> VM(Data);
   VM[this->BitcastV.get()] = 7;

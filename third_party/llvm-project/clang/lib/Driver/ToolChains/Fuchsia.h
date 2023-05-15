@@ -1,9 +1,8 @@
 //===--- Fuchsia.h - Fuchsia ToolChain Implementations ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,6 +10,7 @@
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_FUCHSIA_H
 
 #include "Gnu.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 
@@ -18,9 +18,9 @@ namespace clang {
 namespace driver {
 namespace tools {
 namespace fuchsia {
-class LLVM_LIBRARY_VISIBILITY Linker : public GnuTool {
+class LLVM_LIBRARY_VISIBILITY Linker : public Tool {
 public:
-  Linker(const ToolChain &TC) : GnuTool("fuchsia::Linker", "ld.lld", TC) {}
+  Linker(const ToolChain &TC) : Tool("fuchsia::Linker", "ld.lld", TC) {}
 
   bool hasIntegratedCPP() const override { return false; }
   bool isLinkJob() const override { return true; }
@@ -50,18 +50,22 @@ public:
   CXXStdlibType GetDefaultCXXStdlibType() const override {
     return ToolChain::CST_Libcxx;
   }
-  bool IsUnwindTablesDefault(const llvm::opt::ArgList &Args) const override {
-    return true;
+  UnwindTableLevel
+  getDefaultUnwindTableLevel(const llvm::opt::ArgList &Args) const override {
+    return UnwindTableLevel::Asynchronous;
   }
   bool isPICDefault() const override { return false; }
-  bool isPIEDefault() const override { return true; }
+  bool isPIEDefault(const llvm::opt::ArgList &Args) const override {
+    return true;
+  }
   bool isPICDefaultForced() const override { return false; }
   llvm::DebuggerKind getDefaultDebuggerTuning() const override {
     return llvm::DebuggerKind::GDB;
   }
 
-  unsigned GetDefaultStackProtectorLevel(bool KernelOrKext) const override {
-    return 2; // SSPStrong
+  LangOptions::StackProtectorMode
+  GetDefaultStackProtectorLevel(bool KernelOrKext) const override {
+    return LangOptions::SSPStrong;
   }
 
   std::string ComputeEffectiveClangTriple(const llvm::opt::ArgList &Args,
@@ -72,24 +76,27 @@ public:
 
   RuntimeLibType
   GetRuntimeLibType(const llvm::opt::ArgList &Args) const override;
-  CXXStdlibType
-  GetCXXStdlibType(const llvm::opt::ArgList &Args) const override;
+  CXXStdlibType GetCXXStdlibType(const llvm::opt::ArgList &Args) const override;
 
-  void addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
-                             llvm::opt::ArgStringList &CC1Args,
-                             Action::OffloadKind DeviceOffloadKind) const override;
+  bool IsAArch64OutlineAtomicsDefault(
+      const llvm::opt::ArgList &Args) const override {
+    return true;
+  }
+
+  void
+  addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
+                        llvm::opt::ArgStringList &CC1Args,
+                        Action::OffloadKind DeviceOffloadKind) const override;
   void
   AddClangSystemIncludeArgs(const llvm::opt::ArgList &DriverArgs,
                             llvm::opt::ArgStringList &CC1Args) const override;
-  void
-  AddClangCXXStdlibIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                               llvm::opt::ArgStringList &CC1Args) const override;
+  void AddClangCXXStdlibIncludeArgs(
+      const llvm::opt::ArgList &DriverArgs,
+      llvm::opt::ArgStringList &CC1Args) const override;
   void AddCXXStdlibLibArgs(const llvm::opt::ArgList &Args,
                            llvm::opt::ArgStringList &CmdArgs) const override;
 
-  const char *getDefaultLinker() const override {
-    return "ld.lld";
-  }
+  const char *getDefaultLinker() const override { return "ld.lld"; }
 
 protected:
   Tool *buildLinker() const override;

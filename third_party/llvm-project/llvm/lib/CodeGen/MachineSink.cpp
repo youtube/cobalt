@@ -1,9 +1,8 @@
 //===- MachineSink.cpp - Sinking for machine instructions -----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -16,15 +15,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/CFG.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineBlockFrequencyInfo.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
+#include "llvm/CodeGen/MachineCycleAnalysis.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -33,12 +38,16 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
+#include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/CommandLine.h"
@@ -74,7 +83,31 @@ static cl::opt<unsigned> SplitEdgeProbabilityThreshold(
         "splitted critical edge"),
     cl::init(40), cl::Hidden);
 
+static cl::opt<unsigned> SinkLoadInstsPerBlockThreshold(
+    "machine-sink-load-instrs-threshold",
+    cl::desc("Do not try to find alias store for a load if there is a in-path "
+             "block whose instruction number is higher than this threshold."),
+    cl::init(2000), cl::Hidden);
+
+static cl::opt<unsigned> SinkLoadBlocksThreshold(
+    "machine-sink-load-blocks-threshold",
+    cl::desc("Do not try to find alias store for a load if the block number in "
+             "the straight line is higher than this threshold."),
+    cl::init(20), cl::Hidden);
+
+static cl::opt<bool>
+    SinkInstsIntoCycle("sink-insts-to-avoid-spills",
+                       cl::desc("Sink instructions into cycles to avoid "
+                                "register spills"),
+                       cl::init(false), cl::Hidden);
+
+static cl::opt<unsigned> SinkIntoCycleLimit(
+    "machine-sink-cycle-limit",
+    cl::desc("The maximum number of instructions considered for cycle sinking."),
+    cl::init(50), cl::Hidden);
+
 STATISTIC(NumSunk,      "Number of machine instructions sunk");
+STATISTIC(NumCycleSunk,  "Number of machine instructions sunk into a cycle");
 STATISTIC(NumSplit,     "Number of critical edges split");
 STATISTIC(NumCoalesces, "Number of copies coalesced");
 STATISTIC(NumPostRACopySink, "Number of copies sunk after RA");
@@ -87,10 +120,11 @@ namespace {
     MachineRegisterInfo  *MRI;     // Machine register information
     MachineDominatorTree *DT;      // Machine dominator tree
     MachinePostDominatorTree *PDT; // Machine post dominator tree
-    MachineLoopInfo *LI;
-    const MachineBlockFrequencyInfo *MBFI;
+    MachineCycleInfo *CI;
+    MachineBlockFrequencyInfo *MBFI;
     const MachineBranchProbabilityInfo *MBPI;
     AliasAnalysis *AA;
+    RegisterClassInfo RegClassInfo;
 
     // Remember which edges have been considered for breaking.
     SmallSet<std::pair<MachineBasicBlock*, MachineBasicBlock*>, 8>
@@ -100,10 +134,38 @@ namespace {
     // will be split.
     SetVector<std::pair<MachineBasicBlock *, MachineBasicBlock *>> ToSplit;
 
-    SparseBitVector<> RegsToClearKillFlags;
+    DenseSet<Register> RegsToClearKillFlags;
 
     using AllSuccsCache =
         std::map<MachineBasicBlock *, SmallVector<MachineBasicBlock *, 4>>;
+
+    /// DBG_VALUE pointer and flag. The flag is true if this DBG_VALUE is
+    /// post-dominated by another DBG_VALUE of the same variable location.
+    /// This is necessary to detect sequences such as:
+    ///     %0 = someinst
+    ///     DBG_VALUE %0, !123, !DIExpression()
+    ///     %1 = anotherinst
+    ///     DBG_VALUE %1, !123, !DIExpression()
+    /// Where if %0 were to sink, the DBG_VAUE should not sink with it, as that
+    /// would re-order assignments.
+    using SeenDbgUser = PointerIntPair<MachineInstr *, 1>;
+
+    /// Record of DBG_VALUE uses of vregs in a block, so that we can identify
+    /// debug instructions to sink.
+    SmallDenseMap<unsigned, TinyPtrVector<SeenDbgUser>> SeenDbgUsers;
+
+    /// Record of debug variables that have had their locations set in the
+    /// current block.
+    DenseSet<DebugVariable> SeenDbgVars;
+
+    std::map<std::pair<MachineBasicBlock *, MachineBasicBlock *>, bool>
+        HasStoreCache;
+    std::map<std::pair<MachineBasicBlock *, MachineBasicBlock *>,
+             std::vector<MachineInstr *>>
+        StoreInstrCache;
+
+    /// Cached BB's register pressure.
+    std::map<MachineBasicBlock *, std::vector<unsigned>> CachedRegisterPressure;
 
   public:
     static char ID; // Pass identification
@@ -115,15 +177,13 @@ namespace {
     bool runOnMachineFunction(MachineFunction &MF) override;
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
       AU.addRequired<AAResultsWrapperPass>();
       AU.addRequired<MachineDominatorTree>();
       AU.addRequired<MachinePostDominatorTree>();
-      AU.addRequired<MachineLoopInfo>();
+      AU.addRequired<MachineCycleInfoWrapperPass>();
       AU.addRequired<MachineBranchProbabilityInfo>();
-      AU.addPreserved<MachineDominatorTree>();
-      AU.addPreserved<MachinePostDominatorTree>();
+      AU.addPreserved<MachineCycleInfoWrapperPass>();
       AU.addPreserved<MachineLoopInfo>();
       if (UseBlockFreqInfo)
         AU.addRequired<MachineBlockFrequencyInfo>();
@@ -135,9 +195,13 @@ namespace {
 
   private:
     bool ProcessBlock(MachineBasicBlock &MBB);
+    void ProcessDbgInst(MachineInstr &MI);
     bool isWorthBreakingCriticalEdge(MachineInstr &MI,
                                      MachineBasicBlock *From,
                                      MachineBasicBlock *To);
+
+    bool hasStoreBetween(MachineBasicBlock *From, MachineBasicBlock *To,
+                         MachineInstr &MI);
 
     /// Postpone the splitting of the given critical
     /// edge (\p From, \p To).
@@ -156,14 +220,25 @@ namespace {
                                    MachineBasicBlock *To,
                                    bool BreakPHIEdge);
     bool SinkInstruction(MachineInstr &MI, bool &SawStore,
-
                          AllSuccsCache &AllSuccessors);
-    bool AllUsesDominatedByBlock(unsigned Reg, MachineBasicBlock *MBB,
-                                 MachineBasicBlock *DefMBB,
-                                 bool &BreakPHIEdge, bool &LocalUse) const;
+
+    /// If we sink a COPY inst, some debug users of it's destination may no
+    /// longer be dominated by the COPY, and will eventually be dropped.
+    /// This is easily rectified by forwarding the non-dominated debug uses
+    /// to the copy source.
+    void SalvageUnsunkDebugUsersOfCopy(MachineInstr &,
+                                       MachineBasicBlock *TargetBlock);
+    bool AllUsesDominatedByBlock(Register Reg, MachineBasicBlock *MBB,
+                                 MachineBasicBlock *DefMBB, bool &BreakPHIEdge,
+                                 bool &LocalUse) const;
     MachineBasicBlock *FindSuccToSinkTo(MachineInstr &MI, MachineBasicBlock *MBB,
                bool &BreakPHIEdge, AllSuccsCache &AllSuccessors);
-    bool isProfitableToSinkTo(unsigned Reg, MachineInstr &MI,
+
+    void FindCycleSinkCandidates(MachineCycle *Cycle, MachineBasicBlock *BB,
+                                 SmallVectorImpl<MachineInstr *> &Candidates);
+    bool SinkIntoCycle(MachineCycle *Cycle, MachineInstr &I);
+
+    bool isProfitableToSinkTo(Register Reg, MachineInstr &MI,
                               MachineBasicBlock *MBB,
                               MachineBasicBlock *SuccToSinkTo,
                               AllSuccsCache &AllSuccessors);
@@ -174,6 +249,8 @@ namespace {
     SmallVector<MachineBasicBlock *, 4> &
     GetAllSortedSuccessors(MachineInstr &MI, MachineBasicBlock *MBB,
                            AllSuccsCache &AllSuccessors) const;
+
+    std::vector<unsigned> &getBBRegisterPressure(MachineBasicBlock &MBB);
   };
 
 } // end anonymous namespace
@@ -186,7 +263,7 @@ INITIALIZE_PASS_BEGIN(MachineSinking, DEBUG_TYPE,
                       "Machine code sinking", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineBranchProbabilityInfo)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
-INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_DEPENDENCY(MachineCycleInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(MachineSinking, DEBUG_TYPE,
                     "Machine code sinking", false, false)
@@ -196,10 +273,9 @@ bool MachineSinking::PerformTrivialForwardCoalescing(MachineInstr &MI,
   if (!MI.isCopy())
     return false;
 
-  unsigned SrcReg = MI.getOperand(1).getReg();
-  unsigned DstReg = MI.getOperand(0).getReg();
-  if (!TargetRegisterInfo::isVirtualRegister(SrcReg) ||
-      !TargetRegisterInfo::isVirtualRegister(DstReg) ||
+  Register SrcReg = MI.getOperand(1).getReg();
+  Register DstReg = MI.getOperand(0).getReg();
+  if (!SrcReg.isVirtual() || !DstReg.isVirtual() ||
       !MRI->hasOneNonDBGUse(SrcReg))
     return false;
 
@@ -228,14 +304,12 @@ bool MachineSinking::PerformTrivialForwardCoalescing(MachineInstr &MI,
 /// occur in blocks dominated by the specified block. If any use is in the
 /// definition block, then return false since it is never legal to move def
 /// after uses.
-bool
-MachineSinking::AllUsesDominatedByBlock(unsigned Reg,
-                                        MachineBasicBlock *MBB,
-                                        MachineBasicBlock *DefMBB,
-                                        bool &BreakPHIEdge,
-                                        bool &LocalUse) const {
-  assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
-         "Only makes sense for vregs");
+bool MachineSinking::AllUsesDominatedByBlock(Register Reg,
+                                             MachineBasicBlock *MBB,
+                                             MachineBasicBlock *DefMBB,
+                                             bool &BreakPHIEdge,
+                                             bool &LocalUse) const {
+  assert(Reg.isVirtual() && "Only makes sense for vregs");
 
   // Ignore debug uses because debug info doesn't affect the code.
   if (MRI->use_nodbg_empty(Reg))
@@ -245,30 +319,26 @@ MachineSinking::AllUsesDominatedByBlock(unsigned Reg,
   // into and they are all PHI nodes. In this case, machine-sink must break
   // the critical edge first. e.g.
   //
-  // %bb.1: derived from LLVM BB %bb4.preheader
+  // %bb.1:
   //   Predecessors according to CFG: %bb.0
   //     ...
-  //     %reg16385 = DEC64_32r %reg16437, implicit-def dead %eflags
+  //     %def = DEC64_32r %x, implicit-def dead %eflags
   //     ...
   //     JE_4 <%bb.37>, implicit %eflags
   //   Successors according to CFG: %bb.37 %bb.2
   //
-  // %bb.2: derived from LLVM BB %bb.nph
-  //   Predecessors according to CFG: %bb.0 %bb.1
-  //     %reg16386 = PHI %reg16434, %bb.0, %reg16385, %bb.1
-  BreakPHIEdge = true;
-  for (MachineOperand &MO : MRI->use_nodbg_operands(Reg)) {
-    MachineInstr *UseInst = MO.getParent();
-    unsigned OpNo = &MO - &UseInst->getOperand(0);
-    MachineBasicBlock *UseBlock = UseInst->getParent();
-    if (!(UseBlock == MBB && UseInst->isPHI() &&
-          UseInst->getOperand(OpNo+1).getMBB() == DefMBB)) {
-      BreakPHIEdge = false;
-      break;
-    }
-  }
-  if (BreakPHIEdge)
+  // %bb.2:
+  //     %p = PHI %y, %bb.0, %def, %bb.1
+  if (all_of(MRI->use_nodbg_operands(Reg), [&](MachineOperand &MO) {
+        MachineInstr *UseInst = MO.getParent();
+        unsigned OpNo = UseInst->getOperandNo(&MO);
+        MachineBasicBlock *UseBlock = UseInst->getParent();
+        return UseBlock == MBB && UseInst->isPHI() &&
+               UseInst->getOperand(OpNo + 1).getMBB() == DefMBB;
+      })) {
+    BreakPHIEdge = true;
     return true;
+  }
 
   for (MachineOperand &MO : MRI->use_nodbg_operands(Reg)) {
     // Determine the block of the use.
@@ -292,6 +362,61 @@ MachineSinking::AllUsesDominatedByBlock(unsigned Reg,
   return true;
 }
 
+/// Return true if this machine instruction loads from global offset table or
+/// constant pool.
+static bool mayLoadFromGOTOrConstantPool(MachineInstr &MI) {
+  assert(MI.mayLoad() && "Expected MI that loads!");
+
+  // If we lost memory operands, conservatively assume that the instruction
+  // reads from everything..
+  if (MI.memoperands_empty())
+    return true;
+
+  for (MachineMemOperand *MemOp : MI.memoperands())
+    if (const PseudoSourceValue *PSV = MemOp->getPseudoValue())
+      if (PSV->isGOT() || PSV->isConstantPool())
+        return true;
+
+  return false;
+}
+
+void MachineSinking::FindCycleSinkCandidates(
+    MachineCycle *Cycle, MachineBasicBlock *BB,
+    SmallVectorImpl<MachineInstr *> &Candidates) {
+  for (auto &MI : *BB) {
+    LLVM_DEBUG(dbgs() << "CycleSink: Analysing candidate: " << MI);
+    if (!TII->shouldSink(MI)) {
+      LLVM_DEBUG(dbgs() << "CycleSink: Instruction not a candidate for this "
+                           "target\n");
+      continue;
+    }
+    if (!isCycleInvariant(Cycle, MI)) {
+      LLVM_DEBUG(dbgs() << "CycleSink: Instruction is not cycle invariant\n");
+      continue;
+    }
+    bool DontMoveAcrossStore = true;
+    if (!MI.isSafeToMove(AA, DontMoveAcrossStore)) {
+      LLVM_DEBUG(dbgs() << "CycleSink: Instruction not safe to move.\n");
+      continue;
+    }
+    if (MI.mayLoad() && !mayLoadFromGOTOrConstantPool(MI)) {
+      LLVM_DEBUG(dbgs() << "CycleSink: Dont sink GOT or constant pool loads\n");
+      continue;
+    }
+    if (MI.isConvergent())
+      continue;
+
+    const MachineOperand &MO = MI.getOperand(0);
+    if (!MO.isReg() || !MO.getReg() || !MO.isDef())
+      continue;
+    if (!MRI->hasOneDef(MO.getReg()))
+      continue;
+
+    LLVM_DEBUG(dbgs() << "CycleSink: Instruction added as candidate.\n");
+    Candidates.push_back(&MI);
+  }
+}
+
 bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
   if (skipFunction(MF.getFunction()))
     return false;
@@ -303,10 +428,11 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   DT = &getAnalysis<MachineDominatorTree>();
   PDT = &getAnalysis<MachinePostDominatorTree>();
-  LI = &getAnalysis<MachineLoopInfo>();
+  CI = &getAnalysis<MachineCycleInfoWrapperPass>().getCycleInfo();
   MBFI = UseBlockFreqInfo ? &getAnalysis<MachineBlockFrequencyInfo>() : nullptr;
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+  RegClassInfo.runOnMachineFunction(MF);
 
   bool EverMadeChange = false;
 
@@ -320,13 +446,16 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
       MadeChange |= ProcessBlock(MBB);
 
     // If we have anything we marked as toSplit, split it now.
-    for (auto &Pair : ToSplit) {
+    for (const auto &Pair : ToSplit) {
       auto NewSucc = Pair.first->SplitCriticalEdge(Pair.second, *this);
       if (NewSucc != nullptr) {
         LLVM_DEBUG(dbgs() << " *** Splitting critical edge: "
                           << printMBBReference(*Pair.first) << " -- "
                           << printMBBReference(*NewSucc) << " -- "
                           << printMBBReference(*Pair.second) << '\n');
+        if (MBFI)
+          MBFI->onEdgeSplit(*Pair.first, *NewSucc, *MBPI);
+
         MadeChange = true;
         ++NumSplit;
       } else
@@ -336,6 +465,40 @@ bool MachineSinking::runOnMachineFunction(MachineFunction &MF) {
     if (!MadeChange) break;
     EverMadeChange = true;
   }
+
+  if (SinkInstsIntoCycle) {
+    SmallVector<MachineCycle *, 8> Cycles(CI->toplevel_begin(),
+                                          CI->toplevel_end());
+    for (auto *Cycle : Cycles) {
+      MachineBasicBlock *Preheader = Cycle->getCyclePreheader();
+      if (!Preheader) {
+        LLVM_DEBUG(dbgs() << "CycleSink: Can't find preheader\n");
+        continue;
+      }
+      SmallVector<MachineInstr *, 8> Candidates;
+      FindCycleSinkCandidates(Cycle, Preheader, Candidates);
+
+      // Walk the candidates in reverse order so that we start with the use
+      // of a def-use chain, if there is any.
+      // TODO: Sort the candidates using a cost-model.
+      unsigned i = 0;
+      for (MachineInstr *I : llvm::reverse(Candidates)) {
+        if (i++ == SinkIntoCycleLimit) {
+          LLVM_DEBUG(dbgs() << "CycleSink:   Limit reached of instructions to "
+                               "be analysed.");
+          break;
+        }
+
+        if (!SinkIntoCycle(Cycle, *I))
+          break;
+        EverMadeChange = true;
+        ++NumCycleSunk;
+      }
+    }
+  }
+
+  HasStoreCache.clear();
+  StoreInstrCache.clear();
 
   // Now clear any kill flags for recorded registers.
   for (auto I : RegsToClearKillFlags)
@@ -351,12 +514,12 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
 
   // Don't bother sinking code out of unreachable blocks. In addition to being
   // unprofitable, it can also lead to infinite looping, because in an
-  // unreachable loop there may be nowhere to stop.
+  // unreachable cycle there may be nowhere to stop.
   if (!DT->isReachableFromEntry(&MBB)) return false;
 
   bool MadeChange = false;
 
-  // Cache all successors, sorted by frequency info and loop depth.
+  // Cache all successors, sorted by frequency info and cycle depth.
   AllSuccsCache AllSuccessors;
 
   // Walk the basic block bottom-up.  Remember if we saw a store.
@@ -372,8 +535,11 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
     if (!ProcessedBegin)
       --I;
 
-    if (MI.isDebugInstr())
+    if (MI.isDebugOrPseudoInstr()) {
+      if (MI.isDebugValue())
+        ProcessDbgInst(MI);
       continue;
+    }
 
     bool Joined = PerformTrivialForwardCoalescing(MI, &MBB);
     if (Joined) {
@@ -389,7 +555,30 @@ bool MachineSinking::ProcessBlock(MachineBasicBlock &MBB) {
     // If we just processed the first instruction in the block, we're done.
   } while (!ProcessedBegin);
 
+  SeenDbgUsers.clear();
+  SeenDbgVars.clear();
+  // recalculate the bb register pressure after sinking one BB.
+  CachedRegisterPressure.clear();
+
   return MadeChange;
+}
+
+void MachineSinking::ProcessDbgInst(MachineInstr &MI) {
+  // When we see DBG_VALUEs for registers, record any vreg it reads, so that
+  // we know what to sink if the vreg def sinks.
+  assert(MI.isDebugValue() && "Expected DBG_VALUE for processing");
+
+  DebugVariable Var(MI.getDebugVariable(), MI.getDebugExpression(),
+                    MI.getDebugLoc()->getInlinedAt());
+  bool SeenBefore = SeenDbgVars.contains(Var);
+
+  for (MachineOperand &MO : MI.debug_operands()) {
+    if (MO.isReg() && MO.getReg().isVirtual())
+      SeenDbgUsers[MO.getReg()].push_back(SeenDbgUser(&MI, SeenBefore));
+  }
+
+  // Record the variable for any DBG_VALUE, to avoid re-ordering any of them.
+  SeenDbgVars.insert(Var);
 }
 
 bool MachineSinking::isWorthBreakingCriticalEdge(MachineInstr &MI,
@@ -413,17 +602,16 @@ bool MachineSinking::isWorthBreakingCriticalEdge(MachineInstr &MI,
   // MI is cheap, we probably don't want to break the critical edge for it.
   // However, if this would allow some definitions of its source operands
   // to be sunk then it's probably worth it.
-  for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI.getOperand(i);
+  for (const MachineOperand &MO : MI.operands()) {
     if (!MO.isReg() || !MO.isUse())
       continue;
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == 0)
       continue;
 
     // We don't move live definitions of physical registers,
     // so sinking their uses won't enable any opportunities.
-    if (TargetRegisterInfo::isPhysicalRegister(Reg))
+    if (Reg.isPhysical())
       continue;
 
     // If this instruction is the only user of a virtual register,
@@ -450,13 +638,16 @@ bool MachineSinking::PostponeSplitCriticalEdge(MachineInstr &MI,
   if (!isWorthBreakingCriticalEdge(MI, FromBB, ToBB))
     return false;
 
-  // Avoid breaking back edge. From == To means backedge for single BB loop.
+  // Avoid breaking back edge. From == To means backedge for single BB cycle.
   if (!SplitEdges || FromBB == ToBB)
     return false;
 
-  // Check for backedges of more "complex" loops.
-  if (LI->getLoopFor(FromBB) == LI->getLoopFor(ToBB) &&
-      LI->isLoopHeader(ToBB))
+  MachineCycle *FromCycle = CI->getCycle(FromBB);
+  MachineCycle *ToCycle = CI->getCycle(ToBB);
+
+  // Check for backedges of more "complex" cycles.
+  if (FromCycle == ToCycle && FromCycle &&
+      (!FromCycle->isReducible() || FromCycle->getHeader() == ToBB))
     return false;
 
   // It's not always legal to break critical edges and sink the computation
@@ -499,13 +690,9 @@ bool MachineSinking::PostponeSplitCriticalEdge(MachineInstr &MI,
   // There is no need to do this check if all the uses are PHI nodes. PHI
   // sources are only defined on the specific predecessor edges.
   if (!BreakPHIEdge) {
-    for (MachineBasicBlock::pred_iterator PI = ToBB->pred_begin(),
-           E = ToBB->pred_end(); PI != E; ++PI) {
-      if (*PI == FromBB)
-        continue;
-      if (!DT->dominates(ToBB, *PI))
+    for (MachineBasicBlock *Pred : ToBB->predecessors())
+      if (Pred != FromBB && !DT->dominates(ToBB, Pred))
         return false;
-    }
   }
 
   ToSplit.insert(std::make_pair(FromBB, ToBB));
@@ -513,27 +700,44 @@ bool MachineSinking::PostponeSplitCriticalEdge(MachineInstr &MI,
   return true;
 }
 
-/// collectDebgValues - Scan instructions following MI and collect any
-/// matching DBG_VALUEs.
-static void collectDebugValues(MachineInstr &MI,
-                               SmallVectorImpl<MachineInstr *> &DbgValues) {
-  DbgValues.clear();
-  if (!MI.getOperand(0).isReg())
-    return;
+std::vector<unsigned> &
+MachineSinking::getBBRegisterPressure(MachineBasicBlock &MBB) {
+  // Currently to save compiling time, MBB's register pressure will not change
+  // in one ProcessBlock iteration because of CachedRegisterPressure. but MBB's
+  // register pressure is changed after sinking any instructions into it.
+  // FIXME: need a accurate and cheap register pressure estiminate model here.
+  auto RP = CachedRegisterPressure.find(&MBB);
+  if (RP != CachedRegisterPressure.end())
+    return RP->second;
 
-  MachineBasicBlock::iterator DI = MI; ++DI;
-  for (MachineBasicBlock::iterator DE = MI.getParent()->end();
-       DI != DE; ++DI) {
-    if (!DI->isDebugValue())
-      return;
-    if (DI->getOperand(0).isReg() &&
-        DI->getOperand(0).getReg() == MI.getOperand(0).getReg())
-      DbgValues.push_back(&*DI);
+  RegionPressure Pressure;
+  RegPressureTracker RPTracker(Pressure);
+
+  // Initialize the register pressure tracker.
+  RPTracker.init(MBB.getParent(), &RegClassInfo, nullptr, &MBB, MBB.end(),
+                 /*TrackLaneMasks*/ false, /*TrackUntiedDefs=*/true);
+
+  for (MachineBasicBlock::iterator MII = MBB.instr_end(),
+                                   MIE = MBB.instr_begin();
+       MII != MIE; --MII) {
+    MachineInstr &MI = *std::prev(MII);
+    if (MI.isDebugInstr() || MI.isPseudoProbe())
+      continue;
+    RegisterOperands RegOpers;
+    RegOpers.collect(MI, *TRI, *MRI, false, false);
+    RPTracker.recedeSkipDebugValues();
+    assert(&*RPTracker.getPos() == &MI && "RPTracker sync error!");
+    RPTracker.recede(RegOpers);
   }
+
+  RPTracker.closeRegion();
+  auto It = CachedRegisterPressure.insert(
+      std::make_pair(&MBB, RPTracker.getPressure().MaxSetPressure));
+  return It.first->second;
 }
 
 /// isProfitableToSinkTo - Return true if it is profitable to sink MI.
-bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr &MI,
+bool MachineSinking::isProfitableToSinkTo(Register Reg, MachineInstr &MI,
                                           MachineBasicBlock *MBB,
                                           MachineBasicBlock *SuccToSinkTo,
                                           AllSuccsCache &AllSuccessors) {
@@ -546,9 +750,9 @@ bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr &MI,
   if (!PDT->dominates(SuccToSinkTo, MBB))
     return true;
 
-  // It is profitable to sink an instruction from a deeper loop to a shallower
-  // loop, even if the latter post-dominates the former (PR21115).
-  if (LI->getLoopDepth(MBB) > LI->getLoopDepth(SuccToSinkTo))
+  // It is profitable to sink an instruction from a deeper cycle to a shallower
+  // cycle, even if the latter post-dominates the former (PR21115).
+  if (CI->getCycleDepth(MBB) > CI->getCycleDepth(SuccToSinkTo))
     return true;
 
   // Check if only use in post dominated block is PHI instruction.
@@ -569,9 +773,80 @@ bool MachineSinking::isProfitableToSinkTo(unsigned Reg, MachineInstr &MI,
           FindSuccToSinkTo(MI, SuccToSinkTo, BreakPHIEdge, AllSuccessors))
     return isProfitableToSinkTo(Reg, MI, SuccToSinkTo, MBB2, AllSuccessors);
 
-  // If SuccToSinkTo is final destination and it is a post dominator of current
-  // block then it is not profitable to sink MI into SuccToSinkTo block.
-  return false;
+  MachineCycle *MCycle = CI->getCycle(MBB);
+
+  // If the instruction is not inside a cycle, it is not profitable to sink MI to
+  // a post dominate block SuccToSinkTo.
+  if (!MCycle)
+    return false;
+
+  auto isRegisterPressureSetExceedLimit = [&](const TargetRegisterClass *RC) {
+    unsigned Weight = TRI->getRegClassWeight(RC).RegWeight;
+    const int *PS = TRI->getRegClassPressureSets(RC);
+    // Get register pressure for block SuccToSinkTo.
+    std::vector<unsigned> BBRegisterPressure =
+        getBBRegisterPressure(*SuccToSinkTo);
+    for (; *PS != -1; PS++)
+      // check if any register pressure set exceeds limit in block SuccToSinkTo
+      // after sinking.
+      if (Weight + BBRegisterPressure[*PS] >=
+          TRI->getRegPressureSetLimit(*MBB->getParent(), *PS))
+        return true;
+    return false;
+  };
+
+  // If this instruction is inside a Cycle and sinking this instruction can make
+  // more registers live range shorten, it is still prifitable.
+  for (const MachineOperand &MO : MI.operands()) {
+    // Ignore non-register operands.
+    if (!MO.isReg())
+      continue;
+    Register Reg = MO.getReg();
+    if (Reg == 0)
+      continue;
+
+    if (Reg.isPhysical()) {
+      if (MO.isUse() &&
+          (MRI->isConstantPhysReg(Reg) || TII->isIgnorableUse(MO)))
+        continue;
+
+      // Don't handle non-constant and non-ignorable physical register.
+      return false;
+    }
+
+    // Users for the defs are all dominated by SuccToSinkTo.
+    if (MO.isDef()) {
+      // This def register's live range is shortened after sinking.
+      bool LocalUse = false;
+      if (!AllUsesDominatedByBlock(Reg, SuccToSinkTo, MBB, BreakPHIEdge,
+                                   LocalUse))
+        return false;
+    } else {
+      MachineInstr *DefMI = MRI->getVRegDef(Reg);
+      if (!DefMI)
+        continue;
+      MachineCycle *Cycle = CI->getCycle(DefMI->getParent());
+      // DefMI is defined outside of cycle. There should be no live range
+      // impact for this operand. Defination outside of cycle means:
+      // 1: defination is outside of cycle.
+      // 2: defination is in this cycle, but it is a PHI in the cycle header.
+      if (Cycle != MCycle || (DefMI->isPHI() && Cycle && Cycle->isReducible() &&
+                              Cycle->getHeader() == DefMI->getParent()))
+        continue;
+      // The DefMI is defined inside the cycle.
+      // If sinking this operand makes some register pressure set exceed limit,
+      // it is not profitable.
+      if (isRegisterPressureSetExceedLimit(MRI->getRegClass(Reg))) {
+        LLVM_DEBUG(dbgs() << "register pressure exceed limit, not profitable.");
+        return false;
+      }
+    }
+  }
+
+  // If MI is in cycle and all its operands are alive across the whole cycle or
+  // if no operand sinking make register pressure set exceed limit, it is
+  // profitable to sink MI.
+  return true;
 }
 
 /// Get the sorted sequence of successors for this MachineBasicBlock, possibly
@@ -584,8 +859,7 @@ MachineSinking::GetAllSortedSuccessors(MachineInstr &MI, MachineBasicBlock *MBB,
   if (Succs != AllSuccessors.end())
     return Succs->second;
 
-  SmallVector<MachineBasicBlock *, 4> AllSuccs(MBB->succ_begin(),
-                                               MBB->succ_end());
+  SmallVector<MachineBasicBlock *, 4> AllSuccs(MBB->successors());
 
   // Handle cases where sinking can happen but where the sink point isn't a
   // successor. For example:
@@ -594,24 +868,22 @@ MachineSinking::GetAllSortedSuccessors(MachineInstr &MI, MachineBasicBlock *MBB,
   //   if () {} else {}
   //   use x
   //
-  const std::vector<MachineDomTreeNode *> &Children =
-    DT->getNode(MBB)->getChildren();
-  for (const auto &DTChild : Children)
+  for (MachineDomTreeNode *DTChild : DT->getNode(MBB)->children()) {
     // DomTree children of MBB that have MBB as immediate dominator are added.
     if (DTChild->getIDom()->getBlock() == MI.getParent() &&
         // Skip MBBs already added to the AllSuccs vector above.
         !MBB->isSuccessor(DTChild->getBlock()))
       AllSuccs.push_back(DTChild->getBlock());
+  }
 
-  // Sort Successors according to their loop depth or block frequency info.
-  std::stable_sort(
-      AllSuccs.begin(), AllSuccs.end(),
-      [this](const MachineBasicBlock *L, const MachineBasicBlock *R) {
+  // Sort Successors according to their cycle depth or block frequency info.
+  llvm::stable_sort(
+      AllSuccs, [this](const MachineBasicBlock *L, const MachineBasicBlock *R) {
         uint64_t LHSFreq = MBFI ? MBFI->getBlockFreq(L).getFrequency() : 0;
         uint64_t RHSFreq = MBFI ? MBFI->getBlockFreq(R).getFrequency() : 0;
         bool HasBlockFreq = LHSFreq != 0 && RHSFreq != 0;
         return HasBlockFreq ? LHSFreq < RHSFreq
-                            : LI->getLoopDepth(L) < LI->getLoopDepth(R);
+                            : CI->getCycleDepth(L) < CI->getCycleDepth(R);
       });
 
   auto it = AllSuccessors.insert(std::make_pair(MBB, AllSuccs));
@@ -626,25 +898,24 @@ MachineSinking::FindSuccToSinkTo(MachineInstr &MI, MachineBasicBlock *MBB,
                                  AllSuccsCache &AllSuccessors) {
   assert (MBB && "Invalid MachineBasicBlock!");
 
-  // Loop over all the operands of the specified instruction.  If there is
+  // loop over all the operands of the specified instruction.  If there is
   // anything we can't handle, bail out.
 
   // SuccToSinkTo - This is the successor to sink this instruction to, once we
   // decide.
   MachineBasicBlock *SuccToSinkTo = nullptr;
-  for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI.getOperand(i);
+  for (const MachineOperand &MO : MI.operands()) {
     if (!MO.isReg()) continue;  // Ignore non-register operands.
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (Reg == 0) continue;
 
-    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+    if (Reg.isPhysical()) {
       if (MO.isUse()) {
         // If the physreg has no defs anywhere, it's just an ambient register
         // and we can freely move its uses. Alternatively, if it's allocatable,
         // it could get allocated to something with a def during allocation.
-        if (!MRI->isConstantPhysReg(Reg))
+        if (!MRI->isConstantPhysReg(Reg) && !TII->isIgnorableUse(MO))
           return nullptr;
       } else if (!MO.isDead()) {
         // A def that isn't dead. We can't move it.
@@ -674,7 +945,7 @@ MachineSinking::FindSuccToSinkTo(MachineInstr &MI, MachineBasicBlock *MBB,
       // Otherwise, we should look at all the successors and decide which one
       // we should sink to. If we have reliable block frequency information
       // (frequency != 0) available, give successors with smaller frequencies
-      // higher priority, otherwise prioritize smaller loop depths.
+      // higher priority, otherwise prioritize smaller cycle depths.
       for (MachineBasicBlock *SuccBlock :
            GetAllSortedSuccessors(MI, MBB, AllSuccessors)) {
         bool LocalUse = false;
@@ -697,13 +968,20 @@ MachineSinking::FindSuccToSinkTo(MachineInstr &MI, MachineBasicBlock *MBB,
   }
 
   // It is not possible to sink an instruction into its own block.  This can
-  // happen with loops.
+  // happen with cycles.
   if (MBB == SuccToSinkTo)
     return nullptr;
 
   // It's not safe to sink instructions to EH landing pad. Control flow into
   // landing pad is implicitly defined.
   if (SuccToSinkTo && SuccToSinkTo->isEHPad())
+    return nullptr;
+
+  // It ought to be okay to sink instructions into an INLINEASM_BR target, but
+  // only if we make sure that MI occurs _before_ an INLINEASM_BR instruction in
+  // the source block (which this code does not yet do). So for now, forbid
+  // doing so.
+  if (SuccToSinkTo && SuccToSinkTo->isInlineAsmBrIndirectTarget())
     return nullptr;
 
   return SuccToSinkTo;
@@ -735,9 +1013,13 @@ static bool SinkingPreventsImplicitNullCheck(MachineInstr &MI,
       !PredBB->getTerminator()->getMetadata(LLVMContext::MD_make_implicit))
     return false;
 
-  unsigned BaseReg;
+  const MachineOperand *BaseOp;
   int64_t Offset;
-  if (!TII->getMemOpBaseRegImmOfs(MI, BaseReg, Offset, TRI))
+  bool OffsetIsScalable;
+  if (!TII->getMemOperandWithOffset(MI, BaseOp, Offset, OffsetIsScalable, TRI))
+    return false;
+
+  if (!BaseOp->isReg())
     return false;
 
   if (!(MI.mayLoad() && !MI.isPredicable()))
@@ -750,16 +1032,68 @@ static bool SinkingPreventsImplicitNullCheck(MachineInstr &MI,
   return MBP.LHS.isReg() && MBP.RHS.isImm() && MBP.RHS.getImm() == 0 &&
          (MBP.Predicate == MachineBranchPredicate::PRED_NE ||
           MBP.Predicate == MachineBranchPredicate::PRED_EQ) &&
-         MBP.LHS.getReg() == BaseReg;
+         MBP.LHS.getReg() == BaseOp->getReg();
 }
 
+/// If the sunk instruction is a copy, try to forward the copy instead of
+/// leaving an 'undef' DBG_VALUE in the original location. Don't do this if
+/// there's any subregister weirdness involved. Returns true if copy
+/// propagation occurred.
+static bool attemptDebugCopyProp(MachineInstr &SinkInst, MachineInstr &DbgMI,
+                                 Register Reg) {
+  const MachineRegisterInfo &MRI = SinkInst.getMF()->getRegInfo();
+  const TargetInstrInfo &TII = *SinkInst.getMF()->getSubtarget().getInstrInfo();
+
+  // Copy DBG_VALUE operand and set the original to undef. We then check to
+  // see whether this is something that can be copy-forwarded. If it isn't,
+  // continue around the loop.
+
+  const MachineOperand *SrcMO = nullptr, *DstMO = nullptr;
+  auto CopyOperands = TII.isCopyInstr(SinkInst);
+  if (!CopyOperands)
+    return false;
+  SrcMO = CopyOperands->Source;
+  DstMO = CopyOperands->Destination;
+
+  // Check validity of forwarding this copy.
+  bool PostRA = MRI.getNumVirtRegs() == 0;
+
+  // Trying to forward between physical and virtual registers is too hard.
+  if (Reg.isVirtual() != SrcMO->getReg().isVirtual())
+    return false;
+
+  // Only try virtual register copy-forwarding before regalloc, and physical
+  // register copy-forwarding after regalloc.
+  bool arePhysRegs = !Reg.isVirtual();
+  if (arePhysRegs != PostRA)
+    return false;
+
+  // Pre-regalloc, only forward if all subregisters agree (or there are no
+  // subregs at all). More analysis might recover some forwardable copies.
+  if (!PostRA)
+    for (auto &DbgMO : DbgMI.getDebugOperandsForReg(Reg))
+      if (DbgMO.getSubReg() != SrcMO->getSubReg() ||
+          DbgMO.getSubReg() != DstMO->getSubReg())
+        return false;
+
+  // Post-regalloc, we may be sinking a DBG_VALUE of a sub or super-register
+  // of this copy. Only forward the copy if the DBG_VALUE operand exactly
+  // matches the copy destination.
+  if (PostRA && Reg != DstMO->getReg())
+    return false;
+
+  for (auto &DbgMO : DbgMI.getDebugOperandsForReg(Reg)) {
+    DbgMO.setReg(SrcMO->getReg());
+    DbgMO.setSubReg(SrcMO->getSubReg());
+  }
+  return true;
+}
+
+using MIRegs = std::pair<MachineInstr *, SmallVector<unsigned, 2>>;
 /// Sink an instruction and its associated debug instructions.
 static void performSink(MachineInstr &MI, MachineBasicBlock &SuccToSinkTo,
-                        MachineBasicBlock::iterator InsertPos) {
-  // Collect matching debug values.
-  SmallVector<MachineInstr *, 2> DbgValuesToSink;
-  collectDebugValues(MI, DbgValuesToSink);
-
+                        MachineBasicBlock::iterator InsertPos,
+                        ArrayRef<MIRegs> DbgValuesToSink) {
   // If we cannot find a location to use (merge with), then we erase the debug
   // location to prevent debug-info driven tools from potentially reporting
   // wrong location information.
@@ -774,14 +1108,237 @@ static void performSink(MachineInstr &MI, MachineBasicBlock &SuccToSinkTo,
   SuccToSinkTo.splice(InsertPos, ParentBlock, MI,
                       ++MachineBasicBlock::iterator(MI));
 
-  // Move previously adjacent debug value instructions to the insert position.
-  for (SmallVectorImpl<MachineInstr *>::iterator DBI = DbgValuesToSink.begin(),
-                                                 DBE = DbgValuesToSink.end();
-       DBI != DBE; ++DBI) {
-    MachineInstr *DbgMI = *DBI;
-    SuccToSinkTo.splice(InsertPos, ParentBlock, DbgMI,
-                        ++MachineBasicBlock::iterator(DbgMI));
+  // Sink a copy of debug users to the insert position. Mark the original
+  // DBG_VALUE location as 'undef', indicating that any earlier variable
+  // location should be terminated as we've optimised away the value at this
+  // point.
+  for (const auto &DbgValueToSink : DbgValuesToSink) {
+    MachineInstr *DbgMI = DbgValueToSink.first;
+    MachineInstr *NewDbgMI = DbgMI->getMF()->CloneMachineInstr(DbgMI);
+    SuccToSinkTo.insert(InsertPos, NewDbgMI);
+
+    bool PropagatedAllSunkOps = true;
+    for (unsigned Reg : DbgValueToSink.second) {
+      if (DbgMI->hasDebugOperandForReg(Reg)) {
+        if (!attemptDebugCopyProp(MI, *DbgMI, Reg)) {
+          PropagatedAllSunkOps = false;
+          break;
+        }
+      }
+    }
+    if (!PropagatedAllSunkOps)
+      DbgMI->setDebugValueUndef();
   }
+}
+
+/// hasStoreBetween - check if there is store betweeen straight line blocks From
+/// and To.
+bool MachineSinking::hasStoreBetween(MachineBasicBlock *From,
+                                     MachineBasicBlock *To, MachineInstr &MI) {
+  // Make sure From and To are in straight line which means From dominates To
+  // and To post dominates From.
+  if (!DT->dominates(From, To) || !PDT->dominates(To, From))
+    return true;
+
+  auto BlockPair = std::make_pair(From, To);
+
+  // Does these two blocks pair be queried before and have a definite cached
+  // result?
+  if (HasStoreCache.find(BlockPair) != HasStoreCache.end())
+    return HasStoreCache[BlockPair];
+
+  if (StoreInstrCache.find(BlockPair) != StoreInstrCache.end())
+    return llvm::any_of(StoreInstrCache[BlockPair], [&](MachineInstr *I) {
+      return I->mayAlias(AA, MI, false);
+    });
+
+  bool SawStore = false;
+  bool HasAliasedStore = false;
+  DenseSet<MachineBasicBlock *> HandledBlocks;
+  DenseSet<MachineBasicBlock *> HandledDomBlocks;
+  // Go through all reachable blocks from From.
+  for (MachineBasicBlock *BB : depth_first(From)) {
+    // We insert the instruction at the start of block To, so no need to worry
+    // about stores inside To.
+    // Store in block From should be already considered when just enter function
+    // SinkInstruction.
+    if (BB == To || BB == From)
+      continue;
+
+    // We already handle this BB in previous iteration.
+    if (HandledBlocks.count(BB))
+      continue;
+
+    HandledBlocks.insert(BB);
+    // To post dominates BB, it must be a path from block From.
+    if (PDT->dominates(To, BB)) {
+      if (!HandledDomBlocks.count(BB))
+        HandledDomBlocks.insert(BB);
+
+      // If this BB is too big or the block number in straight line between From
+      // and To is too big, stop searching to save compiling time.
+      if (BB->sizeWithoutDebugLargerThan(SinkLoadInstsPerBlockThreshold) ||
+          HandledDomBlocks.size() > SinkLoadBlocksThreshold) {
+        for (auto *DomBB : HandledDomBlocks) {
+          if (DomBB != BB && DT->dominates(DomBB, BB))
+            HasStoreCache[std::make_pair(DomBB, To)] = true;
+          else if(DomBB != BB && DT->dominates(BB, DomBB))
+            HasStoreCache[std::make_pair(From, DomBB)] = true;
+        }
+        HasStoreCache[BlockPair] = true;
+        return true;
+      }
+
+      for (MachineInstr &I : *BB) {
+        // Treat as alias conservatively for a call or an ordered memory
+        // operation.
+        if (I.isCall() || I.hasOrderedMemoryRef()) {
+          for (auto *DomBB : HandledDomBlocks) {
+            if (DomBB != BB && DT->dominates(DomBB, BB))
+              HasStoreCache[std::make_pair(DomBB, To)] = true;
+            else if(DomBB != BB && DT->dominates(BB, DomBB))
+              HasStoreCache[std::make_pair(From, DomBB)] = true;
+          }
+          HasStoreCache[BlockPair] = true;
+          return true;
+        }
+
+        if (I.mayStore()) {
+          SawStore = true;
+          // We still have chance to sink MI if all stores between are not
+          // aliased to MI.
+          // Cache all store instructions, so that we don't need to go through
+          // all From reachable blocks for next load instruction.
+          if (I.mayAlias(AA, MI, false))
+            HasAliasedStore = true;
+          StoreInstrCache[BlockPair].push_back(&I);
+        }
+      }
+    }
+  }
+  // If there is no store at all, cache the result.
+  if (!SawStore)
+    HasStoreCache[BlockPair] = false;
+  return HasAliasedStore;
+}
+
+/// Sink instructions into cycles if profitable. This especially tries to
+/// prevent register spills caused by register pressure if there is little to no
+/// overhead moving instructions into cycles.
+bool MachineSinking::SinkIntoCycle(MachineCycle *Cycle, MachineInstr &I) {
+  LLVM_DEBUG(dbgs() << "CycleSink: Finding sink block for: " << I);
+  MachineBasicBlock *Preheader = Cycle->getCyclePreheader();
+  assert(Preheader && "Cycle sink needs a preheader block");
+  MachineBasicBlock *SinkBlock = nullptr;
+  bool CanSink = true;
+  const MachineOperand &MO = I.getOperand(0);
+
+  for (MachineInstr &MI : MRI->use_instructions(MO.getReg())) {
+    LLVM_DEBUG(dbgs() << "CycleSink:   Analysing use: " << MI);
+    if (!Cycle->contains(MI.getParent())) {
+      LLVM_DEBUG(dbgs() << "CycleSink:   Use not in cycle, can't sink.\n");
+      CanSink = false;
+      break;
+    }
+
+    // FIXME: Come up with a proper cost model that estimates whether sinking
+    // the instruction (and thus possibly executing it on every cycle
+    // iteration) is more expensive than a register.
+    // For now assumes that copies are cheap and thus almost always worth it.
+    if (!MI.isCopy()) {
+      LLVM_DEBUG(dbgs() << "CycleSink:   Use is not a copy\n");
+      CanSink = false;
+      break;
+    }
+    if (!SinkBlock) {
+      SinkBlock = MI.getParent();
+      LLVM_DEBUG(dbgs() << "CycleSink:   Setting sink block to: "
+                        << printMBBReference(*SinkBlock) << "\n");
+      continue;
+    }
+    SinkBlock = DT->findNearestCommonDominator(SinkBlock, MI.getParent());
+    if (!SinkBlock) {
+      LLVM_DEBUG(dbgs() << "CycleSink:   Can't find nearest dominator\n");
+      CanSink = false;
+      break;
+    }
+    LLVM_DEBUG(dbgs() << "CycleSink:   Setting nearest common dom block: " <<
+               printMBBReference(*SinkBlock) << "\n");
+  }
+
+  if (!CanSink) {
+    LLVM_DEBUG(dbgs() << "CycleSink: Can't sink instruction.\n");
+    return false;
+  }
+  if (!SinkBlock) {
+    LLVM_DEBUG(dbgs() << "CycleSink: Not sinking, can't find sink block.\n");
+    return false;
+  }
+  if (SinkBlock == Preheader) {
+    LLVM_DEBUG(
+        dbgs() << "CycleSink: Not sinking, sink block is the preheader\n");
+    return false;
+  }
+  if (SinkBlock->sizeWithoutDebugLargerThan(SinkLoadInstsPerBlockThreshold)) {
+    LLVM_DEBUG(
+        dbgs() << "CycleSink: Not Sinking, block too large to analyse.\n");
+    return false;
+  }
+
+  LLVM_DEBUG(dbgs() << "CycleSink: Sinking instruction!\n");
+  SinkBlock->splice(SinkBlock->SkipPHIsAndLabels(SinkBlock->begin()), Preheader,
+                    I);
+
+  // Conservatively clear any kill flags on uses of sunk instruction
+  for (MachineOperand &MO : I.operands()) {
+    if (MO.isReg() && MO.readsReg())
+      RegsToClearKillFlags.insert(MO.getReg());
+  }
+
+  // The instruction is moved from its basic block, so do not retain the
+  // debug information.
+  assert(!I.isDebugInstr() && "Should not sink debug inst");
+  I.setDebugLoc(DebugLoc());
+  return true;
+}
+
+/// Return true if a target defined block prologue instruction interferes
+/// with a sink candidate.
+static bool blockPrologueInterferes(MachineBasicBlock *BB,
+                                    MachineBasicBlock::iterator End,
+                                    MachineInstr &MI,
+                                    const TargetRegisterInfo *TRI,
+                                    const TargetInstrInfo *TII,
+                                    const MachineRegisterInfo *MRI) {
+  if (BB->begin() == End)
+    return false; // no prologue
+  for (MachineBasicBlock::iterator PI = BB->getFirstNonPHI(); PI != End; ++PI) {
+    // Only check target defined prologue instructions
+    if (!TII->isBasicBlockPrologue(*PI))
+      continue;
+    for (auto &MO : MI.operands()) {
+      if (!MO.isReg())
+        continue;
+      Register Reg = MO.getReg();
+      if (!Reg)
+        continue;
+      if (MO.isUse()) {
+        if (Reg.isPhysical() &&
+            (TII->isIgnorableUse(MO) || (MRI && MRI->isConstantPhysReg(Reg))))
+          continue;
+        if (PI->modifiesRegister(Reg, TRI))
+          return true;
+      } else {
+        if (PI->readsRegister(Reg, TRI))
+          return true;
+        // Check for interference with non-dead defs
+        auto *DefOp = PI->findRegisterDefOperand(Reg, false, true, TRI);
+        if (DefOp && !DefOp->isDead())
+          return true;
+      }
+    }
+  }
+  return false;
 }
 
 /// SinkInstruction - Determine whether it is safe to sink the specified machine
@@ -826,11 +1383,12 @@ bool MachineSinking::SinkInstruction(MachineInstr &MI, bool &SawStore,
   // If the instruction to move defines a dead physical register which is live
   // when leaving the basic block, don't move it because it could turn into a
   // "zombie" define of that preg. E.g., EFLAGS. (<rdar://problem/8030636>)
-  for (unsigned I = 0, E = MI.getNumOperands(); I != E; ++I) {
-    const MachineOperand &MO = MI.getOperand(I);
-    if (!MO.isReg()) continue;
-    unsigned Reg = MO.getReg();
-    if (Reg == 0 || !TargetRegisterInfo::isPhysicalRegister(Reg)) continue;
+  for (const MachineOperand &MO : MI.operands()) {
+    if (!MO.isReg() || MO.isUse())
+      continue;
+    Register Reg = MO.getReg();
+    if (Reg == 0 || !Reg.isPhysical())
+      continue;
     if (SuccToSinkTo->isLiveIn(Reg))
       return false;
   }
@@ -843,8 +1401,9 @@ bool MachineSinking::SinkInstruction(MachineInstr &MI, bool &SawStore,
     // We cannot sink a load across a critical edge - there may be stores in
     // other code paths.
     bool TryBreak = false;
-    bool store = true;
-    if (!MI.isSafeToMove(AA, store)) {
+    bool Store =
+        MI.mayLoad() ? hasStoreBetween(ParentBlock, SuccToSinkTo, MI) : true;
+    if (!MI.isSafeToMove(AA, Store)) {
       LLVM_DEBUG(dbgs() << " *** NOTE: Won't sink load along critical edge.\n");
       TryBreak = true;
     }
@@ -856,9 +1415,11 @@ bool MachineSinking::SinkInstruction(MachineInstr &MI, bool &SawStore,
       TryBreak = true;
     }
 
-    // Don't sink instructions into a loop.
-    if (!TryBreak && LI->isLoopHeader(SuccToSinkTo)) {
-      LLVM_DEBUG(dbgs() << " *** NOTE: Loop header found\n");
+    // Don't sink instructions into a cycle.
+    if (!TryBreak && CI->getCycle(SuccToSinkTo) &&
+        (!CI->getCycle(SuccToSinkTo)->isReducible() ||
+         CI->getCycle(SuccToSinkTo)->getHeader() == SuccToSinkTo)) {
+      LLVM_DEBUG(dbgs() << " *** NOTE: cycle header found\n");
       TryBreak = true;
     }
 
@@ -893,11 +1454,44 @@ bool MachineSinking::SinkInstruction(MachineInstr &MI, bool &SawStore,
   }
 
   // Determine where to insert into. Skip phi nodes.
-  MachineBasicBlock::iterator InsertPos = SuccToSinkTo->begin();
-  while (InsertPos != SuccToSinkTo->end() && InsertPos->isPHI())
-    ++InsertPos;
+  MachineBasicBlock::iterator InsertPos =
+      SuccToSinkTo->SkipPHIsAndLabels(SuccToSinkTo->begin());
+  if (blockPrologueInterferes(SuccToSinkTo, InsertPos, MI, TRI, TII, MRI)) {
+    LLVM_DEBUG(dbgs() << " *** Not sinking: prologue interference\n");
+    return false;
+  }
 
-  performSink(MI, *SuccToSinkTo, InsertPos);
+  // Collect debug users of any vreg that this inst defines.
+  SmallVector<MIRegs, 4> DbgUsersToSink;
+  for (auto &MO : MI.operands()) {
+    if (!MO.isReg() || !MO.isDef() || !MO.getReg().isVirtual())
+      continue;
+    if (!SeenDbgUsers.count(MO.getReg()))
+      continue;
+
+    // Sink any users that don't pass any other DBG_VALUEs for this variable.
+    auto &Users = SeenDbgUsers[MO.getReg()];
+    for (auto &User : Users) {
+      MachineInstr *DbgMI = User.getPointer();
+      if (User.getInt()) {
+        // This DBG_VALUE would re-order assignments. If we can't copy-propagate
+        // it, it can't be recovered. Set it undef.
+        if (!attemptDebugCopyProp(MI, *DbgMI, MO.getReg()))
+          DbgMI->setDebugValueUndef();
+      } else {
+        DbgUsersToSink.push_back(
+            {DbgMI, SmallVector<unsigned, 2>(1, MO.getReg())});
+      }
+    }
+  }
+
+  // After sinking, some debug users may not be dominated any more. If possible,
+  // copy-propagate their operands. As it's expensive, don't do this if there's
+  // no debuginfo in the program.
+  if (MI.getMF()->getFunction().getSubprogram() && MI.isCopy())
+    SalvageUnsunkDebugUsersOfCopy(MI, SuccToSinkTo);
+
+  performSink(MI, *SuccToSinkTo, InsertPos, DbgUsersToSink);
 
   // Conservatively, clear any kill flags, since it's possible that they are no
   // longer correct.
@@ -906,10 +1500,51 @@ bool MachineSinking::SinkInstruction(MachineInstr &MI, bool &SawStore,
   // used registers.
   for (MachineOperand &MO : MI.operands()) {
     if (MO.isReg() && MO.isUse())
-      RegsToClearKillFlags.set(MO.getReg()); // Remember to clear kill flags.
+      RegsToClearKillFlags.insert(MO.getReg()); // Remember to clear kill flags.
   }
 
   return true;
+}
+
+void MachineSinking::SalvageUnsunkDebugUsersOfCopy(
+    MachineInstr &MI, MachineBasicBlock *TargetBlock) {
+  assert(MI.isCopy());
+  assert(MI.getOperand(1).isReg());
+
+  // Enumerate all users of vreg operands that are def'd. Skip those that will
+  // be sunk. For the rest, if they are not dominated by the block we will sink
+  // MI into, propagate the copy source to them.
+  SmallVector<MachineInstr *, 4> DbgDefUsers;
+  SmallVector<Register, 4> DbgUseRegs;
+  const MachineRegisterInfo &MRI = MI.getMF()->getRegInfo();
+  for (auto &MO : MI.operands()) {
+    if (!MO.isReg() || !MO.isDef() || !MO.getReg().isVirtual())
+      continue;
+    DbgUseRegs.push_back(MO.getReg());
+    for (auto &User : MRI.use_instructions(MO.getReg())) {
+      if (!User.isDebugValue() || DT->dominates(TargetBlock, User.getParent()))
+        continue;
+
+      // If is in same block, will either sink or be use-before-def.
+      if (User.getParent() == MI.getParent())
+        continue;
+
+      assert(User.hasDebugOperandForReg(MO.getReg()) &&
+             "DBG_VALUE user of vreg, but has no operand for it?");
+      DbgDefUsers.push_back(&User);
+    }
+  }
+
+  // Point the users of this copy that are no longer dominated, at the source
+  // of the copy.
+  for (auto *User : DbgDefUsers) {
+    for (auto &Reg : DbgUseRegs) {
+      for (auto &DbgOp : User->getDebugOperandsForReg(Reg)) {
+        DbgOp.setReg(MI.getOperand(1).getReg());
+        DbgOp.setSubReg(MI.getOperand(1).getSubReg());
+      }
+    }
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -969,6 +1604,12 @@ public:
 private:
   /// Track which register units have been modified and used.
   LiveRegUnits ModifiedRegUnits, UsedRegUnits;
+
+  /// Track DBG_VALUEs of (unmodified) register units. Each DBG_VALUE has an
+  /// entry in this map for each unit it touches. The DBG_VALUE's entry
+  /// consists of a pointer to the instruction itself, and a vector of registers
+  /// referred to by the instruction that overlap the key register unit.
+  DenseMap<unsigned, SmallVector<MIRegs, 2>> SeenDbgInstrs;
 
   /// Sink Copy instructions unused in the same block close to their uses in
   /// successors.
@@ -1039,7 +1680,7 @@ static void clearKillFlags(MachineInstr *MI, MachineBasicBlock &CurBB,
                            const TargetRegisterInfo *TRI) {
   for (auto U : UsedOpsInCopy) {
     MachineOperand &MO = MI->getOperand(U);
-    unsigned SrcReg = MO.getReg();
+    Register SrcReg = MO.getReg();
     if (!UsedRegUnits.available(SrcReg)) {
       MachineBasicBlock::iterator NI = std::next(MI->getIterator());
       for (MachineInstr &UI : make_range(NI, CurBB.end())) {
@@ -1056,13 +1697,20 @@ static void clearKillFlags(MachineInstr *MI, MachineBasicBlock &CurBB,
 static void updateLiveIn(MachineInstr *MI, MachineBasicBlock *SuccBB,
                          SmallVectorImpl<unsigned> &UsedOpsInCopy,
                          SmallVectorImpl<unsigned> &DefedRegsInCopy) {
-  for (auto DefReg : DefedRegsInCopy)
-    SuccBB->removeLiveIn(DefReg);
+  MachineFunction &MF = *SuccBB->getParent();
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+  for (unsigned DefReg : DefedRegsInCopy)
+    for (MCSubRegIterator S(DefReg, TRI, true); S.isValid(); ++S)
+      SuccBB->removeLiveIn(*S);
   for (auto U : UsedOpsInCopy) {
-    unsigned Reg = MI->getOperand(U).getReg();
-    if (!SuccBB->isLiveIn(Reg))
-      SuccBB->addLiveIn(Reg);
+    Register SrcReg = MI->getOperand(U).getReg();
+    LaneBitmask Mask;
+    for (MCRegUnitMaskIterator S(SrcReg, TRI); S.isValid(); ++S) {
+      Mask |= (*S).second;
+    }
+    SuccBB->addLiveIn(SrcReg, Mask.any() ? Mask : LaneBitmask::getAll());
   }
+  SuccBB->sortUniqueLiveIns();
 }
 
 static bool hasRegisterDependency(MachineInstr *MI,
@@ -1075,7 +1723,7 @@ static bool hasRegisterDependency(MachineInstr *MI,
     MachineOperand &MO = MI->getOperand(i);
     if (!MO.isReg())
       continue;
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     if (!Reg)
       continue;
     if (MO.isDef()) {
@@ -1121,33 +1769,60 @@ bool PostRAMachineSinking::tryToSinkCopy(MachineBasicBlock &CurBB,
   // block and the current instruction.
   ModifiedRegUnits.clear();
   UsedRegUnits.clear();
+  SeenDbgInstrs.clear();
 
-  for (auto I = CurBB.rbegin(), E = CurBB.rend(); I != E;) {
-    MachineInstr *MI = &*I;
-    ++I;
-
-    if (MI->isDebugInstr())
-      continue;
-
-    // Do not move any instruction across function call.
-    if (MI->isCall())
-      return false;
-
-    if (!MI->isCopy() || !MI->getOperand(0).isRenamable()) {
-      LiveRegUnits::accumulateUsedDefed(*MI, ModifiedRegUnits, UsedRegUnits,
-                                        TRI);
-      continue;
-    }
-
+  for (MachineInstr &MI : llvm::make_early_inc_range(llvm::reverse(CurBB))) {
     // Track the operand index for use in Copy.
     SmallVector<unsigned, 2> UsedOpsInCopy;
     // Track the register number defed in Copy.
     SmallVector<unsigned, 2> DefedRegsInCopy;
 
+    // We must sink this DBG_VALUE if its operand is sunk. To avoid searching
+    // for DBG_VALUEs later, record them when they're encountered.
+    if (MI.isDebugValue() && !MI.isDebugRef()) {
+      SmallDenseMap<MCRegister, SmallVector<unsigned, 2>, 4> MIUnits;
+      bool IsValid = true;
+      for (MachineOperand &MO : MI.debug_operands()) {
+        if (MO.isReg() && MO.getReg().isPhysical()) {
+          // Bail if we can already tell the sink would be rejected, rather
+          // than needlessly accumulating lots of DBG_VALUEs.
+          if (hasRegisterDependency(&MI, UsedOpsInCopy, DefedRegsInCopy,
+                                    ModifiedRegUnits, UsedRegUnits)) {
+            IsValid = false;
+            break;
+          }
+
+          // Record debug use of each reg unit.
+          for (auto RI = MCRegUnitIterator(MO.getReg(), TRI); RI.isValid();
+               ++RI)
+            MIUnits[*RI].push_back(MO.getReg());
+        }
+      }
+      if (IsValid) {
+        for (auto &RegOps : MIUnits)
+          SeenDbgInstrs[RegOps.first].emplace_back(&MI,
+                                                   std::move(RegOps.second));
+      }
+      continue;
+    }
+
+    if (MI.isDebugOrPseudoInstr())
+      continue;
+
+    // Do not move any instruction across function call.
+    if (MI.isCall())
+      return false;
+
+    if (!MI.isCopy() || !MI.getOperand(0).isRenamable()) {
+      LiveRegUnits::accumulateUsedDefed(MI, ModifiedRegUnits, UsedRegUnits,
+                                        TRI);
+      continue;
+    }
+
     // Don't sink the COPY if it would violate a register dependency.
-    if (hasRegisterDependency(MI, UsedOpsInCopy, DefedRegsInCopy,
+    if (hasRegisterDependency(&MI, UsedOpsInCopy, DefedRegsInCopy,
                               ModifiedRegUnits, UsedRegUnits)) {
-      LiveRegUnits::accumulateUsedDefed(*MI, ModifiedRegUnits, UsedRegUnits,
+      LiveRegUnits::accumulateUsedDefed(MI, ModifiedRegUnits, UsedRegUnits,
                                         TRI);
       continue;
     }
@@ -1158,19 +1833,46 @@ bool PostRAMachineSinking::tryToSinkCopy(MachineBasicBlock &CurBB,
     // Don't sink if we cannot find a single sinkable successor in which Reg
     // is live-in.
     if (!SuccBB) {
-      LiveRegUnits::accumulateUsedDefed(*MI, ModifiedRegUnits, UsedRegUnits,
+      LiveRegUnits::accumulateUsedDefed(MI, ModifiedRegUnits, UsedRegUnits,
                                         TRI);
       continue;
     }
     assert((SuccBB->pred_size() == 1 && *SuccBB->pred_begin() == &CurBB) &&
            "Unexpected predecessor");
 
+    // Collect DBG_VALUEs that must sink with this copy. We've previously
+    // recorded which reg units that DBG_VALUEs read, if this instruction
+    // writes any of those units then the corresponding DBG_VALUEs must sink.
+    MapVector<MachineInstr *, MIRegs::second_type> DbgValsToSinkMap;
+    for (auto &MO : MI.operands()) {
+      if (!MO.isReg() || !MO.isDef())
+        continue;
+
+      for (auto RI = MCRegUnitIterator(MO.getReg(), TRI); RI.isValid(); ++RI) {
+        for (const auto &MIRegs : SeenDbgInstrs.lookup(*RI)) {
+          auto &Regs = DbgValsToSinkMap[MIRegs.first];
+          for (unsigned Reg : MIRegs.second)
+            Regs.push_back(Reg);
+        }
+      }
+    }
+    auto DbgValsToSink = DbgValsToSinkMap.takeVector();
+
+    LLVM_DEBUG(dbgs() << "Sink instr " << MI << "\tinto block " << *SuccBB);
+
+    MachineBasicBlock::iterator InsertPos =
+        SuccBB->SkipPHIsAndLabels(SuccBB->begin());
+    if (blockPrologueInterferes(SuccBB, InsertPos, MI, TRI, TII, nullptr)) {
+      LLVM_DEBUG(
+          dbgs() << " *** Not sinking: prologue interference\n");
+      continue;
+    }
+
     // Clear the kill flag if SrcReg is killed between MI and the end of the
     // block.
-    clearKillFlags(MI, CurBB, UsedOpsInCopy, UsedRegUnits, TRI);
-    MachineBasicBlock::iterator InsertPos = SuccBB->getFirstNonPHI();
-    performSink(*MI, *SuccBB, InsertPos);
-    updateLiveIn(MI, SuccBB, UsedOpsInCopy, DefedRegsInCopy);
+    clearKillFlags(&MI, CurBB, UsedOpsInCopy, UsedRegUnits, TRI);
+    performSink(MI, *SuccBB, InsertPos, DbgValsToSink);
+    updateLiveIn(&MI, SuccBB, UsedOpsInCopy, DefedRegsInCopy);
 
     Changed = true;
     ++NumPostRACopySink;
@@ -1179,6 +1881,9 @@ bool PostRAMachineSinking::tryToSinkCopy(MachineBasicBlock &CurBB,
 }
 
 bool PostRAMachineSinking::runOnMachineFunction(MachineFunction &MF) {
+  if (skipFunction(MF.getFunction()))
+    return false;
+
   bool Changed = false;
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();

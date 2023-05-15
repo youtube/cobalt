@@ -1,9 +1,8 @@
-//===-- EmulateInstruction.cpp ----------------------------------*- C++ -*-===//
+//===-- EmulateInstruction.cpp --------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,27 +11,28 @@
 #include "lldb/Core/Address.h"
 #include "lldb/Core/DumpRegisterValue.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
-#include "lldb/Target/StackFrame.h"   // for StackFrame
-#include "lldb/Utility/ConstString.h" // for ConstString
+#include "lldb/Target/StackFrame.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
-#include "lldb/Utility/Stream.h" // for Stream, Stream::::eBinary
+#include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
-#include "lldb/lldb-forward.h"            // for ProcessSP
-#include "lldb/lldb-private-interfaces.h" // for EmulateInstructionCreateIn...
+#include "lldb/lldb-forward.h"
+#include "lldb/lldb-private-interfaces.h"
 
-#include "llvm/ADT/StringRef.h" // for StringRef
+#include "llvm/ADT/StringRef.h"
 
 #include <cstring>
-#include <memory> // for shared_ptr
+#include <memory>
+#include <optional>
 
-#include <inttypes.h> // for PRIx64, PRId64, PRIu64
-#include <stdio.h>    // for stdout
+#include <cinttypes>
+#include <cstdio>
 
 namespace lldb_private {
 class Target;
@@ -47,10 +47,9 @@ EmulateInstruction::FindPlugin(const ArchSpec &arch,
                                const char *plugin_name) {
   EmulateInstructionCreateInstance create_callback = nullptr;
   if (plugin_name) {
-    ConstString const_plugin_name(plugin_name);
     create_callback =
         PluginManager::GetEmulateInstructionCreateCallbackForPluginName(
-            const_plugin_name);
+            plugin_name);
     if (create_callback) {
       EmulateInstruction *emulate_insn_ptr =
           create_callback(arch, supported_inst_type);
@@ -72,29 +71,31 @@ EmulateInstruction::FindPlugin(const ArchSpec &arch,
   return nullptr;
 }
 
-EmulateInstruction::EmulateInstruction(const ArchSpec &arch)
-    : m_arch(arch), m_baton(nullptr), m_read_mem_callback(&ReadMemoryDefault),
-      m_write_mem_callback(&WriteMemoryDefault),
-      m_read_reg_callback(&ReadRegisterDefault),
-      m_write_reg_callback(&WriteRegisterDefault),
-      m_addr(LLDB_INVALID_ADDRESS) {
-  ::memset(&m_opcode, 0, sizeof(m_opcode));
-}
+EmulateInstruction::EmulateInstruction(const ArchSpec &arch) : m_arch(arch) {}
 
-bool EmulateInstruction::ReadRegister(const RegisterInfo *reg_info,
-                                      RegisterValue &reg_value) {
-  if (m_read_reg_callback != nullptr)
-    return m_read_reg_callback(this, m_baton, reg_info, reg_value);
-  return false;
+std::optional<RegisterValue>
+EmulateInstruction::ReadRegister(const RegisterInfo &reg_info) {
+  if (m_read_reg_callback == nullptr)
+    return {};
+
+  RegisterValue reg_value;
+  bool success = m_read_reg_callback(this, m_baton, &reg_info, reg_value);
+  if (success)
+    return reg_value;
+  return {};
 }
 
 bool EmulateInstruction::ReadRegister(lldb::RegisterKind reg_kind,
                                       uint32_t reg_num,
                                       RegisterValue &reg_value) {
-  RegisterInfo reg_info;
-  if (GetRegisterInfo(reg_kind, reg_num, reg_info))
-    return ReadRegister(&reg_info, reg_value);
-  return false;
+  std::optional<RegisterInfo> reg_info = GetRegisterInfo(reg_kind, reg_num);
+  if (!reg_info)
+    return false;
+
+  std::optional<RegisterValue> value = ReadRegister(*reg_info);
+  if (value)
+    reg_value = *value;
+  return value.has_value();
 }
 
 uint64_t EmulateInstruction::ReadRegisterUnsigned(lldb::RegisterKind reg_kind,
@@ -109,22 +110,24 @@ uint64_t EmulateInstruction::ReadRegisterUnsigned(lldb::RegisterKind reg_kind,
   return fail_value;
 }
 
-uint64_t EmulateInstruction::ReadRegisterUnsigned(const RegisterInfo *reg_info,
+uint64_t EmulateInstruction::ReadRegisterUnsigned(const RegisterInfo &reg_info,
                                                   uint64_t fail_value,
                                                   bool *success_ptr) {
-  RegisterValue reg_value;
-  if (ReadRegister(reg_info, reg_value))
-    return reg_value.GetAsUInt64(fail_value, success_ptr);
-  if (success_ptr)
-    *success_ptr = false;
-  return fail_value;
+  std::optional<RegisterValue> reg_value = ReadRegister(reg_info);
+  if (!reg_value) {
+    if (success_ptr)
+      *success_ptr = false;
+    return fail_value;
+  }
+
+  return reg_value->GetAsUInt64(fail_value, success_ptr);
 }
 
 bool EmulateInstruction::WriteRegister(const Context &context,
-                                       const RegisterInfo *reg_info,
+                                       const RegisterInfo &reg_info,
                                        const RegisterValue &reg_value) {
   if (m_write_reg_callback != nullptr)
-    return m_write_reg_callback(this, m_baton, context, reg_info, reg_value);
+    return m_write_reg_callback(this, m_baton, context, &reg_info, reg_value);
   return false;
 }
 
@@ -132,9 +135,9 @@ bool EmulateInstruction::WriteRegister(const Context &context,
                                        lldb::RegisterKind reg_kind,
                                        uint32_t reg_num,
                                        const RegisterValue &reg_value) {
-  RegisterInfo reg_info;
-  if (GetRegisterInfo(reg_kind, reg_num, reg_info))
-    return WriteRegister(context, &reg_info, reg_value);
+  std::optional<RegisterInfo> reg_info = GetRegisterInfo(reg_kind, reg_num);
+  if (reg_info)
+    return WriteRegister(context, *reg_info, reg_value);
   return false;
 }
 
@@ -142,23 +145,21 @@ bool EmulateInstruction::WriteRegisterUnsigned(const Context &context,
                                                lldb::RegisterKind reg_kind,
                                                uint32_t reg_num,
                                                uint64_t uint_value) {
-  RegisterInfo reg_info;
-  if (GetRegisterInfo(reg_kind, reg_num, reg_info)) {
+  std::optional<RegisterInfo> reg_info = GetRegisterInfo(reg_kind, reg_num);
+  if (reg_info) {
     RegisterValue reg_value;
-    if (reg_value.SetUInt(uint_value, reg_info.byte_size))
-      return WriteRegister(context, &reg_info, reg_value);
+    if (reg_value.SetUInt(uint_value, reg_info->byte_size))
+      return WriteRegister(context, *reg_info, reg_value);
   }
   return false;
 }
 
 bool EmulateInstruction::WriteRegisterUnsigned(const Context &context,
-                                               const RegisterInfo *reg_info,
+                                               const RegisterInfo &reg_info,
                                                uint64_t uint_value) {
-  if (reg_info != nullptr) {
-    RegisterValue reg_value;
-    if (reg_value.SetUInt(uint_value, reg_info->byte_size))
-      return WriteRegister(context, reg_info, reg_value);
-  }
+  RegisterValue reg_value;
+  if (reg_value.SetUInt(uint_value, reg_info.byte_size))
+    return WriteRegister(context, reg_info, reg_value);
   return false;
 }
 
@@ -449,7 +450,7 @@ void EmulateInstruction::Context::Dump(Stream &strm,
     break;
   }
 
-  switch (info_type) {
+  switch (GetInfoType()) {
   case eInfoTypeRegisterPlusOffset:
     strm.Printf(" (reg_plus_offset = %s%+" PRId64 ")",
                 info.RegisterPlusOffset.reg.name,

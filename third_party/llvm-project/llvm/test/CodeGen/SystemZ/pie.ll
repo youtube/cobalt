@@ -1,9 +1,9 @@
 ; RUN: llc -mtriple=s390x-linux-gnu -relocation-model=pic < %s | FileCheck %s
 
-@foo = global i32 42
+@foo = dso_local global i32 42
 
-define i32* @get_foo() {
-  ret i32* @foo
+define dso_local ptr @get_foo() {
+  ret ptr @foo
 }
 
 ; CHECK: larl    %r2, foo{{$}}

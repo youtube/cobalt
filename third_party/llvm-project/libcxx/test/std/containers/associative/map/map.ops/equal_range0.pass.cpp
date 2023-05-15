@@ -1,20 +1,19 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// XFAIL: c++98, c++03, c++11
+// XFAIL: c++03, c++11
 
 // <map>
 
 // class map
 
-//       iterator find(const key_type& k);
-// const_iterator find(const key_type& k) const;
+// pair<iterator,iterator>             equal_range(const key_type& k);
+// pair<const_iterator,const_iterator> equal_range(const key_type& k) const;
 //
 //   The member function templates find, count, lower_bound, upper_bound, and
 // equal_range shall not participate in overload resolution unless the
@@ -24,9 +23,10 @@
 #include <map>
 #include <cassert>
 
+#include "test_macros.h"
 #include "is_transparent.h"
 
-int main()
+int main(int, char**)
 {
     {
     typedef std::map<int, double, transparent_less> M;
@@ -42,4 +42,6 @@ int main()
     P result = example.equal_range(C2Int{5});
     assert(result.first == result.second);
     }
+
+  return 0;
 }

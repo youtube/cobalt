@@ -3,12 +3,12 @@
 
 # RUN: ld.lld %t1.o -o %t.out
 # RUN: llvm-objdump -s -t %t.out | FileCheck %s
-# CHECK:      Contents of section .text:
-# CHECK-NEXT:  11000 020000
-## 0x11003 - 0x11000 + addend(-1) = 0x02
-## 0x11003 - 0x11001 + addend(-2) = 0x0000
 # CHECK: SYMBOL TABLE:
-# CHECK: 00011003 .und
+# CHECK: 004010b7 l .und
+# CHECK:      Contents of section .text:
+# CHECK-NEXT:  4010b4 020000
+## 0x4010b7 - 0x4010b4 + addend(-1) = 0x02
+## 0x4010b7 - 0x4010b5 + addend(-2) = 0x0000
 
 .byte  und-.-1
 .short und-.-2

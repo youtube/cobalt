@@ -1,9 +1,8 @@
 //===- HexagonMCShuffler.h --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -29,16 +28,17 @@ class MCSubtargetInfo;
 // Insn bundle shuffler.
 class HexagonMCShuffler : public HexagonShuffler {
 public:
-  HexagonMCShuffler(MCContext &Context, bool Fatal, MCInstrInfo const &MCII,
-                    MCSubtargetInfo const &STI, MCInst &MCB)
-      : HexagonShuffler(Context, Fatal, MCII, STI) {
+  HexagonMCShuffler(MCContext &Context, bool ReportErrors,
+                    MCInstrInfo const &MCII, MCSubtargetInfo const &STI,
+                    MCInst &MCB)
+      : HexagonShuffler(Context, ReportErrors, MCII, STI) {
     init(MCB);
   }
 
-  HexagonMCShuffler(MCContext &Context, bool Fatal, MCInstrInfo const &MCII,
-                    MCSubtargetInfo const &STI, MCInst &MCB,
-                    MCInst const &AddMI, bool InsertAtFront)
-      : HexagonShuffler(Context, Fatal, MCII, STI) {
+  HexagonMCShuffler(MCContext &Context, bool ReportErrors,
+                    MCInstrInfo const &MCII, MCSubtargetInfo const &STI,
+                    MCInst &MCB, MCInst const &AddMI, bool InsertAtFront)
+      : HexagonShuffler(Context, ReportErrors, MCII, STI) {
     init(MCB, AddMI, InsertAtFront);
   }
 
@@ -53,9 +53,11 @@ private:
   void init(MCInst &MCB, MCInst const &AddMI, bool InsertAtFront);
 };
 
-// Invocation of the shuffler.
-bool HexagonMCShuffle(MCContext &Context, bool Fatal, MCInstrInfo const &MCII,
-                      MCSubtargetInfo const &STI, MCInst &MCB);
+// Invocation of the shuffler.  Returns true if the shuffle succeeded.  If
+// true, MCB will contain the newly-shuffled packet.
+bool HexagonMCShuffle(MCContext &Context, bool ReportErrors,
+                      MCInstrInfo const &MCII, MCSubtargetInfo const &STI,
+                      MCInst &MCB);
 bool HexagonMCShuffle(MCContext &Context, MCInstrInfo const &MCII,
                       MCSubtargetInfo const &STI, MCInst &MCB,
                       MCInst const &AddMI, int fixupCount);

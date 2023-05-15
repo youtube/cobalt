@@ -2,9 +2,9 @@
 ; RUN: llc < %s -mtriple=i686-unknown-unknown -mcpu=haswell | FileCheck %s --check-prefix=X86
 ; RUN: llc < %s -mtriple=x86_64-unknown-unknown -mcpu=haswell | FileCheck %s --check-prefix=X64
 
-@var_580 = external local_unnamed_addr global i8, align 1
+@var_580 = external dso_local local_unnamed_addr global i8, align 1
 
-define void @foo() {
+define void @foo(i8 %a0) {
 ; X86-LABEL: foo:
 ; X86:       # %bb.0: # %entry
 ; X86-NEXT:    movsbl var_580, %eax
@@ -16,19 +16,19 @@ define void @foo() {
 ;
 ; X64-LABEL: foo:
 ; X64:       # %bb.0: # %entry
-; X64-NEXT:    movsbl {{.*}}(%rip), %eax
+; X64-NEXT:    movsbl var_580(%rip), %eax
 ; X64-NEXT:    testl $-536870913, %eax # imm = 0xDFFFFFFF
 ; X64-NEXT:    jne .LBB0_1
 ; X64-NEXT:  # %bb.2: # %if.end13
 ; X64-NEXT:    retq
 ; X64-NEXT:  .LBB0_1: # %if.then11
 entry:
-  %tmp = icmp ugt i8 undef, 60
+  %tmp = icmp ugt i8 %a0, 60
   %phitmp = zext i1 %tmp to i16
   br label %if.end
 
 if.end:
-  %tmp1 = load i8, i8* @var_580, align 1
+  %tmp1 = load i8, ptr @var_580, align 1
   %conv7 = sext i8 %tmp1 to i32
   %conv8 = zext i16 %phitmp to i32
   %mul = shl nuw nsw i32 %conv8, 1

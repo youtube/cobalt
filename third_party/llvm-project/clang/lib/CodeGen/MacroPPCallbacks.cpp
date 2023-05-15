@@ -1,9 +1,8 @@
 //===--- MacroPPCallbacks.cpp ---------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,7 +13,8 @@
 #include "MacroPPCallbacks.h"
 #include "CGDebugInfo.h"
 #include "clang/CodeGen/ModuleBuilder.h"
-#include "clang/Parse/Parser.h"
+#include "clang/Lex/MacroInfo.h"
+#include "clang/Lex/Preprocessor.h"
 
 using namespace clang;
 
@@ -88,16 +88,6 @@ SourceLocation MacroPPCallbacks::getCorrectLocation(SourceLocation Loc) {
   return SourceLocation();
 }
 
-static bool isBuiltinFile(SourceManager &SM, SourceLocation Loc) {
-  StringRef Filename(SM.getPresumedLoc(Loc).getFilename());
-  return Filename.equals("<built-in>");
-}
-
-static bool isCommandLineFile(SourceManager &SM, SourceLocation Loc) {
-  StringRef Filename(SM.getPresumedLoc(Loc).getFilename());
-  return Filename.equals("<command line>");
-}
-
 void MacroPPCallbacks::updateStatusToNextScope() {
   switch (Status) {
   case NoScope:
@@ -127,10 +117,10 @@ void MacroPPCallbacks::FileEntered(SourceLocation Loc) {
     updateStatusToNextScope();
     return;
   case BuiltinScope:
-    if (isCommandLineFile(PP.getSourceManager(), Loc))
+    if (PP.getSourceManager().isWrittenInCommandLineFile(Loc))
       return;
     updateStatusToNextScope();
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   case CommandLineIncludeScope:
     EnteredCommandLineIncludeFiles++;
     break;
@@ -147,7 +137,7 @@ void MacroPPCallbacks::FileExited(SourceLocation Loc) {
   default:
     llvm_unreachable("Do not expect to exit a file from current scope");
   case BuiltinScope:
-    if (!isBuiltinFile(PP.getSourceManager(), Loc))
+    if (!PP.getSourceManager().isWrittenInBuiltinFile(Loc))
       // Skip next scope and change status to MainFileScope.
       Status = MainFileScope;
     return;
@@ -177,7 +167,7 @@ void MacroPPCallbacks::FileChanged(SourceLocation Loc, FileChangeReason Reason,
 
 void MacroPPCallbacks::InclusionDirective(
     SourceLocation HashLoc, const Token &IncludeTok, StringRef FileName,
-    bool IsAngled, CharSourceRange FilenameRange, const FileEntry *File,
+    bool IsAngled, CharSourceRange FilenameRange, OptionalFileEntryRef File,
     StringRef SearchPath, StringRef RelativePath, const Module *Imported,
     SrcMgr::CharacteristicKind FileType) {
 

@@ -1,16 +1,16 @@
 //===--- RefactoringOptionVisitor.h - Clang refactoring library -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTION_VISITOR_H
-#define LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTION_VISITOR_H
+#ifndef LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONVISITOR_H
+#define LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONVISITOR_H
 
 #include "clang/Basic/LLVM.h"
+#include <optional>
 #include <type_traits>
 
 namespace clang {
@@ -28,7 +28,7 @@ public:
   virtual ~RefactoringOptionVisitor() {}
 
   virtual void visit(const RefactoringOption &Opt,
-                     Optional<std::string> &Value) = 0;
+                     std::optional<std::string> &Value) = 0;
 };
 
 namespace traits {
@@ -39,7 +39,8 @@ private:
   template <typename ClassT>
   static auto check(ClassT *) -> typename std::is_same<
       decltype(std::declval<RefactoringOptionVisitor>().visit(
-          std::declval<RefactoringOption>(), *std::declval<Optional<T> *>())),
+          std::declval<RefactoringOption>(),
+          *std::declval<std::optional<T> *>())),
       void>::type;
 
   template <typename> static std::false_type check(...);
@@ -59,4 +60,4 @@ struct IsValidOptionType : internal::HasHandle<T>::Type {};
 } // end namespace tooling
 } // end namespace clang
 
-#endif // LLVM_CLANG_TOOLING_REFACTOR_REFACTORING_OPTION_VISITOR_H
+#endif // LLVM_CLANG_TOOLING_REFACTORING_REFACTORINGOPTIONVISITOR_H

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,19 +13,20 @@
 #include <vector>
 #include <cassert>
 
+#include "test_macros.h"
 #include "min_allocator.h"
 #include "asan_testing.h"
 
 struct Nasty {
-    Nasty() : i_(0) {}
-    Nasty(int i) : i_(i) {}
-    ~Nasty() {}
+    TEST_CONSTEXPR Nasty() : i_(0) {}
+    TEST_CONSTEXPR Nasty(int i) : i_(i) {}
+    TEST_CONSTEXPR_CXX20 ~Nasty() {}
 
     Nasty * operator&() const { assert(false); return nullptr; }
     int i_;
-    };
+};
 
-int main()
+TEST_CONSTEXPR_CXX20 bool tests()
 {
     {
         const std::vector<int> v;
@@ -60,4 +60,15 @@ int main()
         assert(is_contiguous_container_asan_correct(v));
     }
 #endif
+
+    return true;
+}
+
+int main(int, char**)
+{
+    tests();
+#if TEST_STD_VER > 17
+    static_assert(tests());
+#endif
+    return 0;
 }

@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases | FileCheck --check-prefix=NOOPT %s
+// RUN: %clang_cc1 -no-opaque-pointers %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases | FileCheck --check-prefix=NOOPT %s
 
-// RUN: %clang_cc1 %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-passes > %t
+// RUN: %clang_cc1 -no-opaque-pointers %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-passes > %t
 // RUN: FileCheck --check-prefix=CHECK1 --input-file=%t %s
 // RUN: FileCheck --check-prefix=CHECK2 --input-file=%t %s
 // RUN: FileCheck --check-prefix=CHECK3 --input-file=%t %s
@@ -8,7 +8,7 @@
 // RUN: FileCheck --check-prefix=CHECK5 --input-file=%t %s
 // RUN: FileCheck --check-prefix=CHECK6 --input-file=%t %s
 
-// RUN: %clang_cc1 %s -triple i686-pc-windows-gnu -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-passes | FileCheck --check-prefix=COFF %s
+// RUN: %clang_cc1 -no-opaque-pointers %s -triple i686-pc-windows-gnu -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-passes | FileCheck --check-prefix=COFF %s
 
 namespace test1 {
 // Test that we produce the appropriate comdats when creating aliases to
@@ -128,7 +128,7 @@ namespace test7 {
   // Test that we don't produce an alias from ~B to ~A<int> (or crash figuring
   // out if we should).
   // pr17875.
-  // CHECK3: define void @_ZN5test71BD2Ev
+  // CHECK3: define{{.*}} void @_ZN5test71BD2Ev
   template <typename> struct A {
     ~A() {}
   };
@@ -141,7 +141,7 @@ namespace test7 {
 
 namespace test8 {
   // Test that we replace ~zed with ~bar which is an alias to ~foo.
-  // CHECK4: @_ZN5test83barD2Ev = unnamed_addr alias {{.*}} @_ZN5test83fooD2Ev
+  // CHECK4: @_ZN5test83barD2Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN5test83fooD2Ev
   // CHECK4: define internal void @__cxx_global_var_init.5()
   // CHECK4: call i32 @__cxa_atexit({{.*}}@_ZN5test83barD2Ev
   struct foo {
@@ -232,8 +232,8 @@ struct foo : public bar {
   ~foo();
 };
 foo::~foo() {}
-// CHECK6: @_ZN6test113fooD2Ev = unnamed_addr alias {{.*}} @_ZN6test113barD2Ev
-// CHECK6: @_ZN6test113fooD1Ev = unnamed_addr alias {{.*}} @_ZN6test113fooD2Ev
+// CHECK6: @_ZN6test113fooD2Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN6test113barD2Ev
+// CHECK6: @_ZN6test113fooD1Ev ={{.*}} unnamed_addr alias {{.*}} @_ZN6test113fooD2Ev
 }
 
 namespace test12 {

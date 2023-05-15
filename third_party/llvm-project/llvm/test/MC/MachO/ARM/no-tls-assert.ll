@@ -1,12 +1,12 @@
-; RUN: llc -filetype=obj -o - %s | llvm-objdump -section-headers - | FileCheck %s
+; RUN: llc -filetype=obj -o - %s | llvm-objdump --section-headers - | FileCheck %s
 ; This should not trigger the "Creating regular section after DWARF" assert.
 ; CHECK: __text
 ; CHECK: __thread_ptr  00000004
 target triple = "thumbv7-apple-ios9.0.0"
 
 @b = external thread_local global i32
-define i32* @func(i32 %a) !dbg !9 {
-  ret i32* @b
+define ptr @func(i32 %a) !dbg !9 {
+  ret ptr @b
 }
 
 !llvm.dbg.cu = !{!0}

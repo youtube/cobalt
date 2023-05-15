@@ -1,13 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // REQUIRES: locale.en_US.UTF-8
+// XFAIL: LIBCXX-AIX-FIXME
+// XFAIL: no-wide-characters
 
 // <locale>
 
@@ -22,9 +23,10 @@
 #include <cassert>
 #include <limits.h>
 
+#include "test_macros.h"
 #include "platform_support.h" // locale name macros
 
-int main()
+int main(int, char**)
 {
     {
         std::locale l;
@@ -55,11 +57,13 @@ int main()
             assert(f.widen('.') == L'.');
             assert(f.widen('a') == L'a');
             assert(f.widen('1') == L'1');
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(_WIN32)
             assert(f.widen(char(-5)) == L'\u00fb');
 #else
             assert(f.widen(char(-5)) == wchar_t(-1));
 #endif
         }
     }
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===--- ModuleBuilder.cpp - Emit LLVM Code from ASTs ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,13 +16,14 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
+#include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include <memory>
 
 using namespace clang;
@@ -33,6 +33,7 @@ namespace {
   class CodeGeneratorImpl : public CodeGenerator {
     DiagnosticsEngine &Diags;
     ASTContext *Ctx;
+    IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS; // Only used for debug info.
     const HeaderSearchOptions &HeaderSearchOpts; // Only used for debug info.
     const PreprocessorOptions &PreprocessorOpts; // Only used for debug info.
     const CodeGenOptions CodeGenOpts;  // Intentionally copied in.
@@ -64,23 +65,32 @@ namespace {
     std::unique_ptr<CodeGen::CodeGenModule> Builder;
 
   private:
-    SmallVector<CXXMethodDecl *, 8> DeferredInlineMethodDefinitions;
+    SmallVector<FunctionDecl *, 8> DeferredInlineMemberFuncDefs;
+
+    static llvm::StringRef ExpandModuleName(llvm::StringRef ModuleName,
+                                            const CodeGenOptions &CGO) {
+      if (ModuleName == "-" && !CGO.MainFileName.empty())
+        return CGO.MainFileName;
+      return ModuleName;
+    }
 
   public:
     CodeGeneratorImpl(DiagnosticsEngine &diags, llvm::StringRef ModuleName,
+                      IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS,
                       const HeaderSearchOptions &HSO,
                       const PreprocessorOptions &PPO, const CodeGenOptions &CGO,
                       llvm::LLVMContext &C,
                       CoverageSourceInfo *CoverageInfo = nullptr)
-        : Diags(diags), Ctx(nullptr), HeaderSearchOpts(HSO),
+        : Diags(diags), Ctx(nullptr), FS(std::move(FS)), HeaderSearchOpts(HSO),
           PreprocessorOpts(PPO), CodeGenOpts(CGO), HandlingTopLevelDecls(0),
-          CoverageInfo(CoverageInfo), M(new llvm::Module(ModuleName, C)) {
+          CoverageInfo(CoverageInfo),
+          M(new llvm::Module(ExpandModuleName(ModuleName, CGO), C)) {
       C.setDiscardValueNames(CGO.DiscardValueNames);
     }
 
     ~CodeGeneratorImpl() override {
       // There should normally not be any leftover inline method definitions.
-      assert(DeferredInlineMethodDefinitions.empty() ||
+      assert(DeferredInlineMemberFuncDefs.empty() ||
              Diags.hasErrorOccurred());
     }
 
@@ -115,6 +125,10 @@ namespace {
       return D;
     }
 
+    llvm::StringRef GetMangledName(GlobalDecl GD) {
+      return Builder->getMangledName(GD);
+    }
+
     llvm::Constant *GetAddrOfGlobal(GlobalDecl global, bool isForDefinition) {
       return Builder->GetAddrOfGlobal(global, ForDefinition_t(isForDefinition));
     }
@@ -122,8 +136,15 @@ namespace {
     llvm::Module *StartModule(llvm::StringRef ModuleName,
                               llvm::LLVMContext &C) {
       assert(!M && "Replacing existing Module?");
-      M.reset(new llvm::Module(ModuleName, C));
+      M.reset(new llvm::Module(ExpandModuleName(ModuleName, CodeGenOpts), C));
+
+      std::unique_ptr<CodeGenModule> OldBuilder = std::move(Builder);
+
       Initialize(*Ctx);
+
+      if (OldBuilder)
+        OldBuilder->moveLazyEmissionStates(Builder.get());
+
       return M.get();
     }
 
@@ -131,8 +152,16 @@ namespace {
       Ctx = &Context;
 
       M->setTargetTriple(Ctx->getTargetInfo().getTriple().getTriple());
-      M->setDataLayout(Ctx->getTargetInfo().getDataLayout());
-      Builder.reset(new CodeGen::CodeGenModule(Context, HeaderSearchOpts,
+      M->setDataLayout(Ctx->getTargetInfo().getDataLayoutString());
+      const auto &SDKVersion = Ctx->getTargetInfo().getSDKVersion();
+      if (!SDKVersion.empty())
+        M->setSDKVersion(SDKVersion);
+      if (const auto *TVT = Ctx->getTargetInfo().getDarwinTargetVariantTriple())
+        M->setDarwinTargetVariantTriple(TVT->getTriple());
+      if (auto TVSDKVersion =
+              Ctx->getTargetInfo().getDarwinTargetVariantSDKVersion())
+        M->setDarwinTargetVariantSDKVersion(*TVSDKVersion);
+      Builder.reset(new CodeGen::CodeGenModule(Context, FS, HeaderSearchOpts,
                                                PreprocessorOpts, CodeGenOpts,
                                                *M, Diags, CoverageInfo));
 
@@ -150,6 +179,7 @@ namespace {
     }
 
     bool HandleTopLevelDecl(DeclGroupRef DG) override {
+      // FIXME: Why not return false and abort parsing?
       if (Diags.hasErrorOccurred())
         return true;
 
@@ -163,16 +193,16 @@ namespace {
     }
 
     void EmitDeferredDecls() {
-      if (DeferredInlineMethodDefinitions.empty())
+      if (DeferredInlineMemberFuncDefs.empty())
         return;
 
       // Emit any deferred inline method definitions. Note that more deferred
       // methods may be added during this loop, since ASTConsumer callbacks
       // can be invoked if AST inspection results in declarations being added.
       HandlingTopLevelDeclRAII HandlingDecl(*this);
-      for (unsigned I = 0; I != DeferredInlineMethodDefinitions.size(); ++I)
-        Builder->EmitTopLevelDecl(DeferredInlineMethodDefinitions[I]);
-      DeferredInlineMethodDefinitions.clear();
+      for (unsigned I = 0; I != DeferredInlineMemberFuncDefs.size(); ++I)
+        Builder->EmitTopLevelDecl(DeferredInlineMemberFuncDefs[I]);
+      DeferredInlineMemberFuncDefs.clear();
     }
 
     void HandleInlineFunctionDefinition(FunctionDecl *D) override {
@@ -180,17 +210,6 @@ namespace {
         return;
 
       assert(D->doesThisDeclarationHaveABody());
-
-      // Handle friend functions.
-      if (D->isInIdentifierNamespace(Decl::IDNS_OrdinaryFriend)) {
-        if (Ctx->getTargetInfo().getCXXABI().isMicrosoft()
-            && !D->getLexicalDeclContext()->isDependentContext())
-          Builder->EmitTopLevelDecl(D);
-        return;
-      }
-
-      // Otherwise, must be a method.
-      auto MD = cast<CXXMethodDecl>(D);
 
       // We may want to emit this definition. However, that decision might be
       // based on computing the linkage, and we have to defer that in case we
@@ -200,13 +219,13 @@ namespace {
       //     void bar();
       //     void foo() { bar(); }
       //   } A;
-      DeferredInlineMethodDefinitions.push_back(MD);
+      DeferredInlineMemberFuncDefs.push_back(D);
 
       // Provide some coverage mapping even for methods that aren't emitted.
       // Don't do this for templated classes though, as they may not be
       // instantiable.
-      if (!MD->getParent()->isDependentContext())
-        Builder->AddDeferredUnusedCoverageMapping(MD);
+      if (!D->getLexicalDeclContext()->isDependentContext())
+        Builder->AddDeferredUnusedCoverageMapping(D);
     }
 
     /// HandleTagDeclDefinition - This callback is invoked each time a TagDecl
@@ -241,6 +260,9 @@ namespace {
           if (auto *DRD = dyn_cast<OMPDeclareReductionDecl>(Member)) {
             if (Ctx->DeclMustBeEmitted(DRD))
               Builder->EmitGlobal(DRD);
+          } else if (auto *DMD = dyn_cast<OMPDeclareMapperDecl>(Member)) {
+            if (Ctx->DeclMustBeEmitted(DMD))
+              Builder->EmitGlobal(DMD);
           }
         }
       }
@@ -288,6 +310,10 @@ namespace {
       Builder->EmitTentativeDefinition(D);
     }
 
+    void CompleteExternalDeclaration(VarDecl *D) override {
+      Builder->EmitExternalDeclaration(D);
+    }
+
     void HandleVTable(CXXRecordDecl *RD) override {
       if (Diags.hasErrorOccurred())
         return;
@@ -319,6 +345,10 @@ const Decl *CodeGenerator::GetDeclForMangledName(llvm::StringRef name) {
   return static_cast<CodeGeneratorImpl*>(this)->GetDeclForMangledName(name);
 }
 
+llvm::StringRef CodeGenerator::GetMangledName(GlobalDecl GD) {
+  return static_cast<CodeGeneratorImpl *>(this)->GetMangledName(GD);
+}
+
 llvm::Constant *CodeGenerator::GetAddrOfGlobal(GlobalDecl global,
                                                bool isForDefinition) {
   return static_cast<CodeGeneratorImpl*>(this)
@@ -330,11 +360,14 @@ llvm::Module *CodeGenerator::StartModule(llvm::StringRef ModuleName,
   return static_cast<CodeGeneratorImpl*>(this)->StartModule(ModuleName, C);
 }
 
-CodeGenerator *clang::CreateLLVMCodeGen(
-    DiagnosticsEngine &Diags, llvm::StringRef ModuleName,
-    const HeaderSearchOptions &HeaderSearchOpts,
-    const PreprocessorOptions &PreprocessorOpts, const CodeGenOptions &CGO,
-    llvm::LLVMContext &C, CoverageSourceInfo *CoverageInfo) {
-  return new CodeGeneratorImpl(Diags, ModuleName, HeaderSearchOpts,
-                               PreprocessorOpts, CGO, C, CoverageInfo);
+CodeGenerator *
+clang::CreateLLVMCodeGen(DiagnosticsEngine &Diags, llvm::StringRef ModuleName,
+                         IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS,
+                         const HeaderSearchOptions &HeaderSearchOpts,
+                         const PreprocessorOptions &PreprocessorOpts,
+                         const CodeGenOptions &CGO, llvm::LLVMContext &C,
+                         CoverageSourceInfo *CoverageInfo) {
+  return new CodeGeneratorImpl(Diags, ModuleName, std::move(FS),
+                               HeaderSearchOpts, PreprocessorOpts, CGO, C,
+                               CoverageInfo);
 }

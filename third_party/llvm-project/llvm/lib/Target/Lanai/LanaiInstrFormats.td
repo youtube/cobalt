@@ -1,9 +1,8 @@
 //===- LanaiInstrFormats.td - Lanai Instruction Formats ----*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -198,8 +197,8 @@ class InstRM<bit S, dag outs, dag ins, string asmstr, list<dag> pattern>
     : InstLanai<outs, ins, asmstr, pattern> {
   bits<5> Rd;
   bits<5> Rs1;
-  bit P;
-  bit Q;
+  bits<1> P;
+  bits<1> Q;
   bits<16> imm16;
   // Dummy variables to allow multiclass definition of RM and RRM
   bits<2> YL;
@@ -260,8 +259,8 @@ class InstRRM<bit S, dag outs, dag ins, string asmstr,
   bits<5> Rd;
   bits<5> Rs1;
   bits<5> Rs2;
-  bit P;
-  bit Q;
+  bits<1> P;
+  bits<1> Q;
   bits<3> BBB;
   bits<5> JJJJJ;
   bits<2> YL;
@@ -505,8 +504,8 @@ class InstSPLS<dag outs, dag ins, string asmstr,
   bit Y;
   bit S;
   bit E;
-  bit P;
-  bit Q;
+  bits<1> P;
+  bits<1> Q;
   bits<10> imm10;
 
   let Opcode = 0b1111;

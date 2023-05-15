@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify -analyzer-config eagerly-assume=false %s
 
 void clang_analyzer_eval(bool);
 
@@ -235,7 +235,7 @@ public:
   void constMemberFunction() const;
 };
 
-HasConstMemberFunction hasNoReturn() { } // expected-warning {{control reaches end of non-void function}}
+HasConstMemberFunction hasNoReturn() { } // expected-warning {{non-void function does not return a value}}
 
 void testUnknownWithConstMemberFunction() {
   hasNoReturn().constMemberFunction();

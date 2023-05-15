@@ -1,9 +1,8 @@
 //===- llvm-mt.cpp - Merge .manifest files ---------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 //
@@ -18,7 +17,6 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileOutputBuffer.h"
 #include "llvm/Support/InitLLVM.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -43,11 +41,14 @@ enum ID {
 #undef OPTION
 };
 
-#define PREFIX(NAME, VALUE) const char *const NAME[] = VALUE;
+#define PREFIX(NAME, VALUE)                                                    \
+  static constexpr StringLiteral NAME##_init[] = VALUE;                        \
+  static constexpr ArrayRef<StringLiteral> NAME(NAME##_init,                   \
+                                                std::size(NAME##_init) - 1);
 #include "Opts.inc"
 #undef PREFIX
 
-static const opt::OptTable::Info InfoTable[] = {
+static constexpr opt::OptTable::Info InfoTable[] = {
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
 {                                                                              \
@@ -59,13 +60,13 @@ static const opt::OptTable::Info InfoTable[] = {
 #undef OPTION
 };
 
-class CvtResOptTable : public opt::OptTable {
+class CvtResOptTable : public opt::GenericOptTable {
 public:
-  CvtResOptTable() : OptTable(InfoTable, true) {}
+  CvtResOptTable() : opt::GenericOptTable(InfoTable, true) {}
 };
 } // namespace
 
-LLVM_ATTRIBUTE_NORETURN void reportError(Twine Msg) {
+[[noreturn]] static void reportError(Twine Msg) {
   WithColor::error(errs(), "llvm-mt") << Msg << '\n';
   exit(1);
 }
@@ -74,24 +75,19 @@ static void reportError(StringRef Input, std::error_code EC) {
   reportError(Twine(Input) + ": " + EC.message());
 }
 
-void error(std::error_code EC) {
-  if (EC)
-    reportError(EC.message());
-}
-
-void error(Error EC) {
+static void error(Error EC) {
   if (EC)
     handleAllErrors(std::move(EC), [&](const ErrorInfoBase &EI) {
       reportError(EI.message());
     });
 }
 
-int main(int Argc, const char **Argv) {
+int llvm_mt_main(int Argc, char **Argv) {
   InitLLVM X(Argc, Argv);
 
   CvtResOptTable T;
   unsigned MAI, MAC;
-  ArrayRef<const char *> ArgsArr = makeArrayRef(Argv + 1, Argc - 1);
+  ArrayRef<const char *> ArgsArr = ArrayRef(Argv + 1, Argc - 1);
   opt::InputArgList InputArgs = T.ParseArgs(ArgsArr, MAI, MAC);
 
   for (auto *Arg : InputArgs.filtered(OPT_INPUT)) {
@@ -115,7 +111,7 @@ int main(int Argc, const char **Argv) {
   }
 
   if (InputArgs.hasArg(OPT_help)) {
-    T.PrintHelp(outs(), "mt", "Manifest Tool", false);
+    T.printHelp(outs(), "llvm-mt [options] file...", "Manifest Tool", false);
     return 0;
   }
 
@@ -141,13 +137,35 @@ int main(int Argc, const char **Argv) {
         MemoryBuffer::getFile(File);
     if (!ManifestOrErr)
       reportError(File, ManifestOrErr.getError());
-    MemoryBuffer &Manifest = *ManifestOrErr.get();
-    error(Merger.merge(Manifest));
+    error(Merger.merge(*ManifestOrErr.get()));
   }
 
   std::unique_ptr<MemoryBuffer> OutputBuffer = Merger.getMergedManifest();
   if (!OutputBuffer)
     reportError("empty manifest not written");
+
+  int ExitCode = 0;
+  if (InputArgs.hasArg(OPT_notify_update)) {
+    ErrorOr<std::unique_ptr<MemoryBuffer>> OutBuffOrErr =
+        MemoryBuffer::getFile(OutputFile);
+    // Assume if we couldn't open the output file then it doesn't exist meaning
+    // there was a change.
+    bool Same = false;
+    if (OutBuffOrErr) {
+      const std::unique_ptr<MemoryBuffer> &FileBuffer = *OutBuffOrErr;
+      Same = std::equal(
+          OutputBuffer->getBufferStart(), OutputBuffer->getBufferEnd(),
+          FileBuffer->getBufferStart(), FileBuffer->getBufferEnd());
+    }
+    if (!Same) {
+#if LLVM_ON_UNIX
+      ExitCode = 0xbb;
+#elif defined(_WIN32)
+      ExitCode = 0x41020001;
+#endif
+    }
+  }
+
   Expected<std::unique_ptr<FileOutputBuffer>> FileOrErr =
       FileOutputBuffer::create(OutputFile, OutputBuffer->getBufferSize());
   if (!FileOrErr)
@@ -156,5 +174,5 @@ int main(int Argc, const char **Argv) {
   std::copy(OutputBuffer->getBufferStart(), OutputBuffer->getBufferEnd(),
             FileBuffer->getBufferStart());
   error(FileBuffer->commit());
-  return 0;
+  return ExitCode;
 }

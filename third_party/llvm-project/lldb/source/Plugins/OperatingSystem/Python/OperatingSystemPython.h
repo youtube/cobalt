@@ -1,25 +1,21 @@
 //===-- OperatingSystemPython.h ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_OperatingSystemPython_h_
 #define liblldb_OperatingSystemPython_h_
 
-#ifndef LLDB_DISABLE_PYTHON
+#include "lldb/Host/Config.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
+#if LLDB_ENABLE_PYTHON
+
+#include "lldb/Target/DynamicRegisterInfo.h"
 #include "lldb/Target/OperatingSystem.h"
 #include "lldb/Utility/StructuredData.h"
-
-class DynamicRegisterInfo;
 
 namespace lldb_private {
 class ScriptInterpreter;
@@ -32,9 +28,7 @@ public:
 
   ~OperatingSystemPython() override;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static lldb_private::OperatingSystem *
   CreateInstance(lldb_private::Process *process, bool force);
 
@@ -42,20 +36,14 @@ public:
 
   static void Terminate();
 
-  static lldb_private::ConstString GetPluginNameStatic();
+  static llvm::StringRef GetPluginNameStatic() { return "python"; }
 
-  static const char *GetPluginDescriptionStatic();
+  static llvm::StringRef GetPluginDescriptionStatic();
 
-  //------------------------------------------------------------------
   // lldb_private::PluginInterface Methods
-  //------------------------------------------------------------------
-  lldb_private::ConstString GetPluginName() override;
+  llvm::StringRef GetPluginName() override { return GetPluginNameStatic(); }
 
-  uint32_t GetPluginVersion() override;
-
-  //------------------------------------------------------------------
   // lldb_private::OperatingSystem Methods
-  //------------------------------------------------------------------
   bool UpdateThreadList(lldb_private::ThreadList &old_thread_list,
                         lldb_private::ThreadList &real_thread_list,
                         lldb_private::ThreadList &new_thread_list) override;
@@ -69,9 +57,7 @@ public:
   lldb::StopInfoSP
   CreateThreadStopReason(lldb_private::Thread *thread) override;
 
-  //------------------------------------------------------------------
   // Method for lazy creation of threads on demand
-  //------------------------------------------------------------------
   lldb::ThreadSP CreateThread(lldb::tid_t tid, lldb::addr_t context) override;
 
 protected:
@@ -85,14 +71,14 @@ protected:
       lldb_private::ThreadList &old_thread_list,
       std::vector<bool> &core_used_map, bool *did_create_ptr);
 
-  DynamicRegisterInfo *GetDynamicRegisterInfo();
+  lldb_private::DynamicRegisterInfo *GetDynamicRegisterInfo();
 
   lldb::ValueObjectSP m_thread_list_valobj_sp;
-  std::unique_ptr<DynamicRegisterInfo> m_register_info_ap;
+  std::unique_ptr<lldb_private::DynamicRegisterInfo> m_register_info_up;
   lldb_private::ScriptInterpreter *m_interpreter;
   lldb_private::StructuredData::ObjectSP m_python_object_sp;
 };
 
-#endif // LLDB_DISABLE_PYTHON
+#endif // LLDB_ENABLE_PYTHON
 
 #endif // liblldb_OperatingSystemPython_h_

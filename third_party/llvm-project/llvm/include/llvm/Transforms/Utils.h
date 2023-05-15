@@ -1,9 +1,8 @@
 //===- llvm/Transforms/Utils.h - Utility Transformations --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -48,15 +47,6 @@ extern char &InstructionNamerID;
 //
 FunctionPass *createLowerSwitchPass();
 extern char &LowerSwitchID;
-
-//===----------------------------------------------------------------------===//
-//
-// EntryExitInstrumenter pass - Instrument function entry/exit with calls to
-// mcount(), @__cyg_profile_func_{enter,exit} and the like. There are two
-// variants, intended to run pre- and post-inlining, respectively.
-//
-FunctionPass *createEntryExitInstrumenterPass();
-FunctionPass *createPostInlineEntryExitInstrumenterPass();
 
 //===----------------------------------------------------------------------===//
 //
@@ -112,7 +102,49 @@ extern char &LoopSimplifyID;
 
 /// This function returns a new pass that downgrades the debug info in the
 /// module to line tables only.
-ModulePass *createStripNonLineTableDebugInfoPass();
-}
+ModulePass *createStripNonLineTableDebugLegacyPass();
+
+//===----------------------------------------------------------------------===//
+//
+// InjectTLIMappingsLegacy - populates the VFABI attribute with the
+// scalar-to-vector mappings from the TargetLibraryInfo.
+//
+FunctionPass *createInjectTLIMappingsLegacyPass();
+
+//===----------------------------------------------------------------------===//
+//
+// UnifyLoopExits - For each loop, creates a new block N such that all exiting
+// blocks branch to N, and then N distributes control flow to all the original
+// exit blocks.
+//
+FunctionPass *createUnifyLoopExitsPass();
+
+//===----------------------------------------------------------------------===//
+//
+// FixIrreducible - Convert each SCC with irreducible control-flow
+// into a natural loop.
+//
+FunctionPass *createFixIrreduciblePass();
+
+//===----------------------------------------------------------------------===//
+//
+// AssumeSimplify - remove redundant assumes and merge assumes in the same
+// BasicBlock when possible.
+//
+FunctionPass *createAssumeSimplifyPass();
+
+//===----------------------------------------------------------------------===//
+//
+// CanonicalizeFreezeInLoops - Canonicalize freeze instructions in loops so they
+// don't block SCEV.
+//
+Pass *createCanonicalizeFreezeInLoopsPass();
+
+//===----------------------------------------------------------------------===//
+// LowerGlobalDtorsLegacy - Lower @llvm.global_dtors by creating wrapper
+// functions that are registered in @llvm.global_ctors and which contain a call
+// to `__cxa_atexit` to register their destructor functions.
+ModulePass *createLowerGlobalDtorsLegacyPass();
+} // namespace llvm
 
 #endif

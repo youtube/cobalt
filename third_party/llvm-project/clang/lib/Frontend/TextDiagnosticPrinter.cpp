@@ -1,9 +1,8 @@
 //===--- TextDiagnosticPrinter.cpp - Diagnostic Printer -------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -134,12 +133,11 @@ void TextDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
   // diagnostics in a context that lacks language options, a source manager, or
   // other infrastructure necessary when emitting more rich diagnostics.
   if (!Info.getLocation().isValid()) {
-    TextDiagnostic::printDiagnosticLevel(OS, Level, DiagOpts->ShowColors,
-                                         DiagOpts->CLFallbackMode);
-    TextDiagnostic::printDiagnosticMessage(OS, Level, DiagMessageStream.str(),
-                                           OS.tell() - StartOfLocationInfo,
-                                           DiagOpts->MessageLength,
-                                           DiagOpts->ShowColors);
+    TextDiagnostic::printDiagnosticLevel(OS, Level, DiagOpts->ShowColors);
+    TextDiagnostic::printDiagnosticMessage(
+        OS, /*IsSupplemental=*/Level == DiagnosticsEngine::Note,
+        DiagMessageStream.str(), OS.tell() - StartOfLocationInfo,
+        DiagOpts->MessageLength, DiagOpts->ShowColors);
     OS.flush();
     return;
   }

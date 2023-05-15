@@ -1,109 +1,129 @@
-//===-- SBStringList.cpp ----------------------------------------*- C++ -*-===//
+//===-- SBStringList.cpp --------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBStringList.h"
-
+#include "Utils.h"
+#include "lldb/Utility/Instrumentation.h"
 #include "lldb/Utility/StringList.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-SBStringList::SBStringList() : m_opaque_ap() {}
+SBStringList::SBStringList() { LLDB_INSTRUMENT_VA(this); }
 
-SBStringList::SBStringList(const lldb_private::StringList *lldb_strings_ptr)
-    : m_opaque_ap() {
+SBStringList::SBStringList(const lldb_private::StringList *lldb_strings_ptr) {
   if (lldb_strings_ptr)
-    m_opaque_ap.reset(new lldb_private::StringList(*lldb_strings_ptr));
+    m_opaque_up = std::make_unique<StringList>(*lldb_strings_ptr);
 }
 
-SBStringList::SBStringList(const SBStringList &rhs) : m_opaque_ap() {
-  if (rhs.IsValid())
-    m_opaque_ap.reset(new lldb_private::StringList(*rhs));
+SBStringList::SBStringList(const SBStringList &rhs) {
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  m_opaque_up = clone(rhs.m_opaque_up);
 }
 
 const SBStringList &SBStringList::operator=(const SBStringList &rhs) {
-  if (this != &rhs) {
-    if (rhs.IsValid())
-      m_opaque_ap.reset(new lldb_private::StringList(*rhs));
-    else
-      m_opaque_ap.reset();
-  }
+  LLDB_INSTRUMENT_VA(this, rhs);
+
+  if (this != &rhs)
+    m_opaque_up = clone(rhs.m_opaque_up);
   return *this;
 }
 
-SBStringList::~SBStringList() {}
+SBStringList::~SBStringList() = default;
 
 const lldb_private::StringList *SBStringList::operator->() const {
-  return m_opaque_ap.get();
+  return m_opaque_up.get();
 }
 
 const lldb_private::StringList &SBStringList::operator*() const {
-  return *m_opaque_ap;
+  return *m_opaque_up;
 }
 
-bool SBStringList::IsValid() const { return (m_opaque_ap.get() != NULL); }
+bool SBStringList::IsValid() const {
+  LLDB_INSTRUMENT_VA(this);
+  return this->operator bool();
+}
+SBStringList::operator bool() const {
+  LLDB_INSTRUMENT_VA(this);
+
+  return (m_opaque_up != nullptr);
+}
 
 void SBStringList::AppendString(const char *str) {
-  if (str != NULL) {
+  LLDB_INSTRUMENT_VA(this, str);
+
+  if (str != nullptr) {
     if (IsValid())
-      m_opaque_ap->AppendString(str);
+      m_opaque_up->AppendString(str);
     else
-      m_opaque_ap.reset(new lldb_private::StringList(str));
+      m_opaque_up = std::make_unique<lldb_private::StringList>(str);
   }
 }
 
 void SBStringList::AppendList(const char **strv, int strc) {
-  if ((strv != NULL) && (strc > 0)) {
+  LLDB_INSTRUMENT_VA(this, strv, strc);
+
+  if ((strv != nullptr) && (strc > 0)) {
     if (IsValid())
-      m_opaque_ap->AppendList(strv, strc);
+      m_opaque_up->AppendList(strv, strc);
     else
-      m_opaque_ap.reset(new lldb_private::StringList(strv, strc));
+      m_opaque_up = std::make_unique<lldb_private::StringList>(strv, strc);
   }
 }
 
 void SBStringList::AppendList(const SBStringList &strings) {
+  LLDB_INSTRUMENT_VA(this, strings);
+
   if (strings.IsValid()) {
     if (!IsValid())
-      m_opaque_ap.reset(new lldb_private::StringList());
-    m_opaque_ap->AppendList(*(strings.m_opaque_ap));
+      m_opaque_up = std::make_unique<lldb_private::StringList>();
+    m_opaque_up->AppendList(*(strings.m_opaque_up));
   }
 }
 
 void SBStringList::AppendList(const StringList &strings) {
   if (!IsValid())
-    m_opaque_ap.reset(new lldb_private::StringList());
-  m_opaque_ap->AppendList(strings);
+    m_opaque_up = std::make_unique<lldb_private::StringList>();
+  m_opaque_up->AppendList(strings);
 }
 
 uint32_t SBStringList::GetSize() const {
+  LLDB_INSTRUMENT_VA(this);
+
   if (IsValid()) {
-    return m_opaque_ap->GetSize();
+    return m_opaque_up->GetSize();
   }
   return 0;
 }
 
 const char *SBStringList::GetStringAtIndex(size_t idx) {
+  LLDB_INSTRUMENT_VA(this, idx);
+
   if (IsValid()) {
-    return m_opaque_ap->GetStringAtIndex(idx);
+    return m_opaque_up->GetStringAtIndex(idx);
   }
-  return NULL;
+  return nullptr;
 }
 
 const char *SBStringList::GetStringAtIndex(size_t idx) const {
+  LLDB_INSTRUMENT_VA(this, idx);
+
   if (IsValid()) {
-    return m_opaque_ap->GetStringAtIndex(idx);
+    return m_opaque_up->GetStringAtIndex(idx);
   }
-  return NULL;
+  return nullptr;
 }
 
 void SBStringList::Clear() {
+  LLDB_INSTRUMENT_VA(this);
+
   if (IsValid()) {
-    m_opaque_ap->Clear();
+    m_opaque_up->Clear();
   }
 }

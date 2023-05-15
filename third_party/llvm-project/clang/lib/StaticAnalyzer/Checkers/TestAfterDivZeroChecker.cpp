@@ -1,9 +1,8 @@
 //== TestAfterDivZeroChecker.cpp - Test after division by zero checker --*--==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,12 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "llvm/ADT/FoldingSet.h"
+#include <optional>
 
 using namespace clang;
 using namespace ento;
@@ -70,10 +70,9 @@ public:
     ID.Add(SFC);
   }
 
-  std::shared_ptr<PathDiagnosticPiece> VisitNode(const ExplodedNode *Succ,
-                                                 const ExplodedNode *Pred,
-                                                 BugReporterContext &BRC,
-                                                 BugReport &BR) override;
+  PathDiagnosticPieceRef VisitNode(const ExplodedNode *Succ,
+                                   BugReporterContext &BRC,
+                                   PathSensitiveBugReport &BR) override;
 };
 
 class TestAfterDivZeroChecker
@@ -94,15 +93,15 @@ public:
 
 REGISTER_SET_WITH_PROGRAMSTATE(DivZeroMap, ZeroState)
 
-std::shared_ptr<PathDiagnosticPiece>
-DivisionBRVisitor::VisitNode(const ExplodedNode *Succ, const ExplodedNode *Pred,
-                             BugReporterContext &BRC, BugReport &BR) {
+PathDiagnosticPieceRef
+DivisionBRVisitor::VisitNode(const ExplodedNode *Succ, BugReporterContext &BRC,
+                             PathSensitiveBugReport &BR) {
   if (Satisfied)
     return nullptr;
 
   const Expr *E = nullptr;
 
-  if (Optional<PostStmt> P = Succ->getLocationAs<PostStmt>())
+  if (std::optional<PostStmt> P = Succ->getLocationAs<PostStmt>())
     if (const BinaryOperator *BO = P->getStmtAs<BinaryOperator>()) {
       BinaryOperator::Opcode Op = BO->getOpcode();
       if (Op == BO_Div || Op == BO_Rem || Op == BO_DivAssign ||
@@ -134,7 +133,7 @@ DivisionBRVisitor::VisitNode(const ExplodedNode *Succ, const ExplodedNode *Pred,
 }
 
 bool TestAfterDivZeroChecker::isZero(SVal S, CheckerContext &C) const {
-  Optional<DefinedSVal> DSV = S.getAs<DefinedSVal>();
+  std::optional<DefinedSVal> DSV = S.getAs<DefinedSVal>();
 
   if (!DSV)
     return false;
@@ -169,18 +168,18 @@ void TestAfterDivZeroChecker::reportBug(SVal Val, CheckerContext &C) const {
     if (!DivZeroBug)
       DivZeroBug.reset(new BuiltinBug(this, "Division by zero"));
 
-    auto R = llvm::make_unique<BugReport>(
+    auto R = std::make_unique<PathSensitiveBugReport>(
         *DivZeroBug, "Value being compared against zero has already been used "
                      "for division",
         N);
 
-    R->addVisitor(llvm::make_unique<DivisionBRVisitor>(Val.getAsSymbol(),
+    R->addVisitor(std::make_unique<DivisionBRVisitor>(Val.getAsSymbol(),
                                                        C.getStackFrame()));
     C.emitReport(std::move(R));
   }
 }
 
-void TestAfterDivZeroChecker::checkEndFunction(const ReturnStmt *RS,
+void TestAfterDivZeroChecker::checkEndFunction(const ReturnStmt *,
                                                CheckerContext &C) const {
   ProgramStateRef State = C.getState();
 
@@ -261,4 +260,8 @@ void TestAfterDivZeroChecker::checkBranchCondition(const Stmt *Condition,
 
 void ento::registerTestAfterDivZeroChecker(CheckerManager &mgr) {
   mgr.registerChecker<TestAfterDivZeroChecker>();
+}
+
+bool ento::shouldRegisterTestAfterDivZeroChecker(const CheckerManager &mgr) {
+  return true;
 }

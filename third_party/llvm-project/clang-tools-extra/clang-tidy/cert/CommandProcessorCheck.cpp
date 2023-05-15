@@ -1,9 +1,8 @@
-//===--- Env33CCheck.cpp - clang-tidy--------------------------------------===//
+//===-- CommandProcessorCheck.cpp - clang-tidy ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,15 +12,12 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace cert {
+namespace clang::tidy::cert {
 
 void CommandProcessorCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(
       callExpr(
-          callee(functionDecl(anyOf(hasName("::system"), hasName("::popen"),
-                                    hasName("::_popen")))
+          callee(functionDecl(hasAnyName("::system", "::popen", "::_popen"))
                      .bind("func")),
           // Do not diagnose when the call expression passes a null pointer
           // constant to system(); that only checks for the presence of a
@@ -40,6 +36,4 @@ void CommandProcessorCheck::check(const MatchFinder::MatchResult &Result) {
   diag(E->getExprLoc(), "calling %0 uses a command processor") << Fn;
 }
 
-} // namespace cert
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::cert

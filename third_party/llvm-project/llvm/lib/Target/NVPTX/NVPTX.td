@@ -1,9 +1,8 @@
 //===- NVPTX.td - Describe the NVPTX Target Machine -----------*- tblgen -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 // This is the top level entry point for the NVPTX target.
@@ -54,6 +53,18 @@ def SM70 : SubtargetFeature<"sm_70", "SmVersion", "70",
                              "Target SM 7.0">;
 def SM72 : SubtargetFeature<"sm_72", "SmVersion", "72",
                              "Target SM 7.2">;
+def SM75 : SubtargetFeature<"sm_75", "SmVersion", "75",
+                             "Target SM 7.5">;
+def SM80 : SubtargetFeature<"sm_80", "SmVersion", "80",
+                             "Target SM 8.0">;
+def SM86 : SubtargetFeature<"sm_86", "SmVersion", "86",
+                             "Target SM 8.6">;
+def SM87 : SubtargetFeature<"sm_87", "SmVersion", "87",
+                             "Target SM 8.7">;
+def SM89 : SubtargetFeature<"sm_89", "SmVersion", "89",
+                             "Target SM 8.9">;
+def SM90 : SubtargetFeature<"sm_90", "SmVersion", "90",
+                             "Target SM 9.0">;
 
 // PTX Versions
 def PTX32 : SubtargetFeature<"ptx32", "PTXVersion", "32",
@@ -72,6 +83,30 @@ def PTX60 : SubtargetFeature<"ptx60", "PTXVersion", "60",
                              "Use PTX version 6.0">;
 def PTX61 : SubtargetFeature<"ptx61", "PTXVersion", "61",
                              "Use PTX version 6.1">;
+def PTX63 : SubtargetFeature<"ptx63", "PTXVersion", "63",
+                             "Use PTX version 6.3">;
+def PTX64 : SubtargetFeature<"ptx64", "PTXVersion", "64",
+                             "Use PTX version 6.4">;
+def PTX65 : SubtargetFeature<"ptx65", "PTXVersion", "65",
+                             "Use PTX version 6.5">;
+def PTX70 : SubtargetFeature<"ptx70", "PTXVersion", "70",
+                             "Use PTX version 7.0">;
+def PTX71 : SubtargetFeature<"ptx71", "PTXVersion", "71",
+                             "Use PTX version 7.1">;
+def PTX72 : SubtargetFeature<"ptx72", "PTXVersion", "72",
+                             "Use PTX version 7.2">;
+def PTX73 : SubtargetFeature<"ptx73", "PTXVersion", "73",
+                             "Use PTX version 7.3">;
+def PTX74 : SubtargetFeature<"ptx74", "PTXVersion", "74",
+                             "Use PTX version 7.4">;
+def PTX75 : SubtargetFeature<"ptx75", "PTXVersion", "75",
+                             "Use PTX version 7.5">;
+def PTX76 : SubtargetFeature<"ptx76", "PTXVersion", "76",
+                             "Use PTX version 7.6">;
+def PTX77 : SubtargetFeature<"ptx77", "PTXVersion", "77",
+                             "Use PTX version 7.7">;
+def PTX78 : SubtargetFeature<"ptx78", "PTXVersion", "78",
+                             "Use PTX version 7.8">;
 
 //===----------------------------------------------------------------------===//
 // NVPTX supported processors.
@@ -80,11 +115,11 @@ def PTX61 : SubtargetFeature<"ptx61", "PTXVersion", "61",
 class Proc<string Name, list<SubtargetFeature> Features>
  : Processor<Name, NoItineraries, Features>;
 
-def : Proc<"sm_20", [SM20]>;
-def : Proc<"sm_21", [SM21]>;
+def : Proc<"sm_20", [SM20, PTX32]>;
+def : Proc<"sm_21", [SM21, PTX32]>;
 def : Proc<"sm_30", [SM30]>;
 def : Proc<"sm_32", [SM32, PTX40]>;
-def : Proc<"sm_35", [SM35]>;
+def : Proc<"sm_35", [SM35, PTX32]>;
 def : Proc<"sm_37", [SM37, PTX41]>;
 def : Proc<"sm_50", [SM50, PTX40]>;
 def : Proc<"sm_52", [SM52, PTX41]>;
@@ -94,6 +129,12 @@ def : Proc<"sm_61", [SM61, PTX50]>;
 def : Proc<"sm_62", [SM62, PTX50]>;
 def : Proc<"sm_70", [SM70, PTX60]>;
 def : Proc<"sm_72", [SM72, PTX61]>;
+def : Proc<"sm_75", [SM75, PTX63]>;
+def : Proc<"sm_80", [SM80, PTX70]>;
+def : Proc<"sm_86", [SM86, PTX71]>;
+def : Proc<"sm_87", [SM87, PTX74]>;
+def : Proc<"sm_89", [SM89, PTX78]>;
+def : Proc<"sm_90", [SM90, PTX78]>;
 
 def NVPTXInstrInfo : InstrInfo {
 }

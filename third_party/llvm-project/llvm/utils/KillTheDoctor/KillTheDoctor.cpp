@@ -1,9 +1,8 @@
 //===- KillTheDoctor - Prevent Dr. Watson from stopping tests ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -205,10 +204,8 @@ static std::error_code GetFileNameFromHandle(HANDLE FileHandle,
   if (!MappedFile)
     return windows_error(::GetLastError());
 
-  Success = ::GetMappedFileNameA(::GetCurrentProcess(),
-                                MappedFile,
-                                Filename,
-                                array_lengthof(Filename) - 1);
+  Success = ::GetMappedFileNameA(::GetCurrentProcess(), MappedFile, Filename,
+                                 std::size(Filename) - 1);
 
   if (!Success)
     return windows_error(::GetLastError());
@@ -240,15 +237,11 @@ static std::string FindProgram(const std::string &Program,
     LPCSTR Extension = NULL;
     if (ext.size() && ext[0] == '.')
       Extension = ext.c_str();
-    DWORD length = ::SearchPathA(NULL,
-                                 Program.c_str(),
-                                 Extension,
-                                 array_lengthof(PathName),
-                                 PathName,
-                                 NULL);
+    DWORD length = ::SearchPathA(NULL, Program.c_str(), Extension,
+                                 std::size(PathName), PathName, NULL);
     if (length == 0)
       ec = windows_error(::GetLastError());
-    else if (length > array_lengthof(PathName)) {
+    else if (length > std::size(PathName)) {
       // This may have been the file, return with error.
       ec = windows_error(ERROR_BUFFER_OVERFLOW);
       break;

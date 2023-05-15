@@ -23,10 +23,6 @@ class FindTool(object):
 
         if self.name == 'llc' and os.environ.get('LLVM_ENABLE_MACHINE_VERIFIER') == '1':
             command += ' -verify-machineinstrs'
-        elif self.name == 'llvm-go':
-            exe = getattr(config.config, 'go_executable', None)
-            if exe:
-                command += ' go=' + exe
         return command
 
 
@@ -80,6 +76,7 @@ class ToolSubst(object):
         self.extra_args = extra_args
         self.key = key
         self.command = command if command is not None else FindTool(key)
+        self.was_resolved = False
         if verbatim:
             self.regex = key
             return
@@ -141,5 +138,6 @@ class ToolSubst(object):
                 return None
             else:
                 raise 'Unexpected value for ToolSubst.unresolved'
-
+        if command_str:
+            self.was_resolved = True
         return (self.regex, tool_pipe, command_str)

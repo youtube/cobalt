@@ -1,9 +1,8 @@
 //===-- PPCSchedule.td - PowerPC Scheduling Definitions ----*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -42,7 +41,6 @@ def IIC_LdStLoad     : InstrItinClass;
 def IIC_LdStLoadUpd  : InstrItinClass;
 def IIC_LdStLoadUpdX : InstrItinClass;
 def IIC_LdStStore    : InstrItinClass;
-def IIC_LdStStoreUpd : InstrItinClass;
 def IIC_LdStDSS      : InstrItinClass;
 def IIC_LdStICBI     : InstrItinClass;
 def IIC_LdStLD       : InstrItinClass;
@@ -56,6 +54,8 @@ def IIC_LdStLHA      : InstrItinClass;
 def IIC_LdStLHAU     : InstrItinClass;
 def IIC_LdStLHAUX    : InstrItinClass;
 def IIC_LdStLMW      : InstrItinClass;
+def IIC_LdStLQ       : InstrItinClass;
+def IIC_LdStLQARX    : InstrItinClass;
 def IIC_LdStLVecX    : InstrItinClass;
 def IIC_LdStLWA      : InstrItinClass;
 def IIC_LdStLWARX    : InstrItinClass;
@@ -63,8 +63,10 @@ def IIC_LdStSLBIA    : InstrItinClass;
 def IIC_LdStSLBIE    : InstrItinClass;
 def IIC_LdStSTD      : InstrItinClass;
 def IIC_LdStSTDCX    : InstrItinClass;
-def IIC_LdStSTDU     : InstrItinClass;
-def IIC_LdStSTDUX    : InstrItinClass;
+def IIC_LdStSTQ      : InstrItinClass;
+def IIC_LdStSTQCX    : InstrItinClass;
+def IIC_LdStSTU      : InstrItinClass;
+def IIC_LdStSTUX     : InstrItinClass;
 def IIC_LdStSTFD     : InstrItinClass;
 def IIC_LdStSTFDU    : InstrItinClass;
 def IIC_LdStSTVEBX   : InstrItinClass;
@@ -107,6 +109,7 @@ def IIC_VecVSL       : InstrItinClass;
 def IIC_VecVSR       : InstrItinClass;
 def IIC_SprMTMSRD    : InstrItinClass;
 def IIC_SprSLIE      : InstrItinClass;
+def IIC_SprSLBFEE    : InstrItinClass;
 def IIC_SprSLBIE     : InstrItinClass;
 def IIC_SprSLBIEG    : InstrItinClass;
 def IIC_SprSLBMTE    : InstrItinClass;
@@ -125,7 +128,9 @@ def IIC_SprMTPMR     : InstrItinClass;
 
 //===----------------------------------------------------------------------===//
 // Processor instruction itineraries.
+include "PPCInstrInfo.td"
 
+include "PPCSchedPredicates.td"
 include "PPCScheduleG3.td"
 include "PPCSchedule440.td"
 include "PPCScheduleG4.td"
@@ -134,6 +139,7 @@ include "PPCScheduleG5.td"
 include "PPCScheduleP7.td"
 include "PPCScheduleP8.td"
 include "PPCScheduleP9.td"
+include "PPCScheduleP10.td"
 include "PPCScheduleA2.td"
 include "PPCScheduleE500.td"
 include "PPCScheduleE500mc.td"

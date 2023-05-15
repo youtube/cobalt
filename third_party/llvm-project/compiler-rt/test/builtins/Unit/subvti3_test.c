@@ -1,16 +1,6 @@
 // RUN: %clang_builtins %s %librt -o %t && %run %t
-//===-- subvti3_test.c - Test __subvti3 -----------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file tests __subvti3 for the compiler_rt library.
-//
-//===----------------------------------------------------------------------===//
+// REQUIRES: librt_has_subvti3
+// REQUIRES: int128
 
 #include "int_lib.h"
 #include <stdio.h>

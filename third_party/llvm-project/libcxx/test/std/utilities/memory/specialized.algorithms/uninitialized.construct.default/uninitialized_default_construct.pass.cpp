@@ -1,13 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11, c++14
+// UNSUPPORTED: c++03, c++11, c++14
 
 // <memory>
 
@@ -24,7 +23,6 @@
 struct Counted {
   static int count;
   static int constructed;
-  static void reset() { count = constructed =  0; }
   explicit Counted() { ++count; ++constructed; }
   Counted(Counted const&) { assert(false); }
   ~Counted() { --count; }
@@ -38,7 +36,6 @@ struct ThrowsCounted {
   static int count;
   static int constructed;
   static int throw_after;
-  static void reset() { throw_after = count = constructed =  0; }
   explicit ThrowsCounted() {
       ++constructed;
       if (throw_after > 0 && --throw_after == 0) {
@@ -68,7 +65,7 @@ void test_ctor_throws()
         assert(false);
     } catch (...) {}
     assert(ThrowsCounted::count == 0);
-    assert(ThrowsCounted::constructed == 4); // forth construction throws
+    assert(ThrowsCounted::constructed == 4); // Fourth construction throws
 #endif
 }
 
@@ -88,25 +85,10 @@ void test_counted()
     assert(Counted::count == 0);
 }
 
-void test_value_initialized()
-{
-    using It = forward_iterator<int*>;
-    const int N = 5;
-    int pool[N] = {-1, -1, -1, -1, -1};
-    int* p = pool;
-    std::uninitialized_default_construct(It(p), It(p+1));
-    assert(pool[0] == -1);
-    assert(pool[1] == -1);
-    std::uninitialized_default_construct(It(p+1), It(p+N));
-    assert(pool[1] == -1);
-    assert(pool[2] == -1);
-    assert(pool[3] == -1);
-    assert(pool[4] == -1);
-}
-
-int main()
+int main(int, char**)
 {
     test_counted();
-    test_value_initialized();
     test_ctor_throws();
+
+  return 0;
 }

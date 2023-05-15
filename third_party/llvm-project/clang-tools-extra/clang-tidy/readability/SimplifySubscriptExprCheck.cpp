@@ -1,9 +1,8 @@
 //===--- SimplifySubscriptExprCheck.cpp - clang-tidy-----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,29 +13,23 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace readability {
+namespace clang::tidy::readability {
 
-static const char kDefaultTypes[] =
+static const char KDefaultTypes[] =
     "::std::basic_string;::std::basic_string_view;::std::vector;::std::array";
 
 SimplifySubscriptExprCheck::SimplifySubscriptExprCheck(
     StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context), Types(utils::options::parseStringList(
-                                         Options.get("Types", kDefaultTypes))) {
+                                         Options.get("Types", KDefaultTypes))) {
 }
 
 void SimplifySubscriptExprCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus)
-    return;
-
   const auto TypesMatcher = hasUnqualifiedDesugaredType(
-      recordType(hasDeclaration(cxxRecordDecl(hasAnyName(
-          llvm::SmallVector<StringRef, 8>(Types.begin(), Types.end()))))));
+      recordType(hasDeclaration(cxxRecordDecl(hasAnyName(Types)))));
 
   Finder->addMatcher(
-      arraySubscriptExpr(hasBase(ignoringParenImpCasts(
+      arraySubscriptExpr(hasBase(
           cxxMemberCallExpr(
               has(memberExpr().bind("member")),
               on(hasType(qualType(
@@ -44,7 +37,7 @@ void SimplifySubscriptExprCheck::registerMatchers(MatchFinder *Finder) {
                                hasDescendant(substTemplateTypeParmType()))),
                   anyOf(TypesMatcher, pointerType(pointee(TypesMatcher)))))),
               callee(namedDecl(hasName("data"))))
-              .bind("call")))),
+              .bind("call"))),
       this);
 }
 
@@ -60,10 +53,10 @@ void SimplifySubscriptExprCheck::check(const MatchFinder::MatchResult &Result) {
            "accessing an element of the container does not require a call to "
            "'data()'; did you mean to use 'operator[]'?");
   if (Member->isArrow())
-    DiagBuilder << FixItHint::CreateInsertion(Member->getLocStart(), "(*")
+    DiagBuilder << FixItHint::CreateInsertion(Member->getBeginLoc(), "(*")
                 << FixItHint::CreateInsertion(Member->getOperatorLoc(), ")");
   DiagBuilder << FixItHint::CreateRemoval(
-      {Member->getOperatorLoc(), Call->getLocEnd()});
+      {Member->getOperatorLoc(), Call->getEndLoc()});
 }
 
 void SimplifySubscriptExprCheck::storeOptions(
@@ -71,6 +64,4 @@ void SimplifySubscriptExprCheck::storeOptions(
   Options.store(Opts, "Types", utils::options::serializeStringList(Types));
 }
 
-} // namespace readability
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::readability

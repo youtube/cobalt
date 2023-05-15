@@ -1,5 +1,4 @@
 set(LLVM_LINK_COMPONENTS
-  AllTargetsAsmPrinters
   AllTargetsDescs
   AllTargetsDisassemblers
   AllTargetsInfos
@@ -9,6 +8,7 @@ set(LLVM_LINK_COMPONENTS
   MCDisassembler
   Object
   Support
+  TargetParser
   Symbolize
   )
 

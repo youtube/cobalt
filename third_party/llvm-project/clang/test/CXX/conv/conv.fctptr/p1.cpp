@@ -11,7 +11,7 @@ Nothrow S::*c;
 Throw S::*d;
 
 void test() {
-  a = b; // expected-error {{assigning to 'Nothrow *' (aka 'void (*)() noexcept') from incompatible type 'Throw *' (aka 'void (*)()'): different exception specifications}}
+  a = b; // expected-error {{incompatible function pointer types assigning to 'Nothrow *' (aka 'void (*)() noexcept') from 'Throw *' (aka 'void (*)()')}}
   b = a;
   c = d; // expected-error {{assigning to 'Nothrow S::*' from incompatible type 'Throw S::*': different exception specifications}}
   d = c;
@@ -39,5 +39,5 @@ namespace std_example {
   void (**pp)() noexcept = &p; // expected-error {{cannot initialize a variable of type 'void (**)() noexcept' with an rvalue of type 'void (**)()'}}
 
   struct S { typedef void (*p)(); operator p(); }; // expected-note {{candidate}}
-  void (*q)() noexcept = S(); // expected-error {{no viable conversion from 'std_example::S' to 'void (*)() noexcept'}}
+  void (*q)() noexcept = S(); // expected-error {{no viable conversion from 'S' to 'void (*)() noexcept'}}
 }

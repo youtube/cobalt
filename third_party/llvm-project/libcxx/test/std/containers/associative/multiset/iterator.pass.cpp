@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,7 +32,7 @@
 #include "test_macros.h"
 #include "min_allocator.h"
 
-int main()
+int main(int, char**)
 {
     {
         typedef int V;
@@ -74,6 +73,13 @@ int main()
         for (int j = 1; j <= 8; ++j)
             for (int n = 0; n < 3; ++n, ++i)
                 assert(*i == j);
+        assert(i == m.end());
+        for (int j = 8; j >= 1; --j)
+            for (int n = 0; n < 3; ++n) {
+                --i;
+                assert(*i == j);
+            }
+        assert(i == m.begin());
     }
     {
         typedef int V;
@@ -114,6 +120,13 @@ int main()
         for (int j = 1; j <= 8; ++j)
             for (int k = 0; k < 3; ++k, ++i)
                 assert(*i == j);
+        assert(i == m.end());
+        for (int j = 8; j >= 1; --j)
+            for (int k = 0; k < 3; ++k) {
+                --i;
+                assert(*i == j);
+            }
+        assert(i == m.begin());
     }
 #if TEST_STD_VER >= 11
     {
@@ -155,6 +168,13 @@ int main()
         for (int j = 1; j <= 8; ++j)
             for (int n = 0; n < 3; ++n, ++i)
                 assert(*i == j);
+        assert(i == m.end());
+        for (int j = 8; j >= 1; --j)
+            for (int n = 0; n < 3; ++n) {
+                --i;
+                assert(*i == j);
+            }
+        assert(i == m.begin());
     }
     {
         typedef int V;
@@ -195,6 +215,13 @@ int main()
         for (int j = 1; j <= 8; ++j)
             for (int k = 0; k < 3; ++k, ++i)
                 assert(*i == j);
+        assert(i == m.end());
+        for (int j = 8; j >= 1; --j)
+            for (int k = 0; k < 3; ++k) {
+                --i;
+                assert(*i == j);
+            }
+        assert(i == m.begin());
     }
 #endif
 #if TEST_STD_VER > 11
@@ -214,4 +241,6 @@ int main()
         assert (!(cii != ii1 ));
     }
 #endif
+
+  return 0;
 }

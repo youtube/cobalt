@@ -1,18 +1,17 @@
-// -*- C++ -*-
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11
+// UNSUPPORTED: c++03, c++11
 
 #include <experimental/coroutine>
 #include <type_traits>
 #include <cassert>
+#include <utility>
 
 #include "test_macros.h"
 
@@ -20,19 +19,16 @@ namespace coro = std::experimental;
 
 using SuspendT = std::experimental::coroutines_v1::suspend_always;
 
-TEST_SAFE_STATIC SuspendT safe_sa;
-constexpr SuspendT constexpr_sa;
-
 constexpr bool check_suspend_constexpr() {
-  SuspendT s{};
-  const SuspendT scopy(s); ((void)scopy);
-  SuspendT smove(std::move(s)); ((void)smove);
+  SuspendT s;
+  const SuspendT scopy(s); (void)scopy;
+  SuspendT smove(std::move(s)); (void)smove;
   s = scopy;
   s = std::move(smove);
   return true;
 }
 
-int main()
+int main(int, char**)
 {
   using H = coro::coroutine_handle<>;
   using S = SuspendT;
@@ -66,8 +62,6 @@ int main()
     static_assert(std::is_trivially_copyable<S>::value, "");
     static_assert(check_suspend_constexpr(), "");
   }
-  {
-    // suppress unused warnings for the global constexpr test variable
-    ((void)constexpr_sa);
-  }
+
+  return 0;
 }

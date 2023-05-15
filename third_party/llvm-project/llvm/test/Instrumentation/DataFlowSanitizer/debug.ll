@@ -1,4 +1,4 @@
-; RUN: opt < %s -dfsan -dfsan-abilist=%S/Inputs/debuglist.txt -S | FileCheck %s
+; RUN: opt < %s -passes=dfsan -dfsan-abilist=%S/Inputs/debuglist.txt -S | FileCheck %s
 
 ; CHECK: define i32 @main() {{.*}} !dbg [[SP:![0-9]+]]
 ; CHECK: [[SP]] = distinct !DISubprogram(name: "main"
@@ -16,7 +16,7 @@ entry:
   ret i32 0, !dbg !12
 }
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!9, !10}

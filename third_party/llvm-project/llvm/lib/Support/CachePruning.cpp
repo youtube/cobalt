@@ -1,9 +1,8 @@
 //===-CachePruning.cpp - LLVM Cache Directory Pruning ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,12 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/CachePruning.h"
-
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 
 #define DEBUG_TYPE "cache-pruning"
@@ -27,11 +27,26 @@
 
 using namespace llvm;
 
+namespace {
+struct FileInfo {
+  sys::TimePoint<> Time;
+  uint64_t Size;
+  std::string Path;
+
+  /// Used to determine which files to prune first. Also used to determine
+  /// set membership, so must take into account all fields.
+  bool operator<(const FileInfo &Other) const {
+    return std::tie(Time, Other.Size, Path) <
+           std::tie(Other.Time, Size, Other.Path);
+  }
+};
+} // anonymous namespace
+
 /// Write a new timestamp file with the given path. This is used for the pruning
 /// interval option.
 static void writeTimestampFile(StringRef TimestampFile) {
   std::error_code EC;
-  raw_fd_ostream Out(TimestampFile.str(), EC, sys::fs::F_None);
+  raw_fd_ostream Out(TimestampFile.str(), EC, sys::fs::OF_None);
 }
 
 static Expected<std::chrono::seconds> parseDuration(StringRef Duration) {
@@ -127,7 +142,8 @@ llvm::parseCachePruningPolicy(StringRef PolicyStr) {
 }
 
 /// Prune the cache of files that haven't been accessed in a long time.
-bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
+bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy,
+                      const std::vector<std::unique_ptr<MemoryBuffer>> &Files) {
   using namespace std::chrono;
 
   if (Path.empty())
@@ -185,8 +201,9 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
     writeTimestampFile(TimestampFile);
   }
 
-  // Keep track of space. Needs to be kept ordered by size for determinism.
-  std::set<std::pair<uint64_t, std::string>> FileSizes;
+  // Keep track of files to delete to get below the size limit.
+  // Order by time of last use so that recently used files are preserved.
+  std::set<FileInfo> FileInfos;
   uint64_t TotalSize = 0;
 
   // Walk the entire directory cache, looking for unused files.
@@ -196,11 +213,12 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
   // Walk all of the files within this directory.
   for (sys::fs::directory_iterator File(CachePathNative, EC), FileEnd;
        File != FileEnd && !EC; File.increment(EC)) {
-    // Ignore any files not beginning with the string "llvmcache-". This
+    // Ignore filenames not beginning with "llvmcache-" or "Thin-". This
     // includes the timestamp file as well as any files created by the user.
     // This acts as a safeguard against data loss if the user specifies the
     // wrong directory as their cache directory.
-    if (!sys::path::filename(File->path()).startswith("llvmcache-"))
+    StringRef filename = sys::path::filename(File->path());
+    if (!filename.startswith("llvmcache-") && !filename.startswith("Thin-"))
       continue;
 
     // Look at this file. If we can't stat it, there's nothing interesting
@@ -224,23 +242,34 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
 
     // Leave it here for now, but add it to the list of size-based pruning.
     TotalSize += StatusOrErr->getSize();
-    FileSizes.insert({StatusOrErr->getSize(), std::string(File->path())});
+    FileInfos.insert({FileAccessTime, StatusOrErr->getSize(), File->path()});
   }
 
-  auto FileAndSize = FileSizes.rbegin();
-  size_t NumFiles = FileSizes.size();
+  auto FileInfo = FileInfos.begin();
+  size_t NumFiles = FileInfos.size();
 
   auto RemoveCacheFile = [&]() {
     // Remove the file.
-    sys::fs::remove(FileAndSize->second);
+    sys::fs::remove(FileInfo->Path);
     // Update size
-    TotalSize -= FileAndSize->first;
+    TotalSize -= FileInfo->Size;
     NumFiles--;
-    LLVM_DEBUG(dbgs() << " - Remove " << FileAndSize->second << " (size "
-                      << FileAndSize->first << "), new occupancy is "
-                      << TotalSize << "%\n");
-    ++FileAndSize;
+    LLVM_DEBUG(dbgs() << " - Remove " << FileInfo->Path << " (size "
+                      << FileInfo->Size << "), new occupancy is " << TotalSize
+                      << "%\n");
+    ++FileInfo;
   };
+
+  // files.size() is greater the number of inputs  by one. However, a timestamp
+  // file is created and stored in the cache directory if --thinlto-cache-policy
+  // option is used. Therefore, files.size() is used as ActualNums.
+  const size_t ActualNums = Files.size();
+  if (Policy.MaxSizeFiles && ActualNums > Policy.MaxSizeFiles)
+    WithColor::warning()
+        << "ThinLTO cache pruning happens since the number of created files ("
+        << ActualNums << ") exceeds the maximum number of files ("
+        << Policy.MaxSizeFiles
+        << "); consider adjusting --thinlto-cache-policy\n";
 
   // Prune for number of files.
   if (Policy.MaxSizeFiles)
@@ -269,8 +298,21 @@ bool llvm::pruneCache(StringRef Path, CachePruningPolicy Policy) {
                       << Policy.MaxSizePercentageOfAvailableSpace << "%, "
                       << Policy.MaxSizeBytes << " bytes\n");
 
+    size_t ActualSizes = 0;
+    for (const auto &File : Files)
+      if (File)
+        ActualSizes += File->getBufferSize();
+
+    if (ActualSizes > TotalSizeTarget)
+      WithColor::warning()
+          << "ThinLTO cache pruning happens since the total size of the cache "
+             "files consumed by the current link job ("
+          << ActualSizes << "  bytes) exceeds maximum cache size ("
+          << TotalSizeTarget
+          << " bytes); consider adjusting --thinlto-cache-policy\n";
+
     // Remove the oldest accessed files first, till we get below the threshold.
-    while (TotalSize > TotalSizeTarget && FileAndSize != FileSizes.rend())
+    while (TotalSize > TotalSizeTarget && FileInfo != FileInfos.end())
       RemoveCacheFile();
   }
   return true;

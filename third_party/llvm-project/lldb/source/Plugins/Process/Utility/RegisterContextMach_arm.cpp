@@ -1,9 +1,8 @@
-//===-- RegisterContextMach_arm.cpp -----------------------------*- C++ -*-===//
+//===-- RegisterContextMach_arm.cpp ---------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,13 +10,9 @@
 
 #include "RegisterContextMach_arm.h"
 
-// C Includes
 #include <mach/mach_types.h>
 #include <mach/thread_act.h>
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 using namespace lldb;
 using namespace lldb_private;
@@ -26,7 +21,7 @@ RegisterContextMach_arm::RegisterContextMach_arm(Thread &thread,
                                                  uint32_t concrete_frame_idx)
     : RegisterContextDarwin_arm(thread, concrete_frame_idx) {}
 
-RegisterContextMach_arm::~RegisterContextMach_arm() {}
+RegisterContextMach_arm::~RegisterContextMach_arm() = default;
 
 int RegisterContextMach_arm::DoReadGPR(lldb::tid_t tid, int flavor, GPR &gpr) {
   mach_msg_type_number_t count = GPRWordCount;
