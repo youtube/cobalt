@@ -10,7 +10,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
-#include "base/single_thread_task_runner.h"
+#include "base/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "net/base/host_port_pair.h"
@@ -160,13 +160,13 @@ void TestURLRequestContext::Init() {
 }
 
 TestURLRequestContextGetter::TestURLRequestContextGetter(
-    const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner)
+    const scoped_refptr<base::SequencedTaskRunner>& network_task_runner)
     : network_task_runner_(network_task_runner) {
   DCHECK(network_task_runner_.get());
 }
 
 TestURLRequestContextGetter::TestURLRequestContextGetter(
-    const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& network_task_runner,
     std::unique_ptr<TestURLRequestContext> context)
     : network_task_runner_(network_task_runner), context_(std::move(context)) {
   DCHECK(network_task_runner_.get());
@@ -192,7 +192,7 @@ void TestURLRequestContextGetter::NotifyContextShuttingDown() {
   context_ = nullptr;
 }
 
-scoped_refptr<base::SingleThreadTaskRunner>
+scoped_refptr<base::SequencedTaskRunner>
 TestURLRequestContextGetter::GetNetworkTaskRunner() const {
   return network_task_runner_;
 }

@@ -170,7 +170,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 }
 
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
-  DCHECK(task_runner()->BelongsToCurrentThread());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)

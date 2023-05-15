@@ -15,7 +15,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
-#include "base/single_thread_task_runner.h"
+#include "base/sequenced_task_runner.h"
 #include "base/strings/string16.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -116,16 +116,16 @@ class TestURLRequestContextGetter : public URLRequestContextGetter {
  public:
   // |network_task_runner| must not be NULL.
   explicit TestURLRequestContextGetter(
-      const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner);
+      const scoped_refptr<base::SequencedTaskRunner>& network_task_runner);
 
   // Use to pass a pre-initialized |context|.
   TestURLRequestContextGetter(
-      const scoped_refptr<base::SingleThreadTaskRunner>& network_task_runner,
+      const scoped_refptr<base::SequencedTaskRunner>& network_task_runner,
       std::unique_ptr<TestURLRequestContext> context);
 
   // URLRequestContextGetter implementation.
   TestURLRequestContext* GetURLRequestContext() override;
-  scoped_refptr<base::SingleThreadTaskRunner> GetNetworkTaskRunner()
+  scoped_refptr<base::SequencedTaskRunner> GetNetworkTaskRunner()
       const override;
 
   // see NotifyContextShuttingDown() in the base class.
@@ -135,7 +135,7 @@ class TestURLRequestContextGetter : public URLRequestContextGetter {
   ~TestURLRequestContextGetter() override;
 
  private:
-  const scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+  const scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
   std::unique_ptr<TestURLRequestContext> context_;
   bool is_shut_down_ = false;
 };

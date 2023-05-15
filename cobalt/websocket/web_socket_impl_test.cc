@@ -107,7 +107,7 @@ class WebSocketImplTest : public ::testing::Test {
   }
 
   std::unique_ptr<web::testing::StubWebContext> web_context_;
-  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
   scoped_refptr<WebSocketImpl> websocket_impl_;
   MockWebSocketChannel* mock_channel_;
   StrictMock<MockExceptionState> exception_state_;

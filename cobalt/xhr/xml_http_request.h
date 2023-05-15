@@ -445,7 +445,7 @@ class XMLHttpRequestImpl
   bool sent_;
   web::EnvironmentSettings* const settings_;
   bool stop_timeout_;
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   uint32 timeout_ms_;
   bool upload_complete_;
 

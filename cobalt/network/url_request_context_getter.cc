@@ -32,7 +32,7 @@ net::URLRequestContext* URLRequestContextGetter::GetURLRequestContext() {
   return url_request_context_;
 }
 
-scoped_refptr<base::SingleThreadTaskRunner>
+scoped_refptr<base::SequencedTaskRunner>
 URLRequestContextGetter::GetNetworkTaskRunner() const {
   return network_task_runner_;
 }

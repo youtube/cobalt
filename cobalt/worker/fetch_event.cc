@@ -36,7 +36,7 @@ FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
 FetchEvent::FetchEvent(
     script::EnvironmentSettings* environment_settings, base::Token type,
     const FetchEventInit& event_init_dict,
-    scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     RespondWithCallback respond_with_callback,
     ReportLoadTimingInfo report_load_timing_info)
     : ExtendableEvent(environment_settings, type, event_init_dict),
@@ -90,8 +90,7 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
       ->PostTask(
           FROM_HERE,
           base::BindOnce(
-              [](scoped_refptr<base::SingleThreadTaskRunner>
-                     callback_task_runner,
+              [](scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
                  RespondWithCallback respond_with_callback, std::string body,
                  base::MessageLoop* loop, base::OnceClosure callback) {
                 callback_task_runner->PostTask(

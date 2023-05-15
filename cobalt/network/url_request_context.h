@@ -19,7 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/macros.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/log/net_log.h"
@@ -43,7 +43,7 @@ class URLRequestContext : public net::URLRequestContext {
   URLRequestContext(
       storage::StorageManager* storage_manager, const std::string& custom_proxy,
       net::NetLog* net_log, bool ignore_certificate_errors,
-      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner,
+      scoped_refptr<base::SequencedTaskRunner> network_task_runner,
       persistent_storage::PersistentSettings* persistent_settings);
   ~URLRequestContext() override;
 
@@ -54,7 +54,7 @@ class URLRequestContext : public net::URLRequestContext {
   bool using_http_cache();
 
  private:
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
   net::URLRequestContextStorage storage_;
   scoped_refptr<net::CookieMonster::PersistentCookieStore>
       persistent_cookie_store_;
