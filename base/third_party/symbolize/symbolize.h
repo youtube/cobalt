@@ -54,6 +54,10 @@
 #ifndef BASE_SYMBOLIZE_H_
 #define BASE_SYMBOLIZE_H_
 
+#if defined (STARBOARD)
+#define GLOG_EXPORT
+#endif
+
 #include <sys/types.h>  // for ssize_t
 
 #include "utilities.h"

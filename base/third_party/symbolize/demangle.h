@@ -77,6 +77,10 @@
 
 _START_GOOGLE_NAMESPACE_
 
+#if defined(STARBOARD)
+#define GLOG_EXPORT
+#endif
+
 // Demangle "mangled".  On success, return true and write the
 // demangled symbol name to "out".  Otherwise, return false.
 // "out" is modified even if demangling is unsuccessful.
