@@ -17,8 +17,7 @@ jobs:
   python-test:
     strategy:
       matrix:
-        # TODO(b/281098312): pytest fails on windows-latest
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.7', '3.11']
       fail-fast: false
     runs-on: ${{ matrix.os }}
@@ -32,6 +31,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
       - name: Install Pip Packages
         run: pip install --require-hashes --no-deps -r ${{ github.workspace }}/docker/pytest/requirements.txt
       - name: Run Tests

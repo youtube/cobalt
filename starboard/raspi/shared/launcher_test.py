@@ -28,6 +28,7 @@ import pexpect
 # pylint: disable=missing-class-docstring
 
 
+@unittest.skipIf(os.name == 'nt', 'Pexpect does not work on Windows')
 class LauncherTest(unittest.TestCase):
 
   def setUp(self):
