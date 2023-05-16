@@ -59,6 +59,7 @@ dec_sources = [
   "dec/state.h",
 ]
 
+if (!is_starboard) {
 enc_sources = [
   "enc/backward_references_hq.c",
   "enc/backward_references_hq.h",
@@ -123,6 +124,7 @@ enc_sources = [
   "enc/utf8_util.h",
   "enc/write_bits.h",
 ]
+}
 
 static_library("dec") {
   sources = dec_sources
@@ -130,12 +132,18 @@ static_library("dec") {
   public_deps = [ ":headers" ]
   deps = [ ":common" ]
 
+if (is_starboard) {
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+} else {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   # Since we never debug brotli, freeze the optimizations to -O2.
   configs -= [ "//build/config/compiler:default_optimization" ]
   configs += [ "//build/config/compiler:optimize_max" ]
+}
 }
 
 static_library("dec_no_dictionary_data") {
@@ -144,6 +152,11 @@ static_library("dec_no_dictionary_data") {
   public_deps = [ ":headers" ]
   deps = [ ":common_no_dictionary_data" ]
 
+if (is_starboard) {
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+} else {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
@@ -151,7 +164,9 @@ static_library("dec_no_dictionary_data") {
   configs -= [ "//build/config/compiler:default_optimization" ]
   configs += [ "//build/config/compiler:optimize_max" ]
 }
+}
 
+if (!is_starboard) {
 static_library("enc") {
   sources = enc_sources
   public_configs = [ ":includes" ]
@@ -198,4 +213,5 @@ fuzzer_test("brotli_fuzzer") {
   sources = [ "fuzz/decode_fuzzer.cc" ]
   deps = [ ":dec" ]
   libfuzzer_options = [ "max_len=1280" ]
+}
 }
