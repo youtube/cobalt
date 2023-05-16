@@ -6,17 +6,18 @@ case "$1" in
     "install")
 	case "${TRAVIS_OS_NAME}" in
 	    "osx")
-		brew update
+		brew update >/dev/null
 		brew install binutils
 
 		case "${CC}" in
 		    "gcc-"*)
-			which ${CC} || brew install homebrew/versions/gcc$(echo "${CC#*-}" | sed 's/\.//')
+			which ${CC} || brew install $(echo "${CC}" | sed 's/\-/@/') || brew link --overwrite $(echo "${CC}" | sed 's/\-/@/')
 			;;
 		esac
 
 		case "${BUILD_SYSTEM}" in
 		    "bazel")
+			brew cask install homebrew/cask-versions/adoptopenjdk8
 			brew install bazel
 			;;
 		esac
@@ -40,9 +41,9 @@ case "$1" in
 		if [ "${CROSS_COMPILE}" = "yes" ]; then
 		    CMAKE_FLAGS="-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_RC_COMPILER=${RC_COMPILER}"
 		fi
-		cmake ${CMAKE_FLAGS} -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DENABLE_SANITIZER="${SANITIZER}" -DCMAKE_C_FLAGS="${CFLAGS}" ..
-		make VERBOSE=1
-		ctest -V
+		cmake ${CMAKE_FLAGS} -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DENABLE_SANITIZER="${SANITIZER}" -DCMAKE_C_FLAGS="${CFLAGS}" .. || exit 1
+		make VERBOSE=1 || exit 1
+		ctest -V || exit 1
 		;;
 	    "python")
 		python setup.py test
@@ -58,7 +59,11 @@ case "$1" in
 		./c/fuzz/test_fuzzer.sh
 		;;
 	    "bazel")
-		bazel test -c opt ...:all
+		bazel build -c opt ...:all &&
+		cd go && bazel test -c opt ...:all && cd .. &&
+		cd java && bazel test -c opt ...:all && cd .. &&
+		cd js && bazel test -c opt ...:all && cd .. &&
+		cd research && bazel build -c opt ...:all && cd ..
 		;;
 	esac
 	;;
