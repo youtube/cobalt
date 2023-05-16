@@ -5,3 +5,4 @@ jsonschema<5
 junitparser==2.8.0
 pexpect==4.8.0
 six==1.12.0
+atomicwrites==1.4.1
