@@ -32,6 +32,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
       - name: Install Pip Packages
         run: pip install --require-hashes --no-deps -r ${{ github.workspace }}/docker/pytest/requirements.txt
       - name: Run Tests
