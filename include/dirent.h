@@ -15,19 +15,9 @@ extern "C" {
 
 #include <bits/alltypes.h>
 
+#include <bits/dirent.h>
+
 typedef struct __dirstream DIR;
-
-#define _DIRENT_HAVE_D_RECLEN
-#define _DIRENT_HAVE_D_OFF
-#define _DIRENT_HAVE_D_TYPE
-
-struct dirent {
-	ino_t d_ino;
-	off_t d_off;
-	unsigned short d_reclen;
-	unsigned char d_type;
-	char d_name[256];
-};
 
 #define d_fileno d_ino
 
@@ -66,7 +56,7 @@ int getdents(int, struct dirent *, size_t);
 int versionsort(const struct dirent **, const struct dirent **);
 #endif
 
-#if defined(_LARGEFILE64_SOURCE) || defined(_GNU_SOURCE)
+#if defined(_LARGEFILE64_SOURCE)
 #define dirent64 dirent
 #define readdir64 readdir
 #define readdir64_r readdir_r

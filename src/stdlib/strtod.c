@@ -2,14 +2,11 @@
 #include "shgetc.h"
 #include "floatscan.h"
 #include "stdio_impl.h"
-#include "libc.h"
 
 static long double strtox(const char *s, char **p, int prec)
 {
-	FILE f = {
-		.buf = (void *)s, .rpos = (void *)s,
-		.rend = (void *)-1, .lock = -1
-	};
+	FILE f;
+	sh_fromstring(&f, s);
 	shlim(&f, 0);
 	long double y = __floatscan(&f, prec, 1);
 	off_t cnt = shcnt(&f);
@@ -31,10 +28,3 @@ long double strtold(const char *restrict s, char **restrict p)
 {
 	return strtox(s, p, 2);
 }
-
-weak_alias(strtof, strtof_l);
-weak_alias(strtod, strtod_l);
-weak_alias(strtold, strtold_l);
-weak_alias(strtof, __strtof_l);
-weak_alias(strtod, __strtod_l);
-weak_alias(strtold, __strtold_l);
