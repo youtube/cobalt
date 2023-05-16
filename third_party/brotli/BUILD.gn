@@ -38,10 +38,16 @@ source_set("headers") {
 
 if (is_starboard) {
   common_sources = [
+    "c/common/constants.c",
     "c/common/constants.h",
+    "c/common/context.c",
+    "c/common/context.h",
     "c/common/dictionary.c",
     "c/common/dictionary.h",
+    "c/common/platform.c",
     "c/common/platform.h",
+    "c/common/transform.c",
+    "c/common/transform.h",
     "c/common/version.h",
   ]
 } else {
@@ -77,14 +83,12 @@ if (is_starboard) {
   dec_sources = [
     "c/dec/bit_reader.c",
     "c/dec/bit_reader.h",
-    "c/dec/context.h",
     "c/dec/decode.c",
     "c/dec/huffman.c",
     "c/dec/huffman.h",
     "c/dec/prefix.h",
     "c/dec/state.c",
     "c/dec/state.h",
-    "c/dec/transform.h",
   ]
 } else {
   dec_sources = [
