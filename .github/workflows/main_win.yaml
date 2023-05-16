@@ -59,7 +59,7 @@ jobs:
       )
     steps:
       - id: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999 # Temporary version
         with:
           fetch-depth: 1
       - name: Remove runtest if exists
@@ -101,7 +101,7 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 2
       - name: Login to Docker Registry ${{env.REGISTRY}}
@@ -128,7 +128,7 @@ jobs:
         config: [devel, debug, qa, gold]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -161,7 +161,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
       - name: Run Tests
