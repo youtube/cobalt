@@ -4,6 +4,12 @@
 #include "lock.h"
 #include "fork_impl.h"
 
+#ifdef STARBOARD
+#include "starboard/common/log.h"
+#include "starboard/mutex.h"
+#include "starboard/types.h"
+#endif  // STARBOARD
+
 #define malloc __libc_malloc
 #define calloc __libc_calloc
 #define realloc undef
@@ -20,8 +26,20 @@ static struct fl
 } builtin, *head;
 
 static int slot;
+#ifdef STARBOARD
+static SbMutex lock = SB_MUTEX_INITIALIZER;
+#define LOCK(x)                                          \
+    do {                                                 \
+      SB_DCHECK(SbMutexAcquire(&x) == kSbMutexAcquired); \
+    } while (0)
+#define UNLOCK(x)                    \
+    do {                             \
+      SB_DCHECK(SbMutexRelease(&x)); \
+    } while (0)
+#else   // !STARBOARD
 static volatile int lock[1];
 volatile int *const __atexit_lockptr = lock;
+#endif // STARBOARD
 
 void __funcs_on_exit()
 {
@@ -38,6 +56,9 @@ void __funcs_on_exit()
 
 void __cxa_finalize(void *dso)
 {
+#ifdef STARBOARD
+  __funcs_on_exit();
+#endif  // STARBOARD
 }
 
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso)

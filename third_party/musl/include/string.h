@@ -7,9 +7,8 @@ extern "C" {
 
 #include <features.h>
 
-#if __cplusplus >= 201103L
-#define NULL nullptr
-#elif defined(__cplusplus)
+// nullptr causes cast errors in third_party code
+#ifdef __cplusplus
 #define NULL 0L
 #else
 #define NULL ((void*)0)

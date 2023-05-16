@@ -36,7 +36,11 @@ char *__strerror_l(int e, locale_t loc)
 #endif
 	if (e >= sizeof errmsgidx / sizeof *errmsgidx) e = 0;
 	s = (char *)&errmsgstr + errmsgidx[e];
+#if defined(STARBOARD)
+	return s;
+#else   // !defined(STARBOARD)
 	return (char *)LCTRANS(s, LC_MESSAGES, loc);
+#endif // defined(STARBOARD)
 }
 
 char *strerror(int e)

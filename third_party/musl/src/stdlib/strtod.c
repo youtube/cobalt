@@ -3,6 +3,8 @@
 #include "floatscan.h"
 #include "stdio_impl.h"
 
+#include "starboard/configuration.h"
+
 static long double strtox(const char *s, char **p, int prec)
 {
 	FILE f;
