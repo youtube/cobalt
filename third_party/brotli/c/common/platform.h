@@ -243,6 +243,14 @@ OR:
 #define brotli_reg_t uint32_t
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#if SB_IS(BIG_ENDIAN)
+#define BROTLI_BIG_ENDIAN 1
+#else
+#define BROTLI_LITTLE_ENDIAN 1
+#endif
+#else  /* not defined STARBOARD */
 #if defined(BROTLI_BUILD_BIG_ENDIAN)
 #define BROTLI_BIG_ENDIAN 1
 #elif defined(BROTLI_BUILD_LITTLE_ENDIAN)
@@ -263,6 +271,7 @@ OR:
 #define BROTLI_BIG_ENDIAN 1
 #endif
 #endif  /* BROTLI_X_BYTE_ORDER */
+#endif  /* STARBOARD */
 
 #if !defined(BROTLI_LITTLE_ENDIAN)
 #define BROTLI_LITTLE_ENDIAN 0
