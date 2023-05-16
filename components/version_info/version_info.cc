@@ -8,7 +8,11 @@
 #include "base/no_destructor.h"
 #include "base/version.h"
 #include "build/build_config.h"
+#if !STARBOARD
 #include "components/version_info/version_info_values.h"
+#else
+#include "components/version_info/starboard_version_info_values.h"
+#endif
 
 namespace version_info {
 
@@ -66,6 +70,10 @@ std::string GetOSType() {
 }
 
 std::string GetChannelString(Channel channel) {
+#if STARBOARD
+  return "unknown";
+#endif
+
   switch (channel) {
     case Channel::STABLE:
       return "stable";

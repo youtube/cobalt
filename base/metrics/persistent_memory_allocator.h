@@ -21,7 +21,9 @@ namespace base {
 
 class HistogramBase;
 class MemoryMappedFile;
+#if !defined(STARBOARD)
 class SharedMemory;
+#endif
 
 // Simple allocator for pieces of a memory block that may be persistent
 // to some storage or shared across multiple processes. This class resides
@@ -737,7 +739,7 @@ class BASE_EXPORT SharedPersistentMemoryAllocator
 #endif  // !defined(STARBOARD)
 
 // NACL doesn't support any kind of file access in build.
-#if !defined(OS_NACL) && !defined(STARBOARD)
+#if !defined(OS_NACL) || !defined(STARBOARD)
 // This allocator takes a memory-mapped file object and performs allocation
 // from it. The allocator takes ownership of the file object.
 class BASE_EXPORT FilePersistentMemoryAllocator

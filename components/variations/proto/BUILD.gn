@@ -11,4 +11,8 @@ proto_library("proto") {
     "study.proto",
     "variations_seed.proto",
   ]
+  if (use_cobalt_customizations) {
+    generate_python = false
+  }
 }
+
