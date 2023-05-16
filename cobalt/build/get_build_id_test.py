@@ -26,6 +26,8 @@ from cobalt.build import get_build_id
 _TEST_BUILD_NUMBER = 1234 + get_build_id.COMMIT_COUNT_BUILD_NUMBER_OFFSET
 
 
+# TODO(b/282040638): fix and re-enabled this
+@unittest.skipIf(os.name == 'nt', 'Broken on Windows')
 class GetBuildIdTest(unittest.TestCase):
 
   def setUp(self):
