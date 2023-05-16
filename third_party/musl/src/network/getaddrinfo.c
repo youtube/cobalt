@@ -16,13 +16,8 @@ int getaddrinfo(const char *restrict host, const char *restrict serv, const stru
 	char canon[256], *outcanon;
 	int nservs, naddrs, nais, canon_len, i, j, k;
 	int family = AF_UNSPEC, flags = 0, proto = 0, socktype = 0;
-	struct aibuf {
-		struct addrinfo ai;
-		union sa {
-			struct sockaddr_in sin;
-			struct sockaddr_in6 sin6;
-		} sa;
-	} *out;
+	int no_family = 0;
+	struct aibuf *out;
 
 	if (!host && !serv) return EAI_NONAME;
 
@@ -72,12 +67,23 @@ int getaddrinfo(const char *restrict host, const char *restrict serv, const stru
 				pthread_setcancelstate(
 					PTHREAD_CANCEL_DISABLE, &cs);
 				int r = connect(s, ta[i], tl[i]);
+				int saved_errno = errno;
 				pthread_setcancelstate(cs, 0);
 				close(s);
 				if (!r) continue;
+				errno = saved_errno;
 			}
-			if (errno != EAFNOSUPPORT) return EAI_SYSTEM;
-			if (family == tf[i]) return EAI_NONAME;
+			switch (errno) {
+			case EADDRNOTAVAIL:
+			case EAFNOSUPPORT:
+			case EHOSTUNREACH:
+			case ENETDOWN:
+			case ENETUNREACH:
+				break;
+			default:
+				return EAI_SYSTEM;
+			}
+			if (family == tf[i]) no_family = 1;
 			family = tf[1-i];
 		}
 	}
@@ -87,6 +93,8 @@ int getaddrinfo(const char *restrict host, const char *restrict serv, const stru
 
 	naddrs = __lookup_name(addrs, canon, host, family, flags);
 	if (naddrs < 0) return naddrs;
+
+	if (no_family) return EAI_NODATA;
 
 	nais = nservs * naddrs;
 	canon_len = strlen(canon);
@@ -101,6 +109,7 @@ int getaddrinfo(const char *restrict host, const char *restrict serv, const stru
 	}
 
 	for (k=i=0; i<naddrs; i++) for (j=0; j<nservs; j++, k++) {
+		out[k].slot = k;
 		out[k].ai = (struct addrinfo){
 			.ai_family = addrs[i].family,
 			.ai_socktype = ports[j].socktype,
@@ -109,8 +118,8 @@ int getaddrinfo(const char *restrict host, const char *restrict serv, const stru
 				? sizeof(struct sockaddr_in)
 				: sizeof(struct sockaddr_in6),
 			.ai_addr = (void *)&out[k].sa,
-			.ai_canonname = outcanon,
-			.ai_next = &out[k+1].ai };
+			.ai_canonname = outcanon };
+		if (k) out[k-1].ai.ai_next = &out[k].ai;
 		switch (addrs[i].family) {
 		case AF_INET:
 			out[k].sa.sin.sin_family = AF_INET;
@@ -125,7 +134,7 @@ int getaddrinfo(const char *restrict host, const char *restrict serv, const stru
 			break;			
 		}
 	}
-	out[nais-1].ai.ai_next = 0;
+	out[0].ref = nais;
 	*res = &out->ai;
 	return 0;
 }

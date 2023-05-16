@@ -9,18 +9,21 @@
 #if defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
 
 typedef unsigned long greg_t, gregset_t[48];
+typedef double fpregset_t[33];
 
 typedef struct {
-	double fpregs[32];
-	double fpscr;
-} fpregset_t;
-
-typedef struct {
-	unsigned __int128 vrregs[32];
-	unsigned _pad[3];
-	unsigned vrsave;
-	unsigned vscr;
-	unsigned _pad2[3];
+#ifdef __GNUC__
+	__attribute__((__aligned__(16)))
+#endif
+	unsigned vrregs[32][4];
+	struct {
+#if __BIG_ENDIAN__
+		unsigned _pad[3], vscr_word;
+#else
+		unsigned vscr_word, _pad[3];
+#endif
+	} vscr;
+	unsigned vrsave, _pad[3];
 } vrregset_t;
 
 typedef struct sigcontext {
@@ -29,7 +32,7 @@ typedef struct sigcontext {
 	int _pad0;
 	unsigned long handler;
 	unsigned long oldmask;
-	void *regs;
+	struct pt_regs *regs;
 	gregset_t gp_regs;
 	fpregset_t fp_regs;
 	vrregset_t *v_regs;

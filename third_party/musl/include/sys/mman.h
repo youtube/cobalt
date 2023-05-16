@@ -40,13 +40,16 @@ extern "C" {
 
 #define MAP_HUGE_SHIFT 26
 #define MAP_HUGE_MASK  0x3f
+#define MAP_HUGE_16KB  (14 << 26)
 #define MAP_HUGE_64KB  (16 << 26)
 #define MAP_HUGE_512KB (19 << 26)
 #define MAP_HUGE_1MB   (20 << 26)
 #define MAP_HUGE_2MB   (21 << 26)
 #define MAP_HUGE_8MB   (23 << 26)
 #define MAP_HUGE_16MB  (24 << 26)
+#define MAP_HUGE_32MB  (25 << 26)
 #define MAP_HUGE_256MB (28 << 26)
+#define MAP_HUGE_512MB (29 << 26)
 #define MAP_HUGE_1GB   (30 << 26)
 #define MAP_HUGE_2GB   (31 << 26)
 #define MAP_HUGE_16GB  (34U << 26)
@@ -90,6 +93,8 @@ extern "C" {
 #define MADV_DODUMP      17
 #define MADV_WIPEONFORK  18
 #define MADV_KEEPONFORK  19
+#define MADV_COLD        20
+#define MADV_PAGEOUT     21
 #define MADV_HWPOISON    100
 #define MADV_SOFT_OFFLINE 101
 #endif
@@ -97,6 +102,7 @@ extern "C" {
 #ifdef _GNU_SOURCE
 #define MREMAP_MAYMOVE 1
 #define MREMAP_FIXED 2
+#define MREMAP_DONTUNMAP 4
 
 #define MLOCK_ONFAULT 0x01
 
@@ -135,7 +141,7 @@ int mincore (void *, size_t, unsigned char *);
 int shm_open (const char *, int, mode_t);
 int shm_unlink (const char *);
 
-#if defined(_LARGEFILE64_SOURCE) || defined(_GNU_SOURCE)
+#if defined(_LARGEFILE64_SOURCE)
 #define mmap64 mmap
 #define off64_t off_t
 #endif

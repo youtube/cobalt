@@ -1,3 +1,4 @@
+#define SYSCALL_NO_TLS 1
 #include <elf.h>
 #include <limits.h>
 #include <sys/mman.h>
@@ -8,6 +9,8 @@
 #include "atomic.h"
 #include "syscall.h"
 
+volatile int __thread_list_lock;
+
 int __init_tp(void *p)
 {
 	pthread_t td = p;
@@ -16,9 +19,11 @@ int __init_tp(void *p)
 	if (r < 0) return -1;
 	if (!r) libc.can_do_threads = 1;
 	td->detach_state = DT_JOINABLE;
-	td->tid = __syscall(SYS_set_tid_address, &td->detach_state);
+	td->tid = __syscall(SYS_set_tid_address, &__thread_list_lock);
 	td->locale = &libc.global_locale;
 	td->robust_list.head = &td->robust_list.head;
+	td->sysinfo = __sysinfo;
+	td->next = td->prev = td;
 	return 0;
 }
 
@@ -36,33 +41,33 @@ void *__copy_tls(unsigned char *mem)
 	pthread_t td;
 	struct tls_module *p;
 	size_t i;
-	void **dtv;
+	uintptr_t *dtv;
 
 #ifdef TLS_ABOVE_TP
-	dtv = (void **)(mem + libc.tls_size) - (libc.tls_cnt + 1);
+	dtv = (uintptr_t*)(mem + libc.tls_size) - (libc.tls_cnt + 1);
 
 	mem += -((uintptr_t)mem + sizeof(struct pthread)) & (libc.tls_align-1);
 	td = (pthread_t)mem;
 	mem += sizeof(struct pthread);
 
 	for (i=1, p=libc.tls_head; p; i++, p=p->next) {
-		dtv[i] = mem + p->offset;
-		memcpy(dtv[i], p->image, p->len);
+		dtv[i] = (uintptr_t)(mem + p->offset) + DTP_OFFSET;
+		memcpy(mem + p->offset, p->image, p->len);
 	}
 #else
-	dtv = (void **)mem;
+	dtv = (uintptr_t *)mem;
 
 	mem += libc.tls_size - sizeof(struct pthread);
 	mem -= (uintptr_t)mem & (libc.tls_align-1);
 	td = (pthread_t)mem;
 
 	for (i=1, p=libc.tls_head; p; i++, p=p->next) {
-		dtv[i] = mem - p->offset;
-		memcpy(dtv[i], p->image, p->len);
+		dtv[i] = (uintptr_t)(mem - p->offset) + DTP_OFFSET;
+		memcpy(mem - p->offset, p->image, p->len);
 	}
 #endif
-	dtv[0] = (void *)libc.tls_cnt;
-	td->dtv = td->dtv_copy = dtv;
+	dtv[0] = libc.tls_cnt;
+	td->dtv = dtv;
 	return td;
 }
 
@@ -72,8 +77,7 @@ typedef Elf32_Phdr Phdr;
 typedef Elf64_Phdr Phdr;
 #endif
 
-__attribute__((__weak__, __visibility__("hidden")))
-extern const size_t _DYNAMIC[];
+extern weak hidden const size_t _DYNAMIC[];
 
 static void static_init_tls(size_t *aux)
 {
@@ -91,6 +95,11 @@ static void static_init_tls(size_t *aux)
 			base = (size_t)_DYNAMIC - phdr->p_vaddr;
 		if (phdr->p_type == PT_TLS)
 			tls_phdr = phdr;
+		if (phdr->p_type == PT_GNU_STACK &&
+		    phdr->p_memsz > __default_stacksize)
+			__default_stacksize =
+				phdr->p_memsz < DEFAULT_STACK_MAX ?
+				phdr->p_memsz : DEFAULT_STACK_MAX;
 	}
 
 	if (tls_phdr) {
@@ -106,7 +115,8 @@ static void static_init_tls(size_t *aux)
 		& (main_tls.align-1);
 #ifdef TLS_ABOVE_TP
 	main_tls.offset = GAP_ABOVE_TP;
-	main_tls.offset += -GAP_ABOVE_TP & (main_tls.align-1);
+	main_tls.offset += (-GAP_ABOVE_TP + (uintptr_t)main_tls.image)
+		& (main_tls.align-1);
 #else
 	main_tls.offset = main_tls.size;
 #endif

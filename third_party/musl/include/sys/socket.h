@@ -19,6 +19,40 @@ extern "C" {
 
 #include <bits/socket.h>
 
+struct msghdr {
+	void *msg_name;
+	socklen_t msg_namelen;
+	struct iovec *msg_iov;
+#if __LONG_MAX > 0x7fffffff && __BYTE_ORDER == __BIG_ENDIAN
+	int __pad1;
+#endif
+	int msg_iovlen;
+#if __LONG_MAX > 0x7fffffff && __BYTE_ORDER == __LITTLE_ENDIAN
+	int __pad1;
+#endif
+	void *msg_control;
+#if __LONG_MAX > 0x7fffffff && __BYTE_ORDER == __BIG_ENDIAN
+	int __pad2;
+#endif
+	socklen_t msg_controllen;
+#if __LONG_MAX > 0x7fffffff && __BYTE_ORDER == __LITTLE_ENDIAN
+	int __pad2;
+#endif
+	int msg_flags;
+};
+
+struct cmsghdr {
+#if __LONG_MAX > 0x7fffffff && __BYTE_ORDER == __BIG_ENDIAN
+	int __pad1;
+#endif
+	socklen_t cmsg_len;
+#if __LONG_MAX > 0x7fffffff && __BYTE_ORDER == __LITTLE_ENDIAN
+	int __pad1;
+#endif
+	int cmsg_level;
+	int cmsg_type;
+};
+
 #ifdef _GNU_SOURCE
 struct ucred {
 	pid_t pid;
@@ -109,7 +143,8 @@ struct linger {
 #define PF_KCM          41
 #define PF_QIPCRTR      42
 #define PF_SMC          43
-#define PF_MAX          44
+#define PF_XDP          44
+#define PF_MAX          45
 
 #define AF_UNSPEC       PF_UNSPEC
 #define AF_LOCAL        PF_LOCAL
@@ -158,6 +193,7 @@ struct linger {
 #define AF_KCM          PF_KCM
 #define AF_QIPCRTR      PF_QIPCRTR
 #define AF_SMC          PF_SMC
+#define AF_XDP          PF_XDP
 #define AF_MAX          PF_MAX
 
 #ifndef SO_DEBUG
@@ -180,14 +216,34 @@ struct linger {
 #define SO_PEERCRED     17
 #define SO_RCVLOWAT     18
 #define SO_SNDLOWAT     19
-#define SO_RCVTIMEO     20
-#define SO_SNDTIMEO     21
 #define SO_ACCEPTCONN   30
 #define SO_PEERSEC      31
 #define SO_SNDBUFFORCE  32
 #define SO_RCVBUFFORCE  33
 #define SO_PROTOCOL     38
 #define SO_DOMAIN       39
+#endif
+
+#ifndef SO_RCVTIMEO
+#if __LONG_MAX == 0x7fffffff
+#define SO_RCVTIMEO     66
+#define SO_SNDTIMEO     67
+#else
+#define SO_RCVTIMEO     20
+#define SO_SNDTIMEO     21
+#endif
+#endif
+
+#ifndef SO_TIMESTAMP
+#if __LONG_MAX == 0x7fffffff
+#define SO_TIMESTAMP    63
+#define SO_TIMESTAMPNS  64
+#define SO_TIMESTAMPING 65
+#else
+#define SO_TIMESTAMP    29
+#define SO_TIMESTAMPNS  35
+#define SO_TIMESTAMPING 37
+#endif
 #endif
 
 #define SO_SECURITY_AUTHENTICATION              22
@@ -201,14 +257,10 @@ struct linger {
 #define SO_GET_FILTER           SO_ATTACH_FILTER
 
 #define SO_PEERNAME             28
-#define SO_TIMESTAMP            29
 #define SCM_TIMESTAMP           SO_TIMESTAMP
-
 #define SO_PASSSEC              34
-#define SO_TIMESTAMPNS          35
 #define SCM_TIMESTAMPNS         SO_TIMESTAMPNS
 #define SO_MARK                 36
-#define SO_TIMESTAMPING         37
 #define SCM_TIMESTAMPING        SO_TIMESTAMPING
 #define SO_RXQ_OVFL             40
 #define SO_WIFI_STATUS          41
@@ -233,6 +285,12 @@ struct linger {
 #define SCM_TIMESTAMPING_PKTINFO 58
 #define SO_PEERGROUPS           59
 #define SO_ZEROCOPY             60
+#define SO_TXTIME               61
+#define SCM_TXTIME              SO_TXTIME
+#define SO_BINDTOIFINDEX        62
+#define SO_DETACH_REUSEPORT_BPF 68
+#define SO_PREFER_BUSY_POLL     69
+#define SO_BUSY_POLL_BUDGET     70
 
 #ifndef SOL_SOCKET
 #define SOL_SOCKET      1
@@ -265,6 +323,7 @@ struct linger {
 #define SOL_NFC         280
 #define SOL_KCM         281
 #define SOL_TLS         282
+#define SOL_XDP         283
 
 #define SOMAXCONN       128
 
@@ -343,6 +402,12 @@ int getsockopt (int, int, int, void *__restrict, socklen_t *__restrict);
 int setsockopt (int, int, int, const void *, socklen_t);
 
 int sockatmark (int);
+
+#if _REDIR_TIME64
+#ifdef _GNU_SOURCE
+__REDIR(recvmmsg, __recvmmsg_time64);
+#endif
+#endif
 
 #ifdef __cplusplus
 }
