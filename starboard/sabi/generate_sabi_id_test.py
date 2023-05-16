@@ -45,6 +45,9 @@ class GenerateSabiIdTest(unittest.TestCase):
     with self.assertRaises(IOError):
       generate_sabi_id.DoMain(['-f', 'invalid_filename'])
 
+  # TODO(b/281098312): fix and re-enable this
+  @unittest.skipIf(os.name == 'nt',
+                   'Broken on Windows due to temp path handling')
   def testRainyDayBadFile(self):
     bad_sabi_json = tempfile.NamedTemporaryFile(mode='w')  # pylint: disable=consider-using-with
     bad_sabi_json.write('{}')
