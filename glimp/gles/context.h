@@ -44,7 +44,7 @@ class Context {
  public:
   Context(nb::scoped_ptr<ContextImpl> context_impl, Context* share_context);
 
-  ~Context() { SbAtomicNoBarrier_Store(&has_swapped_buffers_, 0); }
+  ~Context() { SbAtomicRelease_Store(&has_swapped_buffers_, 0); }
 
   // Returns current thread's current context, or NULL if nothing is current.
   static Context* GetTLSCurrentContext();
@@ -260,7 +260,7 @@ class Context {
   }
 
   static bool has_swapped_buffers() {
-    return SbAtomicNoBarrier_Load(&has_swapped_buffers_) != 0;
+    return SbAtomicAcquire_Load(&has_swapped_buffers_) != 0;
   }
 
  private:
