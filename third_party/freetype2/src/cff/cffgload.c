@@ -4,7 +4,7 @@
  *
  *   OpenType Glyph Loader (body).
  *
- * Copyright (C) 1996-2020 by
+ * Copyright (C) 1996-2023 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -16,19 +16,26 @@
  */
 
 
-#include <ft2build.h>
-#include FT_INTERNAL_DEBUG_H
-#include FT_INTERNAL_STREAM_H
-#include FT_INTERNAL_SFNT_H
-#include FT_INTERNAL_CALC_H
-#include FT_INTERNAL_POSTSCRIPT_AUX_H
-#include FT_OUTLINE_H
-#include FT_DRIVER_H
+#include <freetype/internal/ftdebug.h>
+#include <freetype/internal/ftstream.h>
+#include <freetype/internal/sfnt.h>
+#include <freetype/internal/ftcalc.h>
+#include <freetype/internal/psaux.h>
+#include <freetype/ftoutln.h>
+#include <freetype/ftdriver.h>
 
 #include "cffload.h"
 #include "cffgload.h"
 
 #include "cfferrs.h"
+
+#ifdef TT_CONFIG_OPTION_GX_VAR_SUPPORT
+#define IS_DEFAULT_INSTANCE( _face )             \
+          ( !( FT_IS_NAMED_INSTANCE( _face ) ||  \
+               FT_IS_VARIATION( _face )      ) )
+#else
+#define IS_DEFAULT_INSTANCE( _face )  1
+#endif
 
 
   /**************************************************************************
@@ -60,7 +67,7 @@
 
 
       *pointer = (FT_Byte*)data.pointer;
-      *length  = (FT_ULong)data.length;
+      *length  = data.length;
 
       return error;
     }
@@ -68,7 +75,7 @@
 #endif /* FT_CONFIG_OPTION_INCREMENTAL */
 
     {
-      CFF_Font  cff = (CFF_Font)(face->extra.data);
+      CFF_Font  cff = (CFF_Font)( face->extra.data );
 
 
       return cff_index_access_element( &cff->charstrings_index, glyph_index,
@@ -95,7 +102,7 @@
 
 
       data.pointer = *pointer;
-      data.length  = (FT_Int)length;
+      data.length  = (FT_UInt)length;
 
       face->root.internal->incremental_interface->funcs->free_glyph_data(
         face->root.internal->incremental_interface->object, &data );
@@ -104,7 +111,7 @@
 #endif /* FT_CONFIG_OPTION_INCREMENTAL */
 
     {
-      CFF_Font  cff = (CFF_Font)(face->extra.data);
+      CFF_Font  cff = (CFF_Font)( face->extra.data );
 
 
       cff_index_forget_element( &cff->charstrings_index, pointer );
@@ -207,8 +214,8 @@
     PSAux_Service            psaux         = (PSAux_Service)face->psaux;
     const CFF_Decoder_Funcs  decoder_funcs = psaux->cff_decoder_funcs;
 
-    FT_Matrix    font_matrix;
-    FT_Vector    font_offset;
+    FT_Matrix  font_matrix;
+    FT_Vector  font_offset;
 
 
     force_scaling = FALSE;
@@ -256,8 +263,8 @@
 
 
       if ( size->strike_index != 0xFFFFFFFFUL      &&
-           sfnt->load_eblc                         &&
-           ( load_flags & FT_LOAD_NO_BITMAP ) == 0 )
+           ( load_flags & FT_LOAD_NO_BITMAP ) == 0 &&
+           IS_DEFAULT_INSTANCE( size->root.face )  )
       {
         TT_SBit_MetricsRec  metrics;
 
@@ -347,6 +354,73 @@
     if ( load_flags & FT_LOAD_SBITS_ONLY )
       return FT_THROW( Invalid_Argument );
 
+#ifdef FT_CONFIG_OPTION_SVG
+    /* check for OT-SVG */
+    if ( ( load_flags & FT_LOAD_COLOR ) && face->svg )
+    {
+      /*
+       * We load the SVG document and try to grab the advances from the
+       * table.  For the bearings we rely on the presetting hook to do that.
+       */
+
+      SFNT_Service  sfnt  = (SFNT_Service)face->sfnt;
+
+
+      if ( size && (size->root.metrics.x_ppem < 1 ||
+                    size->root.metrics.y_ppem < 1 ) )
+      {
+        error = FT_THROW( Invalid_Size_Handle );
+        return error;
+      }
+
+      FT_TRACE3(( "Trying to load SVG glyph\n" ));
+
+      error = sfnt->load_svg_doc( (FT_GlyphSlot)glyph, glyph_index );
+      if ( !error )
+      {
+        FT_Fixed  x_scale = size->root.metrics.x_scale;
+        FT_Fixed  y_scale = size->root.metrics.y_scale;
+
+        FT_Short   dummy;
+        FT_UShort  advanceX;
+        FT_UShort  advanceY;
+
+
+        FT_TRACE3(( "Successfully loaded SVG glyph\n" ));
+
+        glyph->root.format = FT_GLYPH_FORMAT_SVG;
+
+        /*
+         * If horizontal or vertical advances are not present in the table,
+         * this is a problem with the font since the standard requires them.
+         * However, we are graceful and calculate the values by ourselves
+         * for the vertical case.
+         */
+        sfnt->get_metrics( face,
+                           FALSE,
+                           glyph_index,
+                           &dummy,
+                           &advanceX );
+        sfnt->get_metrics( face,
+                           TRUE,
+                           glyph_index,
+                           &dummy,
+                           &advanceY );
+
+        glyph->root.linearHoriAdvance = advanceX;
+        glyph->root.linearVertAdvance = advanceY;
+
+        glyph->root.metrics.horiAdvance = FT_MulFix( advanceX, x_scale );
+        glyph->root.metrics.vertAdvance = FT_MulFix( advanceY, y_scale );
+
+        return error;
+      }
+
+      FT_TRACE3(( "Failed to load SVG glyph\n" ));
+    }
+
+#endif /* FT_CONFIG_OPTION_SVG */
+
     /* if we have a CID subfont, use its matrix (which has already */
     /* been multiplied with the root matrix)                       */
 
@@ -363,7 +437,6 @@
 
       top_upm = (FT_Long)cff->top_font.font_dict.units_per_em;
       sub_upm = (FT_Long)cff->subfonts[fd_index]->font_dict.units_per_em;
-
 
       font_matrix = cff->subfonts[fd_index]->font_dict.font_matrix;
       font_offset = cff->subfonts[fd_index]->font_dict.font_offset;
@@ -399,7 +472,6 @@
       PS_Driver  driver = (PS_Driver)FT_FACE_DRIVER( face );
 #endif
 
-
       FT_Byte*  charstring;
       FT_ULong  charstring_len;
 
@@ -416,13 +488,14 @@
       decoder.builder.no_recurse =
         FT_BOOL( load_flags & FT_LOAD_NO_RECURSE );
 
-      /* now load the unscaled outline */
-      error = cff_get_glyph_data( face, glyph_index,
-                                  &charstring, &charstring_len );
+      /* this function also checks for a valid subfont index */
+      error = decoder_funcs->prepare( &decoder, size, glyph_index );
       if ( error )
         goto Glyph_Build_Finished;
 
-      error = decoder_funcs->prepare( &decoder, size, glyph_index );
+      /* now load the unscaled outline */
+      error = cff_get_glyph_data( face, glyph_index,
+                                  &charstring, &charstring_len );
       if ( error )
         goto Glyph_Build_Finished;
 
@@ -665,8 +738,12 @@
         metrics->horiBearingY = cbox.yMax;
 
         if ( has_vertical_info )
+        {
           metrics->vertBearingX = metrics->horiBearingX -
                                     metrics->horiAdvance / 2;
+          metrics->vertBearingY = FT_MulFix( metrics->vertBearingY,
+                                             glyph->y_scale );
+        }
         else
         {
           if ( load_flags & FT_LOAD_VERTICAL_LAYOUT )

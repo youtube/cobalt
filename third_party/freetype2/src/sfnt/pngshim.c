@@ -4,7 +4,7 @@
  *
  *   PNG Bitmap glyph support.
  *
- * Copyright (C) 2013-2020 by
+ * Copyright (C) 2013-2023 by
  * Google, Inc.
  * Written by Stuart Gill and Behdad Esfahbod.
  *
@@ -17,10 +17,9 @@
  */
 
 
-#include <ft2build.h>
-#include FT_INTERNAL_DEBUG_H
-#include FT_INTERNAL_STREAM_H
-#include FT_TRUETYPE_TAGS_H
+#include <freetype/internal/ftdebug.h>
+#include <freetype/internal/ftstream.h>
+#include <freetype/tttags.h>
 #include FT_CONFIG_STANDARD_LIBRARY_H
 
 
@@ -61,7 +60,12 @@
     /* predates clang; the `__BYTE_ORDER__' preprocessor symbol was */
     /* introduced in gcc 4.6 and clang 3.2, respectively.           */
     /* `__builtin_shuffle' for gcc was introduced in gcc 4.7.0.     */
-#if ( ( defined( __GNUC__ )                                &&             \
+    /*                                                              */
+    /* Intel compilers do not currently support __builtin_shuffle;  */
+
+    /* The Intel check must be first. */
+#if !defined( __INTEL_COMPILER )                                       && \
+    ( ( defined( __GNUC__ )                                &&             \
         ( ( __GNUC__ >= 5 )                              ||               \
         ( ( __GNUC__ == 4 ) && ( __GNUC_MINOR__ >= 7 ) ) ) )         ||   \
       ( defined( __clang__ )                                       &&     \
@@ -235,7 +239,7 @@
       *e = FT_THROW( Invalid_Stream_Read );
       png_error( png, NULL );
 
-      return;
+      /* return; (never reached) */
     }
 
     ft_memcpy( data, stream->cursor, length );
@@ -266,7 +270,10 @@
 
     int         bitdepth, color_type, interlace;
     FT_Int      i;
-    png_byte*  *rows = NULL; /* pacify compiler */
+
+    /* `rows` gets modified within a 'setjmp' scope; */
+    /* we thus need the `volatile` keyword.          */
+    png_byte* *volatile  rows = NULL;
 
 
     if ( x_offset < 0 ||
@@ -360,7 +367,7 @@
     }
 
     /* transform transparency to alpha */
-    if ( png_get_valid(png, info, PNG_INFO_tRNS ) )
+    if ( png_get_valid( png, info, PNG_INFO_tRNS ) )
       png_set_tRNS_to_alpha( png );
 
     if ( bitdepth == 16 )
@@ -380,7 +387,7 @@
     png_set_filler( png, 0xFF, PNG_FILLER_AFTER );
 
     /* recheck header after setting EXPAND options */
-    png_read_update_info(png, info );
+    png_read_update_info( png, info );
     png_get_IHDR( png, info,
                   &imgWidth, &imgHeight,
                   &bitdepth, &color_type, &interlace,
@@ -400,7 +407,8 @@
     switch ( color_type )
     {
     default:
-      /* Shouldn't happen, but fall through. */
+      /* Shouldn't happen, but ... */
+      FALL_THROUGH;
 
     case PNG_COLOR_TYPE_RGB_ALPHA:
       png_set_read_user_transform_fn( png, premultiply_data );
@@ -423,7 +431,7 @@
         goto DestroyExit;
     }
 
-    if ( FT_NEW_ARRAY( rows, imgHeight ) )
+    if ( FT_QNEW_ARRAY( rows, imgHeight ) )
     {
       error = FT_THROW( Out_Of_Memory );
       goto DestroyExit;
@@ -434,11 +442,11 @@
 
     png_read_image( png, rows );
 
-    FT_FREE( rows );
-
     png_read_end( png, info );
 
   DestroyExit:
+    /* even if reading fails with longjmp, rows must be freed */
+    FT_FREE( rows );
     png_destroy_read_struct( &png, &info, NULL );
     FT_Stream_Close( &stream );
 
