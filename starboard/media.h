@@ -68,9 +68,9 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecFlac,
   kSbMediaAudioCodecPcm,
 #endif  // SB_API_VERSION >= 14
-#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 15
   kSbMediaAudioCodecIamf,
-#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 15
 } SbMediaAudioCodec;
 
 // Indicates how confident the device is that it can play media resources of the
@@ -90,28 +90,28 @@ typedef enum SbMediaSupportType {
 
 // Possible audio connector types.
 typedef enum SbMediaAudioConnector {
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   kSbMediaAudioConnectorUnknown,
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   kSbMediaAudioConnectorNone,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
   kSbMediaAudioConnectorAnalog,
   kSbMediaAudioConnectorBluetooth,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   kSbMediaAudioConnectorBuiltIn,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   kSbMediaAudioConnectorHdmi,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   // A wired remote audio output, like a remote speaker via Ethernet.
   kSbMediaAudioConnectorRemoteWired,
   // A wireless remote audio output, like a remote speaker via Wi-Fi.
   kSbMediaAudioConnectorRemoteWireless,
   // A remote audio output cannot be classified into other existing types.
   kSbMediaAudioConnectorRemoteOther,
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   kSbMediaAudioConnectorNetwork,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   kSbMediaAudioConnectorSpdif,
   kSbMediaAudioConnectorUsb,
 } SbMediaAudioConnector;
@@ -398,7 +398,7 @@ typedef struct SbMediaColorMetadata {
   float custom_primary_matrix[12];
 } SbMediaColorMetadata;
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
 
 // The set of information required by the decoder or player for each video
 // stream.
@@ -455,7 +455,7 @@ typedef struct SbMediaVideoSampleInfo {
   bool is_key_frame;
 } SbMediaVideoSampleInfo;
 
-#else  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else  // SB_API_VERSION >= 15
 
 // The set of information required by the decoder or player for each video
 // sample.
@@ -505,23 +505,23 @@ typedef struct SbMediaVideoSampleInfo {
   SbMediaColorMetadata color_metadata;
 } SbMediaVideoSampleInfo, SbMediaVideoStreamInfo;
 
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
 // A structure describing the audio configuration parameters of a single audio
 // output.
 typedef struct SbMediaAudioConfiguration {
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
   // The platform-defined index of the associated audio output.
   int index;
-#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION < 15
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   // The type of audio connector. Will be |kSbMediaAudioConnectorUnknown| if
   // this device cannot provide this information.
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   // The type of audio connector. Will be the empty |kSbMediaAudioConnectorNone|
   // if this device cannot provide this information.
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   SbMediaAudioConnector connector;
 
   // The expected latency of audio over this output, in microseconds, or |0| if
@@ -537,7 +537,7 @@ typedef struct SbMediaAudioConfiguration {
   int number_of_channels;
 } SbMediaAudioConfiguration;
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
 
 // The set of information required by the decoder or player for each audio
 // stream.
@@ -576,7 +576,7 @@ typedef struct SbMediaAudioSampleInfo {
   SbTime discarded_duration_from_back;
 } SbMediaAudioSampleInfo;
 
-#else  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else  // SB_API_VERSION >= 15
 
 // An audio sample info, which is a description of a given audio sample.  This
 // acts as a set of instructions to the audio decoder.
@@ -620,7 +620,7 @@ typedef struct SbMediaAudioSampleInfo {
   const void* audio_specific_config;
 } SbMediaAudioSampleInfo, SbMediaAudioStreamInfo;
 
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
 // --- Functions -------------------------------------------------------------
 
@@ -855,9 +855,9 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
 // guaranteeing that when only |duration| audio samples are written at a time,
 // no playback issues occur (such as transient or indefinite hanging). The
 // platform may assume |duration| >= 0.5 seconds.
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
 SB_EXPORT void SbMediaSetAudioWriteDuration(SbTime duration);
-#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION < 15
 
 #ifdef __cplusplus
 }  // extern "C"

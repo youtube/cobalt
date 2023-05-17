@@ -44,11 +44,11 @@ void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
   SbEvent event;
   event.type = type;
   event.data = data;
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   Application::Get()->sb_event_handle_callback_(&event);
 #else
   SbEventHandle(&event);
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
   if (destructor) {
     destructor(event.data);
   }
@@ -69,7 +69,7 @@ volatile SbAtomic32 g_next_event_id = 0;
 
 Application* Application::g_instance = NULL;
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : error_level_(0),
       thread_(SbThreadGetCurrent()),
@@ -84,7 +84,7 @@ Application::Application()
       thread_(SbThreadGetCurrent()),
       start_link_(NULL),
       state_(kStateUnstarted) {
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
@@ -554,11 +554,11 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
 // OnSuspend() is called after SbEventHandle(kSbEventTypeSuspend).
 #endif  // SB_API_VERSION >= 13
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   sb_event_handle_callback_(scoped_event->event);
 #else
   SbEventHandle(scoped_event->event);
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
 
 #if SB_API_VERSION >= 13
   switch (scoped_event->event->type) {

@@ -372,7 +372,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                         advertising_id.empty() ? "1" : "0");
     }
 #endif  // SB_API_VERSION >= 14
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return GetDeviceType(out_value, value_length);
 #endif

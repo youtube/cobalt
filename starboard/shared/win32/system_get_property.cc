@@ -69,7 +69,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
           starboard::GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
 #endif
 
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         starboard::kSystemDeviceTypeDesktopPC);

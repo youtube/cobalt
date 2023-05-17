@@ -235,7 +235,7 @@ SB_EXPORT bool SbMemoryProtect(void* virtual_address,
 SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 #endif
 
-#if SB_API_VERSION < SB_STACK_BOUNDS_REMOVED_API_VERSION
+#if SB_API_VERSION < 15
 
 // Gets the stack bounds for the current thread.
 //
@@ -243,7 +243,7 @@ SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 // |out_low|: The lowest addressable byte for the current thread.
 SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
-#endif  // SB_API_VERSION < SB_STACK_BOUNDS_REMOVED_API_VERSION
+#endif  // SB_API_VERSION < 15
 
 #if SB_API_VERSION < 13
 

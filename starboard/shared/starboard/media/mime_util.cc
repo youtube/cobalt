@@ -103,13 +103,13 @@ bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
     case kSbMediaAudioCodecPcm:
       return false;
 #endif  // SB_API_VERSION >= 14
-#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 15
     case kSbMediaAudioCodecIamf:
       if (mime_type.subtype() != "mp4") {
         return false;
       }
       break;
-#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 15
   }
 
   if (!IsAudioOutputSupported(kSbMediaAudioCodingTypePcm,

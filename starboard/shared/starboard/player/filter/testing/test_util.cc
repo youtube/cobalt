@@ -257,11 +257,11 @@ media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
 }
 
 bool IsPartialAudioSupported() {
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   return true;
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   return SbSystemGetExtension(kCobaltExtensionEnhancedAudioName) != nullptr;
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 scoped_refptr<InputBuffer> GetAudioInputBuffer(
@@ -283,14 +283,14 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   SB_DCHECK(dmp_reader);
   auto player_sample_info =
       dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   player_sample_info.audio_sample_info.discarded_duration_from_front =
       discarded_duration_from_front;
   player_sample_info.audio_sample_info.discarded_duration_from_back =
       discarded_duration_from_back;
   auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
                                       nullptr, player_sample_info);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   media::AudioSampleInfo audio_sample_info(
       player_sample_info.audio_sample_info);
   audio_sample_info.discarded_duration_from_front =
@@ -310,7 +310,7 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
 
   auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
                                       nullptr, enhanced_audio_sample_info);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   return input_buffer;
 }
 

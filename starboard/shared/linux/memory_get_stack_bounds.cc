@@ -18,7 +18,7 @@
 
 #include "starboard/common/log.h"
 
-#if SB_API_VERSION < SB_STACK_BOUNDS_REMOVED_API_VERSION
+#if SB_API_VERSION < 15
 void SbMemoryGetStackBounds(void** out_high, void** out_low) {
   void* stackBase = 0;
   size_t stackSize = 0;

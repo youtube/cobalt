@@ -124,10 +124,10 @@ class MediaModule : public WebMediaPlayerFactory,
 
   bool allow_batched_sample_write_ = false;
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   SbTime audio_write_duration_local_ = kSbPlayerWriteDurationLocal;
   SbTime audio_write_duration_remote_ = kSbPlayerWriteDurationRemote;
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
   DecoderBufferAllocator decoder_buffer_allocator_;
 };

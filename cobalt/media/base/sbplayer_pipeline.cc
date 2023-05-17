@@ -92,7 +92,7 @@ struct StartTaskParameters {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 };
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
   for (auto&& configuration : configurations) {
@@ -121,7 +121,7 @@ bool HasRemoteAudioOutputs(
 
   return false;
 }
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
@@ -136,9 +136,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       const GetDecodeTargetGraphicsContextProviderFunc&
           get_decode_target_graphics_context_provider_func,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
       SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
       MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
 
@@ -359,7 +359,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   DecodeTargetProvider* decode_target_provider_;
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   const SbTime audio_write_duration_local_;
   const SbTime audio_write_duration_remote_;
 
@@ -368,7 +368,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // is, which simplifies the implementation across multiple Starboard versions.
   SbTime audio_write_duration_ = 0;
   SbTime audio_write_duration_for_preroll_ = audio_write_duration_;
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   // Read audio from the stream if |timestamp_of_last_written_audio_| is less
   // than |seek_time_| + |audio_write_duration_for_preroll_|, this effectively
   // allows 10 seconds of audio to be written to the SbPlayer after playback
@@ -377,7 +377,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Don't read audio from the stream more than |audio_write_duration_| ahead of
   // the current media time during playing.
   SbTime audio_write_duration_ = kSbTimeSecond;
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
   static const SbTime kMediaTimeCheckInterval = 0.1 * kSbTimeSecond;
@@ -408,9 +408,9 @@ SbPlayerPipeline::SbPlayerPipeline(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
     SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
     MediaLog* media_log, DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
           base::StringPrintf("%X", g_pipeline_identifier_counter++)),
@@ -452,10 +452,10 @@ SbPlayerPipeline::SbPlayerPipeline(
                     kSbPlayerStateInitialized,
                     "The underlying SbPlayer state of the media pipeline."),
       decode_target_provider_(decode_target_provider),
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
       last_media_time_(base::StringPrintf("Media.Pipeline.%s.LastMediaTime",
                                           pipeline_identifier_.c_str()),
                        0, "Last media time reported by the underlying player."),
@@ -464,12 +464,12 @@ SbPlayerPipeline::SbPlayerPipeline(
                              pipeline_identifier_.c_str()),
           "", "The max video capabilities required for the media pipeline."),
       playback_statistics_(pipeline_identifier_) {
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
   SbMediaSetAudioWriteDuration(audio_write_duration_);
   LOG(INFO) << "Setting audio write duration to " << audio_write_duration_
             << ", the duration during preroll is "
             << audio_write_duration_for_preroll_;
-#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION < 15
 }
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
@@ -852,7 +852,7 @@ void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
 }
 
 std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   base::AutoLock auto_lock(lock_);
   if (!player_bridge_) {
     return std::vector<std::string>();
@@ -866,9 +866,9 @@ std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
   }
 
   return connectors;
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   return std::vector<std::string>();
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 bool SbPlayerPipeline::DidLoadingProgress() const {
@@ -1126,7 +1126,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         *decode_to_texture_output_mode_, decode_target_provider_,
         max_video_capabilities_, pipeline_identifier_));
     if (player_bridge_->IsValid()) {
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
       // returns no audio configurations, update the write durations again
       // before the SbPlayer reaches `kSbPlayerStatePresenting`.
@@ -1136,7 +1136,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
                 << audio_write_duration_for_preroll_;
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
@@ -1452,14 +1452,14 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         playback_statistics_.OnPresenting(
             video_stream_->video_decoder_config());
       }
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge reaches kSbPlayerStatePresenting, with audio"
                 << " write duration at " << audio_write_duration_;
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
       break;
     }
     case kSbPlayerStateEndOfStream:
@@ -1714,17 +1714,17 @@ scoped_refptr<Pipeline> Pipeline::Create(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
     SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
     MediaLog* media_log, DecodeTargetProvider* decode_target_provider) {
   return new SbPlayerPipeline(
       interface, window, task_runner,
       get_decode_target_graphics_context_provider_func,
       allow_resume_after_suspend, allow_batched_sample_write,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
       audio_write_duration_local, audio_write_duration_remote,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
       media_log, decode_target_provider);
 }
 

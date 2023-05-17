@@ -115,9 +115,9 @@ class SbPlayerBridge {
   void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time);
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
 #if SB_HAS(PLAYER_WITH_URL)
   void GetUrlPlayerBufferedTimeRanges(base::TimeDelta* buffer_start_time,

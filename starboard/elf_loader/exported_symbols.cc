@@ -190,9 +190,9 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 13
   REGISTER_SYMBOL(SbMediaIsSupported);
 #endif  // SB_API_VERSION < 13
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
-#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
@@ -213,7 +213,7 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
-#if SB_API_VERSION < SB_STACK_BOUNDS_REMOVED_API_VERSION
+#if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMemoryGetStackBounds);
 #endif
   REGISTER_SYMBOL(SbMemoryMap);
@@ -243,31 +243,31 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbOnce);
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetAudioConfiguration);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetCurrentFrame);
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetInfo);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetInfo2);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetMaximumNumberOfSamplesPerWrite);
   REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerSeek);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerSeek2);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerSetBounds);
   REGISTER_SYMBOL(SbPlayerSetPlaybackRate);
   REGISTER_SYMBOL(SbPlayerSetVolume);
   REGISTER_SYMBOL(SbPlayerWriteEndOfStream);
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerWriteSamples);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerWriteSample2);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
   REGISTER_SYMBOL(SbSocketClearLastError);
@@ -355,7 +355,7 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 14
   REGISTER_SYMBOL(SbSystemGetConnectionType);
 #endif
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbSystemGetDeviceType);
 #endif
   REGISTER_SYMBOL(SbSystemGetErrorString);

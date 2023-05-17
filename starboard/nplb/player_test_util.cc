@@ -174,9 +174,9 @@ void CallSbPlayerWriteSamples(
   static auto const* enhanced_audio_extension =
       static_cast<const CobaltExtensionEnhancedAudioApi*>(
           SbSystemGetExtension(kCobaltExtensionEnhancedAudioName));
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   ASSERT_FALSE(enhanced_audio_extension);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
   if (enhanced_audio_extension) {
     ASSERT_STREQ(enhanced_audio_extension->name,
@@ -225,13 +225,13 @@ void CallSbPlayerWriteSamples(
     sample_infos.push_back(
         dmp_reader->GetPlayerSampleInfo(sample_type, start_index++));
   }
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos.data(),
                        number_of_samples_to_write);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   SbPlayerWriteSample2(player, sample_type, sample_infos.data(),
                        number_of_samples_to_write);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,

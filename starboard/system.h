@@ -138,14 +138,14 @@ typedef enum SbSystemPropertyId {
   kSbSystemPropertyLimitAdTracking,
 #endif
 
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION >= 15
   // Type of the device, e.g. such as "TV", "STB", "OTT"
   // Please see Youtube Technical requirements for a full list of allowed values
   kSbSystemPropertyDeviceType,
 #endif
 } SbSystemPropertyId;
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
 // Enumeration of device types.
 typedef enum SbSystemDeviceType {
   // Blue-ray Disc Player (BDP).
@@ -180,7 +180,7 @@ typedef enum SbSystemDeviceType {
   // Unknown device.
   kSbSystemDeviceTypeUnknown,
 } SbSystemDeviceType;
-#endif  // SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#endif  // SB_API_VERSION < 15
 
 #if SB_API_VERSION < 14
 // Enumeration of network connection types.
@@ -322,7 +322,7 @@ SB_EXPORT int64_t SbSystemGetTotalGPUMemory();
 // SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is |true|.
 SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
 // Returns the type of the device.
 SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
 #endif
