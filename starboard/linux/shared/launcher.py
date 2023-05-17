@@ -63,6 +63,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.executable = self.GetTargetPath()
     if not os.path.exists(self.executable):
       self.executable += "_loader"
+    if not os.path.exists(self.executable):
+      self.executable = os.path.abspath(
+          os.path.join(self.out_directory, "starboard", self.target_name))
 
     env = os.environ.copy()
     env.update(self.env_variables)
