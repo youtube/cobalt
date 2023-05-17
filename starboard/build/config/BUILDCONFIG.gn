@@ -394,6 +394,7 @@ template("shared_library") {
           "OUT_DIRECTORY=\"${out_dir}\"",
         ]
         configs += [ "//starboard/build/config:starboard_implementation" ]
+
         ldflags = [
           "-Wl,-rpath=" + rebase_path("$root_build_dir/starboard"),
           "-Wl,-rpath=" + rebase_path("$root_build_dir"),

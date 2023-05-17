@@ -29,7 +29,9 @@ config("platform_configuration") {
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
   if (build_with_separate_cobalt_toolchain) {
-    libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.so" ]
+    libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.so.6" ]
+    ldflags = [ "-Wl,-rpath=" + rebase_path("//") +
+                "/third_party/libvpx/platforms/linux-x64/" ]
   } else {
     libs = [ "//third_party/libvpx/platforms/linux-x64/libvpx.a" ]
   }
