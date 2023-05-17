@@ -164,7 +164,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                         limit_ad_tracking_enabled ? "1" : "0");
     }
 #endif
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         starboard::kSystemDeviceTypeAndroidTV);

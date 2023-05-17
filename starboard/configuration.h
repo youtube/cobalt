@@ -39,12 +39,12 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 15
+#define SB_MAXIMUM_API_VERSION 16
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 15
+#define SB_EXPERIMENTAL_API_VERSION 16
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
@@ -64,62 +64,6 @@
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// SbMemoryGetStackBounds API has been removed/deprecated.
-#define SB_STACK_BOUNDS_REMOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// SystemDeviceType enum is converted to a string from enum
-#define SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Improves audio access unit processing.
-//   1.  Abstracted stream specific info from SbMediaAudioSampleInfo and
-//       SbMediaVideoSampleInfo into SbMediaAudioStreamInfo and
-//       SbMediaVideoStreamInfo.
-//   2.  Removed unused info about the audio stream.
-//   3.  Renamed SbPlayerWriteSample2() to SbPlayerWriteSamples().
-//   4.  Improved accuracy of audio write duration handling.
-//       The app will set audio write duration to 0.5 seconds for wired audio
-//       output device, and 10 seconds for wireless audio output device.
-//       Added `SbPlayerGetAudioConfiguration()` to allow the app to query
-//       active audio output devices used by the SbPlayer.
-//       `SbMediaSetAudioWriteDuration()` is deprecated as a result.
-//       Note that the app used to set audio write duration to 10 seconds at
-//       playback startup or seek to accommodate wireless devices, now the app
-//       sets the audio write duration to 0.5 seconds at all time for wired
-//       devices.
-//   5.  Refined SbMediaAudioConnector.
-//       Renamed `kSbMediaAudioConnectorNone` to
-//       `kSbMediaAudioConnectorUnknown`, as the implementation should only use
-//       this value when the audio output is available but its type cannot be
-//       determined.
-//   6.  Removed index from SbMediaAudioConfiguration.
-//       Removed unused member variable `SbMediaAudioConfiguration::index`.
-#define SB_MEDIA_ENHANCED_AUDIO_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Minimum Starboard version for modular toolchain builds.
-#define SB_MINIMUM_API_VERSION_FOR_SB_MODULAR_BUILD SB_EXPERIMENTAL_API_VERSION
-
-// Support the IAMF audio codec.
-#define SB_MEDIA_IAMF_SUPPORT_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// This configuration is set for modular builds, which have:
-//   1. Application binary built as a shared library.
-//   2. Either
-//     - Starboard built at a shared library and a separate loader_app
-//     executable.
-//     - A loader_app executable with Starboard built in ( Evergreen ).
-#define SB_MODULAR_BUILD \
-  (SB_API_VERSION >= SB_MINIMUM_API_VERSION_FOR_SB_MODULAR_BUILD)
-
-// Moved atomic operations C++ wrappers to starboard/common.
-#define SB_ATOMIC_MOVED_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Minimum Starboard version for media tests based on 2024 hardware
-// certification requirements.
-#define SB_2024_HW_CERT_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Support the keycode for the remote record button.
-#define SB_RECORD_KEY_CODE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 

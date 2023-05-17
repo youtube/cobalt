@@ -19,7 +19,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/time.h"
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
 
 bool SbPlayerGetAudioConfiguration(
     SbPlayer player,
@@ -40,4 +40,4 @@ bool SbPlayerGetAudioConfiguration(
   return SbMediaGetAudioConfiguration(index, out_audio_configuration);
 }
 
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15

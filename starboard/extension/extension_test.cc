@@ -394,7 +394,7 @@ TEST(ExtensionTest, EnhancedAudio) {
     return;
   }
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   ASSERT_FALSE(extension_api)
       << "EnhancedAudio extension shouldn't be used under SB_API_VERSION "
       << SB_API_VERSION
@@ -404,7 +404,7 @@ TEST(ExtensionTest, EnhancedAudio) {
       << " implementation to `SbPlayerWriteSample()` (as they are compatible"
       << " at abi level) and disable the EnhancedAudio extension from"
       << " `SbSystemGetExtension()`.";
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);

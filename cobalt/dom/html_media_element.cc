@@ -645,7 +645,7 @@ void HTMLMediaElement::ScheduleEvent(const scoped_refptr<web::Event>& event) {
 
 std::string HTMLMediaElement::h5vcc_audio_connectors(
     script::ExceptionState* exception_state) const {
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   if (!player_) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
@@ -654,11 +654,11 @@ std::string HTMLMediaElement::h5vcc_audio_connectors(
 
   std::vector<std::string> configs = player_->GetAudioConnectors();
   return base::JoinString(configs, ";");
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   web::DOMException::Raise(web::DOMException::kNotSupportedErr,
                            exception_state);
   return std::string();
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {

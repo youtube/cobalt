@@ -44,7 +44,7 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
     return original_design_manufacturer_;
   }
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   SbSystemDeviceType device_type() const override { return device_type_; }
 #endif
 
@@ -90,7 +90,7 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   void set_os_name_and_version(const std::string& os_name_and_version);
   void set_original_design_manufacturer(
       base::Optional<std::string> original_design_manufacturer);
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   void set_device_type(SbSystemDeviceType device_type);
 #endif
   void set_device_type(const std::string& device_type);
@@ -116,7 +116,7 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   std::string starboard_version_;
   std::string os_name_and_version_;
   base::Optional<std::string> original_design_manufacturer_;
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   SbSystemDeviceType device_type_ = kSbSystemDeviceTypeUnknown;
 #endif
   std::string device_type_string_;

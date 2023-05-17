@@ -22,7 +22,7 @@
 using Windows::System::Profile::AnalyticsInfo;
 using Windows::System::Profile::AnalyticsVersionInfo;
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
 
 SbSystemDeviceType SbSystemGetDeviceType() {
   AnalyticsVersionInfo ^ version_info = AnalyticsInfo::VersionInfo;

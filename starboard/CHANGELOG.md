@@ -14,6 +14,7 @@ A description of all changes currently in the experimental Starboard version
 can be found in the comments of the "Experimental Feature Defines" section of
 [configuration.h](configuration.h).
 
+## Version 15
 ### Removed version suffixes of SbPlayer functions and structures
 Renamed SbPlayerInfo2 to SbPlayerInfo, SbPlayerSeek2() to SbPlayerSeek(),and
 SbPlayerGetInfo2() to SbPlayerGetInfo(), as the version suffixes are no longer
@@ -58,6 +59,30 @@ This configuration is set for modular builds, which have:
 This code has been separated out and refactored into `starboard/common/atomic.h`
 to break dependency cycle between Starboard interface and Starboard Common C++
 library.
+
+### Improves audio access unit processing.
+  1.  Abstracted stream specific info from SbMediaAudioSampleInfo and
+      SbMediaVideoSampleInfo into SbMediaAudioStreamInfo and
+      SbMediaVideoStreamInfo.
+  2.  Removed unused info about the audio stream.
+  3.  Renamed SbPlayerWriteSample2() to SbPlayerWriteSamples().
+  4.  Improved accuracy of audio write duration handling.
+      The app will set audio write duration to 0.5 seconds for wired audio
+      output device, and 10 seconds for wireless audio output device.
+      Added `SbPlayerGetAudioConfiguration()` to allow the app to query
+      active audio output devices used by the SbPlayer.
+      `SbMediaSetAudioWriteDuration()` is deprecated as a result.
+      Note that the app used to set audio write duration to 10 seconds at
+      playback startup or seek to accommodate wireless devices, now the app
+      sets the audio write duration to 0.5 seconds at all time for wired
+      devices.
+  5.  Refined SbMediaAudioConnector.
+      Renamed `kSbMediaAudioConnectorNone` to
+      `kSbMediaAudioConnectorUnknown`, as the implementation should only use
+      this value when the audio output is available but its type cannot be
+      determined.
+  6.  Removed index from SbMediaAudioConfiguration.
+      Removed unused member variable `SbMediaAudioConfiguration::index`.
 
 ### Removed SbMemoryGetStackBounds
 This API is unused by Cobalt and has been deprecated.

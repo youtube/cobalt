@@ -61,22 +61,22 @@ int main(int argc, char** argv) {
                                                          ca_certificates_path);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   int result = SbRunStarboardMain(argc, argv, SbEventHandle);
 #else
   starboard::raspi::shared::ApplicationDispmanx application;
   int result = application.Run(argc, argv);
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::raspi::shared::ApplicationDispmanx application(callback);
   int result = application.Run(argc, argv);
   return result;
 }
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15

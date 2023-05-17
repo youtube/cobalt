@@ -194,7 +194,7 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {
     audio_write_duration_local_ = value;
     LOG(INFO) << "Set AudioWriteDurationLocal to "
@@ -205,7 +205,7 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << "Set AudioWriteDurationRemote to "
               << audio_write_duration_remote_;
     return true;
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   }
   return false;
 }
@@ -224,9 +224,9 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
                  base::Unretained(this)),
       client, this, options_.allow_resume_after_suspend,
       allow_batched_sample_write_,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
       audio_write_duration_local_, audio_write_duration_remote_,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
       &media_log_));
 }
 

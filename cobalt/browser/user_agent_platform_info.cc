@@ -109,7 +109,7 @@ void GetUserAgentInputMap(
 
 namespace {
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
 
 struct DeviceTypeName {
   SbSystemDeviceType device_type;
@@ -150,7 +150,7 @@ SbSystemDeviceType GetDeviceType(std::string device_type_string) {
   return kSbSystemDeviceTypeUnknown;
 }
 #endif
-#endif  // SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#endif  // SB_API_VERSION < 15
 
 static bool isAsciiAlphaDigit(int c) {
   return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
@@ -291,7 +291,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
     info.set_aux_field(value);
   }
 
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION >= 15
   result = SbSystemGetProperty(kSbSystemPropertyDeviceType, value,
                                kSystemPropertyMaxLength);
   SB_DCHECK(result);
@@ -366,7 +366,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
           info.set_original_design_manufacturer(input.second);
           LOG(INFO) << "Set original design manufacturer to " << input.second;
         } else if (!input.first.compare("device_type")) {
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
           info.set_device_type(GetDeviceType(input.second));
 #else
           info.set_device_type(input.second);
@@ -446,7 +446,7 @@ void UserAgentPlatformInfo::set_original_design_manufacturer(
   }
 }
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
 void UserAgentPlatformInfo::set_device_type(SbSystemDeviceType device_type) {
   device_type_ = device_type;
   device_type_string_ = CreateDeviceTypeString(device_type_);

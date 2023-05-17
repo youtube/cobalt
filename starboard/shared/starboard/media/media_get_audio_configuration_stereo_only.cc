@@ -16,10 +16,10 @@
 
 #include "starboard/media.h"
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
 #error File media_get_audio_configuration_stereo_only.cc is deprecated, \
     consider using media_get_audio_configuration.cc instead.
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
 bool SbMediaGetAudioConfiguration(
     int output_index,

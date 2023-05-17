@@ -122,7 +122,7 @@ std::string GetDevServersListenIp() {
   // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   // Desktop PCs default to loopback.
   if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
     listen_ip = ip_v6 ? "::1" : "127.0.0.1";
