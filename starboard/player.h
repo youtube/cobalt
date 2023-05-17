@@ -621,7 +621,7 @@ SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
 #else   // SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerGetInfo2(SbPlayer player,
                                 SbPlayerInfo2* out_player_info2);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VER
+#endif  // SB_API_VERSION >= 15
 
 // Given a player created with the kSbPlayerOutputModeDecodeToTexture
 // output mode, it will return a SbDecodeTarget representing the current frame

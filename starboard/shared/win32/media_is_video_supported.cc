@@ -26,8 +26,6 @@ using ::starboard::shared::starboard::media::MimeType;
 
 namespace {
 
-#if SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION || \
-    defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 // Cache the VP9 support status since the check may be expensive.
 enum Vp9Support { kVp9SupportUnknown, kVp9SupportYes, kVp9SupportNo };
 Vp9Support s_vp9_support = kVp9SupportUnknown;
@@ -73,13 +71,6 @@ bool IsVp9Supported() {
   }
   return s_vp9_support == kVp9SupportYes;
 }
-#else   // SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION ||
-// defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
-bool IsVp9Supported() {
-  return false;
-}
-#endif  // SB_API_VERSION >= SB_RUNTIME_CONFIGS_VERSION ||
-        // defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
 
 }  // namespace
 

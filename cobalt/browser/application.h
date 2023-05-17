@@ -121,10 +121,8 @@ class Application {
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
   base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
   base::EventCallback on_caption_settings_changed_event_callback_;
-#if SB_API_VERSION >= SB_NETWORK_EVENT_VERSION
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;
-#endif
   base::EventCallback on_date_time_configuration_changed_event_callback_;
 
   // Thread checkers to ensure that callbacks for network and application events
