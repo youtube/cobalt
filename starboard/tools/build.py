@@ -70,10 +70,14 @@ def _ModuleLoaded(module_name, module_path):
 
 
 def _LoadModule(module_name, module_path):
-  spec = importlib.util.spec_from_file_location(module_name, module_path)
-  module = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(module)
-  return module
+  try:
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+  except AttributeError as e:
+    print(sys.version)
+    raise e
 
 
 def _LoadPlatformModule(platform_name, file_name, function_name):
