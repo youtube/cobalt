@@ -194,10 +194,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   const int kDefaultAudioSinkMaxCachedFrames =
       8 * kDefaultAudioSinkMinFramesPerAppend;
 
-  virtual SbDrmSystem GetExtendedDrmSystem(SbDrmSystem drm_system) {
-    return drm_system;
-  }
-
   static int AlignUp(int value, int alignment) {
     return (value + alignment - 1) / alignment * alignment;
   }
@@ -240,9 +236,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     // TODO: Enable tunnel mode for passthrough
     scoped_ptr<AudioRendererPassthrough> audio_renderer;
     audio_renderer.reset(new AudioRendererPassthrough(
+<<<<<<< HEAD
         creation_parameters.audio_sample_info(),
         GetExtendedDrmSystem(creation_parameters.drm_system()),
         enable_audio_device_callback));
+=======
+        creation_parameters.audio_stream_info(),
+        creation_parameters.drm_system(), enable_audio_device_callback));
+>>>>>>> 239282c791 ([android] Refine Widevine L3 implementation (#373))
     if (!audio_renderer->is_valid()) {
       return scoped_ptr<PlayerComponents>();
     }
@@ -419,9 +420,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
+<<<<<<< HEAD
           creation_parameters.audio_sample_info(),
           GetExtendedDrmSystem(creation_parameters.drm_system()),
           decoder_creator));
+=======
+          creation_parameters.audio_stream_info(),
+          creation_parameters.drm_system(), decoder_creator));
+>>>>>>> 239282c791 ([android] Refine Widevine L3 implementation (#373))
 
       bool enable_audio_device_callback =
           audio_mime_type.GetParamBoolValue("enableaudiodevicecallback", true);
@@ -520,8 +526,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
 
     scoped_ptr<VideoDecoder> video_decoder(new VideoDecoder(
-        creation_parameters.video_codec(),
-        GetExtendedDrmSystem(creation_parameters.drm_system()),
+        creation_parameters.video_codec(), creation_parameters.drm_system(),
         creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
