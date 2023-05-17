@@ -64,7 +64,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
+#if SB_API_VERSION < 15
   REGISTER_SYMBOL(kSbHasAc3Audio);
+#endif  // SB_API_VERSION < 15
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);

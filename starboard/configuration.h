@@ -462,8 +462,7 @@ struct CompileAssert {};
 #if defined(SB_HAS_AC3_AUDIO)
 #error \
     "SB_HAS_AC3_AUDIO should not be defined in Starboard " \
-"versions 12 and later. Instead, define kSbHasAc3Audio in " \
-"starboard/<PLATFORM_PATH>/configuration_constants.cc."
+"versions 12 and later."
 #endif
 
 #if defined(SB_HAS_MEDIA_WEBM_VP9_SUPPORT)
