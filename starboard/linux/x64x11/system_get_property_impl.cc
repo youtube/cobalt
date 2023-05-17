@@ -34,10 +34,8 @@ const char kSystemIntegratorName[] = "SystemIntegratorName";
 
 #if SB_API_VERSION >= 14
 const char kModelYear[] = "2023";
-#elif SB_API_VERSION >= 13
+#else
 const char kModelYear[] = "2022";
-#elif SB_API_VERSION >= 12
-const char kModelYear[] = "2021";
 #endif  // SB_API_VERSION
 }  // namespace
 

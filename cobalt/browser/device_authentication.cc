@@ -32,25 +32,6 @@ namespace {
 
 constexpr size_t kSHA256DigestSize = 32;
 
-#if SB_API_VERSION < 13
-bool ComputeSignatureWithSystemPropertySecret(const std::string& message,
-                                              uint8_t* signature) {
-  const size_t kBase64EncodedCertificationSecretLength = 1023;
-  char base_64_secret_property[kBase64EncodedCertificationSecretLength + 1] = {
-      0};
-  bool result = SbSystemGetProperty(
-      kSbSystemPropertyBase64EncodedCertificationSecret,
-      base_64_secret_property, kBase64EncodedCertificationSecretLength);
-  if (!result) {
-    return false;
-  }
-
-  ComputeHMACSHA256SignatureWithProvidedKey(message, base_64_secret_property,
-                                            signature, kSHA256DigestSize);
-  return true;
-}
-#endif  // SB_API_VERSION < 13
-
 bool ComputeSignatureFromSignAPI(const std::string& message,
                                  uint8_t* signature) {
   return SbSystemSignWithCertificationSecretKey(
@@ -68,10 +49,6 @@ std::string ComputeBase64Signature(const std::string& message) {
   if (ComputeSignatureFromSignAPI(message, signature)) {
     DLOG(INFO) << "Using certification signature provided by "
                << "SbSystemSignWithCertificationSecretKey().";
-#if SB_API_VERSION < 13
-  } else if (ComputeSignatureWithSystemPropertySecret(message, signature)) {
-    DLOG(INFO) << "Using certification key from SbSystemGetProperty().";
-#endif  // SB_API_VERSION < 13
   } else {
     return std::string();
   }

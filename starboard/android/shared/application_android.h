@@ -81,13 +81,8 @@ class ApplicationAndroid
   bool OnSearchRequested();
   void HandleDeepLink(const char* link_url);
   void SendTTSChangedEvent() {
-#if SB_API_VERSION >= 13
     Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
                      nullptr, nullptr));
-#else
-    Inject(new Event(kSbEventTypeAccessiblityTextToSpeechSettingsChanged,
-                     nullptr, nullptr));
-#endif
   }
 
   void SendAndroidCommand(AndroidCommand::CommandType type, void* data);

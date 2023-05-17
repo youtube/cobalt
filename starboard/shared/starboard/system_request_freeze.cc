@@ -16,8 +16,6 @@
 
 #include "starboard/shared/starboard/application.h"
 
-#if SB_API_VERSION >= 13
 void SbSystemRequestFreeze() {
   starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
 }
-#endif  // SB_API_VERSION >= 13

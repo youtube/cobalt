@@ -92,20 +92,10 @@ void StartApplication(int argc, char** argv, const char* link,
     return;
   }
   LOG(INFO) << "Starting application.";
-#if SB_API_VERSION >= 13
   DCHECK(!g_application);
   g_application = new cobalt::browser::Application(
       quit_closure, false /*not_preload*/, timestamp);
   DCHECK(g_application);
-#else
-  if (!g_application) {
-    g_application = new cobalt::browser::Application(
-        quit_closure, false /*should_preload*/, timestamp);
-    DCHECK(g_application);
-  } else {
-    g_application->Start(timestamp);
-  }
-#endif  // SB_API_VERSION >= 13
 }
 
 void StopApplication() {

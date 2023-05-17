@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/character.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"

@@ -17,14 +17,13 @@
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
 #include "starboard/byte_swap.h"
-#include "starboard/character.h"
+#include "starboard/common/log.h"
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
 #include "starboard/directory.h"
-#include "starboard/double.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
@@ -39,10 +38,6 @@
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
-#if SB_API_VERSION < 13
-#include "starboard/speech_recognizer.h"
-#endif
-#include "starboard/common/log.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/string.h"
@@ -107,15 +102,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbByteSwapU16);
   REGISTER_SYMBOL(SbByteSwapU32);
   REGISTER_SYMBOL(SbByteSwapU64);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbCharacterIsAlphanumeric);
-  REGISTER_SYMBOL(SbCharacterIsDigit);
-  REGISTER_SYMBOL(SbCharacterIsHexDigit);
-  REGISTER_SYMBOL(SbCharacterIsSpace);
-  REGISTER_SYMBOL(SbCharacterIsUpper);
-  REGISTER_SYMBOL(SbCharacterToLower);
-  REGISTER_SYMBOL(SbCharacterToUpper);
-#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbConditionVariableBroadcast);
   REGISTER_SYMBOL(SbConditionVariableCreate);
   REGISTER_SYMBOL(SbConditionVariableDestroy);
@@ -130,13 +116,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDirectoryCreate);
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbDoubleAbsolute);
-  REGISTER_SYMBOL(SbDoubleExponent);
-  REGISTER_SYMBOL(SbDoubleFloor);
-  REGISTER_SYMBOL(SbDoubleIsFinite);
-  REGISTER_SYMBOL(SbDoubleIsNan);
-#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbDrmCloseSession);
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
@@ -187,9 +166,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
   REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbMediaIsSupported);
-#endif  // SB_API_VERSION < 13
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
 #endif  // SB_API_VERSION < 15
@@ -198,16 +174,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
   REGISTER_SYMBOL(SbMemoryAllocateNoReport);
   REGISTER_SYMBOL(SbMemoryAllocateUnchecked);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbMemoryCompare);
-  REGISTER_SYMBOL(SbMemoryCopy);
-#endif
   REGISTER_SYMBOL(SbMemoryDeallocate);
   REGISTER_SYMBOL(SbMemoryDeallocateAligned);
   REGISTER_SYMBOL(SbMemoryDeallocateNoReport);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbMemoryFindByte);
-#endif
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
@@ -217,15 +186,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryGetStackBounds);
 #endif
   REGISTER_SYMBOL(SbMemoryMap);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbMemoryMove);
-#endif
   REGISTER_SYMBOL(SbMemoryProtect);
   REGISTER_SYMBOL(SbMemoryReallocate);
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbMemorySet);
-#endif
   REGISTER_SYMBOL(SbMemorySetReporter);
   REGISTER_SYMBOL(SbMemoryUnmap);
   REGISTER_SYMBOL(SbMicrophoneClose);
@@ -300,14 +263,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketWaiterWait);
   REGISTER_SYMBOL(SbSocketWaiterWaitTimed);
   REGISTER_SYMBOL(SbSocketWaiterWakeUp);
-#if SB_API_VERSION == 12
-  REGISTER_SYMBOL(SbSpeechRecognizerCancel);
-  REGISTER_SYMBOL(SbSpeechRecognizerCreate);
-  REGISTER_SYMBOL(SbSpeechRecognizerDestroy);
-  REGISTER_SYMBOL(SbSpeechRecognizerIsSupported);
-  REGISTER_SYMBOL(SbSpeechRecognizerStart);
-  REGISTER_SYMBOL(SbSpeechRecognizerStop);
-#endif  // SB_API_VERSION == 12
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
@@ -317,39 +272,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStorageOpenRecord);
   REGISTER_SYMBOL(SbStorageReadRecord);
   REGISTER_SYMBOL(SbStorageWriteRecord);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbStringCompare);
-  REGISTER_SYMBOL(SbStringCompareAll);
-#endif
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbStringCompareWide);
-  REGISTER_SYMBOL(SbStringConcat);
-  REGISTER_SYMBOL(SbStringConcatWide);
-  REGISTER_SYMBOL(SbStringCopy);
-  REGISTER_SYMBOL(SbStringCopyWide);
-#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbStringDuplicate);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbStringFindCharacter);
-  REGISTER_SYMBOL(SbStringFindLastCharacter);
-  REGISTER_SYMBOL(SbStringFindString);
-#endif
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbStringGetLength);
-  REGISTER_SYMBOL(SbStringGetLengthWide);
-  REGISTER_SYMBOL(SbStringParseDouble);
-  REGISTER_SYMBOL(SbStringParseSignedInteger);
-  REGISTER_SYMBOL(SbStringParseUInt64);
-  REGISTER_SYMBOL(SbStringParseUnsignedInteger);
-#endif
   REGISTER_SYMBOL(SbStringScan);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbSystemBinarySearch);
-#endif
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
 #if SB_API_VERSION < 14
@@ -375,32 +303,15 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemHasCapability);
   REGISTER_SYMBOL(SbSystemHideSplashScreen);
   REGISTER_SYMBOL(SbSystemIsDebuggerAttached);
-#if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
-#endif  // SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemRaisePlatformError);
-#if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemRequestBlur);
   REGISTER_SYMBOL(SbSystemRequestConceal);
   REGISTER_SYMBOL(SbSystemRequestFocus);
   REGISTER_SYMBOL(SbSystemRequestFreeze);
-#endif  // SB_API_VERSION >= 13
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbSystemRequestPause);
-#endif  // SB_API_VERSION < 13
-#if SB_API_VERSION >= 13
   REGISTER_SYMBOL(SbSystemRequestReveal);
   REGISTER_SYMBOL(SbSystemRequestStop);
-#endif  // SB_API_VERSION >= 13
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbSystemRequestStop);
-  REGISTER_SYMBOL(SbSystemRequestSuspend);
-  REGISTER_SYMBOL(SbSystemRequestUnpause);
-#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbSystemSignWithCertificationSecretKey);
-#if SB_API_VERSION < 13
-  REGISTER_SYMBOL(SbSystemSort);
-#endif  // SB_API_VERSION < 13
   REGISTER_SYMBOL(SbSystemSupportsResume);
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadContextGetPointer);

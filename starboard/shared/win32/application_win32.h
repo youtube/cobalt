@@ -52,13 +52,9 @@ class ApplicationWin32 : public starboard::QueueApplication {
 
   bool DestroyWindow(SbWindow window);
 
-#if SB_API_VERSION >= 13
   void DispatchStart(SbTimeMonotonic timestamp) {
     shared::starboard::Application::DispatchStart(timestamp);
   }
-#else   // SB_API_VERSION >= 13
-  void DispatchStart() { shared::starboard::Application::DispatchStart(); }
-#endif  // SB_API_VERSION >= 13
 
   SbWindow GetCoreWindow() {
     return SbWindowIsValid(window_.get()) ? window_.get() : kSbWindowInvalid;
