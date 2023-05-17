@@ -25,7 +25,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/double.h"
 #include "starboard/player.h"
 
 namespace {

@@ -55,13 +55,7 @@ const scoped_refptr<NavigatorUAData>& NavigatorBase::user_agent_data() const {
   return user_agent_data_;
 }
 
-bool NavigatorBase::on_line() const {
-#if SB_API_VERSION >= 13
-  return !SbSystemNetworkIsDisconnected();
-#else
-  return true;
-#endif
-}
+bool NavigatorBase::on_line() const { return !SbSystemNetworkIsDisconnected(); }
 
 }  // namespace web
 }  // namespace cobalt

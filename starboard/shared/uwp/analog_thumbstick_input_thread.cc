@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "starboard/common/thread.h"
-#include "starboard/double.h"
 #include "starboard/shared/uwp/analog_thumbstick_input.h"
 #include "starboard/thread.h"
 

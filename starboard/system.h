@@ -79,12 +79,6 @@ typedef enum SbSystemPropertyId {
   // The certification scope that identifies a group of devices.
   kSbSystemPropertyCertificationScope,
 
-#if SB_API_VERSION < 13
-  // The HMAC-SHA256 base64 encoded symmetric key used to sign a subset of the
-  // query parameters from the application startup URL.
-  kSbSystemPropertyBase64EncodedCertificationSecret,
-#endif  // SB_API_VERSION < 13
-
   // The full model number of the main platform chipset, including any
   // vendor-specific prefixes.
   kSbSystemPropertyChipsetModelNumber,
@@ -210,15 +204,6 @@ typedef enum SbSystemCapabilityId {
   // call.
   kSbSystemCapabilityCanQueryGPUMemoryStats,
 
-#if SB_API_VERSION < 13
-  // Whether this system sets the |timestamp| field of SbInputData. If the
-  // system does not set this field, then it will automatically be set; however,
-  // the relative time between input events likely will not be preserved, so
-  // time-related calculations (e.g. velocity for move events) will be
-  // incorrect.
-  kSbSystemCapabilitySetsInputTimestamp,
-#endif  // SB_API_VERSION < 13
-
   // ATTENTION: Do not add more to this enum. Instead add an "IsSupported"
   // function in the relevant module.
 } SbSystemCapabilityId;
@@ -332,12 +317,10 @@ SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
 SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
 #endif  // SB_API_VERSION < 14
 
-#if SB_API_VERSION >= 13
 // Returns if the device is disconnected from network. "Disconnected" is chosen
 // over connected because disconnection can be determined with more certainty
 // than connection usually.
 SB_EXPORT bool SbSystemNetworkIsDisconnected();
-#endif
 
 // Retrieves the platform-defined system path specified by |path_id| and
 // places it as a zero-terminated string into the user-allocated |out_path|
@@ -471,7 +454,6 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
 
-#if SB_API_VERSION >= 13
 // Requests that the application move into the Blurred state at the next
 // convenient point. This should roughly correspond to "unfocused application"
 // in a traditional window manager, where the application may be partially
@@ -531,42 +513,6 @@ SB_EXPORT void SbSystemRequestReveal();
 // running. The expectation is that an external system event will bring the
 // application out of the Frozen state.
 SB_EXPORT void SbSystemRequestFreeze();
-#else
-// Requests that the application move into the Paused state at the next
-// convenient point. This should roughly correspond to "unfocused application"
-// in a traditional window manager, where the application may be partially
-// visible.
-//
-// This function eventually causes a |kSbEventTypePause| event to be dispatched
-// to the application. Before the |kSbEventTypePause| event is dispatched, some
-// work may continue to be done, and unrelated system events may be dispatched.
-SB_EXPORT void SbSystemRequestPause();
-
-// Requests that the application move into the Started state at the next
-// convenient point. This should roughly correspond to a "focused application"
-// in a traditional window manager, where the application is fully visible and
-// the primary receiver of input events.
-//
-// This function eventually causes a |kSbEventTypeUnpause| event to be
-// dispatched to the application. Before |kSbEventTypeUnpause| is dispatched,
-// some work may continue to be done, and unrelated system events may be
-// dispatched.
-SB_EXPORT void SbSystemRequestUnpause();
-
-// Requests that the application move into the Suspended state at the next
-// convenient point. This should roughly correspond to "minimization" in a
-// traditional window manager, where the application is no longer visible.
-//
-// This function eventually causes a |kSbEventTypeSuspend| event to be
-// dispatched to the application. Before the |kSbEventTypeSuspend| event is
-// dispatched, some work may continue to be done, and unrelated system events
-// may be dispatched.
-//
-// In the Suspended state, the application will be resident, but probably not
-// running. The expectation is that an external system event will bring the
-// application out of the Suspended state.
-SB_EXPORT void SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= 13
 
 // Requests that the application be terminated gracefully at the next
 // convenient point. In the meantime, some work may continue to be done, and
@@ -578,42 +524,6 @@ SB_EXPORT void SbSystemRequestSuspend();
 // |error_level|: An integer that serves as the return value for the process
 //   that is eventually terminated as a result of a call to this function.
 SB_EXPORT void SbSystemRequestStop(int error_level);
-
-#if SB_API_VERSION < 13
-// Binary searches a sorted table |base| of |element_count| objects, each
-// element |element_width| bytes in size for an element that |comparator|
-// compares equal to |key|.
-//
-// This function is meant to be a drop-in replacement for |bsearch|.
-//
-// |key|: The key to search for in the table.
-// |base|: The sorted table of elements to be searched.
-// |element_count|: The number of elements in the table.
-// |element_width|: The size, in bytes, of each element in the table.
-// |comparator|: A value that indicates how the element in the table should
-//   compare to the specified |key|.
-SB_EXPORT void* SbSystemBinarySearch(const void* key,
-                                     const void* base,
-                                     size_t element_count,
-                                     size_t element_width,
-                                     SbSystemComparator comparator);
-#endif
-
-#if SB_API_VERSION < 13
-// Sorts an array of elements |base|, with |element_count| elements of
-// |element_width| bytes each, using |comparator| as the comparison function.
-//
-// This function is meant to be a drop-in replacement for |qsort|.
-//
-// |base|: The array of elements to be sorted.
-// |element_count|: The number of elements in the array.
-// |element_width|: The size, in bytes, of each element in the array.
-// |comparator|: A value that indicates how the array should be sorted.
-SB_EXPORT void SbSystemSort(void* base,
-                            size_t element_count,
-                            size_t element_width,
-                            SbSystemComparator comparator);
-#endif
 
 // Hides the system splash screen on systems that support a splash screen that
 // is displayed while the application is loading. This function may be called

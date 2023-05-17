@@ -624,23 +624,6 @@ typedef struct SbMediaAudioSampleInfo {
 
 // --- Functions -------------------------------------------------------------
 
-#if SB_API_VERSION < 13
-// Indicates whether this platform supports decoding |video_codec| and
-// |audio_codec| along with decrypting using |key_system|. If |video_codec| is
-// |kSbMediaVideoCodecNone| or if |audio_codec| is |kSbMediaAudioCodecNone|,
-// this function should return |true| as long as |key_system| is supported on
-// the platform to decode any supported input formats.
-//
-// |video_codec|: The |SbMediaVideoCodec| being checked for platform
-//   compatibility.
-// |audio_codec|: The |SbMediaAudioCodec| being checked for platform
-//   compatibility.
-// |key_system|: The key system being checked for platform compatibility.
-SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                                  SbMediaAudioCodec audio_codec,
-                                  const char* key_system);
-#endif  // SB_API_VERSION < 13
-
 // Returns information about whether the playback of the specific media
 // described by |mime| and encrypted using |key_system| can be played.
 //

@@ -28,8 +28,6 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"
 
-#if SB_API_VERSION >= 13
-
 namespace {
 
 // This function will repeatedly run on the NetworkNotifier thread untile the
@@ -86,7 +84,8 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
       }
 
       status -= NLMSG_ALIGN(len);
-      header = (struct nlmsghdr*)((char*)header + NLMSG_ALIGN(len));
+      header = (struct nlmsghdr*)(reinterpret_cast<char*>(header) +
+                                  NLMSG_ALIGN(len));
     }
     status = recvmsg(netlink_fd, &msg, MSG_DONTWAIT);
   }
@@ -128,5 +127,3 @@ void* NetworkNotifier::NotifierThreadEntry(void* context) {
 bool SbSystemNetworkIsDisconnected() {
   return !NetworkNotifier::GetOrCreateInstance()->is_online();
 }
-
-#endif  // SB_API_VERSION >= 13

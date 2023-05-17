@@ -21,7 +21,6 @@
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
-#if SB_API_VERSION >= 13
 void SbSystemRequestFreeze() {
 #if SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
   if (starboard::loader_app::IsPendingRestart()) {
@@ -39,4 +38,3 @@ void SbSystemRequestFreeze() {
   starboard::shared::starboard::Application::Get()->Freeze(NULL, NULL);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 }
-#endif  // SB_API_VERSION >= 13

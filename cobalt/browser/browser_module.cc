@@ -921,11 +921,7 @@ void BrowserModule::OnWindowMinimize() {
     return;
   }
 #endif
-#if SB_API_VERSION >= 13
   SbSystemRequestConceal();
-#else
-  SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= 13
 }
 
 void BrowserModule::OnWindowSizeChanged(const ViewportSize& viewport_size) {
@@ -1002,7 +998,6 @@ void BrowserModule::OnCaptionSettingsChanged(
   }
 }
 
-#if SB_API_VERSION >= 13
 void BrowserModule::OnDateTimeConfigurationChanged(
     const base::DateTimeConfigurationChangedEvent* event) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -1011,7 +1006,6 @@ void BrowserModule::OnDateTimeConfigurationChanged(
     web_module_->UpdateDateTimeConfiguration();
   }
 }
-#endif
 
 #if defined(ENABLE_DEBUGGER)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
@@ -1315,12 +1309,7 @@ bool BrowserModule::FilterKeyEventForHotkeys(
     }
   } else if (event.ctrl_key() && event.key_code() == dom::keycode::kS) {
     if (type == base::Tokens::keydown()) {
-#if SB_API_VERSION >= 13
       SbSystemRequestConceal();
-#else
-      // Ctrl+S suspends Cobalt.
-      SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= 13
     }
     return false;
   }
@@ -1620,12 +1609,8 @@ void BrowserModule::InitializeComponents() {
   InstantiateRendererModule();
 
   if (media_module_) {
-#if SB_API_VERSION >= 13
     media_module_->UpdateSystemWindowAndResourceProvider(system_window_.get(),
                                                          GetResourceProvider());
-#else
-    media_module_->Resume(GetResourceProvider());
-#endif  // SB_API_VERSION >= 13
   } else {
     options_.media_module_options.allow_resume_after_suspend =
         SbSystemSupportsResume();
@@ -1764,12 +1749,10 @@ void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
 
   // Suspend media module and update resource provider.
   if (media_module_) {
-#if SB_API_VERSION >= 13
     // This needs to be done before destroying the renderer module as it
     // may use the renderer module to release assets during the update.
     media_module_->UpdateSystemWindowAndResourceProvider(NULL,
                                                          GetResourceProvider());
-#endif  // SB_API_VERSION >= 13
   }
 
   if (renderer_module_) {
@@ -1778,13 +1761,11 @@ void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
     DestroyRendererModule();
   }
 
-#if SB_API_VERSION >= 13
   // Reset system window after renderer module destroyed.
   if (media_module_) {
     input_device_manager_.reset();
     system_window_.reset();
   }
-#endif  // SB_API_VERSION >= 13
 }
 
 void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
@@ -1821,11 +1802,9 @@ void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
 
 void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
-// Set the Stub resource provider to media module and to web module
-// at Concealed state.
-#if SB_API_VERSION >= 13
+  // Set the Stub resource provider to media module and to web module
+  // at Concealed state.
   if (media_module_) media_module_->Resume(GetResourceProvider());
-#endif  // SB_API_VERSION >= 13
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Unfreeze(GetResourceProvider(), timestamp));
@@ -1853,10 +1832,8 @@ void BrowserModule::OnMaybeFreeze() {
 #endif  // defined(ENABLE_DEBUGGER)
       web_module_ready_to_freeze &&
       application_state_ == base::kApplicationStateConcealed) {
-#if SB_API_VERSION >= 13
     DLOG(INFO) << "System request to freeze the app.";
     SbSystemRequestFreeze();
-#endif  // SB_API_VERSION >= 13
   }
 }
 

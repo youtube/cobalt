@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <cctype>
 
-#include "starboard/character.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"

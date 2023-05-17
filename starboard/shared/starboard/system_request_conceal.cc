@@ -16,8 +16,6 @@
 
 #include "starboard/shared/starboard/application.h"
 
-#if SB_API_VERSION >= 13
 void SbSystemRequestConceal() {
   starboard::shared::starboard::Application::Get()->Conceal(NULL, NULL);
 }
-#endif  // SB_API_VERSION >= 13

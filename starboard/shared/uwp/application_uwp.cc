@@ -758,19 +758,14 @@ ref class App sealed : public IFrameworkView {
       SB_LOG(INFO) << "Starting " << GetBinaryName();
 
       CoreWindow::GetForCurrentThread()->Activate();
-// Call DispatchStart async so the UWP system thinks we're activated.
-// Some tools seem to want the application to be activated before
-// interacting with them, some things are disallowed during activation
-// (such as exiting), and DispatchStart (for example) runs
-// automated tests synchronously.
-#if SB_API_VERSION >= 13
+      // Call DispatchStart async so the UWP system thinks we're activated.
+      // Some tools seem to want the application to be activated before
+      // interacting with them, some things are disallowed during activation
+      // (such as exiting), and DispatchStart (for example) runs
+      // automated tests synchronously.
       RunInMainThreadAsync([this]() {
         ApplicationUwp::Get()->DispatchStart(application_start_time_);
       });
-#else   // SB_API_VERSION >= 13
-      RunInMainThreadAsync(
-          [this]() { ApplicationUwp::Get()->DispatchStart(); });
-#endif  // SB_API_VERSION >= 13
     }
     previously_activated_ = true;
   }

@@ -68,21 +68,6 @@ typedef enum SbMemoryMapFlags {
       kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite,
 } SbMemoryMapFlags;
 
-#if SB_API_VERSION < 13
-
-// Checks whether |memory| is aligned to |alignment| bytes.
-static SB_C_FORCE_INLINE bool SbMemoryIsAligned(const void* memory,
-                                                size_t alignment) {
-  return ((uintptr_t)memory) % alignment == 0;
-}
-
-// Rounds |size| up to kSbMemoryPageSize.
-static SB_C_FORCE_INLINE size_t SbMemoryAlignToPageSize(size_t size) {
-  return (size + kSbMemoryPageSize - 1) & ~(kSbMemoryPageSize - 1);
-}
-
-#endif  // SB_API_VERSION < 13
-
 static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
                                                         void* address) {
   if (SB_UNLIKELY(requested_bytes > 0 && address == NULL)) {
@@ -245,74 +230,6 @@ SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
 #endif  // SB_API_VERSION < 15
 
-#if SB_API_VERSION < 13
-
-// Copies |count| sequential bytes from |source| to |destination|, without
-// support for the |source| and |destination| regions overlapping. This
-// function is meant to be a drop-in replacement for |memcpy|.
-//
-// The function's behavior is undefined if |destination| or |source| are NULL,
-// and the function is a no-op if |count| is 0. The return value is
-// |destination|.
-//
-// |destination|: The destination of the copied memory.
-// |source|: The source of the copied memory.
-// |count|: The number of sequential bytes to be copied.
-SB_EXPORT void* SbMemoryCopy(void* destination,
-                             const void* source,
-                             size_t count);
-
-// Copies |count| sequential bytes from |source| to |destination|, with support
-// for the |source| and |destination| regions overlapping. This function is
-// meant to be a drop-in replacement for |memmove|.
-//
-// The function's behavior is undefined if |destination| or |source| are NULL,
-// and the function is a no-op if |count| is 0. The return value is
-// |destination|.
-//
-// |destination|: The destination of the copied memory.
-// |source|: The source of the copied memory.
-// |count|: The number of sequential bytes to be copied.
-SB_EXPORT void* SbMemoryMove(void* destination,
-                             const void* source,
-                             size_t count);
-
-// Fills |count| sequential bytes starting at |destination|, with the unsigned
-// char coercion of |byte_value|. This function is meant to be a drop-in
-// replacement for |memset|.
-//
-// The function's behavior is undefined if |destination| is NULL, and the
-// function is a no-op if |count| is 0. The return value is |destination|.
-//
-// |destination|: The destination of the copied memory.
-// |count|: The number of sequential bytes to be set.
-SB_EXPORT void* SbMemorySet(void* destination, int byte_value, size_t count);
-
-// Compares the contents of the first |count| bytes of |buffer1| and |buffer2|.
-// This function returns:
-// - |-1| if |buffer1| is "less-than" |buffer2|
-// - |0| if |buffer1| and |buffer2| are equal
-// - |1| if |buffer1| is "greater-than" |buffer2|.
-//
-// This function is meant to be a drop-in replacement for |memcmp|.
-//
-// |buffer1|: The first buffer to be compared.
-// |buffer2|: The second buffer to be compared.
-// |count|: The number of bytes to be compared.
-SB_EXPORT int SbMemoryCompare(const void* buffer1,
-                              const void* buffer2,
-                              size_t count);
-
-// Finds the lower 8-bits of |value| in the first |count| bytes of |buffer|
-// and returns either a pointer to the first found occurrence or |NULL| if
-// the value is not found. This function is meant to be a drop-in replacement
-// for |memchr|.
-SB_EXPORT const void* SbMemoryFindByte(const void* buffer,
-                                       int value,
-                                       size_t count);
-
-#endif  // SB_API_VERSION < 13
-
 // A wrapper that implements a drop-in replacement for |calloc|, which is used
 // in some packages.
 static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
@@ -323,20 +240,6 @@ static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
   }
   return result;
 }
-
-#if SB_API_VERSION < 13
-
-// Returns true if the first |count| bytes of |buffer| are set to zero.
-static SB_C_INLINE bool SbMemoryIsZero(const void* buffer, size_t count) {
-  if (count == 0) {
-    return true;
-  }
-  const char* char_buffer = (const char*)(buffer);
-  return char_buffer[0] == 0 &&
-         memcmp(char_buffer, char_buffer + 1, count - 1) == 0;
-}
-
-#endif  // SB_API_VERSION < 13
 
 /////////////////////////////////////////////////////////////////
 // Deprecated. Do not use.

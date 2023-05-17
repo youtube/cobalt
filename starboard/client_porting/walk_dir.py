@@ -122,8 +122,6 @@ getuidx,putpwent,pclose,popen,putenv,setenv,setpwent,setreuid,stat,uname,
 unsetenv,setuidx,setegid,setrgid,seteuid,setruid,getruid
 """
 
-SB_CHARACTER_REPLACEMENT_DICT = {}
-
 SB_MEMORY_REPLACEMENT_DICT = {
     'free': 'SbMemoryDeallocate',
     'malloc': 'SbMemoryAllocate',
@@ -202,7 +200,6 @@ def DumpCHeadersAndFunctions(pathname):
     source_lines = f.readlines()
   first = True
 
-  add_starboard_character_h = False
   add_starboard_memory_h = False
   add_starboard_string_h = False
   add_starboard_types_h = False
@@ -230,12 +227,6 @@ def DumpCHeadersAndFunctions(pathname):
                         source_lines[i][index - 1] != ':' and
                         source_lines[i][index - 1] != '>' and
                         source_lines[i][index - 1] != '.'):
-        if c_function_list[j] in SB_CHARACTER_REPLACEMENT_DICT:
-          source_lines[i] = source_lines[i].replace(
-              c_function_list[j],
-              SB_CHARACTER_REPLACEMENT_DICT[c_function_list[j]])
-          add_starboard_character_h = True
-          continue  # We fixed this, no need to dump
         if c_function_list[j] in SB_MEMORY_REPLACEMENT_DICT:
           source_lines[i] = source_lines[i].replace(
               c_function_list[j],
@@ -253,9 +244,6 @@ def DumpCHeadersAndFunctions(pathname):
           first = False
         print('    => line ', i + 1, '\t', source_lines[i][:-1], 'contains',
               c_function_list[j])
-
-  if add_starboard_character_h:
-    AddProjectHeader(source_lines, 'starboard/character.h')
 
   if add_starboard_memory_h:
     AddProjectHeader(source_lines, 'starboard/memory.h')

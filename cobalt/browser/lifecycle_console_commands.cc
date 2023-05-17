@@ -50,7 +50,6 @@ const char kQuitCommandLongHelp[] =
     "ending the process (peacefully).";
 
 namespace {
-#if SB_API_VERSION >= 13
 // This is temporary that will be changed in later CLs, for mapping Starboard
 // Concealed state support onto Cobalt without Concealed state support to be
 // able to test the former.
@@ -63,17 +62,6 @@ void OnSuspend(const std::string& /*message*/) {
             << "reveal Cobalt using a platform-specific method.";
   SbSystemRequestConceal();
 }
-#else
-void OnPause(const std::string& message) { SbSystemRequestPause(); }
-
-void OnUnpause(const std::string& message) { SbSystemRequestUnpause(); }
-
-void OnSuspend(const std::string& message) {
-  LOG(INFO) << "Suspending Cobalt through the console, but you will need to "
-            << "resume Cobalt using a platform-specific method.";
-  SbSystemRequestSuspend();
-}
-#endif  // SB_API_VERSION >= 13
 
 void OnQuit(const std::string& /*message*/) { SbSystemRequestStop(0); }
 }  // namespace

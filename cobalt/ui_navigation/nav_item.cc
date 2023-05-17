@@ -186,11 +186,9 @@ void NavItem::Focus() {
 void NavItem::UnfocusAll() {
   starboard::ScopedSpinLock lock(&g_pending_updates_lock);
   g_pending_focus = kNativeItemInvalid;
-#if SB_API_VERSION >= 13
   g_pending_updates->emplace_back(
       kNativeItemInvalid,
       base::Bind(GetInterface().set_focus, kNativeItemInvalid));
-#endif
 }
 
 void NavItem::SetEnabled(bool enabled) {

@@ -325,18 +325,6 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
           CopyStringAndTestIfSuccess(out_value, value_length, scope->Data());
       return result;
     }
-#if SB_API_VERSION < 13
-    case kSbSystemPropertyBase64EncodedCertificationSecret: {
-      if (kBase64EncodedCertificationSecret0[0] == '\0')
-        return false;
-      char secret_buffer[sizeof(kBase64EncodedCertificationSecret0) +
-                         sizeof(kBase64EncodedCertificationSecret1)];
-      memset(secret_buffer, 0, sizeof(secret_buffer));
-      size_t len = XorString(secret_buffer, kBase64EncodedCertificationSecret0);
-      XorString(secret_buffer + len, kBase64EncodedCertificationSecret1);
-      return CopyStringAndTestIfSuccess(out_value, value_length, secret_buffer);
-    }
-#endif  // SB_API_VERSION < 13
     case kSbSystemPropertyChipsetModelNumber:
       return GetChipsetModelNumber(out_value, value_length);
     case kSbSystemPropertyFirmwareVersion:

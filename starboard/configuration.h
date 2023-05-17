@@ -77,13 +77,8 @@
 
 // --- Common Helper Macros --------------------------------------------------
 
-#if SB_API_VERSION < 13
-#define SB_TRUE 1
-#define SB_FALSE 0
-#else
 #define SB_TRUE #error "The macro SB_TRUE is deprecated."
 #define SB_FALSE #error "The macro SB_FALSE is deprecated."
-#endif
 
 // Determines a compile-time capability of the system.
 #define SB_CAN(SB_FEATURE) \
@@ -142,16 +137,8 @@ struct CompileAssert {};
 #define SB_STRINGIFY(x) SB_STRINGIFY2(x)
 #define SB_STRINGIFY2(x) #x
 
-#if SB_API_VERSION < 13
-// A macro to disallow the copy constructor and operator= functions
-// This should be used in the private: declarations for a class
-#define SB_DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&) = delete;         \
-  void operator=(const TypeName&) = delete
-#else
 #define SB_DISALLOW_COPY_AND_ASSIGN \
   #error "The SB_DISALLOW_COPY_AND_ASSIGN macro is deprecated."
-#endif  // SB_API_VERSION < 13
 
 // An enumeration of values for the kSbPreferredByteOrder configuration
 // variable.  Setting this up properly means avoiding slow color swizzles when
@@ -228,22 +215,10 @@ struct CompileAssert {};
 
 // Declares a function as overriding a virtual function on compilers that
 // support it.
-#if SB_API_VERSION < 13
-#if !defined(SB_OVERRIDE)
-#if defined(COMPILER_MSVC)
-#define SB_OVERRIDE override
-#elif defined(__clang__)
-#define SB_OVERRIDE override
-#else
-#define SB_OVERRIDE
-#endif
-#endif  // SB_OVERRIDE
-#else
 #define SB_OVERRIDE                                                   \
   #error                                                              \
       "The SB_OVERRIDE macro is deprecated. Please use \"override\" " \
       "instead."
-#endif  // SB_API_VERSION < 13
 
 // Declare numeric literals of signed 64-bit type.
 #if !defined(SB_INT64_C)
