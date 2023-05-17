@@ -169,8 +169,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindAudioDecoder(
-          mime, 0, /* bitrate */
-          false /* must_support_tunnel_mode */);
+          mime, /* bitrate = */ 0,
+          /* must_support_tunnel_mode = */ false);
 
   if (decoder_name.empty()) {
     SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
@@ -222,6 +222,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     jobject j_surface,
     jobject j_media_crypto,
     const SbMediaColorMetadata* color_metadata,
+    bool require_secured_decoder,
     bool require_software_codec,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
@@ -235,34 +236,28 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
 
-  const bool must_support_secure = !!j_media_crypto;
+  const bool must_support_secure = require_secured_decoder;
   const bool must_support_hdr = color_metadata;
   const bool must_support_tunnel_mode = tunnel_mode_audio_session_id != -1;
   // On first pass, try to find a decoder with HDR if the color info is
   // non-null.
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
-          mime, must_support_secure,    /* must_support_secure */
-          must_support_hdr,             /* must_support_hdr */
-          require_software_codec,       /* is_software_codec */
-          must_support_tunnel_mode,     /* must_support_tunnel_mode */
-          force_improved_support_check, /* force_improved_support_check */
-          0,                            /* frame_width */
-          0,                            /* frame_height */
-          0,                            /* bitrate */
-          0 /* fps */);
+          mime, must_support_secure, must_support_hdr, require_software_codec,
+          must_support_tunnel_mode, force_improved_support_check,
+          /* frame_width = */ 0,
+          /* frame_height = */ 0,
+          /* bitrate = */ 0,
+          /* fps = */ 0);
   if (decoder_name.empty() && color_metadata) {
     // On second pass, forget HDR.
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
-        mime, must_support_secure,    /* must_support_secure */
-        false,                        /* must_support_hdr */
-        require_software_codec,       /* is_software_codec */
-        must_support_tunnel_mode,     /* must_support_tunnel_mode */
-        force_improved_support_check, /* force_improved_support_check */
-        0,                            /* frame_width */
-        0,                            /* frame_height */
-        0,                            /* bitrate */
-        0 /* fps */);
+        mime, must_support_secure, /* must_support_hdr = */ false,
+        require_software_codec, must_support_tunnel_mode,
+        force_improved_support_check, /* frame_width = */ 0,
+        /* frame_height = */ 0,
+        /* bitrate = */ 0,
+        /* fps = */ 0);
   }
 
   if (decoder_name.empty()) {
