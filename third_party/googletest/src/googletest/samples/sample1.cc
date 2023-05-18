@@ -1,4 +1,4 @@
-// Copyright 2006, Google Inc.
+// Copyright 2005, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,34 +27,40 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
+// A sample program demonstrating using Google C++ testing framework.
 
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+#include "sample1.h"
 
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
-//
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
-//
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
+// Returns n! (the factorial of n).  For negative n, n! is defined to be 1.
+int Factorial(int n) {
+  int result = 1;
+  for (int i = 1; i <= n; i++) {
+    result *= i;
+  }
 
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
+  return result;
+}
 
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+// Returns true if and only if n is a prime number.
+bool IsPrime(int n) {
+  // Trivial case 1: small numbers
+  if (n <= 1) return false;
+
+  // Trivial case 2: even numbers
+  if (n % 2 == 0) return n == 2;
+
+  // Now, we have that n is odd and n >= 3.
+
+  // Try to divide n by every odd number i, starting from 3
+  for (int i = 3;; i += 2) {
+    // We only have to try i up to the square root of n
+    if (i > n / i) break;
+
+    // Now, we have i <= n/i < n.
+    // If n is divisible by i, n is not prime.
+    if (n % i == 0) return false;
+  }
+
+  // n has no integer factor in the range (1, n), and thus is prime.
+  return true;
+}

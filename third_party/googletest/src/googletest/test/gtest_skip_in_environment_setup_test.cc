@@ -1,4 +1,4 @@
-// Copyright 2006, Google Inc.
+// Copyright 2019, Google LLC.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC. nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -26,35 +26,25 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
-
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
 //
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
-//
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
+// This test verifies that skipping in the environment results in the
+// testcases being skipped.
 
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
+#include <iostream>
 
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+#include "gtest/gtest.h"
+
+class SetupEnvironment : public testing::Environment {
+ public:
+  void SetUp() override { GTEST_SKIP() << "Skipping the entire environment"; }
+};
+
+TEST(Test, AlwaysFails) { EXPECT_EQ(true, false); }
+
+int main(int argc, char **argv) {
+  testing::InitGoogleTest(&argc, argv);
+
+  testing::AddGlobalTestEnvironment(new SetupEnvironment());
+
+  return RUN_ALL_TESTS();
+}

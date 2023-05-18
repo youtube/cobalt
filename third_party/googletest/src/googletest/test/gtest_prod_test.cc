@@ -27,34 +27,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
-
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
 //
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
-//
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
+// Unit test for gtest_prod.h.
 
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
+#include "production.h"
+#include "gtest/gtest.h"
 
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+// Tests that private members can be accessed from a TEST declared as
+// a friend of the class.
+TEST(PrivateCodeTest, CanAccessPrivateMembers) {
+  PrivateCode a;
+  EXPECT_EQ(0, a.x_);
+
+  a.set_x(1);
+  EXPECT_EQ(1, a.x_);
+}
+
+typedef testing::Test PrivateCodeFixtureTest;
+
+// Tests that private members can be accessed from a TEST_F declared
+// as a friend of the class.
+TEST_F(PrivateCodeFixtureTest, CanAccessPrivateMembers) {
+  PrivateCode a;
+  EXPECT_EQ(0, a.x_);
+
+  a.set_x(2);
+  EXPECT_EQ(2, a.x_);
+}

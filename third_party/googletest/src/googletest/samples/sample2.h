@@ -1,4 +1,4 @@
-// Copyright 2006, Google Inc.
+// Copyright 2005, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,34 +27,53 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
+// A sample program demonstrating using Google C++ testing framework.
 
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+#ifndef GOOGLETEST_SAMPLES_SAMPLE2_H_
+#define GOOGLETEST_SAMPLES_SAMPLE2_H_
 
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
-//
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
-//
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
+#include <string.h>
 
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
+// A simple string class.
+class MyString {
+ private:
+  const char* c_string_;
+  const MyString& operator=(const MyString& rhs);
 
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+ public:
+  // Clones a 0-terminated C string, allocating memory using new.
+  static const char* CloneCString(const char* a_c_string);
+
+  ////////////////////////////////////////////////////////////
+  //
+  // C'tors
+
+  // The default c'tor constructs a NULL string.
+  MyString() : c_string_(nullptr) {}
+
+  // Constructs a MyString by cloning a 0-terminated C string.
+  explicit MyString(const char* a_c_string) : c_string_(nullptr) {
+    Set(a_c_string);
+  }
+
+  // Copy c'tor
+  MyString(const MyString& string) : c_string_(nullptr) {
+    Set(string.c_string_);
+  }
+
+  ////////////////////////////////////////////////////////////
+  //
+  // D'tor.  MyString is intended to be a final class, so the d'tor
+  // doesn't need to be virtual.
+  ~MyString() { delete[] c_string_; }
+
+  // Gets the 0-terminated C string this MyString object represents.
+  const char* c_string() const { return c_string_; }
+
+  size_t Length() const { return c_string_ == nullptr ? 0 : strlen(c_string_); }
+
+  // Sets the 0-terminated C string this MyString object represents.
+  void Set(const char* c_string);
+};
+
+#endif  // GOOGLETEST_SAMPLES_SAMPLE2_H_

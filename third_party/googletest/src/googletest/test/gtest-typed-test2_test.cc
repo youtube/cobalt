@@ -1,5 +1,5 @@
-// Copyright 2006, Google Inc.
-// All rights reserved.
+// Copyright 2008 Google Inc.
+// All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -27,34 +27,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
+#include <vector>
 
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+#include "gtest/gtest.h"
+#include "test/gtest-typed-test_test.h"
 
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
-//
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
-//
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
-
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
-
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+// Tests that the same type-parameterized test case can be
+// instantiated in different translation units linked together.
+// (ContainerTest is also instantiated in gtest-typed-test_test.cc.)
+INSTANTIATE_TYPED_TEST_SUITE_P(Vector, ContainerTest,
+                               testing::Types<std::vector<int> >);

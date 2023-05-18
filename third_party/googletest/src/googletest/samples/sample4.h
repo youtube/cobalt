@@ -1,4 +1,4 @@
-// Copyright 2006, Google Inc.
+// Copyright 2005, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,34 +27,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
+// A sample program demonstrating using Google C++ testing framework.
+#ifndef GOOGLETEST_SAMPLES_SAMPLE4_H_
+#define GOOGLETEST_SAMPLES_SAMPLE4_H_
 
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+// A simple monotonic counter.
+class Counter {
+ private:
+  int counter_;
 
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
-//
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
-//
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
+ public:
+  // Creates a counter that starts at 0.
+  Counter() : counter_(0) {}
 
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
+  // Returns the current counter value, and increments it.
+  int Increment();
 
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+  // Returns the current counter value, and decrements it.
+  int Decrement();
+
+  // Prints the current counter value to STDOUT.
+  void Print() const;
+};
+
+#endif  // GOOGLETEST_SAMPLES_SAMPLE4_H_

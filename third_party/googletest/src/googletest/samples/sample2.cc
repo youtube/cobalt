@@ -1,4 +1,4 @@
-// Copyright 2006, Google Inc.
+// Copyright 2005, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,34 +27,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
+// A sample program demonstrating using Google C++ testing framework.
 
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+#include "sample2.h"
 
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
-//
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
-//
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
+#include <string.h>
 
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
+// Clones a 0-terminated C string, allocating memory using new.
+const char* MyString::CloneCString(const char* a_c_string) {
+  if (a_c_string == nullptr) return nullptr;
 
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+  const size_t len = strlen(a_c_string);
+  char* const clone = new char[len + 1];
+  memcpy(clone, a_c_string, len + 1);
+
+  return clone;
+}
+
+// Sets the 0-terminated C string this MyString object
+// represents.
+void MyString::Set(const char* a_c_string) {
+  // Makes sure this works when c_string == c_string_
+  const char* const temp = MyString::CloneCString(a_c_string);
+  delete[] c_string_;
+  c_string_ = temp;
+}
