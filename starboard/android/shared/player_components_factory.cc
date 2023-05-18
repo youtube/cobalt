@@ -29,18 +29,11 @@ scoped_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
 }
 
 // static
-<<<<<<< HEAD
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
                                        SbDrmSystem drm_system) {
-=======
-bool PlayerComponents::Factory::OutputModeSupported(
-    SbPlayerOutputMode output_mode,
-    SbMediaVideoCodec codec,
-    SbDrmSystem drm_system) {
   using ::starboard::android::shared::DrmSystem;
 
->>>>>>> 239282c791 ([android] Refine Widevine L3 implementation (#373))
   if (output_mode == kSbPlayerOutputModePunchOut) {
     return true;
   }
