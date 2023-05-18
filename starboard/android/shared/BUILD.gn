@@ -484,16 +484,6 @@ static_library("starboard_platform") {
       "internal/input_events_filter.h",
     ]
     defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
-<<<<<<< HEAD
-    deps += [ "//starboard/android/shared/drm_system_extension" ]
-  } else {
-    sources += [
-      "drm_create_system.cc",
-      "media_is_supported.cc",
-      "player_components_factory.cc",
-    ]
-=======
->>>>>>> 239282c791 ([android] Refine Widevine L3 implementation (#373))
   }
 
   if (sb_is_evergreen_compatible) {
