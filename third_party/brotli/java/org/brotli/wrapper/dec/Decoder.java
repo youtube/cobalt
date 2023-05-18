@@ -7,6 +7,7 @@
 package org.brotli.wrapper.dec;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
@@ -15,10 +16,12 @@ import java.util.ArrayList;
  * Base class for InputStream / Channel implementations.
  */
 public class Decoder {
+  private static final ByteBuffer EMPTY_BUFER = ByteBuffer.allocate(0);
   private final ReadableByteChannel source;
   private final DecoderJNI.Wrapper decoder;
   ByteBuffer buffer;
   boolean closed;
+  boolean eager;
 
   /**
    * Creates a Decoder wrapper.
@@ -47,6 +50,10 @@ public class Decoder {
     throw new IOException(message);
   }
 
+  public void enableEagerOutput() {
+    this.eager = true;
+  }
+
   /**
    * Continue decoding.
    *
@@ -71,11 +78,21 @@ public class Decoder {
           break;
 
         case NEEDS_MORE_INPUT:
+          // In "eager" more pulling preempts pushing.
+          if (eager && decoder.hasOutput()) {
+            buffer = decoder.pull();
+            break;
+          }
           ByteBuffer inputBuffer = decoder.getInputBuffer();
-          inputBuffer.clear();
+          ((Buffer) inputBuffer).clear();
           int bytesRead = source.read(inputBuffer);
           if (bytesRead == -1) {
             fail("unexpected end of input");
+          }
+          if (bytesRead == 0) {
+            // No input data is currently available.
+            buffer = EMPTY_BUFER;
+            return 0;
           }
           decoder.push(bytesRead);
           break;
@@ -91,7 +108,7 @@ public class Decoder {
   }
 
   void discard(int length) {
-    buffer.position(buffer.position() + length);
+    ((Buffer) buffer).position(buffer.position() + length);
     if (!buffer.hasRemaining()) {
       buffer = null;
     }
@@ -100,7 +117,7 @@ public class Decoder {
   int consume(ByteBuffer dst) {
     ByteBuffer slice = buffer.slice();
     int limit = Math.min(slice.remaining(), dst.remaining());
-    slice.limit(limit);
+    ((Buffer) slice).limit(limit);
     dst.put(slice);
     discard(limit);
     return limit;
