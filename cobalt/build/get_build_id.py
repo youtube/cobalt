@@ -14,6 +14,7 @@
 # limitations under the License.
 """Prints out the Cobalt Build ID."""
 
+import os
 import re
 import subprocess
 
