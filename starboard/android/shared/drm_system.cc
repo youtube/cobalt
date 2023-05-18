@@ -67,8 +67,7 @@ bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
   if (left.identifier_size != right.identifier_size) {
     return false;
   }
-  return memcmp(left.identifier, right.identifier,
-                left.identifier_size) == 0;
+  return memcmp(left.identifier, right.identifier, left.identifier_size) == 0;
 }
 
 extern "C" SB_EXPORT_PLATFORM void
@@ -112,8 +111,9 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
   SB_DCHECK(session_id_elements);
 
   // NULL array indicates key status isn't supported (i.e. Android API < 23)
-  jsize length = (j_key_status_array == NULL) ? 0
-      : env->GetArrayLength(j_key_status_array);
+  jsize length = (j_key_status_array == NULL)
+                     ? 0
+                     : env->GetArrayLength(j_key_status_array);
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
@@ -172,11 +172,13 @@ jbyteArray ByteArrayFromRaw(const void* data, int size) {
 }  // namespace
 
 DrmSystem::DrmSystem(
+    const char* key_system,
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback)
-    : context_(context),
+    : key_system_(key_system),
+      context_(context),
       update_request_callback_(update_request_callback),
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
@@ -186,9 +188,12 @@ DrmSystem::DrmSystem(
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
   JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jstring> j_key_system(
+      env->NewStringStandardUTFOrAbort(key_system));
   j_media_drm_bridge_ = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaDrmBridge", "create",
-      "(J)Ldev/cobalt/media/MediaDrmBridge;", reinterpret_cast<jlong>(this));
+      "(Ljava/lang/String;J)Ldev/cobalt/media/MediaDrmBridge;",
+      j_key_system.Get(), reinterpret_cast<jlong>(this));
   if (!j_media_drm_bridge_) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
     return;

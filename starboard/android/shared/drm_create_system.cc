@@ -26,6 +26,7 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionClosedFunc session_closed_callback) {
   using starboard::android::shared::DrmSystem;
   using starboard::android::shared::IsWidevineL1;
+  using starboard::android::shared::IsWidevineL3;
 
   if (!update_request_callback || !session_updated_callback ||
       !key_statuses_changed_callback || !server_certificate_updated_callback ||
@@ -33,13 +34,13 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 
-  if (!IsWidevineL1(key_system)) {
+  if (!IsWidevineL1(key_system) && !IsWidevineL3(key_system)) {
     return kSbDrmSystemInvalid;
   }
 
   DrmSystem* drm_system =
-      new DrmSystem(context, update_request_callback, session_updated_callback,
-                    key_statuses_changed_callback);
+      new DrmSystem(key_system, context, update_request_callback,
+                    session_updated_callback, key_statuses_changed_callback);
   if (!drm_system->is_valid()) {
     delete drm_system;
     return kSbDrmSystemInvalid;

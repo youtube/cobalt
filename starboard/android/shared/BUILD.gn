@@ -336,6 +336,7 @@ static_library("starboard_platform") {
     "directory_get_next.cc",
     "directory_internal.h",
     "directory_open.cc",
+    "drm_create_system.cc",
     "drm_system.cc",
     "drm_system.h",
     "egl_swap_buffers.cc",
@@ -385,10 +386,12 @@ static_library("starboard_platform") {
     "media_get_video_buffer_budget.cc",
     "media_is_audio_supported.cc",
     "media_is_buffer_pool_allocate_on_demand.cc",
+    "media_is_supported.cc",
     "media_is_video_supported.cc",
     "microphone_impl.cc",
     "network_status_impl.cc",
     "platform_service.cc",
+    "player_components_factory.cc",
     "player_components_factory.h",
     "player_create.cc",
     "player_destroy.cc",
@@ -481,13 +484,6 @@ static_library("starboard_platform") {
       "internal/input_events_filter.h",
     ]
     defines = [ "STARBOARD_INPUT_EVENTS_FILTER" ]
-    deps += [ "//starboard/android/shared/drm_system_extension" ]
-  } else {
-    sources += [
-      "drm_create_system.cc",
-      "media_is_supported.cc",
-      "player_components_factory.cc",
-    ]
   }
 
   if (sb_is_evergreen_compatible) {

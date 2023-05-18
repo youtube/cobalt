@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "starboard/android/shared/media_common.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/types.h"
@@ -33,7 +34,8 @@ namespace shared {
 
 class DrmSystem : public ::SbDrmSystemPrivate {
  public:
-  DrmSystem(void* context,
+  DrmSystem(const char* key_system,
+            void* context,
             SbDrmSessionUpdateRequestFunc update_request_callback,
             SbDrmSessionUpdatedFunc session_updated_callback,
             SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
@@ -54,8 +56,7 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   bool IsServerCertificateUpdatable() override { return false; }
   void UpdateServerCertificate(int ticket,
                                const void* certificate,
-                               int certificate_size) override {
-  }
+                               int certificate_size) override {}
   const void* GetMetrics(int* size) override;
 
   jobject GetMediaCrypto() const { return j_media_crypto_; }
@@ -76,10 +77,14 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   bool is_valid() const {
     return j_media_drm_bridge_ != NULL && j_media_crypto_ != NULL;
   }
+  bool require_secured_decoder() const {
+    return IsWidevineL1(key_system_.c_str());
+  }
 
  private:
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
 
+  const std::string key_system_;
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
   SbDrmSessionUpdatedFunc session_updated_callback_;
