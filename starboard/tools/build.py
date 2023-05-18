@@ -16,6 +16,7 @@
 """Build related constants and helper functions."""
 
 import importlib
+import importlib.util
 import logging
 import os
 import sys
