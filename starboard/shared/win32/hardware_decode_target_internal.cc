@@ -365,7 +365,7 @@ bool HardwareDecodeTargetPrivate::Update(
     bool texture_RGBA) {
   // Only allow updating if this is the only reference. Otherwise the update
   // may change something that's currently being used.
-  if (SbAtomicNoBarrier_Load(&refcount) > 1) {
+  if (SbAtomicAcquire_Load(&refcount) > 1) {
     return false;
   }
 
