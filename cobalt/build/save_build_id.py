@@ -20,10 +20,11 @@ import os
 import sys
 import textwrap
 
-from cobalt.build import build_number
+from cobalt.build import get_build_id
+from cobalt.tools import paths
 
+_BUILD_ID_PATH = os.path.join(paths.BUILD_ROOT, 'build.id')
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-_BUILD_ID_PATH = build_number.BUILD_ID_PATH
 
 # Return values used by main().
 RETVAL_SUCCESS = 0
@@ -63,12 +64,7 @@ def main():
     return 0
 
   if not options.build_id:
-    build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
-    if build_id_server_url:
-      options.build_id = build_number.GetOrGenerateNewBuildNumber(
-          version_server=build_id_server_url)
-    else:
-      options.build_id = build_number.GetOrGenerateNewBuildNumber()
+    options.build_id = get_build_id.main()
 
   if not options.build_id:
     logging.error('Unable to retrieve build id.')
