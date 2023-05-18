@@ -68,7 +68,7 @@ jobs:
       )
     steps:
       - id: checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -119,7 +119,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -152,7 +152,7 @@ jobs:
     runs-on: [self-hosted, linux, X64]
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -196,7 +196,7 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -278,7 +278,7 @@ jobs:
       ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -308,7 +308,7 @@ jobs:
       COBALT_BOOTLOADER: ${{needs.initialize.outputs.bootloader}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           persist-credentials: false
