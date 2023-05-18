@@ -24,32 +24,26 @@ using Windows::UI::Popups::UICommandInvokedHandler;
 
 SbAtomic32 SbSystemPlatformErrorPrivate::s_error_count = 0;
 
-SbSystemPlatformErrorPrivate::SbSystemPlatformErrorPrivate(ApplicationUwp* app,
-    SbSystemPlatformErrorType type, SbSystemPlatformErrorCallback callback,
+SbSystemPlatformErrorPrivate::SbSystemPlatformErrorPrivate(
+    ApplicationUwp* app,
+    SbSystemPlatformErrorType type,
+    SbSystemPlatformErrorCallback callback,
     void* user_data)
-    : callback_(callback),
-      user_data_(user_data) {
+    : callback_(callback), user_data_(user_data) {
   SB_DCHECK(type == kSbSystemPlatformErrorTypeConnectionError);
 
   // Only one error dialog can be displayed at a time.
-  if (SbAtomicNoBarrier_Increment(&s_error_count, 1) != 1) {
-    SbAtomicNoBarrier_Increment(&s_error_count, -1);
+  if (SbAtomicAcquire_CompareAndSwap(&s_error_count, 0, 1) != 0) {
     return;
   }
 
-  MessageDialog^ dialog = ref new MessageDialog(
-      app->GetString("UNABLE_TO_CONTACT_YOUTUBE_1",
-          "Sorry, could not connect to YouTube."));
+  MessageDialog ^ dialog = ref new MessageDialog(app->GetString(
+      "UNABLE_TO_CONTACT_YOUTUBE_1", "Sorry, could not connect to YouTube."));
   dialog->Commands->Append(
-      MakeUICommand(
-          app,
-          "OFFLINE_MESSAGE_TRY_AGAIN", "Try again",
-          kSbSystemPlatformErrorResponsePositive));
-  dialog->Commands->Append(
-      MakeUICommand(
-          app,
-          "EXIT_BUTTON", "Exit",
-          kSbSystemPlatformErrorResponseCancel));
+      MakeUICommand(app, "OFFLINE_MESSAGE_TRY_AGAIN", "Try again",
+                    kSbSystemPlatformErrorResponsePositive));
+  dialog->Commands->Append(MakeUICommand(app, "EXIT_BUTTON", "Exit",
+                                         kSbSystemPlatformErrorResponseCancel));
   dialog->DefaultCommandIndex = 0;
   dialog->CancelCommandIndex = 1;
 
@@ -57,14 +51,14 @@ SbSystemPlatformErrorPrivate::SbSystemPlatformErrorPrivate(ApplicationUwp* app,
     dialog_operation_ = dialog->ShowAsync();
     dialog_operation_->Completed =
         ref new AsyncOperationCompletedHandler<IUICommand ^>(
-            [this](IAsyncOperation<IUICommand^>^, AsyncStatus) {
-              SB_DCHECK(SbAtomicNoBarrier_Load(&s_error_count) > 0);
-              SbAtomicNoBarrier_Increment(&s_error_count, -1);
+            [this](IAsyncOperation<IUICommand ^> ^, AsyncStatus) {
+              SB_DCHECK(SbAtomicAcquire_Load(&s_error_count) > 0);
+              SbAtomicBarrier_Increment(&s_error_count, -1);
               delete this;
             });
-  } catch(Platform::Exception^) {
+  } catch (Platform::Exception ^) {
     SB_LOG(ERROR) << "Unable to raise SbSystemPlatformError";
-    SbAtomicNoBarrier_Increment(&s_error_count, -1);
+    SbAtomicBarrier_Increment(&s_error_count, -1);
   }
 }
 
@@ -79,13 +73,14 @@ void SbSystemPlatformErrorPrivate::ClearAndDelete() {
   delete this;
 }
 
-IUICommand^ SbSystemPlatformErrorPrivate::MakeUICommand(ApplicationUwp* app,
-    const char* id, const char* fallback,
-    SbSystemPlatformErrorResponse response) {
-  Platform::String^ label = app->GetString(id, fallback);
-  return ref new UICommand(label,
-    ref new UICommandInvokedHandler(
-      [this, response](IUICommand^ command) {
-        callback_(response, user_data_);
-      }));
+IUICommand ^ SbSystemPlatformErrorPrivate::MakeUICommand(
+                 ApplicationUwp* app,
+                 const char* id,
+                 const char* fallback,
+                 SbSystemPlatformErrorResponse response) {
+  Platform::String ^ label = app->GetString(id, fallback);
+  return ref new UICommand(label, ref new UICommandInvokedHandler(
+                                      [this, response](IUICommand ^ command) {
+                                        callback_(response, user_data_);
+                                      }));
 }
