@@ -104,6 +104,9 @@ _TESTS_EVERGREEN_END_TO_END = [
 ]
 # Location of test files.
 _TEST_DIR_PATH = 'cobalt.black_box_tests.tests.'
+
+_LAUNCH_TARGET = 'cobalt'
+
 # Platform configuration and device information parameters.
 _launcher_params = None
 # Binding address used to create the test server.
@@ -132,28 +135,16 @@ class BlackBoxTestCase(unittest.TestCase):
     super(BlackBoxTestCase, cls).tearDownClass()
     logging.info('Done %s', cls.__name__)
 
-  def CreateCobaltRunner(self,
-                         url=None,
-                         target_params=None,
-                         poll_until_wait_seconds=None,
-                         **kwargs):
+  def CreateCobaltRunner(self, url=None, target_params=None, **kwargs):
     all_target_params = list(target_params) if target_params else []
     if _launcher_params.target_params is not None:
       all_target_params += _launcher_params.target_params
 
-    if poll_until_wait_seconds:
-      return black_box_cobalt_runner.BlackBoxCobaltRunner(
-          launcher_params=_launcher_params,
-          url=url,
-          target_params=all_target_params,
-          poll_until_wait_seconds=poll_until_wait_seconds,
-          **kwargs)
-    else:
-      return black_box_cobalt_runner.BlackBoxCobaltRunner(
-          launcher_params=_launcher_params,
-          url=url,
-          target_params=all_target_params,
-          **kwargs)
+    return black_box_cobalt_runner.BlackBoxCobaltRunner(
+        launcher_params=_launcher_params,
+        url=url,
+        target_params=all_target_params,
+        **kwargs)
 
   def GetBindingAddress(self):
     return _binding_address
@@ -165,7 +156,7 @@ class BlackBoxTestCase(unittest.TestCase):
 def LoadTests(launcher_params):
   launcher = abstract_launcher.LauncherFactory(
       launcher_params.platform,
-      'cobalt',
+      _LAUNCH_TARGET,
       launcher_params.config,
       device_id=launcher_params.device_id,
       target_params=None,
@@ -193,7 +184,7 @@ def LoadTests(launcher_params):
 def LoadEvergreenEndToEndTests(launcher_params):
   launcher = abstract_launcher.LauncherFactory(  # pylint: disable=unused-variable
       launcher_params.platform,
-      'cobalt',
+      _LAUNCH_TARGET,
       launcher_params.config,
       device_id=launcher_params.device_id,
       target_params=None,
@@ -278,15 +269,14 @@ class BlackBoxTests(object):
 
     run_cobalt_tests = True
     run_evergreen_tests = False
-    if (f'{_launcher_params.platform}/{_launcher_params.config}'
-        in _DISABLED_BLACKBOXTEST_CONFIGS):
+    launch_config = f'{_launcher_params.platform}/{_launcher_params.config}'
+    if launch_config in _DISABLED_BLACKBOXTEST_CONFIGS:
       run_cobalt_tests = False
       logging.warning(
           'Cobalt blackbox tests disabled for platform:%s config:%s',
           _launcher_params.platform, _launcher_params.config)
 
-    if (f'{_launcher_params.platform}/{_launcher_params.config}'
-        in _EVERGREEN_COMPATIBLE_CONFIGS):
+    if launch_config in _EVERGREEN_COMPATIBLE_CONFIGS:
       run_evergreen_tests = True
 
     if not (run_cobalt_tests or run_evergreen_tests):
