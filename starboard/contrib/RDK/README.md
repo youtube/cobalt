@@ -10,7 +10,7 @@ For a more detailed overview of RDK reference port, please see the following:
 
 Youtube Partner portal:
 
-https://support.google.com/yt-lr-device/answer/12174345?hl=en&ref_topic=12174437
+https://developers.google.com/youtube/devices/living-room/compliance/ah212
 
 RDK Central wiki:
 
