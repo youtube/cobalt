@@ -15,13 +15,14 @@
 #
 """Build related constants and helper functions."""
 
+import imp  # pylint: disable=deprecated-module
 import importlib
-import importlib.util
 import logging
 import os
 import sys
 
 from starboard.build.platforms import PLATFORMS
+from starboard.tools import paths
 
 _STARBOARD_TOOLCHAINS_DIR_KEY = 'STARBOARD_TOOLCHAINS_DIR'
 _STARBOARD_TOOLCHAINS_DIR_NAME = 'starboard-toolchains'
@@ -70,17 +71,6 @@ def _ModuleLoaded(module_name, module_path):
   return extensionless_loaded_path == extensionless_module_path
 
 
-def _LoadModule(module_name, module_path):
-  try:
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-  except AttributeError as e:
-    print(sys.version)
-    raise e
-
-
 def _LoadPlatformModule(platform_name, file_name, function_name):
   """Loads a platform module.
 
@@ -100,11 +90,11 @@ def _LoadPlatformModule(platform_name, file_name, function_name):
   try:
     logging.debug('Loading platform %s for "%s".', file_name, platform_name)
     if platform_name in PLATFORMS:
-      platform_path = os.path.join(PLATFORMS[platform_name])
+      platform_path = os.path.join(paths.REPOSITORY_ROOT,
+                                   PLATFORMS[platform_name])
       module_path = os.path.join(platform_path, file_name)
-      module_name = 'platform_module'
-      if not _ModuleLoaded(module_name, module_path):
-        platform_module = _LoadModule(module_name, module_path)
+      if not _ModuleLoaded('platform_module', module_path):
+        platform_module = imp.load_source('platform_module', module_path)
       else:
         platform_module = sys.modules['platform_module']
     else:
