@@ -47,7 +47,7 @@ config("platform_configuration") {
 
   cflags_cc = [
     "-nostdinc++",
-    "-std=c++14",
+    "-std=c++17",
   ]
 
   defines = [

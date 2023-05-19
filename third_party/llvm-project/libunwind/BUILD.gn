@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,12 @@ common_sources = [
   "src/DwarfInstructions.hpp",
   "src/DwarfParser.hpp",
   "src/EHHeaderParser.hpp",
+  "src/FrameHeaderCache.hpp",
   "src/RWMutex.hpp",
   "src/Registers.hpp",
   "src/Unwind-EHABI.cpp",
   "src/Unwind-EHABI.h",
+  "src/Unwind-seh.cpp",
   "src/Unwind-sjlj.c",
   "src/UnwindCursor.hpp",
   "src/UnwindLevel1-gcc-ext.c",
@@ -29,6 +31,7 @@ common_sources = [
   "src/UnwindRegistersRestore.S",
   "src/UnwindRegistersSave.S",
   "src/assembly.h",
+  "src/cet_unwind.h",
   "src/config.h",
   "src/dwarf2.h",
   "src/libunwind.cpp",
@@ -62,7 +65,7 @@ if (sb_is_evergreen) {
     ]
 
     cflags_cc = [
-      "-std=c++11",
+      "-std=c++17",
       "-nostdinc++",
       "-fPIC",
       "-Werror=return-type",
@@ -108,7 +111,7 @@ config("unwind_starboard_config") {
 
   cflags = [ "-Wno-unused-command-line-argument" ]
   cflags_cc = [
-    "-std=c++11",
+    "-std=c++17",
     "-fPIC",
     "-Werror=return-type",
     "-fvisibility-inlines-hidden",

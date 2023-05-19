@@ -21,7 +21,7 @@
 
 #if !defined(LIBCXXABI_SILENT_TERMINATE)
 
-static constinit const char* cause = "uncaught";
+static _LIBCPP_CONSTINIT const char* cause = "uncaught";
 
 #ifndef _LIBCXXABI_NO_EXCEPTIONS
 // Demangle the given string, or return the string as-is in case of an error.
@@ -103,13 +103,13 @@ static constexpr std::terminate_handler default_unexpected_handler = std::termin
 // Global variables that hold the pointers to the current handler
 //
 _LIBCXXABI_DATA_VIS
-constinit std::terminate_handler __cxa_terminate_handler = default_terminate_handler;
+_LIBCPP_CONSTINIT std::terminate_handler __cxa_terminate_handler = default_terminate_handler;
 
 _LIBCXXABI_DATA_VIS
-constinit std::unexpected_handler __cxa_unexpected_handler = default_unexpected_handler;
+_LIBCPP_CONSTINIT std::unexpected_handler __cxa_unexpected_handler = default_unexpected_handler;
 
 _LIBCXXABI_DATA_VIS
-constinit std::new_handler __cxa_new_handler = nullptr;
+_LIBCPP_CONSTINIT std::new_handler __cxa_new_handler = nullptr;
 
 namespace std
 {

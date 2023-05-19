@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ config("cxx_config") {
   cflags = [ "-nostdinc" ]
 
   cflags_cc = [
-    "-std=c++11",
+    "-std=c++17",
     "-nostdinc++",
     "-fvisibility-inlines-hidden",
     "-fms-compatibility-version=19.00",
@@ -35,9 +35,12 @@ config("cxx_config") {
   ]
 
   defines = [
-    "_LIBCPP_BUILDING_LIBRARY",
     "_LIBCPP_HAS_MUSL_LIBC",
-    "_LIBCPP_HAS_NO_STDIN",
+    "_LIBCPP_HAS_THREAD_API_EXTERNAL",
+
+    # Let the library headers know they are currently being used to build the
+    # library.
+    "_LIBCPP_BUILDING_LIBRARY",
 
     # This macro is used to build libcxxabi with libunwind.
     "LIBCXX_BUILDING_LIBCXXABI",
@@ -45,6 +48,7 @@ config("cxx_config") {
 
   include_dirs = [
     "include",
+    "src",
     "//third_party/llvm-project/libcxxabi/include",
   ]
 }
@@ -53,30 +57,23 @@ static_library("cxx") {
   sources = [
     "src/algorithm.cpp",
     "src/any.cpp",
+    "src/barrier.cpp",
     "src/bind.cpp",
-    "src/charconv.cpp",
     "src/chrono.cpp",
     "src/condition_variable.cpp",
+    "src/condition_variable_destructor.cpp",
     "src/exception.cpp",
-    "src/include/apple_availability.h",
-    "src/include/atomic_support.h",
-    "src/include/config_elast.h",
-    "src/include/refstring.h",
-
-    # Remove file system operations
-    #"src/filesystem/directory_iterator.cpp",
-    #"src/filesystem/filesystem_common.h",
-    #"src/filesystem/int128_builtins.cpp",
-    #"src/filesystem/operations.cpp",
-
     "src/functional.cpp",
     "src/future.cpp",
     "src/hash.cpp",
     "src/ios.cpp",
+    "src/ios.instantiations.cpp",
     "src/iostream.cpp",
+    "src/legacy_pointer_safety.cpp",
     "src/locale.cpp",
     "src/memory.cpp",
     "src/mutex.cpp",
+    "src/mutex_destructor.cpp",
     "src/new.cpp",
     "src/optional.cpp",
     "src/regex.cpp",
@@ -91,6 +88,21 @@ static_library("cxx") {
     "src/valarray.cpp",
     "src/variant.cpp",
     "src/vector.cpp",
+    "src/verbose_abort.cpp",
+
+    # src/atomic.cpp is omitted because this file breaks the build.
+
+    # src/charconv.cpp is omitted because this file breaks the build. It uses
+    # C++20's "std::bit_cast".
+
+    # src/format.cpp is omitted because this experimental file breaks the build.
+
+    # src/memory_resource.cpp is omitted because this experimental file breaks
+    # the build.
+
+    # src/debug.cpp and src/legacy_debug_handler.cpp are omitted because ???.
+
+    # src/random.cpp and src/random_shuffle.cpp are omitted because ???.
   ]
 
   configs += [ ":cxx_config" ]
