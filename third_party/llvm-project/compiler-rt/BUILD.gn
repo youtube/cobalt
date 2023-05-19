@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 config("compiler_rt_config") {
   cflags = [ "-nostdinc" ]
   cflags_cc = [
-    "-std=c++11",
+    "-std=c++17",
     "-nostdinc++",
     "-fvisibility-inlines-hidden",
     "-fms-compatibility-version=19.00",

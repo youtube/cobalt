@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ config("cxxabi_config") {
   cflags = [ "-nostdinc" ]
 
   cflags_cc = [
-    "-std=c++11",
+    "-std=c++17",
     "-nostdinc++",
     "-fPIC",
     "-fexceptions",
@@ -38,49 +38,40 @@ config("cxxabi_config") {
   ]
 
   defines = [
-    # This macro is used to disable extern template declarations in the libc++
-    # headers. The intended use case is for clients who wish to use the libc++
-    # headers without taking a dependency on the libc++ library itself.
-    "_LIBCPP_DISABLE_EXTERN_TEMPLATE",
-
     # This macro is used to re-enable the `set_unexpected`, `get_unexpected`, and
     # `unexpected` functions, which were removed in C++17.
     "_LIBCPP_ENABLE_CXX17_REMOVED_UNEXPECTED_FUNCTIONS",
 
+    "_LIBCPP_HAS_MUSL_LIBC",
+    "_LIBCPP_HAS_THREAD_API_EXTERNAL",
+
     # Let the library headers know they are currently being used to build the
     # library.
     "_LIBCXXABI_BUILDING_LIBRARY",
+    "_LIBCPP_BUILDING_LIBRARY",
   ]
 
-  include_dirs = [ "include" ]
+  include_dirs = [
+    "include",
+    "//third_party/llvm-project/libcxx/src",
+  ]
 }
 
 static_library("cxxabi") {
   sources = [
     "src/abort_message.cpp",
-    "src/abort_message.h",
     "src/cxa_aux_runtime.cpp",
     "src/cxa_default_handlers.cpp",
     "src/cxa_demangle.cpp",
     "src/cxa_exception.cpp",
-    "src/cxa_exception.hpp",
     "src/cxa_exception_storage.cpp",
     "src/cxa_guard.cpp",
     "src/cxa_handlers.cpp",
-    "src/cxa_handlers.hpp",
     "src/cxa_personality.cpp",
-    "src/cxa_unexpected.cpp",
     "src/cxa_vector.cpp",
     "src/cxa_virtual.cpp",
-    "src/demangle/Compiler.h",
-    "src/demangle/StringView.h",
-    "src/demangle/Utility.h",
     "src/fallback_malloc.cpp",
-    "src/fallback_malloc.h",
-    "src/include/atomic_support.h",
-    "src/include/refstring.h",
     "src/private_typeinfo.cpp",
-    "src/private_typeinfo.h",
     "src/stdlib_exception.cpp",
     "src/stdlib_new_delete.cpp",
     "src/stdlib_stdexcept.cpp",
