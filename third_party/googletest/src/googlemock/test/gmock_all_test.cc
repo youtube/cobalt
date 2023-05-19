@@ -1,4 +1,4 @@
-// Copyright 2006, Google Inc.
+// Copyright 2009, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,34 +27,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
-
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
 //
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
+// Tests for Google C++ Mocking Framework (Google Mock)
 //
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
-
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
-
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+// Some users use a build system that Google Mock doesn't support directly,
+// yet they still want to build and run Google Mock's own tests.  This file
+// includes most such tests, making it easier for these users to maintain
+// their build scripts (they just need to build this file, even though the
+// below list of actual *_test.cc files might change).
+#include "test/gmock-actions_test.cc"
+#include "test/gmock-cardinalities_test.cc"
+#include "test/gmock-internal-utils_test.cc"
+#include "test/gmock-matchers-arithmetic_test.cc"
+#include "test/gmock-matchers-comparisons_test.cc"
+#include "test/gmock-matchers-containers_test.cc"
+#include "test/gmock-matchers-misc_test.cc"
+#include "test/gmock-more-actions_test.cc"
+#include "test/gmock-nice-strict_test.cc"
+#include "test/gmock-port_test.cc"
+#include "test/gmock-spec-builders_test.cc"
+#include "test/gmock_test.cc"

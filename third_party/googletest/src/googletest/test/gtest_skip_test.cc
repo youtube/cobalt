@@ -1,5 +1,5 @@
-// Copyright 2006, Google Inc.
-// All rights reserved.
+// Copyright 2008 Google Inc.
+// All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -26,35 +26,26 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-// Google C++ Testing and Mocking Framework definitions useful in production
-// code.
-
-#ifndef GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-#define GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
-
-// When you need to test the private or protected members of a class,
-// use the FRIEND_TEST macro to declare your tests as friends of the
-// class.  For example:
 //
-// class MyClass {
-//  private:
-//   void PrivateMethod();
-//   FRIEND_TEST(MyClassTest, PrivateMethodWorks);
-// };
+// Author: arseny.aprelev@gmail.com (Arseny Aprelev)
 //
-// class MyClassTest : public testing::Test {
-//   // ...
-// };
-//
-// TEST_F(MyClassTest, PrivateMethodWorks) {
-//   // Can call MyClass::PrivateMethod() here.
-// }
-//
-// Note: The test class must be in the same namespace as the class being tested.
-// For example, putting MyClassTest in an anonymous namespace will not work.
 
-#define FRIEND_TEST(test_case_name, test_name) \
-  friend class test_case_name##_##test_name##_Test
+#include "gtest/gtest.h"
 
-#endif  // GOOGLETEST_INCLUDE_GTEST_GTEST_PROD_H_
+using ::testing::Test;
+
+TEST(SkipTest, DoesSkip) {
+  GTEST_SKIP() << "skipping single test";
+  EXPECT_EQ(0, 1);
+}
+
+class Fixture : public Test {
+ protected:
+  void SetUp() override {
+    GTEST_SKIP() << "skipping all tests for this fixture";
+  }
+};
+
+TEST_F(Fixture, SkipsOneTest) { EXPECT_EQ(5, 7); }
+
+TEST_F(Fixture, SkipsAnotherTest) { EXPECT_EQ(99, 100); }
