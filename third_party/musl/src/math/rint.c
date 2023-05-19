@@ -15,7 +15,7 @@ double rint(double x);
 double rint_internal(double x)
 #else  // COBALT_MUSL_W_GLIBC_HEADERS
 double rint(double x)
-#endif  // COBALT_MUSL_W_GLIBC_HEADERS
+#endif // COBALT_MUSL_W_GLIBC_HEADERS
 {
 	union {double f; uint64_t i;} u = {x};
 	int e = u.i>>52 & 0x7ff;

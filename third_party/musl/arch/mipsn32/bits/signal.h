@@ -85,7 +85,6 @@ typedef struct __ucontext {
 #define SA_RESTART    0x10000000
 #define SA_NODEFER    0x40000000
 #define SA_RESETHAND  0x80000000
-#define SA_RESTORER   0x04000000
 
 #undef SIG_BLOCK
 #undef SIG_UNBLOCK
@@ -112,7 +111,7 @@ typedef struct __ucontext {
 #define SIGTRAP   5
 #define SIGABRT   6
 #define SIGIOT    SIGABRT
-#define SIGSTKFLT 7
+#define SIGEMT    7
 #define SIGFPE    8
 #define SIGKILL   9
 #define SIGBUS    10

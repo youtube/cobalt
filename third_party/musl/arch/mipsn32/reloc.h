@@ -1,5 +1,3 @@
-#include <endian.h>
-
 #if __mips_isa_rev >= 6
 #define ISA_SUFFIX "r6"
 #else
@@ -31,6 +29,7 @@
 
 #define NEED_MIPS_GOT_RELOCS 1
 #define DT_DEBUG_INDIRECT DT_MIPS_RLD_MAP
+#define DT_DEBUG_INDIRECT_REL DT_MIPS_RLD_MAP_REL
 #define ARCH_SYM_REJECT_UND(s) (!((s)->st_other & STO_MIPS_PLT))
 
 #define CRTJMP(pc,sp) __asm__ __volatile__( \

@@ -1,12 +1,19 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "libc.h"
+#include "lock.h"
+#include "fork_impl.h"
 
 #ifdef STARBOARD
 #include "starboard/common/log.h"
 #include "starboard/mutex.h"
 #include "starboard/types.h"
 #endif  // STARBOARD
+
+#define malloc __libc_malloc
+#define calloc __libc_calloc
+#define realloc undef
+#define free undef
 
 /* Ensure that at least 32 atexit handlers can be registered without malloc */
 #define COUNT 32
@@ -31,7 +38,8 @@ static SbMutex lock = SB_MUTEX_INITIALIZER;
     } while (0)
 #else   // !STARBOARD
 static volatile int lock[1];
-#endif  // STARBOARD
+volatile int *const __atexit_lockptr = lock;
+#endif // STARBOARD
 
 void __funcs_on_exit()
 {

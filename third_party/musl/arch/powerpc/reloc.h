@@ -1,4 +1,4 @@
-#ifdef _SOFT_FLOAT
+#if defined(_SOFT_FLOAT) || defined(__NO_FPRS__)
 #define FP_SUFFIX "-sf"
 #else
 #define FP_SUFFIX ""
@@ -9,6 +9,7 @@
 #define TPOFF_K (-0x7000)
 
 #define REL_SYMBOLIC    R_PPC_ADDR32
+#define REL_USYMBOLIC   R_PPC_UADDR32
 #define REL_GOT         R_PPC_GLOB_DAT
 #define REL_PLT         R_PPC_JMP_SLOT
 #define REL_RELATIVE    R_PPC_RELATIVE

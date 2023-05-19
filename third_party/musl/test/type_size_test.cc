@@ -76,11 +76,21 @@ SB_COMPILE_ASSERT(sizeof(blksize_t) == SB_SIZE_OF_LONG,
 SB_COMPILE_ASSERT(sizeof(clock_t) == SB_SIZE_OF_LONG,
                   SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_clock_t);
 
-SB_COMPILE_ASSERT(sizeof(suseconds_t) == SB_SIZE_OF_LONG,
-                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_suseconds_t);
+// WARNING: do not change unless you know what you are doing. The following
+// define, SB_TYPE_SIZE_EXPECTED, is used to simplify the size checking across
+// different architectures.
 
-SB_COMPILE_ASSERT(sizeof(time_t) == SB_SIZE_OF_LONG,
-                  SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_time_t);
+#if SB_IS(32_BIT)
+#define SB_EXPECTED_TYPE_SIZE SB_SIZE_OF_LLONG
+#elif SB_IS(64_BIT)
+#define SB_EXPECTED_TYPE_SIZE SB_SIZE_OF_LONG
+#endif  // SB_IS(64_BIT)
+
+SB_COMPILE_ASSERT(sizeof(suseconds_t) == SB_EXPECTED_TYPE_SIZE,
+                  SB_EXPECTED_TYPE_SIZE_is_inconsistent_with_sizeof_suseconds_t);
+
+SB_COMPILE_ASSERT(sizeof(time_t) == SB_EXPECTED_TYPE_SIZE,
+                  SB_EXPECTED_TYPE_SIZE_is_inconsistent_with_sizeof_time_t);
 
 SB_COMPILE_ASSERT(sizeof(wctype_t) == SB_SIZE_OF_LONG,
                   SB_SIZE_OF_LONG_is_inconsistent_with_sizeof_wctype_t);
@@ -94,9 +104,7 @@ SB_COMPILE_ASSERT(sizeof(int16_t) == SB_SIZE_OF_SHORT,
 SB_COMPILE_ASSERT(sizeof(uint16_t) == SB_SIZE_OF_SHORT,
                   SB_SIZE_OF_SHORT_is_inconsistent_with_sizeof_uint16_t);
 
-// WARNING: do not change unless you know what you are doing. The following
-// define, SB_TYPE_SIZE_EXPECTED, is used to simplify the size checking across
-// different architectures.
+#undef SB_EXPECTED_TYPE_SIZE
 
 #if SB_IS(32_BIT)
 #define SB_EXPECTED_TYPE_SIZE SB_SIZE_OF_INT

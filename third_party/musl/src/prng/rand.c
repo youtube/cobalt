@@ -5,13 +5,13 @@
 #include "starboard/system.h"
 #else   // !defined(STARBOARD)
 static uint64_t seed;
-#endif  // defined(STARBOARD)
+#endif // defined(STARBOARD)
 
 void srand(unsigned s)
 {
 #if !defined(STARBOARD)
 	seed = s-1;
-#endif  // !defined(STARBOARD)
+#endif // !defined(STARBOARD)
 }
 
 int rand(void)
@@ -21,5 +21,5 @@ int rand(void)
 #else   // !defined(STARBOARD)
 	seed = 6364136223846793005ULL*seed + 1;
 	return seed>>33;
-#endif  // defined(STARBOARD)
+#endif // defined(STARBOARD)
 }

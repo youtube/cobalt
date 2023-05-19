@@ -5,8 +5,6 @@
 
 #define SYSCALL_MMAP2_UNIT 8192ULL
 
-#ifndef __clang__
-
 static __inline long __syscall0(long n)
 {
 	register unsigned long r11 __asm__("r11") = n;
@@ -114,9 +112,4 @@ static inline long __syscall6(long n, long a, long b, long c, long d, long e, lo
 	return r11;
 }
 
-#else
-
-#undef SYSCALL_NO_INLINE
-#define SYSCALL_NO_INLINE
-
-#endif
+#define IPC_64 0

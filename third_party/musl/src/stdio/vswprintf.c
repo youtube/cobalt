@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <wchar.h>
 
 struct cookie {
@@ -17,6 +18,7 @@ static size_t sw_write(FILE *f, const unsigned char *s, size_t l)
 	if (s!=f->wbase && sw_write(f, f->wbase, f->wpos-f->wbase)==-1)
 		return -1;
 	while (c->l && l && (i=mbtowc(c->ws, (void *)s, l))>=0) {
+		if (!i) i=1;
 		s+=i;
 		l-=i;
 		c->l--;

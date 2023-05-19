@@ -7,6 +7,7 @@ extern "C" {
 
 #include <features.h>
 
+// nullptr causes cast errors in third_party code
 #ifdef __cplusplus
 #define NULL 0L
 #else

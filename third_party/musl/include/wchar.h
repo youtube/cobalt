@@ -14,6 +14,10 @@ extern "C" {
 #define __NEED_wint_t
 #define __NEED_mbstate_t
 
+#if __STDC_VERSION__ < 201112L
+#define __NEED_struct__IO_FILE
+#endif
+
 #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
  || defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
 #define __NEED_locale_t
@@ -34,6 +38,7 @@ extern "C" {
 #define WCHAR_MIN (-1-0x7fffffff+L'\0')
 #endif
 
+// nullptr causes cast errors in third_party code
 #ifdef __cplusplus
 #define NULL 0L
 #else

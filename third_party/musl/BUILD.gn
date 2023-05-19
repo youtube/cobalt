@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,6 @@ if (target_cpu == "x64") {
   musl_arch = "arm"
 } else if (target_cpu == "arm64") {
   musl_arch = "aarch64"
-} else if (target_cpu == "mips") {
-  musl_arch = "mips"
 }
 
 config("external_settings") {
@@ -43,6 +41,7 @@ static_library("c_internal") {
   visibility = [ ":c" ]
 
   include_dirs = [
+    "src/include",
     "src/starboard/internal",
     "src/errno",
     "src/multibyte",
@@ -131,6 +130,17 @@ static_library("c_internal") {
     "src/math/__fpclassifyf.c",
     "src/math/__fpclassifyl.c",
     "src/math/__invtrigl.c",
+    "src/math/__math_divzero.c",
+    "src/math/__math_divzerof.c",
+    "src/math/__math_invalid.c",
+    "src/math/__math_invalidf.c",
+    "src/math/__math_invalidl.c",
+    "src/math/__math_oflow.c",
+    "src/math/__math_oflowf.c",
+    "src/math/__math_uflow.c",
+    "src/math/__math_uflowf.c",
+    "src/math/__math_xflow.c",
+    "src/math/__math_xflowf.c",
     "src/math/__polevll.c",
     "src/math/__rem_pio2.c",
     "src/math/__rem_pio2_large.c",
@@ -185,11 +195,13 @@ static_library("c_internal") {
     "src/math/erff.c",
     "src/math/erfl.c",
     "src/math/exp.c",
+    "src/math/exp_data.c",
     "src/math/exp10.c",
     "src/math/exp10f.c",
     "src/math/exp10l.c",
     "src/math/exp2.c",
     "src/math/exp2f.c",
+    "src/math/exp2f_data.c",
     "src/math/exp2l.c",
     "src/math/expf.c",
     "src/math/expl.c",
@@ -249,6 +261,7 @@ static_library("c_internal") {
     "src/math/llroundf.c",
     "src/math/llroundl.c",
     "src/math/log.c",
+    "src/math/log_data.c",
     "src/math/log10.c",
     "src/math/log10f.c",
     "src/math/log10l.c",
@@ -256,12 +269,15 @@ static_library("c_internal") {
     "src/math/log1pf.c",
     "src/math/log1pl.c",
     "src/math/log2.c",
+    "src/math/log2_data.c",
     "src/math/log2f.c",
+    "src/math/log2f_data.c",
     "src/math/log2l.c",
     "src/math/logb.c",
     "src/math/logbf.c",
     "src/math/logbl.c",
     "src/math/logf.c",
+    "src/math/logf_data.c",
     "src/math/logl.c",
     "src/math/lrint.c",
     "src/math/lrintf.c",
@@ -285,7 +301,9 @@ static_library("c_internal") {
     "src/math/nexttowardf.c",
     "src/math/nexttowardl.c",
     "src/math/pow.c",
+    "src/math/pow_data.c",
     "src/math/powf.c",
+    "src/math/powf_data.c",
     "src/math/powl.c",
     "src/math/remainder.c",
     "src/math/remainderf.c",
@@ -320,6 +338,7 @@ static_library("c_internal") {
     "src/math/sinhl.c",
     "src/math/sinl.c",
     "src/math/sqrt.c",
+    "src/math/sqrt_data.c",
     "src/math/sqrtf.c",
     "src/math/sqrtl.c",
     "src/math/tan.c",
@@ -393,6 +412,7 @@ static_library("c_internal") {
     "src/stdlib/labs.c",
     "src/stdlib/llabs.c",
     "src/stdlib/qsort.c",
+    "src/stdlib/qsort_nr.c",
     "src/stdlib/strtod.c",
     "src/stdlib/strtol.c",
     "src/stdlib/wcstod.c",
@@ -477,14 +497,6 @@ static_library("c_internal") {
     sources += [
       "src/fenv/$musl_arch/fenv-hf.S",
       "src/fenv/$musl_arch/fenv.c",
-      "src/setjmp/$musl_arch/longjmp.s",
-      "src/setjmp/$musl_arch/setjmp.s",
-    ]
-  }
-  if (musl_arch == "mips") {
-    sources += [
-      "src/fenv/$musl_arch/fenv-sf.c",
-      "src/fenv/$musl_arch/fenv.S",
       "src/setjmp/$musl_arch/longjmp.S",
       "src/setjmp/$musl_arch/setjmp.S",
     ]
