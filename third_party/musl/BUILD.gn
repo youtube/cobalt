@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,6 @@ if (target_cpu == "x64") {
   musl_arch = "arm"
 } else if (target_cpu == "arm64") {
   musl_arch = "aarch64"
-} else if (target_cpu == "mips") {
-  musl_arch = "mips"
 }
 
 config("external_settings") {
@@ -499,14 +497,6 @@ static_library("c_internal") {
     sources += [
       "src/fenv/$musl_arch/fenv-hf.S",
       "src/fenv/$musl_arch/fenv.c",
-      "src/setjmp/$musl_arch/longjmp.s",
-      "src/setjmp/$musl_arch/setjmp.s",
-    ]
-  }
-  if (musl_arch == "mips") {
-    sources += [
-      "src/fenv/$musl_arch/fenv-sf.c",
-      "src/fenv/$musl_arch/fenv.S",
       "src/setjmp/$musl_arch/longjmp.S",
       "src/setjmp/$musl_arch/setjmp.S",
     ]
