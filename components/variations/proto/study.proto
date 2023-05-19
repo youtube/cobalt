@@ -183,6 +183,7 @@ message Study {
   // Possible Chrome operating system platforms.
   // These names must match those in tools/variations/fieldtrial_to_struct.py.
   enum Platform {
+    PLATFORM_STARBOARD       = -1;
     PLATFORM_WINDOWS         = 0;
     PLATFORM_MAC             = 1;
     PLATFORM_LINUX           = 2;

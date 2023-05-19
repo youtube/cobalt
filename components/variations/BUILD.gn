@@ -2,7 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//testing/test.gni")
+if (!use_cobalt_customizations) {
+  import("//testing/test.gni")
+}
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -72,6 +74,21 @@ static_library("variations") {
     "variations_url_constants.h",
   ]
 
+  if (is_starboard) {
+    sources -= [
+      # These bring in JNI, which we do not want to bring into Cobalt.
+      "android/variations_associated_data_android.cc",
+      "android/variations_seed_bridge.cc",
+      "android/variations_seed_bridge.h",
+      # The ".proto" files were referenced here directly, but caused the build
+      # to fail.
+      "proto/client_variations.proto",
+      "proto/permuted_entropy_cache.proto",
+      "proto/study.proto",
+      "proto/variations_seed.proto",
+    ]
+  }
+
   if (is_android || is_ios) {
     sources += [
       "variations_request_scheduler_mobile.cc",
@@ -130,56 +147,57 @@ static_library("test_support") {
   ]
 }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [
-    "active_field_trials_unittest.cc",
-    "caching_permuted_entropy_provider_unittest.cc",
-    "child_process_field_trial_syncer_unittest.cc",
-    "entropy_provider_unittest.cc",
-    "experiment_labels_unittest.cc",
-    "hashing_unittest.cc",
-    "net/variations_command_line_unittest.cc",
-    "net/variations_http_headers_unittest.cc",
-    "study_filtering_unittest.cc",
-    "synthetic_trial_registry_unittest.cc",
-    "variations_associated_data_unittest.cc",
-    "variations_crash_keys_unittest.cc",
-    "variations_http_header_provider_unittest.cc",
-    "variations_id_collection_unittest.cc",
-    "variations_request_scheduler_unittest.cc",
-    "variations_seed_processor_unittest.cc",
-    "variations_seed_simulator_unittest.cc",
-    "variations_seed_store_unittest.cc",
-  ]
+# TODO(b/283258321): Re-enable as many tests as posible.
+if (!use_cobalt_customizations) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "active_field_trials_unittest.cc",
+      "caching_permuted_entropy_provider_unittest.cc",
+      "child_process_field_trial_syncer_unittest.cc",
+      "entropy_provider_unittest.cc",
+      "experiment_labels_unittest.cc",
+      "hashing_unittest.cc",
+      "net/variations_command_line_unittest.cc",
+      "net/variations_http_headers_unittest.cc",
+      "study_filtering_unittest.cc",
+      "synthetic_trial_registry_unittest.cc",
+      "variations_associated_data_unittest.cc",
+      "variations_crash_keys_unittest.cc",
+      "variations_http_header_provider_unittest.cc",
+      "variations_id_collection_unittest.cc",
+      "variations_request_scheduler_unittest.cc",
+      "variations_seed_processor_unittest.cc",
+      "variations_seed_simulator_unittest.cc",
+      "variations_seed_store_unittest.cc",
+    ]
 
-  if (is_android || is_ios) {
-    sources += [ "variations_request_scheduler_mobile_unittest.cc" ]
+    if (is_android || is_ios) {
+      sources += [ "variations_request_scheduler_mobile_unittest.cc" ]
+    }
+
+    deps = [
+      ":variations",
+      "net",
+      "proto",
+      "//base/test:test_support",
+      "//components/crash/core/common:crash_key",
+      "//components/prefs:test_support",
+      "//components/variations/field_trial_config:field_trial_config",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//third_party/zlib/google:compression_utils",
+    ]
   }
 
-  deps = [
-    ":variations",
-    "net",
-    "proto",
-    "//base/test:test_support",
-    "//components/crash/core/common:crash_key",
-    "//components/prefs:test_support",
-    "//components/variations/field_trial_config:field_trial_config",
-    "//testing/gmock",
-    "//testing/gtest",
-    "//third_party/zlib/google:compression_utils",
-  ]
-}
-
-# Convenience testing target
-test("variations_unittests") {
-  sources = [
-    "//components/test/run_all_unittests.cc",
-  ]
-  deps = [
-    ":unit_tests",
-    "//components/test:test_support",
-    "//components/variations/field_trial_config:unit_tests",
-    "//components/variations/service:unit_tests",
-  ]
+  # Convenience testing target
+  test("variations_unittests") {
+    sources = [ "//components/test/run_all_unittests.cc" ]
+    deps = [
+      ":unit_tests",
+      "//components/test:test_support",
+      "//components/variations/field_trial_config:unit_tests",
+      "//components/variations/service:unit_tests",
+    ]
+  }
 }

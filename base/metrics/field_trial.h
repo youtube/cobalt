@@ -80,20 +80,6 @@
 #include "build/build_config.h"
 #include "starboard/types.h"
 
-#if defined(STARBOARD)
-namespace base {
-
-class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {};
-
-class BASE_EXPORT FieldTrialList {
- public:
-  static std::string FindFullName(const std::string& trial_name) {
-    return std::string();
-  }
-};
-}  // namespace base
-#else
-
 namespace base {
 
 class FieldTrialList;
@@ -102,8 +88,14 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
  public:
   typedef int Probability;  // Probability type for being selected in a trial.
 
+#if !defined(STARBOARD)
   // TODO(665129): Make private again after crash has been resolved.
   typedef SharedPersistentMemoryAllocator::Reference FieldTrialRef;
+#else
+  // In Cobalt, we don't export SharedPersistentMemoryAllocator, use the
+  // underlying type "uint32_t" directly here.
+  typedef uint32_t FieldTrialRef;
+#endif
 
   // Specifies the persistence of the field trial group choice.
   enum RandomizationType {
@@ -404,7 +396,12 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
 // the entire life time of the process.
 class BASE_EXPORT FieldTrialList {
  public:
+#if !defined(STARBOARD)
   typedef SharedPersistentMemoryAllocator FieldTrialAllocator;
+#else
+  // In Cobalt, we don't import any shared memory constructs.
+  typedef LocalPersistentMemoryAllocator FieldTrialAllocator;
+#endif
 
   // Type for function pointer passed to |AllParamsToString| used to escape
   // special characters from |input|.
@@ -598,7 +595,7 @@ class BASE_EXPORT FieldTrialList {
   // list of handles to be inherited.
   static void AppendFieldTrialHandleIfNeeded(
       base::HandlesToInheritVector* handles);
-#elif defined(OS_FUCHSIA)
+#elif defined(OS_FUCHSIA) || defined(STARBOARD)
   // TODO(fuchsia): Implement shared-memory configuration (crbug.com/752368).
 #elif defined(OS_POSIX) && !defined(OS_NACL)
   // On POSIX, we also need to explicitly pass down this file descriptor that
@@ -717,7 +714,7 @@ class BASE_EXPORT FieldTrialList {
   // Returns true on success, false on failure.
   // |switch_value| also contains the serialized GUID.
   static bool CreateTrialsFromSwitchValue(const std::string& switch_value);
-#elif defined(OS_POSIX) && !defined(OS_NACL)
+#elif defined(OS_POSIX) && !defined(OS_NACL) && !defined(STARBOARD)
   // On POSIX systems that use the zygote, we look up the correct fd that backs
   // the shared memory segment containing the field trials by looking it up via
   // an fd key in GlobalDescriptors. Returns true on success, false on failure.
@@ -726,8 +723,9 @@ class BASE_EXPORT FieldTrialList {
                                          const std::string& switch_value);
 #endif
 
-  // Takes an unmapped SharedMemoryHandle, creates a SharedMemory object from it
-  // and maps it with the correct size.
+#if !defined(STARBOARD)
+  // Takes an unmapped SharedMemoryHandle, creates a SharedMemory object from
+  // it and maps it with the correct size.
   static bool CreateTrialsFromSharedMemoryHandle(SharedMemoryHandle shm_handle);
 
   // Expects a mapped piece of shared memory |shm| that was created from the
@@ -737,6 +735,7 @@ class BASE_EXPORT FieldTrialList {
   // successful and false otherwise.
   static bool CreateTrialsFromSharedMemory(
       std::unique_ptr<base::SharedMemory> shm);
+#endif
 
   // Instantiate the field trial allocator, add all existing field trials to it,
   // and duplicates its handle to a read-only handle, which gets stored in
@@ -813,5 +812,4 @@ class BASE_EXPORT FieldTrialList {
 
 }  // namespace base
 
-#endif  // #if defined(STARBOARD)
 #endif  // BASE_METRICS_FIELD_TRIAL_H_

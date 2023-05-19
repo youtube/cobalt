@@ -1128,6 +1128,11 @@ void FilePersistentMemoryAllocator::FlushPartial(size_t length, bool sync) {
   int result = ::msync(const_cast<void*>(data()), length,
                        MS_INVALIDATE | (sync ? MS_SYNC : MS_ASYNC));
   DCHECK_NE(EINVAL, result);
+#elif defined(STARBOARD)
+  // TODO(b/283278127): This wont' work for platforms where
+  // SB_CAN_MAP_EXECUTABLE_MEMORY = 0. That's nxswitch, tvos, and playstation.
+  // Figure out how to make this work for all platforms.
+  SbMemoryFlush(const_cast<void*>(data()), length);
 #else
 #error Unsupported OS.
 #endif
