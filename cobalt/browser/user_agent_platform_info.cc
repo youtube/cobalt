@@ -270,6 +270,9 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   }
 #endif
 
+  // Android OS Experience
+  info.set_android_os_experience("GARO");
+
   info.set_cobalt_version(COBALT_VERSION);
   info.set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
 
@@ -517,6 +520,11 @@ void UserAgentPlatformInfo::set_evergreen_file_type(
 void UserAgentPlatformInfo::set_evergreen_version(
     const std::string& evergreen_version) {
   evergreen_version_ = Sanitize(evergreen_version, isTCHAR);
+}
+
+void UserAgentPlatformInfo::set_android_os_experience(
+    const std::string& android_os_experience) {
+  android_os_experience_ = Sanitize(android_os_experience, isTCHAR);
 }
 
 void UserAgentPlatformInfo::set_cobalt_version(

@@ -97,6 +97,9 @@ void URLRequestContext::CopyFrom(const URLRequestContext* other) {
 #endif  // BUILDFLAG(ENABLE_REPORTING)
   set_enable_brotli(other->enable_brotli_);
   set_check_cleartext_permitted(other->check_cleartext_permitted_);
+#if defined(COBALT)
+  http_client_hint_headers_ = other->http_client_hint_headers_;
+#endif  // defined(COBALT)
 }
 
 const HttpNetworkSession::Params* URLRequestContext::GetNetworkSessionParams(

@@ -20,6 +20,9 @@
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_network_session.h"
+#if defined(COBALT)
+#include "net/http/http_request_headers.h"
+#endif  // defined(COBALT)
 #include "net/http/http_server_properties.h"
 #include "net/http/transport_security_state.h"
 #include "net/net_buildflags.h"
@@ -235,6 +238,13 @@ class NET_EXPORT URLRequestContext
     http_user_agent_settings_ = http_user_agent_settings;
   }
 
+#if defined(COBALT)
+  // Gets the underlying HTTP client hint headers
+  const net::HttpRequestHeaders& http_client_hint_headers() const {
+    return http_client_hint_headers_;
+  }
+#endif  // defined(COBALT)
+
   // Gets the NetworkQualityEstimator associated with this context.
   // May return nullptr.
   NetworkQualityEstimator* network_quality_estimator() const {
@@ -288,6 +298,12 @@ class NET_EXPORT URLRequestContext
   void AssertCalledOnValidThread() {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   }
+
+#if defined(COBALT)
+ protected:
+  net::HttpRequestHeaders http_client_hint_headers_;
+ private:
+#endif  // defined(COBALT)
 
  private:
   // ---------------------------------------------------------------------------

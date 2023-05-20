@@ -700,6 +700,13 @@ void URLRequestHttpJob::AddExtraHeaders() {
           accept_language);
     }
   }
+
+#if defined(COBALT)
+  // Add all client hint headers.
+  for (const net::HttpRequestHeaders::HeaderKeyValuePair& header : request()->context()->http_client_hint_headers().GetHeaderVector()) {
+    request_info_.extra_headers.SetHeader(header.key, header.value);
+  }
+#endif  // defined(COBALT)
 }
 
 void URLRequestHttpJob::AddCookieHeaderAndStart() {
