@@ -65,14 +65,18 @@ const char kQUICToggleCommandLongHelp[] =
     "enabled or not. The new value will apply for new streams.";
 #endif  // defined(ENABLE_DEBUGGER)
 
+const char kClientHintsEnabledPersistentSettingsKey[] = "clientHintsEnabled";
+
 }  // namespace
 
 URLRequestContext::URLRequestContext(
+    const std::vector<std::string>& client_hint_headers,
     storage::StorageManager* storage_manager, const std::string& custom_proxy,
     net::NetLog* net_log, bool ignore_certificate_errors,
     scoped_refptr<base::SequencedTaskRunner> network_task_runner,
     persistent_storage::PersistentSettings* persistent_settings)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this))
+    : client_hint_headers_(client_hint_headers),
+      ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this))
 #if defined(ENABLE_DEBUGGER)
       ,
       ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
@@ -208,6 +212,12 @@ URLRequestContext::URLRequestContext(
     storage_.set_http_transaction_factory(std::move(http_cache));
   }
 
+  // Determine if client hint headers are disabled.
+  using_client_hint_headers_ =
+      (persistent_settings == nullptr ||
+       persistent_settings->GetPersistentSettingAsBool(
+           kClientHintsEnabledPersistentSettingsKey, true));
+
   auto* job_factory = new net::URLRequestJobFactoryImpl();
   job_factory->SetProtocolHandler(url::kDataScheme,
                                   std::make_unique<net::DataProtocolHandler>());
@@ -235,6 +245,11 @@ void URLRequestContext::SetEnableQuic(bool enable_quic) {
 }
 
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }
+
+std::vector<std::string> URLRequestContext::client_hint_headers() const {
+  return using_client_hint_headers_ ? client_hint_headers_
+                                    : std::vector<std::string>();
+}
 
 #if defined(ENABLE_DEBUGGER)
 void URLRequestContext::OnQuicToggle(const std::string& message) {

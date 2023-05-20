@@ -26,6 +26,7 @@
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/fetch_interceptor_coordinator.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
+#include "cobalt/network/client_hint_headers.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/mime_util.h"
 #include "net/url_request/url_fetcher.h"
@@ -135,6 +136,8 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
         net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
     url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
+  cobalt::network::SetClientHintHeaders(network_module->url_request_context(),
+                                        *url_fetcher_);
 
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()

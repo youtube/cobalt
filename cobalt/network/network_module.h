@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/message_loop/message_loop.h"
 #include "base/sequenced_task_runner.h"
@@ -30,6 +31,7 @@
 #include "cobalt/network/url_request_context_getter.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/base/static_cookie_policy.h"
+#include "net/http/http_request_headers.h"
 #include "url/gurl.h"
 #if defined(DIAL_SERVER)
 // Including this header causes a link error on Windows, since we
@@ -79,6 +81,7 @@ class NetworkModule {
 
   // Constructor for production use.
   NetworkModule(const std::string& user_agent_string,
+                const std::vector<std::string>& client_hint_headers,
                 storage::StorageManager* storage_manager,
                 base::EventDispatcher* event_dispatcher,
                 const Options& options = Options());
@@ -117,6 +120,7 @@ class NetworkModule {
   void OnCreate(base::WaitableEvent* creation_event);
   std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
+  std::vector<std::string> client_hint_headers_;
   storage::StorageManager* storage_manager_;
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;

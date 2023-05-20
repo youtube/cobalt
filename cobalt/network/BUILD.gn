@@ -16,6 +16,7 @@ static_library("network") {
   has_pedantic_warnings = true
 
   sources = [
+    "client_hint_headers.h",
     "cookie_jar_impl.cc",
     "cookie_jar_impl.h",
     "job_factory_config.h",
