@@ -59,7 +59,7 @@ jobs:
       MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           ref: ${{ matrix.target_branch }}
           fetch-depth: 0
