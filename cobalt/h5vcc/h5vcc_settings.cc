@@ -16,6 +16,10 @@
 
 #include <string.h>
 
+#include <memory>
+
+#include "cobalt/network/network_module.h"
+
 namespace cobalt {
 namespace h5vcc {
 
@@ -38,7 +42,8 @@ H5vccSettings::H5vccSettings(
     cobalt::updater::UpdaterModule* updater_module,
 #endif
     web::NavigatorUAData* user_agent_data,
-    script::GlobalEnvironment* global_environment)
+    script::GlobalEnvironment* global_environment,
+    persistent_storage::PersistentSettings* persistent_settings)
     : set_web_setting_func_(set_web_setting_func),
       media_module_(media_module),
       can_play_type_handler_(can_play_type_handler),
@@ -47,13 +52,15 @@ H5vccSettings::H5vccSettings(
       updater_module_(updater_module),
 #endif
       user_agent_data_(user_agent_data),
-      global_environment_(global_environment) {
+      global_environment_(global_environment),
+      persistent_settings_(persistent_settings) {
 }
 
 bool H5vccSettings::Set(const std::string& name, int32 value) const {
   const char kMediaPrefix[] = "Media.";
   const char kDisableMediaCodec[] = "DisableMediaCodec";
   const char kNavigatorUAData[] = "NavigatorUAData";
+  const char kClientHintHeaders[] = "ClientHintHeaders";
   const char kQUIC[] = "QUIC";
 
 #if SB_IS(EVERGREEN)
@@ -80,6 +87,17 @@ bool H5vccSettings::Set(const std::string& name, int32 value) const {
   if (name.compare(kNavigatorUAData) == 0 && value == 1) {
     global_environment_->BindTo("userAgentData", user_agent_data_, "navigator");
     return true;
+  }
+
+  if (name.compare(kClientHintHeaders) == 0) {
+    if (!persistent_settings_) {
+      return false;
+    } else {
+      persistent_settings_->SetPersistentSetting(
+          network::kClientHintHeadersEnabledPersistentSettingsKey,
+          std::make_unique<base::Value>(value != 0));
+      return true;
+    }
   }
 
   if (name.compare(kQUIC) == 0) {

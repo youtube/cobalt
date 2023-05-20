@@ -47,6 +47,7 @@ class UserAgentPlatformInfo {
   virtual const std::string& evergreen_type() const = 0;
   virtual const std::string& evergreen_file_type() const = 0;
   virtual const std::string& evergreen_version() const = 0;
+  virtual const std::string& android_os_experience() const = 0;
 
   virtual const std::string& cobalt_version() const = 0;
   virtual const std::string& cobalt_build_version_number() const = 0;

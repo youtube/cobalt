@@ -55,6 +55,7 @@
 #include "cobalt/base/window_on_offline_event.h"
 #include "cobalt/base/window_on_online_event.h"
 #include "cobalt/base/window_size_changed_event.h"
+#include "cobalt/browser/client_hint_headers.h"
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
@@ -531,7 +532,7 @@ const char kMemoryTrackerCommandLongHelp[] =
     "available trackers.";
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-void AddCrashHandlerAnnotations() {
+void AddCrashHandlerAnnotations(const UserAgentPlatformInfo& platform_info) {
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
@@ -540,7 +541,6 @@ void AddCrashHandlerAnnotations() {
     return;
   }
 
-  auto platform_info = cobalt::browser::GetUserAgentPlatformInfoFromSystem();
   std::string user_agent =
       cobalt::browser::CreateUserAgentString(platform_info);
   std::string version = "";
@@ -910,11 +910,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
   storage_manager_.reset(new storage::StorageManager(storage_manager_options));
 
+  cobalt::browser::UserAgentPlatformInfo platform_info;
+
   network_module_.reset(new network::NetworkModule(
-      CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
+      CreateUserAgentString(platform_info), GetClientHintHeaders(platform_info),
       storage_manager_.get(), &event_dispatcher_, network_module_options));
 
-  AddCrashHandlerAnnotations();
+  AddCrashHandlerAnnotations(platform_info);
 
 #if SB_IS(EVERGREEN)
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&

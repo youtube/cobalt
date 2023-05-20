@@ -37,6 +37,7 @@
 #include "cobalt/loader/fetch_interceptor_coordinator.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/web/context.h"
@@ -1423,6 +1424,7 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
   // Don't retry, let the caller deal with it.
   url_fetcher_->SetAutomaticallyRetryOn5xx(false);
   url_fetcher_->SetExtraRequestHeaders(request_headers_.ToString());
+  network_module->AddClientHintHeaders(*url_fetcher_);
 
   // We want to do cors check and preflight during redirects
   url_fetcher_->SetStopOnRedirect(true);

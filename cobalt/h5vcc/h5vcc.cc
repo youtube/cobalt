@@ -37,7 +37,8 @@ H5vcc::H5vcc(const Settings& settings) {
 #if SB_IS(EVERGREEN)
                         settings.updater_module,
 #endif
-                        settings.user_agent_data, settings.global_environment);
+                        settings.user_agent_data, settings.global_environment,
+                        settings.persistent_settings);
   storage_ =
       new H5vccStorage(settings.network_module, settings.persistent_settings);
   trace_event_ = new H5vccTraceEvent();
