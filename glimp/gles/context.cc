@@ -65,7 +65,7 @@ Context::Context(nb::scoped_ptr<ContextImpl> context_impl,
       unpack_alignment_(4),
       unpack_row_length_(0),
       error_(GL_NO_ERROR) {
-  SbAtomicNoBarrier_Store(&has_swapped_buffers_, 0);
+  SbAtomicRelease_Store(&has_swapped_buffers_, 0);
   if (share_context != NULL) {
     resource_manager_ = share_context->resource_manager_;
   } else {
@@ -2392,7 +2392,7 @@ void Context::SwapBuffers() {
     Flush();
     impl_->SwapBuffers(surface);
     if (!has_swapped_buffers()) {
-      SbAtomicNoBarrier_Increment(&has_swapped_buffers_, 1);
+      SbAtomicBarrier_Increment(&has_swapped_buffers_, 1);
     }
   }
 }
