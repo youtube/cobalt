@@ -13,7 +13,6 @@
 # limitations under the License.
 
 config("compiler_rt_config") {
-  cflags = [ "-nostdinc" ]
   cflags_cc = [
     "-std=c++17",
     "-nostdinc++",
