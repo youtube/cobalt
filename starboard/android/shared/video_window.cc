@@ -72,7 +72,10 @@ void ClearNativeWindow(ANativeWindow* native_window) {
   // First, query how many configs match the given attribute list.
   EGLint num_configs = 0;
   EGL_CALL(eglChooseConfig(display, kAttributeList, NULL, 0, &num_configs));
-  SB_DCHECK(num_configs != 0);
+  if (num_configs == 0) {
+    SB_DLOG(ERROR) << "Found no configs in ClearVideoWindow";
+    return;
+  }
 
   // Allocate space to receive the matching configs and retrieve them.
   EGLConfig* configs = new EGLConfig[num_configs];
@@ -96,14 +99,15 @@ void ClearNativeWindow(ANativeWindow* native_window) {
     SB_DLOG(ERROR) << "Found no EGL surface in ClearVideoWindow";
     return;
   }
-  SB_DCHECK(surface != EGL_NO_SURFACE);
 
   delete[] configs;
 
   // Create an OpenGL ES 2.0 context.
   EGLContext context = EGL_NO_CONTEXT;
   EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE,
+      EGL_CONTEXT_CLIENT_VERSION,
+      2,
+      EGL_NONE,
   };
   context =
       eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list);
