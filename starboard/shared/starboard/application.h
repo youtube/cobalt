@@ -45,10 +45,10 @@ class Application {
  public:
   typedef player::filter::VideoFrame VideoFrame;
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   // Executes a SbEventHandle method callback.
   SbEventHandleCallback sb_event_handle_callback_ = NULL;
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
 
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.
@@ -57,7 +57,6 @@ class Application {
   // Signature for a function that will be called at the beginning of Teardown.
   typedef void (*TeardownCallback)(void);
 
-#if SB_API_VERSION >= 13
   // Enumeration of states that the application can be in.
   enum State {
     // The initial Unstarted state.
@@ -83,34 +82,6 @@ class Application {
     // Frozen.
     kStateStopped,
   };
-#else
-  // Enumeration of states that the application can be in.
-  enum State {
-    // The initial Unstarted state.
-    kStateUnstarted,
-
-    // The preloading state, where the application gets as much work done as
-    // possible to launch, but is not visible. You see exits to kStateStarted
-    // and kStateSuspended.
-    kStatePreloading,
-
-    // The normal foreground, fully-visible state after receiving the initial
-    // START event or after UNPAUSE from Paused.
-    kStateStarted,
-
-    // The background-but-visible or partially-obscured state after receiving an
-    // PAUSE event from Started or RESUME event from Suspended.
-    kStatePaused,
-
-    // The fully-obscured or about-to-be-terminated state after receiving a
-    // SUSPEND event in Paused.
-    kStateSuspended,
-
-    // The completely terminated state after receiving the STOP event in the
-    // Suspended state.
-    kStateStopped,
-  };
-#endif  // SB_API_VERSION >= 13
 
   // Structure to keep track of scheduled events, also used as the data argument
   // for kSbEventTypeScheduled Events.
@@ -149,7 +120,6 @@ class Application {
   // deleting the event and calling the destructor on its data when it is
   // deleted.
   struct Event {
-#if SB_API_VERSION >= 13
     Event(SbEventType type,
           SbTimeMonotonic timestamp,
           void* data,
@@ -175,20 +145,6 @@ class Application {
       event->timestamp = SbTimeGetMonotonicNow();
       event->data = data;
     }
-#else   // SB_API_VERSION >= 13
-    Event(SbEventType type, void* data, SbEventDataDestructor destructor)
-        : event(new SbEvent()), destructor(destructor), error_level(0) {
-      event->type = type;
-      event->data = data;
-    }
-    explicit Event(TimedEvent* data)
-        : event(new SbEvent()),
-          destructor(&DeleteDestructor<TimedEvent>),
-          error_level(0) {
-      event->type = kSbEventTypeScheduled;
-      event->data = data;
-    }
-#endif  // SB_API_VERSION >= 13
     ~Event() {
       if (destructor) {
         destructor(event->data);
@@ -203,11 +159,11 @@ class Application {
     int error_level;
   };
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   explicit Application(SbEventHandleCallback sb_event_handle_callback);
 #else
   Application();
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
   virtual ~Application();
 
   // Gets the current instance of the Application. DCHECKS if called before the
@@ -239,7 +195,6 @@ class Application {
   // NULL until Run() is called.
   const CommandLine* GetCommandLine();
 
-#if SB_API_VERSION >= 13
   // Signals that the application should transition from STARTED to BLURRED as
   // soon as possible. Does nothing if already BLURRED or CONCEALED. May be
   // called from an external thread.
@@ -302,48 +257,6 @@ class Application {
   // as appropriate for the current state. May be called from an external
   // thread.
   void Stop(int error_level);
-#else
-  // Signals that the application should transition from STARTED to PAUSED as
-  // soon as possible. Does nothing if already PAUSED or SUSPENDED. May be
-  // called from an external thread.
-  //
-  // |context|: A context value to pass to |callback| on event completion. Must
-  // not be NULL if callback is not NULL.
-  // |callback|: A function to call on event completion, from the main thread.
-  void Pause(void* context, EventHandledCallback callback);
-
-  // Signals that the application should transition to STARTED as soon as
-  // possible, moving through all required state transitions to get there. Does
-  // nothing if already STARTED. May be called from an external thread.
-  //
-  // |context|: A context value to pass to |callback| on event completion. Must
-  // not be NULL if callback is not NULL.
-  // |callback|: A function to call on event completion, from the main thread.
-  void Unpause(void* context, EventHandledCallback callback);
-
-  // Signals that the application should transition to SUSPENDED as soon as
-  // possible, moving through all required state transitions to get there. Does
-  // nothing if already SUSPENDED. May be called from an external thread.
-  //
-  // |context|: A context value to pass to |callback| on event completion. Must
-  // not be NULL if callback is not NULL.
-  // |callback|: A function to call on event completion, from the main thread.
-  void Suspend(void* context, EventHandledCallback callback);
-
-  // Signals that the application should transition to PAUSED from SUSPENDED as
-  // soon as possible. Does nothing if already PAUSED or STARTED. May be called
-  // from an external thread.
-  //
-  // |context|: A context value to pass to |callback| on event completion. Must
-  // not be NULL if callback is not NULL.
-  // |callback|: A function to call on event completion, from the main thread.
-  void Resume(void* context, EventHandledCallback callback);
-
-  // Signals that the application should gracefully terminate as soon as
-  // possible. Will transition through PAUSED and SUSPENDED to STOPPED as
-  // appropriate for the current state. May be called from an external thread.
-  void Stop(int error_level);
-#endif  // SB_API_VERSION >= 13
 
   // Injects a link event to the application with the given |link_data|, which
   // must be a null-terminated string. Makes a copy of |link_data|, so it only
@@ -354,10 +267,8 @@ class Application {
   // Injects an event of type kSbEventTypeLowMemory to the application.
   void InjectLowMemoryEvent();
 
-#if SB_API_VERSION >= 13
   void InjectOsNetworkDisconnectedEvent();
   void InjectOsNetworkConnectedEvent();
-#endif
 
   // Inject a window size change event.
   //
@@ -484,13 +395,9 @@ class Application {
   // some point.
   virtual bool IsStartImmediate() { return true; }
 
-// Synchronously dispatches a Start event to the system event handler. Must be
-// called on the main dispatch thread.
-#if SB_API_VERSION >= 13
+  // Synchronously dispatches a Start event to the system event handler. Must be
+  // called on the main dispatch thread.
   void DispatchStart(SbTimeMonotonic timestamp);
-#else   // SB_API_VERSION >= 13
-  void DispatchStart();
-#endif  // SB_API_VERSION >= 13
 
   // Returns whether the Preload event should be sent in |Run| before entering
   // the event loop. Derived classes that return true must call |Unpause| or
@@ -499,13 +406,9 @@ class Application {
   // |IsPreloadImmediate|, if true, takes precedence over |IsStartImmediate|.
   virtual bool IsPreloadImmediate() { return false; }
 
-// Synchronously dispatches a Preload event to the system event handler. Must
-// be called on the main dispatch thread.
-#if SB_API_VERSION >= 13
+  // Synchronously dispatches a Preload event to the system event handler. Must
+  // be called on the main dispatch thread.
   void DispatchPreload(SbTimeMonotonic timestamp);
-#else   // SB_API_VERSION >= 13
-  void DispatchPreload();
-#endif  // SB_API_VERSION >= 13
 
   // Returns whether the '--preload' command-line argument is specified.
   bool HasPreloadSwitch();
@@ -521,13 +424,9 @@ class Application {
   void CallTeardownCallbacks();
 
  private:
-// Creates an initial event type of either Start or Preload with the original
-// command line and deep link.
-#if SB_API_VERSION >= 13
+  // Creates an initial event type of either Start or Preload with the original
+  // command line and deep link.
   Event* CreateInitialEvent(SbEventType type, SbTimeMonotonic timestamp);
-#else   // SB_API_VERSION >= 13
-  Event* CreateInitialEvent(SbEventType type);
-#endif  // SB_API_VERSION >= 13
 
   // Internal workhorse of the main run loop.
   int RunLoop();

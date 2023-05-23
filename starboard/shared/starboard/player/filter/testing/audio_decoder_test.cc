@@ -645,9 +645,9 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 
 TEST_P(AudioDecoderTest, LimitedInput) {
   SbTime duration = kSbTimeSecond / 2;
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
   SbMediaSetAudioWriteDuration(duration);
-#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION < 15
 
   ASSERT_TRUE(decoded_audios_.empty());
   int start_index = 0;
@@ -664,9 +664,9 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   constexpr int kMaxAccessUnitsToDecode = 256;
   SbTime duration = kSbTimeSecond / 2;
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
   SbMediaSetAudioWriteDuration(duration);
-#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION < 15
 
   SbTime start = SbTimeGetMonotonicNow();
   int start_index = 0;

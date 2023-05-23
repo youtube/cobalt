@@ -20,6 +20,7 @@
 
 #include "base/observer_list.h"
 #include "base/threading/thread_checker.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -290,7 +291,7 @@ Impl::Impl(const std::string& name, const Agent::Options& options)
   // are added after the global object is created.
   if (!options.injected_global_object_attributes.empty()) {
     DCHECK(base::MessageLoop::current());
-    base::MessageLoop::current()->task_runner()->PostTask(
+    base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE,
         base::Bind(&Impl::InjectGlobalObjectAttributes, base::Unretained(this),
                    options.injected_global_object_attributes));

@@ -58,18 +58,22 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
     case AudioCodec::kAAC:
       return kSbMediaAudioCodecAac;
     case AudioCodec::kAC3:
+#if SB_API_VERSION < 15
       if (!kSbHasAc3Audio) {
         DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
                     << "enable it, set kSbHasAc3Audio to |true|.";
         return kSbMediaAudioCodecNone;
       }
+#endif  // SB_API_VERSION < 15
       return kSbMediaAudioCodecAc3;
     case AudioCodec::kEAC3:
+#if SB_API_VERSION < 15
       if (!kSbHasAc3Audio) {
         DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
                     << "enable it, set kSbHasAc3Audio to |true|.";
         return kSbMediaAudioCodecNone;
       }
+#endif  // SB_API_VERSION < 15
       return kSbMediaAudioCodecEac3;
     case AudioCodec::kVorbis:
       return kSbMediaAudioCodecVorbis;
@@ -83,11 +87,11 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
     case AudioCodec::kPCM:
       return kSbMediaAudioCodecPcm;
 #endif  // SB_API_VERSION >= 14
-#if SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 15
     // TODO(b/271301103): Enable this once IAMF is added to Chromium.
     // case AudioCodec::kIAMF:
     //  return kSbMediaAudioCodecPcm;
-#endif  // SB_API_VERSION >= SB_MEDIA_IAMF_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 15
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
       DLOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
@@ -135,17 +139,17 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
       MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
   audio_stream_info.mime = mime_type;
 
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
   audio_stream_info.format_tag = 0x00ff;
-#endif // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif // SB_API_VERSION < 15
   audio_stream_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
   audio_stream_info.average_bytes_per_second = 1;
   audio_stream_info.block_alignment = 4;
-#endif // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif // SB_API_VERSION < 15
   audio_stream_info.bits_per_sample = audio_decoder_config.bits_per_channel();
 
   const auto& extra_data = audio_stream_info.codec == kSbMediaAudioCodecAac

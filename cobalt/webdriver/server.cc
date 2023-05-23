@@ -16,12 +16,14 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/string_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
@@ -72,11 +74,11 @@ std::string HttpMethodToString(WebDriverServer::HttpMethod method) {
 class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
  public:
   ResponseHandlerImpl(net::HttpServer* server, int connection_id)
-      : task_runner_(base::MessageLoop::current()->task_runner()),
+      : task_runner_(base::ThreadTaskRunnerHandle::Get()),
         server_(server),
         connection_id_(connection_id) {}
 
-  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Responses
+  // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
   void Success(std::unique_ptr<base::Value> value) override {
     DCHECK(value);
     std::string data;
@@ -94,7 +96,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // Failed commands map to a valid WebDriver command and contain the expected
   // parameters, but otherwise failed to execute for some reason. This should
   // send a 500 Internal Server Error.
-  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Error-Handling
+  // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#error-handling
   void FailedCommand(std::unique_ptr<base::Value> value) override {
     DCHECK(value);
     std::string data;
@@ -103,7 +105,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   }
 
   // A number of cases for invalid requests are explained here:
-  // https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Invalid-Requests
+  // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#invalid-requests
   // The response type should be text/plain and the message body is an error
   // message
 
@@ -170,7 +172,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
                     const std::string& content_type,
                     base::Optional<net::HttpServerResponseInfo> response_info =
                         base::Optional<net::HttpServerResponseInfo>()) {
-    if (base::MessageLoop::current()->task_runner() == task_runner_) {
+    if (base::ThreadTaskRunnerHandle::Get() == task_runner_) {
       SendToServer(server_, connection_id_, status, message, content_type,
                    response_info);
     } else {

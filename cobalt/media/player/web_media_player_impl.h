@@ -110,10 +110,10 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      WebMediaPlayerDelegate* delegate,
                      bool allow_resume_after_suspend,
                      bool allow_batched_sample_write,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
                      SbTime audio_write_duration_local,
                      SbTime audio_write_duration_remote,
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
                      ::media::MediaLog* const media_log);
   ~WebMediaPlayerImpl() override;
 

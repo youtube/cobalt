@@ -18,8 +18,6 @@ import os
 import re
 import subprocess
 
-from cobalt.build.build_number import GetOrGenerateNewBuildNumber
-
 _FILE_DIR = os.path.dirname(__file__)
 COMMIT_COUNT_BUILD_NUMBER_OFFSET = 1000000
 
@@ -45,18 +43,6 @@ def get_build_number_from_commits(cwd=_FILE_DIR):
   return match.group(1) if match else None
 
 
-def get_build_number_from_server():
-  # Note $BUILD_ID_SERVER_URL will always be set in CI.
-  build_id_server_url = os.environ.get('BUILD_ID_SERVER_URL')
-  if not build_id_server_url:
-    return None
-
-  build_num = GetOrGenerateNewBuildNumber(version_server=build_id_server_url)
-  if build_num == 0:
-    raise ValueError('The build number received was zero.')
-  return build_num
-
-
 def get_build_number_from_commit_count(cwd=_FILE_DIR):
   output = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'],
                                    cwd=cwd)
@@ -66,9 +52,6 @@ def get_build_number_from_commit_count(cwd=_FILE_DIR):
 
 def main(cwd=_FILE_DIR):
   build_number = get_build_number_from_commits(cwd=cwd)
-
-  if not build_number:
-    build_number = get_build_number_from_server()
 
   if not build_number:
     build_number = get_build_number_from_commit_count(cwd=cwd)

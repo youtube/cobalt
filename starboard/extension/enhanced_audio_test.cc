@@ -24,7 +24,7 @@
 namespace starboard {
 namespace extension {
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
 
 TEST(EnhancedAudioTest, VerifyBinaryLayouts) {
   // Sanity check that the layouts of the extension specific types are the same
@@ -110,7 +110,7 @@ TEST(EnhancedAudioTest, VerifyBinaryLayouts) {
             offsetof(SbPlayerSampleInfo, drm_info));
 }
 
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
 }  // namespace extension
 }  // namespace starboard

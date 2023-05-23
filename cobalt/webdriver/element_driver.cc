@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-
 #include "cobalt/webdriver/element_driver.h"
 
+#include <memory>
+
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/dom/document.h"
@@ -225,14 +226,14 @@ util::CommandResult<std::string> ElementDriver::RequestScreenshot(
 }
 
 dom::Element* ElementDriver::GetWeakElement() {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
   return element_.get();
 }
 
 util::CommandResult<void> ElementDriver::SendKeysInternal(
     std::unique_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -257,7 +258,7 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
 util::CommandResult<void> ElementDriver::SendClickInternal(
     const protocol::Button& button) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -266,14 +267,14 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
     return CommandResult(protocol::Response::kElementNotVisible);
   }
   // Click on an element.
-  //   https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidelementidclick
+  //   https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidelementidclick
   // The Element Click clicks the in-view center point of the element
-  //   https://w3c.github.io/webdriver/webdriver-spec.html#dfn-element-click
+  //   https://www.w3.org/TR/2015/WD-webdriver-20150808/#click
 
   // An element's in-view center point is the origin position of the rectangle
   // that is the intersection between the element's first DOM client rectangle
   // and the initial viewport.
-  //   https://w3c.github.io/webdriver/webdriver-spec.html#dfn-in-view-center-point
+  //   https://www.w3.org/TR/2017/WD-webdriver-20170125/#dfn-in-view-center-point
   scoped_refptr<dom::DOMRectList> dom_rects = element_->GetClientRects();
   if (dom_rects->length() == 0) {
     return CommandResult(protocol::Response::kElementNotVisible);
@@ -325,7 +326,7 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
 util::CommandResult<std::string> ElementDriver::RequestScreenshotInternal(
     Screenshot::GetScreenshotFunction get_screenshot_function) {
   typedef util::CommandResult<std::string> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -337,7 +338,7 @@ util::CommandResult<std::string> ElementDriver::RequestScreenshotInternal(
 template <typename T>
 util::CommandResult<T> ElementDriver::FindElementsInternal(
     const protocol::SearchStrategy& strategy) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
   typedef util::CommandResult<T> CommandResult;
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
@@ -348,7 +349,7 @@ util::CommandResult<T> ElementDriver::FindElementsInternal(
 
 util::CommandResult<bool> ElementDriver::EqualsInternal(
     const ElementDriver* other_element_driver) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), element_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
   typedef util::CommandResult<bool> CommandResult;
   base::WeakPtr<dom::Element> other_element = other_element_driver->element_;
   if (!element_ || !other_element) {

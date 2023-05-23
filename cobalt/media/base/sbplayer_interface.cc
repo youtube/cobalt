@@ -61,11 +61,11 @@ void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
 
 void DefaultSbPlayerInterface::Seek(SbPlayer player, SbTime seek_to_timestamp,
                                     int ticket) {
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   SbPlayerSeek(player, seek_to_timestamp, ticket);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   SbPlayerSeek2(player, seek_to_timestamp, ticket);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 bool DefaultSbPlayerInterface::IsEnhancedAudioExtensionEnabled() const {
@@ -76,13 +76,13 @@ void DefaultSbPlayerInterface::WriteSamples(
     SbPlayer player, SbMediaType sample_type,
     const SbPlayerSampleInfo* sample_infos, int number_of_sample_infos) {
   DCHECK(!IsEnhancedAudioExtensionEnabled());
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos,
                        number_of_sample_infos);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   SbPlayerWriteSample2(player, sample_type, sample_infos,
                        number_of_sample_infos);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 void DefaultSbPlayerInterface::WriteSamples(
@@ -119,13 +119,13 @@ void DefaultSbPlayerInterface::SetVolume(SbPlayer player, double volume) {
 }
 
 void DefaultSbPlayerInterface::GetInfo(SbPlayer player,
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
                                        SbPlayerInfo* out_player_info) {
   SbPlayerGetInfo(player, out_player_info);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
                                        SbPlayerInfo2* out_player_info2) {
   SbPlayerGetInfo2(player, out_player_info2);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 SbDecodeTarget DefaultSbPlayerInterface::GetCurrentFrame(SbPlayer player) {
@@ -159,7 +159,7 @@ void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
 
 bool DefaultSbPlayerInterface::GetAudioConfiguration(
     SbPlayer player, int index,
@@ -167,7 +167,7 @@ bool DefaultSbPlayerInterface::GetAudioConfiguration(
   return SbPlayerGetAudioConfiguration(player, index, out_audio_configuration);
 }
 
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 
 }  // namespace media
 }  // namespace cobalt

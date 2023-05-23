@@ -7,12 +7,12 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/src/third_party/freetype2"
   }
-  # Note: version is 2.10.2 release.
-  version: "132f19b779828b194b3fede187cee719785db4d8"
+  # Note: version is 2.13.0 release.
+  version: "de8b92dd7ec634e9e2b25ef534c54a3537555c11"
   last_upgrade_date {
-    year: 2020
+    year: 2023
     month: 05
-    day: 12
+    day: 11
   }
   license_type: NOTICE
 }

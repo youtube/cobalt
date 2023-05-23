@@ -160,8 +160,9 @@ class MediaCapabilitiesCache {
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void ClearCache();
 
-  void ReloadSupportedHdrTypes();
-  void ReloadAudioOutputChannels();
+  void Initialize();
+  void ClearSupportedHdrTypes() { supported_hdr_types_is_dirty_ = true; }
+  void ClearAudioOutputChannels() { audio_output_channels_is_dirty_ = true; }
 
  private:
   MediaCapabilitiesCache();
@@ -170,7 +171,7 @@ class MediaCapabilitiesCache {
   MediaCapabilitiesCache(const MediaCapabilitiesCache&) = delete;
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
 
-  void LazyInitialize_Locked();
+  void UpdateMediaCapabilities_Locked();
   void LoadCodecInfos_Locked();
 
   Mutex mutex_;
@@ -187,6 +188,8 @@ class MediaCapabilitiesCache {
   std::map<std::string, VideoCodecCapabilities> video_codec_capabilities_map_;
 
   std::atomic_bool is_enabled_{true};
+  std::atomic_bool supported_hdr_types_is_dirty_{true};
+  std::atomic_bool audio_output_channels_is_dirty_{true};
   bool is_initialized_ = false;
   bool is_widevine_supported_ = false;
   bool is_cbcs_supported_ = false;

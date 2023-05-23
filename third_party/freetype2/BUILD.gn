@@ -12,42 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("freetype2_config") {
-  cflags = []
-  if (is_clang) {
-    cflags += [ "-Wno-tautological-compare" ]
-  }
-
-  if (is_win) {
-    cflags += [
-      # Level 1 - Formal parameter 'number' is different from declaration.
-      "/wd4028",
-
-      # Level 1 - Incompatible types conversion.
-      "/wd4133",
-
-      # Level 2 - Unary minus operator applied to unsigned type; result is
-      # still unsigned.
-      "/wd4146",
-
-      # Level 1 - Conversion from 'type1' to 'type2' of a greater size.
-      # Typically when 32-bit value is assigned to a 64-bit pointer value.
-      "/wd4312",
-    ]
-  }
-}
-
 config("freetype2_config_public") {
   include_dirs = [
-    "include_cobalt",
+    "builds/starboard/include",
     "include",
   ]
 
   defines = [
     "FT_CONFIG_OPTION_SYSTEM_ZLIB",
-    "FT_CONFIG_CONFIG_H=\"ftconfig.h\"",
-    "FT_CONFIG_MODULES_H=\"ftmodule.h\"",
-    "FT_CONFIG_OPTIONS_H=\"ftoption.h\"",
+    "FT_CONFIG_CONFIG_H=\"freetype/config/ftconfig.h\"",
+    "FT_CONFIG_MODULES_H=<config/ftmodule.h>",
+    "FT_CONFIG_OPTIONS_H=<config/ftoption.h>",
   ]
 }
 
@@ -80,8 +55,6 @@ static_library("freetype2") {
   include_dirs = [ "//third_party/brotli/c/include" ]
 
   defines = [ "FT2_BUILD_LIBRARY" ]
-
-  configs += [ ":freetype2_config" ]
 
   public_configs = [ ":freetype2_config_public" ]
 

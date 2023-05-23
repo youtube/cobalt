@@ -22,7 +22,7 @@ namespace starboard {
 namespace shared {
 namespace enhanced_audio {
 
-#if SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION < 15
 
 namespace {
 
@@ -39,7 +39,7 @@ const void* GetEnhancedAudioApi() {
   return &kEnhancedAudioApi;
 }
 
-#endif  // SB_API_VERSION < SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION < 15
 
 }  // namespace enhanced_audio
 }  // namespace shared

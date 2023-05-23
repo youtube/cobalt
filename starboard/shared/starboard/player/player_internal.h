@@ -56,11 +56,11 @@ struct SbPlayerPrivate {
   void WriteEndOfStream(SbMediaType stream_type);
   void SetBounds(int z_index, int x, int y, int width, int height);
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   void GetInfo(SbPlayerInfo* out_player_info);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   void GetInfo(SbPlayerInfo2* out_player_info);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
   void SetPause(bool pause);
   void SetPlaybackRate(double playback_rate);
   void SetVolume(double volume);

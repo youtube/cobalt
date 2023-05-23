@@ -1,5 +1,6 @@
 .text
 .global __set_thread_area
+.hidden __set_thread_area
 .type   __set_thread_area,@function
 __set_thread_area:
 	push %ebx
@@ -27,6 +28,7 @@ __set_thread_area:
 	ret
 2:
 	mov %ebx,%ecx
+	xor %eax,%eax
 	xor %ebx,%ebx
 	xor %edx,%edx
 	mov %ebx,(%esp)

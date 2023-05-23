@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "base/strings/string_number_conversions.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/document.h"
@@ -41,7 +42,7 @@ LottiePlayer::LottiePlayer(Document* document)
     : HTMLElement(document, base::Token(kTagName)),
       autoplaying_(true),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
-      callback_task_runner_(base::MessageLoop::current()->task_runner()) {
+      callback_task_runner_(base::ThreadTaskRunnerHandle::Get()) {
   SetAnimationEventCallbacks();
 }
 

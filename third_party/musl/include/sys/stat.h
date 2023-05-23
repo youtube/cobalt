@@ -98,7 +98,7 @@ int lchmod(const char *, mode_t);
 #define S_IEXEC S_IXUSR
 #endif
 
-#if defined(_LARGEFILE64_SOURCE) || defined(_GNU_SOURCE)
+#if defined(_LARGEFILE64_SOURCE)
 #define stat64 stat
 #define fstat64 fstat
 #define lstat64 lstat
@@ -108,6 +108,15 @@ int lchmod(const char *, mode_t);
 #define fsfilcnt64_t fsfilcnt_t
 #define ino64_t ino_t
 #define off64_t off_t
+#endif
+
+#if _REDIR_TIME64
+__REDIR(stat, __stat_time64);
+__REDIR(fstat, __fstat_time64);
+__REDIR(lstat, __lstat_time64);
+__REDIR(fstatat, __fstatat_time64);
+__REDIR(futimens, __futimens_time64);
+__REDIR(utimensat, __utimensat_time64);
 #endif
 
 #ifdef __cplusplus

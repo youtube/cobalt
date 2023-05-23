@@ -23,8 +23,8 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
-#include "base/single_thread_task_runner.h"
-#include "base/threading/thread_checker.h"
+#include "base/sequence_checker.h"
+#include "base/sequenced_task_runner.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/websocket/buffered_amount_tracker.h"
 #include "cobalt/websocket/cobalt_web_socket_event_handler.h"
@@ -123,7 +123,7 @@ class WebSocketImpl : public base::RefCountedThreadSafe<WebSocketImpl> {
 
   void ResetChannel();
 
-  THREAD_CHECKER(thread_checker_);
+  SEQUENCE_CHECKER(sequence_checker_);
 
   std::vector<std::string> desired_sub_protocols_;
   network::NetworkModule* network_module_;
@@ -143,8 +143,8 @@ class WebSocketImpl : public base::RefCountedThreadSafe<WebSocketImpl> {
   std::queue<SendQueueMessage> send_queue_;
   size_t sent_size_of_top_message_ = 0;
 
-  scoped_refptr<base::SingleThreadTaskRunner> delegate_task_runner_;
-  scoped_refptr<base::SingleThreadTaskRunner> owner_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> delegate_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> owner_task_runner_;
 
   ~WebSocketImpl();
   friend class base::RefCountedThreadSafe<WebSocketImpl>;

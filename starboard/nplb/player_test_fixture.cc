@@ -83,11 +83,11 @@ void SbPlayerTestFixture::Seek(const SbTime time) {
   audio_end_of_stream_written_ = false;
   video_end_of_stream_written_ = false;
 
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   SbPlayerSeek(player_, time, ++ticket_);
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   SbPlayerSeek2(player_, time, ++ticket_);
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 void SbPlayerTestFixture::Write(const AudioSamples& audio_samples) {

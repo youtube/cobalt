@@ -17,9 +17,10 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/message_loop/message_loop.h"
-#include "base/single_thread_task_runner.h"
+#include "base/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/network/cobalt_net_log.h"
@@ -50,6 +51,9 @@ class StorageManager;
 
 namespace network {
 
+const char kClientHintHeadersEnabledPersistentSettingsKey[] =
+    "clientHintHeadersEnabled";
+
 class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
 // a URL request context. This is owned by BrowserModule.
@@ -79,6 +83,7 @@ class NetworkModule {
 
   // Constructor for production use.
   NetworkModule(const std::string& user_agent_string,
+                const std::vector<std::string>& client_hint_headers,
                 storage::StorageManager* storage_manager,
                 base::EventDispatcher* event_dispatcher,
                 const Options& options = Options());
@@ -96,7 +101,7 @@ class NetworkModule {
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner() const {
+  scoped_refptr<base::SequencedTaskRunner> task_runner() const {
     return thread_->task_runner();
   }
   storage::StorageManager* storage_manager() const { return storage_manager_; }
@@ -111,12 +116,17 @@ class NetworkModule {
 
   void SetEnableQuic(bool enable_quic);
 
+  // Adds the Client Hint Headers to the provided URLFetcher.
+  // It is conditional on kClientHintHeadersEnabledPersistentSettingsKey != 0.
+  void AddClientHintHeaders(net::URLFetcher& url_fetcher) const;
+
  private:
   void Initialize(const std::string& user_agent_string,
                   base::EventDispatcher* event_dispatcher);
   void OnCreate(base::WaitableEvent* creation_event);
   std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
+  std::vector<std::string> client_hint_headers_;
   storage::StorageManager* storage_manager_;
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;

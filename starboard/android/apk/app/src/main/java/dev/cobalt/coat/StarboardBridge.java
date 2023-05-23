@@ -81,6 +81,7 @@ public class StarboardBridge {
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
+  private CrashContextUpdateHandler crashContextUpdateHandler;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -107,6 +108,9 @@ public class StarboardBridge {
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
   private final HashMap<String, String> crashContext = new HashMap<>();
 
+  private static final String AMATI_EXPERIENCE_FEATURE =
+      "com.google.android.feature.AMATI_EXPERIENCE";
+  private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
 
@@ -138,6 +142,7 @@ public class StarboardBridge {
     this.resourceOverlay = new ResourceOverlay(appContext);
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
+    this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
   }
 
   private native boolean nativeInitialize();
@@ -827,9 +832,22 @@ public class StarboardBridge {
   public void setCrashContext(String key, String value) {
     Log.i(TAG, "setCrashContext Called: " + key + ", " + value);
     crashContext.put(key, value);
+    if (this.crashContextUpdateHandler != null) {
+      this.crashContextUpdateHandler.onCrashContextUpdate();
+    }
   }
 
   public HashMap<String, String> getCrashContext() {
     return this.crashContext;
+  }
+
+  public void registerCrashContextUpdateHandler(CrashContextUpdateHandler handler) {
+    this.crashContextUpdateHandler = handler;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected boolean getIsAmatiDevice() {
+    return this.isAmatiDevice;
   }
 }

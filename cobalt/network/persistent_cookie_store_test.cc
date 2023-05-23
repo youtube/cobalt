@@ -23,6 +23,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame.h"
@@ -112,7 +113,7 @@ class PersistentCookieStoreTest : public ::testing::Test {
 
     storage_manager_.reset(new storage::StorageManager(options));
     cookie_store_ = new PersistentCookieStore(
-        storage_manager_.get(), base::MessageLoop::current()->task_runner());
+        storage_manager_.get(), base::ThreadTaskRunnerHandle::Get());
   }
 
   ~PersistentCookieStoreTest() {

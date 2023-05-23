@@ -46,7 +46,7 @@ class NET_EXPORT URLRequestContextGetter
   // Returns a SingleThreadTaskRunner corresponding to the thread on
   // which the network IO happens (the thread on which the returned
   // URLRequestContext may be used).
-  virtual scoped_refptr<base::SingleThreadTaskRunner>
+  virtual scoped_refptr<base::SequencedTaskRunner>
       GetNetworkTaskRunner() const = 0;
 
  protected:
@@ -111,16 +111,15 @@ class NET_EXPORT TrivialURLRequestContextGetter
  // URLRequestContextGetter implementation:
  URLRequestContext* GetURLRequestContext() override;
 
-  scoped_refptr<base::SingleThreadTaskRunner> GetNetworkTaskRunner()
-      const override;
+ scoped_refptr<base::SequencedTaskRunner> GetNetworkTaskRunner() const override;
 
- private:
-  ~TrivialURLRequestContextGetter() override;
+private:
+ ~TrivialURLRequestContextGetter() override;
 
-  URLRequestContext* context_;
-  const scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
+ URLRequestContext* context_;
+ const scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
 
-  DISALLOW_COPY_AND_ASSIGN(TrivialURLRequestContextGetter);
+ DISALLOW_COPY_AND_ASSIGN(TrivialURLRequestContextGetter);
 };
 
 }  // namespace net

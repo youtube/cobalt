@@ -280,6 +280,7 @@ bool CORSPreflight::Send() {
   url_fetcher_ = net::URLFetcher::Create(url_, net::URLFetcher::OPTIONS, this);
   url_fetcher_->SetRequestContext(
       network_module_->url_request_context_getter().get());
+  network_module_->AddClientHintHeaders(*url_fetcher_);
   url_fetcher_->AddExtraRequestHeader(kOriginheadername + origin_);
   // 3. Let headers be the names of request's header list's headers,
   //    excluding CORS-safelisted request-headers and duplicates, sorted

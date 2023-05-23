@@ -20,6 +20,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/audio/audio_node_output.h"
@@ -35,7 +36,7 @@ typedef media::AudioBus AudioBus;
 AudioBufferSourceNode::AudioBufferSourceNode(
     script::EnvironmentSettings* settings, AudioContext* context)
     : AudioNode(settings, context),
-      task_runner_(base::MessageLoop::current()->task_runner()),
+      task_runner_(base::ThreadTaskRunnerHandle::Get()),
       state_(kNone),
       read_index_(0),
       buffer_source_added_(false),

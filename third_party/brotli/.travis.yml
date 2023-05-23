@@ -44,27 +44,27 @@ matrix:
     ## Test that fuzzer is compiling / working.
     ###
     - os: linux
-      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 ASAN_OPTIONS=detect_leaks=0
+      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-7 CXX_COMPILER=clang++-7 ASAN_OPTIONS=detect_leaks=0
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
 
     ###
     ## clang on Linux
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7
       addons:
         apt:
           sources:
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           - ubuntu-toolchain-r-test
           packages:
-          - clang-5.0
+          - clang-7
     - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.5 CXX_COMPILER=clang++-3.5
       addons:
@@ -76,10 +76,25 @@ matrix:
           - clang-3.5
 
     ###
-    ## PGI Community Edition on Linux
+    ## testing arm via qemu on Linux
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=pgcc CXX_COMPILER=pgc++
+      env: BUILD_SYSTEM=cmake C_COMPILER=arm-linux-gnueabihf-gcc CXX_COMPILER=arm-linux-gnueabihf-g++ CFLAGS="-march=armv7-a -mfloat-abi=hard -mfpu=neon"
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - qemu
+          - gcc-arm-linux-gnueabihf
+          - libc6-dev-armhf-cross
+
+    ###
+    ## PGI Community Edition on Linux
+    ###
+    # Installer is currently broken
+    #- os: linux
+    #  env: BUILD_SYSTEM=cmake C_COMPILER=pgcc CXX_COMPILER=pgc++
 
     ###
     ## Python 2.7 and 3.6 builds on Linux
@@ -115,10 +130,11 @@ matrix:
     ## We'll just test 4.4 and the most recent version.
     ###
     - os: osx
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
-      osx_image: beta-xcode6.2
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
+    - os: osx
+      env: BUILD_SYSTEM=cmake
 
     ###
     ## Python 2.7 OS X build (using the system /usr/bin/python)
@@ -130,40 +146,44 @@ matrix:
     ## Sanitizers
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=address ASAN_OPTIONS=detect_leaks=0
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7 SANITIZER=address ASAN_OPTIONS=detect_leaks=0
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=thread
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7 SANITIZER=thread
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=undefined CFLAGS="-fno-sanitize-recover=undefined,integer"
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7 SANITIZER=undefined CFLAGS="-fno-sanitize-recover=undefined,integer"
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
 
     - os: linux
       env: BUILD_SYSTEM=maven
+      jdk:
+      # maven + jdk11 + javadoc == trouble
+      - openjdk10
       language: java
 
     - os: linux
       sudo: required
       language: java
+      jdk: oraclejdk9
       env: BUILD_SYSTEM=bazel
       addons:
         apt:
@@ -172,11 +192,12 @@ matrix:
               key_url: "https://storage.googleapis.com/bazel-apt/doc/apt-key.pub.gpg"
             - ubuntu-toolchain-r-test
           packages:
-            - oracle-java8-installer
             - bazel
 
     - os: osx
       env: BUILD_SYSTEM=bazel
+      osx_image: xcode11.3
+      language: java
 
 before_install:
 ###

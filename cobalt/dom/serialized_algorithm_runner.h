@@ -25,6 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "starboard/common/mutex.h"
 #include "starboard/time.h"
@@ -293,7 +294,7 @@ void DefaultAlgorithmRunner<SerializedAlgorithm>::Start(
     return;
   }
 
-  auto task_runner = base::MessageLoop::current()->task_runner();
+  auto task_runner = base::ThreadTaskRunnerHandle::Get();
   task_runner->PostTask(FROM_HERE,
                         base::BindOnce(&DefaultAlgorithmRunner::Process,
                                        base::Unretained(this), handle));
@@ -305,7 +306,7 @@ void DefaultAlgorithmRunner<SerializedAlgorithm>::Process(
   DCHECK(handle);
   TRACE_EVENT0("cobalt::dom", "DefaultAlgorithmRunner::Process()");
 
-  auto task_runner = base::MessageLoop::current()->task_runner();
+  auto task_runner = base::ThreadTaskRunnerHandle::Get();
 
   bool finished = false;
   handle->Process(&finished);

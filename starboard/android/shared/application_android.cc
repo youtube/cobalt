@@ -80,13 +80,13 @@ const char* AndroidCommandName(
 // "using" doesn't work with class members, so make a local convenience type.
 typedef ::starboard::shared::starboard::Application::Event Event;
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
 ApplicationAndroid::ApplicationAndroid(
     ALooper* looper,
     SbEventHandleCallback sb_event_handle_callback)
 #else
 ApplicationAndroid::ApplicationAndroid(ALooper* looper)
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
     : looper_(looper),
       native_window_(NULL),
       android_command_readfd_(-1),
@@ -96,9 +96,9 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       android_command_condition_(android_command_mutex_),
       activity_state_(AndroidCommand::kUndefined),
       window_(kSbWindowInvalid),
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
       QueueApplication(sb_event_handle_callback),
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
       last_is_accessibility_high_contrast_text_enabled_(false) {
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
@@ -280,11 +280,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // This is the initial launch, so we have to start Cobalt now that we
         // have a window.
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
-#if SB_API_VERSION >= 13
         DispatchStart(GetAppStartTimestamp());
-#else   // SB_API_VERSION >= 13
-        DispatchStart();
-#endif  // SB_API_VERSION >= 13
       } else {
         // Now that we got a window back, change the command for the switch
         // below to sync up with the current activity lifecycle.
@@ -297,16 +293,12 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // early in SendAndroidCommand().
       {
         ScopedLock lock(android_command_mutex_);
-// Cobalt can't keep running without a window, even if the Activity
-// hasn't stopped yet. Block until conceal event has been processed.
+        // Cobalt can't keep running without a window, even if the Activity
+        // hasn't stopped yet. Block until conceal event has been processed.
 
-// Only process injected events -- don't check system events since
-// that may try to acquire the already-locked android_command_mutex_.
-#if SB_API_VERSION >= 13
+        // Only process injected events -- don't check system events since
+        // that may try to acquire the already-locked android_command_mutex_.
         InjectAndProcess(kSbEventTypeConceal, /* checkSystemEvents */ false);
-#else
-        InjectAndProcess(kSbEventTypeSuspend, /* checkSystemEvents */ false);
-#endif
 
         if (window_) {
           window_->native_window = NULL;
@@ -344,7 +336,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 
     // Remember the Android activity state to sync to when we have a window.
     case AndroidCommand::kStop:
-      SbAtomicNoBarrier_Increment(&android_stop_count_, -1);
+      SbAtomicBarrier_Increment(&android_stop_count_, -1);
     // Intentional fall-through.
     case AndroidCommand::kStart:
     case AndroidCommand::kResume:
@@ -362,12 +354,8 @@ void ApplicationAndroid::ProcessAndroidCommand() {
           SbMemoryDeallocate(static_cast<void*>(deep_link));
         } else {
           SB_LOG(INFO) << "ApplicationAndroid Inject: kSbEventTypeLink";
-#if SB_API_VERSION >= 13
           Inject(new Event(kSbEventTypeLink, SbTimeGetMonotonicNow(), deep_link,
                            SbMemoryDeallocate));
-#else   // SB_API_VERSION >= 13
-          Inject(new Event(kSbEventTypeLink, deep_link, SbMemoryDeallocate));
-#endif  // SB_API_VERSION >= 13
         }
       }
       break;
@@ -376,14 +364,13 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 
   // If there's an outstanding "stop" command, then don't update the app state
   // since it'll be overridden by the upcoming "stop" state.
-  if (SbAtomicNoBarrier_Load(&android_stop_count_) > 0) {
+  if (SbAtomicAcquire_Load(&android_stop_count_) > 0) {
     return;
   }
 
   // If there's a window, sync the app state to the Activity lifecycle.
   if (native_window_) {
     switch (sync_state) {
-#if SB_API_VERSION >= 13
       case AndroidCommand::kStart:
         Inject(new Event(kSbEventTypeReveal, NULL, NULL));
         break;
@@ -396,20 +383,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       case AndroidCommand::kStop:
         Inject(new Event(kSbEventTypeConceal, NULL, NULL));
         break;
-#else
-      case AndroidCommand::kStart:
-        Inject(new Event(kSbEventTypeResume, NULL, NULL));
-        break;
-      case AndroidCommand::kResume:
-        Inject(new Event(kSbEventTypeUnpause, NULL, NULL));
-        break;
-      case AndroidCommand::kPause:
-        Inject(new Event(kSbEventTypePause, NULL, NULL));
-        break;
-      case AndroidCommand::kStop:
-        Inject(new Event(kSbEventTypeSuspend, NULL, NULL));
-        break;
-#endif
       default:
         break;
     }
@@ -431,7 +404,7 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
       }
       break;
     case AndroidCommand::kStop:
-      SbAtomicNoBarrier_Increment(&android_stop_count_, 1);
+      SbAtomicBarrier_Increment(&android_stop_count_, 1);
       break;
     default:
       break;

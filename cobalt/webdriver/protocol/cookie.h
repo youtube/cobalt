@@ -27,7 +27,7 @@ namespace cobalt {
 namespace webdriver {
 namespace protocol {
 
-// https://w3c.github.io/webdriver/webdriver-spec.html#cookies
+// https://www.w3.org/TR/2015/WD-webdriver-20150808/#cookies
 class Cookie {
  public:
   static std::unique_ptr<base::Value> ToValue(const Cookie& cookie);

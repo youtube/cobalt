@@ -13,10 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: 23.lts.1+
+          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
@@ -33,10 +34,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: 22.lts.1+
+          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
@@ -52,10 +54,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: 21.lts.1+
+          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
@@ -70,10 +73,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: 20.lts.1+
+          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
@@ -87,10 +91,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: 19.lts.1+
+          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
@@ -104,10 +109,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: rc_11
+          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x
@@ -121,10 +127,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
           ref: COBALT_9
+          persist-credentials: false
       - name: Trigger Nightly
         run: |
           set -x

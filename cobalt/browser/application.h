@@ -85,9 +85,7 @@ class Application {
   void OnWindowOnOnlineEvent(const base::Event* event);
   void OnWindowOnOfflineEvent(const base::Event* event);
 
-#if SB_API_VERSION >= 13
   void OnDateTimeConfigurationChangedEvent(const base::Event* event);
-#endif
 
   // Called when a navigation occurs in the BrowserModule.
   void MainWebModuleCreated(WebModule* web_module);
@@ -123,13 +121,9 @@ class Application {
   base::EventCallback on_screen_keyboard_blurred_event_callback_;
   base::EventCallback on_screen_keyboard_suggestions_updated_event_callback_;
   base::EventCallback on_caption_settings_changed_event_callback_;
-#if SB_API_VERSION >= SB_NETWORK_EVENT_VERSION
   base::EventCallback on_window_on_online_event_callback_;
   base::EventCallback on_window_on_offline_event_callback_;
-#endif
-#if SB_API_VERSION >= 13
   base::EventCallback on_date_time_configuration_changed_event_callback_;
-#endif
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.

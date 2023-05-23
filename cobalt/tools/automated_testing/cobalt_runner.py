@@ -98,7 +98,9 @@ class CobaltRunner(object):
                log_file=None,
                target_params=None,
                success_message=None,
-               log_handler=None):
+               log_handler=None,
+               poll_until_wait_seconds=POLL_UNTIL_WAIT_SECONDS,
+               **kwargs):
     """CobaltRunner constructor.
 
     Args:
@@ -110,6 +112,8 @@ class CobaltRunner(object):
         with.
       success_message:  Optional success message to be printed on successful
         exit.
+      pull_until_wait_seconds:  Seconds to wait while polling for an event.
+      **kwargs:  Additional parameters to be passed to the launcher.
     """
 
     # Tracks if test execution started successfully
@@ -129,6 +133,8 @@ class CobaltRunner(object):
 
     self.launcher_params = launcher_params
     self.log_handler = log_handler
+    self.poll_until_wait_seconds = poll_until_wait_seconds
+    self.kwargs = kwargs
 
     if log_file:
       self.log_file = open(log_file, encoding='utf-8')  # pylint: disable=consider-using-with
@@ -265,7 +271,8 @@ class CobaltRunner(object):
         out_directory=self.launcher_params.out_directory,
         loader_platform=self.launcher_params.loader_platform,
         loader_config=self.launcher_params.loader_config,
-        loader_out_directory=self.launcher_params.loader_out_directory)
+        loader_out_directory=self.launcher_params.loader_out_directory,
+        **self.kwargs)
 
     self.runner_thread = threading.Thread(target=self._RunLauncher)
     self.runner_thread.start()
@@ -475,7 +482,7 @@ class CobaltRunner(object):
     """
     start_time = time.time()
     while (not self.FindElements(css_selector) and
-           (time.time() - start_time < POLL_UNTIL_WAIT_SECONDS)):
+           (time.time() - start_time < self.poll_until_wait_seconds)):
       time.sleep(0.5)
     if expected_num:
       self.FindElements(css_selector, expected_num)

@@ -121,15 +121,7 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
 
   // Use the current time unless it was overridden.
   SbTimeMonotonic timestamp = 0;
-#if SB_API_VERSION >= 13
   timestamp = event->timestamp;
-#else   // SB_API_VERSION >= 13
-  bool use_input_timestamp =
-      SbSystemHasCapability(kSbSystemCapabilitySetsInputTimestamp);
-  if (use_input_timestamp) {
-    timestamp = data.timestamp;
-  }
-#endif  // SB_API_VERSION >= 13
   if (timestamp == 0) {
     timestamp = SbTimeGetMonotonicNow();
   }

@@ -13,6 +13,8 @@
 # limitations under the License.
 
 sha1_files = [
+  "beneath_the_canopy_135_avc.dmp.sha1",
+  "beneath_the_canopy_136_avc.dmp.sha1",
   "beneath_the_canopy_137_avc.dmp.sha1",
   "beneath_the_canopy_248_vp9.dmp.sha1",
   "beneath_the_canopy_aac_5_1.dmp.sha1",

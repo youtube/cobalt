@@ -4,7 +4,7 @@
  *
  *   HarfBuzz interface for accessing OpenType features (specification).
  *
- * Copyright (C) 2013-2020 by
+ * Copyright (C) 2013-2023 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -20,15 +20,14 @@
 #define AFSHAPER_H_
 
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
+#include <freetype/freetype.h>
 
 
 #ifdef FT_CONFIG_OPTION_USE_HARFBUZZ
 
 #include <hb.h>
 #include <hb-ot.h>
-#include <hb-ft.h>
+#include "ft-hb.h"
 
 #endif
 

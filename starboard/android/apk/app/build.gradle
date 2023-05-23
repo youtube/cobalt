@@ -109,6 +109,7 @@ android {
                 cmake.arguments "-DCOBALT_CONFIG=debug"
             }
             signingConfig signingConfigs.debugConfig
+            testCoverageEnabled true
         }
         devel {
             debuggable true
@@ -117,12 +118,14 @@ android {
                 cmake.arguments "-DCOBALT_CONFIG=devel"
             }
             signingConfig signingConfigs.debugConfig
+            testCoverageEnabled true
         }
         qa {
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=qa"
             }
             signingConfig signingConfigs.debugConfig
+            testCoverageEnabled true
         }
         release {
             minifyEnabled true
@@ -207,4 +210,7 @@ dependencies {
     implementation 'com.google.android.gms:play-services-ads-identifier:17.0.0'
     implementation 'com.google.android.gms:play-services-auth:18.0.0'
     implementation 'com.google.protobuf:protobuf-lite:3.0.1'
+
+    testImplementation 'junit:junit:4.12'
+    testImplementation "com.google.truth:truth:1.1.3"
 }

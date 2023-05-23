@@ -53,7 +53,7 @@ class ApplicationUwp : public shared::starboard::Application,
  public:
   const float kDefaultScreenRefreshRate = 60.f;
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   explicit ApplicationUwp(SbEventHandleCallback sb_event_handle_callback);
 #else
   ApplicationUwp();
@@ -72,13 +72,9 @@ class ApplicationUwp : public shared::starboard::Application,
 
   bool DestroyWindow(SbWindow window);
 
-#if SB_API_VERSION >= 13
   void DispatchStart(SbTimeMonotonic timestamp) {
     shared::starboard::Application::DispatchStart(timestamp);
   }
-#else   // SB_API_VERSION >= 13
-  void DispatchStart() { shared::starboard::Application::DispatchStart(); }
-#endif  // SB_API_VERSION >= 13
 
   // public for IFrameworkView subclass
   void SetCommandLine(int argc, const char** argv) {

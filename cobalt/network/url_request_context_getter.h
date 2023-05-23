@@ -30,7 +30,7 @@ class URLRequestContextGetter : public net::URLRequestContextGetter {
 
   // Implementation for net::UrlRequestContextGetter.
   net::URLRequestContext* GetURLRequestContext() override;
-  scoped_refptr<base::SingleThreadTaskRunner> GetNetworkTaskRunner()
+  scoped_refptr<base::SequencedTaskRunner> GetNetworkTaskRunner()
       const override;
 
  protected:
@@ -38,7 +38,7 @@ class URLRequestContextGetter : public net::URLRequestContextGetter {
 
  private:
   URLRequestContext* url_request_context_;
-  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
   DISALLOW_COPY_AND_ASSIGN(URLRequestContextGetter);
 };
 

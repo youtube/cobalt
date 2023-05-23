@@ -44,11 +44,11 @@ void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
   SbEvent event;
   event.type = type;
   event.data = data;
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   Application::Get()->sb_event_handle_callback_(&event);
 #else
   SbEventHandle(&event);
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
   if (destructor) {
     destructor(event.data);
   }
@@ -69,7 +69,7 @@ volatile SbAtomic32 g_next_event_id = 0;
 
 Application* Application::g_instance = NULL;
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : error_level_(0),
       thread_(SbThreadGetCurrent()),
@@ -84,7 +84,7 @@ Application::Application()
       thread_(SbThreadGetCurrent()),
       start_link_(NULL),
       state_(kStateUnstarted) {
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
@@ -143,7 +143,6 @@ const CommandLine* Application::GetCommandLine() {
   return command_line_.get();
 }
 
-#if SB_API_VERSION >= 13
 void Application::Blur(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeBlur, context, callback));
 }
@@ -167,23 +166,6 @@ void Application::Freeze(void* context, EventHandledCallback callback) {
 void Application::Unfreeze(void* context, EventHandledCallback callback) {
   Inject(new Event(kSbEventTypeUnfreeze, context, callback));
 }
-#else
-void Application::Pause(void* context, EventHandledCallback callback) {
-  Inject(new Event(kSbEventTypePause, context, callback));
-}
-
-void Application::Unpause(void* context, EventHandledCallback callback) {
-  Inject(new Event(kSbEventTypeUnpause, context, callback));
-}
-
-void Application::Suspend(void* context, EventHandledCallback callback) {
-  Inject(new Event(kSbEventTypeSuspend, context, callback));
-}
-
-void Application::Resume(void* context, EventHandledCallback callback) {
-  Inject(new Event(kSbEventTypeResume, context, callback));
-}
-#endif  // SB_API_VERSION >= 13
 
 void Application::Stop(int error_level) {
   Event* event = new Event(kSbEventTypeStop, NULL, NULL);
@@ -201,7 +183,6 @@ void Application::InjectLowMemoryEvent() {
   Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
 }
 
-#if SB_API_VERSION >= 13
 void Application::InjectOsNetworkDisconnectedEvent() {
   Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
 }
@@ -209,7 +190,6 @@ void Application::InjectOsNetworkDisconnectedEvent() {
 void Application::InjectOsNetworkConnectedEvent() {
   Inject(new Event(kSbEventTypeOsNetworkConnected, NULL, NULL));
 }
-#endif
 
 void Application::WindowSizeChanged(void* context,
                                     EventHandledCallback callback) {
@@ -248,33 +228,17 @@ void Application::SetStartLink(const char* start_link) {
   }
 }
 
-#if SB_API_VERSION >= 13
 void Application::DispatchStart(SbTimeMonotonic timestamp) {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart, timestamp));
 }
-#else   // SB_API_VERSION >= 13
-void Application::DispatchStart() {
-  SB_DCHECK(IsCurrentThread());
-  SB_DCHECK(state_ == kStateUnstarted || state_ == kStatePreloading);
-  DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart));
-}
-#endif  // SB_API_VERSION >= 13
 
-#if SB_API_VERSION >= 13
 void Application::DispatchPreload(SbTimeMonotonic timestamp) {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload, timestamp));
 }
-#else   // SB_API_VERSION >= 13
-void Application::DispatchPreload() {
-  SB_DCHECK(IsCurrentThread());
-  SB_DCHECK(state_ == kStateUnstarted);
-  DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload));
-}
-#endif  // SB_API_VERSION >= 13
 
 bool Application::HasPreloadSwitch() {
   return command_line_->HasSwitch(kPreloadSwitch);
@@ -294,7 +258,6 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   // HandleEventAndUpdateState() rather than Inject() for the intermediate
   // events because there may already be other lifecycle events in the queue.
 
-#if SB_API_VERSION >= 13
   SbTimeMonotonic timestamp = scoped_event->event->timestamp;
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
@@ -442,93 +405,6 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     default:
       break;
   }
-#else
-  switch (scoped_event->event->type) {
-    case kSbEventTypePreload:
-      if (state() != kStateUnstarted) {
-        return true;
-      }
-      break;
-    case kSbEventTypeStart:
-      if (state() != kStatePreloading && state() != kStateUnstarted) {
-        return true;
-      }
-      break;
-    case kSbEventTypePause:
-      if (state() != kStateStarted) {
-        return true;
-      }
-      break;
-    case kSbEventTypeUnpause:
-      if (state() == kStateStarted) {
-        return true;
-      }
-
-      if (state() == kStatePreloading) {
-        // Convert to Start event and consume.
-        DispatchStart();
-        return true;
-      }
-
-      if (state() == kStateSuspended) {
-        HandleEventAndUpdateState(new Event(kSbEventTypeResume, NULL, NULL));
-        HandleEventAndUpdateState(scoped_event.release());
-        return true;
-      }
-      break;
-    case kSbEventTypeSuspend:
-      if (state() == kStateSuspended) {
-        return true;
-      }
-
-      if (state() == kStatePreloading) {
-        return true;
-      }
-
-      if (state() == kStateStarted) {
-        HandleEventAndUpdateState(new Event(kSbEventTypePause, NULL, NULL));
-        HandleEventAndUpdateState(scoped_event.release());
-        return true;
-      }
-      break;
-    case kSbEventTypeResume:
-      if (state() == kStateStarted || state() == kStatePaused) {
-        return true;
-      }
-      break;
-    case kSbEventTypeStop:
-      // There is a race condition with kSbEventTypeStop processing and
-      // timed events currently in use. Processing the intermediate events
-      // takes time, so makes it more likely that a timed event will be due
-      // immediately and processed immediately afterward. The event(s) need
-      // to be fixed to behave better after kSbEventTypeStop has been
-      // handled. In the meantime, continue to use Inject() to preserve the
-      // current timing. This bug can still happen with Inject(), but it is
-      // less likely than if HandleEventAndUpdateState() were used.
-      if (state() == kStateStarted) {
-        HandleEventAndUpdateState(new Event(kSbEventTypePause, NULL, NULL));
-        HandleEventAndUpdateState(new Event(kSbEventTypeSuspend, NULL, NULL));
-        Inject(scoped_event.release());
-        return true;
-      }
-
-      if (state() == kStatePaused || state() == kStatePreloading) {
-        HandleEventAndUpdateState(new Event(kSbEventTypeSuspend, NULL, NULL));
-        Inject(scoped_event.release());
-        return true;
-      }
-      error_level_ = scoped_event->error_level;
-      break;
-    case kSbEventTypeScheduled: {
-      TimedEvent* timed_event =
-          reinterpret_cast<TimedEvent*>(scoped_event->event->data);
-      timed_event->callback(timed_event->context);
-      return true;
-    }
-    default:
-      break;
-  }
-#endif  // SB_API_VERSION >= 13
 
   return HandleEventAndUpdateState(scoped_event.release());
 }
@@ -537,8 +413,7 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
   // Ensure the event is deleted unless it is released.
   scoped_ptr<Event> scoped_event(event);
 
-// Call OnSuspend() and OnResume() before the event as needed.
-#if SB_API_VERSION >= 13
+  // Call OnSuspend() and OnResume() before the event as needed.
   if (scoped_event->event->type == kSbEventTypeUnfreeze &&
       state() == kStateFrozen) {
     OnResume();
@@ -546,21 +421,13 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
              state() == kStateConcealed) {
     OnSuspend();
   }
-#else
-  if (scoped_event->event->type == kSbEventTypeResume &&
-      state() == kStateSuspended) {
-    OnResume();
-  }
-// OnSuspend() is called after SbEventHandle(kSbEventTypeSuspend).
-#endif  // SB_API_VERSION >= 13
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
   sb_event_handle_callback_(scoped_event->event);
 #else
   SbEventHandle(scoped_event->event);
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
 
-#if SB_API_VERSION >= 13
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
       SB_DCHECK(state() == kStateUnstarted);
@@ -601,41 +468,6 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
     default:
       break;
   }
-#else
-  switch (scoped_event->event->type) {
-    case kSbEventTypePreload:
-      SB_DCHECK(state() == kStateUnstarted);
-      state_ = kStatePreloading;
-      break;
-    case kSbEventTypeStart:
-      SB_DCHECK(state() == kStatePreloading || state() == kStateUnstarted);
-      state_ = kStateStarted;
-      break;
-    case kSbEventTypePause:
-      SB_DCHECK(state() == kStateStarted);
-      state_ = kStatePaused;
-      break;
-    case kSbEventTypeUnpause:
-      SB_DCHECK(state() == kStatePaused);
-      state_ = kStateStarted;
-      break;
-    case kSbEventTypeSuspend:
-      SB_DCHECK(state() == kStatePreloading || state() == kStatePaused);
-      state_ = kStateSuspended;
-      OnSuspend();
-      break;
-    case kSbEventTypeResume:
-      SB_DCHECK(state() == kStateSuspended);
-      state_ = kStatePaused;
-      break;
-    case kSbEventTypeStop:
-      SB_DCHECK(state() == kStateSuspended);
-      state_ = kStateStopped;
-      return false;
-    default:
-      break;
-  }
-#endif  // SB_API_VERSION >= 13
   // Should not be unstarted after the first event.
   SB_DCHECK(state() != kStateUnstarted);
   return true;
@@ -648,12 +480,8 @@ void Application::CallTeardownCallbacks() {
   }
 }
 
-#if SB_API_VERSION >= 13
 Application::Event* Application::CreateInitialEvent(SbEventType type,
                                                     SbTimeMonotonic timestamp) {
-#else   // SB_API_VERSION >= 13
-Application::Event* Application::CreateInitialEvent(SbEventType type) {
-#endif  // SB_API_VERSION >= 13
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
   SbEventStartData* start_data = new SbEventStartData();
   memset(start_data, 0, sizeof(SbEventStartData));
@@ -667,28 +495,16 @@ Application::Event* Application::CreateInitialEvent(SbEventType type) {
   }
   start_data->link = start_link_;
 
-#if SB_API_VERSION >= 13
   return new Event(type, timestamp, start_data, &DeleteStartData);
-#else   // SB_API_VERSION >= 13
-  return new Event(type, start_data, &DeleteStartData);
-#endif  // SB_API_VERSION >= 13
 }
 
 int Application::RunLoop() {
   SB_DCHECK(command_line_);
-#if SB_API_VERSION >= 13
   if (IsPreloadImmediate()) {
     DispatchPreload(SbTimeGetMonotonicNow());
   } else if (IsStartImmediate()) {
     DispatchStart(SbTimeGetMonotonicNow());
   }
-#else   // SB_API_VERSION >= 13
-  if (IsPreloadImmediate()) {
-    DispatchPreload();
-  } else if (IsStartImmediate()) {
-    DispatchStart();
-  }
-#endif  // SB_API_VERSION >= 13
 
   for (;;) {
     if (!DispatchNextEvent()) {

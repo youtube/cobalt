@@ -21,7 +21,7 @@ import time
 import requests
 
 # This is a simple script for Webdriver Wire Protocol communication.
-#   https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol
+#   https://www.selenium.dev/documentation/legacy/json_wire_protocol
 
 WEBDRIVER_HOST = 'http://localhost:4444'
 
@@ -30,7 +30,7 @@ POST = 'POST'
 DELETE = 'DELETE'
 
 # WebDriver Response Status Codes:
-# https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#Response-Status-Codes
+# https://www.selenium.dev/documentation/legacy/json_wire_protocol/#response-status-codes
 
 RESPONSE_STATUS_CODES = {
     0: 'Success',
@@ -75,11 +75,14 @@ def Request(request_type, path='', parameters=None):
   url = f'{WEBDRIVER_HOST}/{path}'
   headers = {'content-type': 'application/json', 'Accept-Charset': 'UTF-8'}
   if request_type == GET:
-    request = requests.get(url, data=json.dumps(parameters), headers=headers)
+    request = requests.get(
+        url, data=json.dumps(parameters), headers=headers, timeout=10)
   if request_type == POST:
-    request = requests.post(url, data=json.dumps(parameters), headers=headers)
+    request = requests.post(
+        url, data=json.dumps(parameters), headers=headers, timeout=10)
   if request_type == DELETE:
-    request = requests.delete(url, data=json.dumps(parameters), headers=headers)
+    request = requests.delete(
+        url, data=json.dumps(parameters), headers=headers, timeout=10)
   result = request.text if request.headers[
       'content-type'] == 'text/plain' else request.json()
   if request.status_code == 200:

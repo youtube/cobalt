@@ -20,6 +20,8 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "cobalt/browser/client_hint_headers.h"
 #include "cobalt/browser/user_agent_string.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -37,8 +39,8 @@ namespace layout_tests {
 
 namespace {
 void Quit(base::RunLoop* run_loop) {
-  base::MessageLoop::current()->task_runner()->PostTask(
-      FROM_HERE, run_loop->QuitClosure());
+  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                run_loop->QuitClosure());
 }
 
 // Called when layout completes and results have been produced.  We use this
@@ -75,10 +77,10 @@ browser::WebModule::LayoutResults SnapshotURL(
   // don't interfere.
   net_options.https_requirement = network::kHTTPSOptional;
   web::WebSettingsImpl web_settings;
+  browser::UserAgentPlatformInfo platform_info;
   network::NetworkModule network_module(
-      browser::CreateUserAgentString(
-          browser::GetUserAgentPlatformInfoFromSystem()),
-      NULL, NULL, net_options);
+      browser::CreateUserAgentString(platform_info),
+      browser::GetClientHintHeaders(platform_info), NULL, NULL, net_options);
 
   // Use 128M of image cache to minimize the effect of image loading.
   const size_t kImageCacheCapacity = 128 * 1024 * 1024;

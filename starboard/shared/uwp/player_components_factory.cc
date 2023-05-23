@@ -213,7 +213,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
 #if !SB_HAS(GPU_DECODERS_ON_DESKTOP)
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
     if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
       SB_LOG(WARNING) << "GPU decoder disabled on Desktop.";
       return false;

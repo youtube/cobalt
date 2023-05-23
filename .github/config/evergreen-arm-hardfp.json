@@ -14,9 +14,9 @@
   },
   "platforms": [
     "evergreen-arm-hardfp",
+    "evergreen-arm-hardfp-sbversion-15",
     "evergreen-arm-hardfp-sbversion-14",
-    "evergreen-arm-hardfp-sbversion-13",
-    "evergreen-arm-hardfp-sbversion-12"
+    "evergreen-arm-hardfp-sbversion-13"
   ],
   "includes": [
     {
@@ -26,6 +26,16 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments": "use_asan=false is_clang=false",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-15",
+      "platform":"evergreen-arm-hardfp-sbversion-15",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
+      "sb_api_version": "sb_api_version=15",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -46,16 +56,6 @@
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
       "sb_api_version": "sb_api_version=13",
-      "dimension": "release_version=regex:10.*"
-    },
-    {
-      "name":"sbversion-12",
-      "platform":"evergreen-arm-hardfp-sbversion-12",
-      "target_platform":"evergreen-arm-hardfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=12",
       "dimension": "release_version=regex:10.*"
     }
   ]

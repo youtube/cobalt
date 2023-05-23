@@ -7,5 +7,3 @@ int fgetpos(FILE *restrict f, fpos_t *restrict pos)
 	*(long long *)pos = off;
 	return 0;
 }
-
-LFS64(fgetpos);

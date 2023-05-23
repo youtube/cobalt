@@ -28,7 +28,7 @@ namespace {
 // Size of appropriate value buffer.
 const size_t kValueSize = 1024;
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
 bool IsCEDevice(SbSystemDeviceType device_type) {
   switch (device_type) {
     case kSbSystemDeviceTypeBlueRayDiskPlayer:
@@ -97,7 +97,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
   BasicTest(kSbSystemPropertySystemIntegratorName, false, true, __LINE__);
   BasicTest(kSbSystemPropertySpeechApiKey, false, true, __LINE__);
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   if (IsCEDevice(SbSystemGetDeviceType())) {
     BasicTest(kSbSystemPropertyBrandName, true, true, __LINE__);
     BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
@@ -188,7 +188,7 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
   }
 }
 
-#if SB_API_VERSION >= SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION >= 15
 TEST(SbSystemGetPropertyTest, DeviceTypeAllowed) {
   std::string device_type =
       GetSystemPropertyString(kSbSystemPropertyDeviceType);

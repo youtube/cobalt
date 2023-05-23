@@ -48,10 +48,12 @@ struct ipv6_mreq {
 #define INADDR_BROADCAST  ((in_addr_t) 0xffffffff)
 #define INADDR_NONE       ((in_addr_t) 0xffffffff)
 #define INADDR_LOOPBACK   ((in_addr_t) 0x7f000001)
+#define INADDR_DUMMY      ((in_addr_t) 0xc0000008)
 
 #define INADDR_UNSPEC_GROUP     ((in_addr_t) 0xe0000000)
 #define INADDR_ALLHOSTS_GROUP   ((in_addr_t) 0xe0000001)
 #define INADDR_ALLRTRS_GROUP    ((in_addr_t) 0xe0000002)
+#define INADDR_ALLSNOOPERS_GROUP ((in_addr_t) 0xe000006a)
 #define INADDR_MAX_LOCAL_GROUP  ((in_addr_t) 0xe00000ff)
 
 #define IN6ADDR_ANY_INIT      { { { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 } } }
@@ -59,8 +61,6 @@ struct ipv6_mreq {
 
 extern const struct in6_addr in6addr_any, in6addr_loopback;
 
-#undef INET_ADDRSTRLEN
-#undef INET6_ADDRSTRLEN
 #define INET_ADDRSTRLEN  16
 #define INET6_ADDRSTRLEN 46
 
@@ -102,8 +102,10 @@ uint16_t ntohs(uint16_t);
 #define IPPROTO_MH       135
 #define IPPROTO_UDPLITE  136
 #define IPPROTO_MPLS     137
+#define IPPROTO_ETHERNET 143
 #define IPPROTO_RAW      255
-#define IPPROTO_MAX      256
+#define IPPROTO_MPTCP    262
+#define IPPROTO_MAX      263
 
 #define IN6_IS_ADDR_UNSPECIFIED(a) \
         (((uint32_t *) (a))[0] == 0 && ((uint32_t *) (a))[1] == 0 && \
@@ -201,6 +203,7 @@ uint16_t ntohs(uint16_t);
 #define IP_CHECKSUM        23
 #define IP_BIND_ADDRESS_NO_PORT 24
 #define IP_RECVFRAGSIZE    25
+#define IP_RECVERR_RFC4884 26
 #define IP_MULTICAST_IF    32
 #define IP_MULTICAST_TTL   33
 #define IP_MULTICAST_LOOP  34
@@ -335,6 +338,8 @@ struct ip6_mtuinfo {
 #define IPV6_V6ONLY             26
 #define IPV6_JOIN_ANYCAST       27
 #define IPV6_LEAVE_ANYCAST      28
+#define IPV6_MULTICAST_ALL      29
+#define IPV6_ROUTER_ALERT_ISOLATE 30
 #define IPV6_IPSEC_POLICY       34
 #define IPV6_XFRM_POLICY        35
 #define IPV6_HDRINCL            36

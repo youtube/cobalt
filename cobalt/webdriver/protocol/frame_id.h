@@ -22,7 +22,7 @@ namespace cobalt {
 namespace webdriver {
 namespace protocol {
 
-// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidframe
+// https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidframe
 // Since Cobalt doesn't support multiple frames, the only valid value for this
 // command is to request switching to the top-level browsing context, which
 // is always active.

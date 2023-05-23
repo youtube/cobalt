@@ -55,6 +55,7 @@
 #include "cobalt/base/window_on_offline_event.h"
 #include "cobalt/base/window_on_online_event.h"
 #include "cobalt/base/window_size_changed_event.h"
+#include "cobalt/browser/client_hint_headers.h"
 #include "cobalt/browser/device_authentication.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
@@ -122,7 +123,7 @@ std::string GetDevServersListenIp() {
   // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
 
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   // Desktop PCs default to loopback.
   if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
     listen_ip = ip_v6 ? "::1" : "127.0.0.1";
@@ -531,7 +532,7 @@ const char kMemoryTrackerCommandLongHelp[] =
     "available trackers.";
 #endif  // defined(ENABLE_DEBUGGER) && defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
 
-void AddCrashHandlerAnnotations() {
+void AddCrashHandlerAnnotations(const UserAgentPlatformInfo& platform_info) {
   auto crash_handler_extension =
       static_cast<const CobaltExtensionCrashHandlerApi*>(
           SbSystemGetExtension(kCobaltExtensionCrashHandlerName));
@@ -540,7 +541,6 @@ void AddCrashHandlerAnnotations() {
     return;
   }
 
-  auto platform_info = cobalt::browser::GetUserAgentPlatformInfoFromSystem();
   std::string user_agent =
       cobalt::browser::CreateUserAgentString(platform_info);
   std::string version = "";
@@ -910,11 +910,13 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 
   storage_manager_.reset(new storage::StorageManager(storage_manager_options));
 
+  cobalt::browser::UserAgentPlatformInfo platform_info;
+
   network_module_.reset(new network::NetworkModule(
-      CreateUserAgentString(GetUserAgentPlatformInfoFromSystem()),
+      CreateUserAgentString(platform_info), GetClientHintHeaders(platform_info),
       storage_manager_.get(), &event_dispatcher_, network_module_options));
 
-  AddCrashHandlerAnnotations();
+  AddCrashHandlerAnnotations(platform_info);
 
 #if SB_IS(EVERGREEN)
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
@@ -991,14 +993,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
       base::Bind(&Application::OnWindowOnOfflineEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowOnOfflineEvent::TypeId(),
                                      on_window_on_offline_event_callback_);
-#if SB_API_VERSION >= 13
   on_date_time_configuration_changed_event_callback_ =
       base::Bind(&Application::OnDateTimeConfigurationChangedEvent,
                  base::Unretained(this));
   event_dispatcher_.AddEventCallback(
       base::DateTimeConfigurationChangedEvent::TypeId(),
       on_date_time_configuration_changed_event_callback_);
-#endif
 
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -1081,11 +1081,9 @@ Application::~Application() {
   event_dispatcher_.RemoveEventCallback(
       base::AccessibilityCaptionSettingsChangedEvent::TypeId(),
       on_caption_settings_changed_event_callback_);
-#if SB_API_VERSION >= 13
   event_dispatcher_.RemoveEventCallback(
       base::DateTimeConfigurationChangedEvent::TypeId(),
       on_date_time_configuration_changed_event_callback_);
-#endif
 }
 
 void Application::Start(SbTimeMonotonic timestamp) {
@@ -1126,7 +1124,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 
   // Create a Cobalt event from the Starboard event, if recognized.
   switch (starboard_event->type) {
-#if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
     case kSbEventTypeFocus:
     case kSbEventTypeConceal:
@@ -1136,15 +1133,6 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeLowMemory:
       OnApplicationEvent(starboard_event->type, starboard_event->timestamp);
       break;
-#else
-    case kSbEventTypePause:
-    case kSbEventTypeUnpause:
-    case kSbEventTypeSuspend:
-    case kSbEventTypeResume:
-    case kSbEventTypeLowMemory:
-      OnApplicationEvent(starboard_event->type, SbTimeGetMonotonicNow());
-      break;
-#endif  // SB_API_VERSION >= 13
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
@@ -1175,47 +1163,30 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           *static_cast<int*>(starboard_event->data)));
       break;
     case kSbEventTypeLink: {
-#if SB_API_VERSION >= 13
       DispatchDeepLink(static_cast<const char*>(starboard_event->data),
                        starboard_event->timestamp);
-#else   // SB_API_VERSION >= 13
-      DispatchDeepLink(static_cast<const char*>(starboard_event->data),
-                       SbTimeGetMonotonicNow());
-#endif  // SB_API_VERSION >= 13
       break;
     }
-#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilitySettingsChanged:
-#else
-    case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // SB_API_VERSION >= 13
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
       break;
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
       DispatchEventInternal(
           new base::AccessibilityCaptionSettingsChangedEvent());
       break;
-#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
-#else
-    case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
-#endif  // SB_API_VERSION >= 13
       DispatchEventInternal(
           new base::AccessibilityTextToSpeechSettingsChangedEvent());
       break;
-#if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
       DispatchEventInternal(new base::WindowOnOfflineEvent());
       break;
     case kSbEventTypeOsNetworkConnected:
       DispatchEventInternal(new base::WindowOnOnlineEvent());
       break;
-#endif
-#if SB_API_VERSION >= 13
     case kSbEventDateTimeConfigurationChanged:
       DispatchEventInternal(new base::DateTimeConfigurationChangedEvent());
       break;
-#endif
     // Explicitly list unhandled cases here so that the compiler can give a
     // warning when a value is added, but not handled.
     case kSbEventTypeInput:
@@ -1251,7 +1222,6 @@ void Application::OnApplicationEvent(SbEventType event_type,
       browser_module_->Focus(timestamp);
       LOG(INFO) << "Finished starting.";
       break;
-#if SB_API_VERSION >= 13
     case kSbEventTypeBlur:
       LOG(INFO) << "Got blur event.";
       browser_module_->Blur(timestamp);
@@ -1289,37 +1259,6 @@ void Application::OnApplicationEvent(SbEventType event_type,
 #endif
       LOG(INFO) << "Finished unfreezing.";
       break;
-#else
-    case kSbEventTypePause:
-      LOG(INFO) << "Got pause event.";
-      browser_module_->Blur(timestamp);
-      LOG(INFO) << "Finished pausing.";
-      break;
-    case kSbEventTypeUnpause:
-      LOG(INFO) << "Got unpause event.";
-      browser_module_->Focus(timestamp);
-      LOG(INFO) << "Finished unpausing.";
-      break;
-    case kSbEventTypeSuspend:
-      LOG(INFO) << "Got suspend event.";
-      browser_module_->Conceal(timestamp);
-      browser_module_->Freeze(timestamp);
-#if SB_IS(EVERGREEN)
-      if (updater_module_) updater_module_->Suspend();
-#endif
-      LOG(INFO) << "Finished suspending.";
-      break;
-    case kSbEventTypeResume:
-      DCHECK(SbSystemSupportsResume());
-      LOG(INFO) << "Got resume event.";
-      browser_module_->Unfreeze(timestamp);
-      browser_module_->Reveal(timestamp);
-#if SB_IS(EVERGREEN)
-      if (updater_module_) updater_module_->Resume();
-#endif
-      LOG(INFO) << "Finished resuming.";
-      break;
-#endif  // SB_API_VERSION >= 13
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
@@ -1329,33 +1268,21 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypePreload:
     case kSbEventTypeWindowSizeChanged:
     case kSbEventTypeAccessibilityCaptionSettingsChanged:
-#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
-#else
-    case kSbEventTypeAccessiblityTextToSpeechSettingsChanged:
-#endif  // SB_API_VERSION >= 13
     case kSbEventTypeOnScreenKeyboardBlurred:
     case kSbEventTypeOnScreenKeyboardFocused:
     case kSbEventTypeOnScreenKeyboardHidden:
     case kSbEventTypeOnScreenKeyboardShown:
     case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#if SB_API_VERSION >= 13
     case kSbEventTypeAccessibilitySettingsChanged:
-#else
-    case kSbEventTypeAccessiblitySettingsChanged:
-#endif  // SB_API_VERSION >= 13
     case kSbEventTypeInput:
     case kSbEventTypeLink:
     case kSbEventTypeScheduled:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION >= 13
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
-#endif
-#if SB_API_VERSION >= 13
     case kSbEventDateTimeConfigurationChanged:
-#endif
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
@@ -1439,7 +1366,6 @@ void Application::OnWindowOnOfflineEvent(const base::Event* event) {
       base::polymorphic_downcast<const base::WindowOnOfflineEvent*>(event));
 }
 
-#if SB_API_VERSION >= 13
 void Application::OnDateTimeConfigurationChangedEvent(
     const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
@@ -1448,7 +1374,6 @@ void Application::OnDateTimeConfigurationChangedEvent(
       base::polymorphic_downcast<
           const base::DateTimeConfigurationChangedEvent*>(event));
 }
-#endif
 
 void Application::MainWebModuleCreated(WebModule* web_module) {
   TRACE_EVENT0("cobalt::browser", "Application::MainWebModuleCreated()");
@@ -1597,26 +1522,20 @@ void Application::DispatchDeepLink(const char* link,
   DispatchEventInternal(new base::DeepLinkEvent(
       deep_link, base::Bind(&Application::OnDeepLinkConsumedCallback,
                             base::Unretained(this), deep_link)));
-#if SB_API_VERSION >= 13
   if (browser_module_) {
     browser_module_->SetDeepLinkTimestamp(timestamp);
   }
-#endif  // SB_API_VERSION >= 13
 }
 
 void Application::DispatchDeepLinkIfNotConsumed() {
   std::string deep_link;
-#if SB_API_VERSION >= 13
   SbTimeMonotonic timestamp;
-#endif  // SB_API_VERSION >= 13
   // This block exists to ensure that the lock is held while accessing
   // unconsumed_deep_link_.
   {
     base::AutoLock auto_lock(unconsumed_deep_link_lock_);
     deep_link = unconsumed_deep_link_;
-#if SB_API_VERSION >= 13
     timestamp = deep_link_timestamp_;
-#endif  // SB_API_VERSION >= 13
   }
 
   if (!deep_link.empty()) {
@@ -1625,11 +1544,9 @@ void Application::DispatchDeepLinkIfNotConsumed() {
         deep_link, base::Bind(&Application::OnDeepLinkConsumedCallback,
                               base::Unretained(this), deep_link)));
   }
-#if SB_API_VERSION >= 13
   if (browser_module_) {
     browser_module_->SetDeepLinkTimestamp(timestamp);
   }
-#endif  // SB_API_VERSION >= 13
 }
 
 }  // namespace browser

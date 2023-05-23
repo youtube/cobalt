@@ -20,6 +20,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/strings/stringprintf.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/cors_preflight.h"
@@ -104,7 +105,7 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
       request_cross_origin_(false),
       origin_(origin),
       request_script_(options.resource_type == disk_cache::kUncompiledScript),
-      task_runner_(base::MessageLoop::current()->task_runner()),
+      task_runner_(base::ThreadTaskRunnerHandle::Get()),
       skip_fetch_intercept_(options.skip_fetch_intercept),
       will_destroy_current_message_loop_(false),
       main_resource_(main_resource) {
@@ -134,12 +135,13 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
         net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
     url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
+  network_module->AddClientHintHeaders(*url_fetcher_);
 
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
   // while a loader is still being constructed.
-  base::MessageLoop::current()->task_runner()->PostTask(
-      FROM_HERE, start_callback_.callback());
+  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                start_callback_.callback());
   base::MessageLoop::current()->AddDestructionObserver(this);
 }
 
@@ -178,7 +180,7 @@ void NetFetcher::OnFetchIntercepted(std::unique_ptr<std::string> body) {
   if (will_destroy_current_message_loop_.load()) {
     return;
   }
-  if (task_runner_ != base::MessageLoop::current()->task_runner()) {
+  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&NetFetcher::OnFetchIntercepted,
                                   base::Unretained(this), std::move(body)));

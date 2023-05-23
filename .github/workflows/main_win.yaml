@@ -59,9 +59,10 @@ jobs:
       )
     steps:
       - id: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999 # Temporary version
         with:
           fetch-depth: 1
+          persist-credentials: false
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -103,9 +104,10 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Checkout files
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 2
+          persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
@@ -136,10 +138,11 @@ jobs:
         config: [devel, debug, qa, gold]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
+          persist-credentials: false
       - name: GN
         uses: ./.github/actions/gn
       - name: Build Cobalt
@@ -170,9 +173,10 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
         with:
           fetch-depth: 1
+          persist-credentials: false
       - name: Run Tests
         uses: ./.github/actions/on_host_test
         with:

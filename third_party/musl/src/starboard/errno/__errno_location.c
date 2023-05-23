@@ -37,3 +37,5 @@ int *__errno_location(void) {
 
   return value;
 }
+
+weak_alias(__errno_location, ___errno_location);

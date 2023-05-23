@@ -16,13 +16,14 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
+#include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
 namespace dom {
 
 EventQueue::EventQueue(web::EventTarget* event_target)
     : event_target_(event_target),
-      message_loop_(base::MessageLoop::current()->task_runner()) {
+      message_loop_(base::ThreadTaskRunnerHandle::Get()) {
   DCHECK(event_target_);
   DCHECK(message_loop_);
 }

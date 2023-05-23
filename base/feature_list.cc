@@ -98,7 +98,6 @@ void FeatureList::InitializeFromCommandLine(
   initialized_from_command_line_ = true;
 }
 
-#if !defined(STARBOARD)
 void FeatureList::InitializeFromSharedMemory(
     PersistentMemoryAllocator* allocator) {
   DCHECK(!initialized_);
@@ -115,10 +114,13 @@ void FeatureList::InitializeFromSharedMemory(
       continue;
 
     FieldTrial* trial = FieldTrialList::Find(trial_name.as_string());
+#if defined(STARBOARD)
+    RegisterOverride(feature_name, override_state);
+#else
     RegisterOverride(feature_name, override_state, trial);
+#endif
   }
 }
-#endif  // !defined(STARBOARD)
 
 bool FeatureList::IsFeatureOverriddenFromCommandLine(
     const std::string& feature_name,
@@ -212,7 +214,6 @@ bool FeatureList::IsEnabled(const Feature& feature) {
   return g_feature_list_instance->IsFeatureEnabled(feature);
 }
 
-#if !defined(STARBOARD)
 // static
 FieldTrial* FeatureList::GetFieldTrial(const Feature& feature) {
   if (!g_feature_list_instance) {
@@ -221,7 +222,6 @@ FieldTrial* FeatureList::GetFieldTrial(const Feature& feature) {
   }
   return g_feature_list_instance->GetAssociatedFieldTrial(feature);
 }
-#endif  // !defined(STARBOARD)
 
 // static
 std::vector<base::StringPiece> FeatureList::SplitFeatureListString(
@@ -334,7 +334,6 @@ bool FeatureList::IsFeatureEnabled(const Feature& feature) {
   return feature.default_state == FEATURE_ENABLED_BY_DEFAULT;
 }
 
-#if !defined(STARBOARD)
 FieldTrial* FeatureList::GetAssociatedFieldTrial(const Feature& feature) {
   DCHECK(initialized_);
   DCHECK(IsValidFeatureOrFieldTrialName(feature.name)) << feature.name;
@@ -348,7 +347,6 @@ FieldTrial* FeatureList::GetAssociatedFieldTrial(const Feature& feature) {
 
   return nullptr;
 }
-#endif  // !defined(STARBOARD)
 
 void FeatureList::RegisterOverridesFromCommandLine(
     const std::string& feature_list,
@@ -389,7 +387,7 @@ void FeatureList::RegisterOverride(StringPiece feature_name,
   // one already exists for the key. Thus, only the first override for a given
   // feature name takes effect.
   overrides_.insert(std::make_pair(feature_name.as_string(),
-                                   OverrideEntry(overridden_state)));
+                                   OverrideEntry(overridden_state, nullptr)));
 }
 #else   // defined(STARBOARD)
 void FeatureList::RegisterOverride(StringPiece feature_name,
@@ -473,15 +471,10 @@ bool FeatureList::CheckFeatureIdentity(const Feature& feature) {
   return it->second == &feature;
 }
 
-#if defined(STARBOARD)
-FeatureList::OverrideEntry::OverrideEntry(OverrideState overridden_state)
-    : overridden_state(overridden_state) {}
-#else
 FeatureList::OverrideEntry::OverrideEntry(OverrideState overridden_state,
                                           FieldTrial* field_trial)
     : overridden_state(overridden_state),
       field_trial(field_trial),
       overridden_by_field_trial(field_trial != nullptr) {}
-#endif
 
 }  // namespace base

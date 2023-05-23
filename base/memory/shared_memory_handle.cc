@@ -6,6 +6,16 @@
 
 namespace base {
 
+// As we don't support shared memory in Cobalt, we use the stub impl of
+// SharedMemoryHandle and needs a default ctor to make the compiler happy.
+#if defined(STARBOARD)
+SharedMemoryHandle::SharedMemoryHandle() {}
+
+bool SharedMemoryHandle::IsValid() const {
+  return false;
+}
+#endif
+
 SharedMemoryHandle::SharedMemoryHandle(const SharedMemoryHandle& handle) =
     default;
 

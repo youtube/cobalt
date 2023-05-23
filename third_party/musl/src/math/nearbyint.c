@@ -18,7 +18,7 @@ double nearbyint(double x)
 	x = rint_internal(x);
 #else
 	x = rint(x);
-#endif  // COBALT_MUSL_W_GLIBC_HEADERS
+#endif // COBALT_MUSL_W_GLIBC_HEADERS
 #ifdef FE_INEXACT
 	if (!e)
 		feclearexcept(FE_INEXACT);

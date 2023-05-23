@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/file_data_source.h"
 #include "cobalt/media/url_fetcher_data_source.h"
 #include "third_party/chromium/media/cobalt/ui/gfx/geometry/rect.h"
@@ -88,9 +89,9 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
     player_->LoadProgressive(video_url, std::move(data_source));
   } else {
     std::unique_ptr<DataSource> data_source(new URLFetcherDataSource(
-        base::MessageLoop::current()->task_runner(), video_url,
-        csp::SecurityCallback(), fetcher_factory->network_module(),
-        loader::kNoCORSMode, loader::Origin()));
+        base::ThreadTaskRunnerHandle::Get(), video_url, csp::SecurityCallback(),
+        fetcher_factory->network_module(), loader::kNoCORSMode,
+        loader::Origin()));
     player_->LoadProgressive(video_url, std::move(data_source));
   }
 

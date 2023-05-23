@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/web/cache_utils.h"
@@ -29,13 +30,13 @@ FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type,
                        const FetchEventInit& event_init_dict)
     : FetchEvent(environment_settings, base::Token(type), event_init_dict,
-                 base::MessageLoop::current()->task_runner(),
-                 RespondWithCallback(), ReportLoadTimingInfo()) {}
+                 base::ThreadTaskRunnerHandle::Get(), RespondWithCallback(),
+                 ReportLoadTimingInfo()) {}
 
 FetchEvent::FetchEvent(
     script::EnvironmentSettings* environment_settings, base::Token type,
     const FetchEventInit& event_init_dict,
-    scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     RespondWithCallback respond_with_callback,
     ReportLoadTimingInfo report_load_timing_info)
     : ExtendableEvent(environment_settings, type, event_init_dict),
@@ -89,8 +90,7 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
       ->PostTask(
           FROM_HERE,
           base::BindOnce(
-              [](scoped_refptr<base::SingleThreadTaskRunner>
-                     callback_task_runner,
+              [](scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
                  RespondWithCallback respond_with_callback, std::string body,
                  base::MessageLoop* loop, base::OnceClosure callback) {
                 callback_task_runner->PostTask(

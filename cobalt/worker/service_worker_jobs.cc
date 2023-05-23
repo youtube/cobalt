@@ -31,6 +31,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/tokens.h"
@@ -1000,7 +1001,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 
   // Post a task for the remaining steps, to let tasks posted by
   // RunServiceWorker, such as for registering the web context, execute first.
-  base::MessageLoop::current()->task_runner()->PostTask(
+  base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind(&ServiceWorkerJobs::UpdateOnRunServiceWorker,
                             base::Unretained(this), std::move(state),
                             std::move(worker), run_result_is_success));

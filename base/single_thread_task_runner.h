@@ -32,7 +32,7 @@ class BASE_EXPORT SingleThreadTaskRunner : public SequencedTaskRunner {
   // Like PostTask, but blocks until the posted task completes. Returns false
   // and does not block if task was not posted.
   virtual void PostBlockingTask(const base::Location& from_here,
-                                const Closure& task);
+                                const Closure& task) override;
 
   // Adds a fence at the end of this MessageLoop's task queue, and then blocks
   // until it has been reached. It is forbidden to call this method from the

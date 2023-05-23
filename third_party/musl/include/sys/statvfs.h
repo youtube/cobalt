@@ -11,8 +11,6 @@ extern "C" {
 #define __NEED_fsfilcnt_t
 #include <bits/alltypes.h>
 
-#include <endian.h>
-
 struct statvfs {
 	unsigned long f_bsize, f_frsize;
 	fsblkcnt_t f_blocks, f_bfree, f_bavail;
@@ -44,7 +42,7 @@ int fstatvfs (int, struct statvfs *);
 #define ST_NODIRATIME  2048
 #define ST_RELATIME    4096
 
-#if defined(_LARGEFILE64_SOURCE) || defined(_GNU_SOURCE)
+#if defined(_LARGEFILE64_SOURCE)
 #define statvfs64 statvfs
 #define fstatvfs64 fstatvfs
 #define fsblkcnt64_t fsblkcnt_t

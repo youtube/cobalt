@@ -14,9 +14,9 @@
   },
   "platforms": [
     "raspi-2",
-    "raspi-2-sbversion-12",
     "raspi-2-sbversion-13",
-    "raspi-2-sbversion-14"
+    "raspi-2-sbversion-14",
+    "raspi-2-sbversion-15"
   ],
   "includes": [
     {
@@ -25,15 +25,6 @@
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments": "is_clang=false",
-      "dimension": "release_version=regex:10.*"
-    },
-    {
-      "name":"sbversion-12",
-      "platform":"raspi-2-sbversion-12",
-      "target_platform":"raspi-2",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"is_clang=false",
-      "sb_api_version": "sb_api_version=12",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -52,6 +43,15 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"is_clang=false",
       "sb_api_version": "sb_api_version=14",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-15",
+      "platform":"raspi-2-sbversion-15",
+      "target_platform":"raspi-2",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"is_clang=false",
+      "sb_api_version": "sb_api_version=15",
       "dimension": "release_version=regex:10.*"
     }
   ]

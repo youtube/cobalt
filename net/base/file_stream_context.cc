@@ -11,6 +11,7 @@
 #include "base/task_runner.h"
 #include "base/task_runner_util.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
 
@@ -244,7 +245,7 @@ void FileStream::Context::CloseAndDelete() {
 #ifdef STARBOARD
     // On Windows, holding file_ will prevent re-creation immediately after
     // CloseAndDelete is called, failing some tests.
-    if (base::MessageLoop::current()->task_runner() == task_runner_.get()) {
+    if (base::ThreadTaskRunnerHandle::Get() == task_runner_.get()) {
       file_.Close();
       delete this;
       return;

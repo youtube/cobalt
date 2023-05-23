@@ -15,12 +15,14 @@
 #ifndef COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_
 #define COBALT_DEBUG_CONSOLE_DEBUG_HUB_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/debug/console/console_command.h"
 #include "cobalt/debug/console/debug_console_mode.h"
 #include "cobalt/debug/console/debugger_event_target.h"
@@ -63,7 +65,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
     ResponseCallbackInfo(DebugHub* const debugger,
                          const ResponseCallbackArg& cb)
         : callback(debugger, cb),
-          task_runner(base::MessageLoop::current()->task_runner()) {}
+          task_runner(base::ThreadTaskRunnerHandle::Get()) {}
     ResponseCallbackArg::Reference callback;
     scoped_refptr<base::SingleThreadTaskRunner> task_runner;
     friend class base::RefCountedThreadSafe<ResponseCallbackInfo>;
@@ -97,7 +99,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   const script::Sequence<ConsoleCommand> console_commands() const;
 
   // Sends a console command to be handled in the context of the debug WebModule
-  // by a registered hander. This lets the JavaScript debug console trigger
+  // by a registered handler. This lets the JavaScript debug console trigger
   // actions in the app.
   void SendConsoleCommand(const std::string& command,
                           const std::string& message);

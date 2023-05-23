@@ -17,18 +17,21 @@ jobs:
   python-test:
     strategy:
       matrix:
-        # TODO(b/281098312): pytest fails on windows-latest
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.7', '3.11']
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: kaidokert/checkout@v3.5.999
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
       - name: Install Pip Packages
         run: pip install --require-hashes --no-deps -r ${{ github.workspace }}/docker/pytest/requirements.txt
       - name: Run Tests

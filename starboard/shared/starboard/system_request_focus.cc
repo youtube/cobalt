@@ -16,8 +16,6 @@
 
 #include "starboard/shared/starboard/application.h"
 
-#if SB_API_VERSION >= 13
 void SbSystemRequestFocus() {
   starboard::shared::starboard::Application::Get()->Focus(NULL, NULL);
 }
-#endif  // SB_API_VERSION >= 13

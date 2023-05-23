@@ -11,6 +11,10 @@ extern "C" {
 #define __NEED___isoc_va_list
 #define __NEED_size_t
 
+#if __STDC_VERSION__ < 201112L
+#define __NEED_struct__IO_FILE
+#endif
+
 #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
  || defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) \
  || defined(_BSD_SOURCE)
@@ -21,6 +25,7 @@ extern "C" {
 
 #include <bits/alltypes.h>
 
+// nullptr causes cast errors in third_party code
 #ifdef __cplusplus
 #define NULL 0L
 #else
@@ -199,7 +204,7 @@ typedef struct _IO_cookie_io_functions_t {
 FILE *fopencookie(void *, const char *, cookie_io_functions_t);
 #endif
 
-#if defined(_LARGEFILE64_SOURCE) || defined(_GNU_SOURCE)
+#if defined(_LARGEFILE64_SOURCE)
 #define tmpfile64 tmpfile
 #define fopen64 fopen
 #define freopen64 freopen

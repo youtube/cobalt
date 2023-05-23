@@ -14,6 +14,7 @@
 
 #include "cobalt/debug/console/debugger_event_target.h"
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/source_location.h"
 
 namespace cobalt {
@@ -48,14 +49,14 @@ void DebuggerEventTarget::DispatchEvent(const std::string& method,
 void DebuggerEventTarget::AddListener(
     const DebuggerEventTarget::DebuggerEventCallbackArg& callback) {
   base::AutoLock auto_lock(lock_);
-  listeners_.insert(new ListenerInfo(
-      this, callback, base::MessageLoop::current()->task_runner()));
+  listeners_.insert(
+      new ListenerInfo(this, callback, base::ThreadTaskRunnerHandle::Get()));
 }
 
 void DebuggerEventTarget::NotifyListener(
     const DebuggerEventTarget::ListenerInfo* listener,
     const std::string& method, const base::Optional<std::string>& json_params) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), listener->task_runner);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), listener->task_runner);
   listener->callback.value().Run(method, json_params);
 }
 

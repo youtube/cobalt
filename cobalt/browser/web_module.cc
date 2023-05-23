@@ -28,6 +28,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/debugger_hooks.h"
@@ -615,7 +616,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
     // Post a task that blocks the message loop and waits for the web debugger.
     // This must be posted before the the window's task to load the document.
     waiting_for_web_debugger_->store(true);
-    base::MessageLoop::current()->task_runner()->PostTask(
+    base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE, base::Bind(&WebModule::Impl::WaitForWebDebugger,
                               base::Unretained(this)));
   }
@@ -949,8 +950,7 @@ void WebModule::Impl::OnRenderTreeProduced(
   LayoutResults layout_results_with_callback(
       layout_results.render_tree, layout_results.layout_time,
       base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
-                 base::Unretained(this),
-                 base::MessageLoop::current()->task_runner(),
+                 base::Unretained(this), base::ThreadTaskRunnerHandle::Get(),
                  last_render_tree_produced_time_));
 
 #if defined(ENABLE_DEBUGGER)
@@ -1027,7 +1027,7 @@ void WebModule::Impl::CreateWindowDriver(
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectPointerEvent, base::Unretained(this)),
-      base::MessageLoop::current()->task_runner()));
+      base::ThreadTaskRunnerHandle::Get()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)
 

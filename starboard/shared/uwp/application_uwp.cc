@@ -373,9 +373,9 @@ ref class App sealed : public IFrameworkView {
   App(SbTimeMonotonic start_time)
       : application_start_time_{start_time},
         previously_activated_(false),
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
         application_(SbEventHandle),
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
         is_online_(true) {
   }
 
@@ -419,14 +419,14 @@ ref class App sealed : public IFrameworkView {
   }
 
   virtual void Run() {
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
     main_return_value =
         SbRunStarboardMain(static_cast<int>(argv_.size()),
                            const_cast<char**>(argv_.data()), SbEventHandle);
 #else
     main_return_value = application_.Run(static_cast<int>(argv_.size()),
                                          const_cast<char**>(argv_.data()));
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
   }
   virtual void Uninitialize() {
     SbAudioSinkPrivate::TearDown();
@@ -758,19 +758,14 @@ ref class App sealed : public IFrameworkView {
       SB_LOG(INFO) << "Starting " << GetBinaryName();
 
       CoreWindow::GetForCurrentThread()->Activate();
-// Call DispatchStart async so the UWP system thinks we're activated.
-// Some tools seem to want the application to be activated before
-// interacting with them, some things are disallowed during activation
-// (such as exiting), and DispatchStart (for example) runs
-// automated tests synchronously.
-#if SB_API_VERSION >= 13
+      // Call DispatchStart async so the UWP system thinks we're activated.
+      // Some tools seem to want the application to be activated before
+      // interacting with them, some things are disallowed during activation
+      // (such as exiting), and DispatchStart (for example) runs
+      // automated tests synchronously.
       RunInMainThreadAsync([this]() {
         ApplicationUwp::Get()->DispatchStart(application_start_time_);
       });
-#else   // SB_API_VERSION >= 13
-      RunInMainThreadAsync(
-          [this]() { ApplicationUwp::Get()->DispatchStart(); });
-#endif  // SB_API_VERSION >= 13
     }
     previously_activated_ = true;
   }
@@ -845,14 +840,14 @@ void DisplayStatusWatcher::StopWatcher() {
   }
 }
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
 ApplicationUwp::ApplicationUwp(SbEventHandleCallback sb_event_handle_callback)
     : shared::starboard::Application(sb_event_handle_callback),
       window_(kSbWindowInvalid),
 #else
 ApplicationUwp::ApplicationUwp()
     : window_(kSbWindowInvalid),
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
       localized_strings_(SbSystemGetLocaleId()),
       device_id_(MakeDeviceId()) {
   analog_thumbstick_thread_.reset(new AnalogThumbstickThread(this));
@@ -1312,7 +1307,7 @@ int InternalMain() {
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
   // Early exit for gold builds on desktop as a security measure.
-#if SB_API_VERSION < SB_SYSTEM_DEVICE_TYPE_AS_STRING_API_VERSION
+#if SB_API_VERSION < 15
   if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
     return main_return_value;
   }
@@ -1341,13 +1336,13 @@ int InternalMain() {
   return main_return_value;
 }
 
-#if SB_MODULAR_BUILD
+#if SB_API_VERSION >= 15
 extern "C" int SbRunStarboardMain(int argc,
                                   char** argv,
                                   SbEventHandleCallback callback) {
   return ApplicationUwp::Get()->Run(argc, argv);
 }
-#endif  // SB_MODULAR_BUILD
+#endif  // SB_API_VERSION >= 15
 
 }  // namespace uwp
 }  // namespace shared

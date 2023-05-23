@@ -17,6 +17,7 @@
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/strings/string_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/script/source_code.h"
 #include "cobalt/script/standalone_javascript_runner.h"
@@ -79,7 +80,7 @@ void StartApplication(int argc, char** argv, const char* /*link */,
                       SbTimeMonotonic timestamp) {
   DCHECK(!g_javascript_runner);
   g_javascript_runner = new cobalt::script::StandaloneJavascriptRunner(
-      base::MessageLoop::current()->task_runner());
+      base::ThreadTaskRunnerHandle::Get());
   DCHECK(g_javascript_runner);
 
   GlobalEnvironment* global_environment =

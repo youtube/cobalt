@@ -9,7 +9,6 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/sequenced_task_runner.h"
-#include "base/single_thread_task_runner.h"
 #include "base/stl_util.h"
 #include "base/threading/sequenced_task_runner_handle.h"
 #include "net/base/elements_upload_data_stream.h"
@@ -465,7 +464,7 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
                                         const RedirectInfo& redirect_info,
                                         bool* defer_redirect) {
   DCHECK_EQ(request, request_.get());
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
   if (stop_on_redirect_) {
     stopped_on_redirect_ = true;
     url_ = redirect_info.new_url;
@@ -485,7 +484,7 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
 
 void URLFetcherCore::OnResponseStarted(URLRequest* request, int net_error) {
   DCHECK_EQ(request, request_.get());
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
   DCHECK_NE(ERR_IO_PENDING, net_error);
 
   if (net_error == OK) {
@@ -523,7 +522,7 @@ void URLFetcherCore::OnCertificateRequested(
     URLRequest* request,
     SSLCertRequestInfo* cert_request_info) {
   DCHECK_EQ(request, request_.get());
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
 
   if (g_ignore_certificate_requests) {
     request->ContinueWithCertificate(nullptr, nullptr);
@@ -535,7 +534,7 @@ void URLFetcherCore::OnCertificateRequested(
 void URLFetcherCore::OnReadCompleted(URLRequest* request,
                                      int bytes_read) {
   DCHECK_EQ(request, request_.get());
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
 
   if (!stopped_on_redirect_)
     url_ = request->url();
@@ -634,7 +633,7 @@ URLFetcherCore::~URLFetcherCore() {
 }
 
 void URLFetcherCore::StartOnIOThread() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
 
   // Create ChunkedUploadDataStream, if needed, so the consumer can start
   // appending data.  Have to do it here because StartURLRequest() may be called
@@ -654,7 +653,7 @@ void URLFetcherCore::StartOnIOThread() {
 }
 
 void URLFetcherCore::StartURLRequest() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
 
   if (observer_extension_ != nullptr) {
     observer_extension_->StartURLRequest(
@@ -797,7 +796,7 @@ void URLFetcherCore::DidInitializeWriter(int result) {
 }
 
 void URLFetcherCore::StartURLRequestWhenAppropriate() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
 
   if (was_cancelled_)
     return;
@@ -834,7 +833,7 @@ void URLFetcherCore::StartURLRequestWhenAppropriate() {
 }
 
 void URLFetcherCore::CancelURLRequest(int error) {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
 
   if (request_.get()) {
     request_->CancelWithError(error);
@@ -878,7 +877,7 @@ void URLFetcherCore::InformDelegateFetchIsComplete() {
 }
 
 void URLFetcherCore::NotifyMalformedContent() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
   if (url_throttler_entry_.get()) {
     int status_code = response_code_;
     if (status_code == URLFetcher::RESPONSE_CODE_INVALID) {
@@ -903,7 +902,7 @@ void URLFetcherCore::DidFinishWriting(int result) {
 }
 
 void URLFetcherCore::RetryOrCompleteUrlFetch() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
   base::TimeDelta backoff_delay;
 
   // Checks the response from server.
@@ -973,7 +972,7 @@ void URLFetcherCore::ReleaseRequest() {
 }
 
 base::TimeTicks URLFetcherCore::GetBackoffReleaseTime() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
 
   if (!original_url_throttler_entry_.get())
     return base::TimeTicks();
@@ -1055,7 +1054,7 @@ void URLFetcherCore::ReadResponse() {
 #if defined(STARBOARD)
 
 void URLFetcherCore::InformDelegateResponseStarted() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
   DCHECK(request_);
 
   delegate_task_runner_->PostTask(
@@ -1073,7 +1072,7 @@ void URLFetcherCore::InformDelegateResponseStartedInDelegateThread() {
 #endif  // defined(STARBOARD)
 
 void URLFetcherCore::InformDelegateUploadProgress() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
   if (request_.get()) {
     int64_t current = request_->GetUploadProgress().position();
     if (current_upload_bytes_ != current) {
@@ -1104,7 +1103,7 @@ void URLFetcherCore::InformDelegateUploadProgressInDelegateSequence(
 }
 
 void URLFetcherCore::InformDelegateDownloadProgress() {
-  DCHECK(network_task_runner_->BelongsToCurrentThread());
+  DCHECK(network_task_runner_->RunsTasksInCurrentSequence());
   delegate_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(

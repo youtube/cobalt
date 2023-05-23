@@ -28,6 +28,7 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
 #include "cobalt/base/tokens.h"
@@ -644,7 +645,7 @@ void HTMLMediaElement::ScheduleEvent(const scoped_refptr<web::Event>& event) {
 
 std::string HTMLMediaElement::h5vcc_audio_connectors(
     script::ExceptionState* exception_state) const {
-#if SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#if SB_API_VERSION >= 15
   if (!player_) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
@@ -653,11 +654,11 @@ std::string HTMLMediaElement::h5vcc_audio_connectors(
 
   std::vector<std::string> configs = player_->GetAudioConnectors();
   return base::JoinString(configs, ";");
-#else   // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#else   // SB_API_VERSION >= 15
   web::DOMException::Raise(web::DOMException::kNotSupportedErr,
                            exception_state);
   return std::string();
-#endif  // SB_API_VERSION >= SB_MEDIA_ENHANCED_AUDIO_API_VERSION
+#endif  // SB_API_VERSION >= 15
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
@@ -910,7 +911,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
     DCHECK(node_document()->location());
     std::unique_ptr<DataSource> data_source(new media::URLFetcherDataSource(
-        base::MessageLoop::current()->task_runner(), url, csp_callback,
+        base::ThreadTaskRunnerHandle::Get(), url, csp_callback,
         html_element_context()->fetcher_factory()->network_module(),
         request_mode_, node_document()->location()->GetOriginAsObject()));
     player_->LoadProgressive(url, std::move(data_source));

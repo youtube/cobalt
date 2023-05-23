@@ -5,7 +5,7 @@
  *   ANSI-specific library and header configuration file (specification
  *   only).
  *
- * Copyright (C) 2002-2020 by
+ * Copyright (C) 2002-2023 by
  * David Turner, Robert Wilhelm, and Werner Lemberg.
  *
  * This file is part of the FreeType project, and may only be used,
@@ -43,7 +43,8 @@
    *
    * `UINT_MAX` and `ULONG_MAX` are used to automatically compute the size of
    * `int` and `long` in bytes at compile-time.  So far, this works for all
-   * platforms the library has been tested on.
+   * platforms the library has been tested on.  We also check `ULLONG_MAX`
+   * to see whether we can use 64-bit `long long` later on.
    *
    * Note that on the extremely rare platforms that do not provide integer
    * types that are _exactly_ 16 and 32~bits wide (e.g., some old Crays where
@@ -66,6 +67,15 @@
 #define FT_LONG_MIN    LONG_MIN
 #define FT_LONG_MAX    LONG_MAX
 #define FT_ULONG_MAX   ULONG_MAX
+#ifdef LLONG_MAX
+#define FT_LLONG_MAX   LLONG_MAX
+#endif
+#ifdef LLONG_MIN
+#define FT_LLONG_MIN   LLONG_MIN
+#endif
+#ifdef ULLONG_MAX
+#define FT_ULLONG_MAX  ULLONG_MAX
+#endif
 
 
   /**************************************************************************
@@ -73,9 +83,11 @@
    *                character and string processing
    *
    */
+
+
 #include <string.h>
 
-#define ft_memchr memchr
+#define ft_memchr   memchr
 #define ft_memcmp   memcmp
 #define ft_memcpy   memcpy
 #define ft_memmove  memmove
@@ -89,13 +101,14 @@
 #define ft_strrchr  strrchr
 #define ft_strstr   strstr
 
+
   /**************************************************************************
    *
    *                          file handling
    *
    */
 
-#if defined(STARBOARD)
+#if defined( STARBOARD )
 #include "starboard/string.h"
 #include "starboard/file.h"
 
@@ -121,7 +134,7 @@
 #define ft_fseek    fseek
 #define ft_ftell    ftell
 #define ft_sprintf  sprintf
-#endif
+#endif /* defined( STARBOARD ) */
 
 
   /**************************************************************************
@@ -130,8 +143,11 @@
    *
    */
 
+
 #include <stdlib.h>
+
 #define ft_qsort  qsort
+
 
   /**************************************************************************
    *
@@ -139,7 +155,7 @@
    *
    */
 
-#if defined(STARBOARD)
+#if defined( STARBOARD )
 #include "starboard/memory.h"
 static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
   size_t size = nelem * elsize;
@@ -159,7 +175,7 @@ static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
 #define ft_sfree     free
 #define ft_smalloc   malloc
 #define ft_srealloc  realloc
-#endif
+#endif /* defined( STARBOARD ) */
 
 
   /**************************************************************************
@@ -167,16 +183,20 @@ static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
    *                         miscellaneous
    *
    */
-#include <stdlib.h>
-#define ft_strtol  strtol 
 
-#if defined(STARBOARD)
-static SB_C_INLINE char* ft_getenv(const char* name){
+
+#include <stdlib.h>
+#define ft_strtol  strtol
+
+#if defined( STARBOARD )
+static SB_C_INLINE char*
+ft_getenv( const char* name )
+{
   return NULL;
 }
 #else
 #define ft_getenv  getenv
-#endif
+#endif /* defined( STARBOARD ) */
 
 
   /**************************************************************************

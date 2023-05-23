@@ -19,6 +19,7 @@
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/memory/ref_counted.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/base/bind_to_loop.h"
 #include "cobalt/media/base/pipeline_status.h"
@@ -45,9 +46,8 @@ class DemuxerFuzzer : DemuxerHost {
  public:
   explicit DemuxerFuzzer(const std::vector<uint8>& content)
       : error_occurred_(false), eos_count_(0), stopped_(false) {
-    demuxer_ =
-        new ProgressiveDemuxer(base::MessageLoop::current()->task_runner(),
-                               new InMemoryDataSource(content));
+    demuxer_ = new ProgressiveDemuxer(base::ThreadTaskRunnerHandle::Get(),
+                                      new InMemoryDataSource(content));
   }
 
   void Fuzz() {

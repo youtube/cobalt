@@ -16,7 +16,10 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
+#include <vector>
 
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/net_errors.h"
 
@@ -30,8 +33,7 @@ NetPoster::~NetPoster() {}
 
 void NetPoster::Send(const GURL& url, const std::string& content_type,
                      const std::string& data) {
-  if (network_module_->task_runner() !=
-      base::MessageLoop::current()->task_runner()) {
+  if (network_module_->task_runner() != base::ThreadTaskRunnerHandle::Get()) {
     network_module_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&NetPoster::Send, base::Unretained(this), url,
                               content_type, data));
@@ -47,6 +49,7 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
   url_fetcher->SetStopOnRedirect(true);
   url_fetcher->SetRequestContext(
       network_module_->url_request_context_getter().get());
+  network_module_->AddClientHintHeaders(*url_fetcher);
 
   if (data.size()) {
     url_fetcher->SetUploadData(content_type, data);
@@ -58,7 +61,7 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
 void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
   // Make sure the thread that created the fetcher is the same one that deletes
   // it. Otherwise we have unsafe access to the fetchers_ list.
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(),
             network_module_->task_runner());
   net::URLRequestStatus status = source->GetStatus();
   if (!status.is_success()) {

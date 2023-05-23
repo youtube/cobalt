@@ -19,6 +19,7 @@
 
 #include "base/optional.h"
 #include "base/run_loop.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -36,14 +37,14 @@ class StubFetcherHandler : public Fetcher::Handler {
   }
   void OnDone(Fetcher* fetcher) override {
     CheckSameFetcher(fetcher);
-    base::MessageLoop::current()->task_runner()->PostTask(
-        FROM_HERE, run_loop_->QuitClosure());
+    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                  run_loop_->QuitClosure());
   }
   void OnError(Fetcher* fetcher, const std::string& error_message) override {
     CheckSameFetcher(fetcher);
     error_message_ = error_message;
-    base::MessageLoop::current()->task_runner()->PostTask(
-        FROM_HERE, run_loop_->QuitClosure());
+    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+                                                  run_loop_->QuitClosure());
   }
 
   Fetcher* fetcher() const { return fetcher_; }

@@ -1,9 +1,3 @@
-#ifndef __RELOC_H__
-#define __RELOC_H__
-
-#define _GNU_SOURCE
-#include <endian.h>
-
 #if __mips_isa_rev >= 6
 #define ISA_SUFFIX "r6"
 #else
@@ -33,6 +27,8 @@
 #define REL_DTPOFF      R_MIPS_TLS_DTPREL64
 #define REL_TPOFF       R_MIPS_TLS_TPREL64
 
+#include <endian.h>
+
 #undef R_TYPE
 #undef R_SYM
 #undef R_INFO
@@ -42,6 +38,7 @@
 
 #define NEED_MIPS_GOT_RELOCS 1
 #define DT_DEBUG_INDIRECT DT_MIPS_RLD_MAP
+#define DT_DEBUG_INDIRECT_REL DT_MIPS_RLD_MAP_REL
 #define ARCH_SYM_REJECT_UND(s) (!((s)->st_other & STO_MIPS_PLT))
 
 #define CRTJMP(pc,sp) __asm__ __volatile__( \
@@ -62,5 +59,3 @@
 	"	daddu %0, %0, $ra \n" \
 	".set pop \n" \
 	: "=r"(*(fp)) : : "memory", "ra" )
-
-#endif

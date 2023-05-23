@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/location.h"
@@ -164,7 +165,7 @@ ElementDriver* WindowDriver::GetElementDriver(
         &result);
     return success ? result : NULL;
   }
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   ElementDriverMap::iterator it = element_drivers_.find(element_id.id());
   if (it != element_drivers_.end()) {
     return it->second;
@@ -398,7 +399,7 @@ util::CommandResult<void> WindowDriver::SendClick(
 
 protocol::ElementId WindowDriver::ElementToId(
     const scoped_refptr<dom::Element>& element) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   for (auto i : element_drivers_) {
     // Note: The element_task_runner_ is the same as the window_task_runner_.
     auto weak_element = i.second->GetWeakElement();
@@ -412,14 +413,14 @@ protocol::ElementId WindowDriver::ElementToId(
 
 scoped_refptr<dom::Element> WindowDriver::IdToElement(
     const protocol::ElementId& id) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   return base::WrapRefCounted(
       GetElementDriver(protocol::ElementId(id))->GetWeakElement());
 }
 
 protocol::ElementId WindowDriver::CreateNewElementDriver(
     const base::WeakPtr<dom::Element>& weak_element) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
 
   protocol::ElementId element_id(
       base::StringPrintf("element-%d", next_element_id_++));
@@ -442,7 +443,7 @@ protocol::ElementId WindowDriver::CreateNewElementDriver(
 template <typename T>
 util::CommandResult<T> WindowDriver::FindElementsInternal(
     const protocol::SearchStrategy& strategy) {
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   typedef util::CommandResult<T> CommandResult;
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
@@ -456,7 +457,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
     base::Optional<base::TimeDelta> async_timeout,
     ScriptExecutorResult::ResultHandler* async_handler) {
   typedef util::CommandResult<protocol::ScriptResult> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -494,7 +495,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
 util::CommandResult<void> WindowDriver::SendKeysInternal(
     std::unique_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -508,7 +509,7 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
 
 util::CommandResult<void> WindowDriver::NavigateInternal(const GURL& url) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -519,7 +520,7 @@ util::CommandResult<void> WindowDriver::NavigateInternal(const GURL& url) {
 util::CommandResult<void> WindowDriver::AddCookieInternal(
     const protocol::Cookie& cookie) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -568,7 +569,7 @@ void WindowDriver::InjectPointerEvent(base::Token type,
 util::CommandResult<void> WindowDriver::MouseMoveToInternal(
     const protocol::Moveto& moveto) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -577,7 +578,7 @@ util::CommandResult<void> WindowDriver::MouseMoveToInternal(
   // specified, the move is relative to the current mouse cursor. If an element
   // is provided but no offset, the mouse will be moved to the center of the
   // element.
-  //   https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidmoveto
+  //   https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidmoveto
   float x = 0;
   float y = 0;
   scoped_refptr<dom::Element> element;
@@ -666,7 +667,7 @@ void WindowDriver::InjectMouseButtonDown(const protocol::Button& button) {
 util::CommandResult<void> WindowDriver::MouseButtonDownInternal(
     const protocol::Button& button) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -679,7 +680,7 @@ util::CommandResult<void> WindowDriver::MouseButtonDownInternal(
 util::CommandResult<void> WindowDriver::MouseButtonUpInternal(
     const protocol::Button& button) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -692,7 +693,7 @@ util::CommandResult<void> WindowDriver::MouseButtonUpInternal(
 util::CommandResult<void> WindowDriver::SendClickInternal(
     const protocol::Button& button) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }
@@ -706,7 +707,7 @@ util::CommandResult<void> WindowDriver::SendClickInternal(
 util::CommandResult<protocol::ElementId>
 WindowDriver::GetActiveElementInternal() {
   typedef util::CommandResult<protocol::ElementId> CommandResult;
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(), window_task_runner_);
+  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
   if (!window_) {
     return CommandResult(protocol::Response::kNoSuchWindow);
   }

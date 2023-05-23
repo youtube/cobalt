@@ -26,7 +26,6 @@
 #include "jconfigint.h"
 
 #ifdef STARBOARD
-#include "starboard/character.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/client_porting/poem/strings_poem.h"

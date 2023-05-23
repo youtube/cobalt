@@ -321,10 +321,4 @@ static inline int SbFileWriteAll(SbFile file, const char* data, int size) {
 }  // extern "C"
 #endif
 
-#if SB_API_VERSION < 13 && defined(__cplusplus)
-extern "C++" {
-#include "starboard/common/file.h"
-}  // extern "C++"
-#endif  // SB_API_VERSION < 13 && defined(__cplusplus)
-
 #endif  // STARBOARD_FILE_H_

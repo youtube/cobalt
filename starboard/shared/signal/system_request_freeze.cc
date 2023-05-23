@@ -21,7 +21,6 @@
 #include "starboard/loader_app/pending_restart.h"
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 
-#if SB_API_VERSION >= 13
 void FreezeDone(void* /*context*/) {
   // Stop all thread execution after fully transitioning into Frozen.
   // This would stop the platform's background thread, such as:
@@ -46,4 +45,3 @@ void SbSystemRequestFreeze() {
   starboard::shared::starboard::Application::Get()->Freeze(NULL, &FreezeDone);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE) && !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 }
-#endif  // SB_API_VERSION >= 13

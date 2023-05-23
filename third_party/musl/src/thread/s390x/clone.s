@@ -1,5 +1,6 @@
 .text
 .global __clone
+.hidden __clone
 .type __clone, %function
 __clone:
 	# int clone(
@@ -15,6 +16,9 @@ __clone:
 	# tid = syscall(SYS_clone,b,c,e,g,f);
 	# if (!tid) syscall(SYS_exit, a(d));
 	# return tid;
+
+	# preserve call-saved register used as syscall arg
+	stg  %r6, 48(%r15)
 
 	# create initial stack frame for new thread
 	nill %r3, 0xfff8
@@ -33,6 +37,9 @@ __clone:
 	lg   %r5, 168(%r15)
 	lg   %r6, 160(%r15)
 	svc  120
+
+	# restore call-saved register
+	lg   %r6, 48(%r15)
 
 	# if error or if we're the parent, return
 	ltgr %r2, %r2
