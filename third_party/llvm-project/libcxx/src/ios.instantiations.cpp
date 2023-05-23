@@ -43,6 +43,11 @@ template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_ofstream<char>;
 template class _LIBCPP_CLASS_TEMPLATE_INSTANTIATION_VIS basic_filebuf<char>;
 #endif
 
+#if defined(STARBOARD)
+_ALIGNAS_TYPE (ostream) _LIBCPP_FUNC_VIS char cout[sizeof(ostream)];
+_ALIGNAS_TYPE (ostream) _LIBCPP_FUNC_VIS char cerr[sizeof(ostream)];
+#endif
+
 // Add more here if needed...
 
 _LIBCPP_END_NAMESPACE_STD

@@ -35,6 +35,9 @@ config("cxx_config") {
   ]
 
   defines = [
+    "_LIBCPP_HAS_NO_FSTREAM",
+    "_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION",
+
     "_LIBCPP_HAS_MUSL_LIBC",
     "_LIBCPP_HAS_THREAD_API_EXTERNAL",
 
@@ -57,7 +60,6 @@ static_library("cxx") {
   sources = [
     "src/algorithm.cpp",
     "src/any.cpp",
-    "src/barrier.cpp",
     "src/bind.cpp",
     "src/chrono.cpp",
     "src/condition_variable.cpp",
@@ -68,8 +70,6 @@ static_library("cxx") {
     "src/hash.cpp",
     "src/ios.cpp",
     "src/ios.instantiations.cpp",
-    "src/iostream.cpp",
-    "src/legacy_pointer_safety.cpp",
     "src/locale.cpp",
     "src/memory.cpp",
     "src/mutex.cpp",
@@ -88,21 +88,26 @@ static_library("cxx") {
     "src/valarray.cpp",
     "src/variant.cpp",
     "src/vector.cpp",
-    "src/verbose_abort.cpp",
 
     # src/atomic.cpp is omitted because this file breaks the build.
 
-    # src/charconv.cpp is omitted because this file breaks the build. It uses
-    # C++20's "std::bit_cast".
+    # src/charconv.cpp is omitted because this file breaks the build. It
+    # requires C++20's "std::bit_cast".
 
     # src/format.cpp is omitted because this experimental file breaks the build.
 
-    # src/memory_resource.cpp is omitted because this experimental file breaks
-    # the build.
+    # src/iostream.cpp is unneeded. It introduces "getc", "stdin", and "ungetc"
+    # as API leaks.
 
-    # src/debug.cpp and src/legacy_debug_handler.cpp are omitted because ???.
+    # src/random.cpp is unneeded. It introduces "close", "open" and "read" as
+    # API leaks.
 
-    # src/random.cpp and src/random_shuffle.cpp are omitted because ???.
+    # src/legacy_debug_handler.cpp, src/memory_resource.cpp, and
+    # src/random_shuffle.cpp are unneeded. These require replacing C++20's
+    # "constinit" with "_LIBCPP_CONSTINIT".
+
+    # src/barrier.cpp, src/debug.cpp, src/legacy_pointer_safety.cpp, and
+    # src/verbose_abort.cpp are unneeded.
   ]
 
   configs += [ ":cxx_config" ]

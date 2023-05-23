@@ -42,6 +42,8 @@ config("cxxabi_config") {
     # `unexpected` functions, which were removed in C++17.
     "_LIBCPP_ENABLE_CXX17_REMOVED_UNEXPECTED_FUNCTIONS",
 
+    "_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION",
+
     "_LIBCPP_HAS_MUSL_LIBC",
     "_LIBCPP_HAS_THREAD_API_EXTERNAL",
 
@@ -77,11 +79,11 @@ static_library("cxxabi") {
     "src/stdlib_stdexcept.cpp",
     "src/stdlib_typeinfo.cpp",
 
-    # src/cxa_noexception.cpp is omitted because we utilize exception handling
-    # and this file breaks the build.
+    # src/cxa_noexception.cpp is omitted because this file breaks the build and
+    # we utilize exception handling.
 
-    # src/cxa_thread_atexit.cpp is omitted becuase it's not needed and it
-    # introduces __cxa_thread_atexit_impl as an API leak.
+    # src/cxa_thread_atexit.cpp is unneeded. It introduces
+    # "__cxa_thread_atexit_impl" as an API leak.
   ]
 
   configs += [ ":cxxabi_config" ]
