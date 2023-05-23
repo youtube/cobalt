@@ -86,7 +86,8 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
               selenium_exceptions.NoSuchElementException,
               selenium_exceptions.NoSuchWindowException,
               selenium_exceptions.WebDriverException) as e:
-        # If the page
+        # If the page is reloaded, the webdriver client status becomes
+        # stale and should be reconnected.
         logging.warning(e)
         self.ReconnectWebDriver()
         continue
