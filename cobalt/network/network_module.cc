@@ -41,11 +41,14 @@ NetworkModule::NetworkModule(const Options& options)
   Initialize("Null user agent string.", NULL);
 }
 
-NetworkModule::NetworkModule(const std::string& user_agent_string,
-                             storage::StorageManager* storage_manager,
-                             base::EventDispatcher* event_dispatcher,
-                             const Options& options)
-    : storage_manager_(storage_manager), options_(options) {
+NetworkModule::NetworkModule(
+    const std::string& user_agent_string,
+    const std::vector<std::string>& client_hint_headers,
+    storage::StorageManager* storage_manager,
+    base::EventDispatcher* event_dispatcher, const Options& options)
+    : client_hint_headers_(client_hint_headers),
+      storage_manager_(storage_manager),
+      options_(options) {
   Initialize(user_agent_string, event_dispatcher);
 }
 
@@ -196,6 +199,17 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   net_poster_.reset(new NetPoster(this));
 
   creation_event->Signal();
+}
+
+void NetworkModule::AddClientHintHeaders(net::URLFetcher& url_fetcher) const {
+  // Check if persistent setting is enabled before adding the headers.
+  if (options_.persistent_settings != nullptr &&
+      options_.persistent_settings->GetPersistentSettingAsBool(
+          kClientHintHeadersEnabledPersistentSettingsKey, false)) {
+    for (const auto& header : client_hint_headers_) {
+      url_fetcher.AddExtraRequestHeader(header);
+    }
+  }
 }
 
 }  // namespace network

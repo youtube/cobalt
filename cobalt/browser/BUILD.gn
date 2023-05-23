@@ -114,6 +114,8 @@ static_library("browser") {
     "application.h",
     "browser_module.cc",
     "browser_module.h",
+    "client_hint_headers.cc",
+    "client_hint_headers.h",
     "device_authentication.cc",
     "device_authentication.h",
     "lifecycle_observer.h",
@@ -231,6 +233,7 @@ target(gtest_target_type, "browser_test") {
   has_pedantic_warnings = true
 
   sources = [
+    "client_hint_headers_test.cc",
     "device_authentication_test.cc",
     "memory_settings/auto_mem_settings_test.cc",
     "memory_settings/auto_mem_test.cc",

@@ -67,6 +67,9 @@ CobaltUADataValuesInterface::CobaltUADataValuesInterface(
   if (init_dict.has_evergreen_version()) {
     evergreen_version_ = init_dict.evergreen_version();
   }
+  if (init_dict.has_android_os_experience()) {
+    android_os_experience_ = init_dict.android_os_experience();
+  }
   if (init_dict.has_starboard_version()) {
     starboard_version_ = init_dict.starboard_version();
   }

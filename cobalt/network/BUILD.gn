@@ -58,6 +58,10 @@ static_library("network") {
     "//url",
   ]
 
+  if (!is_gold) {
+    deps += [ "//cobalt/debug:console_command_manager" ]
+  }
+
   if (enable_in_app_dial) {
     deps += [
       # DialService depends on http server.

@@ -60,6 +60,8 @@ NavigatorUAData::NavigatorUAData(
       platform_info->evergreen_file_type());
   all_high_entropy_values_.set_evergreen_version(
       platform_info->evergreen_version());
+  all_high_entropy_values_.set_android_os_experience(
+      platform_info->android_os_experience());
   all_high_entropy_values_.set_starboard_version(
       platform_info->starboard_version());
   all_high_entropy_values_.set_original_design_manufacturer(
