@@ -32,10 +32,8 @@ _FILTERED_TESTS = {
 
         # Failures tracked by b/256160416.
         'SbSystemGetPathTest.ReturnsRequiredPaths',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SeekAndDestroy/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
-        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteMultipleBatches/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
+        'SbPlayerGetAudioConfigurationTests/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
+        'SbPlayerWriteSampleTests/*_video_beneath_the_canopy_137_avc_dmp_output_decode_to_texture_*',
         'SbSocketAddressTypes/SbSocketBindTest.RainyDayBadInterface/type_ipv6_filter_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',

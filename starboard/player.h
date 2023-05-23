@@ -668,7 +668,9 @@ SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
 //       issues occur (such as transient or indefinite hanging).
 //
 // The audio configurations should be available as soon as possible, and they
-// have to be available when the |player| is at `kSbPlayerStatePresenting`.
+// have to be available when the |player| is at `kSbPlayerStatePresenting`,
+// unless the audio codec is |kSbMediaAudioCodecNone| or there's no written
+// audio inputs.
 //
 // The app will set |audio_write_duration| to `kSbPlayerWriteDurationLocal`
 // when the audio configuration isn't available (i.e. the function returns false
@@ -676,10 +678,10 @@ SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
 // available immediately after the SbPlayer is created, if it expects the app to
 // treat the platform as using wireless audio outputs.
 //
-// Once at least one audio configurations are returned, the return values
-// shouldn't change during the life time of |player|.  The platform may inform
-// the app of any changes by sending `kSbPlayerErrorCapabilityChanged` to
-// request a playback restart.
+// Once at least one audio configurations are returned, the return values and
+// their orders shouldn't change during the life time of |player|.  The platform
+// may inform the app of any changes by sending
+// `kSbPlayerErrorCapabilityChanged` to request a playback restart.
 //
 // |player|: The player about which information is being retrieved. Must not be
 //   |kSbPlayerInvalid|.
