@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include "starboard/common/string.h"
+#include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
+#include "starboard/nplb/player_test_util.h"
 #include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,103 +25,128 @@ namespace {
 
 using ::testing::ValuesIn;
 
-typedef SbPlayerTestFixture::AudioEOS AudioEOS;
-typedef SbPlayerTestFixture::AudioSamples AudioSamples;
-typedef SbPlayerTestFixture::VideoEOS VideoEOS;
-typedef SbPlayerTestFixture::VideoSamples VideoSamples;
+typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 
 class SbPlayerWriteSampleTest
-    : public ::testing::TestWithParam<SbPlayerTestConfig> {
- protected:
-  SbPlayerWriteSampleTest();
-
-  void SetUp() override;
-  void TearDown() override;
-
-  SbMediaType test_media_type_;
-  std::unique_ptr<SbPlayerTestFixture> player_fixture_;
-};
-
-SbPlayerWriteSampleTest::SbPlayerWriteSampleTest() {
-  auto config = GetParam();
-  const char* audio_filename = std::get<0>(config);
-  const char* video_filename = std::get<1>(config);
-  SbPlayerOutputMode output_mode = std::get<2>(config);
-
-  if (audio_filename) {
-    SB_DCHECK(!video_filename);
-    test_media_type_ = kSbMediaTypeAudio;
-  } else {
-    SB_DCHECK(video_filename);
-    test_media_type_ = kSbMediaTypeVideo;
-  }
-
-  SB_LOG(INFO) << FormatString(
-      "Initialize SbPlayerWriteSampleTest with dmp file '%s' and with output "
-      "mode '%s'.",
-      audio_filename ? audio_filename : video_filename,
-      output_mode == kSbPlayerOutputModeDecodeToTexture ? "Decode To Texture"
-                                                        : "Punchout");
-}
-
-void SbPlayerWriteSampleTest::SetUp() {
-  ASSERT_NO_FATAL_FAILURE(
-      player_fixture_.reset(new SbPlayerTestFixture(GetParam())));
-}
-
-void SbPlayerWriteSampleTest::TearDown() {
-  ASSERT_NO_FATAL_FAILURE(player_fixture_.reset());
-}
+    : public ::testing::TestWithParam<SbPlayerTestConfig> {};
 
 TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->Seek(kSbTimeSecond));
+  SbPlayerTestFixture player_fixture(GetParam());
+  if (HasFatalFailure()) {
+    return;
+  }
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(kSbTimeSecond));
 }
 
 TEST_P(SbPlayerWriteSampleTest, NoInput) {
-  if (test_media_type_ == kSbMediaTypeAudio) {
-    ASSERT_NO_FATAL_FAILURE(player_fixture_->Write(AudioEOS()));
-  } else {
-    SB_DCHECK(test_media_type_ == kSbMediaTypeVideo);
-    ASSERT_NO_FATAL_FAILURE(player_fixture_->Write(VideoEOS()));
+  SbPlayerTestFixture player_fixture(GetParam());
+  if (HasFatalFailure()) {
+    return;
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+
+  GroupedSamples samples;
+  if (player_fixture.HasAudio()) {
+    samples.AddAudioSamplesWithEOS(0, 0);
+  }
+  if (player_fixture.HasVideo()) {
+    samples.AddVideoSamplesWithEOS(0, 0);
+  }
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 }
 
 TEST_P(SbPlayerWriteSampleTest, WriteSingleBatch) {
-  int max_batch_size = SbPlayerGetMaximumNumberOfSamplesPerWrite(
-      player_fixture_->GetPlayer(), test_media_type_);
-  if (test_media_type_ == kSbMediaTypeAudio) {
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(AudioSamples(0, max_batch_size).WithEOS()));
-  } else {
-    SB_DCHECK(test_media_type_ == kSbMediaTypeVideo);
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(VideoSamples(0, max_batch_size).WithEOS()));
+  SbPlayerTestFixture player_fixture(GetParam());
+  if (HasFatalFailure()) {
+    return;
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+
+  GroupedSamples samples;
+  if (player_fixture.HasAudio()) {
+    int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
+        player_fixture.GetPlayer(), kSbMediaTypeAudio);
+    samples.AddAudioSamplesWithEOS(0, samples_to_write);
+  }
+  if (player_fixture.HasVideo()) {
+    int samples_to_write = SbPlayerGetMaximumNumberOfSamplesPerWrite(
+        player_fixture.GetPlayer(), kSbMediaTypeVideo);
+    samples.AddVideoSamplesWithEOS(0, samples_to_write);
+  }
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 }
 
 TEST_P(SbPlayerWriteSampleTest, WriteMultipleBatches) {
-  if (test_media_type_ == kSbMediaTypeAudio) {
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(AudioSamples(0, 8).WithEOS()));
-  } else {
-    SB_DCHECK(test_media_type_ == kSbMediaTypeVideo);
-    ASSERT_NO_FATAL_FAILURE(
-        player_fixture_->Write(VideoSamples(0, 8).WithEOS()));
+  SbPlayerTestFixture player_fixture(GetParam());
+  if (HasFatalFailure()) {
+    return;
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture_->WaitForPlayerEndOfStream());
+
+  int samples_to_write = 0;
+  // Try to write multiple batches for both audio and video.
+  if (player_fixture.HasAudio()) {
+    samples_to_write = std::max(
+        samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                              player_fixture.GetPlayer(), kSbMediaTypeAudio) +
+                              1);
+  }
+  if (player_fixture.HasVideo()) {
+    samples_to_write = std::max(
+        samples_to_write, SbPlayerGetMaximumNumberOfSamplesPerWrite(
+                              player_fixture.GetPlayer(), kSbMediaTypeVideo) +
+                              1);
+  }
+  // TODO(b/283533109): We'd better to align the written audio and video samples
+  // to a same timestamp. Currently, we simply cap the batch size to 8 samples.
+  samples_to_write = std::min(samples_to_write, 8);
+
+  GroupedSamples samples;
+  if (player_fixture.HasAudio()) {
+    samples.AddAudioSamplesWithEOS(0, samples_to_write);
+  }
+  if (player_fixture.HasVideo()) {
+    samples.AddVideoSamplesWithEOS(0, samples_to_write);
+  }
+
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 }
 
-std::string GetSbPlayerTestConfigName(
+std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
+  static std::vector<SbPlayerTestConfig> supported_configs;
+  if (supported_configs.size() > 0) {
+    return supported_configs;
+  }
+
+  std::vector<const char*> key_systems;
+  key_systems.push_back("");
+  key_systems.insert(key_systems.end(), kKeySystems,
+                     kKeySystems + SB_ARRAY_SIZE_INT(kKeySystems));
+
+  for (auto key_system : key_systems) {
+    std::vector<SbPlayerTestConfig> configs =
+        GetSupportedSbPlayerTestConfigs(key_system);
+    supported_configs.insert(supported_configs.end(), configs.begin(),
+                             configs.end());
+  }
+  return supported_configs;
+}
+
+std::string GetTestConfigName(
     ::testing::TestParamInfo<SbPlayerTestConfig> info) {
-  const char* audio_filename = std::get<0>(info.param);
-  const char* video_filename = std::get<1>(info.param);
-  SbPlayerOutputMode output_mode = std::get<2>(info.param);
+  const SbPlayerTestConfig& config = info.param;
+  const char* audio_filename = std::get<0>(config);
+  const char* video_filename = std::get<1>(config);
+  const SbPlayerOutputMode output_mode = std::get<2>(config);
+  const char* key_system = std::get<3>(config);
   std::string name(FormatString(
-      "audio_%s_video_%s_output_%s", audio_filename, video_filename,
-      output_mode == kSbPlayerOutputModeDecodeToTexture ? "DecodeToTexture"
-                                                        : "Punchout"));
+      "audio_%s_video_%s_output_%s_key_system_%s",
+      audio_filename && strlen(audio_filename) > 0 ? audio_filename : "null",
+      video_filename && strlen(video_filename) > 0 ? video_filename : "null",
+      output_mode == kSbPlayerOutputModeDecodeToTexture ? "decode_to_texture"
+                                                        : "punch_out",
+      strlen(key_system) > 0 ? key_system : "null"));
   std::replace(name.begin(), name.end(), '.', '_');
   std::replace(name.begin(), name.end(), '(', '_');
   std::replace(name.begin(), name.end(), ')', '_');
@@ -128,8 +155,8 @@ std::string GetSbPlayerTestConfigName(
 
 INSTANTIATE_TEST_CASE_P(SbPlayerWriteSampleTests,
                         SbPlayerWriteSampleTest,
-                        ValuesIn(GetSupportedSbPlayerTestConfigs()),
-                        GetSbPlayerTestConfigName);
+                        ValuesIn(GetSupportedTestConfigs()),
+                        GetTestConfigName);
 
 }  // namespace
 }  // namespace nplb

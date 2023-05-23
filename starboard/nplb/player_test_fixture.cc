@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/common/string.h"
+#include "starboard/nplb/drm_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -46,26 +47,29 @@ SbPlayerTestFixture::CallbackEvent::CallbackEvent(SbPlayer player,
       ticket(ticket) {}
 
 SbPlayerTestFixture::SbPlayerTestFixture(const SbPlayerTestConfig& config)
-    : output_mode_(std::get<2>(config)) {
-  SB_DCHECK(output_mode_ != kSbPlayerOutputModeInvalid);
+    : output_mode_(std::get<2>(config)), key_system_(std::get<3>(config)) {
+  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
+            output_mode_ == kSbPlayerOutputModePunchOut);
 
   const char* audio_dmp_filename = std::get<0>(config);
   const char* video_dmp_filename = std::get<1>(config);
 
   if (audio_dmp_filename && strlen(audio_dmp_filename) > 0) {
-    audio_dmp_reader_.reset(new VideoDmpReader(audio_dmp_filename));
+    audio_dmp_reader_.reset(new VideoDmpReader(
+        audio_dmp_filename, VideoDmpReader::kEnableReadOnDemand));
   }
   if (video_dmp_filename && strlen(video_dmp_filename) > 0) {
-    video_dmp_reader_.reset(new VideoDmpReader(video_dmp_filename));
+    video_dmp_reader_.reset(new VideoDmpReader(
+        video_dmp_filename, VideoDmpReader::kEnableReadOnDemand));
   }
 
-  InitializePlayer();
+  Initialize();
 }
 
 SbPlayerTestFixture::~SbPlayerTestFixture() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  TearDownPlayer();
+  TearDown();
 }
 
 void SbPlayerTestFixture::Seek(const SbTime time) {
@@ -90,16 +94,7 @@ void SbPlayerTestFixture::Seek(const SbTime time) {
 #endif  // SB_API_VERSION >= 15
 }
 
-void SbPlayerTestFixture::Write(const AudioSamples& audio_samples) {
-  Write(audio_samples, VideoSamples());
-}
-
-void SbPlayerTestFixture::Write(const VideoSamples& video_samples) {
-  Write(AudioSamples(), video_samples);
-}
-
-void SbPlayerTestFixture::Write(const AudioSamples& audio_samples,
-                                const VideoSamples& video_samples) {
+void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK(!audio_end_of_stream_written_);
@@ -107,12 +102,12 @@ void SbPlayerTestFixture::Write(const AudioSamples& audio_samples,
 
   ASSERT_FALSE(error_occurred_);
 
-  int audio_start_index = audio_samples.start_index();
-  int audio_samples_to_write = audio_samples.samples_to_write();
-  int video_start_index = video_samples.start_index();
-  int video_samples_to_write = video_samples.samples_to_write();
-  bool write_audio_eos = audio_samples.write_eos();
-  bool write_video_eos = video_samples.write_eos();
+  int audio_start_index = grouped_samples.audio_start_index();
+  int audio_samples_to_write = grouped_samples.audio_samples_to_write();
+  int video_start_index = grouped_samples.video_start_index();
+  int video_samples_to_write = grouped_samples.video_samples_to_write();
+  bool write_audio_eos = grouped_samples.write_audio_eos();
+  bool write_video_eos = grouped_samples.write_video_eos();
 
   SB_DCHECK(audio_start_index >= 0);
   SB_DCHECK(audio_samples_to_write >= 0);
@@ -237,9 +232,19 @@ void SbPlayerTestFixture::OnError(SbPlayer player,
   error_occurred_ = true;
 }
 
-void SbPlayerTestFixture::InitializePlayer() {
+void SbPlayerTestFixture::Initialize() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
+  // Initialize drm system.
+  if (!key_system_.empty()) {
+    drm_system_ = SbDrmCreateSystem(
+        key_system_.c_str(), NULL /* context */, DummySessionUpdateRequestFunc,
+        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
+        DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+    ASSERT_TRUE(SbDrmSystemIsValid(drm_system_));
+  }
+
+  // Initialize player.
   auto audio_codec = kSbMediaAudioCodecNone;
   auto video_codec = kSbMediaVideoCodecNone;
   const shared::starboard::media::AudioStreamInfo* audio_stream_info = NULL;
@@ -253,25 +258,28 @@ void SbPlayerTestFixture::InitializePlayer() {
   }
   player_ = CallSbPlayerCreate(
       fake_graphics_context_provider_.window(), video_codec, audio_codec,
-      kSbDrmSystemInvalid, audio_stream_info, "", DummyDeallocateSampleFunc,
+      drm_system_, audio_stream_info, "", DummyDeallocateSampleFunc,
       DecoderStatusCallback, PlayerStatusCallback, ErrorCallback, this,
       output_mode_, fake_graphics_context_provider_.decoder_target_provider());
   ASSERT_TRUE(SbPlayerIsValid(player_));
   ASSERT_NO_FATAL_FAILURE(WaitForPlayerState(kSbPlayerStateInitialized));
-  Seek(0);
+  ASSERT_NO_FATAL_FAILURE(Seek(0));
   SbPlayerSetPlaybackRate(player_, 1.0);
   SbPlayerSetVolume(player_, 1.0);
 }
 
-void SbPlayerTestFixture::TearDownPlayer() {
+void SbPlayerTestFixture::TearDown() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (!SbPlayerIsValid(player_)) {
-    return;
+  // We should always destroy |player_| and |drm_system_|, no matter if there's
+  // any unexpected player error.
+  if (SbPlayerIsValid(player_)) {
+    destroy_player_called_ = true;
+    SbPlayerDestroy(player_);
   }
-
-  destroy_player_called_ = true;
-  SbPlayerDestroy(player_);
+  if (SbDrmSystemIsValid(drm_system_)) {
+    SbDrmDestroySystem(drm_system_);
+  }
 
   // We expect player resources are released and all events are sent already
   // after SbPlayerDestroy() finishes.
@@ -281,15 +289,8 @@ void SbPlayerTestFixture::TearDownPlayer() {
   ASSERT_TRUE(HasReceivedPlayerState(kSbPlayerStateDestroyed));
   ASSERT_FALSE(error_occurred_);
 
-  // Reset internal states.
   player_ = kSbPlayerInvalid;
-  can_accept_more_audio_data_ = false;
-  can_accept_more_video_data_ = false;
-  player_state_set_.clear();
-  destroy_player_called_ = false;
-  audio_end_of_stream_written_ = false;
-  video_end_of_stream_written_ = false;
-  error_occurred_ = false;
+  drm_system_ = kSbDrmSystemInvalid;
 }
 
 void SbPlayerTestFixture::WriteSamples(SbMediaType media_type,
@@ -416,7 +417,7 @@ void SbPlayerTestFixture::WaitForPlayerState(const SbPlayerState desired_state,
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
   do {
     ASSERT_FALSE(error_occurred_);
-    GetDecodeTargetWhenSupported();
+    ASSERT_NO_FATAL_FAILURE(GetDecodeTargetWhenSupported());
     ASSERT_NO_FATAL_FAILURE(WaitAndProcessNextEvent());
     if (HasReceivedPlayerState(desired_state)) {
       return;
