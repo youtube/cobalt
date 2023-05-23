@@ -15,3 +15,5 @@
 import("//starboard/win/shared/platform_configuration/configuration.gni")
 
 platform_i18n_config_path = "//starboard/win/win32/i18n:i18n"
+
+v8_enable_webassembly = true
