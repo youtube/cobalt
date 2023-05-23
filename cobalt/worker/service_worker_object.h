@@ -80,7 +80,11 @@ class ServiceWorkerObject
   ServiceWorkerObject& operator=(const ServiceWorkerObject&) = delete;
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-state
-  void set_state(ServiceWorkerState state) { state_ = state; }
+  void set_state(ServiceWorkerState state) {
+    LOG(INFO) << "Setting service worker state to " << state << " from "
+              << state_;
+    state_ = state;
+  }
   ServiceWorkerState state() const { return state_; }
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-script-url
   void set_script_url(const GURL& script_url) { script_url_ = script_url; }

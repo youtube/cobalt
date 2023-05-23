@@ -152,6 +152,7 @@ script::HandlePromiseVoid Clients::Claim() {
     return promise;
   }
 
+  LOG(INFO) << "service worker state " << service_worker->state();
   DCHECK(service_worker->state() == kServiceWorkerStateActivated ||
          service_worker->state() == kServiceWorkerStateActivating);
 

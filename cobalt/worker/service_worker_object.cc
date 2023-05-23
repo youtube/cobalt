@@ -41,6 +41,8 @@ namespace worker {
 
 ServiceWorkerObject::ServiceWorkerObject(const Options& options)
     : state_(kServiceWorkerStateParsed), options_(options) {
+  LOG(INFO) << "Initial service worker state " << state_
+            << "(kServiceWorkerStateParsed)";
   DCHECK(options.containing_service_worker_registration);
 }
 
