@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <random>
 #include <vector>
 
 #include "starboard/common/atomic.h"
@@ -391,7 +392,8 @@ class IncrementAndDecrementThread : public TestThread {
     for (size_t i = 0; i < half_number_of_operations; ++i) {
       operation_sequence_.push_back(false);
     }
-    std::random_shuffle(operation_sequence_.begin(), operation_sequence_.end());
+    std::shuffle(operation_sequence_.begin(), operation_sequence_.end(),
+                 std::default_random_engine());
   }
 
   virtual void Run() {
