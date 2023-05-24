@@ -40,6 +40,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetMachine.h"
 
 #define DEBUG_TYPE "type-promotion"
 #define PASS_NAME "Type Promotion"
@@ -133,8 +134,9 @@ public:
     Ctx(C), OrigTy(Ty), PromotedWidth(Width), Visited(visited),
     Sources(sources), Sinks(sinks), SafeWrap(wrap) {
     ExtTy = IntegerType::get(Ctx, PromotedWidth);
-    assert(OrigTy->getPrimitiveSizeInBits() < ExtTy->getPrimitiveSizeInBits()
-           && "Original type not smaller than extended type");
+    assert(OrigTy->getPrimitiveSizeInBits().getFixedSize() <
+               ExtTy->getPrimitiveSizeInBits().getFixedSize() &&
+           "Original type not smaller than extended type");
   }
 
   void Mutate();
@@ -808,7 +810,7 @@ bool TypePromotion::isLegalToPromote(Value *V) {
 
 bool TypePromotion::TryToPromote(Value *V, unsigned PromotedWidth) {
   Type *OrigTy = V->getType();
-  TypeSize = OrigTy->getPrimitiveSizeInBits();
+  TypeSize = OrigTy->getPrimitiveSizeInBits().getFixedSize();
   SafeToPromote.clear();
   SafeWrap.clear();
 
@@ -847,8 +849,7 @@ bool TypePromotion::TryToPromote(Value *V, unsigned PromotedWidth) {
 
   // Iterate through, and add to, a tree of operands and users in the use-def.
   while (!WorkList.empty()) {
-    Value *V = WorkList.back();
-    WorkList.pop_back();
+    Value *V = WorkList.pop_back_val();
     if (CurrentVisited.count(V))
       continue;
 
@@ -917,7 +918,7 @@ bool TypePromotion::TryToPromote(Value *V, unsigned PromotedWidth) {
      ++ToPromote;
    }
 
-  // DAG optimisations should be able to handle these cases better, especially
+  // DAG optimizations should be able to handle these cases better, especially
   // for function arguments.
   if (ToPromote < 2 || (Blocks.size() == 1 && (NonFreeArgs > SafeWrap.size())))
     return false;
@@ -941,6 +942,9 @@ bool TypePromotion::runOnFunction(Function &F) {
   if (!TPC)
     return false;
 
+  AllVisited.clear();
+  SafeToPromote.clear();
+  SafeWrap.clear();
   bool MadeChange = false;
   const DataLayout &DL = F.getParent()->getDataLayout();
   const TargetMachine &TM = TPC->getTM<TargetMachine>();
@@ -977,15 +981,14 @@ bool TypePromotion::runOnFunction(Function &F) {
           if (TLI->getTypeAction(ICmp->getContext(), SrcVT) !=
               TargetLowering::TypePromoteInteger)
             break;
-
           EVT PromotedVT = TLI->getTypeToTransformTo(ICmp->getContext(), SrcVT);
-          if (RegisterBitWidth < PromotedVT.getSizeInBits()) {
+          if (RegisterBitWidth < PromotedVT.getFixedSizeInBits()) {
             LLVM_DEBUG(dbgs() << "IR Promotion: Couldn't find target register "
                        << "for promoted type\n");
             break;
           }
 
-          MadeChange |= TryToPromote(I, PromotedVT.getSizeInBits());
+          MadeChange |= TryToPromote(I, PromotedVT.getFixedSizeInBits());
           break;
         }
       }
@@ -997,6 +1000,10 @@ bool TypePromotion::runOnFunction(Function &F) {
   }
   if (MadeChange)
     LLVM_DEBUG(dbgs() << "After TypePromotion: " << F << "\n");
+
+  AllVisited.clear();
+  SafeToPromote.clear();
+  SafeWrap.clear();
 
   return MadeChange;
 }

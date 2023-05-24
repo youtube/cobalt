@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 // Misc utils implementation using Posix API.
 //===----------------------------------------------------------------------===//
-#include "FuzzerDefs.h"
+#include "FuzzerPlatform.h"
 #if LIBFUZZER_POSIX
 #include "FuzzerIO.h"
 #include "FuzzerInternal.h"
@@ -86,6 +86,20 @@ static void SetSigaction(int signum,
   }
 }
 
+// Return true on success, false otherwise.
+bool ExecuteCommand(const Command &Cmd, std::string *CmdOutput) {
+  FILE *Pipe = popen(Cmd.toString().c_str(), "r");
+  if (!Pipe)
+    return false;
+
+  if (CmdOutput) {
+    char TmpBuffer[128];
+    while (fgets(TmpBuffer, sizeof(TmpBuffer), Pipe))
+      CmdOutput->append(TmpBuffer);
+  }
+  return pclose(Pipe) == 0;
+}
+
 void SetTimer(int Seconds) {
   struct itimerval T {
     {Seconds, 0}, { Seconds, 0 }
@@ -99,7 +113,7 @@ void SetTimer(int Seconds) {
 
 void SetSignalHandler(const FuzzingOptions& Options) {
   // setitimer is not implemented in emscripten.
-  if (Options.UnitTimeoutSec > 0 && !LIBFUZZER_EMSCRIPTEN)
+  if (Options.HandleAlrm && Options.UnitTimeoutSec > 0 && !LIBFUZZER_EMSCRIPTEN)
     SetTimer(Options.UnitTimeoutSec / 2 + 1);
   if (Options.HandleInt)
     SetSigaction(SIGINT, InterruptHandler);
@@ -134,7 +148,7 @@ size_t GetPeakRSSMb() {
   if (getrusage(RUSAGE_SELF, &usage))
     return 0;
   if (LIBFUZZER_LINUX || LIBFUZZER_FREEBSD || LIBFUZZER_NETBSD ||
-      LIBFUZZER_OPENBSD || LIBFUZZER_EMSCRIPTEN) {
+      LIBFUZZER_EMSCRIPTEN) {
     // ru_maxrss is in KiB
     return usage.ru_maxrss >> 10;
   } else if (LIBFUZZER_APPLE) {
@@ -147,6 +161,10 @@ size_t GetPeakRSSMb() {
 
 FILE *OpenProcessPipe(const char *Command, const char *Mode) {
   return popen(Command, Mode);
+}
+
+int CloseProcessPipe(FILE *F) {
+  return pclose(F);
 }
 
 const void *SearchMemory(const void *Data, size_t DataLen, const void *Patt,

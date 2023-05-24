@@ -22,31 +22,43 @@ extern "C" {
 
 /* 8 SYNCHRONIZATION, BARRIER AND HINT INTRINSICS */
 /* 8.3 Memory barriers */
-#if !defined(_MSC_VER)
+#if !__has_builtin(__dmb)
 #define __dmb(i) __builtin_arm_dmb(i)
+#endif
+#if !__has_builtin(__dsb)
 #define __dsb(i) __builtin_arm_dsb(i)
+#endif
+#if !__has_builtin(__isb)
 #define __isb(i) __builtin_arm_isb(i)
 #endif
 
 /* 8.4 Hints */
 
-#if !defined(_MSC_VER)
+#if !__has_builtin(__wfi)
 static __inline__ void __attribute__((__always_inline__, __nodebug__)) __wfi(void) {
   __builtin_arm_wfi();
 }
+#endif
 
+#if !__has_builtin(__wfe)
 static __inline__ void __attribute__((__always_inline__, __nodebug__)) __wfe(void) {
   __builtin_arm_wfe();
 }
+#endif
 
+#if !__has_builtin(__sev)
 static __inline__ void __attribute__((__always_inline__, __nodebug__)) __sev(void) {
   __builtin_arm_sev();
 }
+#endif
 
+#if !__has_builtin(__sevl)
 static __inline__ void __attribute__((__always_inline__, __nodebug__)) __sevl(void) {
   __builtin_arm_sevl();
 }
+#endif
 
+#if !__has_builtin(__yield)
 static __inline__ void __attribute__((__always_inline__, __nodebug__)) __yield(void) {
   __builtin_arm_yield();
 }
@@ -624,6 +636,32 @@ __crc32cd(uint32_t __a, uint64_t __b) {
 static __inline__ int32_t __attribute__((__always_inline__, __nodebug__))
 __jcvt(double __a) {
   return __builtin_arm_jcvt(__a);
+}
+#endif
+
+/* Armv8.7-A load/store 64-byte intrinsics */
+#if __ARM_64BIT_STATE && defined(__ARM_FEATURE_LS64)
+typedef struct {
+    uint64_t val[8];
+} data512_t;
+
+static __inline__ data512_t __attribute__((__always_inline__, __nodebug__))
+__arm_ld64b(const void *__addr) {
+    data512_t __value;
+    __builtin_arm_ld64b(__addr, __value.val);
+    return __value;
+}
+static __inline__ void __attribute__((__always_inline__, __nodebug__))
+__arm_st64b(void *__addr, data512_t __value) {
+    __builtin_arm_st64b(__addr, __value.val);
+}
+static __inline__ uint64_t __attribute__((__always_inline__, __nodebug__))
+__arm_st64bv(void *__addr, data512_t __value) {
+    return __builtin_arm_st64bv(__addr, __value.val);
+}
+static __inline__ uint64_t __attribute__((__always_inline__, __nodebug__))
+__arm_st64bv0(void *__addr, data512_t __value) {
+    return __builtin_arm_st64bv0(__addr, __value.val);
 }
 #endif
 

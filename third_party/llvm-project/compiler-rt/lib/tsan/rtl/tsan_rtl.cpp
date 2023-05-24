@@ -144,7 +144,7 @@ static void MemoryProfiler(Context *ctx, fd_t fd, int i) {
   WriteToFile(fd, buf.data(), internal_strlen(buf.data()));
 }
 
-static void BackgroundThread(void *arg) {
+static void *BackgroundThread(void *arg) {
   // This is a non-initialized non-user thread, nothing to see here.
   // We don't use ScopedIgnoreInterceptors, because we want ignores to be
   // enabled even when the thread function exits (e.g. during pthread thread
@@ -220,6 +220,7 @@ static void BackgroundThread(void *arg) {
       }
     }
   }
+  return nullptr;
 }
 
 static void StartBackgroundThread() {
@@ -255,7 +256,8 @@ void MapShadow(uptr addr, uptr size) {
   const uptr kPageSize = GetPageSizeCached();
   uptr shadow_begin = RoundDownTo((uptr)MemToShadow(addr), kPageSize);
   uptr shadow_end = RoundUpTo((uptr)MemToShadow(addr + size), kPageSize);
-  if (!MmapFixedNoReserve(shadow_begin, shadow_end - shadow_begin, "shadow"))
+  if (!MmapFixedSuperNoReserve(shadow_begin, shadow_end - shadow_begin,
+                               "shadow"))
     Die();
 
   // Meta shadow is 2:1, so tread carefully.
@@ -268,7 +270,8 @@ void MapShadow(uptr addr, uptr size) {
   if (!data_mapped) {
     // First call maps data+bss.
     data_mapped = true;
-    if (!MmapFixedNoReserve(meta_begin, meta_end - meta_begin, "meta shadow"))
+    if (!MmapFixedSuperNoReserve(meta_begin, meta_end - meta_begin,
+                                 "meta shadow"))
       Die();
   } else {
     // Mapping continous heap.
@@ -279,7 +282,8 @@ void MapShadow(uptr addr, uptr size) {
       return;
     if (meta_begin < mapped_meta_end)
       meta_begin = mapped_meta_end;
-    if (!MmapFixedNoReserve(meta_begin, meta_end - meta_begin, "meta shadow"))
+    if (!MmapFixedSuperNoReserve(meta_begin, meta_end - meta_begin,
+                                 "meta shadow"))
       Die();
     mapped_meta_end = meta_end;
   }
@@ -292,7 +296,7 @@ void MapThreadTrace(uptr addr, uptr size, const char *name) {
   CHECK_GE(addr, TraceMemBeg());
   CHECK_LE(addr + size, TraceMemEnd());
   CHECK_EQ(addr, addr & ~((64 << 10) - 1));  // windows wants 64K alignment
-  if (!MmapFixedNoReserve(addr, size, name)) {
+  if (!MmapFixedSuperNoReserve(addr, size, name)) {
     Printf("FATAL: ThreadSanitizer can not mmap thread trace (%p/%p)\n",
         addr, size);
     Die();
@@ -442,7 +446,8 @@ void MaybeSpawnBackgroundThread() {
 int Finalize(ThreadState *thr) {
   bool failed = false;
 
-  if (common_flags()->print_module_map == 1) PrintModuleMap();
+  if (common_flags()->print_module_map == 1)
+    DumpProcessMap();
 
   if (flags()->atexit_sleep_ms > 0 && ThreadCount(thr) > 1)
     SleepForMillis(flags()->atexit_sleep_ms);
@@ -494,14 +499,23 @@ int Finalize(ThreadState *thr) {
 void ForkBefore(ThreadState *thr, uptr pc) {
   ctx->thread_registry->Lock();
   ctx->report_mtx.Lock();
+  // Ignore memory accesses in the pthread_atfork callbacks.
+  // If any of them triggers a data race we will deadlock
+  // on the report_mtx.
+  // We could ignore interceptors and sync operations as well,
+  // but so far it's unclear if it will do more good or harm.
+  // Unnecessarily ignoring things can lead to false positives later.
+  ThreadIgnoreBegin(thr, pc);
 }
 
 void ForkParentAfter(ThreadState *thr, uptr pc) {
+  ThreadIgnoreEnd(thr, pc);  // Begin is in ForkBefore.
   ctx->report_mtx.Unlock();
   ctx->thread_registry->Unlock();
 }
 
 void ForkChildAfter(ThreadState *thr, uptr pc) {
+  ThreadIgnoreEnd(thr, pc);  // Begin is in ForkBefore.
   ctx->report_mtx.Unlock();
   ctx->thread_registry->Unlock();
 
@@ -947,7 +961,7 @@ static void MemoryRangeSet(ThreadState *thr, uptr pc, uptr addr, uptr size,
     u64 *p1 = p;
     p = RoundDown(end, kPageSize);
     UnmapOrDie((void*)p1, (uptr)p - (uptr)p1);
-    if (!MmapFixedNoReserve((uptr)p1, (uptr)p - (uptr)p1))
+    if (!MmapFixedSuperNoReserve((uptr)p1, (uptr)p - (uptr)p1))
       Die();
     // Set the ending.
     while (p < end) {

@@ -8,14 +8,14 @@
 
 // NORELOC:      Relocations [
 // NORELOC-NEXT: Section ({{.*}}) .rel.dyn {
-// NORELOC-NEXT:   0x402258 R_386_TLS_TPOFF tlsshared0 0x0
-// NORELOC-NEXT:   0x40225C R_386_TLS_TPOFF tlsshared1 0x0
+// NORELOC-NEXT:   0x402258 R_386_TLS_TPOFF tlsshared0
+// NORELOC-NEXT:   0x40225C R_386_TLS_TPOFF tlsshared1
 // NORELOC-NEXT:   }
 // NORELOC-NEXT: ]
 
 // DISASM:      Disassembly of section .text:
 // DISASM-EMPTY:
-// DISASM-NEXT: _start:
+// DISASM-NEXT: <_start>:
 // DISASM-NEXT: 4011d0:       movl %gs:0, %eax
 // DISASM-NEXT:               addl -4104(%ebx), %eax
 // DISASM-NEXT:               movl %gs:0, %eax

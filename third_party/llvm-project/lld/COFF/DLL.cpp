@@ -19,6 +19,7 @@
 
 #include "DLL.h"
 #include "Chunks.h"
+#include "SymbolTable.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Path.h"
@@ -365,7 +366,9 @@ public:
 
 class ThunkChunkARM : public NonSectionChunk {
 public:
-  ThunkChunkARM(Defined *i, Chunk *tm) : imp(i), tailMerge(tm) {}
+  ThunkChunkARM(Defined *i, Chunk *tm) : imp(i), tailMerge(tm) {
+    setAlignment(2);
+  }
 
   size_t getSize() const override { return sizeof(thunkARM); }
 
@@ -385,7 +388,9 @@ public:
 
 class TailMergeChunkARM : public NonSectionChunk {
 public:
-  TailMergeChunkARM(Chunk *d, Defined *h) : desc(d), helper(h) {}
+  TailMergeChunkARM(Chunk *d, Defined *h) : desc(d), helper(h) {
+    setAlignment(2);
+  }
 
   size_t getSize() const override { return sizeof(tailMergeARM); }
 
@@ -405,7 +410,9 @@ public:
 
 class ThunkChunkARM64 : public NonSectionChunk {
 public:
-  ThunkChunkARM64(Defined *i, Chunk *tm) : imp(i), tailMerge(tm) {}
+  ThunkChunkARM64(Defined *i, Chunk *tm) : imp(i), tailMerge(tm) {
+    setAlignment(4);
+  }
 
   size_t getSize() const override { return sizeof(thunkARM64); }
 
@@ -422,7 +429,9 @@ public:
 
 class TailMergeChunkARM64 : public NonSectionChunk {
 public:
-  TailMergeChunkARM64(Chunk *d, Defined *h) : desc(d), helper(h) {}
+  TailMergeChunkARM64(Chunk *d, Defined *h) : desc(d), helper(h) {
+    setAlignment(4);
+  }
 
   size_t getSize() const override { return sizeof(tailMergeARM64); }
 
@@ -645,9 +654,18 @@ void DelayLoadContents::create(Defined *h) {
         auto *c = make<HintNameChunk>(extName, 0);
         names.push_back(make<LookupChunk>(c));
         hintNames.push_back(c);
+        // Add a syntentic symbol for this load thunk, using the "__imp_load"
+        // prefix, in case this thunk needs to be added to the list of valid
+        // call targets for Control Flow Guard.
+        StringRef symName = saver.save("__imp_load_" + extName);
+        s->loadThunkSym =
+            cast<DefinedSynthetic>(symtab->addSynthetic(symName, t));
       }
     }
     thunks.push_back(tm);
+    StringRef tmName =
+        saver.save("__tailMerge_" + syms[0]->getDLLName().lower());
+    symtab->addSynthetic(tmName, tm);
     // Terminate with null values.
     addresses.push_back(make<NullChunk>(8));
     names.push_back(make<NullChunk>(8));

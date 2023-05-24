@@ -39,7 +39,7 @@
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCTargetOptionsCommandFlags.inc"
+#include "llvm/MC/MCTargetOptionsCommandFlags.h"
 #include "llvm/MCA/CodeEmitter.h"
 #include "llvm/MCA/Context.h"
 #include "llvm/MCA/InstrBuilder.h"
@@ -61,6 +61,8 @@
 #include "llvm/Support/WithColor.h"
 
 using namespace llvm;
+
+static mc::RegisterMCTargetOptionsFlags MOF;
 
 static cl::OptionCategory ToolOptions("Tool Options");
 static cl::OptionCategory ViewOptions("View Options");
@@ -93,6 +95,11 @@ static cl::opt<std::string>
     MATTR("mattr",
           cl::desc("Additional target features."),
           cl::cat(ToolOptions));
+
+static cl::opt<bool>
+    PrintJson("json",
+          cl::desc("Print the output in json format"),
+          cl::cat(ToolOptions), cl::init(false));
 
 static cl::opt<int>
     OutputAsmVariant("output-asm-variant",
@@ -323,11 +330,12 @@ int main(int argc, char **argv) {
   // Apply overrides to llvm-mca specific options.
   processViewOptions();
 
-  if (!MCPU.compare("native"))
-    MCPU = llvm::sys::getHostCPUName();
+  if (MCPU == "native")
+    MCPU = std::string(llvm::sys::getHostCPUName());
 
   std::unique_ptr<MCSubtargetInfo> STI(
       TheTarget->createMCSubtargetInfo(TripleName, MCPU, MATTR));
+  assert(STI && "Unable to create subtarget info!");
   if (!STI->isCPUStringValid(MCPU))
     return 1;
 
@@ -353,7 +361,7 @@ int main(int argc, char **argv) {
   std::unique_ptr<MCRegisterInfo> MRI(TheTarget->createMCRegInfo(TripleName));
   assert(MRI && "Unable to create target register info!");
 
-  MCTargetOptions MCOptions = InitMCTargetOptionsFromFlags();
+  MCTargetOptions MCOptions = mc::InitMCTargetOptionsFromFlags();
   std::unique_ptr<MCAsmInfo> MAI(
       TheTarget->createMCAsmInfo(*MRI, TripleName, MCOptions));
   assert(MAI && "Unable to create target asm info!");
@@ -371,6 +379,7 @@ int main(int argc, char **argv) {
   std::unique_ptr<buffer_ostream> BOS;
 
   std::unique_ptr<MCInstrInfo> MCII(TheTarget->createMCInstrInfo());
+  assert(MCII && "Unable to create instruction info!");
 
   std::unique_ptr<MCInstrAnalysis> MCIA(
       TheTarget->createMCInstrAnalysis(MCII.get()));
@@ -441,9 +450,11 @@ int main(int argc, char **argv) {
 
   std::unique_ptr<MCCodeEmitter> MCE(
       TheTarget->createMCCodeEmitter(*MCII, *MRI, Ctx));
+  assert(MCE && "Unable to create code emitter!");
 
   std::unique_ptr<MCAsmBackend> MAB(TheTarget->createMCAsmBackend(
-      *STI, *MRI, InitMCTargetOptionsFromFlags()));
+      *STI, *MRI, mc::InitMCTargetOptionsFromFlags()));
+  assert(MAB && "Unable to create asm backend!");
 
   for (const std::unique_ptr<mca::CodeRegion> &Region : Regions) {
     // Skip empty code regions.
@@ -495,7 +506,7 @@ int main(int argc, char **argv) {
       auto P = std::make_unique<mca::Pipeline>();
       P->appendStage(std::make_unique<mca::EntryStage>(S));
       P->appendStage(std::make_unique<mca::InstructionTables>(SM));
-      mca::PipelinePrinter Printer(*P);
+      mca::PipelinePrinter Printer(*P, mca::View::OK_READABLE);
 
       // Create the views for this pipeline, execute, and emit a report.
       if (PrintInstructionInfoView) {
@@ -514,7 +525,14 @@ int main(int argc, char **argv) {
 
     // Create a basic pipeline simulating an out-of-order backend.
     auto P = MCA.createDefaultPipeline(PO, S);
-    mca::PipelinePrinter Printer(*P);
+    mca::PipelinePrinter Printer(*P, PrintJson ? mca::View::OK_JSON
+                                               : mca::View::OK_READABLE);
+
+    // When we output JSON, we add a view that contains the instructions
+    // and CPU resource information.
+    if (PrintJson)
+      Printer.addView(
+          std::make_unique<mca::InstructionView>(*STI, *IP, Insts, MCPU));
 
     if (PrintSummaryView)
       Printer.addView(

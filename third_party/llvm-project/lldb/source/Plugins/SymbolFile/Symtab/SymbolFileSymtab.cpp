@@ -1,4 +1,4 @@
-//===-- SymbolFileSymtab.cpp ------------------------------------*- C++ -*-===//
+//===-- SymbolFileSymtab.cpp ----------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -24,6 +24,8 @@
 
 using namespace lldb;
 using namespace lldb_private;
+
+LLDB_PLUGIN_DEFINE(SymbolFileSymtab)
 
 char SymbolFileSymtab::ID;
 
@@ -56,8 +58,6 @@ void SymbolFileSymtab::GetTypes(SymbolContextScope *sc_scope,
 SymbolFileSymtab::SymbolFileSymtab(ObjectFileSP objfile_sp)
     : SymbolFile(std::move(objfile_sp)), m_source_indexes(), m_func_indexes(),
       m_code_indexes(), m_objc_class_name_to_index() {}
-
-SymbolFileSymtab::~SymbolFileSymtab() {}
 
 uint32_t SymbolFileSymtab::CalculateAbilities() {
   uint32_t abilities = 0;

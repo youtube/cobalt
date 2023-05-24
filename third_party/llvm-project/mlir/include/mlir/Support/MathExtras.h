@@ -1,6 +1,6 @@
 //===- MathExtras.h - Math functions relevant to MLIR -----------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -19,19 +19,21 @@
 namespace mlir {
 
 /// Returns the result of MLIR's ceildiv operation on constants. The RHS is
-/// expected to be positive.
+/// expected to be non-zero.
 inline int64_t ceilDiv(int64_t lhs, int64_t rhs) {
-  assert(rhs >= 1);
+  assert(rhs != 0);
   // C/C++'s integer division rounds towards 0.
-  return lhs % rhs > 0 ? lhs / rhs + 1 : lhs / rhs;
+  int64_t x = (rhs > 0) ? -1 : 1;
+  return (lhs * rhs > 0) ? ((lhs + x) / rhs) + 1 : -(-lhs / rhs);
 }
 
 /// Returns the result of MLIR's floordiv operation on constants. The RHS is
-/// expected to be positive.
+/// expected to be non-zero.
 inline int64_t floorDiv(int64_t lhs, int64_t rhs) {
-  assert(rhs >= 1);
+  assert(rhs != 0);
   // C/C++'s integer division rounds towards 0.
-  return lhs % rhs < 0 ? lhs / rhs - 1 : lhs / rhs;
+  int64_t x = (rhs < 0) ? 1 : -1;
+  return (lhs * rhs < 0) ? -((-lhs + x) / rhs) - 1 : lhs / rhs;
 }
 
 /// Returns MLIR's mod operation on constants. MLIR's mod operation yields the

@@ -2,7 +2,7 @@ User Guides
 ===========
 
 NOTE: If you are a user who is only interested in using an LLVM-based compiler,
-you should look into `Clang <http://clang.llvm.org>`_ instead. The
+you should look into `Clang <https://clang.llvm.org>`_ instead. The
 documentation here is intended for users who have a need to work with the
 intermediate LLVM representation.
 
@@ -35,6 +35,7 @@ intermediate LLVM representation.
    HowToBuildWithPGO
    HowToCrossCompileBuiltinsOnArm
    HowToCrossCompileLLVM
+   HowToUpdateDebugInfo
    LinkTimeOptimization
    LoopTerminology
    MarkdownQuickstartTemplate
@@ -53,6 +54,7 @@ intermediate LLVM representation.
    TableGenFundamentals
    Vectorizers
    WritingAnLLVMPass
+   WritingAnLLVMNewPMPass
    WritingAnLLVMBackend
    yaml2obj
 
@@ -71,7 +73,7 @@ Clang
 `How to build the C, C++, ObjC, and ObjC++ front end`__
    Instructions for building the clang front-end from source.
 
-   .. __: http://clang.llvm.org/get_started.html
+   .. __: https://clang.llvm.org/get_started.html
 
 :doc:`CoverageMappingFormat`
   This describes the format and encoding used for LLVM’s code coverage mapping.
@@ -95,13 +97,20 @@ LLVM Builds and Distributions
 
 :doc:`Support Library <SupportLibrary>`
    This document describes the LLVM Support Library (``lib/Support``) and
-   how to keep LLVM source code portable
+   how to keep LLVM source code portable.
+
+:doc:`AdvancedBuilds`
+   This document describes more advanced build configurations.
 
 Optimizations
 -------------
 
 :doc:`WritingAnLLVMPass`
    Information on how to write LLVM transformations and analyses.
+
+:doc:`WritingAnLLVMNewPMPass`
+   Information on how to write LLVM transformations under the new pass
+   manager.
 
 :doc:`Passes`
    A list of optimizations and analyses implemented in LLVM.
@@ -193,3 +202,7 @@ Additional Topics
 
 :doc:`AMDGPUUsage`
    This document describes using the AMDGPU backend to compile GPU kernels.
+
+:doc:`AMDGPUDwarfExtensionsForHeterogeneousDebugging`
+   This document describes DWARF extensions to support heterogeneous debugging
+   for targets such as the AMDGPU backend.

@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __RNBContext_h__
-#define __RNBContext_h__
+#ifndef LLDB_TOOLS_DEBUGSERVER_SOURCE_RNBCONTEXT_H
+#define LLDB_TOOLS_DEBUGSERVER_SOURCE_RNBCONTEXT_H
 
 #include "DNBError.h"
 #include "PThreadEvent.h"
@@ -124,6 +124,11 @@ public:
   void SetDetachOnError(bool detach) { m_detach_on_error = detach; }
   bool GetDetachOnError() { return m_detach_on_error; }
 
+  void SetUnmaskSignals(bool unmask_signals) {
+    m_unmask_signals = unmask_signals;
+  }
+  bool GetUnmaskSignals() { return m_unmask_signals; }
+
 protected:
   // Classes that inherit from RNBContext can see and modify these
   nub_process_t m_pid;
@@ -147,10 +152,11 @@ protected:
   void StartProcessStatusThread();
   void StopProcessStatusThread();
   static void *ThreadFunctionProcessStatus(void *arg);
+  bool m_unmask_signals;
 
 private:
   RNBContext(const RNBContext &rhs) = delete;
   RNBContext &operator=(const RNBContext &rhs) = delete;
 };
 
-#endif // #ifndef __RNBContext_h__
+#endif // LLDB_TOOLS_DEBUGSERVER_SOURCE_RNBCONTEXT_H

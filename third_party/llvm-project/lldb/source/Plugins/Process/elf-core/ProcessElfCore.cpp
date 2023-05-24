@@ -1,4 +1,4 @@
-//===-- ProcessElfCore.cpp --------------------------------------*- C++ -*-===//
+//===-- ProcessElfCore.cpp ------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -35,6 +35,8 @@
 using namespace lldb_private;
 namespace ELF = llvm::ELF;
 
+LLDB_PLUGIN_DEFINE(ProcessElfCore)
+
 ConstString ProcessElfCore::GetPluginNameStatic() {
   static ConstString g_name("elf-core");
   return g_name;
@@ -50,9 +52,10 @@ void ProcessElfCore::Terminate() {
 
 lldb::ProcessSP ProcessElfCore::CreateInstance(lldb::TargetSP target_sp,
                                                lldb::ListenerSP listener_sp,
-                                               const FileSpec *crash_file) {
+                                               const FileSpec *crash_file,
+                                               bool can_connect) {
   lldb::ProcessSP process_sp;
-  if (crash_file) {
+  if (crash_file && !can_connect) {
     // Read enough data for a ELF32 header or ELF64 header Note: Here we care
     // about e_type field only, so it is safe to ignore possible presence of
     // the header extension.
@@ -95,7 +98,7 @@ bool ProcessElfCore::CanDebug(lldb::TargetSP target_sp,
 ProcessElfCore::ProcessElfCore(lldb::TargetSP target_sp,
                                lldb::ListenerSP listener_sp,
                                const FileSpec &core_file)
-    : Process(target_sp, listener_sp), m_core_file(core_file) {}
+    : PostMortemProcess(target_sp, listener_sp), m_core_file(core_file) {}
 
 // Destructor
 ProcessElfCore::~ProcessElfCore() {
@@ -258,8 +261,8 @@ lldb_private::DynamicLoader *ProcessElfCore::GetDynamicLoader() {
   return m_dyld_up.get();
 }
 
-bool ProcessElfCore::UpdateThreadList(ThreadList &old_thread_list,
-                                      ThreadList &new_thread_list) {
+bool ProcessElfCore::DoUpdateThreadList(ThreadList &old_thread_list,
+                                        ThreadList &new_thread_list) {
   const uint32_t num_threads = GetNumThreadContexts();
   if (!m_thread_data_valid)
     return false;

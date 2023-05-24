@@ -37,6 +37,11 @@ and use the built binaries to reproduce the failure described in the bug. Use
 a debug build (`-DCMAKE_BUILD_TYPE=Debug`) or a build with assertions
 (`-DLLVM_ENABLE_ASSERTIONS=On`, enabled for Debug builds).
 
+Reporting a Security Issue
+--------------------------
+
+There is a separate process to submit security-related bugs, see :ref:`report-security-issue`.
+
 Bigger Pieces of Work
 ---------------------
 In case you are interested in taking on a bigger piece of work, a list of
@@ -85,7 +90,7 @@ in order to update the last commit with all pending changes.
 
 To get a patch accepted, it has to be reviewed by the LLVM community. This can
 be done using `LLVM's Phabricator`_ or the llvm-commits mailing list.
-Please  follow :ref:`Phabricator#requesting-a-review-via-the-web-interface <phabricator-request-review-web>`
+Please  follow :ref:`Phabricator#phabricator-reviews <phabricator-reviews>`
 to request a review using Phabricator.
 
 To make sure the right people see your patch, please select suitable reviewers
@@ -109,6 +114,8 @@ review by 'ping'ing a patch by responding to the email thread containing the
 patch, or the Phabricator review with "Ping." The common courtesy 'ping' rate
 is once a week. Please remember that you are asking for valuable time from other
 professional developers.
+
+For more information on LLVM's code-review process, please see :doc:`CodeReview`.
 
 
 Helpful Information About LLVM

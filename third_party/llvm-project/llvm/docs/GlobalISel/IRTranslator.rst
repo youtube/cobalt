@@ -73,7 +73,7 @@ This differs from SelectionDAG's multiple vregs via ``GetValueVTs``.
 As some of the bits are undef (padding), we should consider augmenting the
 representation with additional metadata (in effect, caching computeKnownBits
 information on vregs).
-See `PR26161 <http://llvm.org/PR26161>`_: [GlobalISel] Value to vreg during
+See `PR26161 <https://llvm.org/PR26161>`_: [GlobalISel] Value to vreg during
 IR to MachineInstr translation for aggregate type
 
 .. _irtranslator-constants:
@@ -91,5 +91,5 @@ This is beneficial as it allows us to fold constants into immediate operands
 during :ref:`instructionselect`, while still avoiding redundant materializations
 for expensive non-foldable constants. However, this can lead to unnecessary
 spills and reloads in an -O0 pipeline, as these virtual registers can have long
-live ranges. This can be mitigated by running a `localizer <https://github.com/llvm/llvm-project/blob/master/llvm/lib/CodeGen/GlobalISel/Localizer.cpp>`_
+live ranges. This can be mitigated by running a `localizer <https://github.com/llvm/llvm-project/blob/main/llvm/lib/CodeGen/GlobalISel/Localizer.cpp>`_
 after the translator.

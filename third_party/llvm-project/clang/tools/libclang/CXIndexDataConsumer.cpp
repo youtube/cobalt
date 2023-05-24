@@ -491,13 +491,12 @@ void CXIndexDataConsumer::importedModule(const ImportDecl *ImportD) {
     if (SrcMod->getTopLevelModule() == Mod->getTopLevelModule())
       return;
 
-  CXIdxImportedASTFileInfo Info = {
-                                    static_cast<CXFile>(
-                                    const_cast<FileEntry *>(Mod->getASTFile())),
-                                    Mod,
-                                    getIndexLoc(ImportD->getLocation()),
-                                    ImportD->isImplicit()
-                                  };
+  FileEntry *FE = nullptr;
+  if (auto File = Mod->getASTFile())
+    FE = const_cast<FileEntry *>(&File->getFileEntry());
+  CXIdxImportedASTFileInfo Info = {static_cast<CXFile>(FE), Mod,
+                                   getIndexLoc(ImportD->getLocation()),
+                                   ImportD->isImplicit()};
   CXIdxClientASTFile astFile = CB.importedASTFile(ClientData, &Info);
   (void)astFile;
 }
@@ -1245,6 +1244,9 @@ static CXIdxEntityKind getEntityKindFromSymbolKind(SymbolKind K, SymbolLanguage 
   case SymbolKind::Macro:
   case SymbolKind::ClassProperty:
   case SymbolKind::Using:
+  case SymbolKind::TemplateTypeParm:
+  case SymbolKind::TemplateTemplateParm:
+  case SymbolKind::NonTypeTemplateParm:
     return CXIdxEntity_Unexposed;
 
   case SymbolKind::Enum: return CXIdxEntity_Enum;

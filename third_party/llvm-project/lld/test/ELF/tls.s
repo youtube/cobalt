@@ -1,8 +1,28 @@
 // REQUIRES: x86
 // RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %s -o %t
 // RUN: ld.lld %t -o %tout
-// RUN: llvm-readobj --symbols --sections -l %tout | FileCheck %s
+// RUN: llvm-readobj -S -l --symbols %tout | FileCheck %s
 // RUN: llvm-objdump -d %tout | FileCheck %s --check-prefix=DIS
+
+/// Reject local-exec TLS relocations for -shared, regardless of the preemptibility.
+// RUN: not ld.lld -shared %t -o /dev/null 2>&1 | FileCheck %s --check-prefix=ERR
+// RUN: not ld.lld -shared -Bsymbolic %t -o /dev/null 2>&1 | FileCheck %s --check-prefix=ERR
+
+// ERR:       error: relocation R_X86_64_TPOFF32 against a cannot be used with -shared
+// ERR-NEXT:  defined in {{.*}}
+// ERR-NEXT:  referenced by {{.*}}:(.text+0x4)
+// ERR-EMPTY:
+// ERR-NEXT:  error: relocation R_X86_64_TPOFF32 against b cannot be used with -shared
+// ERR-NEXT:  defined in {{.*}}
+// ERR-NEXT:  referenced by {{.*}}:(.text+0xC)
+// ERR-EMPTY:
+// ERR-NEXT:  error: relocation R_X86_64_TPOFF32 against c cannot be used with -shared
+// ERR-NEXT:  defined in {{.*}}
+// ERR-NEXT:  referenced by {{.*}}:(.text+0x14)
+// ERR-EMPTY:
+// ERR-NEXT:  error: relocation R_X86_64_TPOFF32 against d cannot be used with -shared
+// ERR-NEXT:  defined in {{.*}}
+// ERR-NEXT:  referenced by {{.*}}:(.text+0x1C)
 
 .global _start
 _start:
@@ -101,6 +121,30 @@ d:
 // CHECK-NEXT:     EntrySize:
 // CHECK-NEXT:   }
 
+// Check that the TLS NOBITS sections weren't added to the R/W PT_LOAD's size.
+
+// CHECK:      ProgramHeaders [
+// CHECK:          Type: PT_LOAD
+// CHECK:          Type: PT_LOAD
+// CHECK:          Type: PT_LOAD
+// CHECK:          FileSize: 8
+// CHECK-NEXT:     MemSize: 8
+// CHECK-NEXT:     Flags [
+// CHECK-NEXT:       PF_R
+// CHECK-NEXT:       PF_W
+// CHECK-NEXT:     ]
+// CHECK:          Type: PT_TLS
+// CHECK-NEXT:     Offset:
+// CHECK-NEXT:     VirtualAddress: [[TDATA_ADDR]]
+// CHECK-NEXT:     PhysicalAddress: [[TDATA_ADDR]]
+// CHECK-NEXT:     FileSize: 8
+// CHECK-NEXT:     MemSize: 16
+// CHECK-NEXT:     Flags [
+// CHECK-NEXT:       PF_R
+// CHECK-NEXT:     ]
+// CHECK-NEXT:     Alignment:
+// CHECK-NEXT:   }
+
 // CHECK:      Symbols [
 // CHECK:          Name: a
 // CHECK-NEXT:     Value: 0x8
@@ -138,33 +182,9 @@ d:
 // CHECK-NEXT:     Section: .thread_data
 // CHECK-NEXT:   }
 
-// Check that the TLS NOBITS sections weren't added to the R/W PT_LOAD's size.
-
-// CHECK:      ProgramHeaders [
-// CHECK:          Type: PT_LOAD
-// CHECK:          Type: PT_LOAD
-// CHECK:          Type: PT_LOAD
-// CHECK:          FileSize: 8
-// CHECK-NEXT:     MemSize: 8
-// CHECK-NEXT:     Flags [
-// CHECK-NEXT:       PF_R
-// CHECK-NEXT:       PF_W
-// CHECK-NEXT:     ]
-// CHECK:          Type: PT_TLS
-// CHECK-NEXT:     Offset:
-// CHECK-NEXT:     VirtualAddress: [[TDATA_ADDR]]
-// CHECK-NEXT:     PhysicalAddress: [[TDATA_ADDR]]
-// CHECK-NEXT:     FileSize: 8
-// CHECK-NEXT:     MemSize: 16
-// CHECK-NEXT:     Flags [
-// CHECK-NEXT:       PF_R
-// CHECK-NEXT:     ]
-// CHECK-NEXT:     Alignment:
-// CHECK-NEXT:   }
-
 // DIS:      Disassembly of section .text:
 // DIS-EMPTY:
-// DIS-NEXT: _start:
+// DIS-NEXT: <_start>:
 // DIS-NEXT:   movl    %fs:-8, %eax
 // DIS-NEXT:   movl    %fs:-16, %eax
 // DIS-NEXT:   movl    %fs:-4, %eax

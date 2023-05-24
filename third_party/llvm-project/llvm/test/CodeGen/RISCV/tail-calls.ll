@@ -122,14 +122,14 @@ attributes #0 = { "interrupt"="machine" }
 ; Byval parameters hand the function a pointer directly into the stack area
 ; we want to reuse during a tail call. Do not tail call optimize functions with
 ; byval parameters.
-declare i32 @callee_byval(i32** byval %a)
+declare i32 @callee_byval(i32** byval(i32*) %a)
 define i32 @caller_byval() nounwind {
 ; CHECK-LABEL: caller_byval
 ; CHECK-NOT: tail callee_byval
 ; CHECK: call callee_byval
 entry:
   %a = alloca i32*
-  %r = tail call i32 @callee_byval(i32** byval %a)
+  %r = tail call i32 @callee_byval(i32** byval(i32*) %a)
   ret i32 %r
 }
 
@@ -137,19 +137,19 @@ entry:
 %struct.A = type { i32 }
 @a = global %struct.A zeroinitializer
 
-declare void @callee_struct(%struct.A* sret %a)
+declare void @callee_struct(%struct.A* sret(%struct.A) %a)
 define void @caller_nostruct() nounwind {
 ; CHECK-LABEL: caller_nostruct
 ; CHECK-NOT: tail callee_struct
 ; CHECK: call callee_struct
 entry:
-  tail call void @callee_struct(%struct.A* sret @a)
+  tail call void @callee_struct(%struct.A* sret(%struct.A) @a)
   ret void
 }
 
 ; Do not tail call optimize if caller uses structret semantics.
 declare void @callee_nostruct()
-define void @caller_struct(%struct.A* sret %a) nounwind {
+define void @caller_struct(%struct.A* sret(%struct.A) %a) nounwind {
 ; CHECK-LABEL: caller_struct
 ; CHECK-NOT: tail callee_nostruct
 ; CHECK: call callee_nostruct
@@ -166,6 +166,50 @@ define i32 @disable_tail_calls(i32 %i) nounwind "disable-tail-calls"="true" {
 entry:
   %rv = tail call i32 @callee_tail(i32 %i)
   ret i32 %rv
+}
+
+; Duplicate returns to enable tail call optimizations.
+declare i32 @test()
+declare i32 @test1()
+declare i32 @test2()
+declare i32 @test3()
+define i32 @duplicate_returns(i32 %a, i32 %b) nounwind {
+; CHECK-LABEL: duplicate_returns:
+; CHECK:    tail test2
+; CHECK:    tail test
+; CHECK:    tail test1
+; CHECK:    tail test3
+entry:
+  %cmp = icmp eq i32 %a, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:                                          ; preds = %entry
+  %call = tail call i32 @test()
+  br label %return
+
+if.else:                                          ; preds = %entry
+  %cmp1 = icmp eq i32 %b, 0
+  br i1 %cmp1, label %if.then2, label %if.else4
+
+if.then2:                                         ; preds = %if.else
+  %call3 = tail call i32 @test1()
+  br label %return
+
+if.else4:                                         ; preds = %if.else
+  %cmp5 = icmp sgt i32 %a, %b
+  br i1 %cmp5, label %if.then6, label %if.else8
+
+if.then6:                                         ; preds = %if.else4
+  %call7 = tail call i32 @test2()
+  br label %return
+
+if.else8:                                         ; preds = %if.else4
+  %call9 = tail call i32 @test3()
+  br label %return
+
+return:                                           ; preds = %if.else8, %if.then6, %if.then2, %if.then
+  %retval = phi i32 [ %call, %if.then ], [ %call3, %if.then2 ], [ %call7, %if.then6 ], [ %call9, %if.else8 ]
+  ret i32 %retval
 }
 
 !llvm.module.flags = !{!0}

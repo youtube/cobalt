@@ -187,8 +187,7 @@ bool FixupBWInstPass::runOnMachineFunction(MachineFunction &MF) {
 /// If so, return that super register in \p SuperDestReg.
 bool FixupBWInstPass::getSuperRegDestIfDead(MachineInstr *OrigMI,
                                             Register &SuperDestReg) const {
-  auto *TRI = &TII->getRegisterInfo();
-
+  const X86RegisterInfo *TRI = &TII->getRegisterInfo();
   Register OrigDestReg = OrigMI->getOperand(0).getReg();
   SuperDestReg = getX86SubSuperRegister(OrigDestReg, 32);
 
@@ -320,7 +319,7 @@ MachineInstr *FixupBWInstPass::tryReplaceCopy(MachineInstr *MI) const {
 
   // This is only correct if we access the same subregister index: otherwise,
   // we could try to replace "movb %ah, %al" with "movl %eax, %eax".
-  auto *TRI = &TII->getRegisterInfo();
+  const X86RegisterInfo *TRI = &TII->getRegisterInfo();
   if (TRI->getSubRegIndex(NewSrcReg, OldSrc.getReg()) !=
       TRI->getSubRegIndex(NewDestReg, OldDest.getReg()))
     return nullptr;
@@ -350,7 +349,7 @@ MachineInstr *FixupBWInstPass::tryReplaceExtend(unsigned New32BitOpcode,
     return nullptr;
 
   // Don't interfere with formation of CBW instructions which should be a
-  // shorter encoding than even the MOVSX32rr8. It's also immunte to partial
+  // shorter encoding than even the MOVSX32rr8. It's also immune to partial
   // merge issues on Intel CPUs.
   if (MI->getOpcode() == X86::MOVSX16rr8 &&
       MI->getOperand(0).getReg() == X86::AX &&

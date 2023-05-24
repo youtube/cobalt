@@ -15,7 +15,6 @@
 
 #include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_flag_parser.h"
-#include "sanitizer_common/sanitizer_stacktrace.h"
 #include "lsan_allocator.h"
 #include "lsan_common.h"
 #include "lsan_thread.h"
@@ -74,28 +73,17 @@ static void InitializeFlags() {
   RegisterCommonFlags(&parser);
 
   // Override from user-specified string.
-  const char *lsan_default_options = MaybeCallLsanDefaultOptions();
+  const char *lsan_default_options = __lsan_default_options();
   parser.ParseString(lsan_default_options);
   parser.ParseStringFromEnv("LSAN_OPTIONS");
 
-  SetVerbosity(common_flags()->verbosity);
+  InitializeCommonFlags();
 
   if (Verbosity()) ReportUnrecognizedFlags();
 
   if (common_flags()->help) parser.PrintFlagDescriptions();
 
   __sanitizer_set_report_path(common_flags()->log_path);
-}
-
-static void OnStackUnwind(const SignalContext &sig, const void *,
-                          BufferedStackTrace *stack) {
-  stack->Unwind(StackTrace::GetNextInstructionPc(sig.pc), sig.bp, sig.context,
-                common_flags()->fast_unwind_on_fatal);
-}
-
-static void LsanOnDeadlySignal(int signo, void *siginfo, void *context) {
-  HandleDeadlySignal(siginfo, context, GetCurrentThread(), &OnStackUnwind,
-                     nullptr);
 }
 
 extern "C" void __lsan_init() {
@@ -114,10 +102,7 @@ extern "C" void __lsan_init() {
   InitializeInterceptors();
   InitializeThreadRegistry();
   InstallDeadlySignalHandlers(LsanOnDeadlySignal);
-  u32 tid = ThreadCreate(0, 0, true);
-  CHECK_EQ(tid, 0);
-  ThreadStart(tid, GetTid());
-  SetCurrentThread(tid);
+  InitializeMainThread();
 
   if (common_flags()->detect_leaks && common_flags()->leak_check_at_exit)
     Atexit(DoLeakCheck);

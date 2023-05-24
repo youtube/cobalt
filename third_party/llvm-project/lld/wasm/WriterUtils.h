@@ -18,9 +18,9 @@ namespace wasm {
 
 void debugWrite(uint64_t offset, const Twine &msg);
 
-void writeUleb128(raw_ostream &os, uint32_t number, const Twine &msg);
+void writeUleb128(raw_ostream &os, uint64_t number, const Twine &msg);
 
-void writeSleb128(raw_ostream &os, int32_t number, const Twine &msg);
+void writeSleb128(raw_ostream &os, int64_t number, const Twine &msg);
 
 void writeBytes(raw_ostream &os, const char *bytes, size_t count,
                 const Twine &msg);
@@ -38,9 +38,12 @@ void writeSig(raw_ostream &os, const llvm::wasm::WasmSignature &sig);
 
 void writeI32Const(raw_ostream &os, int32_t number, const Twine &msg);
 
-void writeI64Const(raw_ostream &os, int32_t number, const Twine &msg);
+void writeI64Const(raw_ostream &os, int64_t number, const Twine &msg);
 
-void writeMemArg(raw_ostream &os, uint32_t alignment, uint32_t offset);
+void writePtrConst(raw_ostream &os, int64_t number, bool is64,
+                   const Twine &msg);
+
+void writeMemArg(raw_ostream &os, uint32_t alignment, uint64_t offset);
 
 void writeInitExpr(raw_ostream &os, const llvm::wasm::WasmInitExpr &initExpr);
 
@@ -54,7 +57,7 @@ void writeEventType(raw_ostream &os, const llvm::wasm::WasmEventType &type);
 
 void writeEvent(raw_ostream &os, const llvm::wasm::WasmEvent &event);
 
-void writeTableType(raw_ostream &os, const llvm::wasm::WasmTable &type);
+void writeTableType(raw_ostream &os, const llvm::wasm::WasmTableType &type);
 
 void writeImport(raw_ostream &os, const llvm::wasm::WasmImport &import);
 
@@ -66,6 +69,7 @@ std::string toString(llvm::wasm::ValType type);
 std::string toString(const llvm::wasm::WasmSignature &sig);
 std::string toString(const llvm::wasm::WasmGlobalType &type);
 std::string toString(const llvm::wasm::WasmEventType &type);
+std::string toString(const llvm::wasm::WasmTableType &type);
 
 } // namespace lld
 

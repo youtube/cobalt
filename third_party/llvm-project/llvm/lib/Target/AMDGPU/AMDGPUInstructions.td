@@ -77,12 +77,14 @@ class ILFormat<dag outs, dag ins, string asmstr, list<dag> pattern>
 
 def TruePredicate : Predicate<"">;
 
+// FIXME: Tablegen should specially supports this
+def FalsePredicate : Predicate<"false">;
+
 // Add a predicate to the list if does not already exist to deduplicate it.
 class PredConcat<list<Predicate> lst, Predicate pred> {
   list<Predicate> ret =
-    !foldl([pred], lst, acc, cur,
-           !listconcat(acc, !if(!eq(!cast<string>(cur),!cast<string>(pred)),
-                                [], [cur])));
+      !listconcat([pred], !filter(item, lst,
+                                  !ne(!cast<string>(item), !cast<string>(pred))));
 }
 
 class PredicateControl {
@@ -101,12 +103,12 @@ class AMDGPUPat<dag pattern, dag result> : Pat<pattern, result>,
       PredicateControl;
 
 let RecomputePerFunction = 1 in {
-def FP16Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
-def FP32Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().FP32Denormals">;
-def FP64Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
-def NoFP16Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
-def NoFP32Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().FP32Denormals">;
-def NoFP64Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
+def FP16Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
+def FP32Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP32Denormals()">;
+def FP64Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
+def NoFP16Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
+def NoFP32Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP32Denormals()">;
+def NoFP64Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
 def UnsafeFPMath : Predicate<"TM.Options.UnsafeFPMath">;
 }
 
@@ -408,7 +410,12 @@ def atomic_load_64_#as : PatFrag<(ops node:$ptr), (atomic_load_64 node:$ptr)> {
   let IsAtomic = 1;
   let MemoryVT = i64;
 }
+} // End let AddressSpaces
+} // End foreach as
 
+
+foreach as = [ "global", "flat", "local", "private", "region" ] in {
+let AddressSpaces = !cast<AddressSpaceList>("StoreAddress_"#as).AddrSpaces in {
 def store_#as : PatFrag<(ops node:$val, node:$ptr),
                     (unindexedstore node:$val, node:$ptr)> {
   let IsStore = 1;
@@ -444,8 +451,8 @@ def truncstorei16_hi16_#as : StoreHi16<truncstorei16>;
 
 defm atomic_store_#as : binary_atomic_op<atomic_store>;
 
-} // End let AddressSpaces = ...
-} // End foreach AddrSpace
+} // End let AddressSpaces
+} // End foreach as
 
 
 multiclass ret_noret_binary_atomic_op<SDNode atomic_op, bit IsInt = 1> {
@@ -475,19 +482,20 @@ defm atomic_load_umax : ret_noret_binary_atomic_op<atomic_load_umax>;
 defm atomic_load_umin : ret_noret_binary_atomic_op<atomic_load_umin>;
 defm atomic_load_xor : ret_noret_binary_atomic_op<atomic_load_xor>;
 defm atomic_load_fadd : ret_noret_binary_atomic_op<atomic_load_fadd, 0>;
+let MemoryVT = v2f16 in
+defm atomic_load_fadd_v2f16 : ret_noret_binary_atomic_op<atomic_load_fadd, 0>;
 defm AMDGPUatomic_cmp_swap : ret_noret_binary_atomic_op<AMDGPUatomic_cmp_swap>;
 
-
-def load_align8_local : PatFrag <(ops node:$ptr), (load_local node:$ptr)> {
+def load_align8_local : PatFrag<(ops node:$ptr), (load_local node:$ptr)>,
+                        Aligned<8> {
   let IsLoad = 1;
   let IsNonExtLoad = 1;
-  let MinAlignment = 8;
 }
 
-def load_align16_local : PatFrag <(ops node:$ptr), (load_local node:$ptr)> {
+def load_align16_local : PatFrag<(ops node:$ptr), (load_local node:$ptr)>,
+                        Aligned<16> {
   let IsLoad = 1;
   let IsNonExtLoad = 1;
-  let MinAlignment = 16;
 }
 
 def store_align8_local: PatFrag<(ops node:$val, node:$ptr),
@@ -520,7 +528,7 @@ class Constants {
 int TWO_PI = 0x40c90fdb;
 int PI = 0x40490fdb;
 int TWO_PI_INV = 0x3e22f983;
-int FP_UINT_MAX_PLUS_1 = 0x4f800000;    // 1 << 32 in floating point encoding
+int FP_4294966784 = 0x4f7ffffe; // 4294966784 = 4294967296 - 512 = 2^32 - 2^9
 int FP16_ONE = 0x3C00;
 int FP16_NEG_ONE = 0xBC00;
 int FP32_ONE = 0x3f800000;
@@ -588,148 +596,11 @@ class DwordAddrPat<ValueType vt, RegisterClass rc> : AMDGPUPat <
   (vt rc:$addr)
 >;
 
-// BFI_INT patterns
-
-multiclass BFIPatterns <Instruction BFI_INT,
-                        Instruction LoadImm32,
-                        RegisterClass RC64> {
-  // Definition from ISA doc:
-  // (y & x) | (z & ~x)
-  def : AMDGPUPat <
-    (or (and i32:$y, i32:$x), (and i32:$z, (not i32:$x))),
-    (BFI_INT $x, $y, $z)
-  >;
-
-  // 64-bit version
-  def : AMDGPUPat <
-    (or (and i64:$y, i64:$x), (and i64:$z, (not i64:$x))),
-    (REG_SEQUENCE RC64,
-      (BFI_INT (i32 (EXTRACT_SUBREG RC64:$x, sub0)),
-               (i32 (EXTRACT_SUBREG RC64:$y, sub0)),
-               (i32 (EXTRACT_SUBREG RC64:$z, sub0))), sub0,
-      (BFI_INT (i32 (EXTRACT_SUBREG RC64:$x, sub1)),
-               (i32 (EXTRACT_SUBREG RC64:$y, sub1)),
-               (i32 (EXTRACT_SUBREG RC64:$z, sub1))), sub1)
-  >;
-
-  // SHA-256 Ch function
-  // z ^ (x & (y ^ z))
-  def : AMDGPUPat <
-    (xor i32:$z, (and i32:$x, (xor i32:$y, i32:$z))),
-    (BFI_INT $x, $y, $z)
-  >;
-
-  // 64-bit version
-  def : AMDGPUPat <
-    (xor i64:$z, (and i64:$x, (xor i64:$y, i64:$z))),
-    (REG_SEQUENCE RC64,
-      (BFI_INT (i32 (EXTRACT_SUBREG RC64:$x, sub0)),
-               (i32 (EXTRACT_SUBREG RC64:$y, sub0)),
-               (i32 (EXTRACT_SUBREG RC64:$z, sub0))), sub0,
-      (BFI_INT (i32 (EXTRACT_SUBREG RC64:$x, sub1)),
-               (i32 (EXTRACT_SUBREG RC64:$y, sub1)),
-               (i32 (EXTRACT_SUBREG RC64:$z, sub1))), sub1)
-  >;
-
-  def : AMDGPUPat <
-    (fcopysign f32:$src0, f32:$src1),
-    (BFI_INT (LoadImm32 (i32 0x7fffffff)), $src0, $src1)
-  >;
-
-  def : AMDGPUPat <
-    (f32 (fcopysign f32:$src0, f64:$src1)),
-    (BFI_INT (LoadImm32 (i32 0x7fffffff)), $src0,
-             (i32 (EXTRACT_SUBREG RC64:$src1, sub1)))
-  >;
-
-  def : AMDGPUPat <
-    (f64 (fcopysign f64:$src0, f64:$src1)),
-    (REG_SEQUENCE RC64,
-      (i32 (EXTRACT_SUBREG $src0, sub0)), sub0,
-      (BFI_INT (LoadImm32 (i32 0x7fffffff)),
-               (i32 (EXTRACT_SUBREG RC64:$src0, sub1)),
-               (i32 (EXTRACT_SUBREG RC64:$src1, sub1))), sub1)
-  >;
-
-  def : AMDGPUPat <
-    (f64 (fcopysign f64:$src0, f32:$src1)),
-    (REG_SEQUENCE RC64,
-      (i32 (EXTRACT_SUBREG $src0, sub0)), sub0,
-      (BFI_INT (LoadImm32 (i32 0x7fffffff)),
-               (i32 (EXTRACT_SUBREG RC64:$src0, sub1)),
-               $src1), sub1)
-  >;
-}
-
-// SHA-256 Ma patterns
-
-// ((x & z) | (y & (x | z))) -> BFI_INT (XOR x, y), z, y
-multiclass SHA256MaPattern <Instruction BFI_INT, Instruction XOR, RegisterClass RC64> {
-  def : AMDGPUPat <
-    (or (and i32:$x, i32:$z), (and i32:$y, (or i32:$x, i32:$z))),
-    (BFI_INT (XOR i32:$x, i32:$y), i32:$z, i32:$y)
-  >;
-
-  def : AMDGPUPat <
-    (or (and i64:$x, i64:$z), (and i64:$y, (or i64:$x, i64:$z))),
-    (REG_SEQUENCE RC64,
-      (BFI_INT (XOR (i32 (EXTRACT_SUBREG RC64:$x, sub0)),
-                    (i32 (EXTRACT_SUBREG RC64:$y, sub0))),
-               (i32 (EXTRACT_SUBREG RC64:$z, sub0)),
-               (i32 (EXTRACT_SUBREG RC64:$y, sub0))), sub0,
-      (BFI_INT (XOR (i32 (EXTRACT_SUBREG RC64:$x, sub1)),
-                    (i32 (EXTRACT_SUBREG RC64:$y, sub1))),
-               (i32 (EXTRACT_SUBREG RC64:$z, sub1)),
-               (i32 (EXTRACT_SUBREG RC64:$y, sub1))), sub1)
-  >;
-}
-
-// Bitfield extract patterns
-
-def IMMZeroBasedBitfieldMask : ImmLeaf <i32, [{
-  return isMask_32(Imm);
-}]>;
-
-def IMMPopCount : SDNodeXForm<imm, [{
-  return CurDAG->getTargetConstant(countPopulation(N->getZExtValue()), SDLoc(N),
-                                   MVT::i32);
-}]>;
-
-multiclass BFEPattern <Instruction UBFE, Instruction SBFE, Instruction MOV> {
-  def : AMDGPUPat <
-    (i32 (and (i32 (srl i32:$src, i32:$rshift)), IMMZeroBasedBitfieldMask:$mask)),
-    (UBFE $src, $rshift, (MOV (i32 (IMMPopCount $mask))))
-  >;
-
-  // x & ((1 << y) - 1)
-  def : AMDGPUPat <
-    (and i32:$src, (add_oneuse (shl_oneuse 1, i32:$width), -1)),
-    (UBFE $src, (MOV (i32 0)), $width)
-  >;
-
-  // x & ~(-1 << y)
-  def : AMDGPUPat <
-    (and i32:$src, (xor_oneuse (shl_oneuse -1, i32:$width), -1)),
-    (UBFE $src, (MOV (i32 0)), $width)
-  >;
-
-  // x & (-1 >> (bitwidth - y))
-  def : AMDGPUPat <
-    (and i32:$src, (srl_oneuse -1, (sub 32, i32:$width))),
-    (UBFE $src, (MOV (i32 0)), $width)
-  >;
-
-  // x << (bitwidth - y) >> (bitwidth - y)
-  def : AMDGPUPat <
-    (srl (shl_oneuse i32:$src, (sub 32, i32:$width)), (sub 32, i32:$width)),
-    (UBFE $src, (MOV (i32 0)), $width)
-  >;
-
-  def : AMDGPUPat <
-    (sra (shl_oneuse i32:$src, (sub 32, i32:$width)), (sub 32, i32:$width)),
-    (SBFE $src, (MOV (i32 0)), $width)
-  >;
-}
+// fshr pattern
+class FSHRPattern <Instruction BIT_ALIGN> : AMDGPUPat <
+  (fshr i32:$src0, i32:$src1, i32:$src2),
+  (BIT_ALIGN $src0, $src1, $src2)
+>;
 
 // rotr pattern
 class ROTRPattern <Instruction BIT_ALIGN> : AMDGPUPat <
@@ -795,4 +666,14 @@ def fminnum_like_oneuse : PatFrags<(ops node:$src0, node:$src1),
 def fmaxnum_like_oneuse : PatFrags<(ops node:$src0, node:$src1),
   [(fmaxnum_ieee_oneuse node:$src0, node:$src1),
    (fmaxnum_oneuse node:$src0, node:$src1)]
+>;
+
+def any_fmad : PatFrags<(ops node:$src0, node:$src1, node:$src2),
+  [(fmad node:$src0, node:$src1, node:$src2),
+   (AMDGPUfmad_ftz node:$src0, node:$src1, node:$src2)]
+>;
+
+// FIXME: fsqrt should not select directly
+def any_amdgcn_sqrt : PatFrags<(ops node:$src0),
+  [(fsqrt node:$src0), (int_amdgcn_sqrt node:$src0)]
 >;

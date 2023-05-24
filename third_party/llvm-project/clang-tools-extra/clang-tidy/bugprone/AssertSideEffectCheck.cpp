@@ -84,7 +84,7 @@ void AssertSideEffectCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
 
 void AssertSideEffectCheck::registerMatchers(MatchFinder *Finder) {
   auto DescendantWithSideEffect =
-      hasDescendant(expr(hasSideEffect(CheckFunctionCalls)));
+      traverse(TK_AsIs, hasDescendant(expr(hasSideEffect(CheckFunctionCalls))));
   auto ConditionWithSideEffect = hasCondition(DescendantWithSideEffect);
   Finder->addMatcher(
       stmt(

@@ -1,4 +1,5 @@
-add_llvm_library(MLIRTransformUtils
+add_mlir_library(MLIRTransformUtils
+  DialectConversion.cpp
   FoldUtils.cpp
   GreedyPatternRewriteDriver.cpp
   InliningUtils.cpp
@@ -9,13 +10,16 @@ add_llvm_library(MLIRTransformUtils
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Transforms
-  )
 
-add_dependencies(MLIRTransformUtils MLIRStandardOpsIncGen)
-target_link_libraries(MLIRTransformUtils
-  MLIRAffineOps
+  DEPENDS
+  MLIRStandardOpsIncGen
+
+  LINK_LIBS PUBLIC
+  MLIRAffine
   MLIRAnalysis
-  MLIRLoopOps
+  MLIRLoopAnalysis
+  MLIRSCF
   MLIRPass
-  MLIRStandardOps
+  MLIRRewrite
+  MLIRStandard
   )

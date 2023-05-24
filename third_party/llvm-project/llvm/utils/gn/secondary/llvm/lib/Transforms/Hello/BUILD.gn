@@ -7,9 +7,7 @@ loadable_module("Hello") {
     # needs its headers.
     "//llvm/include/llvm/IR:public_tablegen",
   ]
-  sources = [
-    "Hello.cpp",
-  ]
+  sources = [ "Hello.cpp" ]
 
   if (host_os != "mac" && host_os != "win") {
     # The GN build currently doesn't globally pass -fPIC, but that's

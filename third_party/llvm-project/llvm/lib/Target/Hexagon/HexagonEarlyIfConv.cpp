@@ -386,7 +386,7 @@ bool HexagonEarlyIfConversion::isValidCandidate(const MachineBasicBlock *B)
       if (!MO.isReg() || !MO.isDef())
         continue;
       Register R = MO.getReg();
-      if (!Register::isVirtualRegister(R))
+      if (!R.isVirtual())
         continue;
       if (!isPredicate(R))
         continue;
@@ -403,7 +403,7 @@ bool HexagonEarlyIfConversion::usesUndefVReg(const MachineInstr *MI) const {
     if (!MO.isReg() || !MO.isUse())
       continue;
     Register R = MO.getReg();
-    if (!Register::isVirtualRegister(R))
+    if (!R.isVirtual())
       continue;
     const MachineInstr *DefI = MRI->getVRegDef(R);
     // "Undefined" virtual registers are actually defined via IMPLICIT_DEF.
@@ -493,7 +493,7 @@ unsigned HexagonEarlyIfConversion::countPredicateDefs(
       if (!MO.isReg() || !MO.isDef())
         continue;
       Register R = MO.getReg();
-      if (!Register::isVirtualRegister(R))
+      if (!R.isVirtual())
         continue;
       if (isPredicate(R))
         PredDefs++;
@@ -1017,18 +1017,20 @@ void HexagonEarlyIfConversion::mergeBlocks(MachineBasicBlock *PredB,
   PredB->removeSuccessor(SuccB);
   PredB->splice(PredB->end(), SuccB, SuccB->begin(), SuccB->end());
   PredB->transferSuccessorsAndUpdatePHIs(SuccB);
+  MachineBasicBlock *OldLayoutSuccessor = SuccB->getNextNode();
   removeBlock(SuccB);
   if (!TermOk)
-    PredB->updateTerminator();
+    PredB->updateTerminator(OldLayoutSuccessor);
 }
 
 void HexagonEarlyIfConversion::simplifyFlowGraph(const FlowPattern &FP) {
+  MachineBasicBlock *OldLayoutSuccessor = FP.SplitB->getNextNode();
   if (FP.TrueB)
     removeBlock(FP.TrueB);
   if (FP.FalseB)
     removeBlock(FP.FalseB);
 
-  FP.SplitB->updateTerminator();
+  FP.SplitB->updateTerminator(OldLayoutSuccessor);
   if (FP.SplitB->succ_size() != 1)
     return;
 

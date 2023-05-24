@@ -20,13 +20,12 @@
 
 #include "test_macros.h"
 
-int main(int, char**)
-{
+int main(int, char**) {
     std::system_error se(static_cast<int>(std::errc::not_a_directory),
                          std::generic_category(), "some text");
     assert(se.code() == std::make_error_code(std::errc::not_a_directory));
     std::string what_message(se.what());
     assert(what_message.find("Not a directory") != std::string::npos);
 
-  return 0;
+    return 0;
 }

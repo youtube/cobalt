@@ -21,7 +21,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
-#include "llvm/CodeGen/CommandFlags.inc"
+#include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/IR/LLVMContext.h"
@@ -62,6 +62,8 @@
 
 using namespace llvm;
 
+static codegen::RegisterCodeGenFlags CGF;
+
 static cl::opt<char>
     OptLevel("O", cl::desc("Optimization level. [-O0, -O1, -O2, or -O3] "
                            "(default = '-O2')"),
@@ -75,17 +77,6 @@ static cl::opt<bool>
 static cl::opt<bool> DisableVerify(
     "disable-verify", cl::init(false),
     cl::desc("Do not run the verifier during the optimization pipeline"));
-
-static cl::opt<bool> DisableInline("disable-inlining", cl::init(false),
-                                   cl::desc("Do not run the inliner pass"));
-
-static cl::opt<bool>
-    DisableGVNLoadPRE("disable-gvn-loadpre", cl::init(false),
-                      cl::desc("Do not run the GVN load PRE pass"));
-
-static cl::opt<bool> DisableLTOVectorization(
-    "disable-lto-vectorization", cl::init(false),
-    cl::desc("Do not run loop or slp vectorization during LTO"));
 
 static cl::opt<bool> EnableFreestanding(
     "lto-freestanding", cl::init(false),
@@ -179,6 +170,10 @@ static cl::opt<std::string> ThinLTOGeneratedObjectsDir(
     cl::desc("Save ThinLTO generated object files using filenames created in "
              "the given directory."));
 
+static cl::opt<bool> SaveLinkedModuleFile(
+    "save-linked-module", cl::init(false),
+    cl::desc("Write linked LTO module to file before optimize"));
+
 static cl::opt<bool>
     SaveModuleFile("save-merged-module", cl::init(false),
                    cl::desc("Write merged LTO module to file before CodeGen"));
@@ -222,6 +217,10 @@ static cl::opt<bool> RestoreGlobalsLinkage(
 static cl::opt<bool> CheckHasObjC(
     "check-for-objc", cl::init(false),
     cl::desc("Only check if the module has objective-C defined in it"));
+
+static cl::opt<bool> PrintMachOCPUOnly(
+    "print-macho-cpu-only", cl::init(false),
+    cl::desc("Instead of running LTO, print the mach-o cpu in each IR file"));
 
 namespace {
 
@@ -327,7 +326,7 @@ getLocalLTOModule(StringRef Path, std::unique_ptr<MemoryBuffer> &Buffer,
 }
 
 /// Print some statistics on the index for each input files.
-void printIndexStats() {
+static void printIndexStats() {
   for (auto &Filename : InputFilenames) {
     ExitOnError ExitOnErr("llvm-lto: error loading file '" + Filename + "': ");
     std::unique_ptr<ModuleSummaryIndex> Index =
@@ -404,6 +403,30 @@ static void listDependentLibraries() {
   }
 }
 
+static void printMachOCPUOnly() {
+  LLVMContext Context;
+  Context.setDiagnosticHandler(std::make_unique<LLVMLTODiagnosticHandler>(),
+                               true);
+  TargetOptions Options = codegen::InitTargetOptionsFromCodeGenFlags(Triple());
+  for (auto &Filename : InputFilenames) {
+    ErrorOr<std::unique_ptr<LTOModule>> ModuleOrErr =
+        LTOModule::createFromFile(Context, Filename, Options);
+    if (!ModuleOrErr)
+      error(ModuleOrErr, "llvm-lto: ");
+
+    Expected<uint32_t> CPUType = (*ModuleOrErr)->getMachOCPUType();
+    Expected<uint32_t> CPUSubType = (*ModuleOrErr)->getMachOCPUSubType();
+    if (!CPUType)
+      error("Error while printing mach-o cputype: " +
+            toString(CPUType.takeError()));
+    if (!CPUSubType)
+      error("Error while printing mach-o cpusubtype: " +
+            toString(CPUSubType.takeError()));
+    outs() << llvm::format("%s:\ncputype: %u\ncpusubtype: %u\n",
+                           Filename.c_str(), *CPUType, *CPUSubType);
+  }
+}
+
 /// Create a combined index file from the input IR files and write it.
 ///
 /// This is meant to enable testing of ThinLTO combined index generation,
@@ -431,7 +454,7 @@ static void createCombinedModuleSummaryIndex() {
 static void getThinLTOOldAndNewPrefix(std::string &OldPrefix,
                                       std::string &NewPrefix) {
   assert(ThinLTOPrefixReplace.empty() ||
-         ThinLTOPrefixReplace.find(";") != StringRef::npos);
+         ThinLTOPrefixReplace.find(';') != StringRef::npos);
   StringRef PrefixReplace = ThinLTOPrefixReplace;
   std::pair<StringRef, StringRef> Split = PrefixReplace.split(";");
   OldPrefix = Split.first.str();
@@ -454,7 +477,7 @@ static std::string getThinLTOOutputFile(const std::string &Path,
     if (std::error_code EC = llvm::sys::fs::create_directories(ParentPath))
       error(EC, "error creating the directory '" + ParentPath + "'");
   }
-  return NewPath.str();
+  return std::string(NewPath.str());
 }
 
 namespace thinlto {
@@ -521,7 +544,7 @@ public:
   ThinLTOCodeGenerator ThinGenerator;
 
   ThinLTOProcessing(const TargetOptions &Options) {
-    ThinGenerator.setCodePICModel(getRelocModel());
+    ThinGenerator.setCodePICModel(codegen::getExplicitRelocModel());
     ThinGenerator.setTargetOptions(Options);
     ThinGenerator.setCacheDir(ThinLTOCacheDir);
     ThinGenerator.setCachePruningInterval(ThinLTOCachePruningInterval);
@@ -873,7 +896,7 @@ int main(int argc, char **argv) {
   InitializeAllAsmParsers();
 
   // set up the TargetOptions for the machine
-  TargetOptions Options = InitTargetOptionsFromCodeGenFlags();
+  TargetOptions Options = codegen::InitTargetOptionsFromCodeGenFlags(Triple());
 
   if (ListSymbolsOnly) {
     listSymbols(Options);
@@ -905,6 +928,11 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  if (PrintMachOCPUOnly) {
+    printMachOCPUOnly();
+    return 0;
+  }
+
   if (ThinLTOMode.getNumOccurrences()) {
     if (ThinLTOMode.getNumOccurrences() > 1)
       report_fatal_error("You can't specify more than one -thinlto-action");
@@ -925,11 +953,12 @@ int main(int argc, char **argv) {
                                true);
 
   LTOCodeGenerator CodeGen(Context);
+  CodeGen.setDisableVerify(DisableVerify);
 
   if (UseDiagnosticHandler)
     CodeGen.setDiagnosticHandler(handleDiagnostics, nullptr);
 
-  CodeGen.setCodePICModel(getRelocModel());
+  CodeGen.setCodePICModel(codegen::getExplicitRelocModel());
   CodeGen.setFreestanding(EnableFreestanding);
 
   CodeGen.setDebugInfo(LTO_DEBUG_MODEL_DWARF);
@@ -957,7 +986,7 @@ int main(int argc, char **argv) {
       lto_symbol_attributes Attrs = Module->getSymbolAttributes(I);
       unsigned Scope = Attrs & LTO_SYMBOL_SCOPE_MASK;
       if (Scope != LTO_SYMBOL_SCOPE_DEFAULT_CAN_BE_HIDDEN)
-        KeptDSOSyms.push_back(Name);
+        KeptDSOSyms.push_back(std::string(Name));
     }
 
     // We use the first input module as the destination module when
@@ -980,26 +1009,25 @@ int main(int argc, char **argv) {
     CodeGen.addMustPreserveSymbol(KeptDSOSyms[i]);
 
   // Set cpu and attrs strings for the default target/subtarget.
-  CodeGen.setCpu(MCPU.c_str());
+  CodeGen.setCpu(codegen::getMCPU().c_str());
 
   CodeGen.setOptLevel(OptLevel - '0');
+  CodeGen.setAttrs(codegen::getMAttrs());
 
-  std::string attrs;
-  for (unsigned i = 0; i < MAttrs.size(); ++i) {
-    if (i > 0)
-      attrs.append(",");
-    attrs.append(MAttrs[i]);
-  }
-
-  if (!attrs.empty())
-    CodeGen.setAttr(attrs);
-
-  if (FileType.getNumOccurrences())
-    CodeGen.setFileType(FileType);
+  if (auto FT = codegen::getExplicitFileType())
+    CodeGen.setFileType(FT.getValue());
 
   if (!OutputFilename.empty()) {
-    if (!CodeGen.optimize(DisableVerify, DisableInline, DisableGVNLoadPRE,
-                          DisableLTOVectorization)) {
+    if (SaveLinkedModuleFile) {
+      std::string ModuleFilename = OutputFilename;
+      ModuleFilename += ".linked.bc";
+      std::string ErrMsg;
+
+      if (!CodeGen.writeMergedModules(ModuleFilename))
+        error("writing linked module failed.");
+    }
+
+    if (!CodeGen.optimize()) {
       // Diagnostic messages should have been printed by the handler.
       error("error optimizing the code");
     }
@@ -1040,8 +1068,7 @@ int main(int argc, char **argv) {
       error(": -save-merged-module must be specified with -o");
 
     const char *OutputName = nullptr;
-    if (!CodeGen.compile_to_file(&OutputName, DisableVerify, DisableInline,
-                                 DisableGVNLoadPRE, DisableLTOVectorization))
+    if (!CodeGen.compile_to_file(&OutputName))
       error("error compiling the code");
       // Diagnostic messages should have been printed by the handler.
 

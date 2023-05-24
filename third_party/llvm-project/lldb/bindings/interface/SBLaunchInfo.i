@@ -8,6 +8,9 @@
 
 namespace lldb {
 
+%feature("docstring",
+"Describes how a target or program should be launched."
+) SBLaunchInfo;
 class SBLaunchInfo
 {
 public:
@@ -63,6 +66,12 @@ public:
 
     void
     SetEnvironmentEntries (const char **envp, bool append);
+
+    void
+    SetEnvironment(const SBEnvironment &env, bool append);
+
+    SBEnvironment
+    GetEnvironment();
 
     void
     Clear ();

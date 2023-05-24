@@ -76,7 +76,7 @@ generic and non-generic). There are some exceptions to this but in general:
   way of getting a given operand's type (as there was no 1:1 mapping between
   instruction types and operands).
   We considered putting the type in some variant of MCInstrDesc instead:
-  See `PR26576 <http://llvm.org/PR26576>`_: [GlobalISel] Generic MachineInstrs
+  See `PR26576 <https://llvm.org/PR26576>`_: [GlobalISel] Generic MachineInstrs
   need a type but this increases the memory footprint of the related objects
 
 .. _gmir-regbank:
@@ -104,7 +104,7 @@ In practice, register files A and B are rarely equal. They can typically store
 the same data but there's usually some restrictions on what operations you can
 do on each register file. A fairly common pattern is for one of them to be
 accessible to integer operations and the other accessible to floating point
-operations. To accomodate this, let's rename A and B to GPR (general purpose
+operations. To accommodate this, let's rename A and B to GPR (general purpose
 registers) and FPR (floating point registers).
 
 We now have some additional constraints that limit us. An operation like G_FMUL

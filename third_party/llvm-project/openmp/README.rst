@@ -4,7 +4,7 @@ How to Build the LLVM* OpenMP* Libraries
 This repository requires `CMake <http://www.cmake.org/>`_ v2.8.0 or later.  LLVM
 and Clang need a more recent version which also applies for in-tree builds.  For
 more information than available in this document please see
-`LLVM's CMake documentation <http://llvm.org/docs/CMake.html>`_ and the
+`LLVM's CMake documentation <https://llvm.org/docs/CMake.html>`_ and the
 `official documentation <https://cmake.org/cmake/help/v2.8.0/cmake.html>`_.
 
 .. contents::
@@ -128,6 +128,10 @@ Options for all Libraries
 
 **OPENMP_FILECHECK_EXECUTABLE** = ``/path/to/FileCheck``
   Specify full path to ``FileCheck`` executable for running tests.  The default
+  is to search the ``PATH`` and the directory in **OPENMP_LLVM_TOOLS_DIR**.
+
+**OPENMP_NOT_EXECUTABLE** = ``/path/to/not``
+  Specify full path to ``not`` executable for running tests.  The default
   is to search the ``PATH`` and the directory in **OPENMP_LLVM_TOOLS_DIR**.
 
 Options for ``libomp``
@@ -277,7 +281,7 @@ Options for ``NVPTX device RTL``
 
  **LIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES** = ``35``
   List of CUDA compute capabilities that should be supported by the NVPTX
-  device RTL. E.g. for compute capabilities 6.0 and 7.0, the option "60,70"
+  device RTL. E.g. for compute capabilities 6.0 and 7.0, the option "60;70"
   should be used. Compute capability 3.5 is the minimum required.
 
  **LIBOMPTARGET_NVPTX_DEBUG** = ``OFF|ON``

@@ -47,7 +47,7 @@ hidden_func:
 
 # CHECK:      --- !WASM
 # CHECK-NEXT: FileHeader:
-# CHECK-NEXT:   Version:         0x00000001
+# CHECK-NEXT:   Version:         0x1
 # CHECK-NEXT: Sections:
 # CHECK-NEXT:   - Type:            TYPE
 # CHECK-NEXT:     Signatures:
@@ -61,18 +61,19 @@ hidden_func:
 # CHECK-NEXT:         Field:           __linear_memory
 # CHECK-NEXT:         Kind:            MEMORY
 # CHECK-NEXT:         Memory:
-# CHECK-NEXT:           Initial:         0x00000001
-# CHECK-NEXT:       - Module:          env
-# CHECK-NEXT:         Field:           __indirect_function_table
-# CHECK-NEXT:         Kind:            TABLE
-# CHECK-NEXT:         Table:
-# CHECK-NEXT:           ElemType:        FUNCREF
-# CHECK-NEXT:           Limits:
-# CHECK-NEXT:             Initial:         0x00000000
+# CHECK-NEXT:           Initial:         0x1
 # CHECK-NEXT:       - Module:          env
 # CHECK-NEXT:         Field:           default_func
 # CHECK-NEXT:         Kind:            FUNCTION
 # CHECK-NEXT:         SigIndex:        0
+# CHECK-NEXT:       - Module:          env
+# CHECK-NEXT:         Field:           __indirect_function_table
+# CHECK-NEXT:         Kind:            TABLE
+# CHECK-NEXT:         Table:
+# CHECK-NEXT:           Index:           0
+# CHECK-NEXT:           ElemType:        FUNCREF
+# CHECK-NEXT:           Limits:
+# CHECK-NEXT:             Initial:         0x1
 # CHECK-NEXT:       - Module:          GOT.mem
 # CHECK-NEXT:         Field:           default_data
 # CHECK-NEXT:         Kind:            GLOBAL
@@ -85,28 +86,34 @@ hidden_func:
 # CHECK-NEXT:         GlobalMutable:   true
 # CHECK-NEXT:   - Type:            FUNCTION
 # CHECK-NEXT:     FunctionTypes:   [ 0, 0, 0, 0, 0 ]
+# CHECK-NEXT:   - Type:            ELEM
+# CHECK-NEXT:     Segments:
+# CHECK-NEXT:        Offset:
+# CHECK-NEXT:          Opcode:          I32_CONST
+# CHECK-NEXT:          Value:           1
+# CHECK-NEXT:        Functions:       [ 5 ]
 # CHECK-NEXT:   - Type:            DATACOUNT
 # CHECK-NEXT:     Count:           1
 # CHECK-NEXT:   - Type:            CODE
 # CHECK-NEXT:     Relocations:
 # CHECK-NEXT:       - Type:            R_WASM_GLOBAL_INDEX_LEB
 # CHECK-NEXT:         Index:           1
-# CHECK-NEXT:         Offset:          0x00000004
+# CHECK-NEXT:         Offset:          0x4
 # CHECK-NEXT:       - Type:            R_WASM_GLOBAL_INDEX_LEB
 # CHECK-NEXT:         Index:           3
-# CHECK-NEXT:         Offset:          0x00000010
+# CHECK-NEXT:         Offset:          0x10
 # CHECK-NEXT:       - Type:            R_WASM_MEMORY_ADDR_LEB
 # CHECK-NEXT:         Index:           5
-# CHECK-NEXT:         Offset:          0x0000001C
+# CHECK-NEXT:         Offset:          0x1C
 # CHECK-NEXT:       - Type:            R_WASM_MEMORY_ADDR_REL_SLEB
 # CHECK-NEXT:         Index:           6
-# CHECK-NEXT:         Offset:          0x00000022
+# CHECK-NEXT:         Offset:          0x22
 # CHECK-NEXT:       - Type:            R_WASM_MEMORY_ADDR_LEB
 # CHECK-NEXT:         Index:           8
-# CHECK-NEXT:         Offset:          0x0000002C
+# CHECK-NEXT:         Offset:          0x2C
 # CHECK-NEXT:       - Type:            R_WASM_TABLE_INDEX_REL_SLEB
 # CHECK-NEXT:         Index:           9
-# CHECK-NEXT:         Offset:          0x00000032
+# CHECK-NEXT:         Offset:          0x32
 # CHECK-NEXT:     Functions:
 # CHECK-NEXT:       - Index:           1
 # CHECK-NEXT:         Locals:          []

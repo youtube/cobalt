@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_CppModuleConfiguration_h_
-#define liblldb_CppModuleConfiguration_h_
+#ifndef LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_CPPMODULECONFIGURATION_H
+#define LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_CPPMODULECONFIGURATION_H
 
 #include <lldb/Core/FileSpecList.h>
 #include <llvm/Support/Regex.h>
@@ -32,7 +32,7 @@ class CppModuleConfiguration {
     /// the path was already set.
     LLVM_NODISCARD bool TrySet(llvm::StringRef path);
     /// Return the path if there is one.
-    std::string Get() const {
+    llvm::StringRef Get() const {
       assert(m_valid && "Called Get() on an invalid SetOncePath?");
       return m_path;
     }
@@ -56,10 +56,7 @@ class CppModuleConfiguration {
   bool analyzeFile(const FileSpec &f);
 
 public:
-  /// Creates a configuraiton by analyzing the given list of used source files.
-  ///
-  /// Currently only looks at the used paths and doesn't actually access the
-  /// files on the disk.
+  /// Creates a configuration by analyzing the given list of used source files.
   explicit CppModuleConfiguration(const FileSpecList &support_files);
   /// Creates an empty and invalid configuration.
   CppModuleConfiguration() {}

@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: libcxxabi-no-exceptions
+// UNSUPPORTED: no-exceptions
 
 #include <cassert>
 
@@ -164,11 +164,13 @@ void test5()
     }
 }
 
-int main()
+int main(int, char**)
 {
     test1();
     test2();
     test3();
     test4();
     test5();
+
+    return 0;
 }

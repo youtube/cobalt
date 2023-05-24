@@ -87,11 +87,11 @@ TEST(JSONCompilationDatabase, GetAllFiles) {
   std::vector<std::string> expected_files;
   SmallString<16> PathStorage;
   llvm::sys::path::native("//net/dir/file1", PathStorage);
-  expected_files.push_back(PathStorage.str());
+  expected_files.push_back(std::string(PathStorage.str()));
   llvm::sys::path::native("//net/dir/file2", PathStorage);
-  expected_files.push_back(PathStorage.str());
+  expected_files.push_back(std::string(PathStorage.str()));
   llvm::sys::path::native("//net/file1", PathStorage);
-  expected_files.push_back(PathStorage.str());
+  expected_files.push_back(std::string(PathStorage.str()));
   EXPECT_EQ(expected_files,
             getAllFiles("[{\"directory\":\"//net/dir\","
                         "\"command\":\"command\","
@@ -172,13 +172,15 @@ TEST(JSONCompilationDatabase, GetAllCompileCommands) {
 }
 
 static CompileCommand findCompileArgsInJsonDatabase(StringRef FileName,
-                                                    StringRef JSONDatabase,
+                                                    std::string JSONDatabase,
                                                     std::string &ErrorMessage) {
   std::unique_ptr<CompilationDatabase> Database(
       JSONCompilationDatabase::loadFromBuffer(JSONDatabase, ErrorMessage,
                                               JSONCommandLineSyntax::Gnu));
   if (!Database)
     return CompileCommand();
+  // Overwrite the string to verify we're not reading from it later.
+  JSONDatabase.assign(JSONDatabase.size(), '*');
   std::vector<CompileCommand> Commands = Database->getCompileCommands(FileName);
   EXPECT_LE(Commands.size(), 1u);
   if (Commands.empty())
@@ -281,6 +283,15 @@ TEST_F(FileMatchTrieTest, CannotResolveRelativePath) {
   EXPECT_EQ("Cannot resolve relative paths", Error);
 }
 
+TEST_F(FileMatchTrieTest, SingleFile) {
+  Trie.insert("/root/RootFile.cc");
+  EXPECT_EQ("", find("/root/rootfile.cc"));
+  // Add subpath to avoid `if (Children.empty())` special case
+  // which we hit at previous `find()`.
+  Trie.insert("/root/otherpath/OtherFile.cc");
+  EXPECT_EQ("", find("/root/rootfile.cc"));
+}
+
 TEST(findCompileArgsInJsonDatabase, FindsNothingIfEmpty) {
   std::string ErrorMessage;
   CompileCommand NotFound = findCompileArgsInJsonDatabase(
@@ -374,6 +385,7 @@ TEST(findCompileArgsInJsonDatabase, ParsesCompilerWrappers) {
   std::vector<std::pair<std::string, std::string>> Cases = {
       {"distcc gcc foo.c", "gcc foo.c"},
       {"gomacc clang++ foo.c", "clang++ foo.c"},
+      {"sccache clang++ foo.c", "clang++ foo.c"},
       {"ccache gcc foo.c", "gcc foo.c"},
       {"ccache.exe gcc foo.c", "gcc foo.c"},
       {"ccache g++.exe foo.c", "g++.exe foo.c"},
@@ -531,6 +543,27 @@ TEST(FixedCompilationDatabase, GetAllCompileCommands) {
   EXPECT_EQ(0ul, Database.getAllCompileCommands().size());
 }
 
+TEST(FixedCompilationDatabase, FromBuffer) {
+  const char *Data = R"(
+
+ -DFOO=BAR
+
+--baz
+
+  )";
+  std::string ErrorMsg;
+  auto CDB =
+      FixedCompilationDatabase::loadFromBuffer("/cdb/dir", Data, ErrorMsg);
+
+  std::vector<CompileCommand> Result = CDB->getCompileCommands("/foo/bar.cc");
+  ASSERT_EQ(1ul, Result.size());
+  EXPECT_EQ("/cdb/dir", Result.front().Directory);
+  EXPECT_EQ("/foo/bar.cc", Result.front().Filename);
+  EXPECT_THAT(
+      Result.front().CommandLine,
+      ElementsAre(EndsWith("clang-tool"), "-DFOO=BAR", "--baz", "/foo/bar.cc"));
+}
+
 TEST(ParseFixedCompilationDatabase, ReturnsNullOnEmptyArgumentList) {
   int Argc = 0;
   std::string ErrorMsg;
@@ -654,7 +687,7 @@ struct MemCDB : public CompilationDatabase {
   std::vector<std::string> getAllFiles() const override {
     std::vector<std::string> Result;
     for (const auto &Entry : Entries)
-      Result.push_back(Entry.first());
+      Result.push_back(std::string(Entry.first()));
     return Result;
   }
 };
@@ -682,7 +715,7 @@ protected:
     llvm::sys::path::native(File);
     llvm::SmallString<64> Result;
     llvm::sys::path::append(Result, Dir, File);
-    return Result.str();
+    return std::string(Result.str());
   }
 
   MemCDB::EntryMap Entries;
@@ -723,7 +756,7 @@ protected:
     Proxy.consume_front(llvm::sys::path::get_separator());
     llvm::SmallString<32> Result = Proxy;
     llvm::sys::path::native(Result, llvm::sys::path::Style::posix);
-    return Result.str();
+    return std::string(Result.str());
   }
 };
 

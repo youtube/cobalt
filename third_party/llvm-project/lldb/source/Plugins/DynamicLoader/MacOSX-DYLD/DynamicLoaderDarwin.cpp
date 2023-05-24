@@ -1,4 +1,4 @@
-//===-- DynamicLoaderDarwin.cpp -----------------------------*- C++ -*-===//
+//===-- DynamicLoaderDarwin.cpp -------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -16,7 +16,7 @@
 #include "lldb/Core/Section.h"
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Host/FileSystem.h"
-#include "lldb/Symbol/ClangASTContext.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/ABI.h"
@@ -32,6 +32,7 @@
 #include "lldb/Utility/State.h"
 
 #include "Plugins/LanguageRuntime/ObjC/ObjCLanguageRuntime.h"
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 
 //#define ENABLE_DEBUG_PRINTF // COMMENT THIS LINE OUT PRIOR TO CHECKIN
 #ifdef ENABLE_DEBUG_PRINTF
@@ -123,19 +124,39 @@ ModuleSP DynamicLoaderDarwin::FindTargetModuleForImageInfo(
       module_sp.reset();
   }
 
-  if (!module_sp) {
-    if (can_create) {
-      // We'll call Target::ModulesDidLoad after all the modules have been
-      // added to the target, don't let it be called for every one.
-      module_sp = target.GetOrCreateModule(module_spec, false /* notify */);
-      if (!module_sp || module_sp->GetObjectFile() == nullptr)
-        module_sp = m_process->ReadModuleFromMemory(image_info.file_spec,
-                                                    image_info.address);
+  if (module_sp || !can_create)
+    return module_sp;
 
-      if (did_create_ptr)
-        *did_create_ptr = (bool)module_sp;
+  if (HostInfo::GetArchitecture().IsCompatibleMatch(target.GetArchitecture())) {
+    // When debugging on the host, we are most likely using the same shared
+    // cache as our inferior. The dylibs from the shared cache might not
+    // exist on the filesystem, so let's use the images in our own memory
+    // to create the modules.
+    // Check if the requested image is in our shared cache.
+    SharedCacheImageInfo image_info =
+        HostInfo::GetSharedCacheImageInfo(module_spec.GetFileSpec().GetPath());
+
+    // If we found it and it has the correct UUID, let's proceed with
+    // creating a module from the memory contents.
+    if (image_info.uuid &&
+        (!module_spec.GetUUID() || module_spec.GetUUID() == image_info.uuid)) {
+      ModuleSpec shared_cache_spec(module_spec.GetFileSpec(), image_info.uuid,
+                                   image_info.data_sp);
+      module_sp =
+          target.GetOrCreateModule(shared_cache_spec, false /* notify */);
     }
   }
+  // We'll call Target::ModulesDidLoad after all the modules have been
+  // added to the target, don't let it be called for every one.
+  if (!module_sp)
+    module_sp = target.GetOrCreateModule(module_spec, false /* notify */);
+  if (!module_sp || module_sp->GetObjectFile() == nullptr)
+    module_sp = m_process->ReadModuleFromMemory(image_info.file_spec,
+                                                image_info.address);
+
+  if (did_create_ptr)
+    *did_create_ptr = (bool)module_sp;
+
   return module_sp;
 }
 
@@ -195,15 +216,11 @@ void DynamicLoaderDarwin::UnloadAllImages() {
   const ModuleList &target_modules = target.GetImages();
   std::lock_guard<std::recursive_mutex> guard(target_modules.GetMutex());
 
-  size_t num_modules = target_modules.GetSize();
   ModuleSP dyld_sp(GetDYLDModule());
-
-  for (size_t i = 0; i < num_modules; i++) {
-    ModuleSP module_sp = target_modules.GetModuleAtIndexUnlocked(i);
-
+  for (ModuleSP module_sp : target_modules.Modules()) {
     // Don't remove dyld - else we'll lose our breakpoint notifying us about
     // libraries being re-loaded...
-    if (module_sp.get() != nullptr && module_sp.get() != dyld_sp.get()) {
+    if (module_sp && module_sp != dyld_sp) {
       UnloadSections(module_sp);
       unloaded_modules_list.Append(module_sp);
     }
@@ -383,9 +400,10 @@ bool DynamicLoaderDarwin::JSONImageInformationIntoImageInfo(
         mh->GetValueForKey("filetype")->GetAsInteger()->GetValue();
 
     if (image->HasKey("min_version_os_name")) {
-      std::string os_name = image->GetValueForKey("min_version_os_name")
-                                ->GetAsString()
-                                ->GetValue();
+      std::string os_name =
+          std::string(image->GetValueForKey("min_version_os_name")
+                          ->GetAsString()
+                          ->GetValue());
       if (os_name == "macosx")
         image_infos[i].os_type = llvm::Triple::MacOSX;
       else if (os_name == "ios" || os_name == "iphoneos")
@@ -399,13 +417,22 @@ bool DynamicLoaderDarwin::JSONImageInformationIntoImageInfo(
       else if (os_name == "maccatalyst") {
         image_infos[i].os_type = llvm::Triple::IOS;
         image_infos[i].os_env = llvm::Triple::MacABI;
+      } else if (os_name == "iossimulator") {
+        image_infos[i].os_type = llvm::Triple::IOS;
+        image_infos[i].os_env = llvm::Triple::Simulator;
+      } else if (os_name == "tvossimulator") {
+        image_infos[i].os_type = llvm::Triple::TvOS;
+        image_infos[i].os_env = llvm::Triple::Simulator;
+      } else if (os_name == "watchossimulator") {
+        image_infos[i].os_type = llvm::Triple::WatchOS;
+        image_infos[i].os_env = llvm::Triple::Simulator;
       }
     }
     if (image->HasKey("min_version_os_sdk")) {
       image_infos[i].min_version_os_sdk =
-          image->GetValueForKey("min_version_os_sdk")
-              ->GetAsString()
-              ->GetValue();
+          std::string(image->GetValueForKey("min_version_os_sdk")
+                          ->GetAsString()
+                          ->GetValue());
     }
 
     // Fields that aren't used by DynamicLoaderDarwin so debugserver doesn't
@@ -546,7 +573,8 @@ void DynamicLoaderDarwin::UpdateSpecialBinariesFromNewImageInfos(
     }
   }
 
-  if (exe_idx != UINT32_MAX) {
+  // Set the target executable if we haven't found one so far.
+  if (exe_idx != UINT32_MAX && !target.GetExecutableModule()) {
     const bool can_create = true;
     ModuleSP exe_module_sp(FindTargetModuleForImageInfo(image_infos[exe_idx],
                                                         can_create, nullptr));
@@ -671,19 +699,17 @@ bool DynamicLoaderDarwin::AddModulesUsingImageInfos(
         loaded_module_list.AppendIfNeeded(image_module_sp);
       }
 
-      // macCataylst support:
-      // Update the module's platform with the DYLD info.
+      // To support macCatalyst and legacy iOS simulator,
+      // update the module's platform with the DYLD info.
       ArchSpec dyld_spec = image_infos[idx].GetArchitecture();
-      if (dyld_spec.GetTriple().getOS() == llvm::Triple::IOS &&
-          dyld_spec.GetTriple().getEnvironment() == llvm::Triple::MacABI) {
+      auto &dyld_triple = dyld_spec.GetTriple();
+      if ((dyld_triple.getEnvironment() == llvm::Triple::MacABI &&
+           dyld_triple.getOS() == llvm::Triple::IOS) ||
+          (dyld_triple.getEnvironment() == llvm::Triple::Simulator &&
+           (dyld_triple.getOS() == llvm::Triple::IOS ||
+            dyld_triple.getOS() == llvm::Triple::TvOS ||
+            dyld_triple.getOS() == llvm::Triple::WatchOS)))
         image_module_sp->MergeArchitecture(dyld_spec);
-        const auto &target_triple = target.GetArchitecture().GetTriple();
-        // If dyld reports the process as being loaded as MACCATALYST,
-        // force-update the target's architecture to MACCATALYST.
-        if (!(target_triple.getOS() == llvm::Triple::IOS &&
-              target_triple.getEnvironment() == llvm::Triple::MacABI))
-          target.SetArchitecture(dyld_spec);
-      }
     }
   }
 
@@ -745,12 +771,22 @@ lldb_private::ArchSpec DynamicLoaderDarwin::ImageInfo::GetArchitecture() const {
   // Update the module's platform with the DYLD info.
   lldb_private::ArchSpec arch_spec(lldb_private::eArchTypeMachO, header.cputype,
                                    header.cpusubtype);
-  if (os_type == llvm::Triple::IOS && os_env == llvm::Triple::MacABI) {
-    llvm::Triple triple(llvm::Twine("x86_64-apple-ios") + min_version_os_sdk +
-                        "-macabi");
+  if (os_env == llvm::Triple::MacABI && os_type == llvm::Triple::IOS) {
+    llvm::Triple triple(llvm::Twine(arch_spec.GetArchitectureName()) +
+                        "-apple-ios" + min_version_os_sdk + "-macabi");
     ArchSpec maccatalyst_spec(triple);
     if (arch_spec.IsCompatibleMatch(maccatalyst_spec))
       arch_spec.MergeFrom(maccatalyst_spec);
+  }
+  if (os_env == llvm::Triple::Simulator &&
+      (os_type == llvm::Triple::IOS || os_type == llvm::Triple::TvOS ||
+       os_type == llvm::Triple::WatchOS)) {
+    llvm::Triple triple(llvm::Twine(arch_spec.GetArchitectureName()) +
+                        "-apple-" + llvm::Triple::getOSTypeName(os_type) +
+                        min_version_os_sdk + "-simulator");
+    ArchSpec sim_spec(triple);
+    if (arch_spec.IsCompatibleMatch(sim_spec))
+      arch_spec.MergeFrom(sim_spec);
   }
   return arch_spec;
 }
@@ -838,8 +874,8 @@ DynamicLoaderDarwin::GetStepThroughTrampolinePlan(Thread &thread,
     std::vector<Address> addresses;
 
     if (current_symbol->IsTrampoline()) {
-      ConstString trampoline_name = current_symbol->GetMangled().GetName(
-          current_symbol->GetLanguage(), Mangled::ePreferMangled);
+      ConstString trampoline_name =
+          current_symbol->GetMangled().GetName(Mangled::ePreferMangled);
 
       if (trampoline_name) {
         const ModuleList &images = target_sp->GetImages();
@@ -980,8 +1016,8 @@ DynamicLoaderDarwin::GetStepThroughTrampolinePlan(Thread &thread,
 void DynamicLoaderDarwin::FindEquivalentSymbols(
     lldb_private::Symbol *original_symbol, lldb_private::ModuleList &images,
     lldb_private::SymbolContextList &equivalent_symbols) {
-  ConstString trampoline_name = original_symbol->GetMangled().GetName(
-      original_symbol->GetLanguage(), Mangled::ePreferMangled);
+  ConstString trampoline_name =
+      original_symbol->GetMangled().GetName(Mangled::ePreferMangled);
   if (!trampoline_name)
     return;
 
@@ -1072,8 +1108,8 @@ DynamicLoaderDarwin::GetThreadLocalData(const lldb::ModuleSP module_sp,
         }
         StackFrameSP frame_sp = thread_sp->GetStackFrameAtIndex(0);
         if (frame_sp) {
-          ClangASTContext *clang_ast_context =
-              ClangASTContext::GetScratch(target);
+          TypeSystemClang *clang_ast_context =
+              ScratchTypeSystemClang::GetForTarget(target);
 
           if (!clang_ast_context)
             return LLDB_INVALID_ADDRESS;

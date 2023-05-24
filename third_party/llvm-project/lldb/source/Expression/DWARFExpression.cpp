@@ -1,4 +1,4 @@
-//===-- DWARFExpression.cpp -------------------------------------*- C++ -*-===//
+//===-- DWARFExpression.cpp -----------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -88,10 +88,9 @@ void DWARFExpression::UpdateValue(uint64_t const_value,
 void DWARFExpression::DumpLocation(Stream *s, const DataExtractor &data,
                                    lldb::DescriptionLevel level,
                                    ABI *abi) const {
-  llvm::DWARFExpression(data.GetAsLLVM(), llvm::dwarf::DWARF_VERSION,
-                        data.GetAddressByteSize())
-      .print(s->AsRawOstream(), abi ? &abi->GetMCRegisterInfo() : nullptr,
-             nullptr);
+  llvm::DWARFExpression(data.GetAsLLVM(), data.GetAddressByteSize())
+      .print(s->AsRawOstream(), llvm::DIDumpOptions(),
+             abi ? &abi->GetMCRegisterInfo() : nullptr, nullptr);
 }
 
 void DWARFExpression::SetLocationListAddresses(addr_t cu_file_addr,
@@ -138,12 +137,15 @@ void DWARFExpression::GetDescription(Stream *s, lldb::DescriptionLevel level,
         m_dwarf_cu->GetLocationTable(m_data);
 
     llvm::MCRegisterInfo *MRI = abi ? &abi->GetMCRegisterInfo() : nullptr;
-
+    llvm::DIDumpOptions DumpOpts;
+    DumpOpts.RecoverableErrorHandler = [&](llvm::Error E) {
+      s->AsRawOstream() << "error: " << toString(std::move(E));
+    };
     loctable_up->dumpLocationList(
         &offset, s->AsRawOstream(),
         llvm::object::SectionedAddress{m_loclist_addresses->cu_file_addr}, MRI,
         DummyDWARFObject(m_data.GetByteOrder() == eByteOrderLittle), nullptr,
-        llvm::DIDumpOptions(), s->GetIndentLevel() + 2);
+        DumpOpts, s->GetIndentLevel() + 2);
   } else {
     // We have a normal location that contains DW_OP location opcodes
     DumpLocation(s, m_data, level, abi);
@@ -156,7 +158,7 @@ static bool ReadRegisterValueAsScalar(RegisterContext *reg_ctx,
                                       Value &value) {
   if (reg_ctx == nullptr) {
     if (error_ptr)
-      error_ptr->SetErrorStringWithFormat("No register context in frame.\n");
+      error_ptr->SetErrorString("No register context in frame.\n");
   } else {
     uint32_t native_reg =
         reg_ctx->ConvertRegisterKindToRegisterNumber(reg_kind, reg_num);
@@ -394,6 +396,7 @@ static offset_t GetOpcodeDataSize(const DataExtractor &data,
     return offset - data_offset;
   }
 
+  case DW_OP_GNU_entry_value:
   case DW_OP_entry_value: // 0xa3 ULEB128 size + variable-length block
   {
     uint64_t subexpr_len = data.GetULEB128(&offset);
@@ -933,11 +936,21 @@ bool DWARFExpression::Evaluate(
   Value tmp;
   uint32_t reg_num;
 
-  /// Insertion point for evaluating multi-piece expression.
+  /// Insertion point for evaluating multi-piece expression.
   uint64_t op_piece_offset = 0;
   Value pieces; // Used for DW_OP_piece
 
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  // A generic type is "an integral type that has the size of an address and an
+  // unspecified signedness". For now, just use the signedness of the operand.
+  // TODO: Implement a real typed stack, and store the genericness of the value
+  // there.
+  auto to_generic = [&](auto v) {
+    bool is_signed = std::is_signed<decltype(v)>::value;
+    return Scalar(llvm::APSInt(
+        llvm::APInt(8 * opcodes.GetAddressByteSize(), v, is_signed),
+        !is_signed));
+  };
 
   while (opcodes.ValidOffset(offset)) {
     const lldb::offset_t op_offset = offset;
@@ -1033,22 +1046,21 @@ bool DWARFExpression::Evaluate(
             LLDB_INVALID_ADDRESS);
         if (!module_sp) {
           if (error_ptr)
-            error_ptr->SetErrorStringWithFormat(
+            error_ptr->SetErrorString(
                 "need module to resolve file address for DW_OP_deref");
           return false;
         }
         Address so_addr;
         if (!module_sp->ResolveFileAddress(file_addr, so_addr)) {
           if (error_ptr)
-            error_ptr->SetErrorStringWithFormat(
+            error_ptr->SetErrorString(
                 "failed to resolve file address in module");
           return false;
         }
         addr_t load_Addr = so_addr.GetLoadAddress(exe_ctx->GetTargetPtr());
         if (load_Addr == LLDB_INVALID_ADDRESS) {
           if (error_ptr)
-            error_ptr->SetErrorStringWithFormat(
-                "failed to resolve load address");
+            error_ptr->SetErrorString("failed to resolve load address");
           return false;
         }
         stack.back().GetScalar() = load_Addr;
@@ -1076,13 +1088,12 @@ bool DWARFExpression::Evaluate(
             }
           } else {
             if (error_ptr)
-              error_ptr->SetErrorStringWithFormat(
-                  "NULL process for DW_OP_deref.\n");
+              error_ptr->SetErrorString("NULL process for DW_OP_deref.\n");
             return false;
           }
         } else {
           if (error_ptr)
-            error_ptr->SetErrorStringWithFormat(
+            error_ptr->SetErrorString(
                 "NULL execution context for DW_OP_deref.\n");
           return false;
         }
@@ -1183,7 +1194,7 @@ bool DWARFExpression::Evaluate(
                 break;
               default:
                 stack.back().GetScalar() =
-                    addr_data.GetPointer(&addr_data_offset);
+                    addr_data.GetAddress(&addr_data_offset);
               }
               stack.back().ClearContext();
             } else {
@@ -1196,13 +1207,12 @@ bool DWARFExpression::Evaluate(
             }
           } else {
             if (error_ptr)
-              error_ptr->SetErrorStringWithFormat(
-                  "NULL process for DW_OP_deref.\n");
+              error_ptr->SetErrorString("NULL process for DW_OP_deref.\n");
             return false;
           }
         } else {
           if (error_ptr)
-            error_ptr->SetErrorStringWithFormat(
+            error_ptr->SetErrorString(
                 "NULL execution context for DW_OP_deref.\n");
           return false;
         }
@@ -1251,37 +1261,42 @@ bool DWARFExpression::Evaluate(
     // All DW_OP_constXXX opcodes have a single operand as noted below:
     //
     // Opcode           Operand 1
-    // DW_OP_const1u    1-byte unsigned integer constant DW_OP_const1s
-    // 1-byte signed integer constant DW_OP_const2u    2-byte unsigned integer
-    // constant DW_OP_const2s    2-byte signed integer constant DW_OP_const4u
-    // 4-byte unsigned integer constant DW_OP_const4s    4-byte signed integer
-    // constant DW_OP_const8u    8-byte unsigned integer constant DW_OP_const8s
-    // 8-byte signed integer constant DW_OP_constu     unsigned LEB128 integer
-    // constant DW_OP_consts     signed LEB128 integer constant
+    // DW_OP_const1u    1-byte unsigned integer constant
+    // DW_OP_const1s    1-byte signed integer constant
+    // DW_OP_const2u    2-byte unsigned integer constant
+    // DW_OP_const2s    2-byte signed integer constant
+    // DW_OP_const4u    4-byte unsigned integer constant
+    // DW_OP_const4s    4-byte signed integer constant
+    // DW_OP_const8u    8-byte unsigned integer constant
+    // DW_OP_const8s    8-byte signed integer constant
+    // DW_OP_constu     unsigned LEB128 integer constant
+    // DW_OP_consts     signed LEB128 integer constant
     case DW_OP_const1u:
-      stack.push_back(Scalar((uint8_t)opcodes.GetU8(&offset)));
+      stack.push_back(to_generic(opcodes.GetU8(&offset)));
       break;
     case DW_OP_const1s:
-      stack.push_back(Scalar((int8_t)opcodes.GetU8(&offset)));
+      stack.push_back(to_generic((int8_t)opcodes.GetU8(&offset)));
       break;
     case DW_OP_const2u:
-      stack.push_back(Scalar((uint16_t)opcodes.GetU16(&offset)));
+      stack.push_back(to_generic(opcodes.GetU16(&offset)));
       break;
     case DW_OP_const2s:
-      stack.push_back(Scalar((int16_t)opcodes.GetU16(&offset)));
+      stack.push_back(to_generic((int16_t)opcodes.GetU16(&offset)));
       break;
     case DW_OP_const4u:
-      stack.push_back(Scalar((uint32_t)opcodes.GetU32(&offset)));
+      stack.push_back(to_generic(opcodes.GetU32(&offset)));
       break;
     case DW_OP_const4s:
-      stack.push_back(Scalar((int32_t)opcodes.GetU32(&offset)));
+      stack.push_back(to_generic((int32_t)opcodes.GetU32(&offset)));
       break;
     case DW_OP_const8u:
-      stack.push_back(Scalar((uint64_t)opcodes.GetU64(&offset)));
+      stack.push_back(to_generic(opcodes.GetU64(&offset)));
       break;
     case DW_OP_const8s:
-      stack.push_back(Scalar((int64_t)opcodes.GetU64(&offset)));
+      stack.push_back(to_generic((int64_t)opcodes.GetU64(&offset)));
       break;
+    // These should also use to_generic, but we can't do that due to a
+    // producer-side bug in llvm. See llvm.org/pr48087.
     case DW_OP_constu:
       stack.push_back(Scalar(opcodes.GetULEB128(&offset)));
       break;
@@ -1888,7 +1903,7 @@ bool DWARFExpression::Evaluate(
     case DW_OP_lit29:
     case DW_OP_lit30:
     case DW_OP_lit31:
-      stack.push_back(Scalar((uint64_t)(op - DW_OP_lit0)));
+      stack.push_back(to_generic(op - DW_OP_lit0));
       break;
 
     // OPCODE: DW_OP_regN
@@ -2033,7 +2048,7 @@ bool DWARFExpression::Evaluate(
         }
       } else {
         if (error_ptr)
-          error_ptr->SetErrorStringWithFormat(
+          error_ptr->SetErrorString(
               "NULL execution context for DW_OP_fbreg.\n");
         return false;
       }
@@ -2071,6 +2086,10 @@ bool DWARFExpression::Evaluate(
           // not available. Fill with zeros for now by resizing the data and
           // appending it
           curr_piece.ResizeData(piece_byte_size);
+          // Note that "0" is not a correct value for the unknown bits.
+          // It would be better to also return a mask of valid bits together
+          // with the expression result, so the debugger can print missing
+          // members as "<optimized out>" or something.
           ::memset(curr_piece.GetBuffer().GetBytes(), 0, piece_byte_size);
           pieces.AppendDataToHostBuffer(curr_piece);
         } else {
@@ -2128,7 +2147,8 @@ bool DWARFExpression::Evaluate(
           case Value::eValueTypeScalar: {
             uint32_t bit_size = piece_byte_size * 8;
             uint32_t bit_offset = 0;
-            if (!curr_piece_source_value.GetScalar().ExtractBitfield(
+            Scalar &scalar = curr_piece_source_value.GetScalar();
+            if (!scalar.ExtractBitfield(
                     bit_size, bit_offset)) {
               if (error_ptr)
                 error_ptr->SetErrorStringWithFormat(
@@ -2139,21 +2159,14 @@ bool DWARFExpression::Evaluate(
                         .GetByteSize());
               return false;
             }
-            curr_piece = curr_piece_source_value;
-          } break;
-
-          case Value::eValueTypeVector: {
-            if (curr_piece_source_value.GetVector().length >= piece_byte_size)
-              curr_piece_source_value.GetVector().length = piece_byte_size;
-            else {
-              if (error_ptr)
-                error_ptr->SetErrorStringWithFormat(
-                    "unable to extract %" PRIu64 " bytes from a %" PRIu64
-                    " byte vector value.",
-                    piece_byte_size,
-                    (uint64_t)curr_piece_source_value.GetVector().length);
-              return false;
-            }
+            // Create curr_piece with bit_size. By default Scalar
+            // grows to the nearest host integer type.
+            llvm::APInt fail_value(1, 0, false);
+            llvm::APInt ap_int = scalar.UInt128(fail_value);
+            assert(ap_int.getBitWidth() >= bit_size);
+            llvm::ArrayRef<uint64_t> buf{ap_int.getRawData(),
+                                         ap_int.getNumWords()};
+            curr_piece.GetScalar() = Scalar(llvm::APInt(bit_size, buf));
           } break;
           }
 
@@ -2161,7 +2174,7 @@ bool DWARFExpression::Evaluate(
           if (op_piece_offset == 0) {
             // This is the first piece, we should push it back onto the stack
             // so subsequent pieces will be able to access this piece and add
-            // to it
+            // to it.
             if (pieces.AppendDataToHostBuffer(curr_piece) == 0) {
               if (error_ptr)
                 error_ptr->SetErrorString("failed to append piece data");
@@ -2169,7 +2182,7 @@ bool DWARFExpression::Evaluate(
             }
           } else {
             // If this is the second or later piece there should be a value on
-            // the stack
+            // the stack.
             if (pieces.GetBuffer().GetByteSize() != op_piece_offset) {
               if (error_ptr)
                 error_ptr->SetErrorStringWithFormat(
@@ -2185,8 +2198,8 @@ bool DWARFExpression::Evaluate(
               return false;
             }
           }
-          op_piece_offset += piece_byte_size;
         }
+        op_piece_offset += piece_byte_size;
       }
     } break;
 
@@ -2223,18 +2236,32 @@ bool DWARFExpression::Evaluate(
                 piece_bit_size, piece_bit_offset);
           }
           return false;
-
-        case Value::eValueTypeVector:
-          if (error_ptr) {
-            error_ptr->SetErrorStringWithFormat(
-                "unable to extract DW_OP_bit_piece(bit_size = %" PRIu64
-                ", bit_offset = %" PRIu64 ") from a vector value.",
-                piece_bit_size, piece_bit_offset);
-          }
-          return false;
         }
       }
       break;
+
+    // OPCODE: DW_OP_implicit_value
+    // OPERANDS: 2
+    //      ULEB128  size of the value block in bytes
+    //      uint8_t* block bytes encoding value in target's memory
+    //      representation
+    // DESCRIPTION: Value is immediately stored in block in the debug info with
+    // the memory representation of the target.
+    case DW_OP_implicit_value: {
+      const uint32_t len = opcodes.GetULEB128(&offset);
+      const void *data = opcodes.GetData(&offset, len);
+
+      if (!data) {
+        LLDB_LOG(log, "Evaluate_DW_OP_implicit_value: could not be read data");
+        LLDB_ERRORF(error_ptr, "Could not evaluate %s.",
+                    DW_OP_value_to_name(op));
+        return false;
+      }
+
+      Value result(data, len);
+      stack.push_back(result);
+      break;
+    }
 
     // OPCODE: DW_OP_push_object_address
     // OPERANDS: none
@@ -2307,6 +2334,12 @@ bool DWARFExpression::Evaluate(
     // rather is a constant value.  The value from the top of the stack is the
     // value to be used.  This is the actual object value and not the location.
     case DW_OP_stack_value:
+      if (stack.empty()) {
+        if (error_ptr)
+          error_ptr->SetErrorString(
+              "Expression stack needs at least 1 item for DW_OP_stack_value.");
+        return false;
+      }
       stack.back().SetValueType(Value::eValueTypeScalar);
       break;
 
@@ -2325,8 +2358,8 @@ bool DWARFExpression::Evaluate(
         return false;
       }
       const uint64_t die_offset = opcodes.GetULEB128(&offset);
-      Scalar::Type type = Scalar::e_void;
       uint64_t bit_size;
+      bool sign;
       if (die_offset == 0) {
         // The generic type has the size of an address on the target
         // machine and an unspecified signedness. Scalar has no
@@ -2336,13 +2369,13 @@ bool DWARFExpression::Evaluate(
             error_ptr->SetErrorString("No module");
           return false;
         }
+        sign = false;
         bit_size = module_sp->GetArchitecture().GetAddressByteSize() * 8;
         if (!bit_size) {
           if (error_ptr)
             error_ptr->SetErrorString("unspecified architecture");
           return false;
         }
-        type = Scalar::GetBestTypeForBitSize(bit_size, false);
       } else {
         // Retrieve the type DIE that the value is being converted to.
         // FIXME: the constness has annoying ripple effects.
@@ -2365,11 +2398,11 @@ bool DWARFExpression::Evaluate(
         switch (encoding) {
         case DW_ATE_signed:
         case DW_ATE_signed_char:
-          type = Scalar::GetBestTypeForBitSize(bit_size, true);
+          sign = true;
           break;
         case DW_ATE_unsigned:
         case DW_ATE_unsigned_char:
-          type = Scalar::GetBestTypeForBitSize(bit_size, false);
+          sign = false;
           break;
         default:
           if (error_ptr)
@@ -2377,13 +2410,8 @@ bool DWARFExpression::Evaluate(
           return false;
         }
       }
-      if (type == Scalar::e_void) {
-        if (error_ptr)
-          error_ptr->SetErrorString("Unsupported pointer size");
-        return false;
-      }
       Scalar &top = stack.back().ResolveValue(exe_ctx);
-      top.TruncOrExtendTo(type, bit_size);
+      top.TruncOrExtendTo(bit_size, sign);
       break;
     }
 
@@ -2502,6 +2530,7 @@ bool DWARFExpression::Evaluate(
       stack.push_back(Scalar(value));
     } break;
 
+    case DW_OP_GNU_entry_value:
     case DW_OP_entry_value: {
       if (!Evaluate_DW_OP_entry_value(stack, exe_ctx, reg_ctx, opcodes, offset,
                                       error_ptr, log)) {
@@ -2513,9 +2542,10 @@ bool DWARFExpression::Evaluate(
     }
 
     default:
-      LLDB_LOGF(log, "Unhandled opcode %s in DWARFExpression.",
-                DW_OP_value_to_name(op));
-      break;
+      if (error_ptr)
+        error_ptr->SetErrorStringWithFormatv(
+            "Unhandled opcode {0} in DWARFExpression", LocationAtom(op));
+      return false;
     }
   }
 
@@ -2544,235 +2574,6 @@ bool DWARFExpression::Evaluate(
     result = stack.back();
   }
   return true; // Return true on success
-}
-
-static bool print_dwarf_exp_op(Stream &s, const DataExtractor &data,
-                               lldb::offset_t *offset_ptr, int address_size,
-                               int dwarf_ref_size) {
-  uint8_t opcode = data.GetU8(offset_ptr);
-  DRC_class opcode_class;
-  uint64_t uint;
-  int64_t sint;
-
-  int size;
-
-  opcode_class = DW_OP_value_to_class(opcode) & (~DRC_DWARFv3);
-
-  s.Printf("%s ", DW_OP_value_to_name(opcode));
-
-  /* Does this take zero parameters?  If so we can shortcut this function.  */
-  if (opcode_class == DRC_ZEROOPERANDS)
-    return true;
-
-  if (opcode_class == DRC_TWOOPERANDS && opcode == DW_OP_bregx) {
-    uint = data.GetULEB128(offset_ptr);
-    sint = data.GetSLEB128(offset_ptr);
-    s.Printf("%" PRIu64 " %" PRIi64, uint, sint);
-    return true;
-  }
-  if (opcode_class == DRC_TWOOPERANDS && opcode == DW_OP_entry_value) {
-    uint = data.GetULEB128(offset_ptr);
-    s.Printf("%" PRIu64 " ", uint);
-    return true;
-  }
-  if (opcode_class != DRC_ONEOPERAND) {
-    s.Printf("UNKNOWN OP %u", opcode);
-    return false;
-  }
-
-  switch (opcode) {
-  case DW_OP_addr:
-    size = address_size;
-    break;
-  case DW_OP_const1u:
-    size = 1;
-    break;
-  case DW_OP_const1s:
-    size = -1;
-    break;
-  case DW_OP_const2u:
-    size = 2;
-    break;
-  case DW_OP_const2s:
-    size = -2;
-    break;
-  case DW_OP_const4u:
-    size = 4;
-    break;
-  case DW_OP_const4s:
-    size = -4;
-    break;
-  case DW_OP_const8u:
-    size = 8;
-    break;
-  case DW_OP_const8s:
-    size = -8;
-    break;
-  case DW_OP_constu:
-    size = 128;
-    break;
-  case DW_OP_consts:
-    size = -128;
-    break;
-  case DW_OP_fbreg:
-    size = -128;
-    break;
-  case DW_OP_breg0:
-  case DW_OP_breg1:
-  case DW_OP_breg2:
-  case DW_OP_breg3:
-  case DW_OP_breg4:
-  case DW_OP_breg5:
-  case DW_OP_breg6:
-  case DW_OP_breg7:
-  case DW_OP_breg8:
-  case DW_OP_breg9:
-  case DW_OP_breg10:
-  case DW_OP_breg11:
-  case DW_OP_breg12:
-  case DW_OP_breg13:
-  case DW_OP_breg14:
-  case DW_OP_breg15:
-  case DW_OP_breg16:
-  case DW_OP_breg17:
-  case DW_OP_breg18:
-  case DW_OP_breg19:
-  case DW_OP_breg20:
-  case DW_OP_breg21:
-  case DW_OP_breg22:
-  case DW_OP_breg23:
-  case DW_OP_breg24:
-  case DW_OP_breg25:
-  case DW_OP_breg26:
-  case DW_OP_breg27:
-  case DW_OP_breg28:
-  case DW_OP_breg29:
-  case DW_OP_breg30:
-  case DW_OP_breg31:
-    size = -128;
-    break;
-  case DW_OP_pick:
-  case DW_OP_deref_size:
-  case DW_OP_xderef_size:
-    size = 1;
-    break;
-  case DW_OP_skip:
-  case DW_OP_bra:
-    size = -2;
-    break;
-  case DW_OP_call2:
-    size = 2;
-    break;
-  case DW_OP_call4:
-    size = 4;
-    break;
-  case DW_OP_call_ref:
-    size = dwarf_ref_size;
-    break;
-  case DW_OP_addrx:
-  case DW_OP_piece:
-  case DW_OP_plus_uconst:
-  case DW_OP_regx:
-  case DW_OP_GNU_addr_index:
-  case DW_OP_GNU_const_index:
-  case DW_OP_entry_value:
-    size = 128;
-    break;
-  default:
-    s.Printf("UNKNOWN ONE-OPERAND OPCODE, #%u", opcode);
-    return false;
-  }
-
-  switch (size) {
-  case -1:
-    sint = (int8_t)data.GetU8(offset_ptr);
-    s.Printf("%+" PRIi64, sint);
-    break;
-  case -2:
-    sint = (int16_t)data.GetU16(offset_ptr);
-    s.Printf("%+" PRIi64, sint);
-    break;
-  case -4:
-    sint = (int32_t)data.GetU32(offset_ptr);
-    s.Printf("%+" PRIi64, sint);
-    break;
-  case -8:
-    sint = (int64_t)data.GetU64(offset_ptr);
-    s.Printf("%+" PRIi64, sint);
-    break;
-  case -128:
-    sint = data.GetSLEB128(offset_ptr);
-    s.Printf("%+" PRIi64, sint);
-    break;
-  case 1:
-    uint = data.GetU8(offset_ptr);
-    s.Printf("0x%2.2" PRIx64, uint);
-    break;
-  case 2:
-    uint = data.GetU16(offset_ptr);
-    s.Printf("0x%4.4" PRIx64, uint);
-    break;
-  case 4:
-    uint = data.GetU32(offset_ptr);
-    s.Printf("0x%8.8" PRIx64, uint);
-    break;
-  case 8:
-    uint = data.GetU64(offset_ptr);
-    s.Printf("0x%16.16" PRIx64, uint);
-    break;
-  case 128:
-    uint = data.GetULEB128(offset_ptr);
-    s.Printf("0x%" PRIx64, uint);
-    break;
-  }
-
-  return true;
-}
-
-bool DWARFExpression::PrintDWARFExpression(Stream &s, const DataExtractor &data,
-                                           int address_size, int dwarf_ref_size,
-                                           bool location_expression) {
-  int op_count = 0;
-  lldb::offset_t offset = 0;
-  while (data.ValidOffset(offset)) {
-    if (location_expression && op_count > 0)
-      return false;
-    if (op_count > 0)
-      s.PutCString(", ");
-    if (!print_dwarf_exp_op(s, data, &offset, address_size, dwarf_ref_size))
-      return false;
-    op_count++;
-  }
-
-  return true;
-}
-
-void DWARFExpression::PrintDWARFLocationList(
-    Stream &s, const DWARFUnit *cu, const DataExtractor &debug_loc_data,
-    lldb::offset_t offset) {
-  uint64_t start_addr, end_addr;
-  uint32_t addr_size = DWARFUnit::GetAddressByteSize(cu);
-  s.SetAddressByteSize(DWARFUnit::GetAddressByteSize(cu));
-  dw_addr_t base_addr = cu ? cu->GetBaseAddress() : 0;
-  while (debug_loc_data.ValidOffset(offset)) {
-    start_addr = debug_loc_data.GetMaxU64(&offset, addr_size);
-    end_addr = debug_loc_data.GetMaxU64(&offset, addr_size);
-
-    if (start_addr == 0 && end_addr == 0)
-      break;
-
-    s.PutCString("\n            ");
-    s.Indent();
-    if (cu)
-      DumpAddressRange(s.AsRawOstream(), start_addr + base_addr,
-                       end_addr + base_addr, cu->GetAddressByteSize(), nullptr,
-                       ": ");
-    uint32_t loc_length = debug_loc_data.GetU16(&offset);
-
-    DataExtractor locationData(debug_loc_data, offset, loc_length);
-    PrintDWARFExpression(s, locationData, addr_size, 4, false);
-    offset += loc_length;
-  }
 }
 
 static DataExtractor ToDataExtractor(const llvm::DWARFLocationExpression &loc,

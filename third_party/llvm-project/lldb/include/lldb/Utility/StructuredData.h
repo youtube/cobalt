@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_StructuredData_h_
-#define liblldb_StructuredData_h_
+#ifndef LLDB_UTILITY_STRUCTUREDDATA_H
+#define LLDB_UTILITY_STRUCTUREDDATA_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/JSON.h"
@@ -271,9 +271,9 @@ public:
       return false;
     }
 
-    void Push(ObjectSP item) { m_items.push_back(item); }
+    void Push(const ObjectSP &item) { m_items.push_back(item); }
 
-    void AddItem(ObjectSP item) { m_items.push_back(item); }
+    void AddItem(const ObjectSP &item) { m_items.push_back(item); }
 
     void Serialize(llvm::json::OStream &s) const override;
 
@@ -339,7 +339,7 @@ public:
     explicit String(llvm::StringRef S)
         : Object(lldb::eStructuredDataTypeString), m_value(S) {}
 
-    void SetValue(llvm::StringRef S) { m_value = S; }
+    void SetValue(llvm::StringRef S) { m_value = std::string(S); }
 
     llvm::StringRef GetValue() { return m_value; }
 
@@ -493,7 +493,7 @@ public:
 
     void AddItem(llvm::StringRef key, ObjectSP value_sp) {
       ConstString key_cs(key);
-      m_dict[key_cs] = value_sp;
+      m_dict[key_cs] = std::move(value_sp);
     }
 
     void AddIntegerItem(llvm::StringRef key, uint64_t value) {
@@ -547,10 +547,10 @@ public:
     void *m_object;
   };
 
-  static ObjectSP ParseJSON(std::string json_text);
+  static ObjectSP ParseJSON(const std::string &json_text);
   static ObjectSP ParseJSONFromFile(const FileSpec &file, Status &error);
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_StructuredData_h_
+#endif // LLDB_UTILITY_STRUCTUREDDATA_H

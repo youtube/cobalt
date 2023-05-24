@@ -102,24 +102,10 @@ unsigned TemplateParameterList::getMinRequiredArguments() const {
   unsigned NumRequiredArgs = 0;
   for (const NamedDecl *P : asArray()) {
     if (P->isTemplateParameterPack()) {
-      if (const auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(P)) {
-        if (NTTP->isExpandedParameterPack()) {
-          NumRequiredArgs += NTTP->getNumExpansionTypes();
-          continue;
-        }
-      } else if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(P)) {
-        if (TTP->isExpandedParameterPack()) {
-          NumRequiredArgs += TTP->getNumExpansionParameters();
-          continue;
-        }
-      } else {
-        const auto *TP = cast<TemplateTemplateParmDecl>(P);
-        if (TP->isExpandedParameterPack()) {
-          NumRequiredArgs += TP->getNumExpansionTemplateParameters();
-          continue;
-        }
+      if (Optional<unsigned> Expansions = getExpandedPackSize(P)) {
+        NumRequiredArgs += *Expansions;
+        continue;
       }
-
       break;
     }
 
@@ -164,10 +150,15 @@ static void AdoptTemplateParameterList(TemplateParameterList *Params,
 void TemplateParameterList::
 getAssociatedConstraints(llvm::SmallVectorImpl<const Expr *> &AC) const {
   if (HasConstrainedParameters)
-    for (const NamedDecl *Param : *this)
-      if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(Param))
+    for (const NamedDecl *Param : *this) {
+      if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(Param)) {
         if (const auto *TC = TTP->getTypeConstraint())
           AC.push_back(TC->getImmediatelyDeclaredConstraint());
+      } else if (const auto *NTTP = dyn_cast<NonTypeTemplateParmDecl>(Param)) {
+        if (const Expr *E = NTTP->getPlaceholderTypeConstraint())
+          AC.push_back(E);
+      }
+    }
   if (HasRequiresClause)
     AC.push_back(getRequiresClause());
 }
@@ -435,7 +426,7 @@ ClassTemplateDecl::getSpecializations() const {
 }
 
 llvm::FoldingSetVector<ClassTemplatePartialSpecializationDecl> &
-ClassTemplateDecl::getPartialSpecializations() {
+ClassTemplateDecl::getPartialSpecializations() const {
   LoadLazySpecializations();
   return getCommonPtr()->PartialSpecializations;
 }
@@ -483,7 +474,10 @@ static void ProfileTemplateParameterList(ASTContext &C,
     if (const auto *TTP = dyn_cast<TemplateTypeParmDecl>(D)) {
       ID.AddInteger(1);
       ID.AddBoolean(TTP->isParameterPack());
-      // TODO: Concepts: profile type-constraints.
+      ID.AddBoolean(TTP->hasTypeConstraint());
+      if (const TypeConstraint *TC = TTP->getTypeConstraint())
+        TC->getImmediatelyDeclaredConstraint()->Profile(ID, C,
+                                                        /*Canonical=*/true);
       continue;
     }
     const auto *TTP = cast<TemplateTemplateParmDecl>(D);
@@ -520,7 +514,7 @@ void ClassTemplateDecl::AddPartialSpecialization(
 }
 
 void ClassTemplateDecl::getPartialSpecializations(
-          SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS) {
+    SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS) const {
   llvm::FoldingSetVector<ClassTemplatePartialSpecializationDecl> &PartialSpecs
     = getPartialSpecializations();
   PS.clear();
@@ -684,8 +678,14 @@ NonTypeTemplateParmDecl::Create(const ASTContext &C, DeclContext *DC,
                                 unsigned D, unsigned P, IdentifierInfo *Id,
                                 QualType T, bool ParameterPack,
                                 TypeSourceInfo *TInfo) {
-  return new (C, DC) NonTypeTemplateParmDecl(DC, StartLoc, IdLoc, D, P, Id,
-                                             T, ParameterPack, TInfo);
+  AutoType *AT =
+      C.getLangOpts().CPlusPlus20 ? T->getContainedAutoType() : nullptr;
+  return new (C, DC,
+              additionalSizeToAlloc<std::pair<QualType, TypeSourceInfo *>,
+                                    Expr *>(0,
+                                            AT && AT->isConstrained() ? 1 : 0))
+      NonTypeTemplateParmDecl(DC, StartLoc, IdLoc, D, P, Id, T, ParameterPack,
+                              TInfo);
 }
 
 NonTypeTemplateParmDecl *NonTypeTemplateParmDecl::Create(
@@ -693,26 +693,34 @@ NonTypeTemplateParmDecl *NonTypeTemplateParmDecl::Create(
     SourceLocation IdLoc, unsigned D, unsigned P, IdentifierInfo *Id,
     QualType T, TypeSourceInfo *TInfo, ArrayRef<QualType> ExpandedTypes,
     ArrayRef<TypeSourceInfo *> ExpandedTInfos) {
+  AutoType *AT = TInfo->getType()->getContainedAutoType();
   return new (C, DC,
-              additionalSizeToAlloc<std::pair<QualType, TypeSourceInfo *>>(
-                  ExpandedTypes.size()))
+              additionalSizeToAlloc<std::pair<QualType, TypeSourceInfo *>,
+                                    Expr *>(
+                  ExpandedTypes.size(), AT && AT->isConstrained() ? 1 : 0))
       NonTypeTemplateParmDecl(DC, StartLoc, IdLoc, D, P, Id, T, TInfo,
                               ExpandedTypes, ExpandedTInfos);
 }
 
 NonTypeTemplateParmDecl *
-NonTypeTemplateParmDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
-  return new (C, ID) NonTypeTemplateParmDecl(nullptr, SourceLocation(),
-                                             SourceLocation(), 0, 0, nullptr,
-                                             QualType(), false, nullptr);
+NonTypeTemplateParmDecl::CreateDeserialized(ASTContext &C, unsigned ID,
+                                            bool HasTypeConstraint) {
+  return new (C, ID, additionalSizeToAlloc<std::pair<QualType,
+                                                     TypeSourceInfo *>,
+                                           Expr *>(0,
+                                                   HasTypeConstraint ? 1 : 0))
+          NonTypeTemplateParmDecl(nullptr, SourceLocation(), SourceLocation(),
+                                  0, 0, nullptr, QualType(), false, nullptr);
 }
 
 NonTypeTemplateParmDecl *
 NonTypeTemplateParmDecl::CreateDeserialized(ASTContext &C, unsigned ID,
-                                            unsigned NumExpandedTypes) {
+                                            unsigned NumExpandedTypes,
+                                            bool HasTypeConstraint) {
   auto *NTTP =
-      new (C, ID, additionalSizeToAlloc<std::pair<QualType, TypeSourceInfo *>>(
-                      NumExpandedTypes))
+      new (C, ID, additionalSizeToAlloc<std::pair<QualType, TypeSourceInfo *>,
+                                        Expr *>(
+                      NumExpandedTypes, HasTypeConstraint ? 1 : 0))
           NonTypeTemplateParmDecl(nullptr, SourceLocation(), SourceLocation(),
                                   0, 0, nullptr, QualType(), nullptr, None,
                                   None);
@@ -892,10 +900,14 @@ void ClassTemplateSpecializationDecl::getNameForDiagnostic(
   const auto *PS = dyn_cast<ClassTemplatePartialSpecializationDecl>(this);
   if (const ASTTemplateArgumentListInfo *ArgsAsWritten =
           PS ? PS->getTemplateArgsAsWritten() : nullptr) {
-    printTemplateArgumentList(OS, ArgsAsWritten->arguments(), Policy);
+    printTemplateArgumentList(
+        OS, ArgsAsWritten->arguments(), Policy,
+        getSpecializedTemplate()->getTemplateParameters());
   } else {
     const TemplateArgumentList &TemplateArgs = getTemplateArgs();
-    printTemplateArgumentList(OS, TemplateArgs.asArray(), Policy);
+    printTemplateArgumentList(
+        OS, TemplateArgs.asArray(), Policy,
+        getSpecializedTemplate()->getTemplateParameters());
   }
 }
 
@@ -1120,7 +1132,7 @@ VarTemplateDecl::getSpecializations() const {
 }
 
 llvm::FoldingSetVector<VarTemplatePartialSpecializationDecl> &
-VarTemplateDecl::getPartialSpecializations() {
+VarTemplateDecl::getPartialSpecializations() const {
   LoadLazySpecializations();
   return getCommonPtr()->PartialSpecializations;
 }
@@ -1176,7 +1188,7 @@ void VarTemplateDecl::AddPartialSpecialization(
 }
 
 void VarTemplateDecl::getPartialSpecializations(
-    SmallVectorImpl<VarTemplatePartialSpecializationDecl *> &PS) {
+    SmallVectorImpl<VarTemplatePartialSpecializationDecl *> &PS) const {
   llvm::FoldingSetVector<VarTemplatePartialSpecializationDecl> &PartialSpecs =
       getPartialSpecializations();
   PS.clear();
@@ -1239,10 +1251,14 @@ void VarTemplateSpecializationDecl::getNameForDiagnostic(
   const auto *PS = dyn_cast<VarTemplatePartialSpecializationDecl>(this);
   if (const ASTTemplateArgumentListInfo *ArgsAsWritten =
           PS ? PS->getTemplateArgsAsWritten() : nullptr) {
-    printTemplateArgumentList(OS, ArgsAsWritten->arguments(), Policy);
+    printTemplateArgumentList(
+        OS, ArgsAsWritten->arguments(), Policy,
+        getSpecializedTemplate()->getTemplateParameters());
   } else {
     const TemplateArgumentList &TemplateArgs = getTemplateArgs();
-    printTemplateArgumentList(OS, TemplateArgs.asArray(), Policy);
+    printTemplateArgumentList(
+        OS, TemplateArgs.asArray(), Policy,
+        getSpecializedTemplate()->getTemplateParameters());
   }
 }
 
@@ -1408,4 +1424,37 @@ void TypeConstraint::print(llvm::raw_ostream &OS, PrintingPolicy Policy) const {
       ArgLoc.getArgument().print(Policy, OS);
     OS << ">";
   }
+}
+
+TemplateParamObjectDecl *TemplateParamObjectDecl::Create(const ASTContext &C,
+                                                         QualType T,
+                                                         const APValue &V) {
+  DeclContext *DC = C.getTranslationUnitDecl();
+  auto *TPOD = new (C, DC) TemplateParamObjectDecl(DC, T, V);
+  C.addDestruction(&TPOD->Value);
+  return TPOD;
+}
+
+TemplateParamObjectDecl *
+TemplateParamObjectDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
+  auto *TPOD = new (C, ID) TemplateParamObjectDecl(nullptr, QualType(), APValue());
+  C.addDestruction(&TPOD->Value);
+  return TPOD;
+}
+
+void TemplateParamObjectDecl::printName(llvm::raw_ostream &OS) const {
+  OS << "<template param ";
+  printAsExpr(OS);
+  OS << ">";
+}
+
+void TemplateParamObjectDecl::printAsExpr(llvm::raw_ostream &OS) const {
+  const ASTContext &Ctx = getASTContext();
+  getType().getUnqualifiedType().print(OS, Ctx.getPrintingPolicy());
+  printAsInit(OS);
+}
+
+void TemplateParamObjectDecl::printAsInit(llvm::raw_ostream &OS) const {
+  const ASTContext &Ctx = getASTContext();
+  getValue().printPretty(OS, Ctx, getType());
 }

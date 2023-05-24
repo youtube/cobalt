@@ -4,7 +4,7 @@
 
 define i32 @extractelement_out_of_range(<2 x i32> %x) {
 ; ANY-LABEL: @extractelement_out_of_range(
-; ANY-NEXT:    ret i32 undef
+; ANY-NEXT:    ret i32 poison
 ;
   %E1 = extractelement <2 x i32> %x, i8 16
   ret i32 %E1

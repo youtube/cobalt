@@ -2,7 +2,7 @@
 // RUN: llvm-mc -triple=arm64-linux-gnu -show-encoding -o - < %s | \
 // RUN:   FileCheck --check-prefix=CHECK-ENCODING %s
 // RUN: llvm-mc -triple=arm64-linux-gnu -filetype=obj < %s | \
-// RUN:   llvm-objdump -triple=arm64-linux-gnu - -r | \
+// RUN:   llvm-objdump --triple=arm64-linux-gnu - -r | \
 // RUN:   FileCheck %s --check-prefix=CHECK-OBJ-LP64
 
    add x0, x2, #:lo12:sym
@@ -244,6 +244,16 @@ trickQuestion:
 // CHECK-OBJ-LP64: R_AARCH64_LD64_GOT_LO12_NC sym
 // CHECK-OBJ-LP64: R_AARCH64_LD64_GOT_LO12_NC sym
 // CHECK-OBJ-LP64: R_AARCH64_LD64_GOT_LO12_NC sym+0x7
+
+  ldr x24, [x23, #:gotpage_lo15:sym]
+  ldr d22, [x21, :gotpage_lo15:sym]
+  ldr d22, [x23, :gotpage_lo15:sym+7]
+// CHECK: ldr x24, [x23, :gotpage_lo15:sym]
+// CHECK: ldr d22, [x21, :gotpage_lo15:sym]
+// CHECK: ldr d22, [x23, :gotpage_lo15:sym+7]
+// CHECK-OBJ-LP64: R_AARCH64_LD64_GOTPAGE_LO15 sym{{$}}
+// CHECK-OBJ-LP64: R_AARCH64_LD64_GOTPAGE_LO15 sym{{$}}
+// CHECK-OBJ-LP64: R_AARCH64_LD64_GOTPAGE_LO15 sym+0x7
 
    ldr x24, [x23, :dtprel_lo12_nc:sym]
    ldr d22, [x21, #:dtprel_lo12:sym]

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueFileSpec_h_
-#define liblldb_OptionValueFileSpec_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEFILESPEC_H
+#define LLDB_INTERPRETER_OPTIONVALUEFILESPEC_H
 
 #include "lldb/Interpreter/OptionValue.h"
 
@@ -41,12 +41,11 @@ public:
   SetValueFromString(const char *,
                      VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_current_value = m_default_value;
     m_value_was_set = false;
     m_data_sp.reset();
     m_data_mod_time = llvm::sys::TimePoint<>();
-    return true;
   }
 
   lldb::OptionValueSP DeepCopy() const override;
@@ -86,4 +85,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueFileSpec_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEFILESPEC_H

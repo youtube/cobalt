@@ -14,7 +14,6 @@
 #ifndef LLVM_UTILS_TABLEGEN_CODEGENDAGPATTERNS_H
 #define LLVM_UTILS_TABLEGEN_CODEGENDAGPATTERNS_H
 
-#include "CodeGenHwModes.h"
 #include "CodeGenIntrinsics.h"
 #include "CodeGenTarget.h"
 #include "SDNodeProperties.h"
@@ -42,7 +41,6 @@ class SDNodeInfo;
 class TreePattern;
 class TreePatternNode;
 class CodeGenDAGPatterns;
-class ComplexPattern;
 
 /// Shared pointer for TreePatternNode.
 using TreePatternNodePtr = std::shared_ptr<TreePatternNode>;
@@ -190,7 +188,7 @@ private:
 
 struct TypeSetByHwMode : public InfoByHwMode<MachineValueTypeSet> {
   using SetType = MachineValueTypeSet;
-  std::vector<unsigned> AddrSpaces;
+  SmallVector<unsigned, 16> AddrSpaces;
 
   TypeSetByHwMode() = default;
   TypeSetByHwMode(const TypeSetByHwMode &VTS) = default;
@@ -430,15 +428,13 @@ class ScopedName {
   std::string Identifier;
 public:
   ScopedName(unsigned Scope, StringRef Identifier)
-    : Scope(Scope), Identifier(Identifier) {
+      : Scope(Scope), Identifier(std::string(Identifier)) {
     assert(Scope != 0 &&
            "Scope == 0 is used to indicate predicates without arguments");
   }
 
   unsigned getScope() const { return Scope; }
   const std::string &getIdentifier() const { return Identifier; }
-
-  std::string getFullName() const;
 
   bool operator==(const ScopedName &o) const;
   bool operator!=(const ScopedName &o) const;
@@ -1075,8 +1071,9 @@ public:
     // The string will excute in a subclass of SelectionDAGISel.
     // Cast to std::string explicitly to avoid ambiguity with StringRef.
     std::string C = IsHwMode
-        ? std::string("MF->getSubtarget().checkFeatures(\"" + Features + "\")")
-        : std::string(Def->getValueAsString("CondString"));
+                        ? std::string("MF->getSubtarget().checkFeatures(\"" +
+                                      Features + "\")")
+                        : std::string(Def->getValueAsString("CondString"));
     if (C.empty())
       return "";
     return IfCond ? C : "!("+C+')';
@@ -1179,7 +1176,7 @@ public:
   const CodeGenTarget &getTargetInfo() const { return Target; }
   const TypeSetByHwMode &getLegalTypes() const { return LegalVTS; }
 
-  Record *getSDNodeNamed(const std::string &Name) const;
+  Record *getSDNodeNamed(StringRef Name) const;
 
   const SDNodeInfo &getSDNodeInfo(Record *R) const {
     auto F = SDNodes.find(R);

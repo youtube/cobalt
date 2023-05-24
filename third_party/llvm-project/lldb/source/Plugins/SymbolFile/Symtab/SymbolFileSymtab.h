@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_SymbolFileSymtab_h_
-#define liblldb_SymbolFileSymtab_h_
+#ifndef LLDB_SOURCE_PLUGINS_SYMBOLFILE_SYMTAB_SYMBOLFILESYMTAB_H
+#define LLDB_SOURCE_PLUGINS_SYMBOLFILE_SYMTAB_SYMBOLFILESYMTAB_H
 
 #include <map>
 #include <vector>
@@ -30,8 +30,6 @@ public:
 
   // Constructors and Destructors
   SymbolFileSymtab(lldb::ObjectFileSP objfile_sp);
-
-  ~SymbolFileSymtab() override;
 
   // Static Functions
   static void Initialize();
@@ -104,9 +102,6 @@ protected:
   lldb_private::Symtab::IndexCollection m_data_indexes;
   lldb_private::Symtab::NameToIndexMap m_objc_class_name_to_index;
   TypeMap m_objc_class_types;
-
-private:
-  DISALLOW_COPY_AND_ASSIGN(SymbolFileSymtab);
 };
 
-#endif // liblldb_SymbolFileSymtab_h_
+#endif // LLDB_SOURCE_PLUGINS_SYMBOLFILE_SYMTAB_SYMBOLFILESYMTAB_H

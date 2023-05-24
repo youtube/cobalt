@@ -28,6 +28,8 @@ static void codegen(Module *M, llvm::raw_pwrite_stream &OS,
                     function_ref<std::unique_ptr<TargetMachine>()> TMFactory,
                     CodeGenFileType FileType) {
   std::unique_ptr<TargetMachine> TM = TMFactory();
+  assert(TM && "Failed to create target machine!");
+
   legacy::PassManager CodeGenPasses;
   if (TM->addPassesToEmitFile(CodeGenPasses, OS, nullptr, FileType))
     report_fatal_error("Failed to setup codegen");
@@ -51,7 +53,7 @@ std::unique_ptr<Module> llvm::splitCodeGen(
   // Create ThreadPool in nested scope so that threads will be joined
   // on destruction.
   {
-    ThreadPool CodegenThreadPool(OSs.size());
+    ThreadPool CodegenThreadPool(hardware_concurrency(OSs.size()));
     int ThreadCount = 0;
 
     SplitModule(

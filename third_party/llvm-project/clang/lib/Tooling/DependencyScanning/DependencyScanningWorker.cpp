@@ -44,28 +44,6 @@ private:
   DependencyConsumer &C;
 };
 
-/// A proxy file system that doesn't call `chdir` when changing the working
-/// directory of a clang tool.
-class ProxyFileSystemWithoutChdir : public llvm::vfs::ProxyFileSystem {
-public:
-  ProxyFileSystemWithoutChdir(
-      llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS)
-      : ProxyFileSystem(std::move(FS)) {}
-
-  llvm::ErrorOr<std::string> getCurrentWorkingDirectory() const override {
-    assert(!CWD.empty() && "empty CWD");
-    return CWD;
-  }
-
-  std::error_code setCurrentWorkingDirectory(const Twine &Path) override {
-    CWD = Path.str();
-    return {};
-  }
-
-private:
-  std::string CWD;
-};
-
 /// A clang tool that runs the preprocessor in a mode that's optimized for
 /// dependency scanning for the given compiler invocation.
 class DependencyScanningAction : public tooling::ToolAction {
@@ -118,7 +96,7 @@ public:
             .ExcludedConditionalDirectiveSkipMappings = PPSkipMappings;
     }
 
-    FileMgr->getFileSystemOpts().WorkingDir = WorkingDirectory;
+    FileMgr->getFileSystemOpts().WorkingDir = std::string(WorkingDirectory);
     Compiler.setFileManager(FileMgr);
     Compiler.createSourceManager(*FileMgr);
 
@@ -142,12 +120,17 @@ public:
                                                         Consumer));
       break;
     case ScanningOutputFormat::Full:
-      Compiler.addDependencyCollector(
-          std::make_shared<ModuleDepCollector>(Compiler, Consumer));
+      Compiler.addDependencyCollector(std::make_shared<ModuleDepCollector>(
+          std::move(Opts), Compiler, Consumer));
       break;
     }
 
-    Consumer.handleContextHash(Compiler.getInvocation().getModuleHash());
+    // Consider different header search and diagnostic options to create
+    // different modules. This avoids the unsound aliasing of module PCMs.
+    //
+    // TODO: Implement diagnostic bucketing and header search pruning to reduce
+    // the impact of strict context hashing.
+    Compiler.getHeaderSearchOpts().ModulesStrictContextHash = true;
 
     auto Action = std::make_unique<PreprocessOnlyAction>();
     const bool Result = Compiler.ExecuteAction(*Action);
@@ -171,7 +154,7 @@ DependencyScanningWorker::DependencyScanningWorker(
     : Format(Service.getFormat()) {
   DiagOpts = new DiagnosticOptions();
   PCHContainerOps = std::make_shared<PCHContainerOperations>();
-  RealFS = new ProxyFileSystemWithoutChdir(llvm::vfs::getRealFileSystem());
+  RealFS = llvm::vfs::createPhysicalFileSystem();
   if (Service.canSkipExcludedPPRanges())
     PPSkipMappings =
         std::make_unique<ExcludedPreprocessorDirectiveSkipMapping>();

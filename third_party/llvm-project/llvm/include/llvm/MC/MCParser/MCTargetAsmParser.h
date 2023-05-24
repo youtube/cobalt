@@ -24,7 +24,6 @@
 namespace llvm {
 
 class MCInst;
-class MCParsedAsmOperand;
 class MCStreamer;
 class MCSubtargetInfo;
 template <typename T> class SmallVectorImpl;
@@ -329,12 +328,12 @@ protected: // Can only create subclasses.
   /// AvailableFeatures - The current set of available features.
   FeatureBitset AvailableFeatures;
 
-  /// ParsingInlineAsm - Are we parsing ms-style inline assembly?
-  bool ParsingInlineAsm = false;
+  /// ParsingMSInlineAsm - Are we parsing ms-style inline assembly?
+  bool ParsingMSInlineAsm = false;
 
   /// SemaCallback - The Sema callback implementation.  Must be set when parsing
   /// ms-style inline assembly.
-  MCAsmParserSemaCallback *SemaCallback;
+  MCAsmParserSemaCallback *SemaCallback = nullptr;
 
   /// Set of options which affects instrumentation of inline assembly.
   MCTargetOptions MCOptions;
@@ -359,8 +358,8 @@ public:
     AvailableFeatures = Value;
   }
 
-  bool isParsingInlineAsm () { return ParsingInlineAsm; }
-  void setParsingInlineAsm (bool Value) { ParsingInlineAsm = Value; }
+  bool isParsingMSInlineAsm () { return ParsingMSInlineAsm; }
+  void setParsingMSInlineAsm (bool Value) { ParsingMSInlineAsm = Value; }
 
   MCTargetOptions getTargetOptions() const { return MCOptions; }
 
@@ -370,11 +369,19 @@ public:
 
   // Target-specific parsing of expression.
   virtual bool parsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
-    return getParser().parsePrimaryExpr(Res, EndLoc);
+    return getParser().parsePrimaryExpr(Res, EndLoc, nullptr);
   }
 
   virtual bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                              SMLoc &EndLoc) = 0;
+
+  /// tryParseRegister - parse one register if possible
+  ///
+  /// Check whether a register specification can be parsed at the current
+  /// location, without failing the entire parse if it can't. Must not consume
+  /// tokens if the parse fails.
+  virtual OperandMatchResultTy
+  tryParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) = 0;
 
   /// ParseInstruction - Parse one assembly instruction.
   ///

@@ -1,7 +1,7 @@
 import("//llvm/utils/gn/build/toolchain/compiler.gni")
 
 supported_toolchains = []
-if (target_os == "linux" || target_os == "fuchsia")  {
+if (target_os == "linux" || target_os == "fuchsia") {
   supported_toolchains += [ "//llvm/utils/gn/build/toolchain:stage2_unix" ]
 }
 if (android_ndk_path != "") {
@@ -27,6 +27,8 @@ group("scudo") {
 # This target is unused, it only exists to satisfy
 # sync_source_lists_from_cmake.py.
 source_set("sources") {
+  configs -= [ "//llvm/utils/gn/build:llvm_code" ]
+  configs += [ "//llvm/utils/gn/build:crt_code" ]
   sources = [
     "scudo_allocator.cpp",
     "scudo_allocator.h",

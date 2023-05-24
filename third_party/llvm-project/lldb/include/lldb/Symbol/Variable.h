@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Variable_h_
-#define liblldb_Variable_h_
+#ifndef LLDB_SYMBOL_VARIABLE_H
+#define LLDB_SYMBOL_VARIABLE_H
 
 #include "lldb/Core/Mangled.h"
 #include "lldb/Expression/DWARFExpression.h"
@@ -33,7 +33,8 @@ public:
            const lldb::SymbolFileTypeSP &symfile_type_sp, lldb::ValueType scope,
            SymbolContextScope *owner_scope, const RangeList &scope_range,
            Declaration *decl, const DWARFExpression &location, bool external,
-           bool artificial, bool static_member = false);
+           bool artificial, bool location_is_constant_data,
+           bool static_member = false);
 
   virtual ~Variable();
 
@@ -63,6 +64,8 @@ public:
   lldb::LanguageType GetLanguage() const;
 
   lldb::ValueType GetScope() const { return m_scope; }
+
+  const RangeList &GetScopeRange() const { return m_scope_range; }
 
   bool IsExternal() const { return m_external; }
 
@@ -141,4 +144,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_Variable_h_
+#endif // LLDB_SYMBOL_VARIABLE_H

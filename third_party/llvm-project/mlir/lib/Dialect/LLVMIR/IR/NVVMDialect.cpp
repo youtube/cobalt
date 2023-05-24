@@ -1,6 +1,6 @@
 //===- NVVMDialect.cpp - NVVM IR Ops and Dialect registration -------------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -16,12 +16,11 @@
 
 #include "mlir/Dialect/LLVMIR/NVVMDialect.h"
 
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/OperationSupport.h"
-#include "mlir/IR/StandardTypes.h"
 #include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
@@ -41,24 +40,6 @@ static void printNVVMIntrinsicOp(OpAsmPrinter &p, Operation *op) {
     p << " : " << op->getResultTypes();
 }
 
-// <operation> ::= `llvm.nvvm.XYZ` : type
-static ParseResult parseNVVMSpecialRegisterOp(OpAsmParser &parser,
-                                              OperationState &result) {
-  Type type;
-  if (parser.parseOptionalAttrDict(result.attributes) ||
-      parser.parseColonType(type))
-    return failure();
-
-  result.addTypes(type);
-  return success();
-}
-
-static LLVM::LLVMDialect *getLlvmDialect(OpAsmParser &parser) {
-  return parser.getBuilder()
-      .getContext()
-      ->getRegisteredDialect<LLVM::LLVMDialect>();
-}
-
 // <operation> ::=
 //     `llvm.nvvm.shfl.sync.bfly %dst, %val, %offset, %clamp_and_mask`
 //      ({return_value_and_is_valid})? : result_type
@@ -72,26 +53,26 @@ static ParseResult parseNVVMShflSyncBflyOp(OpAsmParser &parser,
       parser.addTypeToList(resultType, result.types))
     return failure();
 
-  auto type = resultType.cast<LLVM::LLVMType>();
   for (auto &attr : result.attributes) {
     if (attr.first != "return_value_and_is_valid")
       continue;
-    if (type.isStructTy() && type.getStructNumElements() > 0)
-      type = type.getStructElementType(0);
+    auto structType = resultType.dyn_cast<LLVM::LLVMStructType>();
+    if (structType && !structType.getBody().empty())
+      resultType = structType.getBody()[0];
     break;
   }
 
-  auto int32Ty = LLVM::LLVMType::getInt32Ty(getLlvmDialect(parser));
-  return parser.resolveOperands(ops, {int32Ty, type, int32Ty, int32Ty},
+  auto int32Ty = IntegerType::get(parser.getBuilder().getContext(), 32);
+  return parser.resolveOperands(ops, {int32Ty, resultType, int32Ty, int32Ty},
                                 parser.getNameLoc(), result.operands);
 }
 
 // <operation> ::= `llvm.nvvm.vote.ballot.sync %mask, %pred` : result_type
 static ParseResult parseNVVMVoteBallotOp(OpAsmParser &parser,
                                          OperationState &result) {
-  auto llvmDialect = getLlvmDialect(parser);
-  auto int32Ty = LLVM::LLVMType::getInt32Ty(llvmDialect);
-  auto int1Ty = LLVM::LLVMType::getInt1Ty(llvmDialect);
+  MLIRContext *context = parser.getBuilder().getContext();
+  auto int32Ty = IntegerType::get(context, 32);
+  auto int1Ty = IntegerType::get(context, 1);
 
   SmallVector<OpAsmParser::OperandType, 8> ops;
   Type type;
@@ -103,50 +84,15 @@ static ParseResult parseNVVMVoteBallotOp(OpAsmParser &parser,
                                         parser.getNameLoc(), result.operands));
 }
 
-// <operation> ::= `llvm.nvvm.mma.sync %lhs... %rhs... %acc...`
-//                 : signature_type
-static ParseResult parseNVVMMmaOp(OpAsmParser &parser, OperationState &result) {
-  SmallVector<OpAsmParser::OperandType, 12> ops;
-  Type type;
-  llvm::SMLoc typeLoc;
-  if (parser.parseOperandList(ops) ||
-      parser.parseOptionalAttrDict(result.attributes) || parser.parseColon() ||
-      parser.getCurrentLocation(&typeLoc) || parser.parseType(type)) {
-    return failure();
-  }
-
-  auto signature = type.dyn_cast<FunctionType>();
-  if (!signature) {
-    return parser.emitError(
-        typeLoc, "expected the type to be the full list of input and output");
-  }
-
-  if (signature.getNumResults() != 1) {
-    return parser.emitError(typeLoc, "expected single result");
-  }
-
-  return failure(parser.addTypeToList(signature.getResult(0), result.types) ||
-                 parser.resolveOperands(ops, signature.getInputs(),
-                                        parser.getNameLoc(), result.operands));
-}
-
-static void printNVVMMmaOp(OpAsmPrinter &p, MmaOp &op) {
-  p << op.getOperationName() << " " << op.getOperands();
-  p.printOptionalAttrDict(op.getAttrs());
-  p << " : "
-    << FunctionType::get(llvm::to_vector<12>(op.getOperandTypes()),
-                         op.getType(), op.getContext());
-}
-
 static LogicalResult verify(MmaOp op) {
-  auto dialect = op.getContext()->getRegisteredDialect<LLVM::LLVMDialect>();
-  auto f16Ty = LLVM::LLVMType::getHalfTy(dialect);
-  auto f16x2Ty = LLVM::LLVMType::getVectorTy(f16Ty, 2);
-  auto f32Ty = LLVM::LLVMType::getFloatTy(dialect);
-  auto f16x2x4StructTy = LLVM::LLVMType::getStructTy(
-      dialect, {f16x2Ty, f16x2Ty, f16x2Ty, f16x2Ty});
-  auto f32x8StructTy = LLVM::LLVMType::getStructTy(
-      dialect, {f32Ty, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty});
+  MLIRContext *context = op.getContext();
+  auto f16Ty = Float16Type::get(context);
+  auto f16x2Ty = LLVM::getFixedVectorType(f16Ty, 2);
+  auto f32Ty = Float32Type::get(context);
+  auto f16x2x4StructTy = LLVM::LLVMStructType::getLiteral(
+      context, {f16x2Ty, f16x2Ty, f16x2Ty, f16x2Ty});
+  auto f32x8StructTy = LLVM::LLVMStructType::getLiteral(
+      context, {f32Ty, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty, f32Ty});
 
   SmallVector<Type, 12> operand_types(op.getOperandTypes().begin(),
                                       op.getOperandTypes().end());
@@ -163,8 +109,8 @@ static LogicalResult verify(MmaOp op) {
                           "<halfx2>s or 8 floats");
   }
 
-  auto alayout = op.getAttrOfType<StringAttr>("alayout");
-  auto blayout = op.getAttrOfType<StringAttr>("blayout");
+  auto alayout = op->getAttrOfType<StringAttr>("alayout");
+  auto blayout = op->getAttrOfType<StringAttr>("blayout");
 
   if (!(alayout && blayout) ||
       !(alayout.getValue() == "row" || alayout.getValue() == "col") ||
@@ -178,7 +124,7 @@ static LogicalResult verify(MmaOp op) {
                                              f32Ty, f32Ty, f32Ty, f32Ty, f32Ty,
                                              f32Ty, f32Ty, f32Ty} &&
       op.getType() == f32x8StructTy && alayout.getValue() == "row" &&
-      blayout.getValue() == "row") {
+      blayout.getValue() == "col") {
     return success();
   }
   return op.emitOpError("unimplemented mma.sync variant");
@@ -188,8 +134,8 @@ static LogicalResult verify(MmaOp op) {
 // NVVMDialect initialization, type parsing, and registration.
 //===----------------------------------------------------------------------===//
 
-// TODO(herhut): This should be the llvm.nvvm dialect once this is supported.
-NVVMDialect::NVVMDialect(MLIRContext *context) : Dialect("nvvm", context) {
+// TODO: This should be the llvm.nvvm dialect once this is supported.
+void NVVMDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "mlir/Dialect/LLVMIR/NVVMOps.cpp.inc"
@@ -199,11 +145,5 @@ NVVMDialect::NVVMDialect(MLIRContext *context) : Dialect("nvvm", context) {
   allowUnknownOperations();
 }
 
-namespace mlir {
-namespace NVVM {
 #define GET_OP_CLASSES
 #include "mlir/Dialect/LLVMIR/NVVMOps.cpp.inc"
-} // namespace NVVM
-} // namespace mlir
-
-static DialectRegistration<NVVMDialect> nvvmDialect;

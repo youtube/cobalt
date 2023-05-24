@@ -12,7 +12,7 @@
 
 // template <class... Tuples> tuple<CTypes...> tuple_cat(Tuples&&... tpls);
 
-// UNSUPPORTED: c++98, c++03
+// UNSUPPORTED: c++03
 
 #include <tuple>
 #include <utility>
@@ -263,7 +263,7 @@ int main(int, char**)
         ((void)r);
     }
     {
-        std::tuple<NS::Namespaced> t1({1});
+        std::tuple<NS::Namespaced> t1(NS::Namespaced{1});
         std::tuple<NS::Namespaced> t = std::tuple_cat(t1);
         std::tuple<NS::Namespaced, NS::Namespaced> t2 =
             std::tuple_cat(t1, t1);

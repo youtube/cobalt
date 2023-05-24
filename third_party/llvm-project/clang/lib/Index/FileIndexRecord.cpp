@@ -10,6 +10,7 @@
 #include "FileIndexRecord.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
 
@@ -51,7 +52,7 @@ void FileIndexRecord::print(llvm::raw_ostream &OS) const {
        << ':' << PLoc.getColumn();
 
     if (auto ND = dyn_cast<NamedDecl>(D)) {
-      OS << ' ' << ND->getNameAsString();
+      OS << ' ' << ND->getDeclName();
     }
 
     OS << '\n';

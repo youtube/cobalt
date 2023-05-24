@@ -7,23 +7,22 @@
 # RUN: yaml2obj --docnum=1 %s -o %t1
 # RUN: llvm-readobj -S %t1 | FileCheck %s --check-prefix=CASE1
 
+# CASE1:      Name: .dynsym
+# CASE1-NEXT: Type: SHT_DYNSYM
+# CASE1:      Name: .dynstr
+# CASE1-NEXT: Type: SHT_STRTAB
 # CASE1:      Name: .symtab
 # CASE1-NEXT: Type: SHT_SYMTAB
 # CASE1:      Name: .strtab
 # CASE1-NEXT: Type: SHT_STRTAB
 # CASE1:      Name: .shstrtab
 # CASE1-NEXT: Type: SHT_STRTAB
-# CASE1:      Name: .dynsym
-# CASE1-NEXT: Type: SHT_DYNSYM
-# CASE1:      Name: .dynstr
-# CASE1-NEXT: Type: SHT_STRTAB
 
 --- !ELF
 FileHeader:
-  Class:   ELFCLASS64
-  Data:    ELFDATA2LSB
-  Type:    ET_DYN
-  Machine: EM_X86_64
+  Class: ELFCLASS64
+  Data:  ELFDATA2LSB
+  Type:  ET_DYN
 ## Needed to force the creation of the .symtab.
 Symbols: []
 ## Needed to force the creation of the .dynsym and .dynstr.
@@ -48,10 +47,9 @@ DynamicSymbols: []
 
 --- !ELF
 FileHeader:
-  Class:   ELFCLASS64
-  Data:    ELFDATA2LSB
-  Type:    ET_DYN
-  Machine: EM_X86_64
+  Class: ELFCLASS64
+  Data:  ELFDATA2LSB
+  Type:  ET_DYN
 Sections:
   - Name: .symtab
     Type: SHT_DYNAMIC

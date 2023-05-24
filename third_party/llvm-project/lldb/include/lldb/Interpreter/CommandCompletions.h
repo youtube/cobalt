@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_CommandCompletions_h_
-#define lldb_CommandCompletions_h_
+#ifndef LLDB_INTERPRETER_COMMANDCOMPLETIONS_H
+#define LLDB_INTERPRETER_COMMANDCOMPLETIONS_H
 
 #include <set>
 
@@ -23,13 +23,6 @@ namespace lldb_private {
 class TildeExpressionResolver;
 class CommandCompletions {
 public:
-  // This is the command completion callback that is used to complete the
-  // argument of the option it is bound to (in the OptionDefinition table
-  // below).  Return the total number of matches.
-  typedef void (*CompletionCallback)(CommandInterpreter &interpreter,
-                                     CompletionRequest &request,
-                                     // A search filter to limit the search...
-                                     lldb_private::SearchFilter *searcher);
   enum CommonCompletionTypes {
     eNoCompletion = 0u,
     eSourceFileCompletion = (1u << 0),
@@ -41,15 +34,26 @@ public:
     ePlatformPluginCompletion = (1u << 6),
     eArchitectureCompletion = (1u << 7),
     eVariablePathCompletion = (1u << 8),
+    eRegisterCompletion = (1u << 9),
+    eBreakpointCompletion = (1u << 10),
+    eProcessPluginCompletion = (1u << 11),
+    eDisassemblyFlavorCompletion = (1u << 12),
+    eTypeLanguageCompletion = (1u << 13),
+    eFrameIndexCompletion = (1u << 14),
+    eModuleUUIDCompletion = (1u << 15),
+    eStopHookIDCompletion = (1u << 16),
+    eThreadIndexCompletion = (1u << 17),
+    eWatchPointIDCompletion = (1u << 18),
+    eBreakpointNameCompletion = (1u << 19),
+    eProcessIDCompletion = (1u << 20),
+    eProcessNameCompletion = (1u << 21),
+    eRemoteDiskFileCompletion = (1u << 22),
+    eRemoteDiskDirectoryCompletion = (1u << 23),
+    eTypeCategoryNameCompletion = (1u << 24),
     // This item serves two purposes.  It is the last element in the enum, so
     // you can add custom enums starting from here in your Option class. Also
     // if you & in this bit the base code will not process the option.
-    eCustomCompletion = (1u << 9)
-  };
-
-  struct CommonCompletionElement {
-    uint32_t type;
-    CompletionCallback callback;
+    eCustomCompletion = (1u << 24)
   };
 
   static bool InvokeCommonCompletionCallbacks(
@@ -71,11 +75,22 @@ public:
                               StringList &matches,
                               TildeExpressionResolver &Resolver);
 
+  static void RemoteDiskFiles(CommandInterpreter &interpreter,
+                              CompletionRequest &request,
+                              SearchFilter *searcher);
+
+  static void RemoteDiskDirectories(CommandInterpreter &interpreter,
+                                    CompletionRequest &request,
+                                    SearchFilter *searcher);
+
   static void SourceFiles(CommandInterpreter &interpreter,
                           CompletionRequest &request, SearchFilter *searcher);
 
   static void Modules(CommandInterpreter &interpreter,
                       CompletionRequest &request, SearchFilter *searcher);
+
+  static void ModuleUUIDs(CommandInterpreter &interpreter,
+                          CompletionRequest &request, SearchFilter *searcher);
 
   static void Symbols(CommandInterpreter &interpreter,
                       CompletionRequest &request, SearchFilter *searcher);
@@ -94,99 +109,50 @@ public:
   static void VariablePath(CommandInterpreter &interpreter,
                            CompletionRequest &request, SearchFilter *searcher);
 
-  // The Completer class is a convenient base class for building searchers that
-  // go along with the SearchFilter passed to the standard Completer functions.
-  class Completer : public Searcher {
-  public:
-    Completer(CommandInterpreter &interpreter, CompletionRequest &request);
+  static void Registers(CommandInterpreter &interpreter,
+                        CompletionRequest &request, SearchFilter *searcher);
 
-    ~Completer() override;
+  static void Breakpoints(CommandInterpreter &interpreter,
+                          CompletionRequest &request, SearchFilter *searcher);
 
-    CallbackReturn SearchCallback(SearchFilter &filter, SymbolContext &context,
-                                  Address *addr) override = 0;
+  static void BreakpointNames(CommandInterpreter &interpreter,
+                              CompletionRequest &request,
+                              SearchFilter *searcher);
 
-    lldb::SearchDepth GetDepth() override = 0;
+  static void ProcessPluginNames(CommandInterpreter &interpreter,
+                                 CompletionRequest &request,
+                                 SearchFilter *searcher);
 
-    virtual void DoCompletion(SearchFilter *filter) = 0;
+  static void ProcessIDs(CommandInterpreter &interpreter,
+                         CompletionRequest &request, SearchFilter *searcher);
 
-  protected:
-    CommandInterpreter &m_interpreter;
-    CompletionRequest &m_request;
+  static void ProcessNames(CommandInterpreter &interpreter,
+                           CompletionRequest &request, SearchFilter *searcher);
 
-  private:
-    DISALLOW_COPY_AND_ASSIGN(Completer);
-  };
+  static void DisassemblyFlavors(CommandInterpreter &interpreter,
+                                 CompletionRequest &request,
+                                 SearchFilter *searcher);
 
-  // SourceFileCompleter implements the source file completer
-  class SourceFileCompleter : public Completer {
-  public:
-    SourceFileCompleter(CommandInterpreter &interpreter,
-                        bool include_support_files, CompletionRequest &request);
+  static void TypeLanguages(CommandInterpreter &interpreter,
+                            CompletionRequest &request, SearchFilter *searcher);
 
-    lldb::SearchDepth GetDepth() override;
+  static void FrameIndexes(CommandInterpreter &interpreter,
+                           CompletionRequest &request, SearchFilter *searcher);
 
-    Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                            SymbolContext &context,
-                                            Address *addr) override;
+  static void StopHookIDs(CommandInterpreter &interpreter,
+                          CompletionRequest &request, SearchFilter *searcher);
 
-    void DoCompletion(SearchFilter *filter) override;
+  static void ThreadIndexes(CommandInterpreter &interpreter,
+                            CompletionRequest &request, SearchFilter *searcher);
 
-  private:
-    bool m_include_support_files;
-    FileSpecList m_matching_files;
-    const char *m_file_name;
-    const char *m_dir_name;
+  static void WatchPointIDs(CommandInterpreter &interpreter,
+                            CompletionRequest &request, SearchFilter *searcher);
 
-    DISALLOW_COPY_AND_ASSIGN(SourceFileCompleter);
-  };
-
-  // ModuleCompleter implements the module completer
-  class ModuleCompleter : public Completer {
-  public:
-    ModuleCompleter(CommandInterpreter &interpreter,
-                    CompletionRequest &request);
-
-    lldb::SearchDepth GetDepth() override;
-
-    Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                            SymbolContext &context,
-                                            Address *addr) override;
-
-    void DoCompletion(SearchFilter *filter) override;
-
-  private:
-    const char *m_file_name;
-    const char *m_dir_name;
-
-    DISALLOW_COPY_AND_ASSIGN(ModuleCompleter);
-  };
-
-  // SymbolCompleter implements the symbol completer
-  class SymbolCompleter : public Completer {
-  public:
-    SymbolCompleter(CommandInterpreter &interpreter,
-                    CompletionRequest &request);
-
-    lldb::SearchDepth GetDepth() override;
-
-    Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                            SymbolContext &context,
-                                            Address *addr) override;
-
-    void DoCompletion(SearchFilter *filter) override;
-
-  private:
-    RegularExpression m_regex;
-    typedef std::set<ConstString> collection;
-    collection m_match_set;
-
-    DISALLOW_COPY_AND_ASSIGN(SymbolCompleter);
-  };
-
-private:
-  static CommonCompletionElement g_common_completions[];
+  static void TypeCategoryNames(CommandInterpreter &interpreter,
+                                CompletionRequest &request,
+                                SearchFilter *searcher);
 };
 
 } // namespace lldb_private
 
-#endif // lldb_CommandCompletions_h_
+#endif // LLDB_INTERPRETER_COMMANDCOMPLETIONS_H

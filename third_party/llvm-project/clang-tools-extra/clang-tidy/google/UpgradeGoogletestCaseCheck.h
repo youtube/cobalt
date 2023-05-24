@@ -24,13 +24,16 @@ class UpgradeGoogletestCaseCheck : public ClangTidyCheck {
 public:
   UpgradeGoogletestCaseCheck(StringRef Name, ClangTidyContext *Context)
       : ClangTidyCheck(Name, Context) {}
+  bool isLanguageVersionSupported(const LangOptions &LangOpts) const override {
+    return LangOpts.CPlusPlus;
+  }
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP,
                            Preprocessor *ModuleExpanderPP) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
 
 private:
-  llvm::DenseSet<unsigned> MatchedTemplateLocations;
+  llvm::DenseSet<SourceLocation> MatchedTemplateLocations;
 };
 
 } // namespace google

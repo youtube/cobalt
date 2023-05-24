@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Rendezvous_H_
-#define liblldb_Rendezvous_H_
+#ifndef LLDB_SOURCE_PLUGINS_DYNAMICLOADER_POSIX_DYLD_DYLDRENDEZVOUS_H
+#define LLDB_SOURCE_PLUGINS_DYNAMICLOADER_POSIX_DYLD_DYLDRENDEZVOUS_H
 
 #include <list>
 #include <string>
@@ -59,6 +59,9 @@ public:
   };
 
   DYLDRendezvous(lldb_private::Process *process);
+
+  /// Update the cached executable path.
+  void UpdateExecutablePath();
 
   /// Update the internal snapshot of runtime linker rendezvous and recompute
   /// the currently loaded modules.

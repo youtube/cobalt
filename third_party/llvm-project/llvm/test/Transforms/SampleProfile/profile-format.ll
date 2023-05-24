@@ -4,6 +4,12 @@
 ; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/inline.compactbinary.afdo -S | FileCheck %s
 ; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/inline.extbinary.afdo -S | FileCheck %s
 ; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/inline.extbinary.afdo -S | FileCheck %s
+; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/inline.md5extbinary.afdo -S | FileCheck %s
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/inline.md5extbinary.afdo -S | FileCheck %s
+; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/inline.fixlenmd5.extbinary.afdo -S | FileCheck %s
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/inline.fixlenmd5.extbinary.afdo -S | FileCheck %s
+; RUN: not opt < %s -sample-profile -sample-profile-file=%S/Inputs/bad.extbinary.afdo -S 2>&1 | FileCheck %s -check-prefix=BAD-PROFILE
+; RUN: not opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/bad.extbinary.afdo -S 2>&1 | FileCheck %s -check-prefix=BAD-PROFILE
 
 ; Original C++ test case
 ;
@@ -34,8 +40,11 @@
 ; CHECK: ![[IDX2]] = !{!"branch_weights", i32 5280, i32 113}
 ; CHECK: ![[IDX3]] = !{!"branch_weights", i32 1}
 
+; Check sample-profile phase will report error when it is reading a bad profile.
+; BAD-PROFILE: error: {{.*}}bad.extbinary.afdo: profile reading failed: Malformed sample profile data
+
 ; Function Attrs: nounwind uwtable
-define i32 @_Z3sumii(i32 %x, i32 %y) !dbg !4 {
+define i32 @_Z3sumii(i32 %x, i32 %y) #0 !dbg !4 {
 entry:
   %x.addr = alloca i32, align 4
   %y.addr = alloca i32, align 4
@@ -48,7 +57,7 @@ entry:
 }
 
 ; Function Attrs: uwtable
-define i32 @main() !dbg !7 {
+define i32 @main() #0 !dbg !7 {
 entry:
   %retval = alloca i32, align 4
   %s = alloca i32, align 4
@@ -91,6 +100,8 @@ while.end:                                        ; preds = %while.cond
 }
 
 declare i32 @printf(i8*, ...) #2
+
+attributes #0 = { "use-sample-profile" }
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!8, !9}

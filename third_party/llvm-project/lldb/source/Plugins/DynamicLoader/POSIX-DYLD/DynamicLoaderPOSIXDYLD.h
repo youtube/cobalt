@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_DynamicLoaderPOSIXDYLD_h_
-#define liblldb_DynamicLoaderPOSIXDYLD_h_
+#ifndef LLDB_SOURCE_PLUGINS_DYNAMICLOADER_POSIX_DYLD_DYNAMICLOADERPOSIXDYLD_H
+#define LLDB_SOURCE_PLUGINS_DYNAMICLOADER_POSIX_DYLD_DYNAMICLOADERPOSIXDYLD_H
 
 #include <map>
 #include <memory>
@@ -81,6 +81,9 @@ protected:
   /// mapped to the address space
   lldb::addr_t m_interpreter_base;
 
+  /// Contains the pointer to the interpret module, if loaded.
+  std::weak_ptr<lldb_private::Module> m_interpreter_module;
+
   /// Loaded module list. (link map for each module)
   std::map<lldb::ModuleWP, lldb::addr_t, std::owner_less<lldb::ModuleWP>>
       m_loaded_modules;
@@ -94,6 +97,9 @@ protected:
   static bool RendezvousBreakpointHit(
       void *baton, lldb_private::StoppointCallbackContext *context,
       lldb::user_id_t break_id, lldb::user_id_t break_loc_id);
+
+  /// Indicates whether the initial set of modules was reported added.
+  bool m_initial_modules_added;
 
   /// Helper method for RendezvousBreakpointHit.  Updates LLDB's current set
   /// of loaded modules.
@@ -136,7 +142,7 @@ protected:
 
   void LoadVDSO();
 
-  // Loading an interpreter module (if present) assumming m_interpreter_base
+  // Loading an interpreter module (if present) assuming m_interpreter_base
   // already points to its base address.
   lldb::ModuleSP LoadInterpreterModule();
 
@@ -159,7 +165,9 @@ protected:
   bool AlwaysRelyOnEHUnwindInfo(lldb_private::SymbolContext &sym_ctx) override;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(DynamicLoaderPOSIXDYLD);
+  DynamicLoaderPOSIXDYLD(const DynamicLoaderPOSIXDYLD &) = delete;
+  const DynamicLoaderPOSIXDYLD &
+  operator=(const DynamicLoaderPOSIXDYLD &) = delete;
 };
 
-#endif // liblldb_DynamicLoaderPOSIXDYLD_h_
+#endif // LLDB_SOURCE_PLUGINS_DYNAMICLOADER_POSIX_DYLD_DYNAMICLOADERPOSIXDYLD_H

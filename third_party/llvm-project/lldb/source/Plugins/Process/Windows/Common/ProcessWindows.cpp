@@ -1,4 +1,4 @@
-//===-- ProcessWindows.cpp --------------------------------------*- C++ -*-===//
+//===-- ProcessWindows.cpp ------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -44,6 +44,8 @@
 using namespace lldb;
 using namespace lldb_private;
 
+LLDB_PLUGIN_DEFINE_ADV(ProcessWindows, ProcessWindowsCommon)
+
 namespace {
 std::string GetProcessExecutableName(HANDLE process_handle) {
   std::vector<wchar_t> file_name;
@@ -77,7 +79,8 @@ namespace lldb_private {
 
 ProcessSP ProcessWindows::CreateInstance(lldb::TargetSP target_sp,
                                          lldb::ListenerSP listener_sp,
-                                         const FileSpec *) {
+                                         const FileSpec *,
+                                         bool can_connect) {
   return ProcessSP(new ProcessWindows(target_sp, listener_sp));
 }
 
@@ -148,6 +151,9 @@ lldb_private::ConstString ProcessWindows::GetPluginName() {
 uint32_t ProcessWindows::GetPluginVersion() { return 1; }
 
 Status ProcessWindows::EnableBreakpointSite(BreakpointSite *bp_site) {
+  if (bp_site->HardwareRequired())
+    return Status("Hardware breakpoints are not supported.");
+
   Log *log = ProcessWindowsLog::GetLogIfAny(WINDOWS_LOG_BREAKPOINTS);
   LLDB_LOG(log, "bp_site = {0:x}, id={1}, addr={2:x}", bp_site,
            bp_site->GetID(), bp_site->GetLoadAddress());
@@ -504,8 +510,8 @@ bool ProcessWindows::CanDebug(lldb::TargetSP target_sp,
   return true;
 }
 
-bool ProcessWindows::UpdateThreadList(ThreadList &old_thread_list,
-                                      ThreadList &new_thread_list) {
+bool ProcessWindows::DoUpdateThreadList(ThreadList &old_thread_list,
+                                        ThreadList &new_thread_list) {
   Log *log = ProcessWindowsLog::GetLogIfAny(WINDOWS_LOG_THREAD);
   // Add all the threads that were previously running and for which we did not
   // detect a thread exited event.

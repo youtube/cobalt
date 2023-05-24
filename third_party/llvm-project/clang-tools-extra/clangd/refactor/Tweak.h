@@ -20,11 +20,11 @@
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_REFACTOR_ACTIONS_TWEAK_H
 
 #include "ParsedAST.h"
-#include "Path.h"
 #include "Protocol.h"
 #include "Selection.h"
 #include "SourceCode.h"
 #include "index/Index.h"
+#include "support/Path.h"
 #include "clang/Tooling/Core/Replacement.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringMap.h"
@@ -48,7 +48,7 @@ public:
   /// Input to prepare and apply tweaks.
   struct Selection {
     Selection(const SymbolIndex *Index, ParsedAST &AST, unsigned RangeBegin,
-              unsigned RangeEnd);
+              unsigned RangeEnd, SelectionTree ASTSelection);
     /// The text of the active document.
     llvm::StringRef Code;
     /// The Index for handling codebase related queries.
@@ -67,13 +67,6 @@ public:
     // FIXME: provide a way to get sources and ASTs for other files.
   };
 
-  /// Output of a tweak.
-  enum Intent {
-    /// Apply changes that preserve the behavior of the code.
-    Refactor,
-    /// Provide information to the user.
-    Info,
-  };
   struct Effect {
     /// A message to be displayed to the user.
     llvm::Optional<std::string> ShowMessage;
@@ -81,7 +74,7 @@ public:
 
     static Effect showMessage(StringRef S) {
       Effect E;
-      E.ShowMessage = S;
+      E.ShowMessage = std::string(S);
       return E;
     }
 
@@ -120,7 +113,7 @@ public:
   virtual std::string title() const = 0;
   /// Describes what kind of action this is.
   /// EXPECTS: prepare() was called and returned true.
-  virtual Intent intent() const = 0;
+  virtual llvm::StringLiteral kind() const = 0;
   /// Is this a 'hidden' tweak, which are off by default.
   virtual bool hidden() const { return false; }
 };

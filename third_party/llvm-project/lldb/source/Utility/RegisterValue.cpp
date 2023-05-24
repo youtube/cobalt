@@ -1,4 +1,4 @@
-//===-- RegisterValue.cpp ---------------------------------------*- C++ -*-===//
+//===-- RegisterValue.cpp -------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -138,36 +138,10 @@ bool RegisterValue::GetScalarValue(Scalar &scalar) const {
   case eTypeInvalid:
     break;
   case eTypeBytes: {
-    switch (buffer.length) {
-    default:
-      break;
-    case 1:
-      scalar = *(const uint8_t *)buffer.bytes;
+    DataExtractor data(buffer.bytes, buffer.length, buffer.byte_order, 1);
+    if (scalar.SetValueFromData(data, lldb::eEncodingUint,
+	  buffer.length).Success())
       return true;
-    case 2:
-      scalar = *reinterpret_cast<const uint16_t *>(buffer.bytes);
-      return true;
-    case 4:
-      scalar = *reinterpret_cast<const uint32_t *>(buffer.bytes);
-      return true;
-    case 8:
-      scalar = *reinterpret_cast<const uint64_t *>(buffer.bytes);
-      return true;
-    case 16:
-    case 32:
-    case 64:
-      if (buffer.length % sizeof(uint64_t) == 0) {
-        const auto length_in_bits = buffer.length * 8;
-        const auto length_in_uint64 = buffer.length / sizeof(uint64_t);
-        scalar =
-            llvm::APInt(length_in_bits,
-                        llvm::ArrayRef<uint64_t>(
-                            reinterpret_cast<const uint64_t *>(buffer.bytes),
-                            length_in_uint64));
-        return true;
-      }
-      break;
-    }
   } break;
   case eTypeUInt8:
   case eTypeUInt16:
@@ -441,7 +415,7 @@ Status RegisterValue::SetValueFromString(const RegisterInfo *reg_info,
     break;
 
   case eEncodingIEEE754: {
-    std::string value_string = value_str;
+    std::string value_string = std::string(value_str);
     if (byte_size == sizeof(float)) {
       if (::sscanf(value_string.c_str(), "%f", &flt_val) != 1) {
         error.SetErrorStringWithFormat("'%s' is not a valid float string value",
@@ -728,7 +702,8 @@ const void *RegisterValue::GetBytes() const {
   case eTypeFloat:
   case eTypeDouble:
   case eTypeLongDouble:
-    return m_scalar.GetBytes();
+    m_scalar.GetBytes(buffer.bytes);
+    return buffer.bytes;
   case eTypeBytes:
     return buffer.bytes;
   }
@@ -810,7 +785,7 @@ bool RegisterValue::operator==(const RegisterValue &rhs) const {
       if (buffer.length != rhs.buffer.length)
         return false;
       else {
-        uint8_t length = buffer.length;
+        uint16_t length = buffer.length;
         if (length > kMaxRegisterByteSize)
           length = kMaxRegisterByteSize;
         return memcmp(buffer.bytes, rhs.buffer.bytes, length) == 0;

@@ -17,23 +17,23 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_linux_s390.cpp
   sanitizer_mac.cpp
   sanitizer_netbsd.cpp
-  sanitizer_openbsd.cpp
   sanitizer_persistent_allocator.cpp
   sanitizer_platform_limits_freebsd.cpp
   sanitizer_platform_limits_linux.cpp
   sanitizer_platform_limits_netbsd.cpp
-  sanitizer_platform_limits_openbsd.cpp
   sanitizer_platform_limits_posix.cpp
   sanitizer_platform_limits_solaris.cpp
   sanitizer_posix.cpp
   sanitizer_printf.cpp
   sanitizer_procmaps_common.cpp
   sanitizer_procmaps_bsd.cpp
+  sanitizer_procmaps_fuchsia.cpp
   sanitizer_procmaps_linux.cpp
   sanitizer_procmaps_mac.cpp
   sanitizer_procmaps_solaris.cpp
   sanitizer_rtems.cpp
   sanitizer_solaris.cpp
+  sanitizer_stoptheworld_fuchsia.cpp
   sanitizer_stoptheworld_mac.cpp
   sanitizer_suppressions.cpp
   sanitizer_tls_get_addr.cpp
@@ -157,11 +157,11 @@ set(SANITIZER_IMPL_HEADERS
   sanitizer_platform.h
   sanitizer_platform_interceptors.h
   sanitizer_platform_limits_netbsd.h
-  sanitizer_platform_limits_openbsd.h
   sanitizer_platform_limits_posix.h
   sanitizer_platform_limits_solaris.h
   sanitizer_posix.h
   sanitizer_procmaps.h
+  sanitizer_ptrauth.h
   sanitizer_quarantine.h
   sanitizer_report_decorator.h
   sanitizer_ring_buffer.h
@@ -183,6 +183,7 @@ set(SANITIZER_IMPL_HEADERS
   sanitizer_syscall_linux_aarch64.inc
   sanitizer_syscall_linux_arm.inc
   sanitizer_syscall_linux_x86_64.inc
+  sanitizer_syscall_linux_riscv64.inc
   sanitizer_syscalls_netbsd.inc
   sanitizer_thread_registry.h
   sanitizer_tls_get_addr.h

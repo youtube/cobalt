@@ -37,12 +37,16 @@
 
 // CLSTDALL: cl
 // CLSTDALL-NEXT: CL
+// CLSTDALL-NEXT: cl1.0
+// CLSTDALL-NEXT: CL1.0
 // CLSTDALL-NEXT: cl1.1
 // CLSTDALL-NEXT: CL1.1
 // CLSTDALL-NEXT: cl1.2
 // CLSTDALL-NEXT: CL1.2
 // CLSTDALL-NEXT: cl2.0
 // CLSTDALL-NEXT: CL2.0
+// CLSTDALL-NEXT: cl3.0
+// CLSTDALL-NEXT: CL3.0
 // CLSTDALL-NEXT: clc++
 // CLSTDALL-NEXT: CLC++
 // RUN: %clang --autocomplete=-fno-sanitize-coverage=,f | FileCheck %s -check-prefix=FNOSANICOVER
@@ -54,6 +58,7 @@
 // FNOSANICOVERALL-NEXT: func
 // FNOSANICOVERALL-NEXT: indirect-calls
 // FNOSANICOVERALL-NEXT: inline-8bit-counters
+// FNOSANICOVERALL-NEXT: inline-bool-flag
 // FNOSANICOVERALL-NEXT: no-prune
 // FNOSANICOVERALL-NEXT: trace-bb
 // FNOSANICOVERALL-NEXT: trace-cmp
@@ -63,6 +68,7 @@
 // FNOSANICOVERALL-NEXT: trace-pc-guard
 // RUN: %clang --autocomplete=-ffp-contract= | FileCheck %s -check-prefix=FFPALL
 // FFPALL: fast
+// FFPALL-NEXT: fast-honor-pragmas 
 // FFPALL-NEXT: off
 // FFPALL-NEXT: on
 // RUN: %clang --autocomplete=-flto= | FileCheck %s -check-prefix=FLTOALL
@@ -70,6 +76,7 @@
 // FLTOALL-NEXT: thin
 // RUN: %clang --autocomplete=-fveclib= | FileCheck %s -check-prefix=FVECLIBALL
 // FVECLIBALL: Accelerate
+// FVECLIBALL-NEXT: libmvec
 // FVECLIBALL-NEXT: MASSV
 // FVECLIBALL-NEXT: none
 // FVECLIBALL-NEXT: SVML
@@ -99,6 +106,7 @@
 // WARNING-NEXT: -Wmain-return-type
 // WARNING-NEXT: -Wmalformed-warning-check
 // WARNING-NEXT: -Wmany-braces-around-scalar-init
+// WARNING-NEXT: -Wmax-tokens
 // WARNING-NEXT: -Wmax-unsigned-zero
 // RUN: %clang --autocomplete=-Wno-invalid-pp- | FileCheck %s -check-prefix=NOWARNING
 // NOWARNING: -Wno-invalid-pp-token

@@ -101,6 +101,15 @@ bool FindClassDeclX(ASTUnit *AST) {
   }
   return false;
 }
+
+struct TestDiagnosticConsumer : public DiagnosticConsumer {
+  TestDiagnosticConsumer() : NumDiagnosticsSeen(0) {}
+  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                        const Diagnostic &Info) override {
+    ++NumDiagnosticsSeen;
+  }
+  unsigned NumDiagnosticsSeen;
+};
 } // end namespace
 
 TEST(runToolOnCode, FindsClassDecl) {
@@ -127,6 +136,16 @@ TEST(buildASTFromCode, FindsClassDecl) {
   AST = buildASTFromCode("class Y;");
   ASSERT_TRUE(AST.get());
   EXPECT_FALSE(FindClassDeclX(AST.get()));
+}
+
+TEST(buildASTFromCode, ReportsErrors) {
+  TestDiagnosticConsumer Consumer;
+  std::unique_ptr<ASTUnit> AST = buildASTFromCodeWithArgs(
+      "int x = \"A\";", {}, "input.cc", "clang-tool",
+      std::make_shared<PCHContainerOperations>(),
+      getClangStripDependencyFileAdjuster(), FileContentMappings(), &Consumer);
+  EXPECT_TRUE(AST.get());
+  EXPECT_EQ(1u, Consumer.NumDiagnosticsSeen);
 }
 
 TEST(newFrontendActionFactory, CreatesFrontendActionFactoryFromType) {
@@ -325,9 +344,9 @@ TEST(runToolOnCodeWithArgs, TestNoDepFile) {
   std::vector<std::string> Args;
   Args.push_back("-MMD");
   Args.push_back("-MT");
-  Args.push_back(DepFilePath.str());
+  Args.push_back(std::string(DepFilePath.str()));
   Args.push_back("-MF");
-  Args.push_back(DepFilePath.str());
+  Args.push_back(std::string(DepFilePath.str()));
   EXPECT_TRUE(runToolOnCodeWithArgs(std::make_unique<SkipBodyAction>(), "", Args));
   EXPECT_FALSE(llvm::sys::fs::exists(DepFilePath.str()));
   EXPECT_FALSE(llvm::sys::fs::remove(DepFilePath.str()));
@@ -511,6 +530,73 @@ TEST(ClangToolTest, StripDependencyFileAdjuster) {
   EXPECT_TRUE(HasFlag("-w"));
 }
 
+// Check getClangStripDependencyFileAdjuster strips /showIncludes and variants
+TEST(ClangToolTest, StripDependencyFileAdjusterShowIncludes) {
+  FixedCompilationDatabase Compilations(
+      "/", {"/showIncludes", "/showIncludes:user", "-showIncludes",
+            "-showIncludes:user", "-c"});
+
+  ClangTool Tool(Compilations, std::vector<std::string>(1, "/a.cc"));
+  Tool.mapVirtualFile("/a.cc", "void a() {}");
+
+  std::unique_ptr<FrontendActionFactory> Action(
+      newFrontendActionFactory<SyntaxOnlyAction>());
+
+  CommandLineArguments FinalArgs;
+  ArgumentsAdjuster CheckFlagsAdjuster =
+      [&FinalArgs](const CommandLineArguments &Args, StringRef /*unused*/) {
+        FinalArgs = Args;
+        return Args;
+      };
+  Tool.clearArgumentsAdjusters();
+  Tool.appendArgumentsAdjuster(getClangStripDependencyFileAdjuster());
+  Tool.appendArgumentsAdjuster(CheckFlagsAdjuster);
+  Tool.run(Action.get());
+
+  auto HasFlag = [&FinalArgs](const std::string &Flag) {
+    return llvm::find(FinalArgs, Flag) != FinalArgs.end();
+  };
+  EXPECT_FALSE(HasFlag("/showIncludes"));
+  EXPECT_FALSE(HasFlag("/showIncludes:user"));
+  EXPECT_FALSE(HasFlag("-showIncludes"));
+  EXPECT_FALSE(HasFlag("-showIncludes:user"));
+  EXPECT_TRUE(HasFlag("-c"));
+}
+
+// Check getClangStripDependencyFileAdjuster doesn't strip args when using the
+// MSVC cl.exe driver
+TEST(ClangToolTest, StripDependencyFileAdjusterMsvc) {
+  FixedCompilationDatabase Compilations(
+      "/", {"--driver-mode=cl", "-MD", "-MDd", "-MT", "-O1", "-MTd", "-MP"});
+
+  ClangTool Tool(Compilations, std::vector<std::string>(1, "/a.cc"));
+  Tool.mapVirtualFile("/a.cc", "void a() {}");
+
+  std::unique_ptr<FrontendActionFactory> Action(
+      newFrontendActionFactory<SyntaxOnlyAction>());
+
+  CommandLineArguments FinalArgs;
+  ArgumentsAdjuster CheckFlagsAdjuster =
+      [&FinalArgs](const CommandLineArguments &Args, StringRef /*unused*/) {
+        FinalArgs = Args;
+        return Args;
+      };
+  Tool.clearArgumentsAdjusters();
+  Tool.appendArgumentsAdjuster(getClangStripDependencyFileAdjuster());
+  Tool.appendArgumentsAdjuster(CheckFlagsAdjuster);
+  Tool.run(Action.get());
+
+  auto HasFlag = [&FinalArgs](const std::string &Flag) {
+    return llvm::find(FinalArgs, Flag) != FinalArgs.end();
+  };
+  EXPECT_TRUE(HasFlag("-MD"));
+  EXPECT_TRUE(HasFlag("-MDd"));
+  EXPECT_TRUE(HasFlag("-MT"));
+  EXPECT_TRUE(HasFlag("-O1"));
+  EXPECT_TRUE(HasFlag("-MTd"));
+  EXPECT_TRUE(HasFlag("-MP"));
+}
+
 // Check getClangStripPluginsAdjuster strips plugin related args.
 TEST(ClangToolTest, StripPluginsAdjuster) {
   FixedCompilationDatabase Compilations(
@@ -552,8 +638,9 @@ std::string getAnyTarget() {
     StringRef TargetName(Target.getName());
     if (TargetName == "x86-64")
       TargetName = "x86_64";
-    if (llvm::TargetRegistry::lookupTarget(TargetName, Error) == &Target) {
-      return TargetName;
+    if (llvm::TargetRegistry::lookupTarget(std::string(TargetName), Error) ==
+        &Target) {
+      return std::string(TargetName);
     }
   }
   return "";
@@ -568,7 +655,7 @@ TEST(addTargetAndModeForProgramName, AddsTargetAndMode) {
   addTargetAndModeForProgramName(Args, "");
   EXPECT_EQ((std::vector<std::string>{"clang", "-foo"}), Args);
   addTargetAndModeForProgramName(Args, Target + "-g++");
-  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target,
+  EXPECT_EQ((std::vector<std::string>{"clang", "--target=" + Target,
                                       "--driver-mode=g++", "-foo"}),
             Args);
 }
@@ -582,7 +669,7 @@ TEST(addTargetAndModeForProgramName, PathIgnored) {
 
   std::vector<std::string> Args = {"clang", "-foo"};
   addTargetAndModeForProgramName(Args, ToolPath);
-  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target,
+  EXPECT_EQ((std::vector<std::string>{"clang", "--target=" + Target,
                                       "--driver-mode=g++", "-foo"}),
             Args);
 }
@@ -597,10 +684,10 @@ TEST(addTargetAndModeForProgramName, IgnoresExistingTarget) {
                                       "-target", "something"}),
             Args);
 
-  std::vector<std::string> ArgsAlt = {"clang", "-foo", "-target=something"};
+  std::vector<std::string> ArgsAlt = {"clang", "-foo", "--target=something"};
   addTargetAndModeForProgramName(ArgsAlt, Target + "-g++");
   EXPECT_EQ((std::vector<std::string>{"clang", "--driver-mode=g++", "-foo",
-                                      "-target=something"}),
+                                      "--target=something"}),
             ArgsAlt);
 }
 
@@ -610,15 +697,9 @@ TEST(addTargetAndModeForProgramName, IgnoresExistingMode) {
 
   std::vector<std::string> Args = {"clang", "-foo", "--driver-mode=abc"};
   addTargetAndModeForProgramName(Args, Target + "-g++");
-  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target, "-foo",
+  EXPECT_EQ((std::vector<std::string>{"clang", "--target=" + Target, "-foo",
                                       "--driver-mode=abc"}),
             Args);
-
-  std::vector<std::string> ArgsAlt = {"clang", "-foo", "--driver-mode", "abc"};
-  addTargetAndModeForProgramName(ArgsAlt, Target + "-g++");
-  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target, "-foo",
-                                      "--driver-mode", "abc"}),
-            ArgsAlt);
 }
 
 #ifndef _WIN32
@@ -637,15 +718,6 @@ TEST(ClangToolTest, BuildASTs) {
   EXPECT_EQ(0, Tool.buildASTs(ASTs));
   EXPECT_EQ(2u, ASTs.size());
 }
-
-struct TestDiagnosticConsumer : public DiagnosticConsumer {
-  TestDiagnosticConsumer() : NumDiagnosticsSeen(0) {}
-  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
-                        const Diagnostic &Info) override {
-    ++NumDiagnosticsSeen;
-  }
-  unsigned NumDiagnosticsSeen;
-};
 
 TEST(ClangToolTest, InjectDiagnosticConsumer) {
   FixedCompilationDatabase Compilations("/", std::vector<std::string>());

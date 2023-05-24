@@ -54,7 +54,8 @@ func:
 // PIC64-NEXT:      R_MIPS_PC32/R_MIPS_NONE/R_MIPS_NONE
 // RELOCS-NEXT:   }
 
-// DWARF32: 00000000 00000010 ffffffff CIE
+// DWARF32: 00000000 00000010 00000000 CIE
+// DWARF32-NEXT:     Format:                DWARF32
 // DWARF32-NEXT:     Version:               1
 // DWARF32-NEXT:     Augmentation:          "zR"
 // DWARF32-NEXT:     Code alignment factor: 1
@@ -65,15 +66,18 @@ func:
 // DWARF32_PIC-NEXT: Augmentation data: 1B
 //                                      ^^ fde pointer encoding: DW_EH_PE_pcrel | DW_EH_PE_sdata4
 // DWARF32-EMPTY:
-// DWARF32-NEXT:     DW_CFA_def_cfa_register: reg29
+// DWARF32-NEXT:     DW_CFA_def_cfa_register: SP_64
 //
-// DWARF32: 00000014 00000010 00000018 FDE cie=00000018 pc=00000000...00000000
+// DWARF32_ABS: 00000014 00000010 00000018 FDE cie=00000000 pc=00000000...00000000
+// DWARF32_PIC: 00000014 00000010 00000018 FDE cie=00000000 pc=0000001c...0000001c
+// DWARF32-NEXT:     Format:       DWARF32
 // DWARF32-NEXT:     DW_CFA_nop:
 // DWARF32-NEXT:     DW_CFA_nop:
 // DWARF32-NEXT:     DW_CFA_nop:
 
 
-// DWARF64: 00000000 00000010 ffffffff CIE
+// DWARF64: 00000000 00000010 00000000 CIE
+// DWARF64-NEXT:     Format:                DWARF32
 // DWARF64-NEXT:     Version:               1
 // DWARF64-NEXT:     Augmentation:          "zR"
 // DWARF64-NEXT:     Code alignment factor: 1
@@ -86,11 +90,12 @@ func:
 // DWARF64_PIC:      Augmentation data: 1B
 //                                      ^^ fde pointer encoding: DW_EH_PE_pcrel | DW_EH_PE_sdata4
 // DWARF64-EMPTY:
-// DWARF64-NEXT:     DW_CFA_def_cfa_register: reg29
+// DWARF64-NEXT:     DW_CFA_def_cfa_register: SP_64
 // DWARF64_PIC-NEXT: DW_CFA_nop:
 //
-// DWARF64_ABS:      00000014 00000018 00000018 FDE cie=00000018 pc=00000000...00000000
-// DWARF64_PIC:      00000014 00000010 00000018 FDE cie=00000018 pc=00000000...00000000
+// DWARF64_ABS:      00000014 00000018 00000018 FDE cie=00000000 pc=00000000...00000000
+// DWARF64_PIC:      00000014 00000010 00000018 FDE cie=00000000 pc=00000000...00000000
+// DWARF64-NEXT:     Format:       DWARF32
 // DWARF64-NEXT:     DW_CFA_nop:
 // DWARF64-NEXT:     DW_CFA_nop:
 // DWARF64-NEXT:     DW_CFA_nop:

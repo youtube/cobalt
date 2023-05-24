@@ -40,7 +40,7 @@
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compression.h"
-#include "llvm/Support/Endian.h"
+#include "llvm/Support/EndianStream.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Host.h"
@@ -73,7 +73,7 @@ class ELFObjectWriter;
 struct ELFWriter;
 
 bool isDwoSection(const MCSectionELF &Sec) {
-  return Sec.getSectionName().endswith(".dwo");
+  return Sec.getName().endswith(".dwo");
 }
 
 class SymbolTableWriter {
@@ -343,7 +343,7 @@ void ELFWriter::align(unsigned Alignment) {
 
 unsigned ELFWriter::addToSectionTable(const MCSectionELF *Sec) {
   SectionTable.push_back(Sec);
-  StrTabBuilder.add(Sec->getSectionName());
+  StrTabBuilder.add(Sec->getName());
   return SectionTable.size();
 }
 
@@ -464,7 +464,7 @@ void ELFWriter::writeHeader(const MCAssembler &Asm) {
 
 uint64_t ELFWriter::SymbolValue(const MCSymbol &Sym,
                                 const MCAsmLayout &Layout) {
-  if (Sym.isCommon() && (Sym.isTargetCommon() || Sym.isExternal()))
+  if (Sym.isCommon())
     return Sym.getCommonAlignment();
 
   uint64_t Res;
@@ -640,7 +640,7 @@ void ELFWriter::computeSymbolTable(
       continue;
 
     if (Symbol.isTemporary() && Symbol.isUndefined()) {
-      Ctx.reportError(SMLoc(), "Undefined temporary symbol");
+      Ctx.reportError(SMLoc(), "Undefined temporary symbol " + Symbol.getName());
       continue;
     }
 
@@ -784,7 +784,7 @@ MCSectionELF *ELFWriter::createRelocationSection(MCContext &Ctx,
   if (OWriter.Relocations[&Sec].empty())
     return nullptr;
 
-  const StringRef SectionName = Sec.getSectionName();
+  const StringRef SectionName = Sec.getName();
   std::string RelaSectionName = hasRelocationAddend() ? ".rela" : ".rel";
   RelaSectionName += SectionName;
 
@@ -843,7 +843,7 @@ bool ELFWriter::maybeWriteCompression(
 void ELFWriter::writeSectionData(const MCAssembler &Asm, MCSection &Sec,
                                  const MCAsmLayout &Layout) {
   MCSectionELF &Section = static_cast<MCSectionELF &>(Sec);
-  StringRef SectionName = Section.getSectionName();
+  StringRef SectionName = Section.getName();
 
   auto &MC = Asm.getContext();
   const auto &MAI = MC.getAsmInfo();
@@ -1001,7 +1001,7 @@ void ELFWriter::writeSection(const SectionIndexMapTy &SectionIndexMap,
   case ELF::SHT_RELA: {
     sh_link = SymbolTableIndex;
     assert(sh_link && ".symtab not found");
-    const MCSection *InfoSection = Section.getAssociatedSection();
+    const MCSection *InfoSection = Section.getLinkedToSection();
     sh_info = SectionIndexMap.lookup(cast<MCSectionELF>(InfoSection));
     break;
   }
@@ -1024,12 +1024,16 @@ void ELFWriter::writeSection(const SectionIndexMapTy &SectionIndexMap,
   }
 
   if (Section.getFlags() & ELF::SHF_LINK_ORDER) {
-    const MCSymbol *Sym = Section.getAssociatedSymbol();
-    const MCSectionELF *Sec = cast<MCSectionELF>(&Sym->getSection());
-    sh_link = SectionIndexMap.lookup(Sec);
+    // If the value in the associated metadata is not a definition, Sym will be
+    // undefined. Represent this with sh_link=0.
+    const MCSymbol *Sym = Section.getLinkedToSymbol();
+    if (Sym && Sym->isInSection()) {
+      const MCSectionELF *Sec = cast<MCSectionELF>(&Sym->getSection());
+      sh_link = SectionIndexMap.lookup(Sec);
+    }
   }
 
-  WriteSecHdrEntry(StrTabBuilder.getOffset(Section.getSectionName()),
+  WriteSecHdrEntry(StrTabBuilder.getOffset(Section.getName()),
                    Section.getType(), Section.getFlags(), 0, Offset, Size,
                    sh_link, sh_info, Section.getAlignment(),
                    Section.getEntrySize());
@@ -1180,7 +1184,7 @@ uint64_t ELFWriter::writeObject(MCAssembler &Asm, const MCAsmLayout &Layout) {
       uint64_t SecStart = W.OS.tell();
 
       writeRelocations(Asm,
-                       cast<MCSectionELF>(*RelSection->getAssociatedSection()));
+                       cast<MCSectionELF>(*RelSection->getLinkedToSection()));
 
       uint64_t SecEnd = W.OS.tell();
       SectionOffsets[RelSection] = std::make_pair(SecStart, SecEnd);
@@ -1254,9 +1258,9 @@ void ELFObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
                                                const MCAsmLayout &Layout) {
   // The presence of symbol versions causes undefined symbols and
   // versions declared with @@@ to be renamed.
-  for (const std::pair<StringRef, const MCSymbol *> &P : Asm.Symvers) {
-    StringRef AliasName = P.first;
-    const auto &Symbol = cast<MCSymbolELF>(*P.second);
+  for (const MCAssembler::Symver &S : Asm.Symvers) {
+    StringRef AliasName = S.Name;
+    const auto &Symbol = cast<MCSymbolELF>(*S.Sym);
     size_t Pos = AliasName.find('@');
     assert(Pos != StringRef::npos);
 
@@ -1274,25 +1278,23 @@ void ELFObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
 
     // Aliases defined with .symvar copy the binding from the symbol they alias.
     // This is the first place we are able to copy this information.
-    Alias->setExternal(Symbol.isExternal());
     Alias->setBinding(Symbol.getBinding());
+    Alias->setVisibility(Symbol.getVisibility());
     Alias->setOther(Symbol.getOther());
 
     if (!Symbol.isUndefined() && !Rest.startswith("@@@"))
       continue;
 
-    // FIXME: Get source locations for these errors or diagnose them earlier.
     if (Symbol.isUndefined() && Rest.startswith("@@") &&
         !Rest.startswith("@@@")) {
-      Asm.getContext().reportError(SMLoc(), "versioned symbol " + AliasName +
-                                                " must be defined");
+      Asm.getContext().reportError(S.Loc, "default version symbol " +
+                                              AliasName + " must be defined");
       continue;
     }
 
     if (Renames.count(&Symbol) && Renames[&Symbol] != Alias) {
-      Asm.getContext().reportError(
-          SMLoc(), llvm::Twine("multiple symbol versions defined for ") +
-                       Symbol.getName());
+      Asm.getContext().reportError(S.Loc, Twine("multiple versions for ") +
+                                              Symbol.getName());
       continue;
     }
 
@@ -1390,9 +1392,10 @@ bool ELFObjectWriter::shouldRelocateWithSymbol(const MCAssembler &Asm,
       if (C != 0)
         return true;
 
-      // It looks like gold has a bug (http://sourceware.org/PR16794) and can
-      // only handle section relocations to mergeable sections if using RELA.
-      if (!hasRelocationAddend())
+      // gold<2.34 incorrectly ignored the addend for R_386_GOTOFF (9)
+      // (http://sourceware.org/PR16794).
+      if (TargetObjectWriter->getEMachine() == ELF::EM_386 &&
+          Type == ELF::R_386_GOTOFF)
         return true;
     }
 

@@ -1,4 +1,4 @@
-//===-- MIMGInstructions.td - MIMG Instruction Defintions -----------------===//
+//===-- MIMGInstructions.td - MIMG Instruction Definitions ----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -35,6 +35,7 @@ class MIMGBaseOpcode : PredicateControl {
   bit Gather4 = 0;
   bits<8> NumExtraArgs = 0;
   bit Gradients = 0;
+  bit G16 = 0;
   bit Coordinates = 1;
   bit LodOrClampOrMip = 0;
   bit HasD16 = 0;
@@ -47,10 +48,10 @@ def MIMGBaseOpcode : GenericEnum {
 def MIMGBaseOpcodesTable : GenericTable {
   let FilterClass = "MIMGBaseOpcode";
   let CppTypeName = "MIMGBaseOpcodeInfo";
-  let Fields = ["BaseOpcode", "Store", "Atomic", "AtomicX2", "Sampler", "Gather4",
-                "NumExtraArgs", "Gradients", "Coordinates", "LodOrClampOrMip",
-                "HasD16"];
-  GenericEnum TypeOf_BaseOpcode = MIMGBaseOpcode;
+  let Fields = ["BaseOpcode", "Store", "Atomic", "AtomicX2", "Sampler",
+                "Gather4", "NumExtraArgs", "Gradients", "G16", "Coordinates",
+                "LodOrClampOrMip", "HasD16"];
+  string TypeOf_BaseOpcode = "MIMGBaseOpcode";
 
   let PrimaryKey = ["BaseOpcode"];
   let PrimaryKeyName = "getMIMGBaseOpcodeInfo";
@@ -64,7 +65,7 @@ def MIMGDimInfoTable : GenericTable {
   let FilterClass = "AMDGPUDimProps";
   let CppTypeName = "MIMGDimInfo";
   let Fields = ["Dim", "NumCoords", "NumGradients", "DA", "Encoding", "AsmSuffix"];
-  GenericEnum TypeOf_Dim = MIMGDim;
+  string TypeOf_Dim = "MIMGDim";
 
   let PrimaryKey = ["Dim"];
   let PrimaryKeyName = "getMIMGDimInfo";
@@ -94,8 +95,8 @@ def MIMGLZMappingTable : GenericTable {
   let FilterClass = "MIMGLZMapping";
   let CppTypeName = "MIMGLZMappingInfo";
   let Fields = ["L", "LZ"];
-  GenericEnum TypeOf_L = MIMGBaseOpcode;
-  GenericEnum TypeOf_LZ = MIMGBaseOpcode;
+  string TypeOf_L = "MIMGBaseOpcode";
+  string TypeOf_LZ = "MIMGBaseOpcode";
 
   let PrimaryKey = ["L"];
   let PrimaryKeyName = "getMIMGLZMappingInfo";
@@ -110,11 +111,27 @@ def MIMGMIPMappingTable : GenericTable {
   let FilterClass = "MIMGMIPMapping";
   let CppTypeName = "MIMGMIPMappingInfo";
   let Fields = ["MIP", "NONMIP"];
-  GenericEnum TypeOf_MIP = MIMGBaseOpcode;
-  GenericEnum TypeOf_NONMIP = MIMGBaseOpcode;
+  string TypeOf_MIP = "MIMGBaseOpcode";
+  string TypeOf_NONMIP = "MIMGBaseOpcode";
 
   let PrimaryKey = ["MIP"];
   let PrimaryKeyName = "getMIMGMIPMappingInfo";
+}
+
+class MIMGG16Mapping<MIMGBaseOpcode g, MIMGBaseOpcode g16> {
+  MIMGBaseOpcode G = g;
+  MIMGBaseOpcode G16 = g16;
+}
+
+def MIMGG16MappingTable : GenericTable {
+  let FilterClass = "MIMGG16Mapping";
+  let CppTypeName = "MIMGG16MappingInfo";
+  let Fields = ["G", "G16"];
+  string TypeOf_G = "MIMGBaseOpcode";
+  string TypeOf_G16 = "MIMGBaseOpcode";
+
+  let PrimaryKey = ["G"];
+  let PrimaryKeyName = "getMIMGG16MappingInfo";
 }
 
 class MIMG_Base <dag outs, string dns = "">
@@ -131,8 +148,7 @@ class MIMG_Base <dag outs, string dns = "">
   let hasSideEffects = 0; // XXX ????
 
   let DecoderNamespace = dns;
-  let isAsmParserOnly = !if(!eq(dns,""), 1, 0);
-  let usesCustomInserter = 1;
+  let isAsmParserOnly = !eq(dns, "");
 }
 
 class MIMG <dag outs, string dns = "">
@@ -152,8 +168,8 @@ def MIMGInfoTable : GenericTable {
   let FilterClass = "MIMG";
   let CppTypeName = "MIMGInfo";
   let Fields = ["Opcode", "BaseOpcode", "MIMGEncoding", "VDataDwords", "VAddrDwords"];
-  GenericEnum TypeOf_BaseOpcode = MIMGBaseOpcode;
-  GenericEnum TypeOf_MIMGEncoding = MIMGEncoding;
+  string TypeOf_BaseOpcode = "MIMGBaseOpcode";
+  string TypeOf_MIMGEncoding = "MIMGEncoding";
 
   let PrimaryKey = ["BaseOpcode", "MIMGEncoding", "VDataDwords", "VAddrDwords"];
   let PrimaryKeyName = "getMIMGOpcodeHelper";
@@ -164,14 +180,14 @@ def getMIMGInfo : SearchIndex {
   let Key = ["Opcode"];
 }
 
-// This is a separate class so that TableGen memoizes the computations.
+// This class used to use !foldl to memoize the AddrAsmNames list.
+// It turned out that that was much slower than using !filter.
 class MIMGNSAHelper<int num_addrs> {
   list<string> AddrAsmNames =
-    !foldl([]<string>, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], lhs, i,
-           !if(!lt(i, num_addrs), !listconcat(lhs, ["vaddr"#!size(lhs)]), lhs));
+    !foreach(i, !filter(i, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                        !lt(i, num_addrs)), "vaddr" # i);
   dag AddrIns = !dag(ins, !foreach(arg, AddrAsmNames, VGPR_32), AddrAsmNames);
-  string AddrAsm = "[" # !foldl("$" # !head(AddrAsmNames), !tail(AddrAsmNames), lhs, rhs,
-                                lhs # ", $" # rhs) # "]";
+  string AddrAsm = "[$" # !interleave(AddrAsmNames, ", $") # "]";
 
   int NSA = !if(!le(num_addrs, 1), ?,
             !if(!le(num_addrs, 5), 1,
@@ -238,9 +254,9 @@ class MIMG_NoSampler_gfx10<int op, string opcode,
   : MIMG_gfx10<op, (outs DataRC:$vdata), dns> {
   let InOperandList = !con((ins AddrRC:$vaddr0, SReg_256:$srsrc, DMask:$dmask,
                                 Dim:$dim, UNorm:$unorm, DLC:$dlc, GLC:$glc,
-                                SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe),
+                                SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
-  let AsmString = opcode#" $vdata, $vaddr0, $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$tfe$lwe"
+  let AsmString = opcode#" $vdata, $vaddr0, $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$a16$tfe$lwe"
                     #!if(BaseOpcode.HasD16, "$d16", "");
 }
 
@@ -251,9 +267,9 @@ class MIMG_NoSampler_nsa_gfx10<int op, string opcode,
   let InOperandList = !con(AddrIns,
                            (ins SReg_256:$srsrc, DMask:$dmask,
                                 Dim:$dim, UNorm:$unorm, DLC:$dlc, GLC:$glc,
-                                SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe),
+                                SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
-  let AsmString = opcode#" $vdata, "#AddrAsm#", $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$tfe$lwe"
+  let AsmString = opcode#" $vdata, "#AddrAsm#", $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$a16$tfe$lwe"
                     #!if(BaseOpcode.HasD16, "$d16", "");
 }
 
@@ -292,13 +308,13 @@ multiclass MIMG_NoSampler_Src_Helper <bits<8> op, string asm,
 multiclass MIMG_NoSampler <bits<8> op, string asm, bit has_d16, bit mip = 0,
                            bit isResInfo = 0> {
   def "" : MIMGBaseOpcode {
-    let Coordinates = !if(isResInfo, 0, 1);
+    let Coordinates = !not(isResInfo);
     let LodOrClampOrMip = mip;
     let HasD16 = has_d16;
   }
 
   let BaseOpcode = !cast<MIMGBaseOpcode>(NAME),
-      mayLoad = !if(isResInfo, 0, 1) in {
+      mayLoad = !not(isResInfo) in {
     let VDataDwords = 1 in
     defm _V1 : MIMG_NoSampler_Src_Helper <op, asm, VGPR_32, 1>;
     let VDataDwords = 2 in
@@ -331,9 +347,9 @@ class MIMG_Store_gfx10<int op, string opcode,
   : MIMG_gfx10<op, (outs), dns> {
   let InOperandList = !con((ins DataRC:$vdata, AddrRC:$vaddr0, SReg_256:$srsrc,
                                 DMask:$dmask, Dim:$dim, UNorm:$unorm, DLC:$dlc,
-                                GLC:$glc, SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe),
+                                GLC:$glc, SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
-  let AsmString = opcode#" $vdata, $vaddr0, $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$tfe$lwe"
+  let AsmString = opcode#" $vdata, $vaddr0, $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$a16$tfe$lwe"
                     #!if(BaseOpcode.HasD16, "$d16", "");
 }
 
@@ -345,9 +361,9 @@ class MIMG_Store_nsa_gfx10<int op, string opcode,
                            AddrIns,
                            (ins SReg_256:$srsrc, DMask:$dmask,
                                 Dim:$dim, UNorm:$unorm, DLC:$dlc, GLC:$glc,
-                                SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe),
+                                SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
-  let AsmString = opcode#" $vdata, "#AddrAsm#", $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$tfe$lwe"
+  let AsmString = opcode#" $vdata, "#AddrAsm#", $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$a16$tfe$lwe"
                     #!if(BaseOpcode.HasD16, "$d16", "");
 }
 
@@ -397,6 +413,8 @@ multiclass MIMG_Store <bits<8> op, string asm, bit has_d16, bit mip = 0> {
     defm _V3 : MIMG_Store_Addr_Helper <op, asm, VReg_96, 0>;
     let VDataDwords = 4 in
     defm _V4 : MIMG_Store_Addr_Helper <op, asm, VReg_128, 0>;
+    let VDataDwords = 5 in
+    defm _V5 : MIMG_Store_Addr_Helper <op, asm, VReg_160, 0>;
   }
 }
 
@@ -436,8 +454,8 @@ class MIMG_Atomic_gfx10<mimg op, string opcode,
 
   let InOperandList = (ins DataRC:$vdata, AddrRC:$vaddr0, SReg_256:$srsrc,
                            DMask:$dmask, Dim:$dim, UNorm:$unorm, DLC:$dlc,
-                           GLC:$glc, SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe);
-  let AsmString = opcode#" $vdst, $vaddr0, $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$tfe$lwe";
+                           GLC:$glc, SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe);
+  let AsmString = opcode#" $vdst, $vaddr0, $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$a16$tfe$lwe";
 }
 
 class MIMG_Atomic_nsa_gfx10<mimg op, string opcode,
@@ -452,8 +470,8 @@ class MIMG_Atomic_nsa_gfx10<mimg op, string opcode,
                            AddrIns,
                            (ins SReg_256:$srsrc, DMask:$dmask,
                                 Dim:$dim, UNorm:$unorm, DLC:$dlc, GLC:$glc,
-                                SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe));
-  let AsmString = opcode#" $vdata, "#AddrAsm#", $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$tfe$lwe";
+                                SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe));
+  let AsmString = opcode#" $vdata, "#AddrAsm#", $srsrc$dmask$dim$unorm$dlc$glc$slc$r128$a16$tfe$lwe";
 }
 
 multiclass MIMG_Atomic_Addr_Helper_m <mimg op, string asm,
@@ -522,10 +540,10 @@ class MIMG_Sampler_gfx10<int op, string opcode,
   : MIMG_gfx10<op, (outs DataRC:$vdata), dns> {
   let InOperandList = !con((ins AddrRC:$vaddr0, SReg_256:$srsrc, SReg_128:$ssamp,
                                 DMask:$dmask, Dim:$dim, UNorm:$unorm, DLC:$dlc,
-                                GLC:$glc, SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe),
+                                GLC:$glc, SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
   let AsmString = opcode#" $vdata, $vaddr0, $srsrc, $ssamp$dmask$dim$unorm"
-                    #"$dlc$glc$slc$r128$tfe$lwe"
+                    #"$dlc$glc$slc$r128$a16$tfe$lwe"
                     #!if(BaseOpcode.HasD16, "$d16", "");
 }
 
@@ -536,10 +554,10 @@ class MIMG_Sampler_nsa_gfx10<int op, string opcode,
   let InOperandList = !con(AddrIns,
                            (ins SReg_256:$srsrc, SReg_128:$ssamp, DMask:$dmask,
                                 Dim:$dim, UNorm:$unorm, DLC:$dlc, GLC:$glc,
-                                SLC:$slc, R128A16:$r128, TFE:$tfe, LWE:$lwe),
+                                SLC:$slc, R128A16:$r128, GFX10A16:$a16, TFE:$tfe, LWE:$lwe),
                            !if(BaseOpcode.HasD16, (ins D16:$d16), (ins)));
   let AsmString = opcode#" $vdata, "#AddrAsm#", $srsrc, $ssamp$dmask$dim$unorm"
-                    #"$dlc$glc$slc$r128$tfe$lwe"
+                    #"$dlc$glc$slc$r128$a16$tfe$lwe"
                     #!if(BaseOpcode.HasD16, "$d16", "");
 }
 
@@ -646,14 +664,15 @@ class MIMG_Sampler_BaseOpcode<AMDGPUSampleVariant sample>
 }
 
 multiclass MIMG_Sampler <bits<8> op, AMDGPUSampleVariant sample, bit wqm = 0,
-                         bit isGetLod = 0,
-                         string asm = "image_sample"#sample.LowerCaseMod> {
+                         bit isG16 = 0, bit isGetLod = 0,
+                         string asm = "image_sample"#sample.LowerCaseMod#!if(isG16, "_g16", "")> {
   def "" : MIMG_Sampler_BaseOpcode<sample> {
-    let HasD16 = !if(isGetLod, 0, 1);
+    let HasD16 = !not(isGetLod);
+    let G16 = isG16;
   }
 
   let BaseOpcode = !cast<MIMGBaseOpcode>(NAME), WQM = wqm,
-      mayLoad = !if(isGetLod, 0, 1) in {
+      mayLoad = !not(isGetLod) in {
     let VDataDwords = 1 in
     defm _V1 : MIMG_Sampler_Src_Helper<op, asm, sample, VGPR_32, 1>;
     let VDataDwords = 2 in
@@ -691,6 +710,55 @@ multiclass MIMG_Gather <bits<8> op, AMDGPUSampleVariant sample, bit wqm = 0,
 multiclass MIMG_Gather_WQM <bits<8> op, AMDGPUSampleVariant sample>
     : MIMG_Gather<op, sample, 1>;
 
+class MIMG_IntersectRay_gfx10<int op, string opcode, RegisterClass AddrRC, bit A16>
+    : MIMG_gfx10<op, (outs VReg_128:$vdata), "AMDGPU"> {
+
+  let InOperandList = !con((ins AddrRC:$vaddr0, SReg_128:$srsrc),
+                           !if(A16, (ins GFX10A16:$a16), (ins)));
+  let AsmString = opcode#" $vdata, $vaddr0, $srsrc"#!if(A16, "$a16", "");
+
+  let nsa = 0;
+}
+
+class MIMG_IntersectRay_nsa_gfx10<int op, string opcode, int num_addrs, bit A16>
+    : MIMG_nsa_gfx10<op, (outs VReg_128:$vdata), num_addrs, "AMDGPU"> {
+  let InOperandList = !con(nsah.AddrIns,
+                           (ins SReg_128:$srsrc),
+                           !if(A16, (ins GFX10A16:$a16), (ins)));
+  let AsmString = opcode#" $vdata, "#nsah.AddrAsm#", $srsrc"#!if(A16, "$a16", "");
+}
+
+multiclass MIMG_IntersectRay<int op, string opcode, int num_addrs, bit A16> {
+  def "" : MIMGBaseOpcode;
+  let SubtargetPredicate = HasGFX10_BEncoding,
+      AssemblerPredicate = HasGFX10_BEncoding,
+      AsmMatchConverter = !if(A16, "cvtIntersectRay", ""),
+      dmask = 0xf,
+      unorm = 1,
+      d16 = 0,
+      glc = 0,
+      slc = 0,
+      dlc = 0,
+      tfe = 0,
+      lwe = 0,
+      r128 = 1,
+      ssamp = 0,
+      dim = {0, 0, 0},
+      a16 = A16,
+      d16 = 0,
+      BaseOpcode = !cast<MIMGBaseOpcode>(NAME),
+      VDataDwords = 4 in {
+    // TODO: MIMGAddrSize will choose VReg_512 which is a 16 register tuple,
+    // when we only need 9, 11 or 12 depending on A16 field and ptr size.
+    def "_sa" : MIMG_IntersectRay_gfx10<op, opcode, MIMGAddrSize<num_addrs, 0>.RegClass, A16> {
+      let VAddrDwords = !srl(MIMGAddrSize<num_addrs, 0>.RegClass.Size, 5);
+    }
+    def _nsa : MIMG_IntersectRay_nsa_gfx10<op, opcode, num_addrs, A16> {
+      let VAddrDwords = num_addrs;
+    }
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // MIMG Instructions
 //===----------------------------------------------------------------------===//
@@ -726,75 +794,99 @@ defm IMAGE_ATOMIC_DEC : MIMG_Atomic <mimg<0x1c>, "image_atomic_dec">;
 //def IMAGE_ATOMIC_FMIN : MIMG_NoPattern_ <"image_atomic_fmin", 0x0000001e>; -- not on VI
 //def IMAGE_ATOMIC_FMAX : MIMG_NoPattern_ <"image_atomic_fmax", 0x0000001f>; -- not on VI
 //} // End let FPAtomic = 1
-defm IMAGE_SAMPLE           : MIMG_Sampler_WQM <0x00000020, AMDGPUSample>;
-defm IMAGE_SAMPLE_CL        : MIMG_Sampler_WQM <0x00000021, AMDGPUSample_cl>;
-defm IMAGE_SAMPLE_D         : MIMG_Sampler <0x00000022, AMDGPUSample_d>;
-defm IMAGE_SAMPLE_D_CL      : MIMG_Sampler <0x00000023, AMDGPUSample_d_cl>;
-defm IMAGE_SAMPLE_L         : MIMG_Sampler <0x00000024, AMDGPUSample_l>;
-defm IMAGE_SAMPLE_B         : MIMG_Sampler_WQM <0x00000025, AMDGPUSample_b>;
-defm IMAGE_SAMPLE_B_CL      : MIMG_Sampler_WQM <0x00000026, AMDGPUSample_b_cl>;
-defm IMAGE_SAMPLE_LZ        : MIMG_Sampler <0x00000027, AMDGPUSample_lz>;
-defm IMAGE_SAMPLE_C         : MIMG_Sampler_WQM <0x00000028, AMDGPUSample_c>;
-defm IMAGE_SAMPLE_C_CL      : MIMG_Sampler_WQM <0x00000029, AMDGPUSample_c_cl>;
-defm IMAGE_SAMPLE_C_D       : MIMG_Sampler <0x0000002a, AMDGPUSample_c_d>;
-defm IMAGE_SAMPLE_C_D_CL    : MIMG_Sampler <0x0000002b, AMDGPUSample_c_d_cl>;
-defm IMAGE_SAMPLE_C_L       : MIMG_Sampler <0x0000002c, AMDGPUSample_c_l>;
-defm IMAGE_SAMPLE_C_B       : MIMG_Sampler_WQM <0x0000002d, AMDGPUSample_c_b>;
-defm IMAGE_SAMPLE_C_B_CL    : MIMG_Sampler_WQM <0x0000002e, AMDGPUSample_c_b_cl>;
-defm IMAGE_SAMPLE_C_LZ      : MIMG_Sampler <0x0000002f, AMDGPUSample_c_lz>;
-defm IMAGE_SAMPLE_O         : MIMG_Sampler_WQM <0x00000030, AMDGPUSample_o>;
-defm IMAGE_SAMPLE_CL_O      : MIMG_Sampler_WQM <0x00000031, AMDGPUSample_cl_o>;
-defm IMAGE_SAMPLE_D_O       : MIMG_Sampler <0x00000032, AMDGPUSample_d_o>;
-defm IMAGE_SAMPLE_D_CL_O    : MIMG_Sampler <0x00000033, AMDGPUSample_d_cl_o>;
-defm IMAGE_SAMPLE_L_O       : MIMG_Sampler <0x00000034, AMDGPUSample_l_o>;
-defm IMAGE_SAMPLE_B_O       : MIMG_Sampler_WQM <0x00000035, AMDGPUSample_b_o>;
-defm IMAGE_SAMPLE_B_CL_O    : MIMG_Sampler_WQM <0x00000036, AMDGPUSample_b_cl_o>;
-defm IMAGE_SAMPLE_LZ_O      : MIMG_Sampler <0x00000037, AMDGPUSample_lz_o>;
-defm IMAGE_SAMPLE_C_O       : MIMG_Sampler_WQM <0x00000038, AMDGPUSample_c_o>;
-defm IMAGE_SAMPLE_C_CL_O    : MIMG_Sampler_WQM <0x00000039, AMDGPUSample_c_cl_o>;
-defm IMAGE_SAMPLE_C_D_O     : MIMG_Sampler <0x0000003a, AMDGPUSample_c_d_o>;
-defm IMAGE_SAMPLE_C_D_CL_O  : MIMG_Sampler <0x0000003b, AMDGPUSample_c_d_cl_o>;
-defm IMAGE_SAMPLE_C_L_O     : MIMG_Sampler <0x0000003c, AMDGPUSample_c_l_o>;
-defm IMAGE_SAMPLE_C_B_CL_O  : MIMG_Sampler_WQM <0x0000003e, AMDGPUSample_c_b_cl_o>;
-defm IMAGE_SAMPLE_C_B_O     : MIMG_Sampler_WQM <0x0000003d, AMDGPUSample_c_b_o>;
-defm IMAGE_SAMPLE_C_LZ_O    : MIMG_Sampler <0x0000003f, AMDGPUSample_c_lz_o>;
-defm IMAGE_GATHER4          : MIMG_Gather_WQM <0x00000040, AMDGPUSample>;
-defm IMAGE_GATHER4_CL       : MIMG_Gather_WQM <0x00000041, AMDGPUSample_cl>;
-defm IMAGE_GATHER4_L        : MIMG_Gather <0x00000044, AMDGPUSample_l>;
-defm IMAGE_GATHER4_B        : MIMG_Gather_WQM <0x00000045, AMDGPUSample_b>;
-defm IMAGE_GATHER4_B_CL     : MIMG_Gather_WQM <0x00000046, AMDGPUSample_b_cl>;
-defm IMAGE_GATHER4_LZ       : MIMG_Gather <0x00000047, AMDGPUSample_lz>;
-defm IMAGE_GATHER4_C        : MIMG_Gather_WQM <0x00000048, AMDGPUSample_c>;
-defm IMAGE_GATHER4_C_CL     : MIMG_Gather_WQM <0x00000049, AMDGPUSample_c_cl>;
-defm IMAGE_GATHER4_C_L      : MIMG_Gather <0x0000004c, AMDGPUSample_c_l>;
-defm IMAGE_GATHER4_C_B      : MIMG_Gather_WQM <0x0000004d, AMDGPUSample_c_b>;
-defm IMAGE_GATHER4_C_B_CL   : MIMG_Gather_WQM <0x0000004e, AMDGPUSample_c_b_cl>;
-defm IMAGE_GATHER4_C_LZ     : MIMG_Gather <0x0000004f, AMDGPUSample_c_lz>;
-defm IMAGE_GATHER4_O        : MIMG_Gather_WQM <0x00000050, AMDGPUSample_o>;
-defm IMAGE_GATHER4_CL_O     : MIMG_Gather_WQM <0x00000051, AMDGPUSample_cl_o>;
-defm IMAGE_GATHER4_L_O      : MIMG_Gather <0x00000054, AMDGPUSample_l_o>;
-defm IMAGE_GATHER4_B_O      : MIMG_Gather_WQM <0x00000055, AMDGPUSample_b_o>;
-defm IMAGE_GATHER4_B_CL_O   : MIMG_Gather <0x00000056, AMDGPUSample_b_cl_o>;
-defm IMAGE_GATHER4_LZ_O     : MIMG_Gather <0x00000057, AMDGPUSample_lz_o>;
-defm IMAGE_GATHER4_C_O      : MIMG_Gather_WQM <0x00000058, AMDGPUSample_c_o>;
-defm IMAGE_GATHER4_C_CL_O   : MIMG_Gather_WQM <0x00000059, AMDGPUSample_c_cl_o>;
-defm IMAGE_GATHER4_C_L_O    : MIMG_Gather <0x0000005c, AMDGPUSample_c_l_o>;
-defm IMAGE_GATHER4_C_B_O    : MIMG_Gather_WQM <0x0000005d, AMDGPUSample_c_b_o>;
-defm IMAGE_GATHER4_C_B_CL_O : MIMG_Gather_WQM <0x0000005e, AMDGPUSample_c_b_cl_o>;
-defm IMAGE_GATHER4_C_LZ_O   : MIMG_Gather <0x0000005f, AMDGPUSample_c_lz_o>;
+defm IMAGE_SAMPLE               : MIMG_Sampler_WQM <0x00000020, AMDGPUSample>;
+defm IMAGE_SAMPLE_CL            : MIMG_Sampler_WQM <0x00000021, AMDGPUSample_cl>;
+defm IMAGE_SAMPLE_D             : MIMG_Sampler <0x00000022, AMDGPUSample_d>;
+defm IMAGE_SAMPLE_D_CL          : MIMG_Sampler <0x00000023, AMDGPUSample_d_cl>;
+defm IMAGE_SAMPLE_D_G16         : MIMG_Sampler <0x000000a2, AMDGPUSample_d, 0, 1>;
+defm IMAGE_SAMPLE_D_CL_G16      : MIMG_Sampler <0x000000a3, AMDGPUSample_d_cl, 0, 1>;
+defm IMAGE_SAMPLE_L             : MIMG_Sampler <0x00000024, AMDGPUSample_l>;
+defm IMAGE_SAMPLE_B             : MIMG_Sampler_WQM <0x00000025, AMDGPUSample_b>;
+defm IMAGE_SAMPLE_B_CL          : MIMG_Sampler_WQM <0x00000026, AMDGPUSample_b_cl>;
+defm IMAGE_SAMPLE_LZ            : MIMG_Sampler <0x00000027, AMDGPUSample_lz>;
+defm IMAGE_SAMPLE_C             : MIMG_Sampler_WQM <0x00000028, AMDGPUSample_c>;
+defm IMAGE_SAMPLE_C_CL          : MIMG_Sampler_WQM <0x00000029, AMDGPUSample_c_cl>;
+defm IMAGE_SAMPLE_C_D           : MIMG_Sampler <0x0000002a, AMDGPUSample_c_d>;
+defm IMAGE_SAMPLE_C_D_CL        : MIMG_Sampler <0x0000002b, AMDGPUSample_c_d_cl>;
+defm IMAGE_SAMPLE_C_D_G16       : MIMG_Sampler <0x000000aa, AMDGPUSample_c_d, 0, 1>;
+defm IMAGE_SAMPLE_C_D_CL_G16    : MIMG_Sampler <0x000000ab, AMDGPUSample_c_d_cl, 0, 1>;
+defm IMAGE_SAMPLE_C_L           : MIMG_Sampler <0x0000002c, AMDGPUSample_c_l>;
+defm IMAGE_SAMPLE_C_B           : MIMG_Sampler_WQM <0x0000002d, AMDGPUSample_c_b>;
+defm IMAGE_SAMPLE_C_B_CL        : MIMG_Sampler_WQM <0x0000002e, AMDGPUSample_c_b_cl>;
+defm IMAGE_SAMPLE_C_LZ          : MIMG_Sampler <0x0000002f, AMDGPUSample_c_lz>;
+defm IMAGE_SAMPLE_O             : MIMG_Sampler_WQM <0x00000030, AMDGPUSample_o>;
+defm IMAGE_SAMPLE_CL_O          : MIMG_Sampler_WQM <0x00000031, AMDGPUSample_cl_o>;
+defm IMAGE_SAMPLE_D_O           : MIMG_Sampler <0x00000032, AMDGPUSample_d_o>;
+defm IMAGE_SAMPLE_D_CL_O        : MIMG_Sampler <0x00000033, AMDGPUSample_d_cl_o>;
+defm IMAGE_SAMPLE_D_O_G16       : MIMG_Sampler <0x000000b2, AMDGPUSample_d_o, 0, 1>;
+defm IMAGE_SAMPLE_D_CL_O_G16    : MIMG_Sampler <0x000000b3, AMDGPUSample_d_cl_o, 0, 1>;
+defm IMAGE_SAMPLE_L_O           : MIMG_Sampler <0x00000034, AMDGPUSample_l_o>;
+defm IMAGE_SAMPLE_B_O           : MIMG_Sampler_WQM <0x00000035, AMDGPUSample_b_o>;
+defm IMAGE_SAMPLE_B_CL_O        : MIMG_Sampler_WQM <0x00000036, AMDGPUSample_b_cl_o>;
+defm IMAGE_SAMPLE_LZ_O          : MIMG_Sampler <0x00000037, AMDGPUSample_lz_o>;
+defm IMAGE_SAMPLE_C_O           : MIMG_Sampler_WQM <0x00000038, AMDGPUSample_c_o>;
+defm IMAGE_SAMPLE_C_CL_O        : MIMG_Sampler_WQM <0x00000039, AMDGPUSample_c_cl_o>;
+defm IMAGE_SAMPLE_C_D_O         : MIMG_Sampler <0x0000003a, AMDGPUSample_c_d_o>;
+defm IMAGE_SAMPLE_C_D_CL_O      : MIMG_Sampler <0x0000003b, AMDGPUSample_c_d_cl_o>;
+defm IMAGE_SAMPLE_C_D_O_G16     : MIMG_Sampler <0x000000ba, AMDGPUSample_c_d_o, 0, 1>;
+defm IMAGE_SAMPLE_C_D_CL_O_G16  : MIMG_Sampler <0x000000bb, AMDGPUSample_c_d_cl_o, 0, 1>;
+defm IMAGE_SAMPLE_C_L_O         : MIMG_Sampler <0x0000003c, AMDGPUSample_c_l_o>;
+defm IMAGE_SAMPLE_C_B_CL_O      : MIMG_Sampler_WQM <0x0000003e, AMDGPUSample_c_b_cl_o>;
+defm IMAGE_SAMPLE_C_B_O         : MIMG_Sampler_WQM <0x0000003d, AMDGPUSample_c_b_o>;
+defm IMAGE_SAMPLE_C_LZ_O        : MIMG_Sampler <0x0000003f, AMDGPUSample_c_lz_o>;
+defm IMAGE_GATHER4              : MIMG_Gather_WQM <0x00000040, AMDGPUSample>;
+defm IMAGE_GATHER4_CL           : MIMG_Gather_WQM <0x00000041, AMDGPUSample_cl>;
+defm IMAGE_GATHER4_L            : MIMG_Gather <0x00000044, AMDGPUSample_l>;
+defm IMAGE_GATHER4_B            : MIMG_Gather_WQM <0x00000045, AMDGPUSample_b>;
+defm IMAGE_GATHER4_B_CL         : MIMG_Gather_WQM <0x00000046, AMDGPUSample_b_cl>;
+defm IMAGE_GATHER4_LZ           : MIMG_Gather <0x00000047, AMDGPUSample_lz>;
+defm IMAGE_GATHER4_C            : MIMG_Gather_WQM <0x00000048, AMDGPUSample_c>;
+defm IMAGE_GATHER4_C_CL         : MIMG_Gather_WQM <0x00000049, AMDGPUSample_c_cl>;
+defm IMAGE_GATHER4_C_L          : MIMG_Gather <0x0000004c, AMDGPUSample_c_l>;
+defm IMAGE_GATHER4_C_B          : MIMG_Gather_WQM <0x0000004d, AMDGPUSample_c_b>;
+defm IMAGE_GATHER4_C_B_CL       : MIMG_Gather_WQM <0x0000004e, AMDGPUSample_c_b_cl>;
+defm IMAGE_GATHER4_C_LZ         : MIMG_Gather <0x0000004f, AMDGPUSample_c_lz>;
+defm IMAGE_GATHER4_O            : MIMG_Gather_WQM <0x00000050, AMDGPUSample_o>;
+defm IMAGE_GATHER4_CL_O         : MIMG_Gather_WQM <0x00000051, AMDGPUSample_cl_o>;
+defm IMAGE_GATHER4_L_O          : MIMG_Gather <0x00000054, AMDGPUSample_l_o>;
+defm IMAGE_GATHER4_B_O          : MIMG_Gather_WQM <0x00000055, AMDGPUSample_b_o>;
+defm IMAGE_GATHER4_B_CL_O       : MIMG_Gather <0x00000056, AMDGPUSample_b_cl_o>;
+defm IMAGE_GATHER4_LZ_O         : MIMG_Gather <0x00000057, AMDGPUSample_lz_o>;
+defm IMAGE_GATHER4_C_O          : MIMG_Gather_WQM <0x00000058, AMDGPUSample_c_o>;
+defm IMAGE_GATHER4_C_CL_O       : MIMG_Gather_WQM <0x00000059, AMDGPUSample_c_cl_o>;
+defm IMAGE_GATHER4_C_L_O        : MIMG_Gather <0x0000005c, AMDGPUSample_c_l_o>;
+defm IMAGE_GATHER4_C_B_O        : MIMG_Gather_WQM <0x0000005d, AMDGPUSample_c_b_o>;
+defm IMAGE_GATHER4_C_B_CL_O     : MIMG_Gather_WQM <0x0000005e, AMDGPUSample_c_b_cl_o>;
+defm IMAGE_GATHER4_C_LZ_O       : MIMG_Gather <0x0000005f, AMDGPUSample_c_lz_o>;
 
-defm IMAGE_GET_LOD          : MIMG_Sampler <0x00000060, AMDGPUSample, 1, 1, "image_get_lod">;
+defm IMAGE_GET_LOD              : MIMG_Sampler <0x00000060, AMDGPUSample, 1, 0, 1, "image_get_lod">;
 
-defm IMAGE_SAMPLE_CD        : MIMG_Sampler <0x00000068, AMDGPUSample_cd>;
-defm IMAGE_SAMPLE_CD_CL     : MIMG_Sampler <0x00000069, AMDGPUSample_cd_cl>;
-defm IMAGE_SAMPLE_C_CD      : MIMG_Sampler <0x0000006a, AMDGPUSample_c_cd>;
-defm IMAGE_SAMPLE_C_CD_CL   : MIMG_Sampler <0x0000006b, AMDGPUSample_c_cd_cl>;
-defm IMAGE_SAMPLE_CD_O      : MIMG_Sampler <0x0000006c, AMDGPUSample_cd_o>;
-defm IMAGE_SAMPLE_CD_CL_O   : MIMG_Sampler <0x0000006d, AMDGPUSample_cd_cl_o>;
-defm IMAGE_SAMPLE_C_CD_O    : MIMG_Sampler <0x0000006e, AMDGPUSample_c_cd_o>;
-defm IMAGE_SAMPLE_C_CD_CL_O : MIMG_Sampler <0x0000006f, AMDGPUSample_c_cd_cl_o>;
+defm IMAGE_SAMPLE_CD            : MIMG_Sampler <0x00000068, AMDGPUSample_cd>;
+defm IMAGE_SAMPLE_CD_CL         : MIMG_Sampler <0x00000069, AMDGPUSample_cd_cl>;
+defm IMAGE_SAMPLE_C_CD          : MIMG_Sampler <0x0000006a, AMDGPUSample_c_cd>;
+defm IMAGE_SAMPLE_C_CD_CL       : MIMG_Sampler <0x0000006b, AMDGPUSample_c_cd_cl>;
+defm IMAGE_SAMPLE_CD_O          : MIMG_Sampler <0x0000006c, AMDGPUSample_cd_o>;
+defm IMAGE_SAMPLE_CD_CL_O       : MIMG_Sampler <0x0000006d, AMDGPUSample_cd_cl_o>;
+defm IMAGE_SAMPLE_C_CD_O        : MIMG_Sampler <0x0000006e, AMDGPUSample_c_cd_o>;
+defm IMAGE_SAMPLE_C_CD_CL_O     : MIMG_Sampler <0x0000006f, AMDGPUSample_c_cd_cl_o>;
+defm IMAGE_SAMPLE_CD_G16        : MIMG_Sampler <0x000000e8, AMDGPUSample_cd, 0, 1>;
+defm IMAGE_SAMPLE_CD_CL_G16     : MIMG_Sampler <0x000000e9, AMDGPUSample_cd_cl, 0, 1>;
+defm IMAGE_SAMPLE_C_CD_G16      : MIMG_Sampler <0x000000ea, AMDGPUSample_c_cd, 0, 1>;
+defm IMAGE_SAMPLE_C_CD_CL_G16   : MIMG_Sampler <0x000000eb, AMDGPUSample_c_cd_cl, 0, 1>;
+defm IMAGE_SAMPLE_CD_O_G16      : MIMG_Sampler <0x000000ec, AMDGPUSample_cd_o, 0, 1>;
+defm IMAGE_SAMPLE_CD_CL_O_G16   : MIMG_Sampler <0x000000ed, AMDGPUSample_cd_cl_o, 0, 1>;
+defm IMAGE_SAMPLE_C_CD_O_G16    : MIMG_Sampler <0x000000ee, AMDGPUSample_c_cd_o, 0, 1>;
+defm IMAGE_SAMPLE_C_CD_CL_O_G16 : MIMG_Sampler <0x000000ef, AMDGPUSample_c_cd_cl_o, 0, 1>;
 //def IMAGE_RSRC256 : MIMG_NoPattern_RSRC256 <"image_rsrc256", 0x0000007e>;
 //def IMAGE_SAMPLER : MIMG_NoPattern_ <"image_sampler", 0x0000007f>;
+
+let SubtargetPredicate = HasGFX10_BEncoding in
+defm IMAGE_MSAA_LOAD : MIMG_NoSampler <0x00000080, "image_msaa_load", 1>;
+
+defm IMAGE_BVH_INTERSECT_RAY       : MIMG_IntersectRay<0xe6, "image_bvh_intersect_ray", 11, 0>;
+defm IMAGE_BVH_INTERSECT_RAY_a16   : MIMG_IntersectRay<0xe6, "image_bvh_intersect_ray", 8, 1>;
+defm IMAGE_BVH64_INTERSECT_RAY     : MIMG_IntersectRay<0xe7, "image_bvh64_intersect_ray", 12, 0>;
+defm IMAGE_BVH64_INTERSECT_RAY_a16 : MIMG_IntersectRay<0xe7, "image_bvh64_intersect_ray", 9, 1>;
 
 /********** ========================================= **********/
 /********** Table of dimension-aware image intrinsics **********/
@@ -804,17 +896,49 @@ class ImageDimIntrinsicInfo<AMDGPUImageDimIntrinsic I> {
   Intrinsic Intr = I;
   MIMGBaseOpcode BaseOpcode = !cast<MIMGBaseOpcode>(!strconcat("IMAGE_", I.P.OpMod));
   AMDGPUDimProps Dim = I.P.Dim;
+  AMDGPUImageDimIntrinsicEval DimEval = AMDGPUImageDimIntrinsicEval<I.P>;
+
+  bits<8> NumGradients = DimEval.NumGradientArgs;
+  bits<8> NumDmask = DimEval.NumDmaskArgs;
+  bits<8> NumData = DimEval.NumDataArgs;
+  bits<8> NumVAddrs = DimEval.NumVAddrArgs;
+  bits<8> NumArgs = !add(DimEval.CachePolicyArgIndex, 1);
+
+  bits<8> DMaskIndex = DimEval.DmaskArgIndex;
+  bits<8> VAddrStart = DimEval.VAddrArgIndex;
+  bits<8> GradientStart = DimEval.GradientArgIndex;
+  bits<8> CoordStart = DimEval.CoordArgIndex;
+  bits<8> LodIndex = DimEval.LodArgIndex;
+  bits<8> MipIndex = DimEval.MipArgIndex;
+  bits<8> VAddrEnd = !add(DimEval.VAddrArgIndex, DimEval.NumVAddrArgs);
+  bits<8> RsrcIndex = DimEval.RsrcArgIndex;
+  bits<8> SampIndex = DimEval.SampArgIndex;
+  bits<8> UnormIndex = DimEval.UnormArgIndex;
+  bits<8> TexFailCtrlIndex = DimEval.TexFailCtrlArgIndex;
+  bits<8> CachePolicyIndex = DimEval.CachePolicyArgIndex;
+
+  bits<8> GradientTyArg = !add(I.P.NumRetAndDataAnyTypes,
+    !foldl(0, I.P.ExtraAddrArgs, cnt, arg, !add(cnt, arg.Type.isAny)));
+  bits<8> CoordTyArg = !add(GradientTyArg, !if(I.P.Gradients, 1, 0));
 }
 
 def ImageDimIntrinsicTable : GenericTable {
   let FilterClass = "ImageDimIntrinsicInfo";
-  let Fields = ["Intr", "BaseOpcode", "Dim"];
-  GenericEnum TypeOf_BaseOpcode = MIMGBaseOpcode;
-  GenericEnum TypeOf_Dim = MIMGDim;
+  let Fields = ["Intr", "BaseOpcode", "Dim", "NumGradients", "NumDmask", "NumData", "NumVAddrs", "NumArgs",
+    "DMaskIndex", "VAddrStart", "GradientStart", "CoordStart", "LodIndex", "MipIndex", "VAddrEnd",
+    "RsrcIndex", "SampIndex", "UnormIndex", "TexFailCtrlIndex", "CachePolicyIndex",
+    "GradientTyArg", "CoordTyArg"];
+  string TypeOf_BaseOpcode = "MIMGBaseOpcode";
+  string TypeOf_Dim = "MIMGDim";
 
   let PrimaryKey = ["Intr"];
   let PrimaryKeyName = "getImageDimIntrinsicInfo";
   let PrimaryKeyEarlyOut = 1;
+}
+
+def getImageDimInstrinsicByBaseOpcode : SearchIndex {
+  let Table = ImageDimIntrinsicTable;
+  let Key = ["BaseOpcode", "Dim"];
 }
 
 foreach intr = !listconcat(AMDGPUImageDimIntrinsics,
@@ -835,3 +959,21 @@ def : MIMGLZMapping<IMAGE_GATHER4_C_L_O, IMAGE_GATHER4_C_LZ_O>;
 // MIP to NONMIP Optimization Mapping
 def : MIMGMIPMapping<IMAGE_LOAD_MIP, IMAGE_LOAD>;
 def : MIMGMIPMapping<IMAGE_STORE_MIP, IMAGE_STORE>;
+
+// G to G16 Optimization Mapping
+def : MIMGG16Mapping<IMAGE_SAMPLE_D, IMAGE_SAMPLE_D_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_D_CL, IMAGE_SAMPLE_D_CL_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_D, IMAGE_SAMPLE_C_D_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_D_CL, IMAGE_SAMPLE_C_D_CL_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_D_O, IMAGE_SAMPLE_D_O_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_D_CL_O, IMAGE_SAMPLE_D_CL_O_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_D_O, IMAGE_SAMPLE_C_D_O_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_D_CL_O, IMAGE_SAMPLE_C_D_CL_O_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_CD, IMAGE_SAMPLE_CD_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_CD_CL, IMAGE_SAMPLE_CD_CL_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_CD, IMAGE_SAMPLE_C_CD_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_CD_CL, IMAGE_SAMPLE_C_CD_CL_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_CD_O, IMAGE_SAMPLE_CD_O_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_CD_CL_O, IMAGE_SAMPLE_CD_CL_O_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_CD_O, IMAGE_SAMPLE_C_CD_O_G16>;
+def : MIMGG16Mapping<IMAGE_SAMPLE_C_CD_CL_O, IMAGE_SAMPLE_C_CD_CL_O_G16>;

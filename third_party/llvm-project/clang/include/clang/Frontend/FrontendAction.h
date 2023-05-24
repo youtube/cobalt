@@ -145,7 +145,7 @@ public:
     assert(!CurrentInput.isEmpty() && "No current file!");
     return CurrentInput.isFile()
                ? CurrentInput.getFile()
-               : CurrentInput.getBuffer()->getBufferIdentifier();
+               : CurrentInput.getBuffer().getBufferIdentifier();
   }
 
   InputKind getCurrentFileKind() const {
@@ -312,6 +312,7 @@ protected:
   bool BeginSourceFileAction(CompilerInstance &CI) override;
   void ExecuteAction() override;
   void EndSourceFileAction() override;
+  bool shouldEraseOutputFiles() override;
 
 public:
   /// Construct a WrapperFrontendAction from an existing action, taking

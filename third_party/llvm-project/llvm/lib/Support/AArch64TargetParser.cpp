@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/AArch64TargetParser.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
 #include <cctype>
 
 using namespace llvm;
@@ -35,11 +35,11 @@ unsigned AArch64::getDefaultFPU(StringRef CPU, AArch64::ArchKind AK) {
   .Default(ARM::FK_INVALID);
 }
 
-unsigned AArch64::getDefaultExtensions(StringRef CPU, AArch64::ArchKind AK) {
+uint64_t AArch64::getDefaultExtensions(StringRef CPU, AArch64::ArchKind AK) {
   if (CPU == "generic")
     return AArch64ARCHNames[static_cast<unsigned>(AK)].ArchBaseExtensions;
 
-  return StringSwitch<unsigned>(CPU)
+  return StringSwitch<uint64_t>(CPU)
 #define AARCH64_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT)       \
   .Case(NAME, AArch64ARCHNames[static_cast<unsigned>(ArchKind::ID)]            \
                       .ArchBaseExtensions |                                    \
@@ -59,7 +59,7 @@ AArch64::ArchKind AArch64::getCPUArchKind(StringRef CPU) {
   .Default(ArchKind::INVALID);
 }
 
-bool AArch64::getExtensionFeatures(unsigned Extensions,
+bool AArch64::getExtensionFeatures(uint64_t Extensions,
                                    std::vector<StringRef> &Features) {
   if (Extensions == AArch64::AEK_INVALID)
     return false;
@@ -100,6 +100,12 @@ bool AArch64::getExtensionFeatures(unsigned Extensions,
     Features.push_back("+sve2-bitperm");
   if (Extensions & AEK_RCPC)
     Features.push_back("+rcpc");
+  if (Extensions & AEK_BRBE)
+    Features.push_back("+brbe");
+  if (Extensions & AEK_PAUTH)
+    Features.push_back("+pauth");
+  if (Extensions & AEK_FLAGM)
+    Features.push_back("+flagm");
 
   return true;
 }
@@ -116,6 +122,12 @@ bool AArch64::getArchFeatures(AArch64::ArchKind AK,
     Features.push_back("+v8.4a");
   if (AK == ArchKind::ARMV8_5A)
     Features.push_back("+v8.5a");
+  if (AK == AArch64::ArchKind::ARMV8_6A)
+    Features.push_back("+v8.6a");
+  if (AK == AArch64::ArchKind::ARMV8_7A)
+    Features.push_back("+v8.7a");
+  if(AK == AArch64::ArchKind::ARMV8R)
+    Features.push_back("+v8r");
 
   return AK != ArchKind::INVALID;
 }
@@ -191,7 +203,7 @@ AArch64::ArchKind AArch64::parseArch(StringRef Arch) {
     return ArchKind::INVALID;
 
   StringRef Syn = ARM::getArchSynonym(Arch);
-  for (const auto A : AArch64ARCHNames) {
+  for (const auto &A : AArch64ARCHNames) {
     if (A.getName().endswith(Syn))
       return A.ID;
   }
@@ -199,7 +211,7 @@ AArch64::ArchKind AArch64::parseArch(StringRef Arch) {
 }
 
 AArch64::ArchExtKind AArch64::parseArchExt(StringRef ArchExt) {
-  for (const auto A : AArch64ARCHExtNames) {
+  for (const auto &A : AArch64ARCHExtNames) {
     if (ArchExt == A.getName())
       return static_cast<ArchExtKind>(A.ID);
   }
@@ -207,7 +219,7 @@ AArch64::ArchExtKind AArch64::parseArchExt(StringRef ArchExt) {
 }
 
 AArch64::ArchKind AArch64::parseCPUArch(StringRef CPU) {
-  for (const auto C : AArch64CPUNames) {
+  for (const auto &C : AArch64CPUNames) {
     if (CPU == C.getName())
       return C.ArchID;
   }

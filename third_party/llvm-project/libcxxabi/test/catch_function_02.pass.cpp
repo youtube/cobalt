@@ -7,13 +7,13 @@
 //===----------------------------------------------------------------------===//
 
 // Can you have a catch clause of array type that catches anything?
-// UNSUPPORTED: libcxxabi-no-exceptions
+// UNSUPPORTED: no-exceptions
 
 #include <cassert>
 
 void f() {}
 
-int main()
+int main(int, char**)
 {
     typedef void Function();
     try
@@ -28,4 +28,6 @@ int main()
     {
         assert(false);
     }
+
+    return 0;
 }

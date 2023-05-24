@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ObjCLanguage_h_
-#define liblldb_ObjCLanguage_h_
+#ifndef LLDB_SOURCE_PLUGINS_LANGUAGE_OBJC_OBJCLANGUAGE_H
+#define LLDB_SOURCE_PLUGINS_LANGUAGE_OBJC_OBJCLANGUAGE_H
 
 #include <cstring>
 #include <vector>
@@ -119,6 +119,8 @@ public:
 
   bool IsNilReference(ValueObject &valobj) override;
 
+  llvm::StringRef GetNilReferenceSummaryString() override { return "nil"; }
+
   bool IsSourceFile(llvm::StringRef file_path) const override;
 
   const Highlighter *GetHighlighter() const override { return &m_highlighter; }
@@ -160,4 +162,4 @@ public:
 
 } // namespace lldb_private
 
-#endif // liblldb_ObjCLanguage_h_
+#endif // LLDB_SOURCE_PLUGINS_LANGUAGE_OBJC_OBJCLANGUAGE_H

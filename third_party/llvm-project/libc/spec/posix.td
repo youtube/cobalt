@@ -1,5 +1,24 @@
+def SigSetType : NamedType<"sigset_t">;
+def SigSetPtrType : PtrType<SigSetType>;
+def ConstSigSetPtrType : ConstType<SigSetPtrType>;
+def RestrictedSigSetType : RestrictedPtrType<SigSetType>;
+def ConstRestrictedSigSetType : ConstType<RestrictedSigSetType>;
+
+def StructSigaction : NamedType<"struct sigaction">;
+def StructSigactionPtr : PtrType<StructSigaction>;
+def ConstStructSigactionPtr : ConstType<StructSigactionPtr>;
+def RestrictedStructSigactionPtr : RestrictedPtrType<StructSigaction>;
+def ConstRestrictedStructSigactionPtr : ConstType<RestrictedStructSigactionPtr>;
+
 def POSIX : StandardSpec<"POSIX"> {
+  PtrType CharPtr = PtrType<CharType>;
+  RestrictedPtrType RestrictedCharPtr = RestrictedPtrType<CharType>;
+  RestrictedPtrType CharRestrictedDoublePtr = RestrictedPtrType<CharPtr>;
+  ConstType ConstCharPtr = ConstType<CharPtr>;
+  ConstType ConstRestrictedCharPtr = ConstType<RestrictedCharPtr>;
+
   NamedType OffTType = NamedType<"off_t">;
+  NamedType SSizeTType = NamedType<"ssize_t">;
 
   HeaderSpec Errno = HeaderSpec<
       "errno.h",
@@ -84,6 +103,7 @@ def POSIX : StandardSpec<"POSIX"> {
         Macro<"EXDEV">,
       ],
       [], // Types
+      [], // Enumerations
       []  // Functions
   >;
 
@@ -107,6 +127,7 @@ def POSIX : StandardSpec<"POSIX"> {
         SizeTType,
         OffTType,
       ],
+      [], // Enumerations
       [
         FunctionSpec<
             "mmap",
@@ -126,8 +147,114 @@ def POSIX : StandardSpec<"POSIX"> {
       ]
   >;
 
+  HeaderSpec Signal = HeaderSpec<
+      "signal.h",
+      [], // Macros
+      [
+        SigSetType,
+        StructSigaction,
+      ],
+      [], // Enumerations
+      [
+        FunctionSpec<
+          "sigaction",
+          RetValSpec<IntType>,
+          [ArgSpec<IntType>,
+           ArgSpec<ConstRestrictedStructSigactionPtr>,
+           ArgSpec<RestrictedStructSigactionPtr>]
+        >,
+        FunctionSpec<
+          "sigdelset",
+          RetValSpec<IntType>,
+          [ArgSpec<SigSetPtrType>,
+           ArgSpec<IntType>]
+        >,
+        FunctionSpec<
+          "sigprocmask",
+          RetValSpec<IntType>,
+          [ArgSpec<IntType>, ArgSpec<ConstRestrictedSigSetType>, ArgSpec<RestrictedSigSetType>]
+        >,
+        FunctionSpec<
+          "sigemptyset",
+          RetValSpec<IntType>,
+          [ArgSpec<SigSetPtrType>]
+        >,
+        FunctionSpec<
+          "sigaddset",
+          RetValSpec<IntType>,
+          [ArgSpec<SigSetPtrType>,
+           ArgSpec<IntType>]
+        >,
+        FunctionSpec<
+          "sigfillset",
+          RetValSpec<IntType>,
+          [ArgSpec<SigSetPtrType>]
+        >,
+      ]
+  >;
+
+  HeaderSpec UniStd = HeaderSpec<
+    "unistd.h",
+    [], // Macros
+    [
+      SSizeTType,
+      SizeTType,
+    ],
+    [], // Enumerations
+    [
+        FunctionSpec<
+          "write",
+          RetValSpec<SSizeTType>,
+          [ArgSpec<IntType>, ArgSpec<ConstVoidPtr>, ArgSpec<SizeTType>]
+        >,
+    ]
+  >;
+  
+  HeaderSpec String = HeaderSpec<
+    "string.h",
+    [
+        Macro<"NULL">,
+    ],
+    [
+        SizeTType,
+    ],
+    [], // Enumerations
+    [
+        FunctionSpec<
+            "strnlen",
+             RetValSpec<SizeTType>,
+             [ArgSpec<ConstCharPtr>, ArgSpec<SizeTType>]
+        >,
+        FunctionSpec<
+            "strtok_r",
+            RetValSpec<CharPtr>,
+            [ArgSpec<RestrictedCharPtr>,
+             ArgSpec<ConstRestrictedCharPtr>,
+             ArgSpec<CharRestrictedDoublePtr>]
+        >,
+    ]
+  >;
+
+  HeaderSpec CType = HeaderSpec<
+    "ctype.h",
+    [], // Macros
+    [], // Types
+    [], // Enumerations
+    [
+        FunctionSpec<
+            "isascii",
+            RetValSpec<IntType>,
+            [ArgSpec<IntType>]
+        >,
+    ]
+  >;
+
   let Headers = [
+    CType,
     Errno,
     SysMMan,
+    Signal,
+    UniStd,
+    String
   ];
 }

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_PluginManager_h_
-#define liblldb_PluginManager_h_
+#ifndef LLDB_CORE_PLUGINMANAGER_H
+#define LLDB_CORE_PLUGINMANAGER_H
 
 #include "lldb/Core/Architecture.h"
 #include "lldb/Symbol/TypeSystem.h"
@@ -21,6 +21,25 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
+#define LLDB_PLUGIN_DEFINE_ADV(ClassName, PluginName)                          \
+  namespace lldb_private {                                                     \
+  void lldb_initialize_##PluginName() { ClassName::Initialize(); }             \
+  void lldb_terminate_##PluginName() { ClassName::Terminate(); }               \
+  }
+
+#define LLDB_PLUGIN_DEFINE(PluginName)                                         \
+  LLDB_PLUGIN_DEFINE_ADV(PluginName, PluginName)
+
+// FIXME: Generate me with CMake
+#define LLDB_PLUGIN_DECLARE(PluginName)                                        \
+  namespace lldb_private {                                                     \
+  extern void lldb_initialize_##PluginName();                                  \
+  extern void lldb_terminate_##PluginName();                                   \
+  }
+
+#define LLDB_PLUGIN_INITIALIZE(PluginName) lldb_initialize_##PluginName()
+#define LLDB_PLUGIN_TERMINATE(PluginName) lldb_terminate_##PluginName()
 
 namespace lldb_private {
 class CommandInterpreter;
@@ -42,15 +61,8 @@ public:
 
   static ABICreateInstance GetABICreateCallbackAtIndex(uint32_t idx);
 
-  static ABICreateInstance
-  GetABICreateCallbackForPluginName(ConstString name);
-
   // Architecture
-  using ArchitectureCreateInstance =
-      std::unique_ptr<Architecture> (*)(const ArchSpec &);
-
-  static void RegisterPlugin(ConstString name,
-                             llvm::StringRef description,
+  static void RegisterPlugin(ConstString name, llvm::StringRef description,
                              ArchitectureCreateInstance create_callback);
 
   static void UnregisterPlugin(ArchitectureCreateInstance create_callback);
@@ -95,9 +107,6 @@ public:
   static JITLoaderCreateInstance
   GetJITLoaderCreateCallbackAtIndex(uint32_t idx);
 
-  static JITLoaderCreateInstance
-  GetJITLoaderCreateCallbackForPluginName(ConstString name);
-
   // EmulateInstruction
   static bool RegisterPlugin(ConstString name, const char *description,
                              EmulateInstructionCreateInstance create_callback);
@@ -132,9 +141,6 @@ public:
 
   static LanguageCreateInstance GetLanguageCreateCallbackAtIndex(uint32_t idx);
 
-  static LanguageCreateInstance
-  GetLanguageCreateCallbackForPluginName(ConstString name);
-
   // LanguageRuntime
   static bool RegisterPlugin(
       ConstString name, const char *description,
@@ -153,9 +159,6 @@ public:
   static LanguageRuntimeGetExceptionPrecondition
   GetLanguageRuntimeGetExceptionPreconditionAtIndex(uint32_t idx);
 
-  static LanguageRuntimeCreateInstance
-  GetLanguageRuntimeCreateCallbackForPluginName(ConstString name);
-
   // SystemRuntime
   static bool RegisterPlugin(ConstString name, const char *description,
                              SystemRuntimeCreateInstance create_callback);
@@ -164,9 +167,6 @@ public:
 
   static SystemRuntimeCreateInstance
   GetSystemRuntimeCreateCallbackAtIndex(uint32_t idx);
-
-  static SystemRuntimeCreateInstance
-  GetSystemRuntimeCreateCallbackForPluginName(ConstString name);
 
   // ObjectFile
   static bool
@@ -187,9 +187,6 @@ public:
   static ObjectFileGetModuleSpecifications
   GetObjectFileGetModuleSpecificationsCallbackAtIndex(uint32_t idx);
 
-  static ObjectFileCreateInstance
-  GetObjectFileCreateCallbackForPluginName(ConstString name);
-
   static ObjectFileCreateMemoryInstance
   GetObjectFileCreateMemoryCallbackForPluginName(ConstString name);
 
@@ -206,9 +203,6 @@ public:
 
   static ObjectContainerCreateInstance
   GetObjectContainerCreateCallbackAtIndex(uint32_t idx);
-
-  static ObjectContainerCreateInstance
-  GetObjectContainerCreateCallbackForPluginName(ConstString name);
 
   static ObjectFileGetModuleSpecifications
   GetObjectContainerGetModuleSpecificationsCallbackAtIndex(uint32_t idx);
@@ -248,6 +242,9 @@ public:
   static const char *GetProcessPluginNameAtIndex(uint32_t idx);
 
   static const char *GetProcessPluginDescriptionAtIndex(uint32_t idx);
+
+  static void AutoCompleteProcessName(llvm::StringRef partial_name,
+                                      CompletionRequest &request);
 
   // ScriptInterpreter
   static bool RegisterPlugin(ConstString name, const char *description,
@@ -309,9 +306,6 @@ public:
   static StructuredDataPluginCreateInstance
   GetStructuredDataPluginCreateCallbackAtIndex(uint32_t idx);
 
-  static StructuredDataPluginCreateInstance
-  GetStructuredDataPluginCreateCallbackForPluginName(ConstString name);
-
   static StructuredDataFilterLaunchInfo
   GetStructuredDataFilterCallbackAtIndex(uint32_t idx,
                                          bool &iteration_complete);
@@ -327,9 +321,6 @@ public:
   static SymbolFileCreateInstance
   GetSymbolFileCreateCallbackAtIndex(uint32_t idx);
 
-  static SymbolFileCreateInstance
-  GetSymbolFileCreateCallbackForPluginName(ConstString name);
-
   // SymbolVendor
   static bool RegisterPlugin(ConstString name, const char *description,
                              SymbolVendorCreateInstance create_callback);
@@ -339,8 +330,41 @@ public:
   static SymbolVendorCreateInstance
   GetSymbolVendorCreateCallbackAtIndex(uint32_t idx);
 
-  static SymbolVendorCreateInstance
-  GetSymbolVendorCreateCallbackForPluginName(ConstString name);
+  // Trace
+  static bool RegisterPlugin(ConstString name, const char *description,
+                             TraceCreateInstance create_callback,
+                             llvm::StringRef schema,
+                             TraceGetStartCommand get_start_command);
+
+  static bool UnregisterPlugin(TraceCreateInstance create_callback);
+
+  static TraceCreateInstance GetTraceCreateCallback(ConstString plugin_name);
+
+  static lldb::CommandObjectSP
+  GetTraceStartCommand(llvm::StringRef plugin_name,
+                       CommandInterpreter &interpreter);
+
+  /// Get the JSON schema for a trace session file corresponding to the given
+  /// plugin.
+  ///
+  /// \param[in] plugin_name
+  ///     The name of the plugin.
+  ///
+  /// \return
+  ///     An empty \a StringRef if no plugin was found with that plugin name,
+  ///     otherwise the actual schema is returned.
+  static llvm::StringRef GetTraceSchema(ConstString plugin_name);
+
+  /// Get the JSON schema for a trace session file corresponding to the plugin
+  /// given by its index.
+  ///
+  /// \param[in] index
+  ///     The index of the plugin to get the schema of.
+  ///
+  /// \return
+  ///     An empty \a StringRef if the index is greater than or equal to the
+  ///     number plugins, otherwise the actual schema is returned.
+  static llvm::StringRef GetTraceSchema(size_t index);
 
   // UnwindAssembly
   static bool RegisterPlugin(ConstString name, const char *description,
@@ -351,9 +375,6 @@ public:
   static UnwindAssemblyCreateInstance
   GetUnwindAssemblyCreateCallbackAtIndex(uint32_t idx);
 
-  static UnwindAssemblyCreateInstance
-  GetUnwindAssemblyCreateCallbackForPluginName(ConstString name);
-
   // MemoryHistory
   static bool RegisterPlugin(ConstString name, const char *description,
                              MemoryHistoryCreateInstance create_callback);
@@ -362,9 +383,6 @@ public:
 
   static MemoryHistoryCreateInstance
   GetMemoryHistoryCreateCallbackAtIndex(uint32_t idx);
-
-  static MemoryHistoryCreateInstance
-  GetMemoryHistoryCreateCallbackForPluginName(ConstString name);
 
   // InstrumentationRuntime
   static bool
@@ -381,9 +399,6 @@ public:
   static InstrumentationRuntimeCreateInstance
   GetInstrumentationRuntimeCreateCallbackAtIndex(uint32_t idx);
 
-  static InstrumentationRuntimeCreateInstance
-  GetInstrumentationRuntimeCreateCallbackForPluginName(ConstString name);
-
   // TypeSystem
   static bool RegisterPlugin(ConstString name, const char *description,
                              TypeSystemCreateInstance create_callback,
@@ -394,9 +409,6 @@ public:
 
   static TypeSystemCreateInstance
   GetTypeSystemCreateCallbackAtIndex(uint32_t idx);
-
-  static TypeSystemCreateInstance
-  GetTypeSystemCreateCallbackForPluginName(ConstString name);
 
   static LanguageSet GetAllTypeSystemSupportedLanguagesForTypes();
 
@@ -410,9 +422,6 @@ public:
   static bool UnregisterPlugin(REPLCreateInstance create_callback);
 
   static REPLCreateInstance GetREPLCreateCallbackAtIndex(uint32_t idx);
-
-  static REPLCreateInstance
-  GetREPLCreateCallbackForPluginName(ConstString name);
 
   static LanguageSet GetREPLAllTypeSystemSupportedLanguages();
 
@@ -478,4 +487,4 @@ public:
 
 } // namespace lldb_private
 
-#endif // liblldb_PluginManager_h_
+#endif // LLDB_CORE_PLUGINMANAGER_H

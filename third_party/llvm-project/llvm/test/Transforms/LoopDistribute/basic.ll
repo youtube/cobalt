@@ -1,10 +1,14 @@
-; RUN: opt -basicaa -loop-distribute -enable-loop-distribute -verify-loop-info -verify-dom-info -S \
+; RUN: opt -basic-aa -loop-distribute -enable-loop-distribute -verify-loop-info -verify-dom-info -S \
 ; RUN:   < %s | FileCheck %s
 
-; RUN: opt -basicaa -loop-distribute -enable-loop-distribute -verify-loop-info -verify-dom-info \
-; RUN:   -loop-accesses -analyze < %s | FileCheck %s --check-prefix=ANALYSIS
+; RUN: opt -basic-aa -loop-distribute -enable-loop-distribute -verify-loop-info -verify-dom-info \
+; RUN:   -loop-accesses -analyze < %s -enable-new-pm=0 | FileCheck %s --check-prefix=ANALYSIS
 
-; RUN: opt -basicaa -loop-distribute -enable-loop-distribute -loop-vectorize -force-vector-width=4 -S \
+; TODO: the following changes the order loop-access printing prints loops, remove legacy RUN and change after NPM switch
+; TODO: opt -aa-pipeline=basic-aa -passes='loop-distribute,print-access-info' -enable-loop-distribute \
+; TODO:   -verify-loop-info -verify-dom-info -disable-output < %s 2>&1 | FileCheck %s --check-prefix=ANALYSIS
+
+; RUN: opt -basic-aa -loop-distribute -enable-loop-distribute -loop-vectorize -force-vector-width=4 -S \
 ; RUN:   < %s | FileCheck %s --check-prefix=VECTORIZE
 
 ; We should distribute this loop into a safe (2nd statement) and unsafe loop

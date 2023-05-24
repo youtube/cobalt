@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_UnwindPlan_h
-#define liblldb_UnwindPlan_h
+#ifndef LLDB_SYMBOL_UNWINDPLAN_H
+#define LLDB_SYMBOL_UNWINDPLAN_H
 
 #include <map>
 #include <memory>
@@ -320,7 +320,6 @@ public:
       } m_value;
     }; // class FAValue
 
-  public:
     Row();
 
     Row(const UnwindPlan::Row &rhs) = default;
@@ -375,7 +374,6 @@ public:
     collection m_register_locations;
   }; // class Row
 
-public:
   typedef std::shared_ptr<Row> RowSP;
 
   UnwindPlan(lldb::RegisterKind reg_kind)
@@ -395,6 +393,7 @@ public:
         m_plan_is_sourced_from_compiler(rhs.m_plan_is_sourced_from_compiler),
         m_plan_is_valid_at_all_instruction_locations(
             rhs.m_plan_is_valid_at_all_instruction_locations),
+        m_plan_is_for_signal_trap(rhs.m_plan_is_for_signal_trap),
         m_lsda_address(rhs.m_lsda_address),
         m_personality_func_addr(rhs.m_personality_func_addr) {
     m_row_list.reserve(rhs.m_row_list.size());
@@ -540,4 +539,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_UnwindPlan_h
+#endif // LLDB_SYMBOL_UNWINDPLAN_H

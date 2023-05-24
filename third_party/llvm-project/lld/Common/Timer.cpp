@@ -13,29 +13,22 @@
 using namespace lld;
 using namespace llvm;
 
-ScopedTimer::ScopedTimer(Timer &t) : t(&t) { t.start(); }
+ScopedTimer::ScopedTimer(Timer &t) : t(&t) {
+  startTime = std::chrono::high_resolution_clock::now();
+}
 
 void ScopedTimer::stop() {
   if (!t)
     return;
-  t->stop();
+  t->addToTotal(std::chrono::high_resolution_clock::now() - startTime);
   t = nullptr;
 }
 
 ScopedTimer::~ScopedTimer() { stop(); }
 
-Timer::Timer(llvm::StringRef name) : name(name), parent(nullptr) {}
-Timer::Timer(llvm::StringRef name, Timer &parent)
-    : name(name), parent(&parent) {}
-
-void Timer::start() {
-  if (parent && total.count() == 0)
-    parent->children.push_back(this);
-  startTime = std::chrono::high_resolution_clock::now();
-}
-
-void Timer::stop() {
-  total += (std::chrono::high_resolution_clock::now() - startTime);
+Timer::Timer(llvm::StringRef name) : name(std::string(name)) {}
+Timer::Timer(llvm::StringRef name, Timer &parent) : name(std::string(name)) {
+  parent.children.push_back(this);
 }
 
 Timer &Timer::root() {
@@ -49,16 +42,17 @@ void Timer::print() {
   // We want to print the grand total under all the intermediate phases, so we
   // print all children first, then print the total under that.
   for (const auto &child : children)
-    child->print(1, totalDuration);
+    if (child->total > 0)
+      child->print(1, totalDuration);
 
-  message(std::string(49, '-'));
+  message(std::string(50, '-'));
 
   root().print(0, root().millis(), false);
 }
 
 double Timer::millis() const {
   return std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(
-             total)
+             std::chrono::nanoseconds(total))
       .count();
 }
 
@@ -68,12 +62,13 @@ void Timer::print(int depth, double totalDuration, bool recurse) const {
   SmallString<32> str;
   llvm::raw_svector_ostream stream(str);
   std::string s = std::string(depth * 2, ' ') + name + std::string(":");
-  stream << format("%-30s%5d ms (%5.1f%%)", s.c_str(), (int)millis(), p);
+  stream << format("%-30s%7d ms (%5.1f%%)", s.c_str(), (int)millis(), p);
 
   message(str);
 
   if (recurse) {
     for (const auto &child : children)
-      child->print(depth + 1, totalDuration);
+      if (child->total > 0)
+        child->print(depth + 1, totalDuration);
   }
 }

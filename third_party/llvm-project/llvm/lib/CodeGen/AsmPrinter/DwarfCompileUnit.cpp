@@ -12,18 +12,12 @@
 
 #include "DwarfCompileUnit.h"
 #include "AddressPool.h"
-#include "DwarfDebug.h"
 #include "DwarfExpression.h"
-#include "DwarfUnit.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/DIE.h"
-#include "llvm/CodeGen/LexicalScopes.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
@@ -32,21 +26,16 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSymbolWasm.h"
 #include "llvm/MC/MachineLocation.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
 #include <iterator>
-#include <memory>
 #include <string>
 #include <utility>
 
@@ -113,9 +102,10 @@ unsigned DwarfCompileUnit::getOrCreateSourceID(const DIFile *File) {
   // extend .file to support this.
   unsigned CUID = Asm->OutStreamer->hasRawTextSupport() ? 0 : getUniqueID();
   if (!File)
-    return Asm->OutStreamer->EmitDwarfFileDirective(0, "", "", None, None, CUID);
-  return Asm->OutStreamer->EmitDwarfFileDirective(
-      0, File->getDirectory(), File->getFilename(), getMD5AsBytes(File),
+    return Asm->OutStreamer->emitDwarfFileDirective(0, "", "", None, None,
+                                                    CUID);
+  return Asm->OutStreamer->emitDwarfFileDirective(
+      0, File->getDirectory(), File->getFilename(), DD->getMD5AsBytes(File),
       File->getSource(), CUID);
 }
 
@@ -154,7 +144,8 @@ DIE *DwarfCompileUnit::getOrCreateGlobalVariableDIE(
     DeclContext = GV->getScope();
     // Add name and type.
     addString(*VariableDIE, dwarf::DW_AT_name, GV->getDisplayName());
-    addType(*VariableDIE, GTy);
+    if (GTy)
+      addType(*VariableDIE, GTy);
 
     // Add scoping info.
     if (!GV->isLocalToUnit())
@@ -257,7 +248,9 @@ void DwarfCompileUnit::addLocationAttribute(
                                      : dwarf::DW_OP_const8u);
             // 2) containing the (relocated) offset of the TLS variable
             //    within the module's TLS block.
-            addExpr(*Loc, dwarf::DW_FORM_udata,
+            addExpr(*Loc,
+                    PointerSize == 4 ? dwarf::DW_FORM_data4
+                                     : dwarf::DW_FORM_data8,
                     Asm->getObjFileLowering().getDebugThreadLocalSymbol(Sym));
           } else {
             addUInt(*Loc, dwarf::DW_FORM_data1, dwarf::DW_OP_GNU_const_index);
@@ -328,6 +321,8 @@ DIE *DwarfCompileUnit::getOrCreateCommonBlock(
 }
 
 void DwarfCompileUnit::addRange(RangeSpan Range) {
+  DD->insertSectionLabel(Range.Begin);
+
   bool SameAsPrevCU = this == DD->getPrevCU();
   DD->setPrevCU(this);
   // If we have no current ranges just add the range and return, otherwise,
@@ -348,8 +343,6 @@ void DwarfCompileUnit::initStmtList() {
   if (CUNode->isDebugDirectivesOnly())
     return;
 
-  // Define start line table label for each Compile Unit.
-  MCSymbol *LineTableStartSym;
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
   if (DD->useSectionsAsReferences()) {
     LineTableStartSym = TLOF.getDwarfLineSection()->getBeginSymbol();
@@ -363,13 +356,14 @@ void DwarfCompileUnit::initStmtList() {
   // left in the skeleton CU and so not included.
   // The line table entries are not always emitted in assembly, so it
   // is not okay to use line_table_start here.
-  StmtListValue =
       addSectionLabel(getUnitDie(), dwarf::DW_AT_stmt_list, LineTableStartSym,
                       TLOF.getDwarfLineSection()->getBeginSymbol());
 }
 
 void DwarfCompileUnit::applyStmtList(DIE &D) {
-  D.addValue(DIEValueAllocator, *StmtListValue);
+  const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
+  addSectionLabel(D, dwarf::DW_AT_stmt_list, LineTableStartSym,
+                  TLOF.getDwarfLineSection()->getBeginSymbol());
 }
 
 void DwarfCompileUnit::attachLowHighPC(DIE &D, const MCSymbol *Begin,
@@ -392,7 +386,14 @@ void DwarfCompileUnit::attachLowHighPC(DIE &D, const MCSymbol *Begin,
 DIE &DwarfCompileUnit::updateSubprogramScopeDIE(const DISubprogram *SP) {
   DIE *SPDie = getOrCreateSubprogramDIE(SP, includeMinimalInlineScopes());
 
-  attachLowHighPC(*SPDie, Asm->getFunctionBegin(), Asm->getFunctionEnd());
+  SmallVector<RangeSpan, 2> BB_List;
+  // If basic block sections are on, ranges for each basic block section has
+  // to be emitted separately.
+  for (const auto &R : Asm->MBBSectionRanges)
+    BB_List.push_back({R.second.BeginLabel, R.second.EndLabel});
+
+  attachRangesOrLowHighPC(*SPDie, BB_List);
+
   if (DD->useAppleExtensionAttributes() &&
       !DD->getCurrentFunction()->getTarget().Options.DisableFramePointerElim(
           *DD->getCurrentFunction()))
@@ -400,15 +401,63 @@ DIE &DwarfCompileUnit::updateSubprogramScopeDIE(const DISubprogram *SP) {
 
   // Only include DW_AT_frame_base in full debug info
   if (!includeMinimalInlineScopes()) {
-    if (Asm->MF->getTarget().getTargetTriple().isNVPTX()) {
+    const TargetFrameLowering *TFI = Asm->MF->getSubtarget().getFrameLowering();
+    TargetFrameLowering::DwarfFrameBase FrameBase =
+        TFI->getDwarfFrameBase(*Asm->MF);
+    switch (FrameBase.Kind) {
+    case TargetFrameLowering::DwarfFrameBase::Register: {
+      if (Register::isPhysicalRegister(FrameBase.Location.Reg)) {
+        MachineLocation Location(FrameBase.Location.Reg);
+        addAddress(*SPDie, dwarf::DW_AT_frame_base, Location);
+      }
+      break;
+    }
+    case TargetFrameLowering::DwarfFrameBase::CFA: {
       DIELoc *Loc = new (DIEValueAllocator) DIELoc;
       addUInt(*Loc, dwarf::DW_FORM_data1, dwarf::DW_OP_call_frame_cfa);
       addBlock(*SPDie, dwarf::DW_AT_frame_base, Loc);
-    } else {
-      const TargetRegisterInfo *RI = Asm->MF->getSubtarget().getRegisterInfo();
-      MachineLocation Location(RI->getFrameRegister(*Asm->MF));
-      if (Register::isPhysicalRegister(Location.getReg()))
-        addAddress(*SPDie, dwarf::DW_AT_frame_base, Location);
+      break;
+    }
+    case TargetFrameLowering::DwarfFrameBase::WasmFrameBase: {
+      // FIXME: duplicated from Target/WebAssembly/WebAssembly.h
+      // don't want to depend on target specific headers in this code?
+      const unsigned TI_GLOBAL_RELOC = 3;
+      // FIXME: when writing dwo, we need to avoid relocations. Probably
+      // the "right" solution is to treat globals the way func and data symbols
+      // are (with entries in .debug_addr).
+      if (FrameBase.Location.WasmLoc.Kind == TI_GLOBAL_RELOC && !isDwoUnit()) {
+        // These need to be relocatable.
+        assert(FrameBase.Location.WasmLoc.Index == 0);  // Only SP so far.
+        auto SPSym = cast<MCSymbolWasm>(
+          Asm->GetExternalSymbolSymbol("__stack_pointer"));
+        // FIXME: this repeats what WebAssemblyMCInstLower::
+        // GetExternalSymbolSymbol does, since if there's no code that
+        // refers to this symbol, we have to set it here.
+        SPSym->setType(wasm::WASM_SYMBOL_TYPE_GLOBAL);
+        SPSym->setGlobalType(wasm::WasmGlobalType{
+            uint8_t(Asm->getSubtargetInfo().getTargetTriple().getArch() ==
+                            Triple::wasm64
+                        ? wasm::WASM_TYPE_I64
+                        : wasm::WASM_TYPE_I32),
+            true});
+        DIELoc *Loc = new (DIEValueAllocator) DIELoc;
+        addUInt(*Loc, dwarf::DW_FORM_data1, dwarf::DW_OP_WASM_location);
+        addSInt(*Loc, dwarf::DW_FORM_sdata, TI_GLOBAL_RELOC);
+        addLabel(*Loc, dwarf::DW_FORM_data4, SPSym);
+        DD->addArangeLabel(SymbolCU(this, SPSym));
+        addUInt(*Loc, dwarf::DW_FORM_data1, dwarf::DW_OP_stack_value);
+        addBlock(*SPDie, dwarf::DW_AT_frame_base, Loc);
+      } else {
+        DIELoc *Loc = new (DIEValueAllocator) DIELoc;
+        DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
+        DIExpressionCursor Cursor({});
+        DwarfExpr.addWasmLocation(FrameBase.Location.WasmLoc.Kind,
+            FrameBase.Location.WasmLoc.Index);
+        DwarfExpr.addExpression(std::move(Cursor));
+        addBlock(*SPDie, dwarf::DW_AT_frame_base, DwarfExpr.finalize());
+      }
+      break;
+    }
     }
   }
 
@@ -509,7 +558,12 @@ void DwarfCompileUnit::addScopeRangeList(DIE &ScopeDIE,
 
 void DwarfCompileUnit::attachRangesOrLowHighPC(
     DIE &Die, SmallVector<RangeSpan, 2> Ranges) {
-  if (Ranges.size() == 1 || !DD->useRangesSection()) {
+  assert(!Ranges.empty());
+  if (!DD->useRangesSection() ||
+      (Ranges.size() == 1 &&
+       (!DD->alwaysUseRanges() ||
+        DD->getSectionLabel(&Ranges.front().Begin->getSection()) ==
+            Ranges.front().Begin))) {
     const RangeSpan &Front = Ranges.front();
     const RangeSpan &Back = Ranges.back();
     attachLowHighPC(Die, Front.Begin, Back.End);
@@ -521,9 +575,33 @@ void DwarfCompileUnit::attachRangesOrLowHighPC(
     DIE &Die, const SmallVectorImpl<InsnRange> &Ranges) {
   SmallVector<RangeSpan, 2> List;
   List.reserve(Ranges.size());
-  for (const InsnRange &R : Ranges)
-    List.push_back(
-        {DD->getLabelBeforeInsn(R.first), DD->getLabelAfterInsn(R.second)});
+  for (const InsnRange &R : Ranges) {
+    auto *BeginLabel = DD->getLabelBeforeInsn(R.first);
+    auto *EndLabel = DD->getLabelAfterInsn(R.second);
+
+    const auto *BeginMBB = R.first->getParent();
+    const auto *EndMBB = R.second->getParent();
+
+    const auto *MBB = BeginMBB;
+    // Basic block sections allows basic block subsets to be placed in unique
+    // sections. For each section, the begin and end label must be added to the
+    // list. If there is more than one range, debug ranges must be used.
+    // Otherwise, low/high PC can be used.
+    // FIXME: Debug Info Emission depends on block order and this assumes that
+    // the order of blocks will be frozen beyond this point.
+    do {
+      if (MBB->sameSection(EndMBB) || MBB->isEndSection()) {
+        auto MBBSectionRange = Asm->MBBSectionRanges[MBB->getSectionIDNum()];
+        List.push_back(
+            {MBB->sameSection(BeginMBB) ? BeginLabel
+                                        : MBBSectionRange.BeginLabel,
+             MBB->sameSection(EndMBB) ? EndLabel : MBBSectionRange.EndLabel});
+      }
+      if (MBB->sameSection(EndMBB))
+        break;
+      MBB = MBB->getNextNode();
+    } while (true);
+  }
   attachRangesOrLowHighPC(Die, std::move(List));
 }
 
@@ -608,9 +686,9 @@ DIE *DwarfCompileUnit::constructVariableDIEImpl(const DbgVariable &DV,
 
   // Add variable address.
 
-  unsigned Offset = DV.getDebugLocListIndex();
-  if (Offset != ~0U) {
-    addLocationList(*VariableDie, dwarf::DW_AT_location, Offset);
+  unsigned Index = DV.getDebugLocListIndex();
+  if (Index != ~0U) {
+    addLocationList(*VariableDie, dwarf::DW_AT_location, Index);
     auto TagOffset = DV.getDebugLocListTagOffset();
     if (TagOffset)
       addUInt(*VariableDie, dwarf::DW_AT_LLVM_tag_offset, dwarf::DW_FORM_data1,
@@ -642,6 +720,13 @@ DIE *DwarfCompileUnit::constructVariableDIEImpl(const DbgVariable &DV,
       addConstantFPValue(*VariableDie, DVal->getConstantFP());
     } else if (DVal->isConstantInt()) {
       addConstantValue(*VariableDie, DVal->getConstantInt(), DV.getType());
+    } else if (DVal->isTargetIndexLocation()) {
+      DIELoc *Loc = new (DIEValueAllocator) DIELoc;
+      DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
+      const DIBasicType *BT = dyn_cast<DIBasicType>(
+          static_cast<const Metadata *>(DV.getVariable()->getType()));
+      DwarfDebug::emitDebugLocValue(*Asm, BT, *DVal, DwarfExpr);
+      addBlock(*VariableDie, dwarf::DW_AT_location, DwarfExpr.finalize());
     }
     return VariableDie;
   }
@@ -654,13 +739,17 @@ DIE *DwarfCompileUnit::constructVariableDIEImpl(const DbgVariable &DV,
   DIELoc *Loc = new (DIEValueAllocator) DIELoc;
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
   for (auto &Fragment : DV.getFrameIndexExprs()) {
-    unsigned FrameReg = 0;
+    Register FrameReg;
     const DIExpression *Expr = Fragment.Expr;
     const TargetFrameLowering *TFI = Asm->MF->getSubtarget().getFrameLowering();
-    int Offset = TFI->getFrameIndexReference(*Asm->MF, Fragment.FI, FrameReg);
+    StackOffset Offset =
+        TFI->getFrameIndexReference(*Asm->MF, Fragment.FI, FrameReg);
     DwarfExpr.addFragmentOffset(Expr);
+
+    auto *TRI = Asm->MF->getSubtarget().getRegisterInfo();
     SmallVector<uint64_t, 8> Ops;
-    DIExpression::appendOffset(Ops, Offset);
+    TRI->getOffsetOpcodes(Offset, Ops);
+
     // According to
     // https://docs.nvidia.com/cuda/archive/10.0/ptx-writers-guide-to-interoperability/index.html#cuda-specific-dwarf
     // cuda-gdb requires DW_AT_address_class for all variables to be able to
@@ -719,11 +808,39 @@ static SmallVector<const DIVariable *, 2> dependencies(DbgVariable *Var) {
   auto *Array = dyn_cast<DICompositeType>(Var->getType());
   if (!Array || Array->getTag() != dwarf::DW_TAG_array_type)
     return Result;
+  if (auto *DLVar = Array->getDataLocation())
+    Result.push_back(DLVar);
+  if (auto *AsVar = Array->getAssociated())
+    Result.push_back(AsVar);
+  if (auto *AlVar = Array->getAllocated())
+    Result.push_back(AlVar);
   for (auto *El : Array->getElements()) {
     if (auto *Subrange = dyn_cast<DISubrange>(El)) {
-      auto Count = Subrange->getCount();
-      if (auto *Dependency = Count.dyn_cast<DIVariable *>())
-        Result.push_back(Dependency);
+      if (auto Count = Subrange->getCount())
+        if (auto *Dependency = Count.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
+      if (auto LB = Subrange->getLowerBound())
+        if (auto *Dependency = LB.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
+      if (auto UB = Subrange->getUpperBound())
+        if (auto *Dependency = UB.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
+      if (auto ST = Subrange->getStride())
+        if (auto *Dependency = ST.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
+    } else if (auto *GenericSubrange = dyn_cast<DIGenericSubrange>(El)) {
+      if (auto Count = GenericSubrange->getCount())
+        if (auto *Dependency = Count.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
+      if (auto LB = GenericSubrange->getLowerBound())
+        if (auto *Dependency = LB.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
+      if (auto UB = GenericSubrange->getUpperBound())
+        if (auto *Dependency = UB.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
+      if (auto ST = GenericSubrange->getStride())
+        if (auto *Dependency = ST.dyn_cast<DIVariable *>())
+          Result.push_back(Dependency);
     }
   }
   return Result;
@@ -904,13 +1021,12 @@ void DwarfCompileUnit::constructAbstractSubprogramScopeDIE(
     ContextCU->addDIEEntry(*AbsDef, dwarf::DW_AT_object_pointer, *ObjectPointer);
 }
 
-/// Whether to use the GNU analog for a DWARF5 tag, attribute, or location atom.
-static bool useGNUAnalogForDwarf5Feature(DwarfDebug *DD) {
-  return DD->getDwarfVersion() == 4 && DD->tuneForGDB();
+bool DwarfCompileUnit::useGNUAnalogForDwarf5Feature() const {
+  return DD->getDwarfVersion() == 4 && !DD->tuneForLLDB();
 }
 
 dwarf::Tag DwarfCompileUnit::getDwarf5OrGNUTag(dwarf::Tag Tag) const {
-  if (!useGNUAnalogForDwarf5Feature(DD))
+  if (!useGNUAnalogForDwarf5Feature())
     return Tag;
   switch (Tag) {
   case dwarf::DW_TAG_call_site:
@@ -924,7 +1040,7 @@ dwarf::Tag DwarfCompileUnit::getDwarf5OrGNUTag(dwarf::Tag Tag) const {
 
 dwarf::Attribute
 DwarfCompileUnit::getDwarf5OrGNUAttr(dwarf::Attribute Attr) const {
-  if (!useGNUAnalogForDwarf5Feature(DD))
+  if (!useGNUAnalogForDwarf5Feature())
     return Attr;
   switch (Attr) {
   case dwarf::DW_AT_call_all_calls:
@@ -933,7 +1049,7 @@ DwarfCompileUnit::getDwarf5OrGNUAttr(dwarf::Attribute Attr) const {
     return dwarf::DW_AT_GNU_call_site_target;
   case dwarf::DW_AT_call_origin:
     return dwarf::DW_AT_abstract_origin;
-  case dwarf::DW_AT_call_pc:
+  case dwarf::DW_AT_call_return_pc:
     return dwarf::DW_AT_low_pc;
   case dwarf::DW_AT_call_value:
     return dwarf::DW_AT_GNU_call_site_value;
@@ -946,7 +1062,7 @@ DwarfCompileUnit::getDwarf5OrGNUAttr(dwarf::Attribute Attr) const {
 
 dwarf::LocationAtom
 DwarfCompileUnit::getDwarf5OrGNULocationAtom(dwarf::LocationAtom Loc) const {
-  if (!useGNUAnalogForDwarf5Feature(DD))
+  if (!useGNUAnalogForDwarf5Feature())
     return Loc;
   switch (Loc) {
   case dwarf::DW_OP_entry_value:
@@ -956,9 +1072,12 @@ DwarfCompileUnit::getDwarf5OrGNULocationAtom(dwarf::LocationAtom Loc) const {
   }
 }
 
-DIE &DwarfCompileUnit::constructCallSiteEntryDIE(
-    DIE &ScopeDIE, const DISubprogram *CalleeSP, bool IsTail,
-    const MCSymbol *PCAddr, const MCExpr *PCOffset, unsigned CallReg) {
+DIE &DwarfCompileUnit::constructCallSiteEntryDIE(DIE &ScopeDIE,
+                                                 DIE *CalleeDIE,
+                                                 bool IsTail,
+                                                 const MCSymbol *PCAddr,
+                                                 const MCSymbol *CallAddr,
+                                                 unsigned CallReg) {
   // Insert a call site entry DIE within ScopeDIE.
   DIE &CallSiteDIE = createAndAddDIE(getDwarf5OrGNUTag(dwarf::DW_TAG_call_site),
                                      ScopeDIE, nullptr);
@@ -968,24 +1087,41 @@ DIE &DwarfCompileUnit::constructCallSiteEntryDIE(
     addAddress(CallSiteDIE, getDwarf5OrGNUAttr(dwarf::DW_AT_call_target),
                MachineLocation(CallReg));
   } else {
-    DIE *CalleeDIE = getDIE(CalleeSP);
-    assert(CalleeDIE && "Could not find DIE for call site entry origin");
+    assert(CalleeDIE && "No DIE for call site entry origin");
     addDIEEntry(CallSiteDIE, getDwarf5OrGNUAttr(dwarf::DW_AT_call_origin),
                 *CalleeDIE);
   }
 
-  if (IsTail)
+  if (IsTail) {
     // Attach DW_AT_call_tail_call to tail calls for standards compliance.
     addFlag(CallSiteDIE, getDwarf5OrGNUAttr(dwarf::DW_AT_call_tail_call));
 
+    // Attach the address of the branch instruction to allow the debugger to
+    // show where the tail call occurred. This attribute has no GNU analog.
+    //
+    // GDB works backwards from non-standard usage of DW_AT_low_pc (in DWARF4
+    // mode -- equivalently, in DWARF5 mode, DW_AT_call_return_pc) at tail-call
+    // site entries to figure out the PC of tail-calling branch instructions.
+    // This means it doesn't need the compiler to emit DW_AT_call_pc, so we
+    // don't emit it here.
+    //
+    // There's no need to tie non-GDB debuggers to this non-standardness, as it
+    // adds unnecessary complexity to the debugger. For non-GDB debuggers, emit
+    // the standard DW_AT_call_pc info.
+    if (!useGNUAnalogForDwarf5Feature())
+      addLabelAddress(CallSiteDIE, dwarf::DW_AT_call_pc, CallAddr);
+  }
+
   // Attach the return PC to allow the debugger to disambiguate call paths
   // from one function to another.
-  if (DD->getDwarfVersion() == 4 && DD->tuneForGDB()) {
-    assert(PCAddr && "Missing PC information for a call");
-    addLabelAddress(CallSiteDIE, dwarf::DW_AT_low_pc, PCAddr);
-  } else if (!IsTail || DD->tuneForGDB()) {
-    assert(PCOffset && "Missing return PC information for a call");
-    addAddressExpr(CallSiteDIE, dwarf::DW_AT_call_return_pc, PCOffset);
+  //
+  // The return PC is only really needed when the call /isn't/ a tail call, but
+  // GDB expects it in DWARF4 mode, even for tail calls (see the comment above
+  // the DW_AT_call_pc emission logic for an explanation).
+  if (!IsTail || useGNUAnalogForDwarf5Feature()) {
+    assert(PCAddr && "Missing return PC information for a call");
+    addLabelAddress(CallSiteDIE,
+                    getDwarf5OrGNUAttr(dwarf::DW_AT_call_return_pc), PCAddr);
   }
 
   return CallSiteDIE;
@@ -1108,7 +1244,7 @@ void DwarfCompileUnit::emitHeader(bool UseOffsets) {
   // Don't bother labeling the .dwo unit, as its offset isn't used.
   if (!Skeleton && !DD->useSectionsAsReferences()) {
     LabelBegin = Asm->createTempSymbol("cu_begin");
-    Asm->OutStreamer->EmitLabel(LabelBegin);
+    Asm->OutStreamer->emitLabel(LabelBegin);
   }
 
   dwarf::UnitType UT = Skeleton ? dwarf::DW_UT_split_compile
@@ -1219,15 +1355,12 @@ void DwarfCompileUnit::addComplexAddress(const DbgVariable &DV, DIE &Die,
   DIEDwarfExpression DwarfExpr(*Asm, *this, *Loc);
   const DIExpression *DIExpr = DV.getSingleExpression();
   DwarfExpr.addFragmentOffset(DIExpr);
-  if (Location.isIndirect())
-    DwarfExpr.setMemoryLocationKind();
+  DwarfExpr.setLocation(Location, DIExpr);
 
   DIExpressionCursor Cursor(DIExpr);
 
-  if (DIExpr->isEntryValue()) {
-    DwarfExpr.setEntryValueFlag();
+  if (DIExpr->isEntryValue())
     DwarfExpr.beginEntryValueExpression(Cursor);
-  }
 
   const TargetRegisterInfo &TRI = *Asm->MF->getSubtarget().getRegisterInfo();
   if (!DwarfExpr.addMachineRegExpression(TRI, Cursor, Location.getReg()))
@@ -1245,11 +1378,9 @@ void DwarfCompileUnit::addComplexAddress(const DbgVariable &DV, DIE &Die,
 /// Add a Dwarf loclistptr attribute data and value.
 void DwarfCompileUnit::addLocationList(DIE &Die, dwarf::Attribute Attribute,
                                        unsigned Index) {
-  dwarf::Form Form = dwarf::DW_FORM_data4;
-  if (DD->getDwarfVersion() == 4)
-    Form =dwarf::DW_FORM_sec_offset;
-  if (DD->getDwarfVersion() >= 5)
-    Form =dwarf::DW_FORM_loclistx;
+  dwarf::Form Form = (DD->getDwarfVersion() >= 5)
+                         ? dwarf::DW_FORM_loclistx
+                         : DD->getDwarfSectionOffsetForm();
   Die.addValue(DIEValueAllocator, Attribute, Form, DIELocList(Index));
 }
 
@@ -1285,12 +1416,6 @@ void DwarfCompileUnit::addExpr(DIELoc &Die, dwarf::Form Form,
   Die.addValue(DIEValueAllocator, (dwarf::Attribute)0, Form, DIEExpr(Expr));
 }
 
-void DwarfCompileUnit::addAddressExpr(DIE &Die, dwarf::Attribute Attribute,
-                                      const MCExpr *Expr) {
-  Die.addValue(DIEValueAllocator, Attribute, dwarf::DW_FORM_addr,
-               DIEExpr(Expr));
-}
-
 void DwarfCompileUnit::applySubprogramAttributesToDefinition(
     const DISubprogram *SP, DIE &SPDie) {
   auto *SPDecl = SP->getDeclaration();
@@ -1316,8 +1441,8 @@ void DwarfCompileUnit::addAddrTableBase() {
   const TargetLoweringObjectFile &TLOF = Asm->getObjFileLowering();
   MCSymbol *Label = DD->getAddressPool().getLabel();
   addSectionLabel(getUnitDie(),
-                  getDwarfVersion() >= 5 ? dwarf::DW_AT_addr_base
-                                         : dwarf::DW_AT_GNU_addr_base,
+                  DD->getDwarfVersion() >= 5 ? dwarf::DW_AT_addr_base
+                                             : dwarf::DW_AT_GNU_addr_base,
                   Label, TLOF.getDwarfAddrSection()->getBeginSymbol());
 }
 

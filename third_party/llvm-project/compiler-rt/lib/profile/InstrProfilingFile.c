@@ -72,6 +72,7 @@ typedef struct lprofFilename {
   unsigned OwnsFilenamePat;
   const char *ProfilePathPrefix;
   char PidChars[MAX_PID_SIZE];
+  char *TmpDir;
   char Hostname[COMPILER_RT_MAX_HOSTLEN];
   unsigned NumPids;
   unsigned NumHosts;
@@ -86,8 +87,8 @@ typedef struct lprofFilename {
   ProfileNameSpecifier PNS;
 } lprofFilename;
 
-static lprofFilename lprofCurFilename = {0, 0, 0, {0},        {0},
-                                         0, 0, 0, PNS_unknown};
+static lprofFilename lprofCurFilename = {0,   0, 0, {0}, NULL,
+                                         {0}, 0, 0, 0,   PNS_unknown};
 
 static int ProfileMergeRequested = 0;
 static int isProfileMergeRequested() { return ProfileMergeRequested; }
@@ -419,14 +420,12 @@ static void truncateCurrentFile(void) {
   fclose(File);
 }
 
-#ifndef _MSC_VER
+#if !defined(__Fuchsia__) && !defined(_WIN32)
 static void assertIsZero(int *i) {
   if (*i)
     PROF_WARN("Expected flag to be 0, but got: %d\n", *i);
 }
-#endif
 
-#if !defined(__Fuchsia__) && !defined(_WIN32)
 /* Write a partial profile to \p Filename, which is required to be backed by
  * the open file object \p File. */
 static int writeProfileWithFileObject(const char *Filename, FILE *File) {
@@ -447,6 +446,99 @@ static void unlockProfile(int *ProfileRequiresUnlock, FILE *File) {
   *ProfileRequiresUnlock = 0;
 }
 #endif // !defined(__Fuchsia__) && !defined(_WIN32)
+
+static int writeMMappedFile(FILE *OutputFile, char **Profile) {
+  if (!OutputFile)
+    return -1;
+
+  /* Write the data into a file. */
+  setupIOBuffer();
+  ProfDataWriter fileWriter;
+  initFileWriter(&fileWriter, OutputFile);
+  if (lprofWriteData(&fileWriter, NULL, 0)) {
+    PROF_ERR("Failed to write profile: %s\n", strerror(errno));
+    return -1;
+  }
+  fflush(OutputFile);
+
+  /* Get the file size. */
+  uint64_t FileSize = ftell(OutputFile);
+
+  /* Map the profile. */
+  *Profile = (char *)mmap(
+      NULL, FileSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(OutputFile), 0);
+  if (*Profile == MAP_FAILED) {
+    PROF_ERR("Unable to mmap profile: %s\n", strerror(errno));
+    return -1;
+  }
+
+  return 0;
+}
+
+static void relocateCounters(void) {
+  if (!__llvm_profile_is_continuous_mode_enabled() ||
+      !lprofRuntimeCounterRelocation())
+    return;
+
+  /* Get the sizes of various profile data sections. Taken from
+   * __llvm_profile_get_size_for_buffer(). */
+  const __llvm_profile_data *DataBegin = __llvm_profile_begin_data();
+  const __llvm_profile_data *DataEnd = __llvm_profile_end_data();
+  uint64_t DataSize = __llvm_profile_get_data_size(DataBegin, DataEnd);
+  const uint64_t CountersOffset = sizeof(__llvm_profile_header) +
+      (DataSize * sizeof(__llvm_profile_data));
+
+  int Length = getCurFilenameLength();
+  char *FilenameBuf = (char *)COMPILER_RT_ALLOCA(Length + 1);
+  const char *Filename = getCurFilename(FilenameBuf, 0);
+  if (!Filename)
+    return;
+
+  FILE *File = NULL;
+  char *Profile = NULL;
+
+  if (!doMerging()) {
+    File = fopen(Filename, "w+b");
+    if (!File)
+      return;
+
+    if (writeMMappedFile(File, &Profile) == -1) {
+      fclose(File);
+      return;
+    }
+  } else {
+    File = lprofOpenFileEx(Filename);
+    if (!File)
+      return;
+
+    uint64_t ProfileFileSize = 0;
+    if (getProfileFileSizeForMerging(File, &ProfileFileSize) == -1) {
+      lprofUnlockFileHandle(File);
+      fclose(File);
+      return;
+    }
+
+    if (!ProfileFileSize) {
+      if (writeMMappedFile(File, &Profile) == -1) {
+        fclose(File);
+        return;
+      }
+    } else {
+      /* The merged profile has a non-zero length. Check that it is compatible
+       * with the data in this process. */
+      if (mmapProfileForMerging(File, ProfileFileSize, &Profile) == -1) {
+        fclose(File);
+        return;
+      }
+    }
+
+    lprofUnlockFileHandle(File);
+  }
+
+  /* Update the profile fields based on the current mapping. */
+  __llvm_profile_counter_bias = (intptr_t)Profile -
+      (uintptr_t)__llvm_profile_begin_counters() + CountersOffset;
+}
 
 static void initializeProfileForContinuousMode(void) {
   if (!__llvm_profile_is_continuous_mode_enabled())
@@ -574,7 +666,8 @@ static void initializeProfileForContinuousMode(void) {
         FileOffsetToCounters);
   }
 
-  unlockProfile(&ProfileRequiresUnlock, File);
+  if (ProfileRequiresUnlock)
+    unlockProfile(&ProfileRequiresUnlock, File);
 #endif // defined(__Fuchsia__) || defined(_WIN32)
 }
 
@@ -651,6 +744,14 @@ static int parseFilenamePattern(const char *FilenamePat,
                       FilenamePat);
             return -1;
           }
+      } else if (FilenamePat[I] == 't') {
+        lprofCurFilename.TmpDir = getenv("TMPDIR");
+        if (!lprofCurFilename.TmpDir) {
+          PROF_WARN("Unable to get the TMPDIR environment variable, referenced "
+                    "in %s. Using the default path.",
+                    FilenamePat);
+          return -1;
+        }
       } else if (FilenamePat[I] == 'c') {
         if (__llvm_profile_is_continuous_mode_enabled()) {
           PROF_WARN("%%c specifier can only be specified once in %s.\n",
@@ -658,6 +759,7 @@ static int parseFilenamePattern(const char *FilenamePat,
           return -1;
         }
 
+        __llvm_profile_set_page_size(getpagesize());
         __llvm_profile_enable_continuous_mode();
         I++; /* advance to 'c' */
       } else {
@@ -715,7 +817,12 @@ static void parseAndSetFilename(const char *FilenamePat,
   }
 
   truncateCurrentFile();
-  initializeProfileForContinuousMode();
+  if (__llvm_profile_is_continuous_mode_enabled()) {
+    if (lprofRuntimeCounterRelocation())
+      relocateCounters();
+    else
+      initializeProfileForContinuousMode();
+  }
 }
 
 /* Return buffer length that is required to store the current profile
@@ -728,12 +835,13 @@ static int getCurFilenameLength() {
     return 0;
 
   if (!(lprofCurFilename.NumPids || lprofCurFilename.NumHosts ||
-        lprofCurFilename.MergePoolSize))
+        lprofCurFilename.TmpDir || lprofCurFilename.MergePoolSize))
     return strlen(lprofCurFilename.FilenamePat);
 
   Len = strlen(lprofCurFilename.FilenamePat) +
         lprofCurFilename.NumPids * (strlen(lprofCurFilename.PidChars) - 2) +
-        lprofCurFilename.NumHosts * (strlen(lprofCurFilename.Hostname) - 2);
+        lprofCurFilename.NumHosts * (strlen(lprofCurFilename.Hostname) - 2) +
+        (lprofCurFilename.TmpDir ? (strlen(lprofCurFilename.TmpDir) - 1) : 0);
   if (lprofCurFilename.MergePoolSize)
     Len += SIGLEN;
   return Len;
@@ -745,14 +853,14 @@ static int getCurFilenameLength() {
  * current filename pattern string is directly returned, unless ForceUseBuf
  * is enabled. */
 static const char *getCurFilename(char *FilenameBuf, int ForceUseBuf) {
-  int I, J, PidLength, HostNameLength, FilenamePatLength;
+  int I, J, PidLength, HostNameLength, TmpDirLength, FilenamePatLength;
   const char *FilenamePat = lprofCurFilename.FilenamePat;
 
   if (!lprofCurFilename.FilenamePat || !lprofCurFilename.FilenamePat[0])
     return 0;
 
   if (!(lprofCurFilename.NumPids || lprofCurFilename.NumHosts ||
-        lprofCurFilename.MergePoolSize ||
+        lprofCurFilename.TmpDir || lprofCurFilename.MergePoolSize ||
         __llvm_profile_is_continuous_mode_enabled())) {
     if (!ForceUseBuf)
       return lprofCurFilename.FilenamePat;
@@ -765,6 +873,7 @@ static const char *getCurFilename(char *FilenameBuf, int ForceUseBuf) {
 
   PidLength = strlen(lprofCurFilename.PidChars);
   HostNameLength = strlen(lprofCurFilename.Hostname);
+  TmpDirLength = lprofCurFilename.TmpDir ? strlen(lprofCurFilename.TmpDir) : 0;
   /* Construct the new filename. */
   for (I = 0, J = 0; FilenamePat[I]; ++I)
     if (FilenamePat[I] == '%') {
@@ -774,6 +883,10 @@ static const char *getCurFilename(char *FilenameBuf, int ForceUseBuf) {
       } else if (FilenamePat[I] == 'h') {
         memcpy(FilenameBuf + J, lprofCurFilename.Hostname, HostNameLength);
         J += HostNameLength;
+      } else if (FilenamePat[I] == 't') {
+        memcpy(FilenameBuf + J, lprofCurFilename.TmpDir, TmpDirLength);
+        FilenameBuf[J + TmpDirLength] = DIR_SEPARATOR;
+        J += TmpDirLength + 1;
       } else {
         if (!getMergePoolSize(FilenamePat, &I))
           continue;
@@ -854,16 +967,19 @@ const char *__llvm_profile_get_filename(void) {
   return FilenameBuf;
 }
 
-/* This method is invoked by the runtime initialization hook
- * InstrProfilingRuntime.o if it is linked in. Both user specified
+/* This API initializes the file handling, both user specified
  * profile path via -fprofile-instr-generate= and LLVM_PROFILE_FILE
- * environment variable can override this default value. */
+ * environment variable can override this default value.
+ */
 COMPILER_RT_VISIBILITY
 void __llvm_profile_initialize_file(void) {
   const char *EnvFilenamePat;
   const char *SelectedPat = NULL;
   ProfileNameSpecifier PNS = PNS_unknown;
   int hasCommandLineOverrider = (INSTR_PROF_PROFILE_NAME_VAR[0] != 0);
+
+  if (__llvm_profile_counter_bias != -1)
+    lprofSetRuntimeCounterRelocation(1);
 
   EnvFilenamePat = getFilenamePatFromEnv();
   if (EnvFilenamePat) {
@@ -880,6 +996,16 @@ void __llvm_profile_initialize_file(void) {
   }
 
   parseAndSetFilename(SelectedPat, PNS, 0);
+}
+
+/* This method is invoked by the runtime initialization hook
+ * InstrProfilingRuntime.o if it is linked in.
+ */
+COMPILER_RT_VISIBILITY
+void __llvm_profile_initialize(void) {
+  __llvm_profile_initialize_file();
+  if (!__llvm_profile_is_continuous_mode_enabled())
+    __llvm_profile_register_write_file_atexit();
 }
 
 /* This API is directly called by the user application code. It has the
@@ -951,7 +1077,7 @@ int __llvm_profile_dump(void) {
               "in profile name or change profile name before dumping.\n",
               "online profile merging is not on");
   int rc = __llvm_profile_write_file();
-  lprofSetProfileDumped();
+  lprofSetProfileDumped(1);
   return rc;
 }
 

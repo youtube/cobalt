@@ -212,14 +212,14 @@ replaceGlobalArray(Module &M, const DataLayout &DL, GlobalVariable &Array,
   // At this point, we have committed to replacing this array.
   ReplacedGlobals.insert(&Array);
 
-  std::string NewName = Array.getName();
+  std::string NewName = Array.getName().str();
   NewName += ".toptr";
   GlobalVariable *ReplacementToArr =
       cast<GlobalVariable>(M.getOrInsertGlobal(NewName, ElemPtrTy));
   ReplacementToArr->setInitializer(ConstantPointerNull::get(ElemPtrTy));
 
   Function *PollyMallocManaged = getOrCreatePollyMallocManaged(M);
-  std::string FnName = Array.getName();
+  std::string FnName = Array.getName().str();
   FnName += ".constructor";
   PollyIRBuilder Builder(M.getContext());
   FunctionType *Ty = FunctionType::get(Builder.getVoidTy(), false);
@@ -354,7 +354,7 @@ public:
   GPURuntime Runtime;
 
   ManagedMemoryRewritePass() : ModulePass(ID) {}
-  virtual bool runOnModule(Module &M) {
+  bool runOnModule(Module &M) override {
     const DataLayout &DL = M.getDataLayout();
 
     Function *Malloc = M.getFunction("malloc");

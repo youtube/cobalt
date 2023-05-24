@@ -8,6 +8,7 @@
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
 #include "llvm/ExecutionEngine/Orc/SpeculateAnalyses.h"
 #include "llvm/ExecutionEngine/Orc/Speculation.h"
+#include "llvm/ExecutionEngine/Orc/TargetProcess/TargetExecutionUtils.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
@@ -102,9 +103,9 @@ private:
       IndirectStubsManagerBuilderFunction ISMBuilder,
       std::unique_ptr<DynamicLibrarySearchGenerator> ProcessSymbolsGenerator)
       : ES(std::move(ES)), DL(std::move(DL)),
-        MainJD(this->ES->createJITDylib("<main>")), LCTMgr(std::move(LCTMgr)),
+        MainJD(this->ES->createBareJITDylib("<main>")), LCTMgr(std::move(LCTMgr)),
         CompileLayer(*this->ES, ObjLayer,
-                     ConcurrentIRCompiler(std::move(JTMB))),
+                     std::make_unique<ConcurrentIRCompiler>(std::move(JTMB))),
         S(Imps, *this->ES),
         SpeculateLayer(*this->ES, CompileLayer, S, Mangle, BlockFreqQuery()),
         CODLayer(*this->ES, SpeculateLayer, *this->LCTMgr,
@@ -112,12 +113,14 @@ private:
     MainJD.addGenerator(std::move(ProcessSymbolsGenerator));
     this->CODLayer.setImplMap(&Imps);
     this->ES->setDispatchMaterialization(
-
-        [this](JITDylib &JD, std::unique_ptr<MaterializationUnit> MU) {
-          // FIXME: Switch to move capture once we have C++14.
-          auto SharedMU = std::shared_ptr<MaterializationUnit>(std::move(MU));
-          auto Work = [SharedMU, &JD]() { SharedMU->doMaterialize(JD); };
-          CompileThreads.async(std::move(Work));
+        [this](std::unique_ptr<MaterializationUnit> MU,
+               std::unique_ptr<MaterializationResponsibility> MR) {
+          CompileThreads.async(
+              [UnownedMU = MU.release(), UnownedMR = MR.release()]() {
+                std::unique_ptr<MaterializationUnit> MU(UnownedMU);
+                std::unique_ptr<MaterializationResponsibility> MR(UnownedMR);
+                MU->materialize(std::move(MR));
+              });
         });
     ExitOnErr(S.addSpeculationRuntime(MainJD, Mangle));
     LocalCXXRuntimeOverrides CXXRuntimeoverrides;
@@ -131,7 +134,7 @@ private:
   std::unique_ptr<ExecutionSession> ES;
   DataLayout DL;
   MangleAndInterner Mangle{*ES, DL};
-  ThreadPool CompileThreads{NumThreads};
+  ThreadPool CompileThreads{llvm::hardware_concurrency(NumThreads)};
 
   JITDylib &MainJD;
 

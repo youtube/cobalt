@@ -21,24 +21,24 @@
 #include "llvm/Analysis/RegionPass.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Bitcode/BitcodeWriterPass.h"
-#include "llvm/CodeGen/CommandFlags.inc"
+#include "llvm/AsmParser/Parser.h"
+#include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfo.h"
-#include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LLVMRemarkStreamer.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/LegacyPassNameParser.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/RemarkStreamer.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/LinkAllIR.h"
 #include "llvm/LinkAllPasses.h"
 #include "llvm/MC/SubtargetFeature.h"
+#include "llvm/Remarks/HotnessThresholdParser.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
@@ -54,6 +54,7 @@
 #include "llvm/Transforms/Coroutines.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "llvm/Transforms/IPO/WholeProgramDevirt.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Debugify.h"
 #include <algorithm>
@@ -61,11 +62,18 @@
 using namespace llvm;
 using namespace opt_tool;
 
+static codegen::RegisterCodeGenFlags CFG;
+
 // The OptimizationList is automatically populated with registered Passes by the
 // PassNameParser.
 //
 static cl::list<const PassInfo*, bool, PassNameParser>
 PassList(cl::desc("Optimizations available:"));
+
+static cl::opt<bool>
+    EnableNewPassManager("enable-new-pm",
+                         cl::desc("Enable the new pass manager"),
+                         cl::init(LLVM_ENABLE_NEW_PASS_MANAGER));
 
 // This flag specifies a textual description of the optimization pass pipeline
 // to run over the module. This flag switches opt to use the new pass manager
@@ -115,8 +123,12 @@ static cl::opt<std::string> ThinLinkBitcodeFile(
 static cl::opt<bool>
 NoVerify("disable-verify", cl::desc("Do not run the verifier"), cl::Hidden);
 
-static cl::opt<bool>
-VerifyEach("verify-each", cl::desc("Verify after each transform"));
+static cl::opt<bool> NoUpgradeDebugInfo("disable-upgrade-debug-info",
+                                        cl::desc("Generate invalid output"),
+                                        cl::ReallyHidden);
+
+static cl::opt<bool> VerifyEach("verify-each",
+                                cl::desc("Verify after each transform"));
 
 static cl::opt<bool>
     DisableDITypeMap("disable-debug-info-type-map",
@@ -172,15 +184,9 @@ CodeGenOptLevel("codegen-opt-level",
 static cl::opt<std::string>
 TargetTriple("mtriple", cl::desc("Override target triple for module"));
 
-static cl::opt<bool>
-DisableLoopUnrolling("disable-loop-unrolling",
-                     cl::desc("Disable loop unrolling in all relevant passes"),
-                     cl::init(false));
-
-static cl::opt<bool>
-DisableSLPVectorization("disable-slp-vectorization",
-                        cl::desc("Disable the slp vectorization pass"),
-                        cl::init(false));
+cl::opt<bool> DisableLoopUnrolling(
+    "disable-loop-unrolling",
+    cl::desc("Disable loop unrolling in all relevant passes"), cl::init(false));
 
 static cl::opt<bool> EmitSummaryIndex("module-summary",
                                       cl::desc("Emit module summary index"),
@@ -198,13 +204,6 @@ DisableBuiltins("disable-builtin",
                 cl::desc("Disable specific target library builtin function"),
                 cl::ZeroOrMore);
 
-
-static cl::opt<bool>
-Quiet("q", cl::desc("Obsolete option"), cl::Hidden);
-
-static cl::alias
-QuietA("quiet", cl::desc("Alias for -q"), cl::aliasopt(Quiet));
-
 static cl::opt<bool>
 AnalyzeOnly("analyze", cl::desc("Only perform analysis, no optimization"));
 
@@ -212,16 +211,6 @@ static cl::opt<bool> EnableDebugify(
     "enable-debugify",
     cl::desc(
         "Start the pipeline with debugify and end it with check-debugify"));
-
-static cl::opt<bool> DebugifyEach(
-    "debugify-each",
-    cl::desc(
-        "Start each pass with debugify and end it with check-debugify"));
-
-static cl::opt<std::string>
-    DebugifyExport("debugify-export",
-                   cl::desc("Export per-pass debugify statistics to this file"),
-                   cl::value_desc("filename"), cl::init(""));
 
 static cl::opt<bool>
 PrintBreakpoints("print-breakpoints-for-testing",
@@ -257,16 +246,32 @@ static cl::opt<bool> Coroutines(
   cl::desc("Enable coroutine passes."),
   cl::init(false), cl::Hidden);
 
+static cl::opt<bool> TimeTrace(
+    "time-trace",
+    cl::desc("Record time trace"));
+
+static cl::opt<unsigned> TimeTraceGranularity(
+    "time-trace-granularity",
+    cl::desc("Minimum time granularity (in microseconds) traced by time profiler"),
+    cl::init(500), cl::Hidden);
+
+static cl::opt<std::string>
+    TimeTraceFile("time-trace-file",
+                    cl::desc("Specify time trace file destination"),
+                    cl::value_desc("filename"));
+
 static cl::opt<bool> RemarksWithHotness(
     "pass-remarks-with-hotness",
     cl::desc("With PGO, include profile count in optimization remarks"),
     cl::Hidden);
 
-static cl::opt<unsigned>
-    RemarksHotnessThreshold("pass-remarks-hotness-threshold",
-                            cl::desc("Minimum profile count required for "
-                                     "an optimization remark to be output"),
-                            cl::Hidden);
+static cl::opt<Optional<uint64_t>, false, remarks::HotnessThresholdParser>
+    RemarksHotnessThreshold(
+        "pass-remarks-hotness-threshold",
+        cl::desc("Minimum profile count required for "
+                 "an optimization remark to be output. "
+                 "Use 'auto' to apply the threshold from profile summary."),
+        cl::value_desc("N or 'auto'"), cl::init(0), cl::Hidden);
 
 static cl::opt<std::string>
     RemarksFilename("pass-remarks-output",
@@ -313,48 +318,6 @@ cl::opt<std::string> CSProfileGenFile(
     cl::desc("Path to the instrumented context sensitive profile."),
     cl::Hidden);
 
-class OptCustomPassManager : public legacy::PassManager {
-  DebugifyStatsMap DIStatsMap;
-
-public:
-  using super = legacy::PassManager;
-
-  void add(Pass *P) override {
-    // Wrap each pass with (-check)-debugify passes if requested, making
-    // exceptions for passes which shouldn't see -debugify instrumentation.
-    bool WrapWithDebugify = DebugifyEach && !P->getAsImmutablePass() &&
-                            !isIRPrintingPass(P) && !isBitcodeWriterPass(P);
-    if (!WrapWithDebugify) {
-      super::add(P);
-      return;
-    }
-
-    // Apply -debugify/-check-debugify before/after each pass and collect
-    // debug info loss statistics.
-    PassKind Kind = P->getPassKind();
-    StringRef Name = P->getPassName();
-
-    // TODO: Implement Debugify for LoopPass.
-    switch (Kind) {
-      case PT_Function:
-        super::add(createDebugifyFunctionPass());
-        super::add(P);
-        super::add(createCheckDebugifyFunctionPass(true, Name, &DIStatsMap));
-        break;
-      case PT_Module:
-        super::add(createDebugifyModulePass());
-        super::add(P);
-        super::add(createCheckDebugifyModulePass(true, Name, &DIStatsMap));
-        break;
-      default:
-        super::add(P);
-        break;
-    }
-  }
-
-  const DebugifyStatsMap &getDebugifyStatsMap() const { return DIStatsMap; }
-};
-
 static inline void addPass(legacy::PassManagerBase &PM, Pass *P) {
   // Add the pass to the pass manager...
   PM.add(P);
@@ -389,18 +352,9 @@ static void AddOptimizationPasses(legacy::PassManagerBase &MPM,
   Builder.DisableUnrollLoops = (DisableLoopUnrolling.getNumOccurrences() > 0) ?
                                DisableLoopUnrolling : OptLevel == 0;
 
-  // Check if vectorization is explicitly disabled via -vectorize-loops=false.
-  // The flag enables vectorization in the LoopVectorize pass, it is on by
-  // default, and if it was disabled, leave it disabled here.
-  // Another flag that exists: -loop-vectorize, controls adding the pass to the
-  // pass manager. If set, the pass is added, and there is no additional check
-  // here for it.
-  if (Builder.LoopVectorize)
-    Builder.LoopVectorize = OptLevel > 1 && SizeLevel < 2;
+  Builder.LoopVectorize = OptLevel > 1 && SizeLevel < 2;
 
-  // When #pragma vectorize is on for SLP, do the same as above
-  Builder.SLPVectorize =
-      DisableSLPVectorization ? false : OptLevel > 1 && SizeLevel < 2;
+  Builder.SLPVectorize = OptLevel > 1 && SizeLevel < 2;
 
   if (TM)
     TM->adjustPassManager(Builder);
@@ -470,42 +424,100 @@ static TargetMachine* GetTargetMachine(Triple TheTriple, StringRef CPUStr,
                                        StringRef FeaturesStr,
                                        const TargetOptions &Options) {
   std::string Error;
-  const Target *TheTarget = TargetRegistry::lookupTarget(MArch, TheTriple,
-                                                         Error);
+  const Target *TheTarget =
+      TargetRegistry::lookupTarget(codegen::getMArch(), TheTriple, Error);
   // Some modules don't specify a triple, and this is okay.
   if (!TheTarget) {
     return nullptr;
   }
 
-  return TheTarget->createTargetMachine(TheTriple.getTriple(), CPUStr,
-                                        FeaturesStr, Options, getRelocModel(),
-                                        getCodeModel(), GetCodeGenOptLevel());
+  return TheTarget->createTargetMachine(
+      TheTriple.getTriple(), codegen::getCPUStr(), codegen::getFeaturesStr(),
+      Options, codegen::getExplicitRelocModel(),
+      codegen::getExplicitCodeModel(), GetCodeGenOptLevel());
 }
 
 #ifdef BUILD_EXAMPLES
 void initializeExampleIRTransforms(llvm::PassRegistry &Registry);
 #endif
 
-
-void exportDebugifyStats(llvm::StringRef Path, const DebugifyStatsMap &Map) {
-  std::error_code EC;
-  raw_fd_ostream OS{Path, EC};
-  if (EC) {
-    errs() << "Could not open file: " << EC.message() << ", " << Path << '\n';
-    return;
+struct TimeTracerRAII {
+  TimeTracerRAII(StringRef ProgramName) {
+    if (TimeTrace)
+      timeTraceProfilerInitialize(TimeTraceGranularity, ProgramName);
   }
-
-  OS << "Pass Name" << ',' << "# of missing debug values" << ','
-     << "# of missing locations" << ',' << "Missing/Expected value ratio" << ','
-     << "Missing/Expected location ratio" << '\n';
-  for (const auto &Entry : Map) {
-    StringRef Pass = Entry.first;
-    DebugifyStatistics Stats = Entry.second;
-
-    OS << Pass << ',' << Stats.NumDbgValuesMissing << ','
-       << Stats.NumDbgLocsMissing << ',' << Stats.getMissingValueRatio() << ','
-       << Stats.getEmptyLocationRatio() << '\n';
+  ~TimeTracerRAII() {
+    if (TimeTrace) {
+      if (auto E = timeTraceProfilerWrite(TimeTraceFile, OutputFilename)) {
+        handleAllErrors(std::move(E), [&](const StringError &SE) {
+          errs() << SE.getMessage() << "\n";
+        });
+        return;
+      }
+      timeTraceProfilerCleanup();
+    }
   }
+};
+
+// For use in NPM transition. Currently this contains most codegen-specific
+// passes. Remove passes from here when porting to the NPM.
+// TODO: use a codegen version of PassRegistry.def/PassBuilder::is*Pass() once
+// it exists.
+static bool shouldPinPassToLegacyPM(StringRef Pass) {
+  std::vector<StringRef> PassNameExactToIgnore = {
+      "nvvm-reflect",
+      "nvvm-intr-range",
+      "amdgpu-simplifylib",
+      "amdgpu-usenative",
+      "amdgpu-promote-alloca",
+      "amdgpu-promote-alloca-to-vector",
+      "amdgpu-lower-kernel-attributes",
+      "amdgpu-propagate-attributes-early",
+      "amdgpu-propagate-attributes-late",
+      "amdgpu-unify-metadata",
+      "amdgpu-printf-runtime-binding",
+      "amdgpu-always-inline"};
+  for (const auto &P : PassNameExactToIgnore)
+    if (Pass == P)
+      return false;
+
+  std::vector<StringRef> PassNamePrefix = {
+      "x86-",  "xcore-", "wasm-",    "systemz-", "ppc-",    "nvvm-",   "nvptx-",
+      "mips-", "lanai-", "hexagon-", "bpf-",     "avr-",    "thumb2-", "arm-",
+      "si-",   "gcn-",   "amdgpu-",  "aarch64-", "amdgcn-", "polly-"};
+  std::vector<StringRef> PassNameContain = {"ehprepare"};
+  std::vector<StringRef> PassNameExact = {
+      "safe-stack",           "cost-model",
+      "codegenprepare",       "interleaved-load-combine",
+      "unreachableblockelim", "verify-safepoint-ir",
+      "divergence",           "atomic-expand",
+      "hardware-loops",       "type-promotion",
+      "mve-tail-predication", "interleaved-access",
+      "global-merge",         "pre-isel-intrinsic-lowering",
+      "expand-reductions",    "indirectbr-expand",
+      "generic-to-nvvm",      "expandmemcmp",
+      "loop-reduce",          "lower-amx-type",
+      "polyhedral-info"};
+  for (const auto &P : PassNamePrefix)
+    if (Pass.startswith(P))
+      return true;
+  for (const auto &P : PassNameContain)
+    if (Pass.contains(P))
+      return true;
+  for (const auto &P : PassNameExact)
+    if (Pass == P)
+      return true;
+  return false;
+}
+
+// For use in NPM transition.
+static bool shouldForceLegacyPM() {
+  for (const auto &P : PassList) {
+    StringRef Arg = P->getPassArgument();
+    if (shouldPinPassToLegacyPM(Arg))
+      return true;
+  }
+  return false;
 }
 
 //===----------------------------------------------------------------------===//
@@ -541,12 +553,12 @@ int main(int argc, char **argv) {
   // For codegen passes, only passes that do IR to IR transformation are
   // supported.
   initializeExpandMemCmpPassPass(Registry);
-  initializeScalarizeMaskedMemIntrinPass(Registry);
+  initializeScalarizeMaskedMemIntrinLegacyPassPass(Registry);
   initializeCodeGenPreparePass(Registry);
   initializeAtomicExpandPass(Registry);
   initializeRewriteSymbolsLegacyPassPass(Registry);
   initializeWinEHPreparePass(Registry);
-  initializeDwarfEHPreparePass(Registry);
+  initializeDwarfEHPrepareLegacyPassPass(Registry);
   initializeSafeStackLegacyPassPass(Registry);
   initializeSjLjEHPreparePass(Registry);
   initializePreISelIntrinsicLoweringLegacyPassPass(Registry);
@@ -575,6 +587,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  TimeTracerRAII TimeTracer(argv[0]);
+
   SMDiagnostic Err;
 
   Context.setDiscardValueNames(DiscardValueNames);
@@ -582,9 +596,9 @@ int main(int argc, char **argv) {
     Context.enableDebugTypeODRUniquing();
 
   Expected<std::unique_ptr<ToolOutputFile>> RemarksFileOrErr =
-      setupOptimizationRemarks(Context, RemarksFilename, RemarksPasses,
-                               RemarksFormat, RemarksWithHotness,
-                               RemarksHotnessThreshold);
+      setupLLVMOptimizationRemarks(Context, RemarksFilename, RemarksPasses,
+                                   RemarksFormat, RemarksWithHotness,
+                                   RemarksHotnessThreshold);
   if (Error E = RemarksFileOrErr.takeError()) {
     errs() << toString(std::move(E)) << '\n';
     return 1;
@@ -592,8 +606,18 @@ int main(int argc, char **argv) {
   std::unique_ptr<ToolOutputFile> RemarksFile = std::move(*RemarksFileOrErr);
 
   // Load the input module...
-  std::unique_ptr<Module> M =
-      parseIRFile(InputFilename, Err, Context, !NoVerify, ClDataLayout);
+  auto SetDataLayout = [](StringRef) -> Optional<std::string> {
+    if (ClDataLayout.empty())
+      return None;
+    return ClDataLayout;
+  };
+  std::unique_ptr<Module> M;
+  if (NoUpgradeDebugInfo)
+    M = parseAssemblyFileWithIndexNoUpgradeDebugInfo(
+            InputFilename, Err, Context, nullptr, SetDataLayout)
+            .Mod;
+  else
+    M = parseIRFile(InputFilename, Err, Context, SetDataLayout);
 
   if (!M) {
     Err.print(argv[0], errs());
@@ -624,6 +648,13 @@ int main(int argc, char **argv) {
            << ": error: input module is broken!\n";
     return 1;
   }
+
+  // Enable testing of whole program devirtualization on this module by invoking
+  // the facility for updating public visibility to linkage unit visibility when
+  // specified by an internal option. This is normally done during LTO which is
+  // not performed via opt.
+  updateVCallVisibilityInModule(*M,
+                                /* WholeProgramVisibilityEnabledInLTO */ false);
 
   // Figure out what stream we are supposed to write to...
   std::unique_ptr<ToolOutputFile> Out;
@@ -659,11 +690,12 @@ int main(int argc, char **argv) {
   Triple ModuleTriple(M->getTargetTriple());
   std::string CPUStr, FeaturesStr;
   TargetMachine *Machine = nullptr;
-  const TargetOptions Options = InitTargetOptionsFromCodeGenFlags();
+  const TargetOptions Options =
+      codegen::InitTargetOptionsFromCodeGenFlags(ModuleTriple);
 
   if (ModuleTriple.getArch()) {
-    CPUStr = getCPUStr();
-    FeaturesStr = getFeaturesStr();
+    CPUStr = codegen::getCPUStr();
+    FeaturesStr = codegen::getFeaturesStr();
     Machine = GetTargetMachine(ModuleTriple, CPUStr, FeaturesStr, Options);
   } else if (ModuleTriple.getArchName() != "unknown" &&
              ModuleTriple.getArchName() != "") {
@@ -676,47 +708,17 @@ int main(int argc, char **argv) {
 
   // Override function attributes based on CPUStr, FeaturesStr, and command line
   // flags.
-  setFunctionAttributes(CPUStr, FeaturesStr, *M);
+  codegen::setFunctionAttributes(CPUStr, FeaturesStr, *M);
 
   // If the output is set to be emitted to standard out, and standard out is a
   // console, print out a warning message and refuse to do it.  We don't
   // impress anyone by spewing tons of binary goo to a terminal.
   if (!Force && !NoOutput && !AnalyzeOnly && !OutputAssembly)
-    if (CheckBitcodeOutputToConsole(Out->os(), !Quiet))
+    if (CheckBitcodeOutputToConsole(Out->os()))
       NoOutput = true;
 
   if (OutputThinLTOBC)
     M->addModuleFlag(Module::Error, "EnableSplitLTOUnit", SplitLTOUnit);
-
-  if (PassPipeline.getNumOccurrences() > 0) {
-    OutputKind OK = OK_NoOutput;
-    if (!NoOutput)
-      OK = OutputAssembly
-               ? OK_OutputAssembly
-               : (OutputThinLTOBC ? OK_OutputThinLTOBitcode : OK_OutputBitcode);
-
-    VerifierKind VK = VK_VerifyInAndOut;
-    if (NoVerify)
-      VK = VK_NoVerifier;
-    else if (VerifyEach)
-      VK = VK_VerifyEachPass;
-
-    // The user has asked to use the new pass manager and provided a pipeline
-    // string. Hand off the rest of the functionality to the new code for that
-    // layer.
-    return runPassPipeline(argv[0], *M, TM.get(), Out.get(), ThinLinkOut.get(),
-                           RemarksFile.get(), PassPipeline, OK, VK,
-                           PreserveAssemblyUseListOrder,
-                           PreserveBitcodeUseListOrder, EmitSummaryIndex,
-                           EmitModuleHash, EnableDebugify)
-               ? 0
-               : 1;
-  }
-
-  // Create a PassManager to hold and optimize the collection of passes we are
-  // about to build.
-  OptCustomPassManager Passes;
-  bool AddOneTimeDebugifyPasses = EnableDebugify && !DebugifyEach;
 
   // Add an appropriate TargetLibraryInfo pass for the module's triple.
   TargetLibraryInfoImpl TLII(ModuleTriple);
@@ -736,6 +738,69 @@ int main(int argc, char **argv) {
         return 1;
       }
   }
+
+  // If `-passes=` is specified, use NPM.
+  // If `-enable-new-pm` is specified and there are no codegen passes, use NPM.
+  // e.g. `-enable-new-pm -sroa` will use NPM.
+  // but `-enable-new-pm -codegenprepare` will still revert to legacy PM.
+  if ((EnableNewPassManager && !shouldForceLegacyPM()) ||
+      PassPipeline.getNumOccurrences() > 0) {
+    if (AnalyzeOnly) {
+      errs() << "Cannot specify -analyze under new pass manager\n";
+      return 1;
+    }
+    if (PassPipeline.getNumOccurrences() > 0 && PassList.size() > 0) {
+      errs()
+          << "Cannot specify passes via both -foo-pass and --passes=foo-pass\n";
+      return 1;
+    }
+    SmallVector<StringRef, 4> Passes;
+    if (OptLevelO0)
+      Passes.push_back("default<O0>");
+    if (OptLevelO1)
+      Passes.push_back("default<O1>");
+    if (OptLevelO2)
+      Passes.push_back("default<O2>");
+    if (OptLevelO3)
+      Passes.push_back("default<O3>");
+    if (OptLevelOs)
+      Passes.push_back("default<Os>");
+    if (OptLevelOz)
+      Passes.push_back("default<Oz>");
+    for (const auto &P : PassList)
+      Passes.push_back(P->getPassArgument());
+    OutputKind OK = OK_NoOutput;
+    if (!NoOutput)
+      OK = OutputAssembly
+               ? OK_OutputAssembly
+               : (OutputThinLTOBC ? OK_OutputThinLTOBitcode : OK_OutputBitcode);
+
+    VerifierKind VK = VK_VerifyInAndOut;
+    if (NoVerify)
+      VK = VK_NoVerifier;
+    else if (VerifyEach)
+      VK = VK_VerifyEachPass;
+
+    // The user has asked to use the new pass manager and provided a pipeline
+    // string. Hand off the rest of the functionality to the new code for that
+    // layer.
+    return runPassPipeline(argv[0], *M, TM.get(), &TLII, Out.get(),
+                           ThinLinkOut.get(), RemarksFile.get(), PassPipeline,
+                           Passes, OK, VK, PreserveAssemblyUseListOrder,
+                           PreserveBitcodeUseListOrder, EmitSummaryIndex,
+                           EmitModuleHash, EnableDebugify, Coroutines)
+               ? 0
+               : 1;
+  }
+
+  // Create a PassManager to hold and optimize the collection of passes we are
+  // about to build. If the -debugify-each option is set, wrap each pass with
+  // the (-check)-debugify passes.
+  DebugifyCustomPassManager Passes;
+  if (DebugifyEach)
+    Passes.enableDebugifyEach();
+
+  bool AddOneTimeDebugifyPasses = EnableDebugify && !DebugifyEach;
 
   Passes.add(new TargetLibraryInfoWrapperPass(TLII));
 
@@ -831,19 +896,19 @@ int main(int argc, char **argv) {
       if (AnalyzeOnly) {
         switch (Kind) {
         case PT_Region:
-          Passes.add(createRegionPassPrinter(PassInf, Out->os(), Quiet));
+          Passes.add(createRegionPassPrinter(PassInf, Out->os()));
           break;
         case PT_Loop:
-          Passes.add(createLoopPassPrinter(PassInf, Out->os(), Quiet));
+          Passes.add(createLoopPassPrinter(PassInf, Out->os()));
           break;
         case PT_Function:
-          Passes.add(createFunctionPassPrinter(PassInf, Out->os(), Quiet));
+          Passes.add(createFunctionPassPrinter(PassInf, Out->os()));
           break;
         case PT_CallGraphSCC:
-          Passes.add(createCallGraphPassPrinter(PassInf, Out->os(), Quiet));
+          Passes.add(createCallGraphPassPrinter(PassInf, Out->os()));
           break;
         default:
-          Passes.add(createModulePassPrinter(PassInf, Out->os(), Quiet));
+          Passes.add(createModulePassPrinter(PassInf, Out->os()));
           break;
         }
       }

@@ -4025,7 +4025,7 @@ _mm_storeu_si128(__m128i_u *__p, __m128i __b)
 ///
 /// \param __p
 ///    A pointer to a 64-bit memory location. The address of the memory
-///    location does not have to be algned.
+///    location does not have to be aligned.
 /// \param __b
 ///    A 128-bit integer vector containing the value to be stored.
 static __inline__ void __DEFAULT_FN_ATTRS
@@ -4970,10 +4970,10 @@ void _mm_pause(void);
 
 #define _MM_SHUFFLE2(x, y) (((x) << 1) | (y))
 
-#define _MM_DENORMALS_ZERO_ON   (0x0040)
-#define _MM_DENORMALS_ZERO_OFF  (0x0000)
+#define _MM_DENORMALS_ZERO_ON   (0x0040U)
+#define _MM_DENORMALS_ZERO_OFF  (0x0000U)
 
-#define _MM_DENORMALS_ZERO_MASK (0x0040)
+#define _MM_DENORMALS_ZERO_MASK (0x0040U)
 
 #define _MM_GET_DENORMALS_ZERO_MODE() (_mm_getcsr() & _MM_DENORMALS_ZERO_MASK)
 #define _MM_SET_DENORMALS_ZERO_MODE(x) (_mm_setcsr((_mm_getcsr() & ~_MM_DENORMALS_ZERO_MASK) | (x)))

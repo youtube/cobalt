@@ -46,17 +46,12 @@ struct DepCollectorPPCallbacks : public PPCallbacks {
     // Dependency generation really does want to go all the way to the
     // file entry for a source location to find out what is depended on.
     // We do not want #line markers to affect dependency generation!
-    Optional<FileEntryRef> File =
-        SM.getFileEntryRefForID(SM.getFileID(SM.getExpansionLoc(Loc)));
-    if (!File)
-      return;
-
-    StringRef Filename =
-        llvm::sys::path::remove_leading_dotslash(File->getName());
-
-    DepCollector.maybeAddDependency(Filename, /*FromModule*/false,
-                                    isSystem(FileType),
-                                    /*IsModuleFile*/false, /*IsMissing*/false);
+    if (Optional<StringRef> Filename = SM.getNonBuiltinFilenameForID(
+            SM.getFileID(SM.getExpansionLoc(Loc))))
+      DepCollector.maybeAddDependency(
+          llvm::sys::path::remove_leading_dotslash(*Filename),
+          /*FromModule*/ false, isSystem(FileType), /*IsModuleFile*/ false,
+          /*IsMissing*/ false);
   }
 
   void FileSkipped(const FileEntryRef &SkippedFile, const Token &FilenameTok,
@@ -137,16 +132,17 @@ struct DepCollectorASTListener : public ASTReaderListener {
 };
 } // end anonymous namespace
 
-void DependencyCollector::maybeAddDependency(StringRef Filename, bool FromModule,
-                                            bool IsSystem, bool IsModuleFile,
-                                            bool IsMissing) {
+void DependencyCollector::maybeAddDependency(StringRef Filename,
+                                             bool FromModule, bool IsSystem,
+                                             bool IsModuleFile,
+                                             bool IsMissing) {
   if (sawDependency(Filename, FromModule, IsSystem, IsModuleFile, IsMissing))
     addDependency(Filename);
 }
 
 bool DependencyCollector::addDependency(StringRef Filename) {
   if (Seen.insert(Filename).second) {
-    Dependencies.push_back(Filename);
+    Dependencies.push_back(std::string(Filename));
     return true;
   }
   return false;
@@ -160,8 +156,8 @@ static bool isSpecialFilename(StringRef Filename) {
 }
 
 bool DependencyCollector::sawDependency(StringRef Filename, bool FromModule,
-                                       bool IsSystem, bool IsModuleFile,
-                                       bool IsMissing) {
+                                        bool IsSystem, bool IsModuleFile,
+                                        bool IsMissing) {
   return !isSpecialFilename(Filename) &&
          (needSystemDependencies() || !IsSystem);
 }

@@ -6,7 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++98, c++03, c++11
+// UNSUPPORTED: c++03, c++11
+// UNSUPPORTED: libcpp-has-no-localization
 
 // <experimental/iterator>
 //

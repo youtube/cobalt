@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValue_h_
-#define liblldb_OptionValue_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUE_H
+#define LLDB_INTERPRETER_OPTIONVALUE_H
 
 #include "lldb/Core/FormatEntity.h"
 #include "lldb/Utility/CompletionRequest.h"
@@ -31,6 +31,7 @@ public:
     eTypeChar,
     eTypeDictionary,
     eTypeEnum,
+    eTypeFileLineColumn,
     eTypeFileSpec,
     eTypeFileSpecList,
     eTypeFormat,
@@ -84,7 +85,7 @@ public:
   SetValueFromString(llvm::StringRef value,
                      VarSetOperationType op = eVarSetOperationAssign);
 
-  virtual bool Clear() = 0;
+  virtual void Clear() = 0;
 
   virtual lldb::OptionValueSP DeepCopy() const = 0;
 
@@ -135,6 +136,8 @@ public:
       return eTypeDictionary;
     case 1u << eTypeEnum:
       return eTypeEnum;
+    case 1u << eTypeFileLineColumn:
+      return eTypeFileLineColumn;
     case 1u << eTypeFileSpec:
       return eTypeFileSpec;
     case 1u << eTypeFileSpecList:
@@ -326,4 +329,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValue_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUE_H

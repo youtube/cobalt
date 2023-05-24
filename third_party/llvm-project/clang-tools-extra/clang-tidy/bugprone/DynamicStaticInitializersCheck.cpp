@@ -21,7 +21,7 @@ AST_MATCHER(clang::VarDecl, hasConstantDeclaration) {
   if (Init && !Init->isValueDependent()) {
     if (Node.isConstexpr())
       return true;
-    return Node.checkInitIsICE();
+    return Node.evaluateValue();
   }
   return false;
 }
@@ -31,10 +31,11 @@ DynamicStaticInitializersCheck::DynamicStaticInitializersCheck(StringRef Name,
     : ClangTidyCheck(Name, Context),
       RawStringHeaderFileExtensions(Options.getLocalOrGlobal(
         "HeaderFileExtensions", utils::defaultHeaderFileExtensions())) {
-  if (!utils::parseHeaderFileExtensions(RawStringHeaderFileExtensions,
-                                        HeaderFileExtensions, ',')) {
-    llvm::errs() << "Invalid header file extension: "
-                 << RawStringHeaderFileExtensions << "\n";
+  if (!utils::parseFileExtensions(RawStringHeaderFileExtensions,
+                                  HeaderFileExtensions,
+                                  utils::defaultFileExtensionDelimiters())) {
+    this->configurationDiag("Invalid header file extension: '%0'")
+        << RawStringHeaderFileExtensions;
   }
 }
 
@@ -44,8 +45,6 @@ void DynamicStaticInitializersCheck::storeOptions(
 }
 
 void DynamicStaticInitializersCheck::registerMatchers(MatchFinder *Finder) {
-  if (!getLangOpts().CPlusPlus || getLangOpts().ThreadsafeStatics)
-    return;
   Finder->addMatcher(
       varDecl(hasGlobalStorage(), unless(hasConstantDeclaration())).bind("var"),
       this);

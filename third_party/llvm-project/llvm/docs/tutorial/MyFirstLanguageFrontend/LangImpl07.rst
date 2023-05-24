@@ -399,7 +399,7 @@ the unabridged code):
       ...
 
 This code is virtually identical to the code `before we allowed mutable
-variables <LangImpl5.html#code-generation-for-the-for-loop>`_. The big difference is that we
+variables <LangImpl05.html#code-generation-for-the-for-loop>`_. The big difference is that we
 no longer have to construct a PHI node, and we use load/store to access
 the variable as needed.
 
@@ -870,7 +870,7 @@ mutable variables and var/in support. To build this example, use:
 .. code-block:: bash
 
     # Compile
-    clang++ -g toy.cpp `llvm-config --cxxflags --ldflags --system-libs --libs core mcjit native` -O3 -o toy
+    clang++ -g toy.cpp `llvm-config --cxxflags --ldflags --system-libs --libs core orcjit native` -O3 -o toy
     # Run
     ./toy
 

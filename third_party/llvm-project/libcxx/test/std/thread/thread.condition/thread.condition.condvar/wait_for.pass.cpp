@@ -8,7 +8,7 @@
 //
 // UNSUPPORTED: libcpp-has-no-threads
 
-// FLAKY_TEST.
+// ALLOW_RETRIES: 2
 
 // <condition_variable>
 
@@ -25,6 +25,7 @@
 #include <chrono>
 #include <cassert>
 
+#include "make_test_thread.h"
 #include "test_macros.h"
 
 std::condition_variable cv;
@@ -64,8 +65,8 @@ void f()
 int main(int, char**)
 {
     {
-        std::unique_lock<std::mutex>lk(mut);
-        std::thread t(f);
+        std::unique_lock<std::mutex> lk(mut);
+        std::thread t = support::make_test_thread(f);
         assert(test1 == 0);
         while (test1 == 0)
             cv.wait(lk);
@@ -78,8 +79,8 @@ int main(int, char**)
     test1 = 0;
     test2 = 0;
     {
-        std::unique_lock<std::mutex>lk(mut);
-        std::thread t(f);
+        std::unique_lock<std::mutex> lk(mut);
+        std::thread t = support::make_test_thread(f);
         assert(test1 == 0);
         while (test1 == 0)
             cv.wait(lk);

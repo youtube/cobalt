@@ -1,6 +1,6 @@
 //===- OpDefinition.h - Classes for defining concrete Op types --*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -20,14 +20,13 @@
 #define MLIR_IR_OPDEFINITION_H
 
 #include "mlir/IR/Operation.h"
+#include "llvm/Support/PointerLikeTypeTraits.h"
+
 #include <type_traits>
 
 namespace mlir {
 class Builder;
-
-namespace OpTrait {
-template <typename ConcreteType> class OneResult;
-}
+class OpBuilder;
 
 /// This class represents success/failure for operation parsing. It is
 /// essentially a simple wrapper class around LogicalResult that allows for
@@ -76,17 +75,13 @@ namespace impl {
 /// region's only block if it does not have a terminator already. If the region
 /// is empty, insert a new block first. `buildTerminatorOp` should return the
 /// terminator operation to insert.
-void ensureRegionTerminator(Region &region, Location loc,
-                            function_ref<Operation *()> buildTerminatorOp);
-/// Templated version that fills the generates the provided operation type.
-template <typename OpTy>
-void ensureRegionTerminator(Region &region, Builder &builder, Location loc) {
-  ensureRegionTerminator(region, loc, [&] {
-    OperationState state(loc, OpTy::getOperationName());
-    OpTy::build(&builder, state);
-    return Operation::create(state);
-  });
-}
+void ensureRegionTerminator(
+    Region &region, OpBuilder &builder, Location loc,
+    function_ref<Operation *(OpBuilder &, Location)> buildTerminatorOp);
+void ensureRegionTerminator(
+    Region &region, Builder &builder, Location loc,
+    function_ref<Operation *(OpBuilder &, Location)> buildTerminatorOp);
+
 } // namespace impl
 
 /// This is the concrete base class that holds the operation pointer and has
@@ -103,17 +98,11 @@ public:
   /// This implicitly converts to Operation*.
   operator Operation *() const { return state; }
 
+  /// Shortcut of `->` to access a member of Operation.
+  Operation *operator->() const { return state; }
+
   /// Return the operation that this refers to.
   Operation *getOperation() { return state; }
-
-  /// Returns the closest surrounding operation that contains this operation
-  /// or nullptr if this is a top-level operation.
-  Operation *getParentOp() { return getOperation()->getParentOp(); }
-
-  /// Return the closest surrounding parent operation that is of type 'OpTy'.
-  template <typename OpTy> OpTy getParentOfType() {
-    return getOperation()->getParentOfType<OpTy>();
-  }
 
   /// Return the context this operation belongs to.
   MLIRContext *getContext() { return getOperation()->getContext(); }
@@ -141,47 +130,17 @@ public:
   using dialect_attr_iterator = Operation::dialect_attr_iterator;
   using dialect_attr_range = Operation::dialect_attr_range;
 
-  /// Return a range corresponding to the dialect attributes for this operation.
-  dialect_attr_range getDialectAttrs() { return state->getDialectAttrs(); }
-  dialect_attr_iterator dialect_attr_begin() {
-    return state->dialect_attr_begin();
-  }
-  dialect_attr_iterator dialect_attr_end() { return state->dialect_attr_end(); }
-
-  /// Return an attribute with the specified name.
-  Attribute getAttr(StringRef name) { return state->getAttr(name); }
-
-  /// If the operation has an attribute of the specified type, return it.
-  template <typename AttrClass> AttrClass getAttrOfType(StringRef name) {
-    return getAttr(name).dyn_cast_or_null<AttrClass>();
-  }
-
-  /// If the an attribute exists with the specified name, change it to the new
-  /// value.  Otherwise, add a new attribute with the specified name/value.
-  void setAttr(Identifier name, Attribute value) {
-    state->setAttr(name, value);
-  }
-  void setAttr(StringRef name, Attribute value) {
-    setAttr(Identifier::get(name, getContext()), value);
-  }
-
-  /// Set the attributes held by this operation.
-  void setAttrs(ArrayRef<NamedAttribute> attributes) {
-    state->setAttrs(attributes);
-  }
-  void setAttrs(NamedAttributeList newAttrs) { state->setAttrs(newAttrs); }
-
   /// Set the dialect attributes for this operation, and preserve all dependent.
-  template <typename DialectAttrs> void setDialectAttrs(DialectAttrs &&attrs) {
-    state->setDialectAttrs(std::move(attrs));
+  template <typename DialectAttrs>
+  void setDialectAttrs(DialectAttrs &&attrs) {
+    state->setDialectAttrs(std::forward<DialectAttrs>(attrs));
   }
 
-  /// Remove the attribute with the specified name if it exists.  The return
-  /// value indicates whether the attribute was present or not.
-  NamedAttributeList::RemoveResult removeAttr(Identifier name) {
-    return state->removeAttr(name);
-  }
-  NamedAttributeList::RemoveResult removeAttr(StringRef name) {
+  /// Remove the attribute with the specified name if it exists. Return the
+  /// attribute that was erased, or nullptr if there was no attribute with such
+  /// name.
+  Attribute removeAttr(Identifier name) { return state->removeAttr(name); }
+  Attribute removeAttr(StringRef name) {
     return state->removeAttr(Identifier::get(name, getContext()));
   }
 
@@ -233,7 +192,7 @@ protected:
   static ParseResult parse(OpAsmParser &parser, OperationState &result);
 
   // The fallback for the printer is to print it the generic assembly form.
-  void print(OpAsmPrinter &p);
+  static void print(Operation *op, OpAsmPrinter &p);
 
   /// Mutability management is handled by the OpWrapper/OpConstWrapper classes,
   /// so we can cast it away here.
@@ -241,6 +200,9 @@ protected:
 
 private:
   Operation *state;
+
+  /// Allow access to internal hook implementation methods.
+  friend AbstractOperation;
 };
 
 // Allow comparing operators.
@@ -251,104 +213,30 @@ inline bool operator!=(OpState lhs, OpState rhs) {
   return lhs.getOperation() != rhs.getOperation();
 }
 
+raw_ostream &operator<<(raw_ostream &os, OpFoldResult ofr);
+
 /// This class represents a single result from folding an operation.
 class OpFoldResult : public PointerUnion<Attribute, Value> {
   using PointerUnion<Attribute, Value>::PointerUnion;
-};
 
-/// This template defines the foldHook as used by AbstractOperation.
-///
-/// The default implementation uses a general fold method that can be defined on
-/// custom ops which can return multiple results.
-template <typename ConcreteType, bool isSingleResult, typename = void>
-class FoldingHook {
 public:
-  /// This is an implementation detail of the constant folder hook for
-  /// AbstractOperation.
-  static LogicalResult foldHook(Operation *op, ArrayRef<Attribute> operands,
-                                SmallVectorImpl<OpFoldResult> &results) {
-    return cast<ConcreteType>(op).fold(operands, results);
-  }
-
-  /// This hook implements a generalized folder for this operation.  Operations
-  /// can implement this to provide simplifications rules that are applied by
-  /// the Builder::createOrFold API and the canonicalization pass.
-  ///
-  /// This is an intentionally limited interface - implementations of this hook
-  /// can only perform the following changes to the operation:
-  ///
-  ///  1. They can leave the operation alone and without changing the IR, and
-  ///     return failure.
-  ///  2. They can mutate the operation in place, without changing anything else
-  ///     in the IR.  In this case, return success.
-  ///  3. They can return a list of existing values that can be used instead of
-  ///     the operation.  In this case, fill in the results list and return
-  ///     success.  The caller will remove the operation and use those results
-  ///     instead.
-  ///
-  /// This allows expression of some simple in-place canonicalizations (e.g.
-  /// "x+0 -> x", "min(x,y,x,z) -> min(x,y,z)", "x+y-x -> y", etc), as well as
-  /// generalized constant folding.
-  ///
-  /// If not overridden, this fallback implementation always fails to fold.
-  ///
-  LogicalResult fold(ArrayRef<Attribute> operands,
-                     SmallVectorImpl<OpFoldResult> &results) {
-    return failure();
-  }
+  void dump() { llvm::errs() << *this << "\n"; }
 };
 
-/// This template specialization defines the foldHook as used by
-/// AbstractOperation for single-result operations.  This gives the hook a nicer
-/// signature that is easier to implement.
-template <typename ConcreteType, bool isSingleResult>
-class FoldingHook<ConcreteType, isSingleResult,
-                  typename std::enable_if<isSingleResult>::type> {
-public:
-  /// If the operation returns a single value, then the Op can be implicitly
-  /// converted to an Value.  This yields the value of the only result.
-  operator Value() {
-    return static_cast<ConcreteType *>(this)->getOperation()->getResult(0);
-  }
+/// Allow printing to a stream.
+inline raw_ostream &operator<<(raw_ostream &os, OpFoldResult ofr) {
+  if (Value value = ofr.dyn_cast<Value>())
+    value.print(os);
+  else
+    ofr.dyn_cast<Attribute>().print(os);
+  return os;
+}
 
-  /// This is an implementation detail of the constant folder hook for
-  /// AbstractOperation.
-  static LogicalResult foldHook(Operation *op, ArrayRef<Attribute> operands,
-                                SmallVectorImpl<OpFoldResult> &results) {
-    auto result = cast<ConcreteType>(op).fold(operands);
-    if (!result)
-      return failure();
-
-    // Check if the operation was folded in place. In this case, the operation
-    // returns itself.
-    if (result.template dyn_cast<Value>() != op->getResult(0))
-      results.push_back(result);
-    return success();
-  }
-
-  /// This hook implements a generalized folder for this operation.  Operations
-  /// can implement this to provide simplifications rules that are applied by
-  /// the Builder::createOrFold API and the canonicalization pass.
-  ///
-  /// This is an intentionally limited interface - implementations of this hook
-  /// can only perform the following changes to the operation:
-  ///
-  ///  1. They can leave the operation alone and without changing the IR, and
-  ///     return nullptr.
-  ///  2. They can mutate the operation in place, without changing anything else
-  ///     in the IR.  In this case, return the operation itself.
-  ///  3. They can return an existing SSA value that can be used instead of
-  ///     the operation.  In this case, return that value.  The caller will
-  ///     remove the operation and use that result instead.
-  ///
-  /// This allows expression of some simple in-place canonicalizations (e.g.
-  /// "x+0 -> x", "min(x,y,x,z) -> min(x,y,z)", "x+y-x -> y", etc), as well as
-  /// generalized constant folding.
-  ///
-  /// If not overridden, this fallback implementation always fails to fold.
-  ///
-  OpFoldResult fold(ArrayRef<Attribute> operands) { return {}; }
-};
+/// Allow printing to a stream.
+inline raw_ostream &operator<<(raw_ostream &os, OpState &op) {
+  op.print(os, OpPrintingFlags().useLocalScope());
+  return os;
+}
 
 //===----------------------------------------------------------------------===//
 // Operation Trait Types
@@ -360,13 +248,21 @@ namespace OpTrait {
 // corresponding trait classes.  This avoids them being template
 // instantiated/duplicated.
 namespace impl {
+OpFoldResult foldIdempotent(Operation *op);
+OpFoldResult foldInvolution(Operation *op);
 LogicalResult verifyZeroOperands(Operation *op);
 LogicalResult verifyOneOperand(Operation *op);
 LogicalResult verifyNOperands(Operation *op, unsigned numOperands);
+LogicalResult verifyIsIdempotent(Operation *op);
+LogicalResult verifyIsInvolution(Operation *op);
 LogicalResult verifyAtLeastNOperands(Operation *op, unsigned numOperands);
 LogicalResult verifyOperandsAreFloatLike(Operation *op);
-LogicalResult verifyOperandsAreIntegerLike(Operation *op);
+LogicalResult verifyOperandsAreSignlessIntegerLike(Operation *op);
 LogicalResult verifySameTypeOperands(Operation *op);
+LogicalResult verifyZeroRegion(Operation *op);
+LogicalResult verifyOneRegion(Operation *op);
+LogicalResult verifyNRegions(Operation *op, unsigned numRegions);
+LogicalResult verifyAtLeastNRegions(Operation *op, unsigned numRegions);
 LogicalResult verifyZeroResult(Operation *op);
 LogicalResult verifyOneResult(Operation *op);
 LogicalResult verifyNResults(Operation *op, unsigned numOperands);
@@ -378,10 +274,16 @@ LogicalResult verifySameOperandsAndResultElementType(Operation *op);
 LogicalResult verifySameOperandsAndResultType(Operation *op);
 LogicalResult verifyResultsAreBoolLike(Operation *op);
 LogicalResult verifyResultsAreFloatLike(Operation *op);
-LogicalResult verifyResultsAreIntegerLike(Operation *op);
+LogicalResult verifyResultsAreSignlessIntegerLike(Operation *op);
 LogicalResult verifyIsTerminator(Operation *op);
+LogicalResult verifyZeroSuccessor(Operation *op);
+LogicalResult verifyOneSuccessor(Operation *op);
+LogicalResult verifyNSuccessors(Operation *op, unsigned numSuccessors);
+LogicalResult verifyAtLeastNSuccessors(Operation *op, unsigned numSuccessors);
 LogicalResult verifyOperandSizeAttr(Operation *op, StringRef sizeAttrName);
 LogicalResult verifyResultSizeAttr(Operation *op, StringRef sizeAttrName);
+LogicalResult verifyNoRegionArguments(Operation *op);
+LogicalResult verifyElementwiseMappable(Operation *op);
 } // namespace impl
 
 /// Helper class for implementing traits.  Clients are not expected to interact
@@ -400,14 +302,10 @@ protected:
     auto *base = static_cast<OpState *>(concrete);
     return base->getOperation();
   }
-
-  /// Provide default implementations of trait hooks.  This allows traits to
-  /// provide exactly the overrides they care about.
-  static LogicalResult verifyTrait(Operation *op) { return success(); }
-  static AbstractOperation::OperationProperties getTraitProperties() {
-    return 0;
-  }
 };
+
+//===----------------------------------------------------------------------===//
+// Operand Traits
 
 namespace detail {
 /// Utility trait base that provides accessors for derived traits that have
@@ -484,7 +382,8 @@ public:
 ///
 ///   class FooOp : public Op<FooOp, OpTrait::NOperands<2>::Impl> {
 ///
-template <unsigned N> class NOperands {
+template <unsigned N>
+class NOperands {
 public:
   static_assert(N > 1, "use ZeroOperands/OneOperand for N < 2");
 
@@ -503,7 +402,8 @@ public:
 ///
 ///   class FooOp : public Op<FooOp, OpTrait::AtLeastNOperands<2>::Impl> {
 ///
-template <unsigned N> class AtLeastNOperands {
+template <unsigned N>
+class AtLeastNOperands {
 public:
   template <typename ConcreteType>
   class Impl : public detail::MultiOperandTraitBase<ConcreteType,
@@ -520,6 +420,101 @@ public:
 template <typename ConcreteType>
 class VariadicOperands
     : public detail::MultiOperandTraitBase<ConcreteType, VariadicOperands> {};
+
+//===----------------------------------------------------------------------===//
+// Region Traits
+
+/// This class provides verification for ops that are known to have zero
+/// regions.
+template <typename ConcreteType>
+class ZeroRegion : public TraitBase<ConcreteType, ZeroRegion> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    return impl::verifyZeroRegion(op);
+  }
+};
+
+namespace detail {
+/// Utility trait base that provides accessors for derived traits that have
+/// multiple regions.
+template <typename ConcreteType, template <typename> class TraitType>
+struct MultiRegionTraitBase : public TraitBase<ConcreteType, TraitType> {
+  using region_iterator = MutableArrayRef<Region>;
+  using region_range = RegionRange;
+
+  /// Return the number of regions.
+  unsigned getNumRegions() { return this->getOperation()->getNumRegions(); }
+
+  /// Return the region at `index`.
+  Region &getRegion(unsigned i) { return this->getOperation()->getRegion(i); }
+
+  /// Region iterator access.
+  region_iterator region_begin() {
+    return this->getOperation()->region_begin();
+  }
+  region_iterator region_end() { return this->getOperation()->region_end(); }
+  region_range getRegions() { return this->getOperation()->getRegions(); }
+};
+} // end namespace detail
+
+/// This class provides APIs for ops that are known to have a single region.
+template <typename ConcreteType>
+class OneRegion : public TraitBase<ConcreteType, OneRegion> {
+public:
+  Region &getRegion() { return this->getOperation()->getRegion(0); }
+
+  /// Returns a range of operations within the region of this operation.
+  auto getOps() { return getRegion().getOps(); }
+  template <typename OpT>
+  auto getOps() {
+    return getRegion().template getOps<OpT>();
+  }
+
+  static LogicalResult verifyTrait(Operation *op) {
+    return impl::verifyOneRegion(op);
+  }
+};
+
+/// This class provides the API for ops that are known to have a specified
+/// number of regions.
+template <unsigned N>
+class NRegions {
+public:
+  static_assert(N > 1, "use ZeroRegion/OneRegion for N < 2");
+
+  template <typename ConcreteType>
+  class Impl
+      : public detail::MultiRegionTraitBase<ConcreteType, NRegions<N>::Impl> {
+  public:
+    static LogicalResult verifyTrait(Operation *op) {
+      return impl::verifyNRegions(op, N);
+    }
+  };
+};
+
+/// This class provides APIs for ops that are known to have at least a specified
+/// number of regions.
+template <unsigned N>
+class AtLeastNRegions {
+public:
+  template <typename ConcreteType>
+  class Impl : public detail::MultiRegionTraitBase<ConcreteType,
+                                                   AtLeastNRegions<N>::Impl> {
+  public:
+    static LogicalResult verifyTrait(Operation *op) {
+      return impl::verifyAtLeastNRegions(op, N);
+    }
+  };
+};
+
+/// This class provides the API for ops which have an unknown number of
+/// regions.
+template <typename ConcreteType>
+class VariadicRegions
+    : public detail::MultiRegionTraitBase<ConcreteType, VariadicRegions> {};
+
+//===----------------------------------------------------------------------===//
+// Result Traits
 
 /// This class provides return value APIs for ops that are known to have
 /// zero results.
@@ -549,7 +544,8 @@ struct MultiResultTraitBase : public TraitBase<ConcreteType, TraitType> {
 
   /// Replace all uses of results of this operation with the provided 'values'.
   /// 'values' may correspond to an existing operation, or a range of 'Value'.
-  template <typename ValuesT> void replaceAllUsesWith(ValuesT &&values) {
+  template <typename ValuesT>
+  void replaceAllUsesWith(ValuesT &&values) {
     this->getOperation()->replaceAllUsesWith(std::forward<ValuesT>(values));
   }
 
@@ -577,16 +573,19 @@ struct MultiResultTraitBase : public TraitBase<ConcreteType, TraitType> {
 } // end namespace detail
 
 /// This class provides return value APIs for ops that are known to have a
-/// single result.
+/// single result.  ResultType is the concrete type returned by getType().
 template <typename ConcreteType>
 class OneResult : public TraitBase<ConcreteType, OneResult> {
 public:
   Value getResult() { return this->getOperation()->getResult(0); }
-  Type getType() { return getResult().getType(); }
 
-  /// Replace all uses of 'this' value with the new value, updating anything in
-  /// the IR that uses 'this' to use the other value instead.  When this returns
-  /// there are zero uses of 'this'.
+  /// If the operation returns a single value, then the Op can be implicitly
+  /// converted to an Value. This yields the value of the only result.
+  operator Value() { return getResult(); }
+
+  /// Replace all uses of 'this' value with the new value, updating anything
+  /// in the IR that uses 'this' to use the other value instead.  When this
+  /// returns there are zero uses of 'this'.
   void replaceAllUsesWith(Value newValue) {
     getResult().replaceAllUsesWith(newValue);
   }
@@ -601,12 +600,33 @@ public:
   }
 };
 
+/// This trait is used for return value APIs for ops that are known to have a
+/// specific type other than `Type`.  This allows the "getType()" member to be
+/// more specific for an op.  This should be used in conjunction with OneResult,
+/// and occur in the trait list before OneResult.
+template <typename ResultType>
+class OneTypedResult {
+public:
+  /// This class provides return value APIs for ops that are known to have a
+  /// single result.  ResultType is the concrete type returned by getType().
+  template <typename ConcreteType>
+  class Impl
+      : public TraitBase<ConcreteType, OneTypedResult<ResultType>::Impl> {
+  public:
+    ResultType getType() {
+      auto resultTy = this->getOperation()->getResult(0).getType();
+      return resultTy.template cast<ResultType>();
+    }
+  };
+};
+
 /// This class provides the API for ops that are known to have a specified
 /// number of results.  This is used as a trait like this:
 ///
 ///   class FooOp : public Op<FooOp, OpTrait::NResults<2>::Impl> {
 ///
-template <unsigned N> class NResults {
+template <unsigned N>
+class NResults {
 public:
   static_assert(N > 1, "use ZeroResult/OneResult for N < 2");
 
@@ -625,7 +645,8 @@ public:
 ///
 ///   class FooOp : public Op<FooOp, OpTrait::AtLeastNResults<2>::Impl> {
 ///
-template <unsigned N> class AtLeastNResults {
+template <unsigned N>
+class AtLeastNResults {
 public:
   template <typename ConcreteType>
   class Impl : public detail::MultiResultTraitBase<ConcreteType,
@@ -642,6 +663,248 @@ public:
 template <typename ConcreteType>
 class VariadicResults
     : public detail::MultiResultTraitBase<ConcreteType, VariadicResults> {};
+
+//===----------------------------------------------------------------------===//
+// Terminator Traits
+
+/// This class provides the API for ops that are known to be terminators.
+template <typename ConcreteType>
+class IsTerminator : public TraitBase<ConcreteType, IsTerminator> {
+public:
+  static AbstractOperation::OperationProperties getTraitProperties() {
+    return static_cast<AbstractOperation::OperationProperties>(
+        OperationProperty::Terminator);
+  }
+  static LogicalResult verifyTrait(Operation *op) {
+    return impl::verifyIsTerminator(op);
+  }
+};
+
+/// This class provides verification for ops that are known to have zero
+/// successors.
+template <typename ConcreteType>
+class ZeroSuccessor : public TraitBase<ConcreteType, ZeroSuccessor> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    return impl::verifyZeroSuccessor(op);
+  }
+};
+
+namespace detail {
+/// Utility trait base that provides accessors for derived traits that have
+/// multiple successors.
+template <typename ConcreteType, template <typename> class TraitType>
+struct MultiSuccessorTraitBase : public TraitBase<ConcreteType, TraitType> {
+  using succ_iterator = Operation::succ_iterator;
+  using succ_range = SuccessorRange;
+
+  /// Return the number of successors.
+  unsigned getNumSuccessors() {
+    return this->getOperation()->getNumSuccessors();
+  }
+
+  /// Return the successor at `index`.
+  Block *getSuccessor(unsigned i) {
+    return this->getOperation()->getSuccessor(i);
+  }
+
+  /// Set the successor at `index`.
+  void setSuccessor(Block *block, unsigned i) {
+    return this->getOperation()->setSuccessor(block, i);
+  }
+
+  /// Successor iterator access.
+  succ_iterator succ_begin() { return this->getOperation()->succ_begin(); }
+  succ_iterator succ_end() { return this->getOperation()->succ_end(); }
+  succ_range getSuccessors() { return this->getOperation()->getSuccessors(); }
+};
+} // end namespace detail
+
+/// This class provides APIs for ops that are known to have a single successor.
+template <typename ConcreteType>
+class OneSuccessor : public TraitBase<ConcreteType, OneSuccessor> {
+public:
+  Block *getSuccessor() { return this->getOperation()->getSuccessor(0); }
+  void setSuccessor(Block *succ) {
+    this->getOperation()->setSuccessor(succ, 0);
+  }
+
+  static LogicalResult verifyTrait(Operation *op) {
+    return impl::verifyOneSuccessor(op);
+  }
+};
+
+/// This class provides the API for ops that are known to have a specified
+/// number of successors.
+template <unsigned N>
+class NSuccessors {
+public:
+  static_assert(N > 1, "use ZeroSuccessor/OneSuccessor for N < 2");
+
+  template <typename ConcreteType>
+  class Impl : public detail::MultiSuccessorTraitBase<ConcreteType,
+                                                      NSuccessors<N>::Impl> {
+  public:
+    static LogicalResult verifyTrait(Operation *op) {
+      return impl::verifyNSuccessors(op, N);
+    }
+  };
+};
+
+/// This class provides APIs for ops that are known to have at least a specified
+/// number of successors.
+template <unsigned N>
+class AtLeastNSuccessors {
+public:
+  template <typename ConcreteType>
+  class Impl
+      : public detail::MultiSuccessorTraitBase<ConcreteType,
+                                               AtLeastNSuccessors<N>::Impl> {
+  public:
+    static LogicalResult verifyTrait(Operation *op) {
+      return impl::verifyAtLeastNSuccessors(op, N);
+    }
+  };
+};
+
+/// This class provides the API for ops which have an unknown number of
+/// successors.
+template <typename ConcreteType>
+class VariadicSuccessors
+    : public detail::MultiSuccessorTraitBase<ConcreteType, VariadicSuccessors> {
+};
+
+//===----------------------------------------------------------------------===//
+// SingleBlockImplicitTerminator
+
+/// This class provides APIs and verifiers for ops with regions having a single
+/// block that must terminate with `TerminatorOpType`.
+template <typename TerminatorOpType>
+struct SingleBlockImplicitTerminator {
+  template <typename ConcreteType>
+  class Impl : public TraitBase<ConcreteType, Impl> {
+  private:
+    /// Builds a terminator operation without relying on OpBuilder APIs to avoid
+    /// cyclic header inclusion.
+    static Operation *buildTerminator(OpBuilder &builder, Location loc) {
+      OperationState state(loc, TerminatorOpType::getOperationName());
+      TerminatorOpType::build(builder, state);
+      return Operation::create(state);
+    }
+
+  public:
+    /// The type of the operation used as the implicit terminator type.
+    using ImplicitTerminatorOpT = TerminatorOpType;
+
+    static LogicalResult verifyTrait(Operation *op) {
+      for (unsigned i = 0, e = op->getNumRegions(); i < e; ++i) {
+        Region &region = op->getRegion(i);
+
+        // Empty regions are fine.
+        if (region.empty())
+          continue;
+
+        // Non-empty regions must contain a single basic block.
+        if (std::next(region.begin()) != region.end())
+          return op->emitOpError("expects region #")
+                 << i << " to have 0 or 1 blocks";
+
+        Block &block = region.front();
+        if (block.empty())
+          return op->emitOpError() << "expects a non-empty block";
+        Operation &terminator = block.back();
+        if (isa<TerminatorOpType>(terminator))
+          continue;
+
+        return op->emitOpError("expects regions to end with '" +
+                               TerminatorOpType::getOperationName() +
+                               "', found '" +
+                               terminator.getName().getStringRef() + "'")
+                   .attachNote()
+               << "in custom textual format, the absence of terminator implies "
+                  "'"
+               << TerminatorOpType::getOperationName() << '\'';
+      }
+
+      return success();
+    }
+
+    /// Ensure that the given region has the terminator required by this trait.
+    /// If OpBuilder is provided, use it to build the terminator and notify the
+    /// OpBuilder listeners accordingly. If only a Builder is provided, locally
+    /// construct an OpBuilder with no listeners; this should only be used if no
+    /// OpBuilder is available at the call site, e.g., in the parser.
+    static void ensureTerminator(Region &region, Builder &builder,
+                                 Location loc) {
+      ::mlir::impl::ensureRegionTerminator(region, builder, loc,
+                                           buildTerminator);
+    }
+    static void ensureTerminator(Region &region, OpBuilder &builder,
+                                 Location loc) {
+      ::mlir::impl::ensureRegionTerminator(region, builder, loc,
+                                           buildTerminator);
+    }
+
+    Block *getBody(unsigned idx = 0) {
+      Region &region = this->getOperation()->getRegion(idx);
+      assert(!region.empty() && "unexpected empty region");
+      return &region.front();
+    }
+    Region &getBodyRegion(unsigned idx = 0) {
+      return this->getOperation()->getRegion(idx);
+    }
+
+    //===------------------------------------------------------------------===//
+    // Single Region Utilities
+    //===------------------------------------------------------------------===//
+
+    /// The following are a set of methods only enabled when the parent
+    /// operation has a single region. Each of these methods take an additional
+    /// template parameter that represents the concrete operation so that we
+    /// can use SFINAE to disable the methods for non-single region operations.
+    template <typename OpT, typename T = void>
+    using enable_if_single_region =
+        typename std::enable_if_t<OpT::template hasTrait<OneRegion>(), T>;
+
+    template <typename OpT = ConcreteType>
+    enable_if_single_region<OpT, Block::iterator> begin() {
+      return getBody()->begin();
+    }
+    template <typename OpT = ConcreteType>
+    enable_if_single_region<OpT, Block::iterator> end() {
+      return getBody()->end();
+    }
+    template <typename OpT = ConcreteType>
+    enable_if_single_region<OpT, Operation &> front() {
+      return *begin();
+    }
+
+    /// Insert the operation into the back of the body, before the terminator.
+    template <typename OpT = ConcreteType>
+    enable_if_single_region<OpT> push_back(Operation *op) {
+      insert(Block::iterator(getBody()->getTerminator()), op);
+    }
+
+    /// Insert the operation at the given insertion point. Note: The operation
+    /// is never inserted after the terminator, even if the insertion point is
+    /// end().
+    template <typename OpT = ConcreteType>
+    enable_if_single_region<OpT> insert(Operation *insertPt, Operation *op) {
+      insert(Block::iterator(insertPt), op);
+    }
+    template <typename OpT = ConcreteType>
+    enable_if_single_region<OpT> insert(Block::iterator insertPt,
+                                        Operation *op) {
+      auto *body = getBody();
+      if (insertPt == body->end())
+        insertPt = Block::iterator(body->getTerminator());
+      body->getOperations().insert(insertPt, op);
+    }
+  };
+};
+
+//===----------------------------------------------------------------------===//
+// Misc Traits
 
 /// This class provides verification for ops that are known to have the same
 /// operand shape: all operands are scalars, vectors/tensors of the same
@@ -725,14 +988,14 @@ public:
   }
 };
 
-/// This class verifies that any results of the specified op have an integer or
-/// index type, a vector thereof, or a tensor thereof.
+/// This class verifies that any results of the specified op have a signless
+/// integer or index type, a vector thereof, or a tensor thereof.
 template <typename ConcreteType>
-class ResultsAreIntegerLike
-    : public TraitBase<ConcreteType, ResultsAreIntegerLike> {
+class ResultsAreSignlessIntegerLike
+    : public TraitBase<ConcreteType, ResultsAreSignlessIntegerLike> {
 public:
   static LogicalResult verifyTrait(Operation *op) {
-    return impl::verifyResultsAreIntegerLike(op);
+    return impl::verifyResultsAreSignlessIntegerLike(op);
   }
 };
 
@@ -746,13 +1009,47 @@ public:
   }
 };
 
-/// This class adds property that the operation has no side effects.
+/// This class adds property that the operation is an involution.
+/// This means a unary to unary operation "f" that satisfies f(f(x)) = x
 template <typename ConcreteType>
-class HasNoSideEffect : public TraitBase<ConcreteType, HasNoSideEffect> {
+class IsInvolution : public TraitBase<ConcreteType, IsInvolution> {
 public:
-  static AbstractOperation::OperationProperties getTraitProperties() {
-    return static_cast<AbstractOperation::OperationProperties>(
-        OperationProperty::NoSideEffect);
+  static LogicalResult verifyTrait(Operation *op) {
+    static_assert(ConcreteType::template hasTrait<OneResult>(),
+                  "expected operation to produce one result");
+    static_assert(ConcreteType::template hasTrait<OneOperand>(),
+                  "expected operation to take one operand");
+    static_assert(ConcreteType::template hasTrait<SameOperandsAndResultType>(),
+                  "expected operation to preserve type");
+    // Involution requires the operation to be side effect free as well
+    // but currently this check is under a FIXME and is not actually done.
+    return impl::verifyIsInvolution(op);
+  }
+
+  static OpFoldResult foldTrait(Operation *op, ArrayRef<Attribute> operands) {
+    return impl::foldInvolution(op);
+  }
+};
+
+/// This class adds property that the operation is idempotent.
+/// This means a unary to unary operation "f" that satisfies f(f(x)) = f(x)
+template <typename ConcreteType>
+class IsIdempotent : public TraitBase<ConcreteType, IsIdempotent> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    static_assert(ConcreteType::template hasTrait<OneResult>(),
+                  "expected operation to produce one result");
+    static_assert(ConcreteType::template hasTrait<OneOperand>(),
+                  "expected operation to take one operand");
+    static_assert(ConcreteType::template hasTrait<SameOperandsAndResultType>(),
+                  "expected operation to preserve type");
+    // Idempotent requires the operation to be side effect free as well
+    // but currently this check is under a FIXME and is not actually done.
+    return impl::verifyIsIdempotent(op);
+  }
+
+  static OpFoldResult foldTrait(Operation *op, ArrayRef<Attribute> operands) {
+    return impl::foldIdempotent(op);
   }
 };
 
@@ -767,14 +1064,14 @@ public:
   }
 };
 
-/// This class verifies that all operands of the specified op have an integer or
-/// index type, a vector thereof, or a tensor thereof.
+/// This class verifies that all operands of the specified op have a signless
+/// integer or index type, a vector thereof, or a tensor thereof.
 template <typename ConcreteType>
-class OperandsAreIntegerLike
-    : public TraitBase<ConcreteType, OperandsAreIntegerLike> {
+class OperandsAreSignlessIntegerLike
+    : public TraitBase<ConcreteType, OperandsAreSignlessIntegerLike> {
 public:
   static LogicalResult verifyTrait(Operation *op) {
-    return impl::verifyOperandsAreIntegerLike(op);
+    return impl::verifyOperandsAreSignlessIntegerLike(op);
   }
 };
 
@@ -788,38 +1085,22 @@ public:
   }
 };
 
-/// This class provides the API for ops that are known to be terminators.
+/// This class provides the API for a sub-set of ops that are known to be
+/// constant-like. These are non-side effecting operations with one result and
+/// zero operands that can always be folded to a specific attribute value.
 template <typename ConcreteType>
-class IsTerminator : public TraitBase<ConcreteType, IsTerminator> {
+class ConstantLike : public TraitBase<ConcreteType, ConstantLike> {
 public:
-  static AbstractOperation::OperationProperties getTraitProperties() {
-    return static_cast<AbstractOperation::OperationProperties>(
-        OperationProperty::Terminator);
-  }
   static LogicalResult verifyTrait(Operation *op) {
-    return impl::verifyIsTerminator(op);
-  }
-
-  unsigned getNumSuccessors() {
-    return this->getOperation()->getNumSuccessors();
-  }
-  unsigned getNumSuccessorOperands(unsigned index) {
-    return this->getOperation()->getNumSuccessorOperands(index);
-  }
-
-  Block *getSuccessor(unsigned index) {
-    return this->getOperation()->getSuccessor(index);
-  }
-
-  void setSuccessor(Block *block, unsigned index) {
-    return this->getOperation()->setSuccessor(block, index);
-  }
-
-  void addSuccessorOperand(unsigned index, Value value) {
-    return this->getOperation()->addSuccessorOperand(index, value);
-  }
-  void addSuccessorOperands(unsigned index, ArrayRef<Value> values) {
-    return this->getOperation()->addSuccessorOperand(index, values);
+    static_assert(ConcreteType::template hasTrait<OneResult>(),
+                  "expected operation to produce one result");
+    static_assert(ConcreteType::template hasTrait<ZeroOperands>(),
+                  "expected operation to take zero operands");
+    // TODO: We should verify that the operation can always be folded, but this
+    // requires that the attributes of the op already be verified. We should add
+    // support for verifying traits "after" the operation to enable this use
+    // case.
+    return success();
   }
 };
 
@@ -841,64 +1122,53 @@ public:
   }
 };
 
-/// This class provides APIs and verifiers for ops with regions having a single
-/// block that must terminate with `TerminatorOpType`.
-template <typename TerminatorOpType> struct SingleBlockImplicitTerminator {
-  template <typename ConcreteType>
-  class Impl : public TraitBase<ConcreteType, Impl> {
-  public:
-    static LogicalResult verifyTrait(Operation *op) {
-      for (unsigned i = 0, e = op->getNumRegions(); i < e; ++i) {
-        Region &region = op->getRegion(i);
-
-        // Empty regions are fine.
-        if (region.empty())
-          continue;
-
-        // Non-empty regions must contain a single basic block.
-        if (std::next(region.begin()) != region.end())
-          return op->emitOpError("expects region #")
-                 << i << " to have 0 or 1 blocks";
-
-        Block &block = region.front();
-        if (block.empty())
-          return op->emitOpError() << "expects a non-empty block";
-        Operation &terminator = block.back();
-        if (isa<TerminatorOpType>(terminator))
-          continue;
-
-        return op->emitOpError("expects regions to end with '" +
-                               TerminatorOpType::getOperationName() +
-                               "', found '" +
-                               terminator.getName().getStringRef() + "'")
-                   .attachNote()
-               << "in custom textual format, the absence of terminator implies "
-                  "'"
-               << TerminatorOpType::getOperationName() << '\'';
-      }
-
-      return success();
-    }
-
-    /// Ensure that the given region has the terminator required by this trait.
-    static void ensureTerminator(Region &region, Builder &builder,
-                                 Location loc) {
-      ::mlir::impl::template ensureRegionTerminator<TerminatorOpType>(
-          region, builder, loc);
-    }
-  };
+/// A trait of region holding operations that defines a new scope for polyhedral
+/// optimization purposes. Any SSA values of 'index' type that either dominate
+/// such an operation or are used at the top-level of such an operation
+/// automatically become valid symbols for the polyhedral scope defined by that
+/// operation. For more details, see `Traits.md#AffineScope`.
+template <typename ConcreteType>
+class AffineScope : public TraitBase<ConcreteType, AffineScope> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    static_assert(!ConcreteType::template hasTrait<ZeroRegion>(),
+                  "expected operation to have one or more regions");
+    return success();
+  }
 };
 
-/// This class provides a verifier for ops that are expecting a specific parent.
-template <typename ParentOpType> struct HasParent {
+/// A trait of region holding operations that define a new scope for automatic
+/// allocations, i.e., allocations that are freed when control is transferred
+/// back from the operation's region. Any operations performing such allocations
+/// (for eg. std.alloca) will have their allocations automatically freed at
+/// their closest enclosing operation with this trait.
+template <typename ConcreteType>
+class AutomaticAllocationScope
+    : public TraitBase<ConcreteType, AutomaticAllocationScope> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    if (op->hasTrait<ZeroRegion>())
+      return op->emitOpError("is expected to have regions");
+    return success();
+  }
+};
+
+/// This class provides a verifier for ops that are expecting their parent
+/// to be one of the given parent ops
+template <typename... ParentOpTypes>
+struct HasParent {
   template <typename ConcreteType>
   class Impl : public TraitBase<ConcreteType, Impl> {
   public:
     static LogicalResult verifyTrait(Operation *op) {
-      if (isa<ParentOpType>(op->getParentOp()))
+      if (llvm::isa<ParentOpTypes...>(op->getParentOp()))
         return success();
-      return op->emitOpError() << "expects parent op '"
-                               << ParentOpType::getOperationName() << "'";
+
+      return op->emitOpError()
+             << "expects parent op "
+             << (sizeof...(ParentOpTypes) != 1 ? "to be one of '" : "'")
+             << llvm::makeArrayRef({ParentOpTypes::getOperationName()...})
+             << "'";
     }
   };
 };
@@ -940,7 +1210,276 @@ public:
   }
 };
 
+/// This trait provides a verifier for ops that are expecting their regions to
+/// not have any arguments
+template <typename ConcrentType>
+struct NoRegionArguments : public TraitBase<ConcrentType, NoRegionArguments> {
+  static LogicalResult verifyTrait(Operation *op) {
+    return ::mlir::OpTrait::impl::verifyNoRegionArguments(op);
+  }
+};
+
+// This trait is used to flag operations that consume or produce
+// values of `MemRef` type where those references can be 'normalized'.
+// TODO: Right now, the operands of an operation are either all normalizable,
+// or not. In the future, we may want to allow some of the operands to be
+// normalizable.
+template <typename ConcrentType>
+struct MemRefsNormalizable
+    : public TraitBase<ConcrentType, MemRefsNormalizable> {};
+
+/// This trait tags scalar ops that also can be applied to vectors/tensors, with
+/// their semantics on vectors/tensors being elementwise application.
+///
+/// NOTE: Not all ops that are "elementwise" in some abstract sense satisfy this
+/// trait. In particular, broadcasting behavior is not allowed. This trait
+/// describes a set of invariants that allow systematic
+/// vectorization/tensorization, and the reverse, scalarization. The properties
+/// needed for this also can be used to implement a number of
+/// transformations/analyses/interfaces.
+///
+/// An `ElementwiseMappable` op must satisfy the following properties:
+///
+/// 1. If any result is a vector (resp. tensor), then at least one operand must
+/// be a vector (resp. tensor).
+/// 2. If any operand is a vector (resp. tensor), then there must be at least
+/// one result, and all results must be vectors (resp. tensors).
+/// 3. The static types of all vector (resp. tensor) operands and results must
+/// have the same shape.
+/// 4. In the case of tensor operands, the dynamic shapes of all tensor operands
+/// must be the same, otherwise the op has undefined behavior.
+/// 5. ("systematic scalarization" property) If an op has vector/tensor
+/// operands/results, then the same op, with the operand/result types changed to
+/// their corresponding element type, shall be a verifier-valid op.
+/// 6. The semantics of the op on vectors (resp. tensors) shall be the same as
+/// applying the scalarized version of the op for each corresponding element of
+/// the vector (resp. tensor) operands in parallel.
+/// 7. ("systematic vectorization/tensorization" property) If an op has
+/// scalar operands/results, the op shall remain verifier-valid if all scalar
+/// operands are replaced with vectors/tensors of the same shape and
+/// corresponding element types.
+///
+/// Together, these properties provide an easy way for scalar operations to
+/// conveniently generalize their behavior to vectors/tensors, and systematize
+/// conversion between these forms.
+///
+/// Examples:
+/// ```
+/// %scalar = "std.addf"(%a, %b) : (f32, f32) -> f32
+/// // Applying the systematic vectorization/tensorization property, this op
+/// // must also be valid:
+/// %tensor = "std.addf"(%a_tensor, %b_tensor)
+///           : (tensor<?xf32>, tensor<?xf32>) -> tensor<?xf32>)
+///
+/// // These properties generalize well to the cases of non-scalar operands.
+/// %select_scalar_pred = "std.select"(%pred, %true_val, %false_val)
+///                       : (i1, tensor<?xf32>, tensor<?xf32>) -> tensor<?xf32>
+/// // Applying the systematic vectorization / tensorization property, this
+/// // op must also be valid:
+/// %select_tensor_pred = "std.select"(%pred_tensor, %true_val, %false_val)
+///                       : (tensor<?xi1>, tensor<?xf32>, tensor<?xf32>)
+///                       -> tensor<?xf32>
+/// // Applying the systematic scalarization property, this op must also
+/// // be valid.
+/// %select_scalar = "std.select"(%pred, %true_val_scalar, %false_val_scalar)
+///                  : (i1, f32, f32) -> f32
+/// ```
+///
+/// TODO: Avoid hardcoding vector/tensor, and generalize this to any type
+/// implementing a new "ElementwiseMappableTypeInterface" that describes types
+/// for which it makes sense to apply a scalar function to each element.
+///
+/// Rationale:
+/// - 1. and 2. guarantee a well-defined iteration space for 6.
+///   - These also exclude the cases of 0 non-scalar operands or 0 non-scalar
+///     results, which complicate a generic definition of the iteration space.
+/// - 3. guarantees that folding can be done across scalars/vectors/tensors
+///   with the same pattern, as otherwise lots of special handling of type
+///   mismatches would be needed.
+/// - 4. guarantees that no error handling cases need to be considered.
+///   - Higher-level dialects should reify any needed guards / error handling
+///   code before lowering to an ElementwiseMappable op.
+/// - 5. and 6. allow defining the semantics on vectors/tensors via the scalar
+///   semantics and provide a constructive procedure for IR transformations
+///   to e.g. create scalar loop bodies from tensor ops.
+/// - 7. provides the reverse of 5., which when chained together allows
+///   reasoning about the relationship between the tensor and vector case.
+///   Additionally, it permits reasoning about promoting scalars to
+///   vectors/tensors via broadcasting in cases like `%select_scalar_pred`
+///   above.
+template <typename ConcreteType>
+struct ElementwiseMappable
+    : public TraitBase<ConcreteType, ElementwiseMappable> {
+  static LogicalResult verifyTrait(Operation *op) {
+    return ::mlir::OpTrait::impl::verifyElementwiseMappable(op);
+  }
+};
+
 } // end namespace OpTrait
+
+//===----------------------------------------------------------------------===//
+// Internal Trait Utilities
+//===----------------------------------------------------------------------===//
+
+namespace op_definition_impl {
+//===----------------------------------------------------------------------===//
+// Trait Existence
+
+/// Returns true if this given Trait ID matches the IDs of any of the provided
+/// trait types `Traits`.
+template <template <typename T> class... Traits>
+static bool hasTrait(TypeID traitID) {
+  TypeID traitIDs[] = {TypeID::get<Traits>()...};
+  for (unsigned i = 0, e = sizeof...(Traits); i != e; ++i)
+    if (traitIDs[i] == traitID)
+      return true;
+  return false;
+}
+
+//===----------------------------------------------------------------------===//
+// Trait Folding
+
+/// Trait to check if T provides a 'foldTrait' method for single result
+/// operations.
+template <typename T, typename... Args>
+using has_single_result_fold_trait = decltype(T::foldTrait(
+    std::declval<Operation *>(), std::declval<ArrayRef<Attribute>>()));
+template <typename T>
+using detect_has_single_result_fold_trait =
+    llvm::is_detected<has_single_result_fold_trait, T>;
+/// Trait to check if T provides a general 'foldTrait' method.
+template <typename T, typename... Args>
+using has_fold_trait =
+    decltype(T::foldTrait(std::declval<Operation *>(),
+                          std::declval<ArrayRef<Attribute>>(),
+                          std::declval<SmallVectorImpl<OpFoldResult> &>()));
+template <typename T>
+using detect_has_fold_trait = llvm::is_detected<has_fold_trait, T>;
+/// Trait to check if T provides any `foldTrait` method.
+/// NOTE: This should use std::disjunction when C++17 is available.
+template <typename T>
+using detect_has_any_fold_trait =
+    std::conditional_t<bool(detect_has_fold_trait<T>::value),
+                       detect_has_fold_trait<T>,
+                       detect_has_single_result_fold_trait<T>>;
+
+/// Returns the result of folding a trait that implements a `foldTrait` function
+/// that is specialized for operations that have a single result.
+template <typename Trait>
+static std::enable_if_t<detect_has_single_result_fold_trait<Trait>::value,
+                        LogicalResult>
+foldTrait(Operation *op, ArrayRef<Attribute> operands,
+          SmallVectorImpl<OpFoldResult> &results) {
+  assert(op->hasTrait<OpTrait::OneResult>() &&
+         "expected trait on non single-result operation to implement the "
+         "general `foldTrait` method");
+  // If a previous trait has already been folded and replaced this operation, we
+  // fail to fold this trait.
+  if (!results.empty())
+    return failure();
+
+  if (OpFoldResult result = Trait::foldTrait(op, operands)) {
+    if (result.template dyn_cast<Value>() != op->getResult(0))
+      results.push_back(result);
+    return success();
+  }
+  return failure();
+}
+/// Returns the result of folding a trait that implements a generalized
+/// `foldTrait` function that is supports any operation type.
+template <typename Trait>
+static std::enable_if_t<detect_has_fold_trait<Trait>::value, LogicalResult>
+foldTrait(Operation *op, ArrayRef<Attribute> operands,
+          SmallVectorImpl<OpFoldResult> &results) {
+  // If a previous trait has already been folded and replaced this operation, we
+  // fail to fold this trait.
+  return results.empty() ? Trait::foldTrait(op, operands, results) : failure();
+}
+
+/// The internal implementation of `foldTraits` below that returns the result of
+/// folding a set of trait types `Ts` that implement a `foldTrait` method.
+template <typename... Ts>
+static LogicalResult foldTraitsImpl(Operation *op, ArrayRef<Attribute> operands,
+                                    SmallVectorImpl<OpFoldResult> &results,
+                                    std::tuple<Ts...> *) {
+  bool anyFolded = false;
+  (void)std::initializer_list<int>{
+      (anyFolded |= succeeded(foldTrait<Ts>(op, operands, results)), 0)...};
+  return success(anyFolded);
+}
+
+/// Given a tuple type containing a set of traits that contain a `foldTrait`
+/// method, return the result of folding the given operation.
+template <typename TraitTupleT>
+static std::enable_if_t<std::tuple_size<TraitTupleT>::value != 0, LogicalResult>
+foldTraits(Operation *op, ArrayRef<Attribute> operands,
+           SmallVectorImpl<OpFoldResult> &results) {
+  return foldTraitsImpl(op, operands, results, (TraitTupleT *)nullptr);
+}
+/// A variant of the method above that is specialized when there are no traits
+/// that contain a `foldTrait` method.
+template <typename TraitTupleT>
+static std::enable_if_t<std::tuple_size<TraitTupleT>::value == 0, LogicalResult>
+foldTraits(Operation *op, ArrayRef<Attribute> operands,
+           SmallVectorImpl<OpFoldResult> &results) {
+  return failure();
+}
+
+//===----------------------------------------------------------------------===//
+// Trait Properties
+
+/// Trait to check if T provides a `getTraitProperties` method.
+template <typename T, typename... Args>
+using has_get_trait_properties = decltype(T::getTraitProperties());
+template <typename T>
+using detect_has_get_trait_properties =
+    llvm::is_detected<has_get_trait_properties, T>;
+
+/// The internal implementation of `getTraitProperties` below that returns the
+/// OR of invoking `getTraitProperties` on all of the provided trait types `Ts`.
+template <typename... Ts>
+static AbstractOperation::OperationProperties
+getTraitPropertiesImpl(std::tuple<Ts...> *) {
+  AbstractOperation::OperationProperties result = 0;
+  (void)std::initializer_list<int>{(result |= Ts::getTraitProperties(), 0)...};
+  return result;
+}
+
+/// Given a tuple type containing a set of traits that contain a
+/// `getTraitProperties` method, return the OR of all of the results of invoking
+/// those methods.
+template <typename TraitTupleT>
+static AbstractOperation::OperationProperties getTraitProperties() {
+  return getTraitPropertiesImpl((TraitTupleT *)nullptr);
+}
+
+//===----------------------------------------------------------------------===//
+// Trait Verification
+
+/// Trait to check if T provides a `verifyTrait` method.
+template <typename T, typename... Args>
+using has_verify_trait = decltype(T::verifyTrait(std::declval<Operation *>()));
+template <typename T>
+using detect_has_verify_trait = llvm::is_detected<has_verify_trait, T>;
+
+/// The internal implementation of `verifyTraits` below that returns the result
+/// of verifying the current operation with all of the provided trait types
+/// `Ts`.
+template <typename... Ts>
+static LogicalResult verifyTraitsImpl(Operation *op, std::tuple<Ts...> *) {
+  LogicalResult result = success();
+  (void)std::initializer_list<int>{
+      (result = succeeded(result) ? Ts::verifyTrait(op) : failure(), 0)...};
+  return result;
+}
+
+/// Given a tuple type containing a set of traits that contain a
+/// `verifyTrait` method, return the result of verifying the given operation.
+template <typename TraitTupleT>
+static LogicalResult verifyTraits(Operation *op) {
+  return verifyTraitsImpl(op, (TraitTupleT *)nullptr);
+}
+} // namespace op_definition_impl
 
 //===----------------------------------------------------------------------===//
 // Operation Definition classes
@@ -950,20 +1489,16 @@ public:
 /// argument 'ConcreteType' should be the concrete type by CRTP and the others
 /// are base classes by the policy pattern.
 template <typename ConcreteType, template <typename T> class... Traits>
-class Op : public OpState,
-           public Traits<ConcreteType>...,
-           public FoldingHook<ConcreteType,
-                              llvm::is_one_of<OpTrait::OneResult<ConcreteType>,
-                                              Traits<ConcreteType>...>::value> {
+class Op : public OpState, public Traits<ConcreteType>... {
 public:
+  /// Inherit getOperation from `OpState`.
+  using OpState::getOperation;
+
   /// Return if this operation contains the provided trait.
   template <template <typename T> class Trait>
   static constexpr bool hasTrait() {
     return llvm::is_one_of<Trait<ConcreteType>, Traits<ConcreteType>...>::value;
   }
-
-  /// Return the operation that this refers to.
-  Operation *getOperation() { return OpState::getOperation(); }
 
   /// Create a deep copy of this operation.
   ConcreteType clone() { return cast<ConcreteType>(getOperation()->clone()); }
@@ -975,54 +1510,17 @@ public:
     return cast<ConcreteType>(getOperation()->cloneWithoutRegions());
   }
 
-  /// Return the dialect that this refers to.
-  Dialect *getDialect() { return getOperation()->getDialect(); }
-
-  /// Return the parent Region of this operation.
-  Region *getParentRegion() { return getOperation()->getParentRegion(); }
-
   /// Return true if this "op class" can match against the specified operation.
   static bool classof(Operation *op) {
     if (auto *abstractOp = op->getAbstractOperation())
-      return &classof == abstractOp->classof;
-    return op->getName().getStringRef() == ConcreteType::getOperationName();
-  }
-
-  /// This is the hook used by the AsmParser to parse the custom form of this
-  /// op from an .mlir file.  Op implementations should provide a parse method,
-  /// which returns failure.  On success, they should return fill in result with
-  /// the fields to use.
-  static ParseResult parseAssembly(OpAsmParser &parser,
-                                   OperationState &result) {
-    return ConcreteType::parse(parser, result);
-  }
-
-  /// This is the hook used by the AsmPrinter to emit this to the .mlir file.
-  /// Op implementations should provide a print method.
-  static void printAssembly(Operation *op, OpAsmPrinter &p) {
-    auto opPointer = dyn_cast<ConcreteType>(op);
-    assert(opPointer &&
-           "op's name does not match name of concrete type instantiated with");
-    opPointer.print(p);
-  }
-
-  /// This is the hook that checks whether or not this operation is well
-  /// formed according to the invariants of its opcode.  It delegates to the
-  /// Traits for their policy implementations, and allows the user to specify
-  /// their own verify() method.
-  ///
-  /// On success this returns false; on failure it emits an error to the
-  /// diagnostic subsystem and returns true.
-  static LogicalResult verifyInvariants(Operation *op) {
-    return failure(
-        failed(BaseVerifier<Traits<ConcreteType>...>::verifyTrait(op)) ||
-        failed(cast<ConcreteType>(op).verify()));
-  }
-
-  // Returns the properties of an operation by combining the properties of the
-  // traits of the op.
-  static AbstractOperation::OperationProperties getOperationProperties() {
-    return BaseProperties<Traits<ConcreteType>...>::getTraitProperties();
+      return TypeID::get<ConcreteType>() == abstractOp->typeID;
+#ifndef NDEBUG
+    if (op->getName().getStringRef() == ConcreteType::getOperationName())
+      llvm::report_fatal_error(
+          "classof on '" + ConcreteType::getOperationName() +
+          "' failed due to the operation not being registered");
+#endif
+    return false;
   }
 
   /// Expose the type we are instantiated on to template machinery that may want
@@ -1047,156 +1545,199 @@ public:
   }
 
 private:
-  template <typename... Types> struct BaseVerifier;
+  /// Trait to check if T provides a 'fold' method for a single result op.
+  template <typename T, typename... Args>
+  using has_single_result_fold =
+      decltype(std::declval<T>().fold(std::declval<ArrayRef<Attribute>>()));
+  template <typename T>
+  using detect_has_single_result_fold =
+      llvm::is_detected<has_single_result_fold, T>;
+  /// Trait to check if T provides a general 'fold' method.
+  template <typename T, typename... Args>
+  using has_fold = decltype(
+      std::declval<T>().fold(std::declval<ArrayRef<Attribute>>(),
+                             std::declval<SmallVectorImpl<OpFoldResult> &>()));
+  template <typename T>
+  using detect_has_fold = llvm::is_detected<has_fold, T>;
+  /// Trait to check if T provides a 'print' method.
+  template <typename T, typename... Args>
+  using has_print =
+      decltype(std::declval<T>().print(std::declval<OpAsmPrinter &>()));
+  template <typename T>
+  using detect_has_print = llvm::is_detected<has_print, T>;
+  /// A tuple type containing the traits that have a `foldTrait` function.
+  using FoldableTraitsTupleT = typename detail::FilterTypes<
+      op_definition_impl::detect_has_any_fold_trait,
+      Traits<ConcreteType>...>::type;
+  /// A tuple type containing the traits that have a verify function.
+  using VerifiableTraitsTupleT =
+      typename detail::FilterTypes<op_definition_impl::detect_has_verify_trait,
+                                   Traits<ConcreteType>...>::type;
 
-  template <typename First, typename... Rest>
-  struct BaseVerifier<First, Rest...> {
-    static LogicalResult verifyTrait(Operation *op) {
-      return failure(failed(First::verifyTrait(op)) ||
-                     failed(BaseVerifier<Rest...>::verifyTrait(op)));
-    }
-  };
-
-  template <typename...> struct BaseVerifier {
-    static LogicalResult verifyTrait(Operation *op) { return success(); }
-  };
-
-  template <typename... Types> struct BaseProperties;
-
-  template <typename First, typename... Rest>
-  struct BaseProperties<First, Rest...> {
-    static AbstractOperation::OperationProperties getTraitProperties() {
-      return First::getTraitProperties() |
-             BaseProperties<Rest...>::getTraitProperties();
-    }
-  };
-
-  template <typename...> struct BaseProperties {
-    static AbstractOperation::OperationProperties getTraitProperties() {
-      return 0;
-    }
-  };
-
-  /// Returns true if this operation contains the trait for the given classID.
-  static bool hasTrait(ClassID *traitID) {
-    return llvm::is_contained(llvm::makeArrayRef({ClassID::getID<Traits>()...}),
-                              traitID);
+  /// Returns the properties of this operation by combining the properties
+  /// defined by the traits.
+  static AbstractOperation::OperationProperties getOperationProperties() {
+    return op_definition_impl::getTraitProperties<typename detail::FilterTypes<
+        op_definition_impl::detect_has_get_trait_properties,
+        Traits<ConcreteType>...>::type>();
   }
 
-  /// Returns an opaque pointer to a concept instance of the interface with the
-  /// given ID if one was registered to this operation.
-  static void *getRawInterface(ClassID *id) {
-    return InterfaceLookup::template lookup<Traits<ConcreteType>...>(id);
+  /// Returns an interface map containing the interfaces registered to this
+  /// operation.
+  static detail::InterfaceMap getInterfaceMap() {
+    return detail::InterfaceMap::template get<Traits<ConcreteType>...>();
   }
 
-  struct InterfaceLookup {
-    /// Trait to check if T provides a static 'getInterfaceID' method.
-    template <typename T, typename... Args>
-    using has_get_interface_id = decltype(T::getInterfaceID());
+  /// Return the internal implementations of each of the AbstractOperation
+  /// hooks.
+  /// Implementation of `FoldHookFn` AbstractOperation hook.
+  static AbstractOperation::FoldHookFn getFoldHookFn() {
+    return getFoldHookFnImpl<ConcreteType>();
+  }
+  /// The internal implementation of `getFoldHookFn` above that is invoked if
+  /// the operation is single result and defines a `fold` method.
+  template <typename ConcreteOpT>
+  static std::enable_if_t<llvm::is_one_of<OpTrait::OneResult<ConcreteOpT>,
+                                          Traits<ConcreteOpT>...>::value &&
+                              detect_has_single_result_fold<ConcreteOpT>::value,
+                          AbstractOperation::FoldHookFn>
+  getFoldHookFnImpl() {
+    return &foldSingleResultHook<ConcreteOpT>;
+  }
+  /// The internal implementation of `getFoldHookFn` above that is invoked if
+  /// the operation is not single result and defines a `fold` method.
+  template <typename ConcreteOpT>
+  static std::enable_if_t<!llvm::is_one_of<OpTrait::OneResult<ConcreteOpT>,
+                                           Traits<ConcreteOpT>...>::value &&
+                              detect_has_fold<ConcreteOpT>::value,
+                          AbstractOperation::FoldHookFn>
+  getFoldHookFnImpl() {
+    return &foldHook<ConcreteOpT>;
+  }
+  /// The internal implementation of `getFoldHookFn` above that is invoked if
+  /// the operation does not define a `fold` method.
+  template <typename ConcreteOpT>
+  static std::enable_if_t<!detect_has_single_result_fold<ConcreteOpT>::value &&
+                              !detect_has_fold<ConcreteOpT>::value,
+                          AbstractOperation::FoldHookFn>
+  getFoldHookFnImpl() {
+    // In this case, we only need to fold the traits of the operation.
+    return &op_definition_impl::foldTraits<FoldableTraitsTupleT>;
+  }
+  /// Return the result of folding a single result operation that defines a
+  /// `fold` method.
+  template <typename ConcreteOpT>
+  static LogicalResult
+  foldSingleResultHook(Operation *op, ArrayRef<Attribute> operands,
+                       SmallVectorImpl<OpFoldResult> &results) {
+    OpFoldResult result = cast<ConcreteOpT>(op).fold(operands);
 
-    /// If 'T' is the same interface as 'interfaceID' return the concept
-    /// instance.
-    template <typename T>
-    static typename std::enable_if<is_detected<has_get_interface_id, T>::value,
-                                   void *>::type
-    lookup(ClassID *interfaceID) {
-      return (T::getInterfaceID() == interfaceID) ? &T::instance() : nullptr;
+    // If the fold failed or was in-place, try to fold the traits of the
+    // operation.
+    if (!result || result.template dyn_cast<Value>() == op->getResult(0)) {
+      if (succeeded(op_definition_impl::foldTraits<FoldableTraitsTupleT>(
+              op, operands, results)))
+        return success();
+      return success(static_cast<bool>(result));
     }
+    results.push_back(result);
+    return success();
+  }
+  /// Return the result of folding an operation that defines a `fold` method.
+  template <typename ConcreteOpT>
+  static LogicalResult foldHook(Operation *op, ArrayRef<Attribute> operands,
+                                SmallVectorImpl<OpFoldResult> &results) {
+    LogicalResult result = cast<ConcreteOpT>(op).fold(operands, results);
 
-    /// 'T' is known to not be an interface, return nullptr.
-    template <typename T>
-    static typename std::enable_if<!is_detected<has_get_interface_id, T>::value,
-                                   void *>::type
-    lookup(ClassID *) {
-      return nullptr;
+    // If the fold failed or was in-place, try to fold the traits of the
+    // operation.
+    if (failed(result) || results.empty()) {
+      if (succeeded(op_definition_impl::foldTraits<FoldableTraitsTupleT>(
+              op, operands, results)))
+        return success();
     }
+    return result;
+  }
 
-    template <typename T, typename T2, typename... Ts>
-    static void *lookup(ClassID *interfaceID) {
-      auto *concept = lookup<T>(interfaceID);
-      return concept ? concept : lookup<T2, Ts...>(interfaceID);
-    }
-  };
+  /// Implementation of `GetCanonicalizationPatternsFn` AbstractOperation hook.
+  static AbstractOperation::GetCanonicalizationPatternsFn
+  getGetCanonicalizationPatternsFn() {
+    return &ConcreteType::getCanonicalizationPatterns;
+  }
+  /// Implementation of `GetHasTraitFn`
+  static AbstractOperation::HasTraitFn getHasTraitFn() {
+    return &op_definition_impl::hasTrait<Traits...>;
+  }
+  /// Implementation of `ParseAssemblyFn` AbstractOperation hook.
+  static AbstractOperation::ParseAssemblyFn getParseAssemblyFn() {
+    return &ConcreteType::parse;
+  }
+  /// Implementation of `PrintAssemblyFn` AbstractOperation hook.
+  static AbstractOperation::PrintAssemblyFn getPrintAssemblyFn() {
+    return getPrintAssemblyFnImpl<ConcreteType>();
+  }
+  /// The internal implementation of `getPrintAssemblyFn` that is invoked when
+  /// the concrete operation does not define a `print` method.
+  template <typename ConcreteOpT>
+  static std::enable_if_t<!detect_has_print<ConcreteOpT>::value,
+                          AbstractOperation::PrintAssemblyFn>
+  getPrintAssemblyFnImpl() {
+    return &OpState::print;
+  }
+  /// The internal implementation of `getPrintAssemblyFn` that is invoked when
+  /// the concrete operation defines a `print` method.
+  template <typename ConcreteOpT>
+  static std::enable_if_t<detect_has_print<ConcreteOpT>::value,
+                          AbstractOperation::PrintAssemblyFn>
+  getPrintAssemblyFnImpl() {
+    return &printAssembly;
+  }
+  static void printAssembly(Operation *op, OpAsmPrinter &p) {
+    return cast<ConcreteType>(op).print(p);
+  }
+  /// Implementation of `VerifyInvariantsFn` AbstractOperation hook.
+  static AbstractOperation::VerifyInvariantsFn getVerifyInvariantsFn() {
+    return &verifyInvariants;
+  }
+  static LogicalResult verifyInvariants(Operation *op) {
+    return failure(
+        failed(op_definition_impl::verifyTraits<VerifiableTraitsTupleT>(op)) ||
+        failed(cast<ConcreteType>(op).verify()));
+  }
 
-  /// Allow access to 'hasTrait' and 'getRawInterface'.
+  /// Allow access to internal implementation methods.
   friend AbstractOperation;
 };
 
-/// This class represents the base of an operation interface. Operation
-/// interfaces provide access to derived *Op properties through an opaquely
-/// Operation instance. Derived interfaces must also provide a 'Traits' class
-/// that defines a 'Concept' and a 'Model' class. The 'Concept' class defines an
-/// abstract virtual interface, where as the 'Model' class implements this
-/// interface for a specific derived *Op type. Both of these classes *must* not
-/// contain non-static data. A simple example is shown below:
-///
-///  struct ExampleOpInterfaceTraits {
-///    struct Concept {
-///      virtual unsigned getNumInputs(Operation *op) = 0;
-///    };
-///    template <typename OpT> class Model {
-///      unsigned getNumInputs(Operation *op) final {
-///        return cast<OpT>(op).getNumInputs();
-///      }
-///    };
-///  };
-///
+/// This class represents the base of an operation interface. See the definition
+/// of `detail::Interface` for requirements on the `Traits` type.
 template <typename ConcreteType, typename Traits>
-class OpInterface : public Op<ConcreteType> {
+class OpInterface
+    : public detail::Interface<ConcreteType, Operation *, Traits,
+                               Op<ConcreteType>, OpTrait::TraitBase> {
 public:
-  using Concept = typename Traits::Concept;
-  template <typename T> using Model = typename Traits::template Model<T>;
+  using Base = OpInterface<ConcreteType, Traits>;
+  using InterfaceBase = detail::Interface<ConcreteType, Operation *, Traits,
+                                          Op<ConcreteType>, OpTrait::TraitBase>;
 
-  OpInterface(Operation *op = nullptr)
-      : Op<ConcreteType>(op), impl(op ? getInterfaceFor(op) : nullptr) {
-    assert((!op || impl) &&
-           "instantiating an interface with an unregistered operation");
-  }
-
-  /// Support 'classof' by checking if the given operation defines the concrete
-  /// interface.
-  static bool classof(Operation *op) { return getInterfaceFor(op); }
-
-  /// Define an accessor for the ID of this interface.
-  static ClassID *getInterfaceID() { return ClassID::getID<ConcreteType>(); }
-
-  /// This is a special trait that registers a given interface with an
-  /// operation.
-  template <typename ConcreteOp>
-  struct Trait : public OpTrait::TraitBase<ConcreteOp, Trait> {
-    /// Define an accessor for the ID of this interface.
-    static ClassID *getInterfaceID() { return ClassID::getID<ConcreteType>(); }
-
-    /// Provide an accessor to a static instance of the interface model for the
-    /// concrete operation type.
-    /// The implementation is inspired from Sean Parent's concept-based
-    /// polymorphism. A key difference is that the set of classes erased is
-    /// statically known, which alleviates the need for using dynamic memory
-    /// allocation.
-    /// We use a zero-sized templated class `Model<ConcreteOp>` to emit the
-    /// virtual table and generate a singleton object for each instantiation of
-    /// this class.
-    static Concept &instance() {
-      static Model<ConcreteOp> singleton;
-      return singleton;
-    }
-  };
+  /// Inherit the base class constructor.
+  using InterfaceBase::InterfaceBase;
 
 protected:
-  /// Get the raw concept in the correct derived concept type.
-  Concept *getImpl() { return impl; }
-
-private:
   /// Returns the impl interface instance for the given operation.
-  static Concept *getInterfaceFor(Operation *op) {
+  static typename InterfaceBase::Concept *getInterfaceFor(Operation *op) {
     // Access the raw interface from the abstract operation.
     auto *abstractOp = op->getAbstractOperation();
     return abstractOp ? abstractOp->getInterface<ConcreteType>() : nullptr;
   }
 
-  /// A pointer to the impl concept object.
-  Concept *impl;
+  /// Allow access to `getInterfaceFor`.
+  friend InterfaceBase;
 };
+
+//===----------------------------------------------------------------------===//
+// Common Operation Folders/Parsers/Printers
+//===----------------------------------------------------------------------===//
 
 // These functions are out-of-line implementations of the methods in UnaryOp and
 // BinaryOp, which avoids them being template instantiated/duplicated.
@@ -1204,7 +1745,7 @@ namespace impl {
 ParseResult parseOneResultOneOperandTypeOp(OpAsmParser &parser,
                                            OperationState &result);
 
-void buildBinaryOp(Builder *builder, OperationState &result, Value lhs,
+void buildBinaryOp(OpBuilder &builder, OperationState &result, Value lhs,
                    Value rhs);
 ParseResult parseOneResultSameOperandTypeOp(OpAsmParser &parser,
                                             OperationState &result);
@@ -1215,14 +1756,30 @@ ParseResult parseOneResultSameOperandTypeOp(OpAsmParser &parser,
 void printOneResultOp(Operation *op, OpAsmPrinter &p);
 } // namespace impl
 
-// These functions are out-of-line implementations of the methods in CastOp,
-// which avoids them being template instantiated/duplicated.
+// These functions are out-of-line implementations of the methods in
+// CastOpInterface, which avoids them being template instantiated/duplicated.
 namespace impl {
-void buildCastOp(Builder *builder, OperationState &result, Value source,
+/// Attempt to fold the given cast operation.
+LogicalResult foldCastInterfaceOp(Operation *op,
+                                  ArrayRef<Attribute> attrOperands,
+                                  SmallVectorImpl<OpFoldResult> &foldResults);
+/// Attempt to verify the given cast operation.
+LogicalResult verifyCastInterfaceOp(
+    Operation *op, function_ref<bool(TypeRange, TypeRange)> areCastCompatible);
+
+// TODO: Remove the parse/print/build here (new ODS functionality obsoletes the
+// need for them, but some older ODS code in `std` still depends on them).
+void buildCastOp(OpBuilder &builder, OperationState &result, Value source,
                  Type destType);
 ParseResult parseCastOp(OpAsmParser &parser, OperationState &result);
 void printCastOp(Operation *op, OpAsmPrinter &p);
+// TODO: These methods are deprecated in favor of CastOpInterface. Remove them
+// when all uses have been updated. Also, consider adding functionality to
+// CastOpInterface to be able to perform the ChainedTensorCast canonicalization
+// generically.
 Value foldCastOp(Operation *op);
+LogicalResult verifyCastOp(Operation *op,
+                           function_ref<bool(Type, Type)> areCastCompatible);
 } // namespace impl
 } // end namespace mlir
 

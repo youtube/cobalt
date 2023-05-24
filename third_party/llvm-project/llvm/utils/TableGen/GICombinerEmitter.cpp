@@ -150,7 +150,7 @@ protected:
 
   /// A block of arbitrary C++ to finish testing the match.
   /// FIXME: This is a temporary measure until we have actual pattern matching
-  const CodeInit *MatchingFixupCode = nullptr;
+  const StringInit *MatchingFixupCode = nullptr;
 
   /// The MatchData defined by the match stage and required by the apply stage.
   /// This allows the plumbing of arbitrary data from C++ predicates between the
@@ -199,7 +199,7 @@ public:
   unsigned allocUID() { return UID++; }
   StringRef getName() const { return TheDef.getName(); }
   const Record &getDef() const { return TheDef; }
-  const CodeInit *getMatchingFixupCode() const { return MatchingFixupCode; }
+  const StringInit *getMatchingFixupCode() const { return MatchingFixupCode; }
   size_t getNumRoots() const { return Roots.size(); }
 
   GIMatchDag &getMatchDag() { return MatchDag; }
@@ -346,8 +346,6 @@ void CombineRule::declareMatchData(StringRef PatternSymbol, StringRef Type,
 }
 
 bool CombineRule::parseDefs() {
-  NamedRegionTimer T("parseDefs", "Time spent parsing the defs", "Rule Parsing",
-                     "Time spent on rule parsing", TimeRegions);
   DagInit *Defs = TheDef.getValueAsDag("Defs");
 
   if (Defs->getOperatorAsDef(TheDef.getLoc())->getName() != "defs") {
@@ -434,9 +432,9 @@ bool CombineRule::parseInstructionMatcher(
       }
 
       if (InstrOperand.isDef()) {
-        if (find_if(Roots, [&](const RootInfo &X) {
+        if (any_of(Roots, [&](const RootInfo &X) {
               return X.getPatternSymbol() == Name;
-            }) != Roots.end()) {
+            })) {
           N->setMatchRoot();
         }
       }
@@ -462,9 +460,9 @@ bool CombineRule::parseWipMatchOpcodeMatcher(const CodeGenTarget &Target,
         MatchDag.addInstrNode(makeDebugName(*this, Name), insertStrTab(Name),
                               MatchDag.getContext().makeEmptyOperandList());
 
-    if (find_if(Roots, [&](const RootInfo &X) {
+    if (any_of(Roots, [&](const RootInfo &X) {
           return ArgName && X.getPatternSymbol() == ArgName->getValue();
-        }) != Roots.end()) {
+        })) {
       N->setMatchRoot();
     }
 
@@ -488,8 +486,6 @@ bool CombineRule::parseWipMatchOpcodeMatcher(const CodeGenTarget &Target,
   return false;
 }
 bool CombineRule::parseMatcher(const CodeGenTarget &Target) {
-  NamedRegionTimer T("parseMatcher", "Time spent parsing the matcher",
-                     "Rule Parsing", "Time spent on rule parsing", TimeRegions);
   StringMap<std::vector<VarInfo>> NamedEdgeDefs;
   StringMap<std::vector<VarInfo>> NamedEdgeUses;
   DagInit *Matchers = TheDef.getValueAsDag("Match");
@@ -518,10 +514,10 @@ bool CombineRule::parseMatcher(const CodeGenTarget &Target) {
 
 
     // Parse arbitrary C++ code we have in lieu of supporting MIR matching
-    if (const CodeInit *CodeI = dyn_cast<CodeInit>(Matchers->getArg(I))) {
+    if (const StringInit *StringI = dyn_cast<StringInit>(Matchers->getArg(I))) {
       assert(!MatchingFixupCode &&
              "Only one block of arbitrary code is currently permitted");
-      MatchingFixupCode = CodeI;
+      MatchingFixupCode = StringI;
       MatchDag.setHasPostMatchPredicate(true);
       continue;
     }
@@ -593,6 +589,7 @@ bool CombineRule::parseMatcher(const CodeGenTarget &Target) {
 }
 
 class GICombinerEmitter {
+  RecordKeeper &Records;
   StringRef Name;
   const CodeGenTarget &Target;
   Record *Combiner;
@@ -618,7 +615,6 @@ public:
   /// response to the generated cl::opt.
   void emitNameMatcher(raw_ostream &OS) const;
 
-  void generateDeclarationsCodeForTree(raw_ostream &OS, const GIMatchTree &Tree) const;
   void generateCodeForTree(raw_ostream &OS, const GIMatchTree &Tree,
                            StringRef Indent) const;
 };
@@ -626,7 +622,7 @@ public:
 GICombinerEmitter::GICombinerEmitter(RecordKeeper &RK,
                                      const CodeGenTarget &Target,
                                      StringRef Name, Record *Combiner)
-    : Name(Name), Target(Target), Combiner(Combiner) {}
+    : Records(RK), Name(Name), Target(Target), Combiner(Combiner) {}
 
 void GICombinerEmitter::emitNameMatcher(raw_ostream &OS) const {
   std::vector<std::pair<std::string, std::string>> Cases;
@@ -636,7 +632,8 @@ void GICombinerEmitter::emitNameMatcher(raw_ostream &OS) const {
     std::string Code;
     raw_string_ostream SS(Code);
     SS << "return " << EnumeratedRule.getID() << ";\n";
-    Cases.push_back(std::make_pair(EnumeratedRule.getName(), SS.str()));
+    Cases.push_back(
+        std::make_pair(std::string(EnumeratedRule.getName()), SS.str()));
   }
 
   OS << "static Optional<uint64_t> getRuleIdxForIdentifier(StringRef "
@@ -742,7 +739,8 @@ void GICombinerEmitter::generateCodeForTree(raw_ostream &OS,
     const Record &RuleDef = Rule->getDef();
 
     OS << Indent << "// Rule: " << RuleDef.getName() << "\n"
-       << Indent << "if (!isRuleDisabled(" << Rule->getID() << ")) {\n";
+       << Indent << "if (!RuleConfig->isRuleDisabled(" << Rule->getID()
+       << ")) {\n";
 
     CodeExpansions Expansions;
     for (const auto &VarBinding : Leaf.var_bindings()) {
@@ -760,7 +758,7 @@ void GICombinerEmitter::generateCodeForTree(raw_ostream &OS,
     DagInit *Applyer = RuleDef.getValueAsDag("Apply");
     if (Applyer->getOperatorAsDef(RuleDef.getLoc())->getName() !=
         "apply") {
-      PrintError(RuleDef.getLoc(), "Expected apply operator");
+      PrintError(RuleDef.getLoc(), "Expected 'apply' operator in Apply DAG");
       return;
     }
 
@@ -801,16 +799,16 @@ void GICombinerEmitter::generateCodeForTree(raw_ostream &OS,
       OS << Indent << "      && [&]() {\n"
          << Indent << "      "
          << CodeExpander(Rule->getMatchingFixupCode()->getValue(), Expansions,
-                         Rule->getMatchingFixupCode()->getLoc(), ShowExpansions)
+                         RuleDef.getLoc(), ShowExpansions)
          << "\n"
          << Indent << "      return true;\n"
          << Indent << "  }()";
     }
     OS << ") {\n" << Indent << "   ";
 
-    if (const CodeInit *Code = dyn_cast<CodeInit>(Applyer->getArg(0))) {
+    if (const StringInit *Code = dyn_cast<StringInit>(Applyer->getArg(0))) {
       OS << CodeExpander(Code->getAsUnquotedString(), Expansions,
-                         Code->getLoc(), ShowExpansions)
+                         RuleDef.getLoc(), ShowExpansions)
          << "\n"
          << Indent << "    return true;\n"
          << Indent << "  }\n";
@@ -840,7 +838,15 @@ void GICombinerEmitter::generateCodeForTree(raw_ostream &OS,
     OS << Indent << "return false;\n";
 }
 
+static void emitAdditionalHelperMethodArguments(raw_ostream &OS,
+                                                Record *Combiner) {
+  for (Record *Arg : Combiner->getValueAsListOfDefs("AdditionalArguments"))
+    OS << ",\n    " << Arg->getValueAsString("Type")
+       << Arg->getValueAsString("Name");
+}
+
 void GICombinerEmitter::run(raw_ostream &OS) {
+  Records.startTimer("Gather rules");
   gatherRules(Rules, Combiner->getValueAsListOfDefs("Rules"));
   if (StopAfterParse) {
     MatchDagCtx.print(errs());
@@ -852,11 +858,8 @@ void GICombinerEmitter::run(raw_ostream &OS) {
     PrintFatalError(Combiner->getLoc(), "Failed to parse one or more rules");
   LLVM_DEBUG(dbgs() << "Optimizing tree for " << Rules.size() << " rules\n");
   std::unique_ptr<GIMatchTree> Tree;
+  Records.startTimer("Optimize combiner");
   {
-    NamedRegionTimer T("Optimize", "Time spent optimizing the combiner",
-                       "Code Generation", "Time spent generating code",
-                       TimeRegions);
-
     GIMatchTreeBuilder TreeBuilder(0);
     for (const auto &Rule : Rules) {
       bool HadARoot = false;
@@ -878,9 +881,7 @@ void GICombinerEmitter::run(raw_ostream &OS) {
     return;
   }
 
-  NamedRegionTimer T("Emit", "Time spent emitting the combiner",
-                     "Code Generation", "Time spent generating code",
-                     TimeRegions);
+  Records.startTimer("Emit combiner");
   OS << "#ifdef " << Name.upper() << "_GENCOMBINERHELPER_DEPS\n"
      << "#include \"llvm/ADT/SparseBitVector.h\"\n"
      << "namespace llvm {\n"
@@ -889,81 +890,135 @@ void GICombinerEmitter::run(raw_ostream &OS) {
      << "#endif // ifdef " << Name.upper() << "_GENCOMBINERHELPER_DEPS\n\n";
 
   OS << "#ifdef " << Name.upper() << "_GENCOMBINERHELPER_H\n"
-     << "class " << getClassName() << " {\n"
+     << "class " << getClassName() << "RuleConfig {\n"
      << "  SparseBitVector<> DisabledRules;\n"
      << "\n"
      << "public:\n"
      << "  bool parseCommandLineOption();\n"
      << "  bool isRuleDisabled(unsigned ID) const;\n"
+     << "  bool setRuleEnabled(StringRef RuleIdentifier);\n"
      << "  bool setRuleDisabled(StringRef RuleIdentifier);\n"
+     << "};\n"
+     << "\n"
+     << "class " << getClassName();
+  StringRef StateClass = Combiner->getValueAsString("StateClass");
+  if (!StateClass.empty())
+    OS << " : public " << StateClass;
+  OS << " {\n"
+     << "  const " << getClassName() << "RuleConfig *RuleConfig;\n"
+     << "\n"
+     << "public:\n"
+     << "  template <typename... Args>" << getClassName() << "(const "
+     << getClassName() << "RuleConfig &RuleConfig, Args &&... args) : ";
+  if (!StateClass.empty())
+    OS << StateClass << "(std::forward<Args>(args)...), ";
+  OS << "RuleConfig(&RuleConfig) {}\n"
      << "\n"
      << "  bool tryCombineAll(\n"
      << "    GISelChangeObserver &Observer,\n"
      << "    MachineInstr &MI,\n"
-     << "    MachineIRBuilder &B,\n"
-     << "    CombinerHelper &Helper) const;\n"
-     << "};\n\n";
+     << "    MachineIRBuilder &B";
+  emitAdditionalHelperMethodArguments(OS, Combiner);
+  OS << ") const;\n";
+  OS << "};\n\n";
 
   emitNameMatcher(OS);
 
-  OS << "bool " << getClassName()
-     << "::setRuleDisabled(StringRef RuleIdentifier) {\n"
+  OS << "static Optional<std::pair<uint64_t, uint64_t>> "
+        "getRuleRangeForIdentifier(StringRef RuleIdentifier) {\n"
      << "  std::pair<StringRef, StringRef> RangePair = "
         "RuleIdentifier.split('-');\n"
      << "  if (!RangePair.second.empty()) {\n"
-     << "    const auto First = getRuleIdxForIdentifier(RangePair.first);\n"
-     << "    const auto Last = getRuleIdxForIdentifier(RangePair.second);\n"
+     << "    const auto First = "
+        "getRuleIdxForIdentifier(RangePair.first);\n"
+     << "    const auto Last = "
+        "getRuleIdxForIdentifier(RangePair.second);\n"
      << "    if (!First.hasValue() || !Last.hasValue())\n"
-     << "      return false;\n"
+     << "      return None;\n"
      << "    if (First >= Last)\n"
-     << "      report_fatal_error(\"Beginning of range should be before end of "
-        "range\");\n"
-     << "    for (auto I = First.getValue(); I < Last.getValue(); ++I)\n"
-     << "      DisabledRules.set(I);\n"
-     << "    return true;\n"
+     << "      report_fatal_error(\"Beginning of range should be before "
+        "end of range\");\n"
+     << "    return {{*First, *Last + 1}};\n"
+     << "  } else if (RangePair.first == \"*\") {\n"
+     << "    return {{0, " << Rules.size() << "}};\n"
      << "  } else {\n"
      << "    const auto I = getRuleIdxForIdentifier(RangePair.first);\n"
      << "    if (!I.hasValue())\n"
-     << "      return false;\n"
-     << "    DisabledRules.set(I.getValue());\n"
-     << "    return true;\n"
+     << "      return None;\n"
+     << "    return {{*I, *I + 1}};\n"
      << "  }\n"
-     << "  return false;\n"
-     << "}\n";
+     << "  return None;\n"
+     << "}\n\n";
+
+  for (bool Enabled : {true, false}) {
+    OS << "bool " << getClassName() << "RuleConfig::setRule"
+       << (Enabled ? "Enabled" : "Disabled") << "(StringRef RuleIdentifier) {\n"
+       << "  auto MaybeRange = getRuleRangeForIdentifier(RuleIdentifier);\n"
+       << "  if (!MaybeRange.hasValue())\n"
+       << "    return false;\n"
+       << "  for (auto I = MaybeRange->first; I < MaybeRange->second; ++I)\n"
+       << "    DisabledRules." << (Enabled ? "reset" : "set") << "(I);\n"
+       << "  return true;\n"
+       << "}\n\n";
+  }
 
   OS << "bool " << getClassName()
-     << "::isRuleDisabled(unsigned RuleID) const {\n"
+     << "RuleConfig::isRuleDisabled(unsigned RuleID) const {\n"
      << "  return DisabledRules.test(RuleID);\n"
      << "}\n";
   OS << "#endif // ifdef " << Name.upper() << "_GENCOMBINERHELPER_H\n\n";
 
   OS << "#ifdef " << Name.upper() << "_GENCOMBINERHELPER_CPP\n"
      << "\n"
-     << "cl::list<std::string> " << Name << "Option(\n"
+     << "std::vector<std::string> " << Name << "Option;\n"
+     << "cl::list<std::string> " << Name << "DisableOption(\n"
      << "    \"" << Name.lower() << "-disable-rule\",\n"
      << "    cl::desc(\"Disable one or more combiner rules temporarily in "
      << "the " << Name << " pass\"),\n"
      << "    cl::CommaSeparated,\n"
      << "    cl::Hidden,\n"
-     << "    cl::cat(GICombinerOptionCategory));\n"
+     << "    cl::cat(GICombinerOptionCategory),\n"
+     << "    cl::callback([](const std::string &Str) {\n"
+     << "      " << Name << "Option.push_back(Str);\n"
+     << "    }));\n"
+     << "cl::list<std::string> " << Name << "OnlyEnableOption(\n"
+     << "    \"" << Name.lower() << "-only-enable-rule\",\n"
+     << "    cl::desc(\"Disable all rules in the " << Name
+     << " pass then re-enable the specified ones\"),\n"
+     << "    cl::Hidden,\n"
+     << "    cl::cat(GICombinerOptionCategory),\n"
+     << "    cl::callback([](const std::string &CommaSeparatedArg) {\n"
+     << "      StringRef Str = CommaSeparatedArg;\n"
+     << "      " << Name << "Option.push_back(\"*\");\n"
+     << "      do {\n"
+     << "        auto X = Str.split(\",\");\n"
+     << "        " << Name << "Option.push_back((\"!\" + X.first).str());\n"
+     << "        Str = X.second;\n"
+     << "      } while (!Str.empty());\n"
+     << "    }));\n"
      << "\n"
-     << "bool " << getClassName() << "::parseCommandLineOption() {\n"
-     << "  for (const auto &Identifier : " << Name << "Option)\n"
-     << "    if (!setRuleDisabled(Identifier))\n"
+     << "bool " << getClassName() << "RuleConfig::parseCommandLineOption() {\n"
+     << "  for (StringRef Identifier : " << Name << "Option) {\n"
+     << "    bool Enabled = Identifier.consume_front(\"!\");\n"
+     << "    if (Enabled && !setRuleEnabled(Identifier))\n"
      << "      return false;\n"
+     << "    if (!Enabled && !setRuleDisabled(Identifier))\n"
+     << "      return false;\n"
+     << "  }\n"
      << "  return true;\n"
      << "}\n\n";
 
   OS << "bool " << getClassName() << "::tryCombineAll(\n"
      << "    GISelChangeObserver &Observer,\n"
      << "    MachineInstr &MI,\n"
-     << "    MachineIRBuilder &B,\n"
-     << "    CombinerHelper &Helper) const {\n"
+     << "    MachineIRBuilder &B";
+  emitAdditionalHelperMethodArguments(OS, Combiner);
+  OS << ") const {\n"
      << "  MachineBasicBlock *MBB = MI.getParent();\n"
      << "  MachineFunction *MF = MBB->getParent();\n"
      << "  MachineRegisterInfo &MRI = MF->getRegInfo();\n"
-     << "  SmallVector<MachineInstr *, 8> MIs = { &MI };\n\n"
-     << "  (void)MBB; (void)MF; (void)MRI;\n\n";
+     << "  SmallVector<MachineInstr *, 8> MIs = {&MI};\n\n"
+     << "  (void)MBB; (void)MF; (void)MRI; (void)RuleConfig;\n\n";
 
   OS << "  // Match data\n";
   for (const auto &Rule : Rules)

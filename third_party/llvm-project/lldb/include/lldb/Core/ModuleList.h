@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ModuleList_h_
-#define liblldb_ModuleList_h_
+#ifndef LLDB_CORE_MODULELIST_H
+#define LLDB_CORE_MODULELIST_H
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/ModuleSpec.h"
@@ -20,6 +20,7 @@
 #include "lldb/lldb-types.h"
 
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/RWMutex.h"
 
 #include <functional>
 #include <list>
@@ -46,13 +47,20 @@ class UUID;
 class VariableList;
 
 class ModuleListProperties : public Properties {
+  mutable llvm::sys::RWMutex m_symlink_paths_mutex;
+  PathMappingList m_symlink_paths;
+
+  void UpdateSymlinkMappings();
+
 public:
   ModuleListProperties();
 
   FileSpec GetClangModulesCachePath() const;
-  bool SetClangModulesCachePath(llvm::StringRef path);
+  bool SetClangModulesCachePath(const FileSpec &path);
   bool GetEnableExternalLookup() const;
   bool SetEnableExternalLookup(bool new_value);
+
+  PathMappingList GetSymlinkMappings() const;
 };
 
 /// \class ModuleList ModuleList.h "lldb/Core/ModuleList.h"
@@ -131,7 +139,13 @@ public:
   ///
   /// \param[in] module_sp
   ///     A shared pointer to a module to replace in this collection.
-  void ReplaceEquivalent(const lldb::ModuleSP &module_sp);
+  ///
+  /// \param[in] old_modules
+  ///     Optional pointer to a vector which, if provided, will have shared
+  ///     pointers to the replaced module(s) appended to it.
+  void ReplaceEquivalent(
+      const lldb::ModuleSP &module_sp,
+      llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules = nullptr);
 
   /// Append a module to the module list, if it is not already there.
   ///
@@ -222,20 +236,6 @@ public:
   ///
   /// \see ModuleList::GetSize()
   Module *GetModulePointerAtIndex(size_t idx) const;
-
-  /// Get the module pointer for the module at index \a idx without acquiring
-  /// the ModuleList mutex.  This MUST already have been acquired with
-  /// ModuleList::GetMutex and locked for this call to be safe.
-  ///
-  /// \param[in] idx
-  ///     An index into this module collection.
-  ///
-  /// \return
-  ///     A pointer to a Module which can by nullptr if \a idx is out
-  ///     of range.
-  ///
-  /// \see ModuleList::GetSize()
-  Module *GetModulePointerAtIndexUnlocked(size_t idx) const;
 
   /// Find compile units by partial or full path.
   ///
@@ -435,12 +435,11 @@ public:
 
   static bool ModuleIsInCache(const Module *module_ptr);
 
-  static Status GetSharedModule(const ModuleSpec &module_spec,
-                                lldb::ModuleSP &module_sp,
-                                const FileSpecList *module_search_paths_ptr,
-                                lldb::ModuleSP *old_module_sp_ptr,
-                                bool *did_create_ptr,
-                                bool always_create = false);
+  static Status
+  GetSharedModule(const ModuleSpec &module_spec, lldb::ModuleSP &module_sp,
+                  const FileSpecList *module_search_paths_ptr,
+                  llvm::SmallVectorImpl<lldb::ModuleSP> *old_modules,
+                  bool *did_create_ptr, bool always_create = false);
 
   static bool RemoveSharedModule(lldb::ModuleSP &module_sp);
 
@@ -478,15 +477,17 @@ public:
   typedef LockingAdaptedIterable<collection, lldb::ModuleSP, vector_adapter,
                                  std::recursive_mutex>
       ModuleIterable;
-  ModuleIterable Modules() { return ModuleIterable(m_modules, GetMutex()); }
+  ModuleIterable Modules() const {
+    return ModuleIterable(m_modules, GetMutex());
+  }
 
   typedef AdaptedIterable<collection, lldb::ModuleSP, vector_adapter>
       ModuleIterableNoLocking;
-  ModuleIterableNoLocking ModulesNoLocking() {
+  ModuleIterableNoLocking ModulesNoLocking() const {
     return ModuleIterableNoLocking(m_modules);
   }
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ModuleList_h_
+#endif // LLDB_CORE_MODULELIST_H

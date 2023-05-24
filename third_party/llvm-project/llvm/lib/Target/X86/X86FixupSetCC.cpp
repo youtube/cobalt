@@ -36,6 +36,8 @@ STATISTIC(NumSubstZexts, "Number of setcc + zext pairs substituted");
 namespace {
 class X86FixupSetCCPass : public MachineFunctionPass {
 public:
+  static char ID;
+
   X86FixupSetCCPass() : MachineFunctionPass(ID) {}
 
   StringRef getPassName() const override { return "X86 Fixup SetCC"; }
@@ -47,12 +49,12 @@ private:
   const X86InstrInfo *TII = nullptr;
 
   enum { SearchBound = 16 };
-
-  static char ID;
 };
+} // end anonymous namespace
 
 char X86FixupSetCCPass::ID = 0;
-}
+
+INITIALIZE_PASS(X86FixupSetCCPass, DEBUG_TYPE, DEBUG_TYPE, false, false)
 
 FunctionPass *llvm::createX86FixupSetCC() { return new X86FixupSetCCPass(); }
 
@@ -95,28 +97,31 @@ bool X86FixupSetCCPass::runOnMachineFunction(MachineFunction &MF) {
       if (FlagsDefMI->readsRegister(X86::EFLAGS))
         continue;
 
-      ++NumSubstZexts;
-      Changed = true;
-
       // On 32-bit, we need to be careful to force an ABCD register.
       const TargetRegisterClass *RC = MF.getSubtarget<X86Subtarget>().is64Bit()
                                           ? &X86::GR32RegClass
                                           : &X86::GR32_ABCDRegClass;
-      Register ZeroReg = MRI->createVirtualRegister(RC);
-      Register InsertReg = MRI->createVirtualRegister(RC);
+      if (!MRI->constrainRegClass(ZExt->getOperand(0).getReg(), RC)) {
+        // If we cannot constrain the register, we would need an additional copy
+        // and are better off keeping the MOVZX32rr8 we have now.
+        continue;
+      }
+
+      ++NumSubstZexts;
+      Changed = true;
 
       // Initialize a register with 0. This must go before the eflags def
+      Register ZeroReg = MRI->createVirtualRegister(RC);
       BuildMI(MBB, FlagsDefMI, MI.getDebugLoc(), TII->get(X86::MOV32r0),
               ZeroReg);
 
       // X86 setcc only takes an output GR8, so fake a GR32 input by inserting
       // the setcc result into the low byte of the zeroed register.
       BuildMI(*ZExt->getParent(), ZExt, ZExt->getDebugLoc(),
-              TII->get(X86::INSERT_SUBREG), InsertReg)
+              TII->get(X86::INSERT_SUBREG), ZExt->getOperand(0).getReg())
           .addReg(ZeroReg)
           .addReg(MI.getOperand(0).getReg())
           .addImm(X86::sub_8bit);
-      MRI->replaceRegWith(ZExt->getOperand(0).getReg(), InsertReg);
       ToErase.push_back(ZExt);
     }
   }

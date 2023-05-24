@@ -159,19 +159,25 @@ void NVPTXLowerArgs::handleByValParam(Argument *Arg) {
   assert(PType && "Expecting pointer type in handleByValParam");
 
   Type *StructType = PType->getElementType();
-  unsigned AS = Func->getParent()->getDataLayout().getAllocaAddrSpace();
+  const DataLayout &DL = Func->getParent()->getDataLayout();
+  unsigned AS = DL.getAllocaAddrSpace();
   AllocaInst *AllocA = new AllocaInst(StructType, AS, Arg->getName(), FirstInst);
   // Set the alignment to alignment of the byval parameter. This is because,
   // later load/stores assume that alignment, and we are going to replace
   // the use of the byval parameter with this alloca instruction.
-  AllocA->setAlignment(MaybeAlign(Func->getParamAlignment(Arg->getArgNo())));
+  AllocA->setAlignment(Func->getParamAlign(Arg->getArgNo())
+                           .getValueOr(DL.getPrefTypeAlign(StructType)));
   Arg->replaceAllUsesWith(AllocA);
 
   Value *ArgInParam = new AddrSpaceCastInst(
       Arg, PointerType::get(StructType, ADDRESS_SPACE_PARAM), Arg->getName(),
       FirstInst);
+  // Be sure to propagate alignment to this load; LLVM doesn't know that NVPTX
+  // addrspacecast preserves alignment.  Since params are constant, this load is
+  // definitely not volatile.
   LoadInst *LI =
-      new LoadInst(StructType, ArgInParam, Arg->getName(), FirstInst);
+      new LoadInst(StructType, ArgInParam, Arg->getName(),
+                   /*isVolatile=*/false, AllocA->getAlign(), FirstInst);
   new StoreInst(LI, AllocA, FirstInst);
 }
 
@@ -212,8 +218,7 @@ bool NVPTXLowerArgs::runOnKernelFunction(Function &F) {
       for (auto &I : B) {
         if (LoadInst *LI = dyn_cast<LoadInst>(&I)) {
           if (LI->getType()->isPointerTy()) {
-            Value *UO = GetUnderlyingObject(LI->getPointerOperand(),
-                                            F.getParent()->getDataLayout());
+            Value *UO = getUnderlyingObject(LI->getPointerOperand());
             if (Argument *Arg = dyn_cast<Argument>(UO)) {
               if (Arg->hasByValAttr()) {
                 // LI is a load from a pointer within a byval kernel parameter.

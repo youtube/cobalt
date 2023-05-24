@@ -1,6 +1,6 @@
 //===- cuda-runtime-wrappers.cpp - MLIR CUDA runner wrapper library -------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -15,92 +15,163 @@
 #include <cassert>
 #include <numeric>
 
+#include "mlir/ExecutionEngine/CRunnerUtils.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "cuda.h"
 
-namespace {
-int32_t reportErrorIfAny(CUresult result, const char *where) {
-  if (result != CUDA_SUCCESS) {
-    llvm::errs() << "CUDA failed with " << result << " in " << where << "\n";
+#define CUDA_REPORT_IF_ERROR(expr)                                             \
+  [](CUresult result) {                                                        \
+    if (!result)                                                               \
+      return;                                                                  \
+    const char *name = nullptr;                                                \
+    cuGetErrorName(result, &name);                                             \
+    if (!name)                                                                 \
+      name = "<unknown>";                                                      \
+    llvm::errs() << "'" << #expr << "' failed with '" << name << "'\n";        \
+  }(expr)
+
+// Static reference to CUDA primary context for device ordinal 0.
+static CUcontext Context = [] {
+  CUDA_REPORT_IF_ERROR(cuInit(/*flags=*/0));
+  CUdevice device;
+  CUDA_REPORT_IF_ERROR(cuDeviceGet(&device, /*ordinal=*/0));
+  CUcontext context;
+  CUDA_REPORT_IF_ERROR(cuDevicePrimaryCtxRetain(&context, device));
+  return context;
+}();
+
+// Sets the `Context` for the duration of the instance and restores the previous
+// context on destruction.
+class ScopedContext {
+public:
+  ScopedContext() {
+    CUDA_REPORT_IF_ERROR(cuCtxGetCurrent(&previous));
+    CUDA_REPORT_IF_ERROR(cuCtxSetCurrent(Context));
   }
-  return result;
-}
-} // anonymous namespace
 
-extern "C" int32_t mcuModuleLoad(void **module, void *data) {
-  int32_t err = reportErrorIfAny(
-      cuModuleLoadData(reinterpret_cast<CUmodule *>(module), data),
-      "ModuleLoad");
-  return err;
+  ~ScopedContext() { CUDA_REPORT_IF_ERROR(cuCtxSetCurrent(previous)); }
+
+private:
+  CUcontext previous;
+};
+
+extern "C" CUmodule mgpuModuleLoad(void *data) {
+  ScopedContext scopedContext;
+  CUmodule module = nullptr;
+  CUDA_REPORT_IF_ERROR(cuModuleLoadData(&module, data));
+  return module;
 }
 
-extern "C" int32_t mcuModuleGetFunction(void **function, void *module,
-                                        const char *name) {
-  return reportErrorIfAny(
-      cuModuleGetFunction(reinterpret_cast<CUfunction *>(function),
-                          reinterpret_cast<CUmodule>(module), name),
-      "GetFunction");
+extern "C" void mgpuModuleUnload(CUmodule module) {
+  CUDA_REPORT_IF_ERROR(cuModuleUnload(module));
+}
+
+extern "C" CUfunction mgpuModuleGetFunction(CUmodule module, const char *name) {
+  CUfunction function = nullptr;
+  CUDA_REPORT_IF_ERROR(cuModuleGetFunction(&function, module, name));
+  return function;
 }
 
 // The wrapper uses intptr_t instead of CUDA's unsigned int to match
 // the type of MLIR's index type. This avoids the need for casts in the
 // generated MLIR code.
-extern "C" int32_t mcuLaunchKernel(void *function, intptr_t gridX,
-                                   intptr_t gridY, intptr_t gridZ,
-                                   intptr_t blockX, intptr_t blockY,
-                                   intptr_t blockZ, int32_t smem, void *stream,
-                                   void **params, void **extra) {
-  return reportErrorIfAny(
-      cuLaunchKernel(reinterpret_cast<CUfunction>(function), gridX, gridY,
-                     gridZ, blockX, blockY, blockZ, smem,
-                     reinterpret_cast<CUstream>(stream), params, extra),
-      "LaunchKernel");
+extern "C" void mgpuLaunchKernel(CUfunction function, intptr_t gridX,
+                                 intptr_t gridY, intptr_t gridZ,
+                                 intptr_t blockX, intptr_t blockY,
+                                 intptr_t blockZ, int32_t smem, CUstream stream,
+                                 void **params, void **extra) {
+  ScopedContext scopedContext;
+  CUDA_REPORT_IF_ERROR(cuLaunchKernel(function, gridX, gridY, gridZ, blockX,
+                                      blockY, blockZ, smem, stream, params,
+                                      extra));
 }
 
-extern "C" void *mcuGetStreamHelper() {
-  CUstream stream;
-  reportErrorIfAny(cuStreamCreate(&stream, CU_STREAM_DEFAULT), "StreamCreate");
+extern "C" CUstream mgpuStreamCreate() {
+  ScopedContext scopedContext;
+  CUstream stream = nullptr;
+  CUDA_REPORT_IF_ERROR(cuStreamCreate(&stream, CU_STREAM_NON_BLOCKING));
   return stream;
 }
 
-extern "C" int32_t mcuStreamSynchronize(void *stream) {
-  return reportErrorIfAny(
-      cuStreamSynchronize(reinterpret_cast<CUstream>(stream)), "StreamSync");
+extern "C" void mgpuStreamDestroy(CUstream stream) {
+  CUDA_REPORT_IF_ERROR(cuStreamDestroy(stream));
+}
+
+extern "C" void mgpuStreamSynchronize(CUstream stream) {
+  CUDA_REPORT_IF_ERROR(cuStreamSynchronize(stream));
+}
+
+extern "C" void mgpuStreamWaitEvent(CUstream stream, CUevent event) {
+  CUDA_REPORT_IF_ERROR(cuStreamWaitEvent(stream, event, /*flags=*/0));
+}
+
+extern "C" CUevent mgpuEventCreate() {
+  ScopedContext scopedContext;
+  CUevent event = nullptr;
+  CUDA_REPORT_IF_ERROR(cuEventCreate(&event, CU_EVENT_DISABLE_TIMING));
+  return event;
+}
+
+extern "C" void mgpuEventDestroy(CUevent event) {
+  CUDA_REPORT_IF_ERROR(cuEventDestroy(event));
+}
+
+extern "C" void mgpuEventSynchronize(CUevent event) {
+  CUDA_REPORT_IF_ERROR(cuEventSynchronize(event));
+}
+
+extern "C" void mgpuEventRecord(CUevent event, CUstream stream) {
+  CUDA_REPORT_IF_ERROR(cuEventRecord(event, stream));
+}
+
+extern "C" void *mgpuMemAlloc(uint64_t sizeBytes, CUstream /*stream*/) {
+  ScopedContext scopedContext;
+  CUdeviceptr ptr;
+  CUDA_REPORT_IF_ERROR(cuMemAlloc(&ptr, sizeBytes));
+  return reinterpret_cast<void *>(ptr);
+}
+
+extern "C" void mgpuMemFree(void *ptr, CUstream /*stream*/) {
+  CUDA_REPORT_IF_ERROR(cuMemFree(reinterpret_cast<CUdeviceptr>(ptr)));
+}
+
+extern "C" void mgpuMemcpy(void *dst, void *src, uint64_t sizeBytes,
+                           CUstream stream) {
+  CUDA_REPORT_IF_ERROR(cuMemcpyAsync(reinterpret_cast<CUdeviceptr>(dst),
+                                     reinterpret_cast<CUdeviceptr>(src),
+                                     sizeBytes, stream));
 }
 
 /// Helper functions for writing mlir example code
 
 // Allows to register byte array with the CUDA runtime. Helpful until we have
 // transfer functions implemented.
-extern "C" void mcuMemHostRegister(void *ptr, uint64_t sizeBytes) {
-  reportErrorIfAny(cuMemHostRegister(ptr, sizeBytes, /*flags=*/0),
-                   "MemHostRegister");
+extern "C" void mgpuMemHostRegister(void *ptr, uint64_t sizeBytes) {
+  CUDA_REPORT_IF_ERROR(cuMemHostRegister(ptr, sizeBytes, /*flags=*/0));
 }
 
-// A struct that corresponds to how MLIR represents memrefs.
-template <typename T, int N> struct MemRefType {
-  T *basePtr;
-  T *data;
-  int64_t offset;
-  int64_t sizes[N];
-  int64_t strides[N];
-};
+// Allows to register a MemRef with the CUDA runtime. Helpful until we have
+// transfer functions implemented.
+extern "C" void
+mgpuMemHostRegisterMemRef(int64_t rank, StridedMemRefType<char, 1> *descriptor,
+                          int64_t elementSizeBytes) {
 
-// Allows to register a MemRef with the CUDA runtime. Initializes array with
-// value. Helpful until we have transfer functions implemented.
-template <typename T, int N>
-void mcuMemHostRegisterMemRef(const MemRefType<T, N> *arg, T value) {
-  auto count = std::accumulate(arg->sizes, arg->sizes + N, 1,
-                               std::multiplies<int64_t>());
-  std::fill_n(arg->data, count, value);
-  mcuMemHostRegister(arg->data, count * sizeof(T));
-}
-extern "C" void
-mcuMemHostRegisterMemRef1dFloat(const MemRefType<float, 1> *arg) {
-  mcuMemHostRegisterMemRef(arg, 1.23f);
-}
-extern "C" void
-mcuMemHostRegisterMemRef3dFloat(const MemRefType<float, 3> *arg) {
-  mcuMemHostRegisterMemRef(arg, 1.23f);
+  llvm::SmallVector<int64_t, 4> denseStrides(rank);
+  llvm::ArrayRef<int64_t> sizes(descriptor->sizes, rank);
+  llvm::ArrayRef<int64_t> strides(sizes.end(), rank);
+
+  std::partial_sum(sizes.rbegin(), sizes.rend(), denseStrides.rbegin(),
+                   std::multiplies<int64_t>());
+  auto sizeBytes = denseStrides.front() * elementSizeBytes;
+
+  // Only densely packed tensors are currently supported.
+  std::rotate(denseStrides.begin(), denseStrides.begin() + 1,
+              denseStrides.end());
+  denseStrides.back() = 1;
+  assert(strides == llvm::makeArrayRef(denseStrides));
+
+  auto ptr = descriptor->data + descriptor->offset * elementSizeBytes;
+  mgpuMemHostRegister(ptr, sizeBytes);
 }

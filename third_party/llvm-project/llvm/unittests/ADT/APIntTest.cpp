@@ -1357,53 +1357,53 @@ TEST(APIntTest, toString) {
   bool isSigned;
 
   APInt(8, 0).toString(S, 2, true, true);
-  EXPECT_EQ(S.str().str(), "0b0");
+  EXPECT_EQ(std::string(S), "0b0");
   S.clear();
   APInt(8, 0).toString(S, 8, true, true);
-  EXPECT_EQ(S.str().str(), "00");
+  EXPECT_EQ(std::string(S), "00");
   S.clear();
   APInt(8, 0).toString(S, 10, true, true);
-  EXPECT_EQ(S.str().str(), "0");
+  EXPECT_EQ(std::string(S), "0");
   S.clear();
   APInt(8, 0).toString(S, 16, true, true);
-  EXPECT_EQ(S.str().str(), "0x0");
+  EXPECT_EQ(std::string(S), "0x0");
   S.clear();
   APInt(8, 0).toString(S, 36, true, false);
-  EXPECT_EQ(S.str().str(), "0");
+  EXPECT_EQ(std::string(S), "0");
   S.clear();
 
   isSigned = false;
   APInt(8, 255, isSigned).toString(S, 2, isSigned, true);
-  EXPECT_EQ(S.str().str(), "0b11111111");
+  EXPECT_EQ(std::string(S), "0b11111111");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 8, isSigned, true);
-  EXPECT_EQ(S.str().str(), "0377");
+  EXPECT_EQ(std::string(S), "0377");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 10, isSigned, true);
-  EXPECT_EQ(S.str().str(), "255");
+  EXPECT_EQ(std::string(S), "255");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 16, isSigned, true);
-  EXPECT_EQ(S.str().str(), "0xFF");
+  EXPECT_EQ(std::string(S), "0xFF");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 36, isSigned, false);
-  EXPECT_EQ(S.str().str(), "73");
+  EXPECT_EQ(std::string(S), "73");
   S.clear();
 
   isSigned = true;
   APInt(8, 255, isSigned).toString(S, 2, isSigned, true);
-  EXPECT_EQ(S.str().str(), "-0b1");
+  EXPECT_EQ(std::string(S), "-0b1");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 8, isSigned, true);
-  EXPECT_EQ(S.str().str(), "-01");
+  EXPECT_EQ(std::string(S), "-01");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 10, isSigned, true);
-  EXPECT_EQ(S.str().str(), "-1");
+  EXPECT_EQ(std::string(S), "-1");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 16, isSigned, true);
-  EXPECT_EQ(S.str().str(), "-0x1");
+  EXPECT_EQ(std::string(S), "-0x1");
   S.clear();
   APInt(8, 255, isSigned).toString(S, 36, isSigned, false);
-  EXPECT_EQ(S.str().str(), "-1");
+  EXPECT_EQ(std::string(S), "-1");
   S.clear();
 }
 
@@ -1783,8 +1783,9 @@ TEST(APIntTest, isShiftedMask) {
   }
 }
 
-// Test that self-move works, but only when we're using MSVC.
-#if defined(_MSC_VER)
+// Test that self-move works with EXPENSIVE_CHECKS. It calls std::shuffle which
+// does self-move on some platforms.
+#ifdef EXPENSIVE_CHECKS
 #if defined(__clang__)
 // Disable the pragma warning from versions of Clang without -Wself-move
 #pragma clang diagnostic push
@@ -1813,7 +1814,28 @@ TEST(APIntTest, SelfMoveAssignment) {
 #pragma clang diagnostic pop
 #pragma clang diagnostic pop
 #endif
-#endif // _MSC_VER
+#endif // EXPENSIVE_CHECKS
+
+TEST(APIntTest, byteSwap) {
+  EXPECT_EQ(0x00000000, APInt(16, 0x0000).byteSwap());
+  EXPECT_EQ(0x0000010f, APInt(16, 0x0f01).byteSwap());
+  EXPECT_EQ(0x00ff8000, APInt(24, 0x0080ff).byteSwap());
+  EXPECT_EQ(0x117700ff, APInt(32, 0xff007711).byteSwap());
+  EXPECT_EQ(0x228811aaffULL, APInt(40, 0xffaa118822ULL).byteSwap());
+  EXPECT_EQ(0x050403020100ULL, APInt(48, 0x000102030405ULL).byteSwap());
+  EXPECT_EQ(0xff050403020100ULL, APInt(56, 0x000102030405ffULL).byteSwap());
+  EXPECT_EQ(0xff050403020100aaULL, APInt(64, 0xaa000102030405ffULL).byteSwap());
+
+  for (unsigned N : {16, 24, 32, 48, 56, 64, 72, 80, 96, 112, 128, 248, 256,
+                     1024, 1032, 1040}) {
+    for (unsigned I = 0; I < N; I += 8) {
+      APInt X = APInt::getBitsSet(N, I, I + 8);
+      APInt Y = APInt::getBitsSet(N, N - I - 8, N - I);
+      EXPECT_EQ(Y, X.byteSwap());
+      EXPECT_EQ(X, Y.byteSwap());
+    }
+  }
+}
 
 TEST(APIntTest, reverseBits) {
   EXPECT_EQ(1, APInt(1, 1).reverseBits());
@@ -1972,23 +1994,44 @@ TEST(APIntTest, extractBits) {
   APInt i32(32, 0x1234567);
   EXPECT_EQ(0x3456, i32.extractBits(16, 4));
 
+  APInt i64(64, 0x01234567FFFFFFFFull);
+  EXPECT_EQ(0xFFFFFFFF, i64.extractBits(32, 0));
+  EXPECT_EQ(0xFFFFFFFF, i64.trunc(32));
+  EXPECT_EQ(0x01234567, i64.extractBits(32, 32));
+  EXPECT_EQ(0x01234567, i64.lshr(32).trunc(32));
+
   APInt i257(257, 0xFFFFFFFFFF0000FFull, true);
   EXPECT_EQ(0xFFu, i257.extractBits(16, 0));
+  EXPECT_EQ(0xFFu, i257.lshr(0).trunc(16));
   EXPECT_EQ((0xFFu >> 1), i257.extractBits(16, 1));
+  EXPECT_EQ((0xFFu >> 1), i257.lshr(1).trunc(16));
   EXPECT_EQ(-1, i257.extractBits(32, 64).getSExtValue());
+  EXPECT_EQ(-1, i257.lshr(64).trunc(32).getSExtValue());
   EXPECT_EQ(-1, i257.extractBits(128, 128).getSExtValue());
+  EXPECT_EQ(-1, i257.lshr(128).trunc(128).getSExtValue());
   EXPECT_EQ(-1, i257.extractBits(66, 191).getSExtValue());
+  EXPECT_EQ(-1, i257.lshr(191).trunc(66).getSExtValue());
   EXPECT_EQ(static_cast<int64_t>(0xFFFFFFFFFF80007Full),
             i257.extractBits(128, 1).getSExtValue());
   EXPECT_EQ(static_cast<int64_t>(0xFFFFFFFFFF80007Full),
+            i257.lshr(1).trunc(128).getSExtValue());
+  EXPECT_EQ(static_cast<int64_t>(0xFFFFFFFFFF80007Full),
             i257.extractBits(129, 1).getSExtValue());
+  EXPECT_EQ(static_cast<int64_t>(0xFFFFFFFFFF80007Full),
+            i257.lshr(1).trunc(129).getSExtValue());
 
   EXPECT_EQ(APInt(48, 0),
             APInt(144, "281474976710655", 10).extractBits(48, 48));
+  EXPECT_EQ(APInt(48, 0),
+            APInt(144, "281474976710655", 10).lshr(48).trunc(48));
   EXPECT_EQ(APInt(48, 0x0000ffffffffffffull),
             APInt(144, "281474976710655", 10).extractBits(48, 0));
+  EXPECT_EQ(APInt(48, 0x0000ffffffffffffull),
+            APInt(144, "281474976710655", 10).lshr(0).trunc(48));
   EXPECT_EQ(APInt(48, 0x00007fffffffffffull),
             APInt(144, "281474976710655", 10).extractBits(48, 1));
+  EXPECT_EQ(APInt(48, 0x00007fffffffffffull),
+            APInt(144, "281474976710655", 10).lshr(1).trunc(48));
 }
 
 TEST(APIntTest, extractBitsAsZExtValue) {
@@ -2078,6 +2121,14 @@ TEST(APIntTest, getBitsSetWithWrap) {
   EXPECT_EQ(0u, i127hi1lo1wrap.countTrailingZeros());
   EXPECT_EQ(1u, i127hi1lo1wrap.countTrailingOnes());
   EXPECT_EQ(2u, i127hi1lo1wrap.countPopulation());
+
+  APInt i32hiequallowrap = APInt::getBitsSetWithWrap(32, 10, 10);
+  EXPECT_EQ(32u, i32hiequallowrap.countLeadingOnes());
+  EXPECT_EQ(0u, i32hiequallowrap.countLeadingZeros());
+  EXPECT_EQ(32u, i32hiequallowrap.getActiveBits());
+  EXPECT_EQ(0u, i32hiequallowrap.countTrailingZeros());
+  EXPECT_EQ(32u, i32hiequallowrap.countTrailingOnes());
+  EXPECT_EQ(32u, i32hiequallowrap.countPopulation());
 }
 
 TEST(APIntTest, getHighBitsSet) {
@@ -2547,6 +2598,13 @@ TEST(APIntTest, sext) {
   EXPECT_EQ(63U, i32_neg1.countPopulation());
 }
 
+TEST(APIntTest, truncOrSelf) {
+  APInt val(32, 0xFFFFFFFF);
+  EXPECT_EQ(0xFFFF, val.truncOrSelf(16));
+  EXPECT_EQ(0xFFFFFFFF, val.truncOrSelf(32));
+  EXPECT_EQ(0xFFFFFFFF, val.truncOrSelf(64));
+}
+
 TEST(APIntTest, multiply) {
   APInt i64(64, 1234);
 
@@ -2604,31 +2662,36 @@ TEST(APIntTest, RoundingSDiv) {
       EXPECT_EQ(0, APIntOps::RoundingSDiv(Zero, A, APInt::Rounding::TOWARD_ZERO));
     }
 
-    for (uint64_t Bi = -128; Bi <= 127; Bi++) {
+    for (int64_t Bi = -128; Bi <= 127; Bi++) {
       if (Bi == 0)
         continue;
 
       APInt B(8, Bi);
+      APInt QuoTowardZero = A.sdiv(B);
       {
         APInt Quo = APIntOps::RoundingSDiv(A, B, APInt::Rounding::UP);
-        auto Prod = Quo.sext(16) * B.sext(16);
-        EXPECT_TRUE(Prod.uge(A));
-        if (Prod.ugt(A)) {
-          EXPECT_TRUE(((Quo - 1).sext(16) * B.sext(16)).ult(A));
+        if (A.srem(B).isNullValue()) {
+          EXPECT_EQ(QuoTowardZero, Quo);
+        } else if (A.isNegative() !=
+                   B.isNegative()) { // if the math quotient is negative.
+          EXPECT_EQ(QuoTowardZero, Quo);
+        } else {
+          EXPECT_EQ(QuoTowardZero + 1, Quo);
         }
       }
       {
         APInt Quo = APIntOps::RoundingSDiv(A, B, APInt::Rounding::DOWN);
-        auto Prod = Quo.sext(16) * B.sext(16);
-        EXPECT_TRUE(Prod.ule(A));
-        if (Prod.ult(A)) {
-          EXPECT_TRUE(((Quo + 1).sext(16) * B.sext(16)).ugt(A));
+        if (A.srem(B).isNullValue()) {
+          EXPECT_EQ(QuoTowardZero, Quo);
+        } else if (A.isNegative() !=
+                   B.isNegative()) { // if the math quotient is negative.
+          EXPECT_EQ(QuoTowardZero - 1, Quo);
+        } else {
+          EXPECT_EQ(QuoTowardZero, Quo);
         }
       }
-      {
-        APInt Quo = A.sdiv(B);
-        EXPECT_EQ(Quo, APIntOps::RoundingSDiv(A, B, APInt::Rounding::TOWARD_ZERO));
-      }
+      EXPECT_EQ(QuoTowardZero,
+                APIntOps::RoundingSDiv(A, B, APInt::Rounding::TOWARD_ZERO));
     }
   }
 }

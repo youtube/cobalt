@@ -28,7 +28,7 @@ WebAssemblyTargetStreamer::WebAssemblyTargetStreamer(MCStreamer &S)
     : MCTargetStreamer(S) {}
 
 void WebAssemblyTargetStreamer::emitValueType(wasm::ValType Type) {
-  Streamer.EmitIntValue(uint8_t(Type), 1);
+  Streamer.emitIntValue(uint8_t(Type), 1);
 }
 
 WebAssemblyTargetAsmStreamer::WebAssemblyTargetAsmStreamer(
@@ -71,8 +71,17 @@ void WebAssemblyTargetAsmStreamer::emitGlobalType(const MCSymbolWasm *Sym) {
   assert(Sym->isGlobal());
   OS << "\t.globaltype\t" << Sym->getName() << ", "
      << WebAssembly::typeToString(
-            static_cast<wasm::ValType>(Sym->getGlobalType().Type))
-     << '\n';
+            static_cast<wasm::ValType>(Sym->getGlobalType().Type));
+  if (!Sym->getGlobalType().Mutable)
+    OS << ", immutable";
+  OS << '\n';
+}
+
+void WebAssemblyTargetAsmStreamer::emitTableType(const MCSymbolWasm *Sym) {
+  assert(Sym->isTable());
+  OS << "\t.tabletype\t" << Sym->getName() << ", "
+     << WebAssembly::typeToString(Sym->getTableType());
+  OS << '\n';
 }
 
 void WebAssemblyTargetAsmStreamer::emitEventType(const MCSymbolWasm *Sym) {
@@ -113,9 +122,9 @@ void WebAssemblyTargetWasmStreamer::emitLocal(ArrayRef<wasm::ValType> Types) {
       ++Grouped.back().second;
   }
 
-  Streamer.EmitULEB128IntValue(Grouped.size());
+  Streamer.emitULEB128IntValue(Grouped.size());
   for (auto Pair : Grouped) {
-    Streamer.EmitULEB128IntValue(Pair.second);
+    Streamer.emitULEB128IntValue(Pair.second);
     emitValueType(Pair.first);
   }
 }

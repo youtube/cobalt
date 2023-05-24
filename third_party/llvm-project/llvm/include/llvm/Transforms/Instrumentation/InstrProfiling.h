@@ -68,11 +68,6 @@ private:
   // vector of counter load/store pairs to be register promoted.
   std::vector<LoadStorePair> PromotionCandidates;
 
-  // The start value of precise value profile range for memory intrinsic sizes.
-  int64_t MemOPSizeRangeStart;
-  // The end value of precise value profile range for memory intrinsic sizes.
-  int64_t MemOPSizeRangeLast;
-
   int64_t TotalCountersPromoted = 0;
 
   /// Lower instrumentation intrinsics in the function. Returns true if there
@@ -81,6 +76,9 @@ private:
 
   /// Register-promote counter loads and stores in loops.
   void promoteCounterLoadStores(Function *F);
+
+  /// Returns true if relocating counters at runtime is enabled.
+  bool isRuntimeCounterRelocationEnabled() const;
 
   /// Returns true if profile counter update register promotion is enabled.
   bool isCounterPromotionEnabled() const;

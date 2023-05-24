@@ -42,7 +42,7 @@ typedef struct ident ident_t;
 // ----------------------------------------------------------------------------
 
 // We need to know the size of the area we can assume that the compiler(s)
-// allocated for obects of type omp_lock_t and omp_nest_lock_t.  The Intel
+// allocated for objects of type omp_lock_t and omp_nest_lock_t.  The Intel
 // compiler always allocates a pointer-sized area, as does visual studio.
 //
 // gcc however, only allocates 4 bytes for regular locks, even on 64-bit
@@ -159,7 +159,7 @@ extern void __kmp_destroy_nested_tas_lock(kmp_tas_lock_t *lck);
 #define KMP_LOCK_ACQUIRED_NEXT 0
 #ifndef KMP_USE_FUTEX
 #define KMP_USE_FUTEX                                                          \
-  (KMP_OS_LINUX && !KMP_OS_CNK &&                                              \
+  (KMP_OS_LINUX &&                                                             \
    (KMP_ARCH_X86 || KMP_ARCH_X86_64 || KMP_ARCH_ARM || KMP_ARCH_AARCH64))
 #endif
 #if KMP_USE_FUTEX
@@ -587,7 +587,8 @@ enum kmp_lock_kind {
 #endif
 #if KMP_USE_DYNAMIC_LOCK && KMP_USE_TSX
   lk_hle,
-  lk_rtm,
+  lk_rtm_queuing,
+  lk_rtm_spin,
 #endif
   lk_ticket,
   lk_queuing,
@@ -861,11 +862,11 @@ __kmp_destroy_nested_user_lock_with_checks(kmp_user_lock_p lck) {
 //
 // In other cases, the calling code really should differentiate between an
 // unimplemented function and one that is implemented but returning NULL /
-// invalied value.  If this is the case, no get function wrapper exists.
+// invalid value.  If this is the case, no get function wrapper exists.
 
 extern int (*__kmp_is_user_lock_initialized_)(kmp_user_lock_p lck);
 
-// no set function; fields set durining local allocation
+// no set function; fields set during local allocation
 
 extern const ident_t *(*__kmp_get_user_lock_location_)(kmp_user_lock_p lck);
 
@@ -899,7 +900,7 @@ static inline void __kmp_set_user_lock_flags(kmp_user_lock_p lck,
   }
 }
 
-// The fuction which sets up all of the vtbl pointers for kmp_user_lock_t.
+// The function which sets up all of the vtbl pointers for kmp_user_lock_t.
 extern void __kmp_set_user_lock_vptrs(kmp_lock_kind_t user_lock_kind);
 
 // Macros for binding user lock functions.
@@ -1041,19 +1042,19 @@ extern void __kmp_cleanup_user_locks();
 // All nested locks are indirect lock types.
 #if KMP_USE_TSX
 #if KMP_USE_FUTEX
-#define KMP_FOREACH_D_LOCK(m, a) m(tas, a) m(futex, a) m(hle, a)
+#define KMP_FOREACH_D_LOCK(m, a) m(tas, a) m(futex, a) m(hle, a) m(rtm_spin, a)
 #define KMP_FOREACH_I_LOCK(m, a)                                               \
-  m(ticket, a) m(queuing, a) m(adaptive, a) m(drdpa, a) m(rtm, a)              \
+  m(ticket, a) m(queuing, a) m(adaptive, a) m(drdpa, a) m(rtm_queuing, a)      \
       m(nested_tas, a) m(nested_futex, a) m(nested_ticket, a)                  \
           m(nested_queuing, a) m(nested_drdpa, a)
 #else
-#define KMP_FOREACH_D_LOCK(m, a) m(tas, a) m(hle, a)
+#define KMP_FOREACH_D_LOCK(m, a) m(tas, a) m(hle, a) m(rtm_spin, a)
 #define KMP_FOREACH_I_LOCK(m, a)                                               \
-  m(ticket, a) m(queuing, a) m(adaptive, a) m(drdpa, a) m(rtm, a)              \
+  m(ticket, a) m(queuing, a) m(adaptive, a) m(drdpa, a) m(rtm_queuing, a)      \
       m(nested_tas, a) m(nested_ticket, a) m(nested_queuing, a)                \
           m(nested_drdpa, a)
 #endif // KMP_USE_FUTEX
-#define KMP_LAST_D_LOCK lockseq_hle
+#define KMP_LAST_D_LOCK lockseq_rtm_spin
 #else
 #if KMP_USE_FUTEX
 #define KMP_FOREACH_D_LOCK(m, a) m(tas, a) m(futex, a)
@@ -1128,7 +1129,7 @@ extern int (**__kmp_direct_unset)(kmp_dyna_lock_t *, kmp_int32);
 extern int (**__kmp_direct_test)(kmp_dyna_lock_t *, kmp_int32);
 
 // Function tables for indirect locks. Set/unset/test differentiate functions
-// with/withuot consistency checking.
+// with/without consistency checking.
 extern void (*__kmp_indirect_init[])(kmp_user_lock_p);
 extern void (**__kmp_indirect_destroy)(kmp_user_lock_p);
 extern int (**__kmp_indirect_set)(kmp_user_lock_p, kmp_int32);

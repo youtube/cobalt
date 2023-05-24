@@ -1,15 +1,9 @@
-; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math \
-; RUN:   | FileCheck %s --check-prefix=CHECK --check-prefix=CST --check-prefix=SSE --check-prefix=SSE2
-; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+sse4.1 \
-; RUN:   | FileCheck %s --check-prefix=CHECK --check-prefix=CST --check-prefix=SSE --check-prefix=SSE41
-; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx \
-; RUN:   | FileCheck %s --check-prefix=CHECK --check-prefix=CST --check-prefix=AVX
-; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx2 \
-; RUN:   | FileCheck %s --check-prefix=CHECK --check-prefix=AVX2
-; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx512f \
-; RUN:   | FileCheck %s --check-prefix=CHECK --check-prefix=AVX512F
-; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx512vl \
-; RUN:   | FileCheck %s --check-prefix=CHECK --check-prefix=AVX512VL
+; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math | FileCheck %s --check-prefix=CST --check-prefix=SSE2
+; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+sse4.1 | FileCheck %s --check-prefix=CST --check-prefix=SSE41
+; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx | FileCheck %s --check-prefix=CST --check-prefix=AVX
+; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx2 | FileCheck %s --check-prefix=AVX2
+; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx512f | FileCheck %s --check-prefix=AVX512F
+; RUN: llc < %s -mtriple=x86_64 -enable-unsafe-fp-math -mattr=+avx512vl | FileCheck %s --check-prefix=AVX512VL
 
 ; Check that the constant used in the vectors are the right ones.
 ; SSE2: [[MASKCSTADDR:.LCPI[0-9_]+]]:
@@ -31,10 +25,10 @@
 ; CST-NEXT: .long 1392508928 # 0x53000000
 
 ; CST: [[MAGICCSTADDR:.LCPI[0-9_]+]]:
-; CST-NEXT: .long 1392509056 # float 5.49764202E+11
-; CST-NEXT: .long 1392509056 # float 5.49764202E+11
-; CST-NEXT: .long 1392509056 # float 5.49764202E+11
-; CST-NEXT: .long 1392509056 # float 5.49764202E+11
+; CST-NEXT: .long 0x53000080 # float 5.49764202E+11
+; CST-NEXT: .long 0x53000080 # float 5.49764202E+11
+; CST-NEXT: .long 0x53000080 # float 5.49764202E+11
+; CST-NEXT: .long 0x53000080 # float 5.49764202E+11
 
 ; AVX2: [[LOWCSTADDR:.LCPI[0-9_]+]]:
 ; AVX2-NEXT: .long 1258291200 # 0x4b000000
@@ -43,7 +37,7 @@
 ; AVX2-NEXT: .long 1392508928 # 0x53000000
 
 ; AVX2: [[MAGICCSTADDR:.LCPI[0-9_]+]]:
-; AVX2-NEXT: .long 1392509056 # float 5.49764202E+11
+; AVX2-NEXT: .long 0x53000080 # float 5.49764202E+11
 
 define <4 x float> @test_uitofp_v4i32_to_v4f32(<4 x i32> %arg) {
 ; SSE2-LABEL: test_uitofp_v4i32_to_v4f32:
@@ -114,7 +108,7 @@ define <4 x float> @test_uitofp_v4i32_to_v4f32(<4 x i32> %arg) {
 ; AVX2-NEXT: .long 1392508928 # 0x53000000
 
 ; AVX2: [[MAGICCSTADDR:.LCPI[0-9_]+]]:
-; AVX2-NEXT: .long 1392509056 # float 5.49764202E+11
+; AVX2-NEXT: .long 0x53000080 # float 5.49764202E+11
 
 define <8 x float> @test_uitofp_v8i32_to_v8f32(<8 x i32> %arg) {
 ; Legalization will break the thing is 2 x <4 x i32> on anthing prior AVX.

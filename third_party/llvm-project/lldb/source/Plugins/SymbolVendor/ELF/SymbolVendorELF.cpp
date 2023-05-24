@@ -1,4 +1,4 @@
-//===-- SymbolVendorELF.cpp ----------------------------------*- C++ -*-===//
+//===-- SymbolVendorELF.cpp -----------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -25,12 +25,11 @@
 using namespace lldb;
 using namespace lldb_private;
 
+LLDB_PLUGIN_DEFINE(SymbolVendorELF)
+
 // SymbolVendorELF constructor
 SymbolVendorELF::SymbolVendorELF(const lldb::ModuleSP &module_sp)
     : SymbolVendor(module_sp) {}
-
-// Destructor
-SymbolVendorELF::~SymbolVendorELF() {}
 
 void SymbolVendorELF::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -82,8 +81,7 @@ SymbolVendorELF::CreateInstance(const lldb::ModuleSP &module_sp,
   if (!fspec)
     fspec = obj_file->GetDebugLink().getValueOr(FileSpec());
 
-  static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
-  Timer scoped_timer(func_cat, "SymbolVendorELF::CreateInstance (module = %s)",
+  LLDB_SCOPED_TIMERF("SymbolVendorELF::CreateInstance (module = %s)",
                      module_sp->GetFileSpec().GetPath().c_str());
 
   ModuleSpec module_spec;

@@ -12,9 +12,7 @@
 
 #include "TableGenBackends.h" // Declares all backends.
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Signals.h"
+#include "llvm/Support/InitLLVM.h"
 #include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/SetTheory.h"
@@ -23,6 +21,8 @@ using namespace llvm;
 
 enum ActionType {
   PrintRecords,
+  PrintDetailedRecords,
+  NullBackend,
   DumpJSON,
   GenEmitter,
   GenRegisterInfo,
@@ -54,12 +54,18 @@ enum ActionType {
   GenRegisterBank,
   GenExegesis,
   GenAutomata,
+  GenDirectivesEnumDecl,
+  GenDirectivesEnumImpl,
+  GenDirectivesEnumGen,
 };
 
 namespace llvm {
-/// Storage for TimeRegionsOpt as a global so that backends aren't required to
-/// include CommandLine.h
-bool TimeRegions = false;
+cl::opt<bool> EmitLongStrLiterals(
+    "long-string-literals",
+    cl::desc("when emitting large string tables, prefer string literals over "
+             "comma-separated char literals. This can be a readability and "
+             "compile-time performance win, but upsets some compilers"),
+    cl::Hidden, cl::init(true));
 } // end namespace llvm
 
 namespace {
@@ -68,6 +74,10 @@ cl::opt<ActionType> Action(
     cl::values(
         clEnumValN(PrintRecords, "print-records",
                    "Print all records to stdout (default)"),
+        clEnumValN(PrintDetailedRecords, "print-detailed-records",
+                   "Print full details of all records to stdout"),
+        clEnumValN(NullBackend, "null-backend",
+                   "Do nothing after parsing (useful for timing)"),
         clEnumValN(DumpJSON, "dump-json",
                    "Dump all records as machine-readable JSON"),
         clEnumValN(GenEmitter, "gen-emitter", "Generate machine code emitter"),
@@ -122,22 +132,28 @@ cl::opt<ActionType> Action(
                    "Generate registers bank descriptions"),
         clEnumValN(GenExegesis, "gen-exegesis",
                    "Generate llvm-exegesis tables"),
-        clEnumValN(GenAutomata, "gen-automata", "Generate generic automata")));
+        clEnumValN(GenAutomata, "gen-automata", "Generate generic automata"),
+        clEnumValN(GenDirectivesEnumDecl, "gen-directive-decl",
+                   "Generate directive related declaration code (header file)"),
+        clEnumValN(GenDirectivesEnumImpl, "gen-directive-impl",
+                   "Generate directive related implementation code"),
+        clEnumValN(GenDirectivesEnumGen, "gen-directive-gen",
+                   "Generate directive related implementation code part")));
 
 cl::OptionCategory PrintEnumsCat("Options for -print-enums");
 cl::opt<std::string> Class("class", cl::desc("Print Enum list for this class"),
                            cl::value_desc("class name"),
                            cl::cat(PrintEnumsCat));
 
-cl::opt<bool, true>
-    TimeRegionsOpt("time-regions",
-                   cl::desc("Time regions of tablegens execution"),
-                   cl::location(TimeRegions));
-
 bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   switch (Action) {
   case PrintRecords:
-    OS << Records;           // No argument, dump all contents
+    OS << Records;              // No argument, dump all contents
+    break;
+  case PrintDetailedRecords:
+    EmitDetailedRecords(Records, OS);
+    break;
+  case NullBackend:             // No backend at all.
     break;
   case DumpJSON:
     EmitJSON(Records, OS);
@@ -247,6 +263,15 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenAutomata:
     EmitAutomata(Records, OS);
     break;
+  case GenDirectivesEnumDecl:
+    EmitDirectivesDecl(Records, OS);
+    break;
+  case GenDirectivesEnumImpl:
+    EmitDirectivesImpl(Records, OS);
+    break;
+  case GenDirectivesEnumGen:
+    EmitDirectivesGen(Records, OS);
+    break;
   }
 
   return false;
@@ -254,11 +279,8 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
 }
 
 int main(int argc, char **argv) {
-  sys::PrintStackTraceOnErrorSignal(argv[0]);
-  PrettyStackTraceProgram X(argc, argv);
+  InitLLVM X(argc, argv);
   cl::ParseCommandLineOptions(argc, argv);
-
-  llvm_shutdown_obj Y;
 
   return TableGenMain(argv[0], &LLVMTableGenMain);
 }

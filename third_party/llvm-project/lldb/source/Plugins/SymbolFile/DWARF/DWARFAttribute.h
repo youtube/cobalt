@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SymbolFileDWARF_DWARFAttribute_h_
-#define SymbolFileDWARF_DWARFAttribute_h_
+#ifndef LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFATTRIBUTE_H
+#define LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFATTRIBUTE_H
 
 #include "DWARFDefines.h"
 #include "DWARFFormValue.h"
@@ -52,11 +52,9 @@ public:
   DWARFAttributes();
   ~DWARFAttributes();
 
-  void Append(const DWARFUnit *cu, dw_offset_t attr_die_offset,
-              dw_attr_t attr, dw_form_t form);
-  const DWARFUnit *CompileUnitAtIndex(uint32_t i) const {
-    return m_infos[i].cu;
-  }
+  void Append(DWARFUnit *cu, dw_offset_t attr_die_offset, dw_attr_t attr,
+              dw_form_t form);
+  DWARFUnit *CompileUnitAtIndex(uint32_t i) const { return m_infos[i].cu; }
   dw_offset_t DIEOffsetAtIndex(uint32_t i) const {
     return m_infos[i].die_offset;
   }
@@ -73,8 +71,8 @@ public:
 
 protected:
   struct AttributeValue {
-    const DWARFUnit *cu;        // Keep the compile unit with each attribute in
-                                // case we have DW_FORM_ref_addr values
+    DWARFUnit *cu; // Keep the compile unit with each attribute in
+                   // case we have DW_FORM_ref_addr values
     dw_offset_t die_offset;
     DWARFAttribute attr;
   };
@@ -82,4 +80,4 @@ protected:
   collection m_infos;
 };
 
-#endif // SymbolFileDWARF_DWARFAttribute_h_
+#endif // LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFATTRIBUTE_H

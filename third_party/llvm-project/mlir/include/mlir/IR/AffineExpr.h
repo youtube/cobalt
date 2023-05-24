@@ -1,6 +1,6 @@
 //===- AffineExpr.h - MLIR Affine Expr Class --------------------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -110,13 +110,34 @@ public:
   /// Return true if the affine expression involves AffineDimExpr `position`.
   bool isFunctionOfDim(unsigned position) const;
 
+  /// Return true if the affine expression involves AffineSymbolExpr `position`.
+  bool isFunctionOfSymbol(unsigned position) const;
+
   /// Walk all of the AffineExpr's in this expression in postorder.
   void walk(std::function<void(AffineExpr)> callback) const;
 
   /// This method substitutes any uses of dimensions and symbols (e.g.
   /// dim#0 with dimReplacements[0]) and returns the modified expression tree.
+  /// This is a dense replacement method: a replacement must be specified for
+  /// every single dim and symbol.
   AffineExpr replaceDimsAndSymbols(ArrayRef<AffineExpr> dimReplacements,
                                    ArrayRef<AffineExpr> symReplacements) const;
+
+  /// Sparse replace method. Replace `expr` by `replacement` and return the
+  /// modified expression tree.
+  AffineExpr replace(AffineExpr expr, AffineExpr replacement) const;
+
+  /// Sparse replace method. If `*this` appears in `map` replaces it by
+  /// `map[*this]` and return the modified expression tree. Otherwise traverse
+  /// `*this` and apply replace with `map` on its subexpressions.
+  AffineExpr replace(const DenseMap<AffineExpr, AffineExpr> &map) const;
+
+  /// Replace dims[0 .. numDims - 1] by dims[shift .. shift + numDims - 1].
+  AffineExpr shiftDims(unsigned numDims, unsigned shift) const;
+
+  /// Replace symbols[0 .. numSymbols - 1] by
+  ///         symbols[shift .. shift + numSymbols - 1].
+  AffineExpr shiftSymbols(unsigned numSymbols, unsigned shift) const;
 
   AffineExpr operator+(int64_t v) const;
   AffineExpr operator+(AffineExpr other) const;
@@ -148,6 +169,15 @@ public:
   AffineExpr compose(AffineMap map) const;
 
   friend ::llvm::hash_code hash_value(AffineExpr arg);
+
+  /// Methods supporting C API.
+  const void *getAsOpaquePointer() const {
+    return static_cast<const void *>(expr);
+  }
+  static AffineExpr getFromOpaquePointer(const void *pointer) {
+    return AffineExpr(
+        reinterpret_cast<ImplType *>(const_cast<void *>(pointer)));
+  }
 
 protected:
   ImplType *expr;
@@ -187,7 +217,7 @@ public:
 class AffineConstantExpr : public AffineExpr {
 public:
   using ImplType = detail::AffineConstantExprStorage;
-  /* implicit */ AffineConstantExpr(AffineExpr::ImplType *ptr);
+  /* implicit */ AffineConstantExpr(AffineExpr::ImplType *ptr = nullptr);
   int64_t getValue() const;
 };
 
@@ -214,11 +244,12 @@ AffineExpr getAffineBinaryOpExpr(AffineExprKind kind, AffineExpr lhs,
 /// products expression, 'localExprs' is expected to have the AffineExpr
 /// for it, and is substituted into. The ArrayRef 'eq' is expected to be in the
 /// format [dims, symbols, locals, constant term].
-AffineExpr toAffineExpr(ArrayRef<int64_t> eq, unsigned numDims,
-                        unsigned numSymbols, ArrayRef<AffineExpr> localExprs,
-                        MLIRContext *context);
+AffineExpr getAffineExprFromFlatForm(ArrayRef<int64_t> flatExprs,
+                                     unsigned numDims, unsigned numSymbols,
+                                     ArrayRef<AffineExpr> localExprs,
+                                     MLIRContext *context);
 
-raw_ostream &operator<<(raw_ostream &os, AffineExpr &expr);
+raw_ostream &operator<<(raw_ostream &os, AffineExpr expr);
 
 template <typename U> bool AffineExpr::isa() const {
   if (std::is_same<U, AffineBinaryOpExpr>::value)
@@ -249,26 +280,6 @@ template <typename U> U AffineExpr::cast() const {
 ///  expression if it can't be simplified.
 AffineExpr simplifyAffineExpr(AffineExpr expr, unsigned numDims,
                               unsigned numSymbols);
-
-/// Flattens 'expr' into 'flattenedExpr'. Returns true on success or false
-/// if 'expr' could not be flattened (i.e., semi-affine is not yet handled).
-/// See documentation for AffineExprFlattener on how mod's and div's are
-/// flattened.
-bool getFlattenedAffineExpr(AffineExpr expr, unsigned numDims,
-                            unsigned numSymbols,
-                            SmallVectorImpl<int64_t> *flattenedExpr);
-
-/// Flattens the result expressions of the map to their corresponding flattened
-/// forms and set in 'flattenedExprs'. Returns true on success or false
-/// if any expression in the map could not be flattened (i.e., semi-affine is
-/// not yet handled).  For all affine expressions that share the same operands
-/// (like those of an affine map), this method should be used instead of
-/// repeatedly calling getFlattenedAffineExpr since local variables added to
-/// deal with div's and mod's will be reused across expressions.
-bool getFlattenedAffineExprs(
-    AffineMap map, std::vector<SmallVector<int64_t, 8>> *flattenedExprs);
-bool getFlattenedAffineExprs(
-    IntegerSet set, std::vector<SmallVector<int64_t, 8>> *flattenedExprs);
 
 namespace detail {
 template <int N> void bindDims(MLIRContext *ctx) {}

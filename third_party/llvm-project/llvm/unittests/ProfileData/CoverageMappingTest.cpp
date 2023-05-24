@@ -675,7 +675,7 @@ TEST_P(CoverageMappingTest, test_line_coverage_iterator) {
   CoverageData Data = LoadedCoverage->getCoverageForFile("file1");
 
   unsigned Line = 0;
-  unsigned LineCounts[] = {20, 20, 20, 20, 30, 10, 10, 10, 10, 0, 0};
+  unsigned LineCounts[] = {20, 20, 20, 20, 10, 10, 10, 10, 10, 0, 0};
   for (const auto &LCS : getLineCoverageStats(Data)) {
     ASSERT_EQ(Line + 1, LCS.getLine());
     errs() << "Line: " << Line + 1 << ", count = " << LCS.getExecutionCount() << "\n";
@@ -894,5 +894,30 @@ INSTANTIATE_TEST_CASE_P(ParameterizedCovMapTest, CoverageMappingTest,
                                           std::pair<bool, bool>({false, true}),
                                           std::pair<bool, bool>({true, false}),
                                           std::pair<bool, bool>({true, true})),);
+
+TEST(CoverageMappingTest, filename_roundtrip) {
+  std::vector<StringRef> Paths({"a", "b", "c", "d", "e"});
+
+  for (bool Compress : {false, true}) {
+    std::string EncodedFilenames;
+    {
+      raw_string_ostream OS(EncodedFilenames);
+      CoverageFilenamesSectionWriter Writer(Paths);
+      Writer.write(OS, Compress);
+    }
+
+    std::vector<StringRef> ReadFilenames;
+    RawCoverageFilenamesReader Reader(EncodedFilenames, ReadFilenames);
+    BinaryCoverageReader::DecompressedData Decompressed;
+    EXPECT_THAT_ERROR(Reader.read(CovMapVersion::CurrentVersion, Decompressed),
+                      Succeeded());
+    if (!Compress)
+      ASSERT_EQ(Decompressed.size(), 0U);
+
+    ASSERT_EQ(ReadFilenames.size(), Paths.size());
+    for (unsigned I = 0; I < Paths.size(); ++I)
+      ASSERT_TRUE(ReadFilenames[I] == Paths[I]);
+  }
+}
 
 } // end anonymous namespace

@@ -24,28 +24,28 @@
 
 # __plt_ifunc - . = 0x10010218 - 0x10010208 = 16
 # __plt_ifunc2 - . = 0x1001022c - 0x10010210 = 28
-# CHECK: _start:
+# CHECK: <_start>:
 # CHECK-NEXT:                 addis 2, 12, 2
 # CHECK-NEXT:                 addi 2, 2, -32636
-# CHECK-NEXT: 1001021c:       bl .+36
+# CHECK-NEXT: 1001021c:       bl 0x10010240
 # CHECK-NEXT:                 ld 2, 24(1)
-# CHECK-NEXT: 10010224:       bl .+48
+# CHECK-NEXT: 10010224:       bl 0x10010254
 # CHECK-NEXT:                 ld 2, 24(1)
 # CHECK-NEXT:                 addis 3, 2, -2
 # CHECK-NEXT:                 addi 3, 3, 32752
 # CHECK-NEXT:                 addis 3, 2, -2
 # CHECK-NEXT:                 addi 3, 3, 32736
 
-# .plt[0] - .TOC. = 0x100302b0 - 0x100282a8 = (1<<16) - 32760
-# CHECK: __plt_ifunc2:
+# .plt[0] - .TOC. = 0x100302a0 - 0x10028298 = (1<<16) - 32760
+# CHECK: <__plt_ifunc2>:
 # CHECK-NEXT:     std 2, 24(1)
 # CHECK-NEXT:     addis 12, 2, 1
 # CHECK-NEXT:     ld 12, -32760(12)
 # CHECK-NEXT:     mtctr 12
 # CHECK-NEXT:     bctr
 
-# .plt[1] - .TOC. = 0x100302b0+8 - 0x100282a8 = (1<<16) - 32752
-# CHECK: __plt_ifunc3:
+# .plt[1] - .TOC. = 0x100302a0+8 - 0x10028298 = (1<<16) - 32752
+# CHECK: <__plt_ifunc3>:
 # CHECK-NEXT:     std 2, 24(1)
 # CHECK-NEXT:     addis 12, 2, 1
 # CHECK-NEXT:     ld 12, -32752(12)
@@ -57,19 +57,19 @@
 ## ifunc2 and ifunc3 have the same code sequence as their PLT call stubs.
 # CHECK:      Disassembly of section .glink:
 # CHECK-EMPTY:
-# CHECK-NEXT: 0000000010010268 .glink:
+# CHECK-NEXT: 0000000010010268 <.glink>:
 # CHECK-NEXT:     addis 12, 2, 1
 # CHECK-NEXT:     ld 12, -32760(12)
 # CHECK-NEXT:     mtctr 12
 # CHECK-NEXT:     bctr
 # CHECK-EMPTY:
-# CHECK-NEXT: 0000000010010278 ifunc3:
+# CHECK-NEXT: 0000000010010278 <ifunc3>:
 # CHECK-NEXT:     addis 12, 2, 1
 # CHECK-NEXT:     ld 12, -32752(12)
 # CHECK-NEXT:     mtctr 12
 # CHECK-NEXT:     bctr
 # CHECK-EMPTY:
-# CHECK-NEXT: 0000000010010288 ifunc1:
+# CHECK-NEXT: 0000000010010288 <ifunc1>:
 # CHECK-NEXT:     addis 12, 2, 1
 # CHECK-NEXT:     ld 12, -32744(12)
 # CHECK-NEXT:     mtctr 12

@@ -1,6 +1,6 @@
 //===- Block.h - MLIR Block Class -------------------------------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -16,7 +16,14 @@
 #include "mlir/IR/BlockSupport.h"
 #include "mlir/IR/Visitors.h"
 
+namespace llvm {
+class BitVector;
+} // end namespace llvm
+
 namespace mlir {
+class TypeRange;
+template <typename ValueRangeT> class ValueTypeRange;
+
 /// `Block` represents an ordered list of `Operation`s.
 class Block : public IRObjectWithUseList<BlockOperand>,
               public llvm::ilist_node_with_parent<Block, Region> {
@@ -67,6 +74,9 @@ public:
 
   BlockArgListType getArguments() { return arguments; }
 
+  /// Return a range containing the types of the arguments for this block.
+  ValueTypeRange<BlockArgListType> getArgumentTypes();
+
   using args_iterator = BlockArgListType::iterator;
   using reverse_args_iterator = BlockArgListType::reverse_iterator;
   args_iterator args_begin() { return getArguments().begin(); }
@@ -85,12 +95,20 @@ public:
   BlockArgument insertArgument(args_iterator it, Type type);
 
   /// Add one argument to the argument list for each type specified in the list.
-  iterator_range<args_iterator> addArguments(ArrayRef<Type> types);
+  iterator_range<args_iterator> addArguments(TypeRange types);
 
-  /// Erase the argument at 'index' and remove it from the argument list. If
-  /// 'updatePredTerms' is set to true, this argument is also removed from the
-  /// terminators of each predecessor to this block.
-  void eraseArgument(unsigned index, bool updatePredTerms = true);
+  /// Add one value to the argument list at the specified position.
+  BlockArgument insertArgument(unsigned index, Type type);
+
+  /// Erase the argument at 'index' and remove it from the argument list.
+  void eraseArgument(unsigned index);
+  /// Erases the arguments listed in `argIndices` and removes them from the
+  /// argument list.
+  /// `argIndices` is allowed to have duplicates and can be in any order.
+  void eraseArguments(ArrayRef<unsigned> argIndices);
+  /// Erases the arguments that have their corresponding bit set in
+  /// `eraseIndices` and removes them from the argument list.
+  void eraseArguments(llvm::BitVector eraseIndices);
 
   unsigned getNumArguments() { return arguments.size(); }
   BlockArgument getArgument(unsigned i) { return arguments[i]; }
@@ -149,54 +167,23 @@ public:
   /// Recomputes the ordering of child operations within the block.
   void recomputeOpOrder();
 
-private:
-  /// A utility iterator that filters out operations that are not 'OpT'.
-  template <typename OpT>
-  class op_filter_iterator
-      : public llvm::filter_iterator<Block::iterator, bool (*)(Operation &)> {
-    static bool filter(Operation &op) { return llvm::isa<OpT>(op); }
-
-  public:
-    op_filter_iterator(Block::iterator it, Block::iterator end)
-        : llvm::filter_iterator<Block::iterator, bool (*)(Operation &)>(
-              it, end, &filter) {}
-
-    /// Allow implicit conversion to the underlying block iterator.
-    operator Block::iterator() const { return this->wrapped(); }
-  };
-
-public:
   /// This class provides iteration over the held operations of a block for a
   /// specific operation type.
   template <typename OpT>
-  class op_iterator : public llvm::mapped_iterator<op_filter_iterator<OpT>,
-                                                   OpT (*)(Operation &)> {
-    static OpT unwrap(Operation &op) { return cast<OpT>(op); }
-
-  public:
-    using reference = OpT;
-
-    /// Initializes the iterator to the specified filter iterator.
-    op_iterator(op_filter_iterator<OpT> it)
-        : llvm::mapped_iterator<op_filter_iterator<OpT>, OpT (*)(Operation &)>(
-              it, &unwrap) {}
-
-    /// Allow implicit conversion to the underlying block iterator.
-    operator Block::iterator() const { return this->wrapped(); }
-  };
+  using op_iterator = detail::op_iterator<OpT, iterator>;
 
   /// Return an iterator range over the operations within this block that are of
   /// 'OpT'.
   template <typename OpT> iterator_range<op_iterator<OpT>> getOps() {
     auto endIt = end();
-    return {op_filter_iterator<OpT>(begin(), endIt),
-            op_filter_iterator<OpT>(endIt, endIt)};
+    return {detail::op_filter_iterator<OpT, iterator>(begin(), endIt),
+            detail::op_filter_iterator<OpT, iterator>(endIt, endIt)};
   }
   template <typename OpT> op_iterator<OpT> op_begin() {
-    return op_filter_iterator<OpT>(begin(), end());
+    return detail::op_filter_iterator<OpT, iterator>(begin(), end());
   }
   template <typename OpT> op_iterator<OpT> op_end() {
-    return op_filter_iterator<OpT>(end(), end());
+    return detail::op_filter_iterator<OpT, iterator>(end(), end());
   }
 
   /// Return an iterator range over the operation within this block excluding
@@ -231,7 +218,10 @@ public:
   }
 
   /// Return true if this block has no predecessors.
-  bool hasNoPredecessors();
+  bool hasNoPredecessors() { return pred_begin() == pred_end(); }
+
+  /// Returns true if this blocks has no successors.
+  bool hasNoSuccessors() { return succ_begin() == succ_end(); }
 
   /// If this block has exactly one predecessor, return it.  Otherwise, return
   /// null.
@@ -240,6 +230,10 @@ public:
   /// if you have a conditional branch with the same block as the true/false
   /// destinations) is not considered to be a single predecessor.
   Block *getSinglePredecessor();
+
+  /// If this block has a unique predecessor, i.e., all incoming edges originate
+  /// from one block, return it. Otherwise, return null.
+  Block *getUniquePredecessor();
 
   // Indexed successor access.
   unsigned getNumSuccessors();
@@ -271,7 +265,7 @@ public:
   typename std::enable_if<std::is_same<RetT, void>::value, RetT>::type
   walk(Block::iterator begin, Block::iterator end, FnT &&callback) {
     for (auto &op : llvm::make_early_inc_range(llvm::make_range(begin, end)))
-      detail::walkOperations(&op, callback);
+      detail::walk(&op, callback);
   }
 
   /// Walk the operations in the specified [begin, end) range of this block in
@@ -282,7 +276,7 @@ public:
   typename std::enable_if<std::is_same<RetT, WalkResult>::value, RetT>::type
   walk(Block::iterator begin, Block::iterator end, FnT &&callback) {
     for (auto &op : llvm::make_early_inc_range(llvm::make_range(begin, end)))
-      if (detail::walkOperations(&op, callback).wasInterrupted())
+      if (detail::walk(&op, callback).wasInterrupted())
         return WalkResult::interrupt();
     return WalkResult::advance();
   }

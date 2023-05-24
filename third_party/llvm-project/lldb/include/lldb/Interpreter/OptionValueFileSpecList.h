@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueFileSpecList_h_
-#define liblldb_OptionValueFileSpecList_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUEFILESPECLIST_H
+#define LLDB_INTERPRETER_OPTIONVALUEFILESPECLIST_H
 
 #include <mutex>
 
@@ -39,11 +39,10 @@ public:
   SetValueFromString(const char *,
                      VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     m_current_value.Clear();
     m_value_was_set = false;
-    return true;
   }
 
   lldb::OptionValueSP DeepCopy() const override;
@@ -74,4 +73,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueFileSpecList_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUEFILESPECLIST_H

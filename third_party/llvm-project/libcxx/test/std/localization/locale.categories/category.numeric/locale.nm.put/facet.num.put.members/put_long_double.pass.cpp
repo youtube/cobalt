@@ -12,9 +12,6 @@
 
 // iter_type put(iter_type s, ios_base& iob, char_type fill, long double v) const;
 
-// TODO(EricWF): This test takes 40+ minutes to build with Clang 3.8 under ASAN or MSAN.
-// UNSUPPORTED: asan, msan
-
 // TODO GLIBC uses a different string for positive and negative NAN numbers.
 // XFAIL: linux-gnu
 
@@ -24418,7 +24415,7 @@ void test12()
     output_iterator<char*> iter;
     std::locale lc = std::locale::classic();
     std::locale lg(lc, new my_numpunct);
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(__x86_64__)
 // This test is failing on FreeBSD, possibly due to different representations
 // of the floating point numbers.
     const my_facet f(1);

@@ -135,6 +135,9 @@ namespace llvm {
     ///                              profile collection.
     /// \param NameTableKind  Whether to emit .debug_gnu_pubnames,
     ///                      .debug_pubnames, or no pubnames at all.
+    /// \param SysRoot       The clang system root (value of -isysroot).
+    /// \param SDK           The SDK name. On Darwin, this is the last component
+    ///                      of the sysroot.
     DICompileUnit *
     createCompileUnit(unsigned Lang, DIFile *File, StringRef Producer,
                       bool isOptimized, StringRef Flags, unsigned RV,
@@ -145,7 +148,8 @@ namespace llvm {
                       bool DebugInfoForProfiling = false,
                       DICompileUnit::DebugNameTableKind NameTableKind =
                           DICompileUnit::DebugNameTableKind::Default,
-                      bool RangesBaseAddress = false);
+                      bool RangesBaseAddress = false, StringRef SysRoot = {},
+                      StringRef SDK = {});
 
     /// Create a file descriptor to hold debugging information for a file.
     /// \param Filename  File name.
@@ -194,6 +198,12 @@ namespace llvm {
     DIBasicType *createBasicType(StringRef Name, uint64_t SizeInBits,
                                  unsigned Encoding,
                                  DINode::DIFlags Flags = DINode::FlagZero);
+
+    /// Create debugging information entry for a string
+    /// type.
+    /// \param Name        Type name.
+    /// \param SizeInBits  Size of the type.
+    DIStringType *createStringType(StringRef Name, uint64_t SizeInBits);
 
     /// Create debugging information entry for a qualified
     /// type, e.g. 'const int'.
@@ -442,19 +452,22 @@ namespace llvm {
     /// \param Scope        Scope in which this type is defined.
     /// \param Name         Type parameter name.
     /// \param Ty           Parameter type.
-    DITemplateTypeParameter *
-    createTemplateTypeParameter(DIScope *Scope, StringRef Name, DIType *Ty);
+    /// \param IsDefault    Parameter is default or not
+    DITemplateTypeParameter *createTemplateTypeParameter(DIScope *Scope,
+                                                         StringRef Name,
+                                                         DIType *Ty,
+                                                         bool IsDefault);
 
     /// Create debugging information for template
     /// value parameter.
     /// \param Scope        Scope in which this type is defined.
     /// \param Name         Value parameter name.
     /// \param Ty           Parameter type.
+    /// \param IsDefault    Parameter is default or not
     /// \param Val          Constant parameter value.
-    DITemplateValueParameter *createTemplateValueParameter(DIScope *Scope,
-                                                           StringRef Name,
-                                                           DIType *Ty,
-                                                           Constant *Val);
+    DITemplateValueParameter *
+    createTemplateValueParameter(DIScope *Scope, StringRef Name, DIType *Ty,
+                                 bool IsDefault, Constant *Val);
 
     /// Create debugging information for a template template parameter.
     /// \param Scope        Scope in which this type is defined.
@@ -481,8 +494,24 @@ namespace llvm {
     /// \param AlignInBits  Alignment.
     /// \param Ty           Element type.
     /// \param Subscripts   Subscripts.
-    DICompositeType *createArrayType(uint64_t Size, uint32_t AlignInBits,
-                                     DIType *Ty, DINodeArray Subscripts);
+    /// \param DataLocation The location of the raw data of a descriptor-based
+    ///                     Fortran array, either a DIExpression* or
+    ///                     a DIVariable*.
+    /// \param Associated   The associated attribute of a descriptor-based
+    ///                     Fortran array, either a DIExpression* or
+    ///                     a DIVariable*.
+    /// \param Allocated    The allocated attribute of a descriptor-based
+    ///                     Fortran array, either a DIExpression* or
+    ///                     a DIVariable*.
+    /// \param Rank         The rank attribute of a descriptor-based
+    ///                     Fortran array, either a DIExpression* or
+    ///                     a DIVariable*.
+    DICompositeType *createArrayType(
+        uint64_t Size, uint32_t AlignInBits, DIType *Ty, DINodeArray Subscripts,
+        PointerUnion<DIExpression *, DIVariable *> DataLocation = nullptr,
+        PointerUnion<DIExpression *, DIVariable *> Associated = nullptr,
+        PointerUnion<DIExpression *, DIVariable *> Allocated = nullptr,
+        PointerUnion<DIExpression *, DIVariable *> Rank = nullptr);
 
     /// Create debugging information entry for a vector type.
     /// \param Size         Array size.
@@ -566,6 +595,14 @@ namespace llvm {
     /// implicitly uniques the values returned.
     DISubrange *getOrCreateSubrange(int64_t Lo, int64_t Count);
     DISubrange *getOrCreateSubrange(int64_t Lo, Metadata *CountNode);
+    DISubrange *getOrCreateSubrange(Metadata *Count, Metadata *LowerBound,
+                                    Metadata *UpperBound, Metadata *Stride);
+
+    DIGenericSubrange *
+    getOrCreateGenericSubrange(DIGenericSubrange::BoundType Count,
+                               DIGenericSubrange::BoundType LowerBound,
+                               DIGenericSubrange::BoundType UpperBound,
+                               DIGenericSubrange::BoundType Stride);
 
     /// Create a new descriptor for the specified variable.
     /// \param Context     Variable scope.
@@ -734,11 +771,19 @@ namespace llvm {
     ///                    A space-separated shell-quoted list of -D macro
     ///                    definitions as they would appear on a command line.
     /// \param IncludePath The path to the module map file.
-    /// \param SysRoot     The clang system root (value of -isysroot).
+    /// \param APINotesFile The path to an API notes file for this module.
+    /// \param File        Source file of the module.
+    ///                    Used for Fortran modules.
+    /// \param LineNo      Source line number of the module.
+    ///                    Used for Fortran modules.
+    /// \param IsDecl      This is a module declaration; default to false;
+    ///                    when set to true, only Scope and Name are required
+    ///                    as this entry is just a hint for the debugger to find
+    ///                    the corresponding definition in the global scope.
     DIModule *createModule(DIScope *Scope, StringRef Name,
-                           StringRef ConfigurationMacros,
-                           StringRef IncludePath,
-                           StringRef SysRoot);
+                           StringRef ConfigurationMacros, StringRef IncludePath,
+                           StringRef APINotesFile = {}, DIFile *File = nullptr,
+                           unsigned LineNo = 0, bool IsDecl = false);
 
     /// This creates a descriptor for a lexical block with a new file
     /// attached. This merely extends the existing

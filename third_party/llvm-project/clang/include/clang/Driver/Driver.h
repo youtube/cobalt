@@ -208,7 +208,7 @@ public:
   /// When the clangDriver lib is used through clang.exe, this provides a
   /// shortcut for executing the -cc1 command-line directly, in the same
   /// process.
-  typedef int (*CC1ToolFunc)(ArrayRef<const char *> argv);
+  typedef int (*CC1ToolFunc)(SmallVectorImpl<const char *> &ArgV);
   CC1ToolFunc CC1Main = nullptr;
 
 private:
@@ -301,7 +301,7 @@ public:
                                       StringRef CustomResourceDir = "");
 
   Driver(StringRef ClangExecutable, StringRef TargetTriple,
-         DiagnosticsEngine &Diags,
+         DiagnosticsEngine &Diags, std::string Title = "clang LLVM compiler",
          IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr);
 
   /// @name Accessors
@@ -314,7 +314,7 @@ public:
 
   const llvm::opt::OptTable &getOpts() const { return getDriverOptTable(); }
 
-  const DiagnosticsEngine &getDiags() const { return Diags; }
+  DiagnosticsEngine &getDiags() const { return Diags; }
 
   llvm::vfs::FileSystem &getVFS() const { return *VFS; }
 
@@ -340,9 +340,7 @@ public:
       return InstalledDir.c_str();
     return Dir.c_str();
   }
-  void setInstalledDir(StringRef Value) {
-    InstalledDir = Value;
-  }
+  void setInstalledDir(StringRef Value) { InstalledDir = std::string(Value); }
 
   bool isSaveTempsEnabled() const { return SaveTemps != SaveTempsNone; }
   bool isSaveTempsObj() const { return SaveTemps == SaveTempsObj; }
@@ -550,6 +548,9 @@ public:
   /// handle this action.
   bool ShouldUseFlangCompiler(const JobAction &JA) const;
 
+  /// ShouldEmitStaticLibrary - Should the linker emit a static library.
+  bool ShouldEmitStaticLibrary(const llvm::opt::ArgList &Args) const;
+
   /// Returns true if we are performing any kind of LTO.
   bool isUsingLTO() const { return LTOMode != LTOK_None; }
 
@@ -620,7 +621,8 @@ public:
   static bool GetReleaseVersion(StringRef Str,
                                 MutableArrayRef<unsigned> Digits);
   /// Compute the default -fmodule-cache-path.
-  static void getDefaultModuleCachePath(SmallVectorImpl<char> &Result);
+  /// \return True if the system provides a default cache directory.
+  static bool getDefaultModuleCachePath(SmallVectorImpl<char> &Result);
 };
 
 /// \return True if the last defined optimization level is -Ofast.

@@ -1,6 +1,8 @@
-set(LLVM_TARGET_DEFINITIONS LoopLikeInterface.td)
-mlir_tablegen(LoopLikeInterface.h.inc -gen-op-interface-decls)
-mlir_tablegen(LoopLikeInterface.cpp.inc -gen-op-interface-defs)
-add_public_tablegen_target(MLIRLoopLikeInterfaceIncGen)
 
+set(LLVM_TARGET_DEFINITIONS Passes.td)
+mlir_tablegen(Passes.h.inc -gen-pass-decls -name Transforms)
+mlir_tablegen(Transforms.capi.h.inc -gen-pass-capi-header --prefix Transforms)
+mlir_tablegen(Transforms.capi.cpp.inc -gen-pass-capi-impl --prefix Transforms)
+add_public_tablegen_target(MLIRTransformsPassIncGen)
 
+add_mlir_doc(Passes -gen-pass-doc GeneralPasses ./)

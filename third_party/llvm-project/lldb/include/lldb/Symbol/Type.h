@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Type_h_
-#define liblldb_Type_h_
+#ifndef LLDB_SYMBOL_TYPE_H
+#define LLDB_SYMBOL_TYPE_H
 
 #include "lldb/Symbol/CompilerDecl.h"
 #include "lldb/Symbol/CompilerType.h"
@@ -56,6 +56,7 @@ public:
   Type *operator->() { return GetType(); }
 
   Type *GetType();
+  SymbolFile &GetSymbolFile() const { return m_symbol_file; }
 
 protected:
   SymbolFile &m_symbol_file;
@@ -97,30 +98,38 @@ public:
        llvm::Optional<uint64_t> byte_size, SymbolContextScope *context,
        lldb::user_id_t encoding_uid, EncodingDataType encoding_uid_type,
        const Declaration &decl, const CompilerType &compiler_qual_type,
-       ResolveState compiler_type_resolve_state);
+       ResolveState compiler_type_resolve_state, uint32_t opaque_payload = 0);
 
   // This makes an invalid type.  Used for functions that return a Type when
   // they get an error.
   Type();
 
-  void Dump(Stream *s, bool show_context);
+  void Dump(Stream *s, bool show_context,
+            lldb::DescriptionLevel level = lldb::eDescriptionLevelFull);
 
   void DumpTypeName(Stream *s);
 
-  // Since Type instances only keep a "SymbolFile *" internally, other classes
-  // like TypeImpl need make sure the module is still around before playing
-  // with
-  // Type instances. They can store a weak pointer to the Module;
+  /// Since Type instances only keep a "SymbolFile *" internally, other classes
+  /// like TypeImpl need make sure the module is still around before playing
+  /// with
+  /// Type instances. They can store a weak pointer to the Module;
   lldb::ModuleSP GetModule();
 
-  void GetDescription(Stream *s, lldb::DescriptionLevel level, bool show_name);
+  /// GetModule may return module for compile unit's object file.
+  /// GetExeModule returns module for executable object file that contains
+  /// compile unit where type was actualy defined.
+  /// GetModule and GetExeModule may return the same value.
+  lldb::ModuleSP GetExeModule();
+
+  void GetDescription(Stream *s, lldb::DescriptionLevel level, bool show_name,
+                      ExecutionContextScope *exe_scope);
 
   SymbolFile *GetSymbolFile() { return m_symbol_file; }
   const SymbolFile *GetSymbolFile() const { return m_symbol_file; }
 
   ConstString GetName();
 
-  llvm::Optional<uint64_t> GetByteSize();
+  llvm::Optional<uint64_t> GetByteSize(ExecutionContextScope *exe_scope);
 
   uint32_t GetNumChildren(bool omit_empty_base_classes);
 
@@ -196,11 +205,11 @@ public:
 
   uint32_t GetEncodingMask();
 
-  bool IsCompleteObjCClass() { return m_is_complete_objc_class; }
-
-  void SetIsCompleteObjCClass(bool is_complete_objc_class) {
-    m_is_complete_objc_class = is_complete_objc_class;
-  }
+  typedef uint32_t Payload;
+  /// Return the language-specific payload.
+  Payload GetPayload() { return m_payload; }
+  /// Return the language-specific payload.
+  void SetPayload(Payload opaque_payload) { m_payload = opaque_payload; }
 
 protected:
   ConstString m_name;
@@ -215,11 +224,12 @@ protected:
   Declaration m_decl;
   CompilerType m_compiler_type;
   ResolveState m_compiler_type_resolve_state;
-  bool m_is_complete_objc_class;
+  /// Language-specific flags.
+  Payload m_payload;
 
   Type *GetEncodingType();
 
-  bool ResolveClangType(ResolveState compiler_type_resolve_state);
+  bool ResolveCompilerType(ResolveState compiler_type_resolve_state);
 };
 
 // the two classes here are used by the public API as a backend to the SBType
@@ -257,6 +267,8 @@ public:
 
   void Clear();
 
+  lldb::ModuleSP GetModule() const;
+
   ConstString GetName() const;
 
   ConstString GetDisplayTypeName() const;
@@ -284,8 +296,12 @@ public:
 
 private:
   bool CheckModule(lldb::ModuleSP &module_sp) const;
+  bool CheckExeModule(lldb::ModuleSP &module_sp) const;
+  bool CheckModuleCommon(const lldb::ModuleWP &input_module_wp,
+                         lldb::ModuleSP &module_sp) const;
 
   lldb::ModuleWP m_module_wp;
+  lldb::ModuleWP m_exe_module_wp;
   CompilerType m_static_type;
   CompilerType m_dynamic_type;
 };
@@ -510,4 +526,4 @@ private:
 
 } // namespace lldb_private
 
-#endif // liblldb_Type_h_
+#endif // LLDB_SYMBOL_TYPE_H

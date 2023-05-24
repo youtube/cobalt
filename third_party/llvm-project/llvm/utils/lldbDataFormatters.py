@@ -111,14 +111,16 @@ def OptionalSummaryProvider(valobj, internal_dict):
         return 'None'
 
     underlying_type = storage.GetType().GetTemplateArgumentType(0)
-    storage = storage.GetChildMemberWithName('storage')
+    storage = storage.GetChildMemberWithName('value')
     return str(storage.Cast(underlying_type))
 
 def SmallStringSummaryProvider(valobj, internal_dict):
     num_elements = valobj.GetNumChildren()
     res = "\""
     for i in range(0, num_elements):
-      res += valobj.GetChildAtIndex(i).GetValue().strip("'")
+        c = valobj.GetChildAtIndex(i).GetValue()
+        if c:
+            res += c.strip("'")
     res += "\""
     return res
 

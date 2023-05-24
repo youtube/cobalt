@@ -1,4 +1,4 @@
-//===-- source/Host/linux/Host.cpp ------------------------------*- C++ -*-===//
+//===-- source/Host/linux/Host.cpp ----------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -16,6 +16,7 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Object/ELF.h"
 #include "llvm/Support/ScopedPrinter.h"
 
@@ -35,8 +36,11 @@ using namespace lldb_private;
 namespace {
 enum class ProcessState {
   Unknown,
+  Dead,
   DiskSleep,
+  Idle,
   Paging,
+  Parked,
   Running,
   Sleeping,
   TracedOrStopped,
@@ -50,12 +54,14 @@ class ProcessLaunchInfo;
 
 static bool GetStatusInfo(::pid_t Pid, ProcessInstanceInfo &ProcessInfo,
                           ProcessState &State, ::pid_t &TracerPid) {
+  Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST);
+
   auto BufferOrError = getProcFile(Pid, "status");
   if (!BufferOrError)
     return false;
 
   llvm::StringRef Rest = BufferOrError.get()->getBuffer();
-  while(!Rest.empty()) {
+  while (!Rest.empty()) {
     llvm::StringRef Line;
     std::tie(Line, Rest) = Rest.split('\n');
 
@@ -84,26 +90,19 @@ static bool GetStatusInfo(::pid_t Pid, ProcessInstanceInfo &ProcessInfo,
       Line.ltrim().consumeInteger(10, PPid);
       ProcessInfo.SetParentProcessID(PPid);
     } else if (Line.consume_front("State:")) {
-      char S = Line.ltrim().front();
-      switch (S) {
-      case 'R':
-        State = ProcessState::Running;
-        break;
-      case 'S':
-        State = ProcessState::Sleeping;
-        break;
-      case 'D':
-        State = ProcessState::DiskSleep;
-        break;
-      case 'Z':
-        State = ProcessState::Zombie;
-        break;
-      case 'T':
-        State = ProcessState::TracedOrStopped;
-        break;
-      case 'W':
-        State = ProcessState::Paging;
-        break;
+      State = llvm::StringSwitch<ProcessState>(Line.ltrim().take_front(1))
+                  .Case("D", ProcessState::DiskSleep)
+                  .Case("I", ProcessState::Idle)
+                  .Case("R", ProcessState::Running)
+                  .Case("S", ProcessState::Sleeping)
+                  .CaseLower("T", ProcessState::TracedOrStopped)
+                  .Case("W", ProcessState::Paging)
+                  .Case("P", ProcessState::Parked)
+                  .Case("X", ProcessState::Dead)
+                  .Case("Z", ProcessState::Zombie)
+                  .Default(ProcessState::Unknown);
+      if (State == ProcessState::Unknown) {
+        LLDB_LOG(log, "Unknown process state {0}", Line);
       }
     } else if (Line.consume_front("TracerPid:")) {
       Line = Line.ltrim();
@@ -221,8 +220,8 @@ static bool GetProcessAndStatInfo(::pid_t pid,
   return true;
 }
 
-uint32_t Host::FindProcesses(const ProcessInstanceInfoMatch &match_info,
-                             ProcessInstanceInfoList &process_infos) {
+uint32_t Host::FindProcessesImpl(const ProcessInstanceInfoMatch &match_info,
+                                 ProcessInstanceInfoList &process_infos) {
   static const char procdir[] = "/proc/";
 
   DIR *dirproc = opendir(procdir);
@@ -262,14 +261,14 @@ uint32_t Host::FindProcesses(const ProcessInstanceInfoMatch &match_info,
         continue;
 
       if (match_info.Matches(process_info)) {
-        process_infos.Append(process_info);
+        process_infos.push_back(process_info);
       }
     }
 
     closedir(dirproc);
   }
 
-  return process_infos.GetSize();
+  return process_infos.size();
 }
 
 bool Host::FindProcessThreads(const lldb::pid_t pid, TidMap &tids_to_attach) {

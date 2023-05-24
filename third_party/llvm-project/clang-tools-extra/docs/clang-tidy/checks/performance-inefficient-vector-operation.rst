@@ -29,7 +29,7 @@ statement body:
   for (int i = 0; i < n; ++i) {
     p.add_xxx(n);
     // This will trigger the warning since the add_xxx may cause multiple memory
-    // relloacations. This can be avoid by inserting a
+    // reallocations. This can be avoid by inserting a
     // 'p.mutable_xxx().Reserve(n)' statement before the for statement.
   }
 
@@ -61,6 +61,6 @@ Options
 
 .. option:: EnableProto
 
-   When non-zero, the check will also warn on inefficient operations for proto
+   When `true`, the check will also warn on inefficient operations for proto
    repeated fields. Otherwise, the check only warns on inefficient vector
-   operations. Default is `0`.
+   operations. Default is `false`.

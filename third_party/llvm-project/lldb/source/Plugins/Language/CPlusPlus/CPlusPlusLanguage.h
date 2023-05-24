@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_CPlusPlusLanguage_h_
-#define liblldb_CPlusPlusLanguage_h_
+#ifndef LLDB_SOURCE_PLUGINS_LANGUAGE_CPLUSPLUS_CPLUSPLUSLANGUAGE_H
+#define LLDB_SOURCE_PLUGINS_LANGUAGE_CPLUSPLUS_CPLUSPLUSLANGUAGE_H
 
 #include <set>
 #include <vector>
@@ -88,6 +88,10 @@ public:
   HardcodedFormatters::HardcodedSyntheticFinder
   GetHardcodedSynthetics() override;
 
+  bool IsNilReference(ValueObject &valobj) override;
+
+  llvm::StringRef GetNilReferenceSummaryString() override { return "nullptr"; }
+
   bool IsSourceFile(llvm::StringRef file_path) const override;
 
   const Highlighter *GetHighlighter() const override { return &m_highlighter; }
@@ -133,4 +137,4 @@ public:
 
 } // namespace lldb_private
 
-#endif // liblldb_CPlusPlusLanguage_h_
+#endif // LLDB_SOURCE_PLUGINS_LANGUAGE_CPLUSPLUS_CPLUSPLUSLANGUAGE_H

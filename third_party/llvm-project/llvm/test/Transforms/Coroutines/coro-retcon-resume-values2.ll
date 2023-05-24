@@ -1,4 +1,5 @@
 ; RUN: opt < %s -coro-split -coro-cleanup -S | FileCheck %s
+; RUN: opt < %s -passes='coro-split,coro-cleanup' -S | FileCheck %s
 
 define i8* @f(i8* %buffer, i32 %n) "coroutine.presplit"="1" {
 entry:
@@ -29,7 +30,7 @@ entry:
 ; CHECK-NEXT:    ret i8* bitcast (i8* (i8*, i32)* @f.resume.0 to i8*)
 ; CHECK-NEXT:  }
 
-; CHECK-LABEL: define internal i8* @f.resume.0(i8* noalias nonnull %0, i32 %1)
+; CHECK-LABEL: define internal i8* @f.resume.0(i8* noalias nonnull align 4 dereferenceable(8) %0, i32 %1)
 ; CHECK-NEXT:  :
 ; CHECK-NEXT:    [[T0:%.*]] = bitcast i8* %0 to [[FRAME_T:%.*]]**
 ; CHECK-NEXT:    [[FRAME:%.*]] = load [[FRAME_T]]*, [[FRAME_T]]** [[T0]]
@@ -45,7 +46,7 @@ entry:
 ; CHECK-NEXT:    ret i8* [[CONT]]
 ; CHECK-NEXT:  }
 
-; CHECK-LABEL: define internal i8* @f.resume.1(i8* noalias nonnull %0, i32 %1)
+; CHECK-LABEL: define internal i8* @f.resume.1(i8* noalias nonnull align 4 dereferenceable(8) %0, i32 %1)
 ; CHECK-NEXT:  :
 ; CHECK-NEXT:    [[T0:%.*]] = bitcast i8* %0 to [[FRAME_T:%.*]]**
 ; CHECK-NEXT:    [[FRAME:%.*]] = load [[FRAME_T]]*, [[FRAME_T]]** [[T0]]
@@ -64,7 +65,7 @@ entry:
 ; CHECK-NEXT:    ret i8* [[CONT]]
 ; CHECK-NEXT:  }
 
-; CHECK-LABEL: define internal i8* @f.resume.2(i8* noalias nonnull %0, i32 %1)
+; CHECK-LABEL: define internal i8* @f.resume.2(i8* noalias nonnull align 4 dereferenceable(8) %0, i32 %1)
 ; CHECK-NEXT:  :
 ; CHECK-NEXT:    [[T0:%.*]] = bitcast i8* %0 to [[FRAME_T:%.*]]**
 ; CHECK-NEXT:    [[FRAME:%.*]] = load [[FRAME_T]]*, [[FRAME_T]]** [[T0]]

@@ -121,6 +121,12 @@ TEST_F(IRBuilderTest, Intrinsics) {
   EXPECT_EQ(II->getIntrinsicID(), Intrinsic::fma);
   EXPECT_TRUE(II->hasNoInfs());
   EXPECT_FALSE(II->hasNoNaNs());
+
+  Call = Builder.CreateUnaryIntrinsic(Intrinsic::roundeven, V);
+  II = cast<IntrinsicInst>(Call);
+  EXPECT_EQ(II->getIntrinsicID(), Intrinsic::roundeven);
+  EXPECT_FALSE(II->hasNoInfs());
+  EXPECT_FALSE(II->hasNoNaNs());
 }
 
 TEST_F(IRBuilderTest, IntrinsicsWithScalableVectors) {
@@ -132,7 +138,7 @@ TEST_F(IRBuilderTest, IntrinsicsWithScalableVectors) {
   // with scalable vectors, e.g. LLVMType<nxv4i32>.
   Type *SrcVecTy = VectorType::get(Builder.getHalfTy(), 8, true);
   Type *DstVecTy = VectorType::get(Builder.getInt32Ty(), 4, true);
-  Type *PredTy = VectorType::get(Builder.getInt1Ty(), 16, true);
+  Type *PredTy = VectorType::get(Builder.getInt1Ty(), 4, true);
 
   SmallVector<Value*, 3> ArgTys;
   ArgTys.push_back(UndefValue::get(DstVecTy));
@@ -257,51 +263,97 @@ TEST_F(IRBuilderTest, ConstrainedFP) {
   ASSERT_TRUE(isa<ConstrainedFPIntrinsic>(V));
   auto *CII = cast<ConstrainedFPIntrinsic>(V);
   EXPECT_EQ(fp::ebStrict, CII->getExceptionBehavior());
-  EXPECT_EQ(fp::rmDynamic, CII->getRoundingMode());
+  EXPECT_EQ(RoundingMode::Dynamic, CII->getRoundingMode());
 
   Builder.setDefaultConstrainedExcept(fp::ebIgnore);
-  Builder.setDefaultConstrainedRounding(fp::rmUpward);
+  Builder.setDefaultConstrainedRounding(RoundingMode::TowardPositive);
   V = Builder.CreateFAdd(V, V);
   CII = cast<ConstrainedFPIntrinsic>(V);
   EXPECT_EQ(fp::ebIgnore, CII->getExceptionBehavior());
-  EXPECT_EQ(CII->getRoundingMode(), fp::rmUpward);
+  EXPECT_EQ(CII->getRoundingMode(), RoundingMode::TowardPositive);
 
   Builder.setDefaultConstrainedExcept(fp::ebIgnore);
-  Builder.setDefaultConstrainedRounding(fp::rmToNearest);
+  Builder.setDefaultConstrainedRounding(RoundingMode::NearestTiesToEven);
   V = Builder.CreateFAdd(V, V);
   CII = cast<ConstrainedFPIntrinsic>(V);
   EXPECT_EQ(fp::ebIgnore, CII->getExceptionBehavior());
-  EXPECT_EQ(fp::rmToNearest, CII->getRoundingMode());
+  EXPECT_EQ(RoundingMode::NearestTiesToEven, CII->getRoundingMode());
 
   Builder.setDefaultConstrainedExcept(fp::ebMayTrap);
-  Builder.setDefaultConstrainedRounding(fp::rmDownward);
+  Builder.setDefaultConstrainedRounding(RoundingMode::TowardNegative);
   V = Builder.CreateFAdd(V, V);
   CII = cast<ConstrainedFPIntrinsic>(V);
   EXPECT_EQ(fp::ebMayTrap, CII->getExceptionBehavior());
-  EXPECT_EQ(fp::rmDownward, CII->getRoundingMode());
+  EXPECT_EQ(RoundingMode::TowardNegative, CII->getRoundingMode());
 
   Builder.setDefaultConstrainedExcept(fp::ebStrict);
-  Builder.setDefaultConstrainedRounding(fp::rmTowardZero);
+  Builder.setDefaultConstrainedRounding(RoundingMode::TowardZero);
   V = Builder.CreateFAdd(V, V);
   CII = cast<ConstrainedFPIntrinsic>(V);
   EXPECT_EQ(fp::ebStrict, CII->getExceptionBehavior());
-  EXPECT_EQ(fp::rmTowardZero, CII->getRoundingMode());
+  EXPECT_EQ(RoundingMode::TowardZero, CII->getRoundingMode());
 
   Builder.setDefaultConstrainedExcept(fp::ebIgnore);
-  Builder.setDefaultConstrainedRounding(fp::rmDynamic);
+  Builder.setDefaultConstrainedRounding(RoundingMode::Dynamic);
   V = Builder.CreateFAdd(V, V);
   CII = cast<ConstrainedFPIntrinsic>(V);
   EXPECT_EQ(fp::ebIgnore, CII->getExceptionBehavior());
-  EXPECT_EQ(fp::rmDynamic, CII->getRoundingMode());
+  EXPECT_EQ(RoundingMode::Dynamic, CII->getRoundingMode());
 
   // Now override the defaults.
   Call = Builder.CreateConstrainedFPBinOp(
         Intrinsic::experimental_constrained_fadd, V, V, nullptr, "", nullptr,
-        fp::rmDownward, fp::ebMayTrap);
+        RoundingMode::TowardNegative, fp::ebMayTrap);
   CII = cast<ConstrainedFPIntrinsic>(Call);
   EXPECT_EQ(CII->getIntrinsicID(), Intrinsic::experimental_constrained_fadd);
   EXPECT_EQ(fp::ebMayTrap, CII->getExceptionBehavior());
-  EXPECT_EQ(fp::rmDownward, CII->getRoundingMode());
+  EXPECT_EQ(RoundingMode::TowardNegative, CII->getRoundingMode());
+
+  Builder.CreateRetVoid();
+  EXPECT_FALSE(verifyModule(*M));
+}
+
+TEST_F(IRBuilderTest, ConstrainedFPIntrinsics) {
+  IRBuilder<> Builder(BB);
+  Value *V;
+  Value *VDouble;
+  ConstrainedFPIntrinsic *CII;
+  GlobalVariable *GVDouble = new GlobalVariable(
+      *M, Type::getDoubleTy(Ctx), true, GlobalValue::ExternalLinkage, nullptr);
+  VDouble = Builder.CreateLoad(GVDouble->getValueType(), GVDouble);
+
+  Builder.setDefaultConstrainedExcept(fp::ebStrict);
+  Builder.setDefaultConstrainedRounding(RoundingMode::TowardZero);
+  Function *Fn = Intrinsic::getDeclaration(M.get(),
+      Intrinsic::experimental_constrained_roundeven, { Type::getDoubleTy(Ctx) });
+  V = Builder.CreateConstrainedFPCall(Fn, { VDouble });
+  CII = cast<ConstrainedFPIntrinsic>(V);
+  EXPECT_EQ(Intrinsic::experimental_constrained_roundeven, CII->getIntrinsicID());
+  EXPECT_EQ(fp::ebStrict, CII->getExceptionBehavior());
+}
+
+TEST_F(IRBuilderTest, ConstrainedFPFunctionCall) {
+  IRBuilder<> Builder(BB);
+
+  // Create an empty constrained FP function.
+  FunctionType *FTy = FunctionType::get(Type::getVoidTy(Ctx),
+                                        /*isVarArg=*/false);
+  Function *Callee =
+      Function::Create(FTy, Function::ExternalLinkage, "", M.get());
+  BasicBlock *CalleeBB = BasicBlock::Create(Ctx, "", Callee);
+  IRBuilder<> CalleeBuilder(CalleeBB);
+  CalleeBuilder.setIsFPConstrained(true);
+  CalleeBuilder.setConstrainedFPFunctionAttr();
+  CalleeBuilder.CreateRetVoid();
+
+  // Now call the empty constrained FP function.
+  Builder.setIsFPConstrained(true);
+  Builder.setConstrainedFPFunctionAttr();
+  CallInst *FCall = Builder.CreateCall(Callee, None);
+
+  // Check the attributes to verify the strictfp attribute is on the call.
+  EXPECT_TRUE(FCall->getAttributes().getFnAttributes().hasAttribute(
+      Attribute::StrictFP));
 
   Builder.CreateRetVoid();
   EXPECT_FALSE(verifyModule(*M));
@@ -718,7 +770,7 @@ TEST_F(IRBuilderTest, DIBuilder) {
       CU, "bar", "", File, 1, Type, 1, DINode::FlagZero,
       DISubprogram::SPFlagDefinition | DISubprogram::SPFlagOptimized);
   auto BadScope = DIB.createLexicalBlockFile(BarSP, File, 0);
-  I->setDebugLoc(DebugLoc::get(2, 0, BadScope));
+  I->setDebugLoc(DILocation::get(Ctx, 2, 0, BadScope));
   DIB.finalize();
   EXPECT_TRUE(verifyModule(*M));
 }
@@ -740,8 +792,8 @@ TEST_F(IRBuilderTest, createArtificialSubprogram) {
   F->setSubprogram(SP);
   AllocaInst *I = Builder.CreateAlloca(Builder.getInt8Ty());
   ReturnInst *R = Builder.CreateRetVoid();
-  I->setDebugLoc(DebugLoc::get(3, 2, SP));
-  R->setDebugLoc(DebugLoc::get(4, 2, SP));
+  I->setDebugLoc(DILocation::get(Ctx, 3, 2, SP));
+  R->setDebugLoc(DILocation::get(Ctx, 4, 2, SP));
   DIB.finalize();
   EXPECT_FALSE(verifyModule(*M));
 
@@ -769,7 +821,8 @@ TEST_F(IRBuilderTest, createArtificialSubprogram) {
   DebugLoc DL = I->getDebugLoc();
   DenseMap<const MDNode *, MDNode *> IANodes;
   auto IA = DebugLoc::appendInlinedAt(DL, InlinedAtNode, Ctx, IANodes);
-  auto NewDL = DebugLoc::get(DL.getLine(), DL.getCol(), DL.getScope(), IA);
+  auto NewDL =
+      DILocation::get(Ctx, DL.getLine(), DL.getCol(), DL.getScope(), IA);
   I->setDebugLoc(NewDL);
   EXPECT_FALSE(verifyModule(*M));
 
@@ -782,7 +835,7 @@ TEST_F(IRBuilderTest, createArtificialSubprogram) {
 TEST_F(IRBuilderTest, InsertExtractElement) {
   IRBuilder<> Builder(BB);
 
-  auto VecTy = VectorType::get(Builder.getInt64Ty(), 4);
+  auto VecTy = FixedVectorType::get(Builder.getInt64Ty(), 4);
   auto Elt1 = Builder.getInt64(-1);
   auto Elt2 = Builder.getInt64(-2);
   Value *Vec = UndefValue::get(VecTy);
@@ -928,5 +981,12 @@ TEST_F(IRBuilderTest, DIBuilderMacro) {
   auto MN2 = MDTuple::get(Ctx, Elements);
   EXPECT_EQ(MN2, MF2->getRawElements());
   EXPECT_TRUE(verifyModule(*M));
+}
+
+TEST_F(IRBuilderTest, NoFolderNames) {
+  IRBuilder<NoFolder> Builder(BB);
+  auto *Add =
+      Builder.CreateAdd(Builder.getInt32(1), Builder.getInt32(2), "add");
+  EXPECT_EQ(Add->getName(), "add");
 }
 }

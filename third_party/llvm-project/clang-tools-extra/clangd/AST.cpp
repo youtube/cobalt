@@ -25,7 +25,6 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Index/USRGeneration.h"
-#include "clang/Lex/Lexer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
@@ -96,7 +95,7 @@ getUsingNamespaceDirectives(const DeclContext *DestContext,
   return VisibleNamespaceDecls;
 }
 
-// Goes over all parents of SourceContext until we find a comman ancestor for
+// Goes over all parents of SourceContext until we find a common ancestor for
 // DestContext and SourceContext. Any qualifier including and above common
 // ancestor is redundant, therefore we stop at lowest common ancestor.
 // In addition to that stops early whenever IsVisible returns true. This can be
@@ -117,6 +116,7 @@ getQualification(ASTContext &Context, const DeclContext *DestContext,
     if (auto *TD = llvm::dyn_cast<TagDecl>(CurContext)) {
       // There can't be any more tag parents after hitting a namespace.
       assert(!ReachedNS);
+      (void)ReachedNS;
       NNS = NestedNameSpecifier::Create(Context, nullptr, false,
                                         TD->getTypeForDecl());
     } else {
@@ -259,7 +259,7 @@ std::string printTemplateSpecializationArgs(const NamedDecl &ND) {
       // TemplateArgumentTypeLocs, they only have TemplateArgumentTypes. So we
       // create a new argument location list from TypeSourceInfo.
       auto STL = TSI->getTypeLoc().getAs<TemplateSpecializationTypeLoc>();
-      llvm::SmallVector<TemplateArgumentLoc, 8> ArgLocs;
+      llvm::SmallVector<TemplateArgumentLoc> ArgLocs;
       ArgLocs.reserve(STL.getNumArgs());
       for (unsigned I = 0; I < STL.getNumArgs(); ++I)
         ArgLocs.push_back(STL.getArgLoc(I));
@@ -283,37 +283,44 @@ std::string printNamespaceScope(const DeclContext &DC) {
   return "";
 }
 
-llvm::Optional<SymbolID> getSymbolID(const Decl *D) {
+SymbolID getSymbolID(const Decl *D) {
   llvm::SmallString<128> USR;
   if (index::generateUSRForDecl(D, USR))
-    return None;
+    return {};
   return SymbolID(USR);
 }
 
-llvm::Optional<SymbolID> getSymbolID(const llvm::StringRef MacroName,
-                                     const MacroInfo *MI,
-                                     const SourceManager &SM) {
+SymbolID getSymbolID(const llvm::StringRef MacroName, const MacroInfo *MI,
+                     const SourceManager &SM) {
   if (MI == nullptr)
-    return None;
+    return {};
   llvm::SmallString<128> USR;
   if (index::generateUSRForMacro(MacroName, MI->getDefinitionLoc(), SM, USR))
-    return None;
+    return {};
   return SymbolID(USR);
 }
 
-// FIXME: This should be handled while printing underlying decls instead.
 std::string printType(const QualType QT, const DeclContext &CurContext) {
   std::string Result;
   llvm::raw_string_ostream OS(Result);
-  auto Decls = explicitReferenceTargets(
-      ast_type_traits::DynTypedNode::create(QT), DeclRelation::Alias);
-  if (!Decls.empty())
-    OS << getQualification(CurContext.getParentASTContext(), &CurContext,
-                           Decls.front(),
-                           /*VisibleNamespaces=*/llvm::ArrayRef<std::string>{});
   PrintingPolicy PP(CurContext.getParentASTContext().getPrintingPolicy());
-  PP.SuppressScope = true;
   PP.SuppressTagKeyword = true;
+  PP.SuppressUnwrittenScope = true;
+
+  class PrintCB : public PrintingCallbacks {
+  public:
+    PrintCB(const DeclContext *CurContext) : CurContext(CurContext) {}
+    virtual ~PrintCB() {}
+    virtual bool isScopeVisible(const DeclContext *DC) const override {
+      return DC->Encloses(CurContext);
+    }
+
+  private:
+    const DeclContext *CurContext;
+  };
+  PrintCB PCB(&CurContext);
+  PP.Callbacks = &PCB;
+
   QT.print(OS, PP);
   return OS.str();
 }
@@ -352,8 +359,7 @@ public:
       return true;
 
     if (auto *AT = D->getType()->getContainedAutoType()) {
-      if (!AT->getDeducedType().isNull())
-        DeducedType = AT->getDeducedType();
+      DeducedType = AT->desugar();
     }
     return true;
   }
@@ -370,7 +376,7 @@ public:
     // Loc of auto in return type (c++14).
     auto CurLoc = D->getReturnTypeSourceRange().getBegin();
     // Loc of "auto" in operator auto()
-    if (CurLoc.isInvalid() && dyn_cast<CXXConversionDecl>(D))
+    if (CurLoc.isInvalid() && isa<CXXConversionDecl>(D))
       CurLoc = D->getTypeSourceInfo()->getTypeLoc().getBeginLoc();
     // Loc of "auto" in function with trailing return type (c++11).
     if (CurLoc.isInvalid())
@@ -417,16 +423,8 @@ public:
 
 llvm::Optional<QualType> getDeducedType(ASTContext &ASTCtx,
                                         SourceLocation Loc) {
-  Token Tok;
-  // Only try to find a deduced type if the token is auto or decltype.
-  if (!Loc.isValid() ||
-      Lexer::getRawToken(Loc, Tok, ASTCtx.getSourceManager(),
-                         ASTCtx.getLangOpts(), false) ||
-      !Tok.is(tok::raw_identifier) ||
-      !(Tok.getRawIdentifier() == "auto" ||
-        Tok.getRawIdentifier() == "decltype")) {
+  if (!Loc.isValid())
     return {};
-  }
   DeducedTypeVisitor V(Loc);
   V.TraverseAST(ASTCtx);
   if (V.DeducedType.isNull())
@@ -471,6 +469,13 @@ std::string getQualification(ASTContext &Context,
           return OS.str() == Namespace;
         });
       });
+}
+
+bool hasUnstableLinkage(const Decl *D) {
+  // Linkage of a ValueDecl depends on the type.
+  // If that's not deduced yet, deducing it may change the linkage.
+  auto *VD = llvm::dyn_cast_or_null<ValueDecl>(D);
+  return VD && !VD->getType().isNull() && VD->getType()->isUndeducedType();
 }
 
 } // namespace clangd

@@ -12,11 +12,14 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Testing/Support/SupportHelpers.h"
 #include "gtest/gtest.h"
 #include <fstream>
 
 using namespace llvm;
 using namespace llvm::sys;
+
+using llvm::unittest::TempDir;
 
 #define ASSERT_NO_ERROR(x)                                                     \
   if (std::error_code ASSERT_NO_ERROR_ec = x) {                                \
@@ -32,19 +35,18 @@ using namespace llvm::sys;
 namespace {
 TEST(writeFileAtomicallyTest, Test) {
   // Create unique temporary directory for these tests
-  SmallString<128> RootTestDirectory;
-  ASSERT_NO_ERROR(
-    fs::createUniqueDirectory("writeFileAtomicallyTest", RootTestDirectory));
+  TempDir RootTestDirectory("writeFileAtomicallyTest", /*Unique*/ true);
 
-  SmallString<128> FinalTestfilePath(RootTestDirectory);
+  SmallString<128> FinalTestfilePath(RootTestDirectory.path());
   sys::path::append(FinalTestfilePath, "foo.txt");
-  const std::string TempUniqTestFileModel = FinalTestfilePath.str().str() + "-%%%%%%%%";
+  const std::string TempUniqTestFileModel =
+      std::string(FinalTestfilePath) + "-%%%%%%%%";
   const std::string TestfileContent = "fooFOOfoo";
 
   llvm::Error Err = llvm::writeFileAtomically(TempUniqTestFileModel, FinalTestfilePath, TestfileContent);
   ASSERT_FALSE(static_cast<bool>(Err));
 
-  std::ifstream FinalFileStream(FinalTestfilePath.str());
+  std::ifstream FinalFileStream(std::string(FinalTestfilePath.str()));
   std::string FinalFileContent;
   FinalFileStream >> FinalFileContent;
   ASSERT_EQ(FinalFileContent, TestfileContent);

@@ -27,10 +27,6 @@
 // RUN:   | FileCheck --check-prefix=WARN5 %s
 // WARN5: warning: overriding '-ffp-model=strict' option with '-ffp-contract=fast' [-Woverriding-t-option]
 
-// RUN: %clang -### -ffp-model=strict -ffp-contract=off -c %s 2>&1 \
-// RUN:   | FileCheck --check-prefix=WARN6 %s
-// WARN6: warning: overriding '-ffp-model=strict' option with '-ffp-contract=off' [-Woverriding-t-option]
-
 // RUN: %clang -### -ffp-model=strict -ffp-contract=on -c %s 2>&1 \
 // RUN:   | FileCheck --check-prefix=WARN7 %s
 // WARN7: warning: overriding '-ffp-model=strict' option with '-ffp-contract=on' [-Woverriding-t-option]
@@ -67,6 +63,10 @@
 // RUN:   | FileCheck --check-prefix=WARNf %s
 // WARNf: warning: overriding '-ffp-model=strict' option with '-Ofast' [-Woverriding-t-option]
 
+// RUN: %clang -### -ffp-model=strict -fdenormal-fp-math=preserve-sign,preserve-sign -c %s 2>&1 \
+// RUN:   | FileCheck --check-prefix=WARN10 %s
+// WARN10: warning: overriding '-ffp-model=strict' option with '-fdenormal-fp-math=preserve-sign,preserve-sign' [-Woverriding-t-option]
+
 // RUN: %clang -### -c %s 2>&1 \
 // RUN:   | FileCheck --check-prefix=CHECK-NOROUND %s
 // CHECK-NOROUND: "-cc1"
@@ -80,7 +80,6 @@
 // RUN: %clang -### -ftrapping-math -c %s 2>&1 \
 // RUN:   | FileCheck --check-prefix=CHECK-TRAP %s
 // CHECK-TRAP: "-cc1"
-// CHECK-TRAP: "-ftrapping-math"
 // CHECK-TRAP: "-ffp-exception-behavior=strict"
 
 // RUN: %clang -### -nostdinc -ffp-model=fast -c %s 2>&1 \
@@ -106,15 +105,8 @@
 // RUN: %clang -### -nostdinc -ffp-model=strict -c %s 2>&1 \
 // RUN:   | FileCheck --check-prefix=CHECK-FPM-STRICT %s
 // CHECK-FPM-STRICT: "-cc1"
-// CHECK-FPM-STRICT: "-ftrapping-math"
 // CHECK-FPM-STRICT: "-frounding-math"
 // CHECK-FPM-STRICT: "-ffp-exception-behavior=strict"
-
-// RUN: %clang -### -nostdinc -ftrapping-math -ffp-exception-behavior=ignore -c %s 2>&1 \
-// RUN:   | FileCheck --check-prefix=CHECK-TRAP-IGNORE %s
-// CHECK-TRAP-IGNORE: "-cc1"
-// CHECK-TRAP-IGNORE: "-fno-rounding-math"
-// CHECK-TRAP-IGNORE: "-ffp-exception-behavior=ignore"
 
 
 // RUN: %clang -### -nostdinc -ffp-exception-behavior=strict -c %s 2>&1 \

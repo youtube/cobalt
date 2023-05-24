@@ -571,7 +571,7 @@
 // RUN:   | FileCheck --check-prefix=CHECK-CFI-CROSS-DSO-DIAG-ANDROID %s
 // CHECK-CFI-CROSS-DSO-DIAG-ANDROID: "{{.*}}ld{{(.exe)?}}"
 // CHECK-CFI-CROSS-DSO-DIAG-ANDROID: "{{[^"]*}}libclang_rt.ubsan_standalone-aarch64-android.so"
-// CHECK-CFI-CROSS-DSO-DIAG-ANDROID: "-export-dynamic-symbol=__cfi_check"
+// CHECK-CFI-CROSS-DSO-DIAG-ANDROID: "--export-dynamic-symbol=__cfi_check"
 
 // RUN: %clangxx -fsanitize=address %s -### -o %t.o 2>&1 \
 // RUN:     -mmacosx-version-min=10.6 \
@@ -615,6 +615,16 @@
 // CHECK-SHADOWCALLSTACK-LINUX-AARCH64: '-fsanitize=shadow-call-stack' only allowed with '-ffixed-x18'
 
 // RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
+// RUN:     -target riscv32-unknown-elf -fuse-ld=ld \
+// RUN:   | FileCheck --check-prefix=CHECK-SHADOWCALLSTACK-ELF-RISCV32 %s
+// CHECK-SHADOWCALLSTACK-ELF-RISCV32: '-fsanitize=shadow-call-stack' only allowed with '-ffixed-x18'
+
+// RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
+// RUN:     -target riscv64-unknown-linux -fuse-ld=ld \
+// RUN:   | FileCheck --check-prefix=CHECK-SHADOWCALLSTACK-LINUX-RISCV64 %s
+// CHECK-SHADOWCALLSTACK-LINUX-RISCV64: '-fsanitize=shadow-call-stack' only allowed with '-ffixed-x18'
+
+// RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
 // RUN:     -target aarch64-unknown-linux -fuse-ld=ld -ffixed-x18 \
 // RUN:   | FileCheck --check-prefix=CHECK-SHADOWCALLSTACK-LINUX-AARCH64-X18 %s
 // RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
@@ -656,16 +666,16 @@
 // RUN:     -target x86_64-pc-windows \
 // RUN:     --sysroot=%S/Inputs/basic_linux_tree \
 // RUN:   | FileCheck --check-prefix=CHECK-CFI-STATS-WIN64 %s
-// CHECK-CFI-STATS-WIN64: "--dependent-lib={{[^"]*}}clang_rt.stats_client-x86_64.lib"
-// CHECK-CFI-STATS-WIN64: "--dependent-lib={{[^"]*}}clang_rt.stats-x86_64.lib"
+// CHECK-CFI-STATS-WIN64: "--dependent-lib=clang_rt.stats_client-x86_64.lib"
+// CHECK-CFI-STATS-WIN64: "--dependent-lib=clang_rt.stats-x86_64.lib"
 // CHECK-CFI-STATS-WIN64: "--linker-option=/include:__sanitizer_stats_register"
 
 // RUN: %clang -fsanitize=cfi -fsanitize-stats %s -### -o %t.o 2>&1 \
 // RUN:     -target i686-pc-windows \
 // RUN:     --sysroot=%S/Inputs/basic_linux_tree \
 // RUN:   | FileCheck --check-prefix=CHECK-CFI-STATS-WIN32 %s
-// CHECK-CFI-STATS-WIN32: "--dependent-lib={{[^"]*}}clang_rt.stats_client-i386.lib"
-// CHECK-CFI-STATS-WIN32: "--dependent-lib={{[^"]*}}clang_rt.stats-i386.lib"
+// CHECK-CFI-STATS-WIN32: "--dependent-lib=clang_rt.stats_client-i386.lib"
+// CHECK-CFI-STATS-WIN32: "--dependent-lib=clang_rt.stats-i386.lib"
 // CHECK-CFI-STATS-WIN32: "--linker-option=/include:___sanitizer_stats_register"
 
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \

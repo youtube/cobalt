@@ -39,6 +39,11 @@ let Command = "settings read" in {
     Desc<"The file from which to read the settings.">;
 }
 
+let Command = "settings clear" in {
+  def setclear_all : Option<"all", "a">,
+    Desc<"Clear all settings.">;
+}
+
 let Command = "breakpoint list" in {
   // FIXME: We need to add an "internal" command, and then add this sort of
   // thing to it. But I need to see it for now, and don't want to wait.
@@ -100,7 +105,7 @@ let Command = "breakpoint dummy" in {
 
 let Command = "breakpoint set" in {
   def breakpoint_set_shlib : Option<"shlib", "s">, Arg<"ShlibName">,
-    Completion<"Module">, Groups<[1,2,3,4,5,6,7,8,9,11]>, // *not* in group 10
+    Completion<"Module">, Groups<[1,2,3,4,5,6,7,8,9,11,12]>, // *not* in group 10
     Desc<"Set the breakpoint only in this shared library.  Can repeat this "
     "option multiple times to specify multiple shared libraries.">;
   def breakpoint_set_hardware : Option<"hardware", "H">,
@@ -115,6 +120,8 @@ let Command = "breakpoint set" in {
   def breakpoint_set_line : Option<"line", "l">, Group<1>, Arg<"LineNum">,
     Required,
     Desc<"Specifies the line number on which to set this breakpoint.">;
+  def breakpoint_set_column : Option<"column", "u">, Group<1>, Arg<"ColumnNum">,
+    Desc<"Specifies the column number on which to set this breakpoint.">;
   def breakpoint_set_address : Option<"address", "a">, Group<2>,
     Arg<"AddressOrExpression">, Required,
     Desc<"Set the breakpoint at the specified address.  If the address maps "
@@ -150,7 +157,7 @@ let Command = "breakpoint set" in {
     "multiple times tomake one breakpoint for multiple methods.">;
   def breakpoint_set_func_regex : Option<"func-regex", "r">, Group<7>,
     Arg<"RegularExpression">, Required, Desc<"Set the breakpoint by function "
-    "name, evaluating a regular-expression to findthe function name(s).">;
+    "name, evaluating a regular-expression to find the function name(s).">;
   def breakpoint_set_basename : Option<"basename", "b">, Group<8>,
     Arg<"FunctionName">, Required, Completion<"Symbol">,
     Desc<"Set the breakpoint by function basename (C++ namespaces and arguments"
@@ -179,21 +186,24 @@ let Command = "breakpoint set" in {
     "expression (note: currently only implemented for setting breakpoints on "
     "identifiers). If not set the target.language setting is used.">;
   def breakpoint_set_skip_prologue : Option<"skip-prologue", "K">,
-    Arg<"Boolean">, Groups<[1,3,4,5,6,7,8]>,
+    Arg<"Boolean">, Groups<[1,3,4,5,6,7,8,12]>,
     Desc<"sKip the prologue if the breakpoint is at the beginning of a "
     "function. If not set the target.skip-prologue setting is used.">;
   def breakpoint_set_breakpoint_name : Option<"breakpoint-name", "N">,
     Arg<"BreakpointName">,
     Desc<"Adds this to the list of names for this breakpoint.">;
   def breakpoint_set_address_slide : Option<"address-slide", "R">,
-    Arg<"Address">, Groups<[1,3,4,5,6,7,8]>,
+    Arg<"Address">, Groups<[1,3,4,5,6,7,8,12]>,
     Desc<"Add the specified offset to whatever address(es) the breakpoint "
     "resolves to. At present this applies the offset directly as given, and "
     "doesn't try to align it to instruction boundaries.">;
   def breakpoint_set_move_to_nearest_code : Option<"move-to-nearest-code", "m">,
-    Groups<[1, 9]>, Arg<"Boolean">,
+    Groups<[1,9,12]>, Arg<"Boolean">,
     Desc<"Move breakpoints to nearest code. If not set the "
     "target.move-to-nearest-codesetting is used.">;
+  def breakpoint_set_file_colon_line : Option<"joint-specifier", "y">, Group<12>, Arg<"FileLineColumn">,
+    Required, Completion<"SourceFile">,
+    Desc<"A specifier in the form filename:line[:column] for setting file & line breakpoints.">;
   /* Don't add this option till it actually does something useful...
   def breakpoint_set_exception_typename : Option<"exception-typename", "O">,
     Arg<"TypeName">, Desc<"The breakpoint will only stop if an "
@@ -217,6 +227,9 @@ let Command = "breakpoint delete" in {
   def breakpoint_delete_dummy_breakpoints : Option<"dummy-breakpoints", "D">,
     Group<1>, Desc<"Delete Dummy breakpoints - i.e. breakpoints set before a "
     "file is provided, which prime new targets.">;
+  def breakpoint_delete_disabled : Option<"disabled", "d">, Group<1>,
+    Desc<"Delete all breakpoints which are currently disabled.  When using the disabled option "
+    "any breakpoints listed on the command line are EXCLUDED from deletion.">;
 }
 
 let Command = "breakpoint name" in {
@@ -304,7 +317,7 @@ let Command = "disassemble" in {
     Desc<"Address at which to start disassembling.">;
   def disassemble_options_end_address : Option<"end-address", "e">, Group<1>,
     Arg<"AddressOrExpression">, Desc<"Address at which to end disassembling.">;
-  def disassemble_options_count : Option<"count", "c">, Groups<[2,3,4,5]>,
+  def disassemble_options_count : Option<"count", "c">, Groups<[2,3,4,5,7]>,
     Arg<"NumLines">, Desc<"Number of instructions to display.">;
   def disassemble_options_name : Option<"name", "n">, Group<3>,
     Arg<"FunctionName">, Completion<"Symbol">,
@@ -314,11 +327,13 @@ let Command = "disassemble" in {
   def disassemble_options_pc : Option<"pc", "p">, Group<5>,
     Desc<"Disassemble around the current pc.">;
   def disassemble_options_line : Option<"line", "l">, Group<6>,
-    Desc<"Disassemble the current frame's current source line instructions if"
+    Desc<"Disassemble the current frame's current source line instructions if "
     "there is debug line table information, else disassemble around the pc.">;
   def disassemble_options_address : Option<"address", "a">, Group<7>,
     Arg<"AddressOrExpression">,
     Desc<"Disassemble function containing this address.">;
+  def disassemble_options_force : Option<"force", "\\x01">, Groups<[2,3,4,5,7]>,
+    Desc<"Force dissasembly of large functions.">;
 }
 
 let Command = "expression" in {
@@ -357,7 +372,7 @@ let Command = "expression" in {
     "top-level entities without a $ prefix.">;
   def expression_options_allow_jit : Option<"allow-jit", "j">, Groups<[1,2]>,
     Arg<"Boolean">,
-    Desc<"Controls whether the expression can fall back to being JITted if it's"
+    Desc<"Controls whether the expression can fall back to being JITted if it's "
     "not supported by the interpreter (defaults to true).">;
 }
 
@@ -382,7 +397,8 @@ let Command = "frame recognizer add" in {
     "to.">;
   def frame_recognizer_function : Option<"function", "n">, Arg<"Name">,
     Completion<"Symbol">,
-    Desc<"Name of the function that this recognizer applies to.">;
+    Desc<"Name of the function that this recognizer applies to. "
+         "Can be specified more than once except if -x|--regex is provided.">;
   def frame_recognizer_python_class : Option<"python-class", "l">, Group<2>,
     Arg<"PythonClass">,
     Desc<"Give the name of a Python class to use for this frame recognizer.">;
@@ -434,6 +450,12 @@ let Command = "reproducer dump" in {
     EnumArg<"None", "ReproducerProviderType()">,
     Required, Desc<"The reproducer provider to dump.">;
   def reproducer_file : Option<"file", "f">, Group<1>, Arg<"Filename">,
+    Desc<"The reproducer path. If a reproducer is replayed and no path is "
+    "provided, that reproducer is dumped.">;
+}
+
+let Command = "reproducer verify" in {
+  def reproducer_verify_file : Option<"file", "f">, Group<1>, Arg<"Filename">,
     Desc<"The reproducer path. If a reproducer is replayed and no path is "
     "provided, that reproducer is dumped.">;
 }
@@ -614,8 +636,43 @@ let Command = "platform process attach" in {
 }
 
 let Command = "platform shell" in {
+  def platform_shell_host : Option<"host", "h">,
+    Desc<"Run the commands on the host shell when enabled.">;
   def platform_shell_timeout : Option<"timeout", "t">, Arg<"Value">,
     Desc<"Seconds to wait for the remote host to finish running the command.">;
+  def platform_shell_interpreter : Option<"shell", "s">, Arg<"Path">,
+    Desc<"Shell interpreter path. This is the binary used to run the command.">;
+}
+
+let Command = "process launch" in {
+  def process_launch_stop_at_entry : Option<"stop-at-entry", "s">,
+    Desc<"Stop at the entry point of the program when launching a process.">;
+  def process_launch_disable_aslr : Option<"disable-aslr", "A">, Arg<"Boolean">,
+    Desc<"Set whether to disable address space layout randomization when launching a process.">;
+  def process_launch_plugin : Option<"plugin", "P">, Arg<"Plugin">,
+    Desc<"Name of the process plugin you want to use.">;
+  def process_launch_working_dir : Option<"working-dir", "w">, Arg<"DirectoryName">,
+    Desc<"Set the current working directory to <path> when running the inferior.">;
+  def process_launch_arch : Option<"arch", "a">, Arg<"Architecture">,
+    Desc<"Set the architecture for the process to launch when ambiguous.">;
+  def process_launch_environment : Option<"environment", "v">,
+    Arg<"None">, Desc<"Specify an environment variable name/value string "
+    "(--environment NAME=VALUE). Can be specified multiple times for subsequent "
+    "environment entries.">;
+  def process_launch_shell : Option<"shell", "c">, GroupRange<1,3>,
+    OptionalArg<"Filename">, Desc<"Run the process in a shell (not supported on all platforms).">;
+  def process_launch_stdin : Option<"stdin", "i">, Group<1>,
+    Arg<"Filename">, Desc<"Redirect stdin for the process to <filename>.">;
+  def process_launch_stdout : Option<"stdout", "o">, Group<1>,
+    Arg<"Filename">, Desc<"Redirect stdout for the process to <filename>.">;
+  def process_launch_stderr : Option<"stderr", "e">, Group<1>,
+    Arg<"Filename">, Desc<"Redirect stderr for the process to <filename>.">;
+  def process_launch_tty : Option<"tty", "t">, Group<2>,
+    Desc<"Start the process in a terminal (not supported on all platforms).">;
+  def process_launch_no_stdio : Option<"no-stdio", "n">, Group<3>,
+    Desc<"Do not set up for terminal I/O to go to running process.">;
+  def process_launch_shell_expand_args : Option<"shell-expand-args", "X">, Group<4>,
+    Arg<"Boolean">, Desc<"Set whether to shell expand arguments to the process when launching.">;
 }
 
 let Command = "process attach" in {
@@ -668,11 +725,20 @@ let Command = "process handle" in {
     Desc<"Whether or not the signal should be passed to the process.">;
 }
 
+let Command = "process status" in {
+  def process_status_verbose : Option<"verbose", "v">, Group<1>,
+    Desc<"Show verbose process status including extended crash information.">;
+}
+
 let Command = "script import" in {
   def script_import_allow_reload : Option<"allow-reload", "r">, Group<1>,
     Desc<"Allow the script to be loaded even if it was already loaded before. "
     "This argument exists for backwards compatibility, but reloading is always "
     "allowed, whether you specify it or not.">;
+  def relative_to_command_file : Option<"relative-to-command-file", "c">,
+    Group<1>, Desc<"Resolve non-absolute paths relative to the location of the "
+    "current command file. This argument can only be used when the command is "
+    "being sourced from a file.">;
 }
 
 let Command = "script add" in {
@@ -688,6 +754,13 @@ let Command = "script add" in {
     Desc<"Set the synchronicity of this command's executions with regard to "
     "LLDB event system.">;
 }
+
+let Command = "script" in {
+  def script_language : Option<"language", "l">,
+    EnumArg<"ScriptLang", "ScriptOptionEnum()">, Desc<"Specify the scripting "
+    " language. If none is specific the default scripting language is used.">;
+}
+
 let Command = "source info" in {
   def source_info_count : Option<"count", "c">, Arg<"Count">,
     Desc<"The number of line entries to display.">;
@@ -711,7 +784,7 @@ let Command = "source info" in {
 let Command = "source list" in {
   def source_list_count : Option<"count", "c">, Arg<"Count">,
     Desc<"The number of source lines to display.">;
-  def source_list_shlib : Option<"shlib", "s">, Groups<[1,2]>, Arg<"ShlibName">,
+  def source_list_shlib : Option<"shlib", "s">, Groups<[1,2,5]>, Arg<"ShlibName">,
     Completion<"Module">,
     Desc<"Look up the source file in the given shared library.">;
   def source_list_show_breakpoints : Option<"show-breakpoints", "b">,
@@ -729,6 +802,10 @@ let Command = "source list" in {
     " information for the corresponding file and line.">;
   def source_list_reverse : Option<"reverse", "r">, Group<4>, Desc<"Reverse the"
     " listing to look backwards from the last displayed block of source.">;
+  def source_list_file_colon_line : Option<"joint-specifier", "y">, Group<5>,
+    Arg<"FileLineColumn">, Completion<"SourceFile">,
+    Desc<"A specifier in the form filename:line[:column] from which to display"
+         " source.">;
 }
 
 let Command = "target dependents" in {
@@ -837,7 +914,7 @@ let Command = "target modules lookup" in {
 }
 
 let Command = "target stop hook add" in {
-  def target_stop_hook_add_one_liner : Option<"one-liner", "o">,
+  def target_stop_hook_add_one_liner : Option<"one-liner", "o">, GroupRange<1,3>,
     Arg<"OneLiner">, Desc<"Add a command for the stop hook.  Can be specified "
     "more than once, and commands will be run in the order they appear.">;
   def target_stop_hook_add_shlib : Option<"shlib", "s">, Arg<"ShlibName">,
@@ -855,19 +932,19 @@ let Command = "target stop hook add" in {
   def target_stop_hook_add_queue_name : Option<"queue-name", "q">,
     Arg<"QueueName">, Desc<"The stop hook is run only for threads in the queue "
     "whose name is given by this argument.">;
-  def target_stop_hook_add_file : Option<"file", "f">, Group<1>,
+  def target_stop_hook_add_file : Option<"file", "f">, Groups<[1,4]>,
     Arg<"Filename">, Desc<"Specify the source file within which the stop-hook "
     "is to be run.">, Completion<"SourceFile">;
-  def target_stop_hook_add_start_line : Option<"start-line", "l">, Group<1>,
+  def target_stop_hook_add_start_line : Option<"start-line", "l">, Groups<[1,4]>,
     Arg<"LineNum">, Desc<"Set the start of the line range for which the "
     "stop-hook is to be run.">;
-  def target_stop_hook_add_end_line : Option<"end-line", "e">, Group<1>,
+  def target_stop_hook_add_end_line : Option<"end-line", "e">, Groups<[1,4]>,
     Arg<"LineNum">, Desc<"Set the end of the line range for which the stop-hook"
     " is to be run.">;
-  def target_stop_hook_add_classname : Option<"classname", "c">, Group<2>,
+  def target_stop_hook_add_classname : Option<"classname", "c">, Groups<[2,5]>,
     Arg<"ClassName">,
     Desc<"Specify the class within which the stop-hook is to be run.">;
-  def target_stop_hook_add_name : Option<"name", "n">, Group<3>,
+  def target_stop_hook_add_name : Option<"name", "n">, Groups<[3,6]>,
     Arg<"FunctionName">, Desc<"Set the function name within which the stop hook"
     " will be run.">, Completion<"Symbol">;
   def target_stop_hook_add_auto_continue : Option<"auto-continue", "G">,
@@ -906,7 +983,7 @@ let Command = "thread step scope" in {
     EnumArg<"RunMode", "TriRunningModes()">, Desc<"Determine how to run other "
     "threads while stepping the current thread.">;
   def thread_step_scope_step_over_regexp : Option<"step-over-regexp", "r">,
-    Group<1>, Arg<"RegularExpression">, Desc<"A regular expression that defines"
+    Group<1>, Arg<"RegularExpression">, Desc<"A regular expression that defines "
     "function names to not to stop at when stepping in.">;
   def thread_step_scope_step_in_target : Option<"step-in-target", "t">,
     Group<1>, Arg<"FunctionName">, Desc<"The name of the directly called "
@@ -919,10 +996,10 @@ let Command = "thread until" in {
   def thread_until_thread : Option<"thread", "t">, Group<1>, Arg<"ThreadIndex">,
     Desc<"Thread index for the thread for until operation">;
   def thread_until_run_mode : Option<"run-mode", "m">, Group<1>,
-    EnumArg<"RunMode", "DuoRunningModes()">, Desc<"Determine how to run other"
+    EnumArg<"RunMode", "DuoRunningModes()">, Desc<"Determine how to run other "
     "threads while stepping this one">;
   def thread_until_address : Option<"address", "a">, Group<1>,
-    Arg<"AddressOrExpression">, Desc<"Run until we reach the specified address,"
+    Arg<"AddressOrExpression">, Desc<"Run until we reach the specified address, "
     "or leave the function - can be specified multiple times.">;
 }
 
@@ -956,6 +1033,24 @@ let Command = "thread plan list" in {
     Desc<"Display more information about the thread plans">;
   def thread_plan_list_internal : Option<"internal", "i">, Group<1>,
     Desc<"Display internal as well as user thread plans">;
+  def thread_plan_list_thread_id : Option<"thread-id", "t">, Group<1>,
+    Arg<"ThreadID">, Desc<"List the thread plans for this TID, can be "
+    "specified more than once.">;
+  def thread_plan_list_unreported : Option<"unreported", "u">, Group<1>,
+    Desc<"Display thread plans for unreported threads">;
+}
+
+let Command = "thread trace dump instructions" in {
+  def thread_trace_dump_instructions_count : Option<"count", "c">, Group<1>,
+    Arg<"Count">,
+    Desc<"The number of instructions to display ending at the current position.">;
+  def thread_trace_dump_instructions_position : Option<"position", "p">,
+    Group<1>,
+    Arg<"Index">,
+    Desc<"The position to use instead of the current position of the trace.">;
+  def thread_trace_dump_instructions_raw : Option<"raw", "r">,
+    Group<1>,
+    Desc<"Dump only instruction address without disassembly nor symbol information.">;
 }
 
 let Command = "type summary add" in {
@@ -1094,7 +1189,7 @@ let Command = "watchpoint list" in {
     "brief description of the watchpoint (no location info).">;
   def watchpoint_list_full : Option<"full", "f">, Group<2>, Desc<"Give a full "
     "description of the watchpoint and its locations.">;
-  def watchpoint_list_verbose : Option<"verbose", "v">, Group<3>, Desc<"Explain"
+  def watchpoint_list_verbose : Option<"verbose", "v">, Group<3>, Desc<"Explain "
     "everything we know about the watchpoint (for debugging debugger bugs).">;
 }
 
@@ -1130,4 +1225,20 @@ let Command = "watchpoint command add" in {
 let Command = "watchpoint delete" in {
   def watchpoint_delete_force : Option<"force", "f">, Group<1>,
     Desc<"Delete all watchpoints without querying for confirmation.">;
+}
+
+let Command = "trace load" in {
+  def trace_load_verbose : Option<"verbose", "v">, Group<1>,
+    Desc<"Show verbose trace load logging for debugging the plug-in "
+    "implementation.">;
+}
+
+let Command = "trace dump" in {
+  def trace_dump_verbose : Option<"verbose", "v">, Group<1>,
+    Desc<"Show verbose trace information.">;
+}
+
+let Command = "trace schema" in {
+  def trace_schema_verbose : Option<"verbose", "v">, Group<1>,
+    Desc<"Show verbose trace schema logging for debugging the plug-in.">;
 }

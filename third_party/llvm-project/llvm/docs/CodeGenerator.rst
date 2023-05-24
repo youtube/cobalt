@@ -1272,7 +1272,7 @@ compatible with a given physical, this code can be used:
 
 Sometimes, mostly for debugging purposes, it is useful to change the number of
 physical registers available in the target architecture. This must be done
-statically, inside the ``TargetRegsterInfo.td`` file. Just ``grep`` for
+statically, inside the ``TargetRegisterInfo.td`` file. Just ``grep`` for
 ``RegisterClass``, the last parameter of which is a list of registers. Just
 commenting some out is one simple way to avoid them being used. A more polite
 way is to explicitly exclude some registers from the *allocation order*. See the
@@ -2112,7 +2112,7 @@ Call as ``llc -tailcallopt test.ll``.
 
   define fastcc i32 @tailcaller(i32 %in1, i32 %in2) {
     %l1 = add i32 %in1, %in2
-    %tmp = tail call fastcc i32 @tailcallee(i32 %in1 inreg, i32 %in2 inreg, i32 %in1, i32 %l1)
+    %tmp = tail call fastcc i32 @tailcallee(i32 inreg %in1, i32 inreg %in2, i32 %in1, i32 %l1)
     ret i32 %tmp
   }
 
@@ -2418,7 +2418,7 @@ to spill registers r3-r10.  This allows callees blind to the call signature,
 such as thunks and vararg functions, enough space to cache the argument
 registers.  Therefore, the parameter area is minimally 32 bytes (64 bytes in 64
 bit mode.)  Also note that since the parameter area is a fixed offset from the
-top of the frame, that a callee can access its spilt arguments using fixed
+top of the frame, that a callee can access its split arguments using fixed
 offsets from the stack pointer (or base pointer.)
 
 Combining the information about the linkage, parameter areas and alignment. A

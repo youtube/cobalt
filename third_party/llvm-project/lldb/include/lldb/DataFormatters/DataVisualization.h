@@ -6,9 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_DataVisualization_h_
-#define lldb_DataVisualization_h_
-
+#ifndef LLDB_DATAFORMATTERS_DATAVISUALIZATION_H
+#define LLDB_DATAFORMATTERS_DATAVISUALIZATION_H
 
 #include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/FormatManager.h"
@@ -70,9 +69,9 @@ public:
 
     static void Clear();
 
-    static void
-    ForEach(std::function<bool(ConstString, const lldb::TypeSummaryImplSP &)>
-                callback);
+    static void ForEach(std::function<bool(const TypeMatcher &,
+                                           const lldb::TypeSummaryImplSP &)>
+                            callback);
 
     static uint32_t GetCount();
   };
@@ -122,4 +121,4 @@ public:
 
 } // namespace lldb_private
 
-#endif // lldb_DataVisualization_h_
+#endif // LLDB_DATAFORMATTERS_DATAVISUALIZATION_H

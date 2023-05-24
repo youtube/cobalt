@@ -1,6 +1,6 @@
 ; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,SI,SIVI %s
 ; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,VI,SIVI %s
-; RUN: llc -march=amdgcn -mcpu=gfx1010 -mattr=-flat-for-global,+WavefrontSize64 -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,GFX10 %s
+; RUN: llc -march=amdgcn -mcpu=gfx1010 -mattr=-flat-for-global,+wavefrontsize64 -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,GFX10 %s
 
 declare i32 @llvm.amdgcn.workitem.id.x() #1
 declare half @llvm.fabs.f16(half)
@@ -49,8 +49,8 @@ define amdgpu_kernel void @v_cnd_nan(float addrspace(1)* %out, i32 %c, float %f)
 ; (select (cmp (sgprX, constant)), constant, sgprZ)
 
 ; GCN-LABEL: {{^}}fcmp_sgprX_k0_select_k1_sgprZ_f32:
-; GCN: s_load_dwordx2
-; GCN: s_load_dwordx2 s{{\[}}[[X:[0-9]+]]:[[Z:[0-9]+]]{{\]}}
+; GCN: s_load_dwordx2 s{{\[}}[[X:[0-9]+]]:[[Z:[0-9]+]]{{\]}}, s[0:1], {{0x4c|0x13}}
+
 ; SIVI-DAG:  v_cmp_nlg_f32_e64 [[CC:vcc]], s[[X]], 0
 ; GFX10-DAG: v_cmp_nlg_f32_e64 [[CC:s\[[0-9:]+\]]], s[[X]], 0
 ; SIVI-DAG:  v_mov_b32_e32 [[VZ:v[0-9]+]], s[[Z]]
@@ -309,7 +309,7 @@ define amdgpu_kernel void @fcmp_k0_vgprX_select_k1_vgprZ_v4f32(<4 x float> addrs
 ; GCN: load_dword
 ; GCN: load_ubyte
 ; GCN-DAG: v_cmp_gt_i32_e32 vcc, 0, v
-; DCN-DAG: v_and_b32_e32 v{{[0-9]+}}, 1,
+; GCN-DAG: v_and_b32_e32 v{{[0-9]+}}, 1,
 ; GCN-DAG: v_cmp_eq_u32_e64 s{{\[[0-9]+:[0-9]+\]}}, 1, v
 ; GCN-DAG: s_or_b64 s{{\[[0-9]+:[0-9]+\]}}, vcc, s{{\[[0-9]+:[0-9]+\]}}
 ; GCN: v_cndmask_b32_e64 v{{[0-9]+}}, 0, 1, s

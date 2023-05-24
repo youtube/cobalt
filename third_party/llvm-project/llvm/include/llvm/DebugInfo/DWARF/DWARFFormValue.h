@@ -55,6 +55,8 @@ private:
   };
 
   dwarf::Form Form;             /// Form for this value.
+  dwarf::DwarfFormat Format =
+      dwarf::DWARF32;           /// Remember the DWARF format at extract time.
   ValueType Value;              /// Contains all data for the form.
   const DWARFUnit *U = nullptr; /// Remember the DWARFUnit at extract time.
   const DWARFContext *C = nullptr; /// Context for extract time.
@@ -80,6 +82,9 @@ public:
   void dump(raw_ostream &OS, DIDumpOptions DumpOpts = DIDumpOptions()) const;
   void dumpSectionedAddress(raw_ostream &OS, DIDumpOptions DumpOpts,
                             object::SectionedAddress SA) const;
+  void dumpAddress(raw_ostream &OS, uint64_t Address) const;
+  static void dumpAddress(raw_ostream &OS, uint8_t AddressSize,
+                          uint64_t Address);
   static void dumpAddressSection(const DWARFObject &Obj, raw_ostream &OS,
                                  DIDumpOptions DumpOpts, uint64_t SectionIndex);
 

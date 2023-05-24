@@ -24,22 +24,35 @@ def riscv_remuw : SDNode<"RISCVISD::REMUW", SDTIntBinOp>;
 //===----------------------------------------------------------------------===//
 
 let Predicates = [HasStdExtM] in {
-def MUL     : ALU_rr<0b0000001, 0b000, "mul">;
-def MULH    : ALU_rr<0b0000001, 0b001, "mulh">;
-def MULHSU  : ALU_rr<0b0000001, 0b010, "mulhsu">;
-def MULHU   : ALU_rr<0b0000001, 0b011, "mulhu">;
-def DIV     : ALU_rr<0b0000001, 0b100, "div">;
-def DIVU    : ALU_rr<0b0000001, 0b101, "divu">;
-def REM     : ALU_rr<0b0000001, 0b110, "rem">;
-def REMU    : ALU_rr<0b0000001, 0b111, "remu">;
+def MUL     : ALU_rr<0b0000001, 0b000, "mul">,
+              Sched<[WriteIMul, ReadIMul, ReadIMul]>;
+def MULH    : ALU_rr<0b0000001, 0b001, "mulh">,
+              Sched<[WriteIMul, ReadIMul, ReadIMul]>;
+def MULHSU  : ALU_rr<0b0000001, 0b010, "mulhsu">,
+              Sched<[WriteIMul, ReadIMul, ReadIMul]>;
+def MULHU   : ALU_rr<0b0000001, 0b011, "mulhu">,
+              Sched<[WriteIMul, ReadIMul, ReadIMul]>;
+def DIV     : ALU_rr<0b0000001, 0b100, "div">,
+              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
+def DIVU    : ALU_rr<0b0000001, 0b101, "divu">,
+              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
+def REM     : ALU_rr<0b0000001, 0b110, "rem">,
+              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
+def REMU    : ALU_rr<0b0000001, 0b111, "remu">,
+              Sched<[WriteIDiv, ReadIDiv, ReadIDiv]>;
 } // Predicates = [HasStdExtM]
 
 let Predicates = [HasStdExtM, IsRV64] in {
-def MULW    : ALUW_rr<0b0000001, 0b000, "mulw">;
-def DIVW    : ALUW_rr<0b0000001, 0b100, "divw">;
-def DIVUW   : ALUW_rr<0b0000001, 0b101, "divuw">;
-def REMW    : ALUW_rr<0b0000001, 0b110, "remw">;
-def REMUW   : ALUW_rr<0b0000001, 0b111, "remuw">;
+def MULW    : ALUW_rr<0b0000001, 0b000, "mulw">,
+              Sched<[WriteIMul32, ReadIMul32, ReadIMul32]>;
+def DIVW    : ALUW_rr<0b0000001, 0b100, "divw">,
+              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
+def DIVUW   : ALUW_rr<0b0000001, 0b101, "divuw">,
+              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
+def REMW    : ALUW_rr<0b0000001, 0b110, "remw">,
+              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
+def REMUW   : ALUW_rr<0b0000001, 0b111, "remuw">,
+              Sched<[WriteIDiv32, ReadIDiv32, ReadIDiv32]>;
 } // Predicates = [HasStdExtM, IsRV64]
 
 //===----------------------------------------------------------------------===//
@@ -68,9 +81,11 @@ def : PatGprGpr<riscv_remuw, REMUW>;
 // Handle the specific cases where using DIVU/REMU would be correct and result
 // in fewer instructions than emitting DIVUW/REMUW then zero-extending the
 // result.
-def : Pat<(zexti32 (riscv_divuw (zexti32 GPR:$rs1), (zexti32 GPR:$rs2))),
+def : Pat<(and (riscv_divuw (assertzexti32 GPR:$rs1),
+                            (assertzexti32 GPR:$rs2)), 0xffffffff),
           (DIVU GPR:$rs1, GPR:$rs2)>;
-def : Pat<(zexti32 (riscv_remuw (zexti32 GPR:$rs1), (zexti32 GPR:$rs2))),
+def : Pat<(and (riscv_remuw (assertzexti32 GPR:$rs1),
+                            (assertzexti32 GPR:$rs2)), 0xffffffff),
           (REMU GPR:$rs1, GPR:$rs2)>;
 
 // Although the sexti32 operands may not have originated from an i32 srem,

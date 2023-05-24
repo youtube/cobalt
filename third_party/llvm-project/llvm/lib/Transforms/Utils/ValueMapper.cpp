@@ -21,7 +21,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -168,12 +167,9 @@ public:
   void flush();
 
 private:
-  void mapGlobalInitializer(GlobalVariable &GV, Constant &Init);
   void mapAppendingVariable(GlobalVariable &GV, Constant *InitPrefix,
                             bool IsOldCtorDtor,
                             ArrayRef<Constant *> NewMembers);
-  void mapGlobalIndirectSymbol(GlobalIndirectSymbol &GIS, Constant &Target);
-  void remapFunction(Function &F, ValueToValueMapTy &VM);
 
   ValueToValueMapTy &getVM() { return *MCs[CurrentMCID].VM; }
   ValueMaterializer *getMaterializer() { return MCs[CurrentMCID].Materializer; }
@@ -369,7 +365,8 @@ Value *Mapper::mapValue(const Value *V) {
 
       if (NewTy != IA->getFunctionType())
         V = InlineAsm::get(NewTy, IA->getAsmString(), IA->getConstraintString(),
-                           IA->hasSideEffects(), IA->isAlignStack());
+                           IA->hasSideEffects(), IA->isAlignStack(),
+                           IA->getDialect());
     }
 
     return getVM()[V] = const_cast<Value *>(V);
@@ -822,11 +819,15 @@ void Mapper::flush() {
       break;
     case WorklistEntry::MapAppendingVar: {
       unsigned PrefixSize = AppendingInits.size() - E.AppendingGVNumNewMembers;
+      // mapAppendingVariable call can change AppendingInits if initalizer for
+      // the variable depends on another appending global, because of that inits
+      // need to be extracted and updated before the call.
+      SmallVector<Constant *, 8> NewInits(
+          drop_begin(AppendingInits, PrefixSize));
+      AppendingInits.resize(PrefixSize);
       mapAppendingVariable(*E.Data.AppendingGV.GV,
                            E.Data.AppendingGV.InitPrefix,
-                           E.AppendingGVIsOldCtorDtor,
-                           makeArrayRef(AppendingInits).slice(PrefixSize));
-      AppendingInits.resize(PrefixSize);
+                           E.AppendingGVIsOldCtorDtor, makeArrayRef(NewInits));
       break;
     }
     case WorklistEntry::MapGlobalIndirectSymbol:
@@ -888,29 +889,28 @@ void Mapper::remapInstruction(Instruction *I) {
     return;
 
   // If the instruction's type is being remapped, do so now.
-  if (auto CS = CallSite(I)) {
+  if (auto *CB = dyn_cast<CallBase>(I)) {
     SmallVector<Type *, 3> Tys;
-    FunctionType *FTy = CS.getFunctionType();
+    FunctionType *FTy = CB->getFunctionType();
     Tys.reserve(FTy->getNumParams());
     for (Type *Ty : FTy->params())
       Tys.push_back(TypeMapper->remapType(Ty));
-    CS.mutateFunctionType(FunctionType::get(
+    CB->mutateFunctionType(FunctionType::get(
         TypeMapper->remapType(I->getType()), Tys, FTy->isVarArg()));
 
-    LLVMContext &C = CS->getContext();
-    AttributeList Attrs = CS.getAttributes();
+    LLVMContext &C = CB->getContext();
+    AttributeList Attrs = CB->getAttributes();
     for (unsigned i = 0; i < Attrs.getNumAttrSets(); ++i) {
-      if (Attrs.hasAttribute(i, Attribute::ByVal)) {
-        Type *Ty = Attrs.getAttribute(i, Attribute::ByVal).getValueAsType();
-        if (!Ty)
-          continue;
-
-        Attrs = Attrs.removeAttribute(C, i, Attribute::ByVal);
-        Attrs = Attrs.addAttribute(
-            C, i, Attribute::getWithByValType(C, TypeMapper->remapType(Ty)));
+      for (Attribute::AttrKind TypedAttr :
+           {Attribute::ByVal, Attribute::StructRet, Attribute::ByRef}) {
+        if (Type *Ty = Attrs.getAttribute(i, TypedAttr).getValueAsType()) {
+          Attrs = Attrs.replaceAttributeType(C, i, TypedAttr,
+                                             TypeMapper->remapType(Ty));
+          break;
+        }
       }
     }
-    CS.setAttributes(Attrs);
+    CB->setAttributes(Attrs);
     return;
   }
   if (auto *AI = dyn_cast<AllocaInst>(I))

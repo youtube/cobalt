@@ -195,7 +195,7 @@ enum stats_state_e {
 //                                from a dynamically scheduled loop
 // OMP_critical           -- Time thread spends executing critical section
 // OMP_critical_wait      -- Time thread spends waiting to enter
-//                           a critcal seciton
+//                           a critical section
 // OMP_single             -- Time spent executing a "single" region
 // OMP_master             -- Time spent executing a "master" region
 // OMP_task_immediate     -- Time spent executing non-deferred tasks
@@ -258,6 +258,7 @@ enum stats_state_e {
   macro(KMP_tree_release, 0, arg)                                              \
   macro(USER_resume, 0, arg)                                                   \
   macro(USER_suspend, 0, arg)                                                  \
+  macro(USER_mwait, 0, arg)                                                    \
   macro(KMP_allocate_team, 0, arg)                                             \
   macro(KMP_setup_icv_copy, 0, arg)                                            \
   macro(USER_icv_copy, 0, arg)                                                 \
@@ -422,7 +423,7 @@ public:
   void setOffset(double d) { offset = d; }
 
   void reset() {
-    minVal = std::numeric_limits<double>::max();
+    minVal = (std::numeric_limits<double>::max)();
     maxVal = -minVal;
     meanVal = 0.0;
     m2 = 0.0;
@@ -522,7 +523,7 @@ public:
   void windup();
 };
 
-// Special wrapper around the partioned timers to aid timing code blocks
+// Special wrapper around the partitioned timers to aid timing code blocks
 // It avoids the need to have an explicit end, leaving the scope suffices.
 class blockPartitionedTimer {
   partitionedTimers *part_timers;
@@ -885,7 +886,7 @@ extern kmp_stats_output_module __kmp_stats_output;
  * @ingroup STATS_GATHERING
 */
 #define KMP_COUNT_VALUE(name, value)                                           \
-  __kmp_stats_thread_ptr->getTimer(TIMER_##name)->addSample(value)
+  __kmp_stats_thread_ptr->getTimer(TIMER_##name)->addSample((double)value)
 
 /*!
  * \brief Increments specified counter (name).
@@ -920,7 +921,7 @@ extern kmp_stats_output_module __kmp_stats_output;
 #define KMP_OUTPUT_STATS(heading_string) __kmp_output_stats(heading_string)
 
 /*!
- * \brief Initializes the paritioned timers to begin with name.
+ * \brief Initializes the partitioned timers to begin with name.
  *
  * @param name timer which you want this thread to begin with
  *

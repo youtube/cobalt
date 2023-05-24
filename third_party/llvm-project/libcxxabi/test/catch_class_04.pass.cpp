@@ -12,7 +12,13 @@
     check against.  It also checks that virtual bases work properly
 */
 
-// UNSUPPORTED: libcxxabi-no-exceptions
+// UNSUPPORTED: no-exceptions
+
+// FIXME: GCC doesn't allow turning off the warning for exceptions being caught
+//        by earlier handlers, which this test is exercising. We have to disable
+//        warnings altogether to remove the error.
+//        See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97675.
+// ADDITIONAL_COMPILE_FLAGS: -Wno-error
 
 #include <exception>
 #include <stdlib.h>
@@ -204,7 +210,7 @@ void f5()
     }
 }
 
-int main()
+int main(int, char**)
 {
     try
     {
@@ -218,4 +224,6 @@ int main()
     assert(C1::count == 0);
     assert(C2::count == 0);
     assert(B::count == 0);
+
+    return 0;
 }

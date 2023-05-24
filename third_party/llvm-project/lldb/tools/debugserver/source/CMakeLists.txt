@@ -41,7 +41,7 @@ function(get_debugserver_codesign_identity result)
     return()
   endif()
 
-  message(WARNING "Development code sign identiy not found: 'lldb_codesign' ${not_found_help}")
+  message(WARNING "Development code sign identity not found: 'lldb_codesign' ${not_found_help}")
 
   # LLVM pendant: fallback if available
   if(LLVM_CODESIGNING_IDENTITY)
@@ -56,7 +56,14 @@ function(get_debugserver_codesign_identity result)
   set(${result} "-" PARENT_SCOPE)
 endfunction()
 
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -Wl,-sectcreate,__TEXT,__info_plist,${CMAKE_CURRENT_SOURCE_DIR}/../resources/lldb-debugserver-Info.plist")
+# debugserver does not depend on intrinsics_gen, or on llvm. Set the common
+# llvm dependencies in the current scope to the empty set.
+set(LLVM_COMMON_DEPENDS)
+
+set(DEBUGSERVER_RESOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../resources")
+set(DEBUGSERVER_INFO_PLIST "${DEBUGSERVER_RESOURCE_DIR}/lldb-debugserver-Info.plist")
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -Wl,-sectcreate,__TEXT,__info_plist,${DEBUGSERVER_INFO_PLIST}")
 
 check_cxx_compiler_flag("-Wno-gnu-zero-variadic-macro-arguments"
                         CXX_SUPPORTS_NO_GNU_ZERO_VARIADIC_MACRO_ARGUMENTS)
@@ -78,6 +85,8 @@ endif ()
 
 check_library_exists(compression compression_encode_buffer "" HAVE_LIBCOMPRESSION)
 
+find_library(SECURITY_LIBRARY Security)
+
 add_subdirectory(MacOSX)
 
 set(LLDB_CODESIGN_IDENTITY "" CACHE STRING
@@ -93,7 +102,7 @@ set_property(GLOBAL PROPERTY
   LLDB_DEBUGSERVER_CODESIGN_IDENTITY ${debugserver_codesign_identity})
 
 if(APPLE)
-  if(IOS)
+  if(APPLE_EMBEDDED)
     find_library(BACKBOARD_LIBRARY BackBoardServices
       PATHS ${CMAKE_OSX_SYSROOT}/System/Library/PrivateFrameworks)
     find_library(FRONTBOARD_LIBRARY FrontBoardServices
@@ -103,6 +112,10 @@ if(APPLE)
     find_library(MOBILESERVICES_LIBRARY MobileCoreServices
       PATHS ${CMAKE_OSX_SYSROOT}/System/Library/PrivateFrameworks)
     find_library(LOCKDOWN_LIBRARY lockdown)
+    if (APPLE_EMBEDDED STREQUAL "watchos")
+      find_library(CAROUSELSERVICES_LIBRARY CarouselServices
+        PATHS ${CMAKE_OSX_SYSROOT}/System/Library/PrivateFrameworks)
+    endif()
 
     if(NOT BACKBOARD_LIBRARY)
       set(SKIP_TEST_DEBUGSERVER ON CACHE BOOL "" FORCE)
@@ -115,12 +128,25 @@ if(HAVE_LIBCOMPRESSION)
 endif()
 
 if(LLDB_USE_ENTITLEMENTS)
-  if(IOS)
+  if(APPLE_EMBEDDED)
     set(entitlements ${CMAKE_CURRENT_SOURCE_DIR}/debugserver-entitlements.plist)
   else()
-    # Same entitlements file as used for lldb-server
-    set(entitlements ${LLDB_SOURCE_DIR}/resources/debugserver-macosx-entitlements.plist)
+    if (LLDB_USE_PRIVATE_ENTITLEMENTS)
+      set(entitlements ${DEBUGSERVER_RESOURCE_DIR}/debugserver-macosx-private-entitlements.plist)
+    else()
+      set(entitlements ${DEBUGSERVER_RESOURCE_DIR}/debugserver-macosx-entitlements.plist)
+    endif()
   endif()
+endif()
+
+add_definitions(-DLLDB_USE_OS_LOG)
+
+if(${CMAKE_OSX_SYSROOT} MATCHES ".Internal.sdk$")
+  message(STATUS "LLDB debugserver energy support is enabled")
+  add_definitions(-DLLDB_ENERGY)
+  set(ENERGY_LIBRARY -lpmenergy -lpmsample)
+else()
+  message(STATUS "LLDB debugserver energy support is disabled")
 endif()
 
 set(generated_mach_interfaces
@@ -128,8 +154,17 @@ set(generated_mach_interfaces
   ${CMAKE_CURRENT_BINARY_DIR}/mach_excServer.c
   ${CMAKE_CURRENT_BINARY_DIR}/mach_excUser.c
   )
+
+set(MIG_ARCH_FLAGS "")
+if (DEFINED MIG_ARCHS)
+  foreach(ARCH ${MIG_ARCHS})
+    set(MIG_ARCH_FLAGS "${MIG_ARCH_FLAGS} -arch ${ARCH}")
+  endforeach()
+endif()
+separate_arguments(MIG_ARCH_FLAGS_SEPARTED NATIVE_COMMAND "${MIG_ARCH_FLAGS}")
+
 add_custom_command(OUTPUT ${generated_mach_interfaces}
-  COMMAND mig ${CMAKE_CURRENT_SOURCE_DIR}/MacOSX/dbgnub-mig.defs
+  VERBATIM COMMAND mig ${MIG_ARCH_FLAGS_SEPARTED} -isysroot ${CMAKE_OSX_SYSROOT} ${CMAKE_CURRENT_SOURCE_DIR}/MacOSX/dbgnub-mig.defs
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/MacOSX/dbgnub-mig.defs
   )
 
@@ -189,9 +224,13 @@ target_link_libraries(lldbDebugserverCommon
                       ${SPRINGBOARD_LIBRARY}
                       ${MOBILESERVICES_LIBRARY}
                       ${LOCKDOWN_LIBRARY}
+                      ${CAROUSELSERVICES_LIBRARY}
                       lldbDebugserverArchSupport
                       lldbDebugserverDarwin_DarwinLog
-                      ${LIBCOMPRESSION})
+                      ${FOUNDATION_LIBRARY}
+                      ${SECURITY_LIBRARY}
+                      ${LIBCOMPRESSION}
+                      ${ENERGY_LIBRARY})
 if(HAVE_LIBCOMPRESSION)
   set_property(TARGET lldbDebugserverCommon APPEND PROPERTY
                 COMPILE_DEFINITIONS HAVE_LIBCOMPRESSION)
@@ -232,12 +271,17 @@ endif()
 
 set_target_properties(debugserver PROPERTIES FOLDER "lldb libraries/debugserver")
 
-if(IOS)
+if(APPLE_EMBEDDED)
   set_property(TARGET lldbDebugserverCommon APPEND PROPERTY COMPILE_DEFINITIONS
     WITH_LOCKDOWN
     WITH_FBS
     WITH_BKS
     )
+  if(CAROUSELSERVICES_LIBRARY)
+    set_property(TARGET lldbDebugserverCommon APPEND PROPERTY COMPILE_DEFINITIONS
+      WITH_CAROUSEL
+      )
+  endif()
   set_property(TARGET debugserver APPEND PROPERTY COMPILE_DEFINITIONS
     WITH_LOCKDOWN
     WITH_FBS
@@ -254,6 +298,7 @@ if(IOS)
                       ${FOUNDATION_LIBRARY}
                       lldbDebugserverArchSupport
                       lldbDebugserverDarwin_DarwinLog
+                      ${SECURITY_LIBRARY}
                       ${LIBCOMPRESSION})
   if(HAVE_LIBCOMPRESSION)
     set_property(TARGET lldbDebugserverCommon_NonUI APPEND PROPERTY

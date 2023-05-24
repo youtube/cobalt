@@ -1,4 +1,4 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs -enable-misched -asm-verbose -disable-block-placement < %s | FileCheck -check-prefix=SI %s
+; RUN: llc -march=amdgcn -verify-machineinstrs -enable-misched -asm-verbose -disable-block-placement -simplifycfg-require-and-preserve-domtree=1 < %s | FileCheck -check-prefix=SI %s
 
 declare i32 @llvm.amdgcn.workitem.id.x() nounwind readnone
 
@@ -13,6 +13,7 @@ declare i32 @llvm.amdgcn.workitem.id.x() nounwind readnone
 ; SI-NEXT: s_mov_b64 {{s\[[0-9]+:[0-9]+\]}}, 0
 ; SI-NEXT: s_and_saveexec_b64 [[SAVE1:s\[[0-9]+:[0-9]+\]]], vcc
 ; SI-NEXT: s_xor_b64 [[SAVE2:s\[[0-9]+:[0-9]+\]]], exec, [[SAVE1]]
+; SI-NEXT: s_cbranch_execz [[FLOW_BB:BB[0-9]+_[0-9]+]]
 
 ; SI-NEXT: ; %bb.{{[0-9]+}}: ; %LeafBlock3
 ; SI:      s_mov_b64 s[{{[0-9]:[0-9]}}], -1
@@ -20,7 +21,7 @@ declare i32 @llvm.amdgcn.workitem.id.x() nounwind readnone
 ; SI-NEXT: s_cbranch_execnz
 
 ; v_mov should be after exec modification
-; SI: ; %bb.{{[0-9]+}}:
+; SI: [[FLOW_BB]]:
 ; SI-NEXT: s_or_saveexec_b64 [[SAVE3:s\[[0-9]+:[0-9]+\]]], [[SAVE2]]
 ; SI-NEXT: s_xor_b64 exec, exec, [[SAVE3]]
 ;
@@ -158,8 +159,8 @@ exit:
 ; SI: [[LABEL_LOOP:BB[0-9]+_[0-9]+]]:
 ; SI: buffer_load_dword
 ; SI-DAG: buffer_store_dword
-; SI-DAG: s_cmpk_eq_i32 s{{[0-9+]}}, 0x100
-; SI: s_cbranch_scc0 [[LABEL_LOOP]]
+; SI-DAG: s_cmpk_lg_i32 s{{[0-9+]}}, 0x100
+; SI: s_cbranch_scc1 [[LABEL_LOOP]]
 ; SI: [[LABEL_EXIT]]:
 ; SI: s_endpgm
 

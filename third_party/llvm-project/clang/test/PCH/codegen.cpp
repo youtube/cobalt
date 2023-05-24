@@ -9,11 +9,23 @@
 // RUN: %clang_cc1 -triple=x86_64-linux-gnu -fmodules-codegen -x c++-header -building-pch-with-obj -emit-pch %S/../Modules/Inputs/codegen-flags/foo.h -o %t/foo-cg.pch
 // RUN: %clang_cc1 -triple=x86_64-linux-gnu -fmodules-debuginfo -x c++-header -building-pch-with-obj -emit-pch %S/../Modules/Inputs/codegen-flags/foo.h -o %t/foo-di.pch
 
-// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - %s -include-pch %t/foo-cg.pch -building-pch-with-obj -fmodules-codegen | FileCheck --check-prefix=CG %s
-// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - %s -include-pch %t/foo-di.pch -building-pch-with-obj -fmodules-debuginfo | FileCheck --check-prefix=DI %s
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -x precompiled-header %t/foo-cg.pch | FileCheck --check-prefix=CG %s
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -x precompiled-header %t/foo-di.pch | FileCheck --check-prefix=DI %s
 
 // RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -include-pch %t/foo-cg.pch %S/../Modules/Inputs/codegen-flags/use.cpp | FileCheck --check-prefix=CG-USE %s
 // RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -include-pch %t/foo-di.pch %S/../Modules/Inputs/codegen-flags/use.cpp | FileCheck --check-prefix=DI-USE %s
+
+// Test with template instantiation in the pch.
+
+// RUN: %clang_cc1 -triple=x86_64-linux-gnu -fmodules-codegen -x c++-header -building-pch-with-obj -emit-pch -fpch-instantiate-templates %S/../Modules/Inputs/codegen-flags/foo.h -o %t/foo-cg.pch
+// RUN: %clang_cc1 -triple=x86_64-linux-gnu -fmodules-debuginfo -x c++-header -building-pch-with-obj -emit-pch -fpch-instantiate-templates %S/../Modules/Inputs/codegen-flags/foo.h -o %t/foo-di.pch
+
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -x precompiled-header %t/foo-cg.pch | FileCheck --check-prefix=CG %s
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -x precompiled-header %t/foo-di.pch | FileCheck --check-prefix=DI %s
+
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -include-pch %t/foo-cg.pch %S/../Modules/Inputs/codegen-flags/use.cpp | FileCheck --check-prefix=CG-USE %s
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -emit-llvm -debug-info-kind=limited -o - -include-pch %t/foo-di.pch %S/../Modules/Inputs/codegen-flags/use.cpp | FileCheck --check-prefix=DI-USE %s
+
 
 // CG: define weak_odr void @_Z2f1v
 // CG: DICompileUnit

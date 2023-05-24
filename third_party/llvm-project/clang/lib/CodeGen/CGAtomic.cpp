@@ -119,8 +119,9 @@ namespace {
         ValueTy = lvalue.getType();
         ValueSizeInBits = C.getTypeSize(ValueTy);
         AtomicTy = ValueTy = CGF.getContext().getExtVectorType(
-            lvalue.getType(), lvalue.getExtVectorAddress()
-                                  .getElementType()->getVectorNumElements());
+            lvalue.getType(), cast<llvm::FixedVectorType>(
+                                  lvalue.getExtVectorAddress().getElementType())
+                                  ->getNumElements());
         AtomicSizeInBits = C.getTypeSize(AtomicTy);
         AtomicAlign = ValueAlign = lvalue.getAlignment();
         LVal = lvalue;
@@ -306,7 +307,14 @@ static RValue emitAtomicLibcall(CodeGenFunction &CGF,
   const CGFunctionInfo &fnInfo =
     CGF.CGM.getTypes().arrangeBuiltinFunctionCall(resultType, args);
   llvm::FunctionType *fnTy = CGF.CGM.getTypes().GetFunctionType(fnInfo);
-  llvm::FunctionCallee fn = CGF.CGM.CreateRuntimeFunction(fnTy, fnName);
+  llvm::AttrBuilder fnAttrB;
+  fnAttrB.addAttribute(llvm::Attribute::NoUnwind);
+  fnAttrB.addAttribute(llvm::Attribute::WillReturn);
+  llvm::AttributeList fnAttrs = llvm::AttributeList::get(
+      CGF.getLLVMContext(), llvm::AttributeList::FunctionIndex, fnAttrB);
+
+  llvm::FunctionCallee fn =
+      CGF.CGM.CreateRuntimeFunction(fnTy, fnName, fnAttrs);
   auto callee = CGCallee::forDirect(fn);
   return CGF.EmitCall(fnInfo, callee, ReturnValueSlot(), args);
 }
@@ -798,18 +806,27 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     return RValue::get(nullptr);
   }
 
-  CharUnits sizeChars, alignChars;
-  std::tie(sizeChars, alignChars) = getContext().getTypeInfoInChars(AtomicTy);
-  uint64_t Size = sizeChars.getQuantity();
+  auto TInfo = getContext().getTypeInfoInChars(AtomicTy);
+  uint64_t Size = TInfo.Width.getQuantity();
   unsigned MaxInlineWidthInBits = getTarget().getMaxAtomicInlineWidth();
 
-  bool Oversized = getContext().toBits(sizeChars) > MaxInlineWidthInBits;
-  bool Misaligned = (Ptr.getAlignment() % sizeChars) != 0;
+  bool Oversized = getContext().toBits(TInfo.Width) > MaxInlineWidthInBits;
+  bool Misaligned = (Ptr.getAlignment() % TInfo.Width) != 0;
   bool UseLibcall = Misaligned | Oversized;
+  CharUnits MaxInlineWidth =
+      getContext().toCharUnitsFromBits(MaxInlineWidthInBits);
 
-  if (UseLibcall) {
-    CGM.getDiags().Report(E->getBeginLoc(), diag::warn_atomic_op_misaligned)
-        << !Oversized;
+  DiagnosticsEngine &Diags = CGM.getDiags();
+
+  if (Misaligned) {
+    Diags.Report(E->getBeginLoc(), diag::warn_atomic_op_misaligned)
+        << (int)TInfo.Width.getQuantity()
+        << (int)Ptr.getAlignment().getQuantity();
+  }
+
+  if (Oversized) {
+    Diags.Report(E->getBeginLoc(), diag::warn_atomic_op_oversized)
+        << (int)TInfo.Width.getQuantity() << (int)MaxInlineWidth.getQuantity();
   }
 
   llvm::Value *Order = EmitScalarExpr(E->getOrder());
@@ -1062,7 +1079,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
               EmitCastToVoidPtr(Val1.getPointer()), E->getVal1()->getType())),
           getContext().VoidPtrTy);
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val2.getPointer(),
-                        MemTy, E->getExprLoc(), sizeChars);
+                        MemTy, E->getExprLoc(), TInfo.Width);
       Args.add(RValue::get(Order), getContext().IntTy);
       Order = OrderFail;
       break;
@@ -1075,7 +1092,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     case AtomicExpr::AO__atomic_exchange:
       LibCallName = "__atomic_exchange";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        MemTy, E->getExprLoc(), sizeChars);
+                        MemTy, E->getExprLoc(), TInfo.Width);
       break;
     // void __atomic_store(size_t size, void *mem, void *val, int order)
     // void __atomic_store_N(T *mem, T val, int order)
@@ -1087,7 +1104,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
       RetTy = getContext().VoidTy;
       HaveRetTy = true;
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        MemTy, E->getExprLoc(), sizeChars);
+                        MemTy, E->getExprLoc(), TInfo.Width);
       break;
     // void __atomic_load(size_t size, void *mem, void *return, int order)
     // T __atomic_load_N(T *mem, int order)
@@ -1107,7 +1124,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     case AtomicExpr::AO__atomic_fetch_add:
       LibCallName = "__atomic_fetch_add";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        LoweredMemTy, E->getExprLoc(), sizeChars);
+                        LoweredMemTy, E->getExprLoc(), TInfo.Width);
       break;
     // T __atomic_and_fetch_N(T *mem, T val, int order)
     // T __atomic_fetch_and_N(T *mem, T val, int order)
@@ -1119,7 +1136,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     case AtomicExpr::AO__atomic_fetch_and:
       LibCallName = "__atomic_fetch_and";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        MemTy, E->getExprLoc(), sizeChars);
+                        MemTy, E->getExprLoc(), TInfo.Width);
       break;
     // T __atomic_or_fetch_N(T *mem, T val, int order)
     // T __atomic_fetch_or_N(T *mem, T val, int order)
@@ -1131,7 +1148,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     case AtomicExpr::AO__atomic_fetch_or:
       LibCallName = "__atomic_fetch_or";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        MemTy, E->getExprLoc(), sizeChars);
+                        MemTy, E->getExprLoc(), TInfo.Width);
       break;
     // T __atomic_sub_fetch_N(T *mem, T val, int order)
     // T __atomic_fetch_sub_N(T *mem, T val, int order)
@@ -1143,7 +1160,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     case AtomicExpr::AO__atomic_fetch_sub:
       LibCallName = "__atomic_fetch_sub";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        LoweredMemTy, E->getExprLoc(), sizeChars);
+                        LoweredMemTy, E->getExprLoc(), TInfo.Width);
       break;
     // T __atomic_xor_fetch_N(T *mem, T val, int order)
     // T __atomic_fetch_xor_N(T *mem, T val, int order)
@@ -1155,7 +1172,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     case AtomicExpr::AO__atomic_fetch_xor:
       LibCallName = "__atomic_fetch_xor";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        MemTy, E->getExprLoc(), sizeChars);
+                        MemTy, E->getExprLoc(), TInfo.Width);
       break;
     case AtomicExpr::AO__atomic_min_fetch:
       PostOpMinMax = true;
@@ -1167,7 +1184,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
                         ? "__atomic_fetch_min"
                         : "__atomic_fetch_umin";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        LoweredMemTy, E->getExprLoc(), sizeChars);
+                        LoweredMemTy, E->getExprLoc(), TInfo.Width);
       break;
     case AtomicExpr::AO__atomic_max_fetch:
       PostOpMinMax = true;
@@ -1179,7 +1196,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
                         ? "__atomic_fetch_max"
                         : "__atomic_fetch_umax";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        LoweredMemTy, E->getExprLoc(), sizeChars);
+                        LoweredMemTy, E->getExprLoc(), TInfo.Width);
       break;
     // T __atomic_nand_fetch_N(T *mem, T val, int order)
     // T __atomic_fetch_nand_N(T *mem, T val, int order)
@@ -1189,7 +1206,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
     case AtomicExpr::AO__atomic_fetch_nand:
       LibCallName = "__atomic_fetch_nand";
       AddDirectArgument(*this, Args, UseOptimizedLibcall, Val1.getPointer(),
-                        MemTy, E->getExprLoc(), sizeChars);
+                        MemTy, E->getExprLoc(), TInfo.Width);
       break;
     }
 
@@ -1207,7 +1224,7 @@ RValue CodeGenFunction::EmitAtomicExpr(AtomicExpr *E) {
         // Value is returned directly.
         // The function returns an appropriately sized integer type.
         RetTy = getContext().getIntTypeForBitwidth(
-            getContext().toBits(sizeChars), /*Signed=*/false);
+            getContext().toBits(TInfo.Width), /*Signed=*/false);
       } else {
         // Value is returned through parameter before the order.
         RetTy = getContext().VoidTy;
@@ -1826,7 +1843,7 @@ void AtomicInfo::EmitAtomicUpdateOp(
   auto Failure = llvm::AtomicCmpXchgInst::getStrongestFailureOrdering(AO);
 
   // Do the atomic load.
-  auto *OldVal = EmitAtomicLoadOp(AO, IsVolatile);
+  auto *OldVal = EmitAtomicLoadOp(Failure, IsVolatile);
   // For non-simple lvalues perform compare-and-swap procedure.
   auto *ContBB = CGF.createBasicBlock("atomic_cont");
   auto *ExitBB = CGF.createBasicBlock("atomic_exit");
@@ -1908,7 +1925,7 @@ void AtomicInfo::EmitAtomicUpdateOp(llvm::AtomicOrdering AO, RValue UpdateRVal,
   auto Failure = llvm::AtomicCmpXchgInst::getStrongestFailureOrdering(AO);
 
   // Do the atomic load.
-  auto *OldVal = EmitAtomicLoadOp(AO, IsVolatile);
+  auto *OldVal = EmitAtomicLoadOp(Failure, IsVolatile);
   // For non-simple lvalues perform compare-and-swap procedure.
   auto *ContBB = CGF.createBasicBlock("atomic_cont");
   auto *ExitBB = CGF.createBasicBlock("atomic_exit");
@@ -2018,6 +2035,10 @@ void CodeGenFunction::EmitAtomicStore(RValue rvalue, LValue dest,
         intValue, addr.getElementType(), /*isSigned=*/false);
     llvm::StoreInst *store = Builder.CreateStore(intValue, addr);
 
+    if (AO == llvm::AtomicOrdering::Acquire)
+      AO = llvm::AtomicOrdering::Monotonic;
+    else if (AO == llvm::AtomicOrdering::AcquireRelease)
+      AO = llvm::AtomicOrdering::Release;
     // Initializations don't need to be atomic.
     if (!isInit)
       store->setAtomic(AO);

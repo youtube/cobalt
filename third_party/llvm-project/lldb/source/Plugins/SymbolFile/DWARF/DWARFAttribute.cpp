@@ -1,4 +1,4 @@
-//===-- DWARFAttribute.cpp --------------------------------------*- C++ -*-===//
+//===-- DWARFAttribute.cpp ------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -25,7 +25,7 @@ uint32_t DWARFAttributes::FindAttributeIndex(dw_attr_t attr) const {
   return UINT32_MAX;
 }
 
-void DWARFAttributes::Append(const DWARFUnit *cu, dw_offset_t attr_die_offset,
+void DWARFAttributes::Append(DWARFUnit *cu, dw_offset_t attr_die_offset,
                              dw_attr_t attr, dw_form_t form) {
   AttributeValue attr_value = {
       cu, attr_die_offset, {attr, form, DWARFFormValue::ValueType()}};

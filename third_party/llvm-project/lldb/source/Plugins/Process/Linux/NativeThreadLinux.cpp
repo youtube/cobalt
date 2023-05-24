@@ -1,4 +1,4 @@
-//===-- NativeThreadLinux.cpp --------------------------------- -*- C++ -*-===//
+//===-- NativeThreadLinux.cpp ---------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -99,7 +99,7 @@ std::string NativeThreadLinux::GetName() {
   auto BufferOrError = getProcFile(process.GetID(), GetID(), "comm");
   if (!BufferOrError)
     return "";
-  return BufferOrError.get()->getBuffer().rtrim('\n');
+  return std::string(BufferOrError.get()->getBuffer().rtrim('\n'));
 }
 
 lldb::StateType NativeThreadLinux::GetState() { return m_state; }
@@ -241,9 +241,6 @@ Status NativeThreadLinux::Resume(uint32_t signo) {
   if (signo != LLDB_INVALID_SIGNAL_NUMBER)
     data = signo;
 
-  // Before thread resumes, clear any cached register data structures
-  GetRegisterContext().InvalidateAllRegisters();
-
   return NativeProcessLinux::PtraceWrapper(PTRACE_CONT, GetID(), nullptr,
                                            reinterpret_cast<void *>(data));
 }
@@ -264,9 +261,6 @@ Status NativeThreadLinux::SingleStep(uint32_t signo) {
   intptr_t data = 0;
   if (signo != LLDB_INVALID_SIGNAL_NUMBER)
     data = signo;
-
-  // Before thread resumes, clear any cached register data structures
-  GetRegisterContext().InvalidateAllRegisters();
 
   // If hardware single-stepping is not supported, we just do a continue. The
   // breakpoint on the next instruction has been setup in
@@ -324,6 +318,9 @@ bool NativeThreadLinux::IsStopped(int *signo) {
 void NativeThreadLinux::SetStopped() {
   if (m_state == StateType::eStateStepping)
     m_step_workaround.reset();
+
+  // On every stop, clear any cached register data structures
+  GetRegisterContext().InvalidateAllRegisters();
 
   const StateType new_state = StateType::eStateStopped;
   MaybeLogStateChange(new_state);

@@ -13,27 +13,30 @@
 #include "TestTU.h"
 #include "index/Ref.h"
 #include "refactor/Rename.h"
+#include "support/TestTracer.h"
 #include "clang/Tooling/Core/Replacement.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include <algorithm>
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include <algorithm>
 
 namespace clang {
 namespace clangd {
 namespace {
 
+using testing::ElementsAre;
 using testing::Eq;
-using testing::Pair;
 using testing::IsEmpty;
+using testing::Pair;
+using testing::SizeIs;
 using testing::UnorderedElementsAre;
 using testing::UnorderedElementsAreArray;
 
 // Convert a Range to a Ref.
 Ref refWithRange(const clangd::Range &Range, const std::string &URI) {
   Ref Result;
-  Result.Kind = RefKind::Reference;
+  Result.Kind = RefKind::Reference | RefKind::Spelled;
   Result.Location.Start.setLine(Range.start.line);
   Result.Location.Start.setColumn(Range.start.character);
   Result.Location.End.setLine(Range.end.line);
@@ -49,7 +52,7 @@ std::unique_ptr<RefSlab> buildRefSlab(const Annotations &Code,
                                       llvm::StringRef Path) {
   RefSlab::Builder Builder;
   TestTU TU;
-  TU.HeaderCode = Code.code();
+  TU.HeaderCode = std::string(Code.code());
   auto Symbols = TU.headerSymbols();
   const auto &SymbolID = findSymbol(Symbols, SymbolName).ID;
   std::string PathURI = URI::create(Path).toString();
@@ -88,8 +91,8 @@ std::string expectedResult(Annotations Test, llvm::StringRef NewName) {
 }
 
 TEST(RenameTest, WithinFileRename) {
-  // rename is runnning on all "^" points, and "[[]]" ranges point to the
-  // identifier that is being renamed.
+  // For each "^" this test moves cursor to its location and applies renaming
+  // while checking that all identifiers in [[]] ranges are also renamed.
   llvm::StringRef Tests[] = {
       // Function.
       R"cpp(
@@ -116,15 +119,48 @@ TEST(RenameTest, WithinFileRename) {
         }
       )cpp",
 
-      // Rename class, including constructor/destructor.
+      // Class, its constructor and destructor.
       R"cpp(
         class [[F^oo]] {
           [[F^oo]]();
-          ~[[Foo]]();
-          void foo(int x);
+          ~[[F^oo]]();
+          [[F^oo]] *foo(int x);
+
+          [[F^oo]] *Ptr;
         };
-        [[Foo]]::[[Fo^o]]() {}
-        void [[Foo]]::foo(int x) {}
+        [[F^oo]]::[[Fo^o]]() {}
+        [[F^oo]]::~[[Fo^o]]() {}
+        [[F^oo]] *[[F^oo]]::foo(int x) { return Ptr; }
+      )cpp",
+
+      // Template class, its constructor and destructor.
+      R"cpp(
+        template <typename T>
+        class [[F^oo]] {
+          [[F^oo]]();
+          ~[[F^oo]]();
+          void f([[F^oo]] x);
+        };
+
+        template<typename T>
+        [[F^oo]]<T>::[[Fo^o]]() {}
+
+        template<typename T>
+        [[F^oo]]<T>::~[[Fo^o]]() {}
+      )cpp",
+
+      // Template class constructor.
+      R"cpp(
+        class [[F^oo]] {
+          template<typename T>
+          [[Fo^o]]();
+
+          template<typename T>
+          [[F^oo]](T t);
+        };
+
+        template<typename T>
+        [[F^oo]]::[[Fo^o]]() {}
       )cpp",
 
       // Class in template argument.
@@ -142,7 +178,15 @@ TEST(RenameTest, WithinFileRename) {
       // Forward class declaration without definition.
       R"cpp(
         class [[F^oo]];
-        [[Foo]] *f();
+        [[F^oo]] *f();
+      )cpp",
+
+      // Member function.
+      R"cpp(
+        struct X {
+          void [[F^oo]]() {}
+          void Baz() { [[F^oo]](); }
+        };
       )cpp",
 
       // Class methods overrides.
@@ -164,6 +208,30 @@ TEST(RenameTest, WithinFileRename) {
         }
       )cpp",
 
+      // Templated method instantiation.
+      R"cpp(
+        template<typename T>
+        class Foo {
+        public:
+          static T [[f^oo]]() {}
+        };
+
+        void bar() {
+          Foo<int>::[[f^oo]]();
+        }
+      )cpp",
+      R"cpp(
+        template<typename T>
+        class Foo {
+        public:
+          T [[f^oo]]() {}
+        };
+
+        void bar() {
+          Foo<int>().[[f^oo]]();
+        }
+      )cpp",
+
       // Template class (partial) specializations.
       R"cpp(
         template <typename T>
@@ -175,10 +243,17 @@ TEST(RenameTest, WithinFileRename) {
         class [[F^oo]]<T*> {};
 
         void test() {
-          [[Foo]]<int> x;
-          [[Foo]]<bool> y;
-          [[Foo]]<int*> z;
+          [[F^oo]]<int> x;
+          [[F^oo]]<bool> y;
+          [[F^oo]]<int*> z;
         }
+      )cpp",
+
+      // Incomplete class specializations
+      R"cpp(
+        template <typename T>
+        class [[Fo^o]] {};
+        void func([[F^oo]]<int>);
       )cpp",
 
       // Template class instantiations.
@@ -211,7 +286,7 @@ TEST(RenameTest, WithinFileRename) {
 
           [[F^oo]]<bool> b;
           b.member = false;
-          [[Foo]]<bool>::foo(false);
+          [[F^oo]]<bool>::foo(false);
         }
       )cpp",
 
@@ -230,6 +305,80 @@ TEST(RenameTest, WithinFileRename) {
         }
       )cpp",
 
+      // Templated class specialization.
+      R"cpp(
+        template<typename T, typename U=bool>
+        class [[Foo^]];
+
+        template<typename T, typename U>
+        class [[Foo^]] {};
+
+        template<typename T=int, typename U>
+        class [[Foo^]];
+      )cpp",
+      R"cpp(
+        template<typename T=float, typename U=int>
+        class [[Foo^]];
+
+        template<typename T, typename U>
+        class [[Foo^]] {};
+      )cpp",
+
+      // Function template specialization.
+      R"cpp(
+        template<typename T=int, typename U=bool>
+        U [[foo^]]();
+
+        template<typename T, typename U>
+        U [[foo^]]() {};
+      )cpp",
+      R"cpp(
+        template<typename T, typename U>
+        U [[foo^]]() {};
+
+        template<typename T=int, typename U=bool>
+        U [[foo^]]();
+      )cpp",
+      R"cpp(
+        template<typename T=int, typename U=bool>
+        U [[foo^]]();
+
+        template<typename T, typename U>
+        U [[foo^]]();
+      )cpp",
+      R"cpp(
+        template <typename T>
+        void [[f^oo]](T t);
+
+        template <>
+        void [[f^oo]](int a);
+
+        void test() {
+          [[f^oo]]<double>(1);
+        }
+      )cpp",
+
+      // Variable template.
+      R"cpp(
+        template <typename T, int U>
+        bool [[F^oo]] = true;
+
+        // Explicit template specialization
+        template <>
+        bool [[F^oo]]<int, 0> = false;
+
+        // Partial template specialization
+        template <typename T>
+        bool [[F^oo]]<T, 1> = false;
+
+        void foo() {
+          // Ref to the explicit template specialization
+          [[F^oo]]<int, 0>;
+          // Ref to the primary template.
+          [[F^oo]]<double, 2>;
+        }
+      )cpp",
+
       // Complicated class type.
       R"cpp(
          // Forward declaration.
@@ -240,9 +389,9 @@ TEST(RenameTest, WithinFileRename) {
 
         class [[F^oo]] : public Baz  {
         public:
-          [[Foo]](int value = 0) : x(value) {}
+          [[F^oo]](int value = 0) : x(value) {}
 
-          [[Foo]] &operator++(int);
+          [[F^oo]] &operator++(int);
 
           bool operator<([[Foo]] const &rhs);
           int getValue() const;
@@ -251,17 +400,80 @@ TEST(RenameTest, WithinFileRename) {
         };
 
         void func() {
-          [[Foo]] *Pointer = 0;
-          [[Foo]] Variable = [[Foo]](10);
-          for ([[Foo]] it; it < Variable; it++);
-          const [[Foo]] *C = new [[Foo]]();
-          const_cast<[[Foo]] *>(C)->getValue();
-          [[Foo]] foo;
+          [[F^oo]] *Pointer = 0;
+          [[F^oo]] Variable = [[Foo]](10);
+          for ([[F^oo]] it; it < Variable; it++);
+          const [[F^oo]] *C = new [[Foo]]();
+          const_cast<[[F^oo]] *>(C)->getValue();
+          [[F^oo]] foo;
           const Baz &BazReference = foo;
           const Baz *BazPointer = &foo;
           reinterpret_cast<const [[^Foo]] *>(BazPointer)->getValue();
           static_cast<const [[^Foo]] &>(BazReference).getValue();
           static_cast<const [[^Foo]] *>(BazPointer)->getValue();
+        }
+      )cpp",
+
+      // Static class member.
+      R"cpp(
+        struct Foo {
+          static Foo *[[Static^Member]];
+        };
+
+        Foo* Foo::[[Static^Member]] = nullptr;
+
+        void foo() {
+          Foo* Pointer = Foo::[[Static^Member]];
+        }
+      )cpp",
+
+      // Reference in lambda parameters.
+      R"cpp(
+        template <class T>
+        class function;
+        template <class R, class... ArgTypes>
+        class function<R(ArgTypes...)> {
+        public:
+          template <typename Functor>
+          function(Functor f) {}
+
+          function() {}
+
+          R operator()(ArgTypes...) const {}
+        };
+
+        namespace ns {
+        class [[Old]] {};
+        void f() {
+          function<void([[Old]])> func;
+        }
+        }  // namespace ns
+      )cpp",
+
+      // Destructor explicit call.
+      R"cpp(
+        class [[F^oo]] {
+        public:
+          ~[[^Foo]]();
+        };
+
+        [[Foo^]]::~[[^Foo]]() {}
+
+        int main() {
+          [[Fo^o]] f;
+          f.~/*something*/[[^Foo]]();
+          f.~[[^Foo]]();
+        }
+      )cpp",
+
+      // Derived destructor explicit call.
+      R"cpp(
+        class [[Bas^e]] {};
+        class Derived : public [[Bas^e]] {};
+
+        int main() {
+          [[Bas^e]] *foo = new Derived();
+          foo->[[^Base]]::~[[^Base]]();
         }
       )cpp",
 
@@ -302,11 +514,11 @@ TEST(RenameTest, WithinFileRename) {
         void boo(int);
 
         void qoo() {
-          [[foo]]();
-          boo([[foo]]());
+          [[f^oo]]();
+          boo([[f^oo]]());
           M1();
           boo(M1());
-          M2([[foo]]());
+          M2([[f^oo]]());
           M2(M1()); // foo is inside the nested macro body.
         }
       )cpp",
@@ -322,9 +534,97 @@ TEST(RenameTest, WithinFileRename) {
 
         int main() {
           Baz baz;
-          baz.[[Foo]] = 1;
-          MACRO(baz.[[Foo]]);
-          int y = baz.[[Foo]];
+          baz.[[F^oo]] = 1;
+          MACRO(baz.[[F^oo]]);
+          int y = baz.[[F^oo]];
+        }
+      )cpp",
+
+      // Fields in classes & partial and full specialiations.
+      R"cpp(
+        template<typename T>
+        struct Foo {
+          T [[Vari^able]] = 42;
+        };
+
+        void foo() {
+          Foo<int> f;
+          f.[[Varia^ble]] = 9000;
+        }
+      )cpp",
+      R"cpp(
+        template<typename T, typename U>
+        struct Foo {
+          T Variable[42];
+          U Another;
+
+          void bar() {}
+        };
+
+        template<typename T>
+        struct Foo<T, bool> {
+          T [[Var^iable]];
+          void bar() { ++[[Var^iable]]; }
+        };
+
+        void foo() {
+          Foo<unsigned, bool> f;
+          f.[[Var^iable]] = 9000;
+        }
+      )cpp",
+      R"cpp(
+        template<typename T, typename U>
+        struct Foo {
+          T Variable[42];
+          U Another;
+
+          void bar() {}
+        };
+
+        template<typename T>
+        struct Foo<T, bool> {
+          T Variable;
+          void bar() { ++Variable; }
+        };
+
+        template<>
+        struct Foo<unsigned, bool> {
+          unsigned [[Var^iable]];
+          void bar() { ++[[Var^iable]]; }
+        };
+
+        void foo() {
+          Foo<unsigned, bool> f;
+          f.[[Var^iable]] = 9000;
+        }
+      )cpp",
+      // Static fields.
+      R"cpp(
+        struct Foo {
+          static int [[Var^iable]];
+        };
+
+        int Foo::[[Var^iable]] = 42;
+
+        void foo() {
+          int LocalInt = Foo::[[Var^iable]];
+        }
+      )cpp",
+      R"cpp(
+        template<typename T>
+        struct Foo {
+          static T [[Var^iable]];
+        };
+
+        template <>
+        int Foo<int>::[[Var^iable]] = 42;
+
+        template <>
+        bool Foo<bool>::[[Var^iable]] = true;
+
+        void foo() {
+          int LocalInt = Foo<int>::[[Var^iable]];
+          bool LocalBool = Foo<bool>::[[Var^iable]];
         }
       )cpp",
 
@@ -332,26 +632,26 @@ TEST(RenameTest, WithinFileRename) {
       R"cpp(
         template <typename [[^T]]>
         class Foo {
-          [[T]] foo([[T]] arg, [[T]]& ref, [[^T]]* ptr) {
+          [[T^]] foo([[T^]] arg, [[T^]]& ref, [[^T]]* ptr) {
             [[T]] value;
             int number = 42;
-            value = ([[T]])number;
+            value = ([[T^]])number;
             value = static_cast<[[^T]]>(number);
             return value;
           }
-          static void foo([[T]] value) {}
-          [[T]] member;
+          static void foo([[T^]] value) {}
+          [[T^]] member;
         };
       )cpp",
 
       // Typedef.
       R"cpp(
-        namespace std {
+        namespace ns {
         class basic_string {};
         typedef basic_string [[s^tring]];
-        } // namespace std
+        } // namespace ns
 
-        std::[[s^tring]] foo();
+        ns::[[s^tring]] foo();
       )cpp",
 
       // Variable.
@@ -383,40 +683,163 @@ TEST(RenameTest, WithinFileRename) {
         namespace a { namespace b { void foo(); } }
         namespace [[^x]] = a::b;
         void bar() {
-          [[x]]::foo();
+          [[x^]]::foo();
         }
       )cpp",
 
-      // Scope enums.
+      // Enum.
+      R"cpp(
+        enum [[C^olor]] { Red, Green, Blue };
+        void foo() {
+          [[C^olor]] c;
+          c = [[C^olor]]::Blue;
+        }
+      )cpp",
+
+      // Scoped enum.
       R"cpp(
         enum class [[K^ind]] { ABC };
         void ff() {
           [[K^ind]] s;
-          s = [[Kind]]::ABC;
+          s = [[K^ind]]::ABC;
         }
       )cpp",
 
-      // template class in template argument list.
+      // Template class in template argument list.
       R"cpp(
         template<typename T>
         class [[Fo^o]] {};
         template <template<typename> class Z> struct Bar { };
-        template <> struct Bar<[[Foo]]> {};
+        template <> struct Bar<[[F^oo]]> {};
+      )cpp",
+
+      // Designated initializer.
+      R"cpp(
+        struct Bar {
+          int [[Fo^o]];
+        };
+        Bar bar { .[[^Foo]] = 42 };
+      )cpp",
+
+      // Nested designated initializer.
+      R"cpp(
+        struct Baz {
+          int Field;
+        };
+        struct Bar {
+          Baz [[Fo^o]];
+        };
+        // FIXME:    v selecting here results in renaming Field.
+        Bar bar { .[[Foo]].Field = 42 };
+      )cpp",
+      R"cpp(
+        struct Baz {
+          int [[Fiel^d]];
+        };
+        struct Bar {
+          Baz Foo;
+        };
+        Bar bar { .Foo.[[^Field]] = 42 };
+      )cpp",
+
+      // Templated alias.
+      R"cpp(
+        template <typename T>
+        class X { T t; };
+
+        template <typename T>
+        using [[Fo^o]] = X<T>;
+
+        void bar() {
+          [[Fo^o]]<int> Bar;
+        }
+      )cpp",
+
+      // Alias.
+      R"cpp(
+        class X {};
+        using [[F^oo]] = X;
+
+        void bar() {
+          [[Fo^o]] Bar;
+        }
+      )cpp",
+
+      // Alias within a namespace.
+      R"cpp(
+        namespace x { class X {}; }
+        namespace ns {
+        using [[Fo^o]] = x::X;
+        }
+
+        void bar() {
+          ns::[[Fo^o]] Bar;
+        }
+      )cpp",
+
+      // Alias within macros.
+      R"cpp(
+        namespace x { class Old {}; }
+        namespace ns {
+        #define REF(alias) alias alias_var;
+
+        #define ALIAS(old) \
+          using old##Alias = x::old; \
+          REF(old##Alias);
+
+        ALIAS(Old);
+
+        [[Old^Alias]] old_alias;
+        }
+
+        void bar() {
+          ns::[[Old^Alias]] Bar;
+        }
+      )cpp",
+
+      // User defined conversion.
+      R"cpp(
+        class [[F^oo]] {
+        public:
+          [[F^oo]]() {}
+        };
+
+        class Baz {
+        public:
+          operator [[F^oo]]() {
+            return [[F^oo]]();
+          }
+        };
+
+        int main() {
+          Baz boo;
+          [[F^oo]] foo = static_cast<[[F^oo]]>(boo);
+        }
+      )cpp",
+
+      // ObjC, should not crash.
+      R"cpp(
+        @interface ObjC {
+          char [[da^ta]];
+        } @end
       )cpp",
   };
+  llvm::StringRef NewName = "NewName";
   for (llvm::StringRef T : Tests) {
+    SCOPED_TRACE(T);
     Annotations Code(T);
     auto TU = TestTU::withCode(Code.code());
     TU.ExtraArgs.push_back("-fno-delayed-template-parsing");
+    TU.ExtraArgs.push_back("-xobjective-c++");
     auto AST = TU.build();
-    llvm::StringRef NewName = "abcde";
     for (const auto &RenamePos : Code.points()) {
       auto RenameResult =
           rename({RenamePos, NewName, AST, testPath(TU.Filename)});
       ASSERT_TRUE(bool(RenameResult)) << RenameResult.takeError();
-      ASSERT_EQ(1u, RenameResult->size());
-      EXPECT_EQ(applyEdits(std::move(*RenameResult)).front().second,
-                expectedResult(Code, NewName));
+      ASSERT_EQ(1u, RenameResult->GlobalChanges.size());
+      EXPECT_EQ(
+          applyEdits(std::move(RenameResult->GlobalChanges)).front().second,
+          expectedResult(Code, NewName));
     }
   }
 }
@@ -427,6 +850,7 @@ TEST(RenameTest, Renameable) {
     const char* ErrorMessage; // null if no error
     bool IsHeaderFile;
     const SymbolIndex *Index;
+    llvm::StringRef NewName = "DummyName";
   };
   TestTU OtherFile = TestTU::withCode("Outside s; auto ss = &foo;");
   const char *CommonHeader = R"cpp(
@@ -452,6 +876,11 @@ TEST(RenameTest, Renameable) {
         void [[On^lyInThisFile]]();
       )cpp",
        nullptr, HeaderFile, Index},
+
+      {R"cpp(
+        void ^f();
+      )cpp",
+       "keyword", HeaderFile, Index, "return"},
 
       {R"cpp(// disallow -- symbol is indexable and has other refs in index.
         void f() {
@@ -502,6 +931,28 @@ TEST(RenameTest, Renameable) {
          void fo^o() {})cpp",
        "used outside main file", !HeaderFile, nullptr /*no index*/},
 
+      {R"cpp(// disallow rename on excluded symbols (e.g. std symbols)
+         namespace std {
+         class str^ing {};
+         }
+       )cpp",
+       "not a supported kind", !HeaderFile, Index},
+      {R"cpp(// disallow rename on excluded symbols (e.g. std symbols)
+         namespace std {
+         inline namespace __u {
+         class str^ing {};
+         }
+         }
+       )cpp",
+       "not a supported kind", !HeaderFile, Index},
+
+      {R"cpp(// disallow rename on non-normal identifiers.
+         @interface Foo {}
+         -(int) fo^o:(int)x; // Token is an identifier, but declaration name isn't a simple identifier.
+         @end
+       )cpp",
+       "not a supported kind", HeaderFile, Index},
+
       {R"cpp(
          void foo(int);
          void foo(char);
@@ -520,9 +971,69 @@ TEST(RenameTest, Renameable) {
          class Foo {};
        )cpp",
        "no symbol", !HeaderFile, nullptr},
+
+      {R"cpp(
+        namespace {
+        int Conflict;
+        int Va^r;
+        }
+      )cpp",
+       "conflict", !HeaderFile, nullptr, "Conflict"},
+
+      {R"cpp(
+        int Conflict;
+        int Va^r;
+      )cpp",
+       "conflict", !HeaderFile, nullptr, "Conflict"},
+
+      {R"cpp(
+        class Foo {
+          int Conflict;
+          int Va^r;
+        };
+      )cpp",
+       "conflict", !HeaderFile, nullptr, "Conflict"},
+
+      {R"cpp(
+        enum E {
+          Conflict,
+          Fo^o,
+        };
+      )cpp",
+       "conflict", !HeaderFile, nullptr, "Conflict"},
+
+      {R"cpp(
+        int Conflict;
+        enum E { // transparent context.
+          F^oo,
+        };
+      )cpp",
+       "conflict", !HeaderFile, nullptr, "Conflict"},
+
+      {R"cpp(// FIXME: detecting local variables is not supported yet.
+        void func() {
+          int Conflict;
+          int [[V^ar]];
+        }
+      )cpp",
+       nullptr, !HeaderFile, nullptr, "Conflict"},
+
+      {R"cpp(// Trying to rename into the same name, SameName == SameName.
+        void func() {
+          int S^ameName;
+        }
+      )cpp",
+       "new name is the same", !HeaderFile, nullptr, "SameName"},
+      {R"cpp(// Ensure it doesn't associate base specifier with base name.
+        struct A {};
+        struct B : priv^ate A {};
+      )cpp",
+       "Cannot rename symbol: there is no symbol at the given location", false,
+       nullptr},
   };
 
   for (const auto& Case : Cases) {
+    SCOPED_TRACE(Case.Code);
     Annotations T(Case.Code);
     TestTU TU = TestTU::withCode(T.code());
     TU.HeaderCode = CommonHeader;
@@ -534,7 +1045,7 @@ TEST(RenameTest, Renameable) {
       TU.ExtraArgs.push_back("-xobjective-c++-header");
     }
     auto AST = TU.build();
-    llvm::StringRef NewName = "dummyNewName";
+    llvm::StringRef NewName = Case.NewName;
     auto Results =
         rename({T.point(), NewName, AST, testPath(TU.Filename), Case.Index});
     bool WantRename = true;
@@ -549,8 +1060,8 @@ TEST(RenameTest, Renameable) {
     } else {
       EXPECT_TRUE(bool(Results)) << "rename returned an error: "
                                  << llvm::toString(Results.takeError());
-      ASSERT_EQ(1u, Results->size());
-      EXPECT_EQ(applyEdits(std::move(*Results)).front().second,
+      ASSERT_EQ(1u, Results->GlobalChanges.size());
+      EXPECT_EQ(applyEdits(std::move(Results->GlobalChanges)).front().second,
                 expectedResult(T, NewName));
     }
   }
@@ -579,9 +1090,73 @@ TEST(RenameTest, MainFileReferencesOnly) {
   auto RenameResult =
       rename({Code.point(), NewName, AST, testPath(TU.Filename)});
   ASSERT_TRUE(bool(RenameResult)) << RenameResult.takeError() << Code.point();
-  ASSERT_EQ(1u, RenameResult->size());
-  EXPECT_EQ(applyEdits(std::move(*RenameResult)).front().second,
+  ASSERT_EQ(1u, RenameResult->GlobalChanges.size());
+  EXPECT_EQ(applyEdits(std::move(RenameResult->GlobalChanges)).front().second,
             expectedResult(Code, NewName));
+}
+
+TEST(RenameTest, ProtobufSymbolIsExcluded) {
+  Annotations Code("Prot^obuf buf;");
+  auto TU = TestTU::withCode(Code.code());
+  TU.HeaderCode =
+      R"cpp(// Generated by the protocol buffer compiler.  DO NOT EDIT!
+      class Protobuf {};
+      )cpp";
+  TU.HeaderFilename = "protobuf.pb.h";
+  auto AST = TU.build();
+  auto Results = rename({Code.point(), "newName", AST, testPath(TU.Filename)});
+  EXPECT_FALSE(Results);
+  EXPECT_THAT(llvm::toString(Results.takeError()),
+              testing::HasSubstr("not a supported kind"));
+}
+
+TEST(RenameTest, PrepareRename) {
+  Annotations FooH("void func();");
+  Annotations FooCC(R"cpp(
+    #include "foo.h"
+    void [[fu^nc]]() {}
+  )cpp");
+  std::string FooHPath = testPath("foo.h");
+  std::string FooCCPath = testPath("foo.cc");
+  MockFS FS;
+  FS.Files[FooHPath] = std::string(FooH.code());
+  FS.Files[FooCCPath] = std::string(FooCC.code());
+
+  auto ServerOpts = ClangdServer::optsForTest();
+  ServerOpts.BuildDynamicSymbolIndex = true;
+
+  trace::TestTracer Tracer;
+  MockCompilationDatabase CDB;
+  ClangdServer Server(CDB, FS, ServerOpts);
+  runAddDocument(Server, FooHPath, FooH.code());
+  runAddDocument(Server, FooCCPath, FooCC.code());
+
+  auto Results = runPrepareRename(Server, FooCCPath, FooCC.point(),
+                                  /*NewName=*/llvm::None, {/*CrossFile=*/true});
+  // Verify that for multi-file rename, we only return main-file occurrences.
+  ASSERT_TRUE(bool(Results)) << Results.takeError();
+  // We don't know the result is complete in prepareRename (passing a nullptr
+  // index internally), so GlobalChanges should be empty.
+  EXPECT_TRUE(Results->GlobalChanges.empty());
+  EXPECT_THAT(FooCC.ranges(),
+              testing::UnorderedElementsAreArray(Results->LocalChanges));
+
+  // Name validation.
+  Results =
+      runPrepareRename(Server, FooCCPath, FooCC.point(),
+                       /*NewName=*/std::string("int"), {/*CrossFile=*/true});
+  EXPECT_FALSE(Results);
+  EXPECT_THAT(llvm::toString(Results.takeError()),
+              testing::HasSubstr("keyword"));
+  EXPECT_THAT(Tracer.takeMetric("rename_name_invalid", "Keywords"),
+              ElementsAre(1));
+
+  // Single-file rename on global symbols, we should report an error.
+  Results = runPrepareRename(Server, FooCCPath, FooCC.point(),
+                             /*NewName=*/llvm::None, {/*CrossFile=*/false});
+  EXPECT_FALSE(Results);
+  EXPECT_THAT(llvm::toString(Results.takeError()),
+              testing::HasSubstr("is used outside"));
 }
 
 TEST(CrossFileRenameTests, DirtyBuffer) {
@@ -613,11 +1188,16 @@ TEST(CrossFileRenameTests, DirtyBuffer) {
   TestTU TU = TestTU::withCode(MainCode.code());
   auto AST = TU.build();
   llvm::StringRef NewName = "newName";
-  auto Results = rename({MainCode.point(), NewName, AST, MainFilePath,
-                         Index.get(), /*CrossFile=*/true, GetDirtyBuffer});
+  auto Results = rename({MainCode.point(),
+                         NewName,
+                         AST,
+                         MainFilePath,
+                         Index.get(),
+                         {/*CrossFile=*/true},
+                         GetDirtyBuffer});
   ASSERT_TRUE(bool(Results)) << Results.takeError();
   EXPECT_THAT(
-      applyEdits(std::move(*Results)),
+      applyEdits(std::move(Results->GlobalChanges)),
       UnorderedElementsAre(
           Pair(Eq(FooPath), Eq(expectedResult(FooDirtyBuffer, NewName))),
           Pair(Eq(MainFilePath), Eq(expectedResult(MainCode, NewName)))));
@@ -627,13 +1207,18 @@ TEST(CrossFileRenameTests, DirtyBuffer) {
   MainCode = Annotations("void [[Bar]]() { [[B^ar]](); }");
   TU = TestTU::withCode(MainCode.code());
   // Set a file "bar.cc" on disk.
-  TU.AdditionalFiles["bar.cc"] = BarCode.code();
+  TU.AdditionalFiles["bar.cc"] = std::string(BarCode.code());
   AST = TU.build();
-  Results = rename({MainCode.point(), NewName, AST, MainFilePath, Index.get(),
-                    /*CrossFile=*/true, GetDirtyBuffer});
+  Results = rename({MainCode.point(),
+                    NewName,
+                    AST,
+                    MainFilePath,
+                    Index.get(),
+                    {/*CrossFile=*/true},
+                    GetDirtyBuffer});
   ASSERT_TRUE(bool(Results)) << Results.takeError();
   EXPECT_THAT(
-      applyEdits(std::move(*Results)),
+      applyEdits(std::move(Results->GlobalChanges)),
       UnorderedElementsAre(
           Pair(Eq(BarPath), Eq(expectedResult(BarCode, NewName))),
           Pair(Eq(MainFilePath), Eq(expectedResult(MainCode, NewName)))));
@@ -658,10 +1243,21 @@ TEST(CrossFileRenameTests, DirtyBuffer) {
     void relations(const RelationsRequest &Req,
                    llvm::function_ref<void(const SymbolID &, const Symbol &)>
                        Callback) const override {}
+
+    llvm::unique_function<bool(llvm::StringRef) const>
+    indexedFiles() const override {
+      return [](llvm::StringRef) { return false; };
+    }
+
     size_t estimateMemoryUsage() const override { return 0; }
   } PIndex;
-  Results = rename({MainCode.point(), NewName, AST, MainFilePath, &PIndex,
-                    /*CrossFile=*/true, GetDirtyBuffer});
+  Results = rename({MainCode.point(),
+                    NewName,
+                    AST,
+                    MainFilePath,
+                    &PIndex,
+                    {/*CrossFile=*/true},
+                    GetDirtyBuffer});
   EXPECT_FALSE(Results);
   EXPECT_THAT(llvm::toString(Results.takeError()),
               testing::HasSubstr("too many occurrences"));
@@ -674,7 +1270,7 @@ TEST(CrossFileRenameTests, DeduplicateRefsFromIndex) {
   auto BarPath = testPath("bar.cc");
   auto TU = TestTU::withCode(MainCode.code());
   // Set a file "bar.cc" on disk.
-  TU.AdditionalFiles["bar.cc"] = BarCode.code();
+  TU.AdditionalFiles["bar.cc"] = std::string(BarCode.code());
   auto AST = TU.build();
   std::string BarPathURI = URI::create(BarPath).toString();
   Ref XRefInBarCC = refWithRange(BarCode.range(), BarPathURI);
@@ -701,15 +1297,25 @@ TEST(CrossFileRenameTests, DeduplicateRefsFromIndex) {
     void relations(const RelationsRequest &,
                    llvm::function_ref<void(const SymbolID &, const Symbol &)>)
         const override {}
+
+    llvm::unique_function<bool(llvm::StringRef) const>
+    indexedFiles() const override {
+      return [](llvm::StringRef) { return false; };
+    }
+
     size_t estimateMemoryUsage() const override { return 0; }
     Ref ReturnedRef;
   } DIndex(XRefInBarCC);
   llvm::StringRef NewName = "newName";
-  auto Results = rename({MainCode.point(), NewName, AST, MainFilePath, &DIndex,
-                         /*CrossFile=*/true});
+  auto Results = rename({MainCode.point(),
+                         NewName,
+                         AST,
+                         MainFilePath,
+                         &DIndex,
+                         {/*CrossFile=*/true}});
   ASSERT_TRUE(bool(Results)) << Results.takeError();
   EXPECT_THAT(
-      applyEdits(std::move(*Results)),
+      applyEdits(std::move(Results->GlobalChanges)),
       UnorderedElementsAre(
           Pair(Eq(BarPath), Eq(expectedResult(BarCode, NewName))),
           Pair(Eq(MainFilePath), Eq(expectedResult(MainCode, NewName)))));
@@ -718,11 +1324,7 @@ TEST(CrossFileRenameTests, DeduplicateRefsFromIndex) {
 TEST(CrossFileRenameTests, WithUpToDateIndex) {
   MockCompilationDatabase CDB;
   CDB.ExtraClangFlags = {"-xc++"};
-  class IgnoreDiagnostics : public DiagnosticsConsumer {
-    void onDiagnosticsReady(PathRef File,
-                            std::vector<Diag> Diagnostics) override {}
-  } DiagConsumer;
-  // rename is runnning on the "^" point in FooH, and "[[]]" ranges are the
+  // rename is runnning on all "^" points in FooH, and "[[]]" ranges are the
   // expected rename occurrences.
   struct Case {
     llvm::StringRef FooH;
@@ -747,6 +1349,23 @@ TEST(CrossFileRenameTests, WithUpToDateIndex) {
       )cpp",
       },
       {
+          // class templates.
+          R"cpp(
+        template <typename T>
+        class [[Foo]] {};
+        // FIXME: explicit template specializations are not supported due the
+        // clangd index limitations.
+        template <>
+        class Foo<double> {};
+      )cpp",
+          R"cpp(
+        #include "foo.h"
+        void func() {
+          [[F^oo]]<int> foo;
+        }
+      )cpp",
+      },
+      {
           // class methods.
           R"cpp(
         class Foo {
@@ -763,28 +1382,10 @@ TEST(CrossFileRenameTests, WithUpToDateIndex) {
       )cpp",
       },
       {
-          // Constructor.
+          // rename on constructor and destructor.
           R"cpp(
         class [[Foo]] {
           [[^Foo]]();
-          ~[[Foo]]();
-        };
-      )cpp",
-          R"cpp(
-        #include "foo.h"
-        [[Foo]]::[[Foo]]() {}
-        [[Foo]]::~[[Foo]]() {}
-
-        void func() {
-          [[Foo]] foo;
-        }
-      )cpp",
-      },
-      {
-          // Destructor (selecting before the identifier).
-          R"cpp(
-        class [[Foo]] {
-          [[Foo]]();
           ~[[Foo^]]();
         };
       )cpp",
@@ -837,7 +1438,7 @@ TEST(CrossFileRenameTests, WithUpToDateIndex) {
       {
           // variables.
           R"cpp(
-      static const int [[VA^R]] = 123;
+        static const int [[VA^R]] = 123;
       )cpp",
           R"cpp(
         #include "foo.h"
@@ -868,22 +1469,39 @@ TEST(CrossFileRenameTests, WithUpToDateIndex) {
         }
       )cpp",
       },
+      {
+          // Implicit references in macro expansions.
+          R"cpp(
+        class [[Fo^o]] {};
+        #define FooFoo Foo
+        #define FOO Foo
+      )cpp",
+          R"cpp(
+        #include "foo.h"
+        void bar() {
+          [[Foo]] x;
+          FOO y;
+          FooFoo z;
+        }
+      )cpp",
+      },
   };
 
-  for (const auto& T : Cases) {
+  trace::TestTracer Tracer;
+  for (const auto &T : Cases) {
+    SCOPED_TRACE(T.FooH);
     Annotations FooH(T.FooH);
     Annotations FooCC(T.FooCC);
     std::string FooHPath = testPath("foo.h");
     std::string FooCCPath = testPath("foo.cc");
 
-    MockFSProvider FS;
-    FS.Files[FooHPath] = FooH.code();
-    FS.Files[FooCCPath] = FooCC.code();
+    MockFS FS;
+    FS.Files[FooHPath] = std::string(FooH.code());
+    FS.Files[FooCCPath] = std::string(FooCC.code());
 
     auto ServerOpts = ClangdServer::optsForTest();
-    ServerOpts.CrossFileRename = true;
     ServerOpts.BuildDynamicSymbolIndex = true;
-    ClangdServer Server(CDB, FS, DiagConsumer, ServerOpts);
+    ClangdServer Server(CDB, FS, ServerOpts);
 
     // Add all files to clangd server to make sure the dynamic index has been
     // built.
@@ -891,12 +1509,17 @@ TEST(CrossFileRenameTests, WithUpToDateIndex) {
     runAddDocument(Server, FooCCPath, FooCC.code());
 
     llvm::StringRef NewName = "NewName";
-    auto FileEditsList =
-        llvm::cantFail(runRename(Server, FooHPath, FooH.point(), NewName));
-    EXPECT_THAT(applyEdits(std::move(FileEditsList)),
-                UnorderedElementsAre(
-                    Pair(Eq(FooHPath), Eq(expectedResult(T.FooH, NewName))),
-                    Pair(Eq(FooCCPath), Eq(expectedResult(T.FooCC, NewName)))));
+    for (const auto &RenamePos : FooH.points()) {
+      EXPECT_THAT(Tracer.takeMetric("rename_files"), SizeIs(0));
+      auto FileEditsList = llvm::cantFail(runRename(
+          Server, FooHPath, RenamePos, NewName, {/*CrossFile=*/true}));
+      EXPECT_THAT(Tracer.takeMetric("rename_files"), ElementsAre(2));
+      EXPECT_THAT(
+          applyEdits(std::move(FileEditsList.GlobalChanges)),
+          UnorderedElementsAre(
+              Pair(Eq(FooHPath), Eq(expectedResult(T.FooH, NewName))),
+              Pair(Eq(FooCCPath), Eq(expectedResult(T.FooCC, NewName)))));
+    }
   }
 }
 
@@ -911,7 +1534,7 @@ TEST(CrossFileRenameTests, CrossFileOnLocalSymbol) {
   auto Results = rename({Code.point(), NewName, AST, Path});
   ASSERT_TRUE(bool(Results)) << Results.takeError();
   EXPECT_THAT(
-      applyEdits(std::move(*Results)),
+      applyEdits(std::move(Results->GlobalChanges)),
       UnorderedElementsAre(Pair(Eq(Path), Eq(expectedResult(Code, NewName)))));
 }
 
@@ -994,6 +1617,7 @@ TEST(CrossFileRenameTests, adjustRenameRanges) {
   LangOptions LangOpts;
   LangOpts.CPlusPlus = true;
   for (const auto &T : Tests) {
+    SCOPED_TRACE(T.DraftCode);
     Annotations Draft(T.DraftCode);
     auto ActualRanges = adjustRenameRanges(
         Draft.code(), "x", Annotations(T.IndexedCode).ranges(), LangOpts);
@@ -1001,8 +1625,7 @@ TEST(CrossFileRenameTests, adjustRenameRanges) {
        EXPECT_THAT(Draft.ranges(), testing::IsEmpty());
     else
       EXPECT_THAT(Draft.ranges(),
-                  testing::UnorderedElementsAreArray(*ActualRanges))
-          << T.DraftCode;
+                  testing::UnorderedElementsAreArray(*ActualRanges));
   }
 }
 
@@ -1109,6 +1732,7 @@ TEST(RangePatchingHeuristic, GetMappedRanges) {
     }
   };
   for (const auto &T : Tests) {
+    SCOPED_TRACE(T.IndexedCode);
     auto Lexed = Annotations(T.LexedCode);
     auto LexedRanges = Lexed.ranges();
     std::vector<Range> ExpectedMatches;
@@ -1125,8 +1749,7 @@ TEST(RangePatchingHeuristic, GetMappedRanges) {
     if (!Mapped)
       EXPECT_THAT(ExpectedMatches, IsEmpty());
     else
-      EXPECT_THAT(ExpectedMatches, UnorderedElementsAreArray(*Mapped))
-          << T.IndexedCode;
+      EXPECT_THAT(ExpectedMatches, UnorderedElementsAreArray(*Mapped));
   }
 }
 
@@ -1229,13 +1852,14 @@ TEST(CrossFileRenameTests, adjustmentCost) {
     },
   };
   for (const auto &T : Tests) {
+    SCOPED_TRACE(T.RangeCode);
     Annotations C(T.RangeCode);
     std::vector<size_t> MappedIndex;
     for (size_t I = 0; I < C.ranges("lex").size(); ++I)
       MappedIndex.push_back(I);
     EXPECT_EQ(renameRangeAdjustmentCost(C.ranges("idx"), C.ranges("lex"),
                                         MappedIndex),
-              T.ExpectedCost) << T.RangeCode;
+              T.ExpectedCost);
   }
 }
 

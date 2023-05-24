@@ -47,13 +47,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "AST.h"
-#include "Logger.h"
+#include "FindTarget.h"
 #include "ParsedAST.h"
 #include "Selection.h"
 #include "SourceCode.h"
 #include "refactor/Tweak.h"
+#include "support/Logger.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Stmt.h"
@@ -65,6 +67,8 @@
 #include "clang/Tooling/Refactoring/Extract/SourceExtraction.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
@@ -119,7 +123,7 @@ const Node *getParentOfRootStmts(const Node *CommonAnc) {
   const Node *Parent = nullptr;
   switch (CommonAnc->Selected) {
   case SelectionTree::Selection::Unselected:
-    // Typicaly a block, with the { and } unselected, could also be ForStmt etc
+    // Typically a block, with the { and } unselected, could also be ForStmt etc
     // Ensure all Children are RootStmts.
     Parent = CommonAnc;
     break;
@@ -152,6 +156,9 @@ struct ExtractionZone {
   const FunctionDecl *EnclosingFunction = nullptr;
   // The half-open file range of the enclosing function.
   SourceRange EnclosingFuncRange;
+  // Set of statements that form the ExtractionZone.
+  llvm::DenseSet<const Stmt *> RootStmts;
+
   SourceLocation getInsertionPoint() const {
     return EnclosingFuncRange.getBegin();
   }
@@ -159,10 +166,45 @@ struct ExtractionZone {
   // The last root statement is important to decide where we need to insert a
   // semicolon after the extraction.
   const Node *getLastRootStmt() const { return Parent->Children.back(); }
-  void generateRootStmts();
 
-private:
-  llvm::DenseSet<const Stmt *> RootStmts;
+  // Checks if declarations inside extraction zone are accessed afterwards.
+  //
+  // This performs a partial AST traversal proportional to the size of the
+  // enclosing function, so it is possibly expensive.
+  bool requiresHoisting(const SourceManager &SM) const {
+    // First find all the declarations that happened inside extraction zone.
+    llvm::SmallSet<const Decl *, 1> DeclsInExtZone;
+    for (auto *RootStmt : RootStmts) {
+      findExplicitReferences(RootStmt,
+                             [&DeclsInExtZone](const ReferenceLoc &Loc) {
+                               if (!Loc.IsDecl)
+                                 return;
+                               DeclsInExtZone.insert(Loc.Targets.front());
+                             });
+    }
+    // Early exit without performing expensive traversal below.
+    if (DeclsInExtZone.empty())
+      return false;
+    // Then make sure they are not used outside the zone.
+    for (const auto *S : EnclosingFunction->getBody()->children()) {
+      if (SM.isBeforeInTranslationUnit(S->getSourceRange().getEnd(),
+                                       ZoneRange.getEnd()))
+        continue;
+      bool HasPostUse = false;
+      findExplicitReferences(S, [&](const ReferenceLoc &Loc) {
+        if (HasPostUse ||
+            SM.isBeforeInTranslationUnit(Loc.NameLoc, ZoneRange.getEnd()))
+          return;
+        HasPostUse =
+            llvm::any_of(Loc.Targets, [&DeclsInExtZone](const Decl *Target) {
+              return DeclsInExtZone.contains(Target);
+            });
+      });
+      if (HasPostUse)
+        return true;
+    }
+    return false;
+  }
 };
 
 // Whether the code in the extraction zone is guaranteed to return, assuming
@@ -183,12 +225,6 @@ bool alwaysReturns(const ExtractionZone &EZ) {
 
 bool ExtractionZone::isRootStmt(const Stmt *S) const {
   return RootStmts.find(S) != RootStmts.end();
-}
-
-// Generate RootStmts set
-void ExtractionZone::generateRootStmts() {
-  for (const Node *Child : Parent->Children)
-    RootStmts.insert(Child->ASTNode.get<Stmt>());
 }
 
 // Finds the function in which the zone lies.
@@ -281,7 +317,10 @@ llvm::Optional<ExtractionZone> findExtractionZone(const Node *CommonAnc,
     ExtZone.ZoneRange = *ZoneRange;
   if (ExtZone.EnclosingFuncRange.isInvalid() || ExtZone.ZoneRange.isInvalid())
     return llvm::None;
-  ExtZone.generateRootStmts();
+
+  for (const Node *Child : ExtZone.Parent->Children)
+    ExtZone.RootStmts.insert(Child->ASTNode.get<Stmt>());
+
   return ExtZone;
 }
 
@@ -347,16 +386,16 @@ std::string NewFunction::renderParametersForCall() const {
 }
 
 std::string NewFunction::renderCall() const {
-  return llvm::formatv(
-      "{0}{1}({2}){3}", CallerReturnsValue ? "return " : "", Name,
-      renderParametersForCall(),
-      (SemicolonPolicy.isNeededInOriginalFunction() ? ";" : ""));
+  return std::string(
+      llvm::formatv("{0}{1}({2}){3}", CallerReturnsValue ? "return " : "", Name,
+                    renderParametersForCall(),
+                    (SemicolonPolicy.isNeededInOriginalFunction() ? ";" : "")));
 }
 
 std::string NewFunction::renderDefinition(const SourceManager &SM) const {
-  return llvm::formatv("{0} {1}({2}) {\n{3}\n}\n",
-                       printType(ReturnType, *EnclosingFuncContext), Name,
-                       renderParametersForDefinition(), getFuncBody(SM));
+  return std::string(llvm::formatv(
+      "{0} {1}({2}) {\n{3}\n}\n", printType(ReturnType, *EnclosingFuncContext),
+      Name, renderParametersForDefinition(), getFuncBody(SM)));
 }
 
 std::string NewFunction::getFuncBody(const SourceManager &SM) const {
@@ -480,24 +519,13 @@ CapturedZoneInfo captureZoneInfo(const ExtractionZone &ExtZone) {
         CurNumberOfSwitch += Increment;
     }
 
-    // Decrement CurNumberOf{NestedLoops,Switch} if statement is {Loop,Switch}
-    // and inside Extraction Zone.
-    void decrementLoopSwitchCounters(Stmt *S) {
-      if (CurrentLocation != ZoneRelative::Inside)
-        return;
-      if (isLoop(S))
-        CurNumberOfNestedLoops--;
-      else if (isa<SwitchStmt>(S))
-        CurNumberOfSwitch--;
-    }
-
     bool VisitDecl(Decl *D) {
       Info.createDeclInfo(D, CurrentLocation);
       return true;
     }
 
     bool VisitDeclRefExpr(DeclRefExpr *DRE) {
-      // Find the corresponding Decl and mark it's occurence.
+      // Find the corresponding Decl and mark it's occurrence.
       const Decl *D = DRE->getDecl();
       auto *DeclInfo = Info.getDeclInfoFor(D);
       // If no Decl was found, the Decl must be outside the enclosingFunc.
@@ -578,8 +606,9 @@ bool createParameters(NewFunction &ExtractedFunc,
     // pointers, etc by reference.
     bool IsPassedByReference = true;
     // We use the index of declaration as the ordering priority for parameters.
-    ExtractedFunc.Parameters.push_back(
-        {VD->getName(), TypeInfo, IsPassedByReference, DeclInfo.DeclIndex});
+    ExtractedFunc.Parameters.push_back({std::string(VD->getName()), TypeInfo,
+                                        IsPassedByReference,
+                                        DeclInfo.DeclIndex});
   }
   llvm::sort(ExtractedFunc.Parameters);
   return true;
@@ -635,9 +664,8 @@ llvm::Expected<NewFunction> getExtractedFunction(ExtractionZone &ExtZone,
   CapturedZoneInfo CapturedInfo = captureZoneInfo(ExtZone);
   // Bail out if any break of continue exists
   if (CapturedInfo.BrokenControlFlow)
-    return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                   +"Cannot extract break/continue without "
-                                    "corresponding loop/switch statement.");
+    return error("Cannot extract break/continue without corresponding "
+                 "loop/switch statement.");
   NewFunction ExtractedFunc(getSemicolonPolicy(ExtZone, SM, LangOpts));
   ExtractedFunc.BodyRange = ExtZone.ZoneRange;
   ExtractedFunc.InsertionPoint = ExtZone.getInsertionPoint();
@@ -647,8 +675,7 @@ llvm::Expected<NewFunction> getExtractedFunction(ExtractionZone &ExtZone,
   if (!createParameters(ExtractedFunc, CapturedInfo) ||
       !generateReturnProperties(ExtractedFunc, *ExtZone.EnclosingFunction,
                                 CapturedInfo))
-    return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                   +"Too complex to extract.");
+    return error("Too complex to extract.");
   return ExtractedFunc;
 }
 
@@ -658,7 +685,9 @@ public:
   bool prepare(const Selection &Inputs) override;
   Expected<Effect> apply(const Selection &Inputs) override;
   std::string title() const override { return "Extract to function"; }
-  Intent intent() const override { return Refactor; }
+  llvm::StringLiteral kind() const override {
+    return CodeAction::REFACTOR_KIND;
+  }
 
 private:
   ExtractionZone ExtZone;
@@ -679,15 +708,44 @@ tooling::Replacement createFunctionDefinition(const NewFunction &ExtractedFunc,
   return tooling::Replacement(SM, ExtractedFunc.InsertionPoint, 0, FunctionDef);
 }
 
+// Returns true if ExtZone contains any ReturnStmts.
+bool hasReturnStmt(const ExtractionZone &ExtZone) {
+  class ReturnStmtVisitor
+      : public clang::RecursiveASTVisitor<ReturnStmtVisitor> {
+  public:
+    bool VisitReturnStmt(ReturnStmt *Return) {
+      Found = true;
+      return false; // We found the answer, abort the scan.
+    }
+    bool Found = false;
+  };
+
+  ReturnStmtVisitor V;
+  for (const Stmt *RootStmt : ExtZone.RootStmts) {
+    V.TraverseStmt(const_cast<Stmt *>(RootStmt));
+    if (V.Found)
+      break;
+  }
+  return V.Found;
+}
+
 bool ExtractFunction::prepare(const Selection &Inputs) {
+  const LangOptions &LangOpts = Inputs.AST->getLangOpts();
+  if (!LangOpts.CPlusPlus)
+    return false;
   const Node *CommonAnc = Inputs.ASTSelection.commonAncestor();
   const SourceManager &SM = Inputs.AST->getSourceManager();
-  const LangOptions &LangOpts = Inputs.AST->getLangOpts();
-  if (auto MaybeExtZone = findExtractionZone(CommonAnc, SM, LangOpts)) {
-    ExtZone = std::move(*MaybeExtZone);
-    return true;
-  }
-  return false;
+  auto MaybeExtZone = findExtractionZone(CommonAnc, SM, LangOpts);
+  if (!MaybeExtZone ||
+      (hasReturnStmt(*MaybeExtZone) && !alwaysReturns(*MaybeExtZone)))
+    return false;
+
+  // FIXME: Get rid of this check once we support hoisting.
+  if (MaybeExtZone->requiresHoisting(SM))
+    return false;
+
+  ExtZone = std::move(*MaybeExtZone);
+  return true;
 }
 
 Expected<Tweak::Effect> ExtractFunction::apply(const Selection &Inputs) {

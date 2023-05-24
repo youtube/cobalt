@@ -26,7 +26,7 @@ namespace {
 class MachOLinkGraphBuilder_x86_64 : public MachOLinkGraphBuilder {
 public:
   MachOLinkGraphBuilder_x86_64(const object::MachOObjectFile &Obj)
-      : MachOLinkGraphBuilder(Obj) {}
+      : MachOLinkGraphBuilder(Obj, Triple("x86_64-apple-darwin")) {}
 
 private:
   static Expected<MachOX86RelocationKind>
@@ -95,15 +95,6 @@ private:
         ", length=" + formatv("{0:d}", RI.r_length));
   }
 
-  MachO::relocation_info
-  getRelocationInfo(const object::relocation_iterator RelItr) {
-    MachO::any_relocation_info ARI =
-        getObject().getRelocation(RelItr->getRawDataRefImpl());
-    MachO::relocation_info RI;
-    memcpy(&RI, &ARI, sizeof(MachO::relocation_info));
-    return RI;
-  }
-
   using PairRelocInfo = std::tuple<MachOX86RelocationKind, Symbol *, uint64_t>;
 
   // Parses paired SUBTRACTOR/UNSIGNED relocations and, on success,
@@ -159,10 +150,11 @@ private:
       else
         return ToSymbolOrErr.takeError();
     } else {
-      if (auto ToSymbolOrErr = findSymbolByAddress(FixupValue))
-        ToSymbol = &*ToSymbolOrErr;
-      else
-        return ToSymbolOrErr.takeError();
+      auto ToSymbolSec = findSectionByIndex(UnsignedRI.r_symbolnum - 1);
+      if (!ToSymbolSec)
+        return ToSymbolSec.takeError();
+      ToSymbol = getSymbolByAddress(ToSymbolSec->Address);
+      assert(ToSymbol && "No symbol for section");
       FixupValue -= ToSymbol->getAddress();
     }
 
@@ -192,10 +184,13 @@ private:
     using namespace support;
     auto &Obj = getObject();
 
+    LLVM_DEBUG(dbgs() << "Processing relocations:\n");
+
     for (auto &S : Obj.sections()) {
 
       JITTargetAddress SectionAddress = S.getAddress();
 
+      // Skip relocations virtual sections.
       if (S.isVirtual()) {
         if (S.relocation_begin() != S.relocation_end())
           return make_error<JITLinkError>("Virtual section contains "
@@ -203,6 +198,21 @@ private:
         continue;
       }
 
+      // Skip relocations for debug symbols.
+      {
+        auto &NSec =
+            getSectionByIndex(Obj.getSectionIndex(S.getRawDataRefImpl()));
+        if (!NSec.GraphSection) {
+          LLVM_DEBUG({
+            dbgs() << "  Skipping relocations for MachO section "
+                   << NSec.SegName << "/" << NSec.SectName
+                   << " which has no associated graph section\n";
+          });
+          continue;
+        }
+      }
+
+      // Add relocations for section.
       for (auto RelItr = S.relocation_begin(), RelEnd = S.relocation_end();
            RelItr != RelEnd; ++RelItr) {
 
@@ -217,8 +227,10 @@ private:
         JITTargetAddress FixupAddress = SectionAddress + (uint32_t)RI.r_address;
 
         LLVM_DEBUG({
-          dbgs() << "Processing relocation at "
-                 << format("0x%016" PRIx64, FixupAddress) << "\n";
+          auto &NSec =
+              getSectionByIndex(Obj.getSectionIndex(S.getRawDataRefImpl()));
+          dbgs() << "  " << NSec.SectName << " + "
+                 << formatv("{0:x8}", RI.r_address) << ":\n";
         });
 
         // Find the block that the fixup points to.
@@ -327,12 +339,16 @@ private:
           assert(TargetSymbol && "No target symbol from parsePairRelocation?");
           break;
         }
+        case PCRel32TLV:
+          return make_error<JITLinkError>(
+              "MachO TLV relocations not yet supported");
         default:
           llvm_unreachable("Special relocation kind should not appear in "
                            "mach-o file");
         }
 
         LLVM_DEBUG({
+          dbgs() << "    ";
           Edge GE(*Kind, FixupAddress - BlockToFix->getAddress(), *TargetSymbol,
                   Addend);
           printEdge(dbgs(), *BlockToFix, GE,
@@ -350,6 +366,9 @@ private:
 class MachO_x86_64_GOTAndStubsBuilder
     : public BasicGOTAndStubsBuilder<MachO_x86_64_GOTAndStubsBuilder> {
 public:
+  static const uint8_t NullGOTEntryContent[8];
+  static const uint8_t StubContent[6];
+
   MachO_x86_64_GOTAndStubsBuilder(LinkGraph &G)
       : BasicGOTAndStubsBuilder<MachO_x86_64_GOTAndStubsBuilder>(G) {}
 
@@ -367,7 +386,13 @@ public:
   void fixGOTEdge(Edge &E, Symbol &GOTEntry) {
     assert((E.getKind() == PCRel32GOT || E.getKind() == PCRel32GOTLoad) &&
            "Not a GOT edge?");
-    E.setKind(PCRel32);
+    // If this is a PCRel32GOT then change it to an ordinary PCRel32. If it is
+    // a PCRel32GOTLoad then leave it as-is for now. We will use the kind to
+    // check for GOT optimization opportunities in the
+    // optimizeMachO_x86_64_GOTAndStubs pass below.
+    if (E.getKind() == PCRel32GOT)
+      E.setKind(PCRel32);
+
     E.setTarget(GOTEntry);
     // Leave the edge addend as-is.
   }
@@ -388,6 +413,11 @@ public:
   void fixExternalBranchEdge(Edge &E, Symbol &Stub) {
     assert(E.getKind() == Branch32 && "Not a Branch32 edge?");
     assert(E.getAddend() == 0 && "Branch32 edge has non-zero addend?");
+
+    // Set the edge kind to Branch32ToStub. We will use this to check for stub
+    // optimization opportunities in the optimizeMachO_x86_64_GOTAndStubs pass
+    // below.
+    E.setKind(Branch32ToStub);
     E.setTarget(Stub);
   }
 
@@ -417,8 +447,6 @@ private:
                      sizeof(StubContent));
   }
 
-  static const uint8_t NullGOTEntryContent[8];
-  static const uint8_t StubContent[6];
   Section *GOTSection = nullptr;
   Section *StubsSection = nullptr;
 };
@@ -429,6 +457,89 @@ const uint8_t MachO_x86_64_GOTAndStubsBuilder::StubContent[6] = {
     0xFF, 0x25, 0x00, 0x00, 0x00, 0x00};
 } // namespace
 
+static Error optimizeMachO_x86_64_GOTAndStubs(LinkGraph &G) {
+  LLVM_DEBUG(dbgs() << "Optimizing GOT entries and stubs:\n");
+
+  for (auto *B : G.blocks())
+    for (auto &E : B->edges())
+      if (E.getKind() == PCRel32GOTLoad) {
+        assert(E.getOffset() >= 3 && "GOT edge occurs too early in block");
+
+        // Switch the edge kind to PCRel32: Whether we change the edge target
+        // or not this will be the desired kind.
+        E.setKind(PCRel32);
+
+        // Optimize GOT references.
+        auto &GOTBlock = E.getTarget().getBlock();
+        assert(GOTBlock.getSize() == G.getPointerSize() &&
+               "GOT entry block should be pointer sized");
+        assert(GOTBlock.edges_size() == 1 &&
+               "GOT entry should only have one outgoing edge");
+
+        auto &GOTTarget = GOTBlock.edges().begin()->getTarget();
+        JITTargetAddress EdgeAddr = B->getAddress() + E.getOffset();
+        JITTargetAddress TargetAddr = GOTTarget.getAddress();
+
+        // Check that this is a recognized MOV instruction.
+        // FIXME: Can we assume this?
+        constexpr uint8_t MOVQRIPRel[] = {0x48, 0x8b};
+        if (strncmp(B->getContent().data() + E.getOffset() - 3,
+                    reinterpret_cast<const char *>(MOVQRIPRel), 2) != 0)
+          continue;
+
+        int64_t Displacement = TargetAddr - EdgeAddr + 4;
+        if (Displacement >= std::numeric_limits<int32_t>::min() &&
+            Displacement <= std::numeric_limits<int32_t>::max()) {
+          E.setTarget(GOTTarget);
+          auto *BlockData = reinterpret_cast<uint8_t *>(
+              const_cast<char *>(B->getContent().data()));
+          BlockData[E.getOffset() - 2] = 0x8d;
+          LLVM_DEBUG({
+            dbgs() << "  Replaced GOT load wih LEA:\n    ";
+            printEdge(dbgs(), *B, E,
+                      getMachOX86RelocationKindName(E.getKind()));
+            dbgs() << "\n";
+          });
+        }
+      } else if (E.getKind() == Branch32ToStub) {
+
+        // Switch the edge kind to PCRel32: Whether we change the edge target
+        // or not this will be the desired kind.
+        E.setKind(Branch32);
+
+        auto &StubBlock = E.getTarget().getBlock();
+        assert(StubBlock.getSize() ==
+                   sizeof(MachO_x86_64_GOTAndStubsBuilder::StubContent) &&
+               "Stub block should be stub sized");
+        assert(StubBlock.edges_size() == 1 &&
+               "Stub block should only have one outgoing edge");
+
+        auto &GOTBlock = StubBlock.edges().begin()->getTarget().getBlock();
+        assert(GOTBlock.getSize() == G.getPointerSize() &&
+               "GOT block should be pointer sized");
+        assert(GOTBlock.edges_size() == 1 &&
+               "GOT block should only have one outgoing edge");
+
+        auto &GOTTarget = GOTBlock.edges().begin()->getTarget();
+        JITTargetAddress EdgeAddr = B->getAddress() + E.getOffset();
+        JITTargetAddress TargetAddr = GOTTarget.getAddress();
+
+        int64_t Displacement = TargetAddr - EdgeAddr + 4;
+        if (Displacement >= std::numeric_limits<int32_t>::min() &&
+            Displacement <= std::numeric_limits<int32_t>::max()) {
+          E.setTarget(GOTTarget);
+          LLVM_DEBUG({
+            dbgs() << "  Replaced stub branch with direct branch:\n    ";
+            printEdge(dbgs(), *B, E,
+                      getMachOX86RelocationKindName(E.getKind()));
+            dbgs() << "\n";
+          });
+        }
+      }
+
+  return Error::success();
+}
+
 namespace llvm {
 namespace jitlink {
 
@@ -437,20 +548,13 @@ class MachOJITLinker_x86_64 : public JITLinker<MachOJITLinker_x86_64> {
 
 public:
   MachOJITLinker_x86_64(std::unique_ptr<JITLinkContext> Ctx,
+                        std::unique_ptr<LinkGraph> G,
                         PassConfiguration PassConfig)
-      : JITLinker(std::move(Ctx), std::move(PassConfig)) {}
+      : JITLinker(std::move(Ctx), std::move(G), std::move(PassConfig)) {}
 
 private:
   StringRef getEdgeKindName(Edge::Kind R) const override {
     return getMachOX86RelocationKindName(R);
-  }
-
-  Expected<std::unique_ptr<LinkGraph>>
-  buildGraph(MemoryBufferRef ObjBuffer) override {
-    auto MachOObj = object::ObjectFile::createMachOObjectFile(ObjBuffer);
-    if (!MachOObj)
-      return MachOObj.takeError();
-    return MachOLinkGraphBuilder_x86_64(**MachOObj).buildGraph();
   }
 
   static Error targetOutOfRangeError(const Block &B, const Edge &E) {
@@ -549,18 +653,27 @@ private:
   uint64_t NullValue = 0;
 };
 
-void jitLink_MachO_x86_64(std::unique_ptr<JITLinkContext> Ctx) {
-  PassConfiguration Config;
-  Triple TT("x86_64-apple-macosx");
+Expected<std::unique_ptr<LinkGraph>>
+createLinkGraphFromMachOObject_x86_64(MemoryBufferRef ObjectBuffer) {
+  auto MachOObj = object::ObjectFile::createMachOObjectFile(ObjectBuffer);
+  if (!MachOObj)
+    return MachOObj.takeError();
+  return MachOLinkGraphBuilder_x86_64(**MachOObj).buildGraph();
+}
 
-  if (Ctx->shouldAddDefaultTargetPasses(TT)) {
+void link_MachO_x86_64(std::unique_ptr<LinkGraph> G,
+                       std::unique_ptr<JITLinkContext> Ctx) {
+
+  PassConfiguration Config;
+
+  if (Ctx->shouldAddDefaultTargetPasses(G->getTargetTriple())) {
     // Add eh-frame passses.
     Config.PrePrunePasses.push_back(EHFrameSplitter("__eh_frame"));
-    Config.PrePrunePasses.push_back(
-        EHFrameEdgeFixer("__eh_frame", NegDelta32, Delta64, Delta64));
+    Config.PrePrunePasses.push_back(EHFrameEdgeFixer(
+        "__eh_frame", G->getPointerSize(), Delta64, Delta32, NegDelta32));
 
     // Add a mark-live pass.
-    if (auto MarkLive = Ctx->getMarkLivePass(TT))
+    if (auto MarkLive = Ctx->getMarkLivePass(G->getTargetTriple()))
       Config.PrePrunePasses.push_back(std::move(MarkLive));
     else
       Config.PrePrunePasses.push_back(markAllSymbolsLive);
@@ -570,19 +683,24 @@ void jitLink_MachO_x86_64(std::unique_ptr<JITLinkContext> Ctx) {
       MachO_x86_64_GOTAndStubsBuilder(G).run();
       return Error::success();
     });
+
+    // Add GOT/Stubs optimizer pass.
+    Config.PreFixupPasses.push_back(optimizeMachO_x86_64_GOTAndStubs);
   }
 
-  if (auto Err = Ctx->modifyPassConfig(TT, Config))
+  if (auto Err = Ctx->modifyPassConfig(G->getTargetTriple(), Config))
     return Ctx->notifyFailed(std::move(Err));
 
   // Construct a JITLinker and run the link function.
-  MachOJITLinker_x86_64::link(std::move(Ctx), std::move(Config));
+  MachOJITLinker_x86_64::link(std::move(Ctx), std::move(G), std::move(Config));
 }
 
 StringRef getMachOX86RelocationKindName(Edge::Kind R) {
   switch (R) {
   case Branch32:
     return "Branch32";
+  case Branch32ToStub:
+    return "Branch32ToStub";
   case Pointer32:
     return "Pointer32";
   case Pointer64:

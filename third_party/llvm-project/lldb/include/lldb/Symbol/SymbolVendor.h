@@ -6,14 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_SymbolVendor_h_
-#define liblldb_SymbolVendor_h_
+#ifndef LLDB_SYMBOL_SYMBOLVENDOR_H
+#define LLDB_SYMBOL_SYMBOLVENDOR_H
 
 #include <vector>
 
 #include "lldb/Core/ModuleChild.h"
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Symbol/SourceModule.h"
+#include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/TypeMap.h"
 #include "lldb/lldb-private.h"
 #include "llvm/ADT/DenseSet.h"
@@ -35,8 +36,6 @@ public:
   // Constructors and Destructors
   SymbolVendor(const lldb::ModuleSP &module_sp);
 
-  ~SymbolVendor() override;
-
   void AddSymbolFileRepresentation(const lldb::ObjectFileSP &objfile_sp);
 
   SymbolFile *GetSymbolFile() { return m_sym_file_up.get(); }
@@ -49,12 +48,8 @@ public:
 protected:
   std::unique_ptr<SymbolFile> m_sym_file_up; // A single symbol file. Subclasses
                                              // can add more of these if needed.
-
-private:
-  // For SymbolVendor only
-  DISALLOW_COPY_AND_ASSIGN(SymbolVendor);
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_SymbolVendor_h_
+#endif // LLDB_SYMBOL_SYMBOLVENDOR_H

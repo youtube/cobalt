@@ -40,8 +40,8 @@ private:
   uint64_t CurrentRegionCount;
 
 public:
-  CodeGenPGO(CodeGenModule &CGM)
-      : CGM(CGM), FuncNameVar(nullptr), NumValueSites({{0}}),
+  CodeGenPGO(CodeGenModule &CGModule)
+      : CGM(CGModule), FuncNameVar(nullptr), NumValueSites({{0}}),
         NumRegionCounters(0), FunctionHash(0), CurrentRegionCount(0) {}
 
   /// Whether or not we have PGO region data for the current function. This is
@@ -59,7 +59,7 @@ public:
 
   /// Check if an execution count is known for a given statement. If so, return
   /// true and put the value in Count; else return false.
-  Optional<uint64_t> getStmtCount(const Stmt *S) {
+  Optional<uint64_t> getStmtCount(const Stmt *S) const {
     if (!StmtCountMap)
       return None;
     auto I = StmtCountMap->find(S);

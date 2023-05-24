@@ -350,6 +350,13 @@ public:
   uint32_t RecordOffset = 0;
 };
 
+struct PublicSym32Header {
+  ulittle32_t Flags;
+  ulittle32_t Offset;
+  ulittle16_t Segment;
+  // char Name[];
+};
+
 // S_PUB32
 class PublicSym32 : public SymbolRecord {
 public:
@@ -995,9 +1002,6 @@ public:
 
   uint32_t RecordOffset = 0;
 };
-
-using CVSymbol = CVRecord<SymbolKind>;
-using CVSymbolArray = VarStreamArray<CVSymbol>;
 
 Expected<CVSymbol> readSymbolFromStream(BinaryStreamRef Stream,
                                         uint32_t Offset);

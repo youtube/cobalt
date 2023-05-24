@@ -20,6 +20,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -31,6 +32,7 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/UniqueVector.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -924,13 +926,6 @@ protected:
 
   llvm::StringMap<llvm::GlobalVariable *> NSConstantStringMap;
 
-  /// GetNameForMethod - Return a name for the given method.
-  /// \param[out] NameOut - The return value.
-  void GetNameForMethod(const ObjCMethodDecl *OMD,
-                        const ObjCContainerDecl *CD,
-                        SmallVectorImpl<char> &NameOut,
-                        bool ignoreCategoryNamespace = false);
-
   /// GetMethodVarName - Return a unique constant for the given
   /// selector's name. The return value has type char *.
   llvm::Constant *GetMethodVarName(Selector Sel);
@@ -1085,8 +1080,8 @@ protected:
   void EmitImageInfo();
 
 public:
-  CGObjCCommonMac(CodeGen::CodeGenModule &cgm) :
-    CGObjCRuntime(cgm), VMContext(cgm.getLLVMContext()) { }
+  CGObjCCommonMac(CodeGen::CodeGenModule &cgm)
+      : CGObjCRuntime(cgm), VMContext(cgm.getLLVMContext()) {}
 
   bool isNonFragileABI() const {
     return ObjCABI == 2;
@@ -1106,11 +1101,6 @@ public:
                                     const ObjCContainerDecl *CD) override;
 
   void GenerateProtocol(const ObjCProtocolDecl *PD) override;
-
-  /// GetOrEmitProtocol - Get the protocol object for the given
-  /// declaration, emitting it if necessary. The return value has type
-  /// ProtocolPtrTy.
-  virtual llvm::Constant *GetOrEmitProtocol(const ObjCProtocolDecl *PD)=0;
 
   /// GetOrEmitProtocolRef - Get a forward reference to the protocol
   /// object for the given declaration, emitting it if needed. These
@@ -1775,6 +1765,24 @@ struct NullReturnState {
           assert(RV.isScalar() &&
                  "NullReturnState::complete - arg not on object");
           CGF.EmitARCRelease(RV.getScalarVal(), ARCImpreciseLifetime);
+        } else {
+          QualType QT = ParamDecl->getType();
+          auto *RT = QT->getAs<RecordType>();
+          if (RT && RT->getDecl()->isParamDestroyedInCallee()) {
+            RValue RV = I->getRValue(CGF);
+            QualType::DestructionKind DtorKind = QT.isDestructedType();
+            switch (DtorKind) {
+            case QualType::DK_cxx_destructor:
+              CGF.destroyCXXObject(CGF, RV.getAggregateAddress(), QT);
+              break;
+            case QualType::DK_nontrivial_c_struct:
+              CGF.destroyNonTrivialCStruct(CGF, RV.getAggregateAddress(), QT);
+              break;
+            default:
+              llvm_unreachable("unexpected dtor kind");
+              break;
+            }
+          }
         }
       }
     }
@@ -1792,7 +1800,8 @@ struct NullReturnState {
     // If we've got a scalar return, build a phi.
     if (result.isScalar()) {
       // Derive the null-initialization value.
-      llvm::Constant *null = CGF.CGM.EmitNullConstant(resultType);
+      llvm::Value *null =
+          CGF.EmitFromMemory(CGF.CGM.EmitNullConstant(resultType), resultType);
 
       // If no join is necessary, just flow out.
       if (!contBB) return RValue::get(null);
@@ -2035,7 +2044,7 @@ CGObjCCommonMac::GenerateConstantNSString(const StringLiteral *Literal) {
   GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
   // Don't enforce the target's minimum global alignment, since the only use
   // of the string is via this class initializer.
-  GV->setAlignment(llvm::Align::None());
+  GV->setAlignment(llvm::Align(1));
   Fields.addBitCast(GV, CGM.Int8PtrTy);
 
   // String length.
@@ -2251,7 +2260,7 @@ CGObjCCommonMac::EmitMessageSend(CodeGen::CodeGenFunction &CGF,
   // Emit a null-check if there's a consumed argument other than the receiver.
   if (!RequiresNullCheck && CGM.getLangOpts().ObjCAutoRefCount && Method) {
     for (const auto *ParamDecl : Method->parameters()) {
-      if (ParamDecl->hasAttr<NSConsumedAttr>()) {
+      if (ParamDecl->isDestroyedInCallee()) {
         RequiresNullCheck = true;
         break;
       }
@@ -2558,9 +2567,8 @@ void CGObjCCommonMac::BuildRCRecordLayout(const llvm::StructLayout *RecLayout,
       }
       if (FQT->isRecordType() && ElCount) {
         int OldIndex = RunSkipBlockVars.size() - 1;
-        const RecordType *RT = FQT->getAs<RecordType>();
-        BuildRCBlockVarRecordLayout(RT, BytePos + FieldOffset,
-                                    HasUnion);
+        auto *RT = FQT->castAs<RecordType>();
+        BuildRCBlockVarRecordLayout(RT, BytePos + FieldOffset, HasUnion);
 
         // Replicate layout information for each array element. Note that
         // one element is already done.
@@ -3047,9 +3055,10 @@ llvm::Value *CGObjCCommonMac::EmitClassRefViaRuntime(
                ObjCCommonTypesHelper &ObjCTypes) {
   llvm::FunctionCallee lookUpClassFn = ObjCTypes.getLookUpClassFn();
 
-  llvm::Value *className =
-      CGF.CGM.GetAddrOfConstantCString(ID->getObjCRuntimeNameAsString())
-        .getPointer();
+  llvm::Value *className = CGF.CGM
+                               .GetAddrOfConstantCString(std::string(
+                                   ID->getObjCRuntimeNameAsString()))
+                               .getPointer();
   ASTContext &ctx = CGF.CGM.getContext();
   className =
       CGF.Builder.CreateBitCast(className,
@@ -3207,7 +3216,8 @@ CGObjCMac::EmitProtocolList(Twine name,
                             ObjCProtocolDecl::protocol_iterator begin,
                             ObjCProtocolDecl::protocol_iterator end) {
   // Just return null for empty protocol lists
-  if (begin == end)
+  auto PDs = GetRuntimeProtocolList(begin, end);
+  if (PDs.empty())
     return llvm::Constant::getNullValue(ObjCTypes.ProtocolListPtrTy);
 
   ConstantInitBuilder builder(CGM);
@@ -3220,9 +3230,9 @@ CGObjCMac::EmitProtocolList(Twine name,
   auto countSlot = values.addPlaceholder();
 
   auto refsArray = values.beginArray(ObjCTypes.ProtocolPtrTy);
-  for (; begin != end; ++begin) {
-    refsArray.add(GetProtocolRef(*begin));
-  }
+  for (const auto *Proto : PDs)
+    refsArray.add(GetProtocolRef(Proto));
+
   auto count = refsArray.size();
 
   // This list is null terminated.
@@ -3291,6 +3301,8 @@ llvm::Constant *CGObjCCommonMac::EmitPropertyList(Twine Name,
       for (auto *PD : ClassExt->properties()) {
         if (IsClassProperty != PD->isClassProperty())
           continue;
+        if (PD->isDirectProperty())
+          continue;
         PropertySet.insert(PD->getIdentifier());
         Properties.push_back(PD);
       }
@@ -3301,6 +3313,8 @@ llvm::Constant *CGObjCCommonMac::EmitPropertyList(Twine Name,
     // Don't emit duplicate metadata for properties that were already in a
     // class extension.
     if (!PropertySet.insert(PD->getIdentifier()).second)
+      continue;
+    if (PD->isDirectProperty())
       continue;
     Properties.push_back(PD);
   }
@@ -3327,8 +3341,6 @@ llvm::Constant *CGObjCCommonMac::EmitPropertyList(Twine Name,
   values.addInt(ObjCTypes.IntTy, Properties.size());
   auto propertiesArray = values.beginArray(ObjCTypes.PropertyTy);
   for (auto PD : Properties) {
-    if (PD->isDirectProperty())
-      continue;
     auto property = propertiesArray.beginStruct(ObjCTypes.PropertyTy);
     property.add(GetPropertyName(PD->getIdentifier()));
     property.add(GetPropertyTypeString(PD, Container));
@@ -3637,7 +3649,7 @@ void CGObjCMac::GenerateClass(const ObjCImplementationDecl *ID) {
   // Check for a forward reference.
   llvm::GlobalVariable *GV = CGM.getModule().getGlobalVariable(Name, true);
   if (GV) {
-    assert(GV->getType()->getElementType() == ObjCTypes.ClassTy &&
+    assert(GV->getValueType() == ObjCTypes.ClassTy &&
            "Forward metaclass reference has incorrect type.");
     values.finishAndSetAsInitializer(GV);
     GV->setSection(Section);
@@ -3700,7 +3712,7 @@ llvm::Constant *CGObjCMac::EmitMetaClass(const ObjCImplementationDecl *ID,
   // Check for a forward reference.
   llvm::GlobalVariable *GV = CGM.getModule().getGlobalVariable(Name, true);
   if (GV) {
-    assert(GV->getType()->getElementType() == ObjCTypes.ClassTy &&
+    assert(GV->getValueType() == ObjCTypes.ClassTy &&
            "Forward metaclass reference has incorrect type.");
     values.finishAndSetAsInitializer(GV);
   } else {
@@ -3731,7 +3743,7 @@ llvm::Constant *CGObjCMac::EmitMetaClassRef(const ObjCInterfaceDecl *ID) {
                                   llvm::GlobalValue::PrivateLinkage, nullptr,
                                   Name);
 
-  assert(GV->getType()->getElementType() == ObjCTypes.ClassTy &&
+  assert(GV->getValueType() == ObjCTypes.ClassTy &&
          "Forward metaclass reference has incorrect type.");
   return GV;
 }
@@ -3745,7 +3757,7 @@ llvm::Value *CGObjCMac::EmitSuperClassRef(const ObjCInterfaceDecl *ID) {
                                   llvm::GlobalValue::PrivateLinkage, nullptr,
                                   Name);
 
-  assert(GV->getType()->getElementType() == ObjCTypes.ClassTy &&
+  assert(GV->getValueType() == ObjCTypes.ClassTy &&
          "Forward class metadata reference has incorrect type.");
   return GV;
 }
@@ -4010,15 +4022,14 @@ llvm::Function *CGObjCCommonMac::GenerateMethod(const ObjCMethodDecl *OMD,
   if (OMD->isDirectMethod()) {
     Method = GenerateDirectMethod(OMD, CD);
   } else {
-    SmallString<256> Name;
-    GetNameForMethod(OMD, CD, Name);
+    auto Name = getSymbolNameForMethod(OMD);
 
     CodeGenTypes &Types = CGM.getTypes();
     llvm::FunctionType *MethodTy =
         Types.GetFunctionType(Types.arrangeObjCMethodDeclaration(OMD));
     Method =
         llvm::Function::Create(MethodTy, llvm::GlobalValue::InternalLinkage,
-                               Name.str(), &CGM.getModule());
+                               Name, &CGM.getModule());
   }
 
   MethodDefinitions.insert(std::make_pair(OMD, Method));
@@ -4029,22 +4040,48 @@ llvm::Function *CGObjCCommonMac::GenerateMethod(const ObjCMethodDecl *OMD,
 llvm::Function *
 CGObjCCommonMac::GenerateDirectMethod(const ObjCMethodDecl *OMD,
                                       const ObjCContainerDecl *CD) {
-  auto I = DirectMethodDefinitions.find(OMD->getCanonicalDecl());
-  if (I != DirectMethodDefinitions.end())
-    return I->second;
+  auto *COMD = OMD->getCanonicalDecl();
+  auto I = DirectMethodDefinitions.find(COMD);
+  llvm::Function *OldFn = nullptr, *Fn = nullptr;
 
-  SmallString<256> Name;
-  GetNameForMethod(OMD, CD, Name, /*ignoreCategoryNamespace*/true);
+  if (I != DirectMethodDefinitions.end()) {
+    // Objective-C allows for the declaration and implementation types
+    // to differ slightly.
+    //
+    // If we're being asked for the Function associated for a method
+    // implementation, a previous value might have been cached
+    // based on the type of the canonical declaration.
+    //
+    // If these do not match, then we'll replace this function with
+    // a new one that has the proper type below.
+    if (!OMD->getBody() || COMD->getReturnType() == OMD->getReturnType())
+      return I->second;
+    OldFn = I->second;
+  }
 
   CodeGenTypes &Types = CGM.getTypes();
   llvm::FunctionType *MethodTy =
     Types.GetFunctionType(Types.arrangeObjCMethodDeclaration(OMD));
-  llvm::Function *Method =
-      llvm::Function::Create(MethodTy, llvm::GlobalValue::ExternalLinkage,
-                             Name.str(), &CGM.getModule());
-  DirectMethodDefinitions.insert(std::make_pair(OMD->getCanonicalDecl(), Method));
 
-  return Method;
+  if (OldFn) {
+    Fn = llvm::Function::Create(MethodTy, llvm::GlobalValue::ExternalLinkage,
+                                "", &CGM.getModule());
+    Fn->takeName(OldFn);
+    OldFn->replaceAllUsesWith(
+        llvm::ConstantExpr::getBitCast(Fn, OldFn->getType()));
+    OldFn->eraseFromParent();
+
+    // Replace the cached function in the map.
+    I->second = Fn;
+  } else {
+    auto Name = getSymbolNameForMethod(OMD, /*include category*/ false);
+
+    Fn = llvm::Function::Create(MethodTy, llvm::GlobalValue::ExternalLinkage,
+                                Name, &CGM.getModule());
+    DirectMethodDefinitions.insert(std::make_pair(COMD, Fn));
+  }
+
+  return Fn;
 }
 
 void CGObjCCommonMac::GenerateDirectMethodPrologue(
@@ -4195,7 +4232,8 @@ CGObjCCommonMac::CreateCStringLiteral(StringRef Name, ObjCLabelType Type,
                          : "__TEXT,__cstring,cstring_literals";
     break;
   case ObjCLabelType::PropertyName:
-    Section = "__TEXT,__cstring,cstring_literals";
+    Section = NonFragile ? "__TEXT,__objc_methname,cstring_literals"
+                         : "__TEXT,__cstring,cstring_literals";
     break;
   }
 
@@ -5081,9 +5119,10 @@ std::string CGObjCCommonMac::GetSectionName(StringRef Section,
            "expected the name to begin with __");
     return ("." + Section.substr(2) + "$B").str();
   case llvm::Triple::Wasm:
+  case llvm::Triple::GOFF:
   case llvm::Triple::XCOFF:
     llvm::report_fatal_error(
-        "Objective-C support is unimplemented for object file format.");
+        "Objective-C support is unimplemented for object file format");
   }
 
   llvm_unreachable("Unhandled llvm::Triple::ObjectFormatType enum");
@@ -5128,15 +5167,18 @@ void CGObjCCommonMac::EmitImageInfo() {
   Mod.addModuleFlag(llvm::Module::Error, "Objective-C Image Info Section",
                     llvm::MDString::get(VMContext, Section));
 
+  auto Int8Ty = llvm::Type::getInt8Ty(VMContext);
   if (CGM.getLangOpts().getGC() == LangOptions::NonGC) {
     // Non-GC overrides those files which specify GC.
-    Mod.addModuleFlag(llvm::Module::Override,
-                      "Objective-C Garbage Collection", (uint32_t)0);
+    Mod.addModuleFlag(llvm::Module::Error,
+                      "Objective-C Garbage Collection",
+                      llvm::ConstantInt::get(Int8Ty,0));
   } else {
     // Add the ObjC garbage collection value.
     Mod.addModuleFlag(llvm::Module::Error,
                       "Objective-C Garbage Collection",
-                      eImageInfo_GarbageCollected);
+                      llvm::ConstantInt::get(Int8Ty,
+                        (uint8_t)eImageInfo_GarbageCollected));
 
     if (CGM.getLangOpts().getGC() == LangOptions::GCOnly) {
       // Add the ObjC GC Only value.
@@ -5147,7 +5189,7 @@ void CGObjCCommonMac::EmitImageInfo() {
       llvm::Metadata *Ops[2] = {
           llvm::MDString::get(VMContext, "Objective-C Garbage Collection"),
           llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
-              llvm::Type::getInt32Ty(VMContext), eImageInfo_GarbageCollected))};
+              Int8Ty, eImageInfo_GarbageCollected))};
       Mod.addModuleFlag(llvm::Module::Require, "Objective-C GC Only",
                         llvm::MDNode::get(VMContext, Ops));
     }
@@ -5423,7 +5465,7 @@ llvm::Constant *IvarLayoutBuilder::buildBitmap(CGObjCCommonMac &CGObjC,
     // This isn't a stable sort, but our algorithm should handle it fine.
     llvm::array_pod_sort(IvarsInfo.begin(), IvarsInfo.end());
   } else {
-    assert(std::is_sorted(IvarsInfo.begin(), IvarsInfo.end()));
+    assert(llvm::is_sorted(IvarsInfo));
   }
   assert(IvarsInfo.back().Offset < InstanceEnd);
 
@@ -5684,21 +5726,6 @@ CGObjCCommonMac::GetPropertyTypeString(const ObjCPropertyDecl *PD,
   std::string TypeStr =
     CGM.getContext().getObjCEncodingForPropertyDecl(PD, Container);
   return GetPropertyName(&CGM.getContext().Idents.get(TypeStr));
-}
-
-void CGObjCCommonMac::GetNameForMethod(const ObjCMethodDecl *D,
-                                       const ObjCContainerDecl *CD,
-                                       SmallVectorImpl<char> &Name,
-                                       bool ignoreCategoryNamespace) {
-  llvm::raw_svector_ostream OS(Name);
-  assert (CD && "Missing container decl in GetNameForMethod");
-  OS << '\01' << (D->isInstanceMethod() ? '-' : '+')
-     << '[' << CD->getName();
-  if (!ignoreCategoryNamespace)
-    if (const ObjCCategoryImplDecl *CID =
-        dyn_cast<ObjCCategoryImplDecl>(D->getDeclContext()))
-      OS << '(' << *CID << ')';
-  OS << ' ' << D->getSelector().getAsString() << ']';
 }
 
 void CGObjCMac::FinishModule() {
@@ -6217,11 +6244,9 @@ void CGObjCNonFragileABIMac::AddModuleClassList(
   assert((!CGM.getTriple().isOSBinFormatMachO() ||
           SectionName.startswith("__DATA")) &&
          "SectionName expected to start with __DATA on MachO");
-  llvm::GlobalValue::LinkageTypes LT =
-      getLinkageTypeForObjCMetadata(CGM, SectionName);
-  llvm::GlobalVariable *GV =
-    new llvm::GlobalVariable(CGM.getModule(), Init->getType(), false, LT, Init,
-                             SymbolName);
+  llvm::GlobalVariable *GV = new llvm::GlobalVariable(
+      CGM.getModule(), Init->getType(), false,
+      llvm::GlobalValue::PrivateLinkage, Init, SymbolName);
   GV->setAlignment(
       llvm::Align(CGM.getDataLayout().getABITypeAlignment(Init->getType())));
   GV->setSection(SectionName);
@@ -6350,7 +6375,7 @@ llvm::GlobalVariable * CGObjCNonFragileABIMac::BuildClassRoTInitializer(
   unsigned InstanceStart,
   unsigned InstanceSize,
   const ObjCImplementationDecl *ID) {
-  std::string ClassName = ID->getObjCRuntimeNameAsString();
+  std::string ClassName = std::string(ID->getObjCRuntimeNameAsString());
 
   CharUnits beginInstance = CharUnits::fromQuantity(InstanceStart);
   CharUnits endInstance = CharUnits::fromQuantity(InstanceSize);
@@ -6644,7 +6669,8 @@ llvm::Value *CGObjCNonFragileABIMac::GenerateProtocolRef(CodeGenFunction &CGF,
 
   // This routine is called for @protocol only. So, we must build definition
   // of protocol's meta-data (not a reference to it!)
-  //
+  assert(!PD->isNonRuntimeProtocol() &&
+         "attempting to get a protocol ref to a static protocol.");
   llvm::Constant *Init =
     llvm::ConstantExpr::getBitCast(GetOrEmitProtocol(PD),
                                    ObjCTypes.getExternalProtocolPtrTy());
@@ -7001,6 +7027,8 @@ llvm::Constant *CGObjCNonFragileABIMac::GetOrEmitProtocolRef(
   const ObjCProtocolDecl *PD) {
   llvm::GlobalVariable *&Entry = Protocols[PD->getIdentifier()];
 
+  assert(!PD->isNonRuntimeProtocol() &&
+         "attempting to GetOrEmit a non-runtime protocol");
   if (!Entry) {
     // We use the initializer as a marker of whether this is a forward
     // reference or not. At module finalization we add the empty
@@ -7144,10 +7172,20 @@ llvm::Constant *
 CGObjCNonFragileABIMac::EmitProtocolList(Twine Name,
                                       ObjCProtocolDecl::protocol_iterator begin,
                                       ObjCProtocolDecl::protocol_iterator end) {
-  SmallVector<llvm::Constant *, 16> ProtocolRefs;
-
   // Just return null for empty protocol lists
-  if (begin == end)
+  auto Protocols = GetRuntimeProtocolList(begin, end);
+  if (Protocols.empty())
+    return llvm::Constant::getNullValue(ObjCTypes.ProtocolListnfABIPtrTy);
+
+  SmallVector<llvm::Constant *, 16> ProtocolRefs;
+  ProtocolRefs.reserve(Protocols.size());
+
+  for (const auto *PD : Protocols)
+    ProtocolRefs.push_back(GetProtocolRef(PD));
+
+  // If all of the protocols in the protocol list are objc_non_runtime_protocol
+  // just return null
+  if (ProtocolRefs.size() == 0)
     return llvm::Constant::getNullValue(ObjCTypes.ProtocolListnfABIPtrTy);
 
   // FIXME: We shouldn't need to do this lookup here, should we?
@@ -7164,8 +7202,8 @@ CGObjCNonFragileABIMac::EmitProtocolList(Twine Name,
 
   // A null-terminated array of protocols.
   auto array = values.beginArray(ObjCTypes.ProtocolnfABIPtrTy);
-  for (; begin != end; ++begin)
-    array.add(GetProtocolRef(*begin));  // Implemented???
+  for (auto const &proto : ProtocolRefs)
+    array.add(proto);
   auto count = array.size();
   array.addNullPointer(ObjCTypes.ProtocolnfABIPtrTy);
 
@@ -7331,7 +7369,7 @@ CGObjCNonFragileABIMac::EmitVTableMessageSend(CodeGenFunction &CGF,
   bool requiresnullCheck = false;
   if (CGM.getLangOpts().ObjCAutoRefCount && method)
     for (const auto *ParamDecl : method->parameters()) {
-      if (ParamDecl->hasAttr<NSConsumedAttr>()) {
+      if (ParamDecl->isDestroyedInCallee()) {
         if (!nullReturn.NullBB)
           nullReturn.init(CGF, arg0);
         requiresnullCheck = true;
@@ -7509,10 +7547,9 @@ CGObjCNonFragileABIMac::EmitSuperClassRef(CodeGenFunction &CGF,
     llvm::Constant *ClassGV = GetClassGlobalForClassRef(ID);
     std::string SectionName =
         GetSectionName("__objc_superrefs", "regular,no_dead_strip");
-    Entry = new llvm::GlobalVariable(
-        CGM.getModule(), ClassGV->getType(), false,
-        getLinkageTypeForObjCMetadata(CGM, SectionName), ClassGV,
-        "OBJC_CLASSLIST_SUP_REFS_$_");
+    Entry = new llvm::GlobalVariable(CGM.getModule(), ClassGV->getType(), false,
+                                     llvm::GlobalValue::PrivateLinkage, ClassGV,
+                                     "OBJC_CLASSLIST_SUP_REFS_$_");
     Entry->setAlignment(CGF.getPointerAlign().getAsAlign());
     Entry->setSection(SectionName);
     CGM.addCompilerUsedGlobal(Entry);
@@ -7533,10 +7570,9 @@ llvm::Value *CGObjCNonFragileABIMac::EmitMetaClassRef(CodeGenFunction &CGF,
     auto MetaClassGV = GetClassGlobal(ID, /*metaclass*/ true, NotForDefinition);
     std::string SectionName =
         GetSectionName("__objc_superrefs", "regular,no_dead_strip");
-    Entry = new llvm::GlobalVariable(
-        CGM.getModule(), ObjCTypes.ClassnfABIPtrTy, false,
-        getLinkageTypeForObjCMetadata(CGM, SectionName), MetaClassGV,
-        "OBJC_CLASSLIST_SUP_REFS_$_");
+    Entry = new llvm::GlobalVariable(CGM.getModule(), ObjCTypes.ClassnfABIPtrTy,
+                                     false, llvm::GlobalValue::PrivateLinkage,
+                                     MetaClassGV, "OBJC_CLASSLIST_SUP_REFS_$_");
     Entry->setAlignment(Align.getAsAlign());
     Entry->setSection(SectionName);
     CGM.addCompilerUsedGlobal(Entry);

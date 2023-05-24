@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_GDBRemoteCommunicationServerLLGS_h_
-#define liblldb_GDBRemoteCommunicationServerLLGS_h_
+#ifndef LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATIONSERVERLLGS_H
+#define LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATIONSERVERLLGS_H
 
 #include <mutex>
 #include <unordered_map>
@@ -59,6 +59,17 @@ public:
   ///     attach operation.
   Status AttachToProcess(lldb::pid_t pid);
 
+  /// Wait to attach to a process with a given name.
+  ///
+  /// This method supports waiting for the next instance of a process
+  /// with a given name and attaching llgs to that via the configured
+  /// Platform.
+  ///
+  /// \return
+  ///     An Status object indicating the success or failure of the
+  ///     attach operation.
+  Status AttachWaitProcess(llvm::StringRef process_name, bool include_existing);
+
   // NativeProcessProtocol::NativeDelegate overrides
   void InitializeDelegate(NativeProcessProtocol *process) override;
 
@@ -67,7 +78,7 @@ public:
 
   void DidExec(NativeProcessProtocol *process) override;
 
-  Status InitializeConnection(std::unique_ptr<Connection> &&connection);
+  Status InitializeConnection(std::unique_ptr<Connection> connection);
 
 protected:
   MainLoop &m_mainloop;
@@ -138,6 +149,8 @@ protected:
   PacketResult Handle_memory_read(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_M(StringExtractorGDBRemote &packet);
+  PacketResult Handle__M(StringExtractorGDBRemote &packet);
+  PacketResult Handle__m(StringExtractorGDBRemote &packet);
 
   PacketResult
   Handle_qMemoryRegionInfoSupported(StringExtractorGDBRemote &packet);
@@ -162,9 +175,17 @@ protected:
 
   PacketResult Handle_jTraceConfigRead(StringExtractorGDBRemote &packet);
 
+  PacketResult Handle_jLLDBTraceSupportedType(StringExtractorGDBRemote &packet);
+
   PacketResult Handle_QRestoreRegisterState(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_vAttach(StringExtractorGDBRemote &packet);
+
+  PacketResult Handle_vAttachWait(StringExtractorGDBRemote &packet);
+
+  PacketResult Handle_qVAttachOrWaitSupported(StringExtractorGDBRemote &packet);
+
+  PacketResult Handle_vAttachOrWait(StringExtractorGDBRemote &packet);
 
   PacketResult Handle_D(StringExtractorGDBRemote &packet);
 
@@ -199,6 +220,8 @@ protected:
   static std::string XMLEncodeAttributeValue(llvm::StringRef value);
 
 private:
+  llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>> BuildTargetXml();
+
   void HandleInferiorState_Exited(NativeProcessProtocol *process);
 
   void HandleInferiorState_Stopped(NativeProcessProtocol *process);
@@ -222,10 +245,13 @@ private:
   void StopSTDIOForwarding();
 
   // For GDBRemoteCommunicationServerLLGS only
-  DISALLOW_COPY_AND_ASSIGN(GDBRemoteCommunicationServerLLGS);
+  GDBRemoteCommunicationServerLLGS(const GDBRemoteCommunicationServerLLGS &) =
+      delete;
+  const GDBRemoteCommunicationServerLLGS &
+  operator=(const GDBRemoteCommunicationServerLLGS &) = delete;
 };
 
 } // namespace process_gdb_remote
 } // namespace lldb_private
 
-#endif // liblldb_GDBRemoteCommunicationServerLLGS_h_
+#endif // LLDB_SOURCE_PLUGINS_PROCESS_GDB_REMOTE_GDBREMOTECOMMUNICATIONSERVERLLGS_H

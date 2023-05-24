@@ -1,4 +1,4 @@
-//===-- CommandObjectType.cpp -----------------------------------*- C++ -*-===//
+//===-- CommandObjectType.cpp ---------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -36,6 +36,9 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+
+#define CHECK_FORMATTER_KIND_MASK(VAL)                                         \
+  ((m_formatter_kind_mask & (VAL)) == (VAL))
 
 using namespace lldb;
 using namespace lldb_private;
@@ -531,7 +534,7 @@ private:
         m_skip_pointers = true;
         break;
       case 'w':
-        m_category.assign(option_value);
+        m_category.assign(std::string(option_value));
         break;
       case 'r':
         m_skip_references = true;
@@ -540,7 +543,7 @@ private:
         m_regex = true;
         break;
       case 't':
-        m_custom_type_name.assign(option_value);
+        m_custom_type_name.assign(std::string(option_value));
         break;
       default:
         llvm_unreachable("Unimplemented option");
@@ -776,6 +779,39 @@ public:
   }
 
   ~CommandObjectTypeFormatterDelete() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex())
+      return;
+
+    DataVisualization::Categories::ForEach(
+        [this, &request](const lldb::TypeCategoryImplSP &category_sp) {
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemValue))
+            category_sp->GetTypeFormatsContainer()->AutoComplete(request);
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemRegexValue))
+            category_sp->GetRegexTypeFormatsContainer()->AutoComplete(request);
+
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemSummary))
+            category_sp->GetTypeSummariesContainer()->AutoComplete(request);
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemRegexSummary))
+            category_sp->GetRegexTypeSummariesContainer()->AutoComplete(
+                request);
+
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemFilter))
+            category_sp->GetTypeFiltersContainer()->AutoComplete(request);
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemRegexFilter))
+            category_sp->GetRegexTypeFiltersContainer()->AutoComplete(request);
+
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemSynth))
+            category_sp->GetTypeSyntheticsContainer()->AutoComplete(request);
+          if (CHECK_FORMATTER_KIND_MASK(eFormatCategoryItemRegexSynth))
+            category_sp->GetRegexTypeSyntheticsContainer()->AutoComplete(
+                request);
+          return true;
+        });
+  }
 
 protected:
   virtual bool FormatterSpecificDeletion(ConstString typeCS) { return false; }
@@ -1031,8 +1067,8 @@ protected:
     std::unique_ptr<RegularExpression> formatter_regex;
 
     if (m_options.m_category_regex.OptionWasSet()) {
-      category_regex.reset(new RegularExpression(
-          m_options.m_category_regex.GetCurrentValueAsRef()));
+      category_regex = std::make_unique<RegularExpression>(
+          m_options.m_category_regex.GetCurrentValueAsRef());
       if (!category_regex->IsValid()) {
         result.AppendErrorWithFormat(
             "syntax error in category regular expression '%s'",
@@ -1044,8 +1080,8 @@ protected:
 
     if (argc == 1) {
       const char *arg = command.GetArgumentAtIndex(0);
-      formatter_regex.reset(
-          new RegularExpression(llvm::StringRef::withNullAsEmpty(arg)));
+      formatter_regex = std::make_unique<RegularExpression>(
+          llvm::StringRef::withNullAsEmpty(arg));
       if (!formatter_regex->IsValid()) {
         result.AppendErrorWithFormat("syntax error in regular expression '%s'",
                                      arg);
@@ -1066,13 +1102,15 @@ protected:
       TypeCategoryImpl::ForEachCallbacks<FormatterType> foreach;
       foreach
         .SetExact([&result, &formatter_regex, &any_printed](
-                      ConstString name,
+                      const TypeMatcher &type_matcher,
                       const FormatterSharedPointer &format_sp) -> bool {
           if (formatter_regex) {
             bool escape = true;
-            if (name.GetStringRef() == formatter_regex->GetText()) {
+            if (type_matcher.CreatedBySameMatchString(
+                    ConstString(formatter_regex->GetText()))) {
               escape = false;
-            } else if (formatter_regex->Execute(name.GetStringRef())) {
+            } else if (formatter_regex->Execute(
+                           type_matcher.GetMatchString().GetStringRef())) {
               escape = false;
             }
 
@@ -1081,20 +1119,23 @@ protected:
           }
 
           any_printed = true;
-          result.GetOutputStream().Printf("%s: %s\n", name.AsCString(),
-                                          format_sp->GetDescription().c_str());
+          result.GetOutputStream().Printf(
+              "%s: %s\n", type_matcher.GetMatchString().GetCString(),
+              format_sp->GetDescription().c_str());
           return true;
         });
 
       foreach
         .SetWithRegex([&result, &formatter_regex, &any_printed](
-                          const RegularExpression &regex,
+                          const TypeMatcher &type_matcher,
                           const FormatterSharedPointer &format_sp) -> bool {
           if (formatter_regex) {
             bool escape = true;
-            if (regex.GetText() == formatter_regex->GetText()) {
+            if (type_matcher.CreatedBySameMatchString(
+                    ConstString(formatter_regex->GetText()))) {
               escape = false;
-            } else if (formatter_regex->Execute(regex.GetText())) {
+            } else if (formatter_regex->Execute(
+                           type_matcher.GetMatchString().GetStringRef())) {
               escape = false;
             }
 
@@ -1103,9 +1144,9 @@ protected:
           }
 
           any_printed = true;
-          result.GetOutputStream().Printf("%s: %s\n",
-                                          regex.GetText().str().c_str(),
-                                          format_sp->GetDescription().c_str());
+          result.GetOutputStream().Printf(
+              "%s: %s\n", type_matcher.GetMatchString().GetCString(),
+              format_sp->GetDescription().c_str());
           return true;
         });
 
@@ -1206,11 +1247,11 @@ Status CommandObjectTypeSummaryAdd::CommandOptions::SetOptionValue(
     m_name.SetString(option_arg);
     break;
   case 'o':
-    m_python_script = option_arg;
+    m_python_script = std::string(option_arg);
     m_is_add_script = true;
     break;
   case 'F':
-    m_python_function = option_arg;
+    m_python_function = std::string(option_arg);
     m_is_add_script = true;
     break;
   case 'P':
@@ -1326,7 +1367,7 @@ bool CommandObjectTypeSummaryAdd::Execute_ScriptSummary(
         return false;
       }
 
-      options->m_target_types << entry.ref();
+      options->m_target_types << std::string(entry.ref());
     }
 
     m_interpreter.GetPythonCommandsFromIOHandler(
@@ -1681,10 +1722,10 @@ protected:
     if (DataVisualization::NamedSummaryFormats::GetCount() > 0) {
       result.GetOutputStream().Printf("Named summaries:\n");
       DataVisualization::NamedSummaryFormats::ForEach(
-          [&result](ConstString name,
+          [&result](const TypeMatcher &type_matcher,
                     const TypeSummaryImplSP &summary_sp) -> bool {
             result.GetOutputStream().Printf(
-                "%s: %s\n", name.AsCString(),
+                "%s: %s\n", type_matcher.GetMatchString().GetCString(),
                 summary_sp->GetDescription().c_str());
             return true;
           });
@@ -1763,6 +1804,14 @@ public:
   }
 
   ~CommandObjectTypeCategoryDefine() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -1860,6 +1909,14 @@ public:
 
   ~CommandObjectTypeCategoryEnable() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -1921,6 +1978,14 @@ public:
   }
 
   ~CommandObjectTypeCategoryDelete() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -2027,6 +2092,14 @@ public:
 
   ~CommandObjectTypeCategoryDisable() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -2084,6 +2157,16 @@ public:
 
   ~CommandObjectTypeCategoryList() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (request.GetCursorIndex())
+      return;
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(),
+        CommandCompletions::eTypeCategoryNameCompletion, request, nullptr);
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     const size_t argc = command.GetArgumentCount();
@@ -2092,7 +2175,8 @@ protected:
 
     if (argc == 1) {
       const char *arg = command.GetArgumentAtIndex(0);
-      regex.reset(new RegularExpression(llvm::StringRef::withNullAsEmpty(arg)));
+      regex = std::make_unique<RegularExpression>(
+          llvm::StringRef::withNullAsEmpty(arg));
       if (!regex->IsValid()) {
         result.AppendErrorWithFormat(
             "syntax error in category regular expression '%s'", arg);
@@ -2225,7 +2309,7 @@ bool CommandObjectTypeSynthAdd::Execute_HandwritePython(
       return false;
     }
 
-    options->m_target_types << entry.ref();
+    options->m_target_types << std::string(entry.ref());
   }
 
   m_interpreter.GetPythonCommandsFromIOHandler(
@@ -2390,7 +2474,7 @@ private:
                                          option_arg.str().c_str());
         break;
       case 'c':
-        m_expr_paths.push_back(option_arg);
+        m_expr_paths.push_back(std::string(option_arg));
         has_child_list = true;
         break;
       case 'p':
@@ -2705,7 +2789,7 @@ public:
       return true;
     });
 
-    m_cmd_help_long = stream.GetString();
+    m_cmd_help_long = std::string(stream.GetString());
     return m_cmd_help_long;
   }
 

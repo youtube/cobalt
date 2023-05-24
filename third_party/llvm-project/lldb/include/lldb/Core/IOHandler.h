@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_IOHandler_h_
-#define liblldb_IOHandler_h_
+#ifndef LLDB_CORE_IOHANDLER_H
+#define LLDB_CORE_IOHANDLER_H
 
 #include "lldb/Core/ValueObjectList.h"
 #include "lldb/Host/Config.h"
@@ -15,7 +15,6 @@
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Flags.h"
 #include "lldb/Utility/Predicate.h"
-#include "lldb/Utility/Reproducer.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StringList.h"
 #include "lldb/lldb-defines.h"
@@ -32,6 +31,9 @@
 
 namespace lldb_private {
 class Debugger;
+namespace repro {
+class DataRecorder;
+}
 }
 
 namespace curses {
@@ -95,6 +97,8 @@ public:
 
   virtual void Deactivate() { m_active = false; }
 
+  virtual void TerminalSizeChanged() {}
+
   virtual const char *GetPrompt() {
     // Prompt support isn't mandatory
     return nullptr;
@@ -124,11 +128,11 @@ public:
 
   FILE *GetErrorFILE();
 
-  lldb::FileSP &GetInputFileSP();
+  lldb::FileSP GetInputFileSP();
 
-  lldb::StreamFileSP &GetOutputStreamFileSP();
+  lldb::StreamFileSP GetOutputStreamFileSP();
 
-  lldb::StreamFileSP &GetErrorStreamFileSP();
+  lldb::StreamFileSP GetErrorStreamFileSP();
 
   Debugger &GetDebugger() { return m_debugger; }
 
@@ -178,7 +182,8 @@ protected:
   bool m_active;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(IOHandler);
+  IOHandler(const IOHandler &) = delete;
+  const IOHandler &operator=(const IOHandler &) = delete;
 };
 
 /// A delegate class for use with IOHandler subclasses.
@@ -199,6 +204,9 @@ public:
   virtual void IOHandlerActivated(IOHandler &io_handler, bool interactive) {}
 
   virtual void IOHandlerDeactivated(IOHandler &io_handler) {}
+
+  virtual llvm::Optional<std::string> IOHandlerSuggestion(IOHandler &io_handler,
+                                                          llvm::StringRef line);
 
   virtual void IOHandlerComplete(IOHandler &io_handler,
                                  CompletionRequest &request);
@@ -369,6 +377,8 @@ public:
 
   void Deactivate() override;
 
+  void TerminalSizeChanged() override;
+
   ConstString GetControlSequence(char ch) override {
     return m_delegate.IOHandlerGetControlSequence(ch);
   }
@@ -414,6 +424,9 @@ private:
 
   static int FixIndentationCallback(Editline *editline, const StringList &lines,
                                     int cursor_position, void *baton);
+
+  static llvm::Optional<std::string> SuggestionCallback(llvm::StringRef line,
+                                                        void *baton);
 
   static void AutoCompleteCallback(CompletionRequest &request, void *baton);
 #endif
@@ -540,9 +553,10 @@ protected:
   IOHandler *m_top = nullptr;
 
 private:
-  DISALLOW_COPY_AND_ASSIGN(IOHandlerStack);
+  IOHandlerStack(const IOHandlerStack &) = delete;
+  const IOHandlerStack &operator=(const IOHandlerStack &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_IOHandler_h_
+#endif // LLDB_CORE_IOHANDLER_H

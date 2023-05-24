@@ -12,6 +12,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/PPCallbacks.h"
+#include "clang/Lex/Preprocessor.h"
 
 using namespace clang::ast_matchers;
 
@@ -499,7 +500,7 @@ static void insertNullTerminatorExpr(StringRef Name,
 NotNullTerminatedResultCheck::NotNullTerminatedResultCheck(
     StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
-      WantToUseSafeFunctions(Options.get("WantToUseSafeFunctions", 1)) {}
+      WantToUseSafeFunctions(Options.get("WantToUseSafeFunctions", true)) {}
 
 void NotNullTerminatedResultCheck::storeOptions(
     ClangTidyOptions::OptionMap &Opts) {
@@ -652,9 +653,10 @@ void NotNullTerminatedResultCheck::registerMatchers(MatchFinder *Finder) {
             anyOf(DestUnknownDecl, hasDescendant(DestUnknownDecl))));
 
   auto NullTerminatorExpr = binaryOperator(
-      hasLHS(anyOf(hasDescendant(declRefExpr(
-                       to(varDecl(equalsBoundNode(DestVarDeclName))))),
-                   hasDescendant(declRefExpr(equalsBoundNode(DestExprName))))),
+      hasLHS(anyOf(hasDescendant(declRefExpr(to(varDecl(
+                       equalsBoundNode(std::string(DestVarDeclName)))))),
+                   hasDescendant(declRefExpr(
+                       equalsBoundNode(std::string(DestExprName)))))),
       hasRHS(ignoringImpCasts(
           anyOf(characterLiteral(equals(0U)), integerLiteral(equals(0))))));
 
@@ -800,11 +802,16 @@ void NotNullTerminatedResultCheck::check(
     while (It != PP->macro_end() && !AreSafeFunctionsWanted.hasValue()) {
       if (It->first->getName() == "__STDC_WANT_LIB_EXT1__") {
         const auto *MI = PP->getMacroInfo(It->first);
-        const auto &T = MI->tokens().back();
-        StringRef ValueStr = StringRef(T.getLiteralData(), T.getLength());
-        llvm::APInt IntValue;
-        ValueStr.getAsInteger(10, IntValue);
-        AreSafeFunctionsWanted = IntValue.getZExtValue();
+        // PP->getMacroInfo() returns nullptr if macro has no definition.
+        if (MI) {
+          const auto &T = MI->tokens().back();
+          if (T.isLiteral() && T.getLiteralData()) {
+            StringRef ValueStr = StringRef(T.getLiteralData(), T.getLength());
+            llvm::APInt IntValue;
+            ValueStr.getAsInteger(10, IntValue);
+            AreSafeFunctionsWanted = IntValue.getZExtValue();
+          }
+        }
       }
 
       ++It;

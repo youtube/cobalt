@@ -14,14 +14,14 @@
 ; }
 
 ; CHECK: ![[ZZZ:.*]] = !DILocalVariable(name: "zzz",
-; CHECK: DBG_VALUE {{.*}} ![[ZZZ]], !DIExpression(DW_OP_constu, 400, DW_OP_minus, DW_OP_deref)
+; CHECK: DBG_VALUE {{.*}} ![[ZZZ]], !DIExpression(DW_OP_deref, DW_OP_constu, 400, DW_OP_minus)
 
 %struct.S = type { [100 x i32] }
 
 @__safestack_unsafe_stack_ptr = external thread_local(initialexec) global i8*
 
 ; Function Attrs: norecurse nounwind readonly safestack uwtable
-define i32 @_Z1f1Sm(%struct.S* byval nocapture readonly align 8 %zzz, i64 %len) #0 !dbg !12 {
+define i32 @_Z1f1Sm(%struct.S* byval(%struct.S) nocapture readonly align 8 %zzz, i64 %len) #0 !dbg !12 {
 entry:
   %unsafe_stack_ptr = load i8*, i8** @__safestack_unsafe_stack_ptr, !dbg !22
   %unsafe_stack_static_top = getelementptr i8, i8* %unsafe_stack_ptr, i32 -400, !dbg !22
@@ -78,7 +78,7 @@ attributes #2 = { argmemonly nounwind }
 !20 = !{i32 2, !"Debug Info Version", i32 3}
 !21 = !{!"clang version 3.8.0 (trunk 254107) (llvm/trunk 254109)"}
 !22 = !DILocation(line: 8, column: 9, scope: !12)
-!23 = !DIExpression(DW_OP_constu, 400, DW_OP_minus)
+!23 = !DIExpression(DW_OP_deref, DW_OP_constu, 400, DW_OP_minus)
 !24 = !DILocation(line: 8, column: 28, scope: !12)
 !25 = !DIExpression()
 !26 = !DILocation(line: 9, column: 10, scope: !12)

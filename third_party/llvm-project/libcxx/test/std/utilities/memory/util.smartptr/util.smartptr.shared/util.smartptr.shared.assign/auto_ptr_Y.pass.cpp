@@ -9,7 +9,7 @@
 // <memory>
 
 // shared_ptr
-// REQUIRES: c++98 || c++03 || c++11 || c++14
+// REQUIRES: c++03 || c++11 || c++14
 
 // template<class Y> shared_ptr& operator=(auto_ptr<Y>&& r);
 
@@ -38,7 +38,7 @@ struct A
     static int count;
 
     A() {++count;}
-    A(const A&) {++count;}
+    A(const A& other) : B(other) {++count;}
     ~A() {--count;}
 };
 

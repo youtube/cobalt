@@ -14,7 +14,7 @@
 
 #ifndef _LIBCXX_IN_DEVCRT
     // Silence warnings about CRT machinery.
-    #define _CRT_SECURE_NO_WARNINGS
+    #define _CRT_SECURE_NO_WARNINGS 1
 
     // Avoid assertion dialogs.
     #define _CRT_SECURE_INVALID_PARAMETER(EXPR) ::abort()
@@ -65,12 +65,12 @@ const AssertionDialogAvoider assertion_dialog_avoider{};
 // MSVC doesn't have __int128_t.
 #define _LIBCPP_HAS_NO_INT128
 
-// MSVC has quick_exit() and at_quick_exit().
-#define _LIBCPP_HAS_QUICK_EXIT
-
 #ifndef _LIBCXX_IN_DEVCRT
     // atomic_is_lock_free.pass.cpp needs this VS 2015 Update 2 fix.
     #define _ENABLE_ATOMIC_ALIGNMENT_FIX
+
+    // Restore features that are removed in C++20.
+    #define _HAS_FEATURES_REMOVED_IN_CXX20 1
 
     // Silence warnings about features that are deprecated in C++17 and C++20.
     #define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
@@ -88,7 +88,20 @@ const AssertionDialogAvoider assertion_dialog_avoider{};
 #endif
 
 #define _LIBCPP_AVAILABILITY_THROW_BAD_ANY_CAST
-#define _LIBCPP_SUPPRESS_DEPRECATED_PUSH
-#define _LIBCPP_SUPPRESS_DEPRECATED_POP
+
+#ifdef __clang__
+#define _LIBCPP_SUPPRESS_DEPRECATED_PUSH \
+    _Pragma("GCC diagnostic push") \
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated\"")
+#define _LIBCPP_SUPPRESS_DEPRECATED_POP \
+    _Pragma("GCC diagnostic pop")
+#else // ^^^ clang / MSVC vvv
+#define _LIBCPP_SUPPRESS_DEPRECATED_PUSH \
+    __pragma(warning(push)) \
+    __pragma(warning(disable : 4996)) \
+    __pragma(warning(disable : 5215))
+#define _LIBCPP_SUPPRESS_DEPRECATED_POP \
+    __pragma(warning(pop))
+#endif // __clang__
 
 #endif // SUPPORT_MSVC_STDLIB_FORCE_INCLUDE_H

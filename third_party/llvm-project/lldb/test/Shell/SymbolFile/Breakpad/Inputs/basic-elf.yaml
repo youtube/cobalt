@@ -20,14 +20,11 @@ Sections:
     Address:         0x00000000004000B0
     AddressAlign:    0x0000000000000010
     Size:            0x42
-Symbols:         
-DynamicSymbols:  
 ProgramHeaders:
   - Type: PT_LOAD
     Flags: [ PF_X, PF_R ]
     VAddr: 0x400000
     Align: 0x1000
-    Sections:
-      - Section: .text1
-      - Section: .text2
+    FirstSec: .text1
+    LastSec:  .text2
 ...

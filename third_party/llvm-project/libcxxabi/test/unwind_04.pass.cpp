@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: libcxxabi-no-exceptions
-// REQUIRES: c++98 || c++03 || c++11 || c++14
+// UNSUPPORTED: no-exceptions
+// REQUIRES: c++03 || c++11 || c++14
 
 #include <exception>
 #include <stdlib.h>
@@ -80,7 +80,7 @@ void u_handler()
     throw 'a';
 }
 
-int main()
+int main(int, char**)
 {
     std::set_unexpected(u_handler);
     try
@@ -111,4 +111,6 @@ int main()
     assert(A::count == 0);
     assert(B::count == 0);
     assert(C::count == 0);
+
+    return 0;
 }

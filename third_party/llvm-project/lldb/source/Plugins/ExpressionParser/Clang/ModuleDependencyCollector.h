@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ModuleDependencyCollector_h_
-#define liblldb_ModuleDependencyCollector_h_
+#ifndef LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_MODULEDEPENDENCYCOLLECTOR_H
+#define LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_MODULEDEPENDENCYCOLLECTOR_H
 
 #include "clang/Frontend/Utils.h"
 #include "llvm/ADT/StringRef.h"
@@ -18,7 +18,7 @@ class ModuleDependencyCollectorAdaptor
     : public clang::ModuleDependencyCollector {
 public:
   ModuleDependencyCollectorAdaptor(
-      std::shared_ptr<llvm::FileCollector> file_collector)
+      std::shared_ptr<llvm::FileCollectorBase> file_collector)
       : clang::ModuleDependencyCollector(""), m_file_collector(file_collector) {
   }
 
@@ -33,7 +33,7 @@ public:
   void writeFileMap() override {}
 
 private:
-  std::shared_ptr<llvm::FileCollector> m_file_collector;
+  std::shared_ptr<llvm::FileCollectorBase> m_file_collector;
 };
 } // namespace lldb_private
 

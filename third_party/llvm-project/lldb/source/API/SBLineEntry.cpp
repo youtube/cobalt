@@ -1,4 +1,4 @@
-//===-- SBLineEntry.cpp -----------------------------------------*- C++ -*-===//
+//===-- SBLineEntry.cpp ---------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -48,7 +48,7 @@ void SBLineEntry::SetLineEntry(const lldb_private::LineEntry &lldb_object_ref) {
   m_opaque_up = std::make_unique<LineEntry>(lldb_object_ref);
 }
 
-SBLineEntry::~SBLineEntry() {}
+SBLineEntry::~SBLineEntry() = default;
 
 SBAddress SBLineEntry::GetStartAddress() const {
   LLDB_RECORD_METHOD_CONST_NO_ARGS(lldb::SBAddress, SBLineEntry,
@@ -56,7 +56,7 @@ SBAddress SBLineEntry::GetStartAddress() const {
 
   SBAddress sb_address;
   if (m_opaque_up)
-    sb_address.SetAddress(&m_opaque_up->range.GetBaseAddress());
+    sb_address.SetAddress(m_opaque_up->range.GetBaseAddress());
 
   return LLDB_RECORD_RESULT(sb_address);
 }
@@ -66,7 +66,7 @@ SBAddress SBLineEntry::GetEndAddress() const {
 
   SBAddress sb_address;
   if (m_opaque_up) {
-    sb_address.SetAddress(&m_opaque_up->range.GetBaseAddress());
+    sb_address.SetAddress(m_opaque_up->range.GetBaseAddress());
     sb_address.OffsetAddress(m_opaque_up->range.GetByteSize());
   }
   return LLDB_RECORD_RESULT(sb_address);
@@ -163,7 +163,7 @@ const lldb_private::LineEntry *SBLineEntry::operator->() const {
 
 lldb_private::LineEntry &SBLineEntry::ref() {
   if (m_opaque_up == nullptr)
-    m_opaque_up.reset(new lldb_private::LineEntry());
+    m_opaque_up = std::make_unique<lldb_private::LineEntry>();
   return *m_opaque_up;
 }
 

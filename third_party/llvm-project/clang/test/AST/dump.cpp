@@ -61,7 +61,7 @@ struct S {
 // CHECK-NEXT: |       `-CapturedStmt {{.+}} <line:[[@LINE-15]]:5, line:[[@LINE-14]]:9>
 // CHECK-NEXT: |         |-CapturedDecl {{.+}} <<invalid sloc>> <invalid sloc> nothrow
 // CHECK-NEXT: |         | |-ForStmt {{.+}} <line:[[@LINE-17]]:5, line:[[@LINE-16]]:9>
-// CHECK:      |         | | `-UnaryOperator {{.+}} <line:[[@LINE-17]]:7, col:9> openmp_structured_block 'int' lvalue prefix '++'
+// CHECK:      |         | | `-UnaryOperator {{.+}} <line:[[@LINE-17]]:7, col:9> 'int' lvalue prefix '++'
 // CHECK-NEXT: |         | |   `-DeclRefExpr {{.+}} <col:9> 'int' lvalue OMPCapturedExpr {{.+}} 'a' 'int &'
 
 #pragma omp declare simd
@@ -86,4 +86,4 @@ int bar() {
 // CHECK-NEXT:  | `-ReturnStmt {{.+}} <line:[[@LINE-8]]:3, col:10>
 // CHECK-NEXT:  |   `-ImplicitCastExpr {{.+}} <col:10> 'int' <LValueToRValue>
 // CHECK-NEXT:  |     `-DeclRefExpr {{.+}} <col:10> 'int' lvalue Var {{.+}} 'f' 'int'
-// CHECK-NEXT:  `-OMPDeclareTargetDeclAttr {{.+}} <<invalid sloc>> Implicit MT_To
+// CHECK-NEXT:  `-OMPDeclareTargetDeclAttr {{.+}} <line:75:21> Implicit MT_To DT_Any 1

@@ -1,4 +1,4 @@
-//===-- ProcessInfo.cpp -----------------------------------------*- C++ -*-===//
+//===-- ProcessInfo.cpp ---------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,6 +9,7 @@
 #include "lldb/Utility/ProcessInfo.h"
 
 #include "lldb/Utility/ArchSpec.h"
+#include "lldb/Utility/ReproducerProvider.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/UserIDResolver.h"
@@ -18,6 +19,7 @@
 
 using namespace lldb;
 using namespace lldb_private;
+using namespace lldb_private::repro;
 
 ProcessInfo::ProcessInfo()
     : m_executable(), m_arguments(), m_environment(), m_uid(UINT32_MAX),
@@ -75,7 +77,7 @@ void ProcessInfo::SetExecutableFile(const FileSpec &exe_file,
 
 llvm::StringRef ProcessInfo::GetArg0() const { return m_arg0; }
 
-void ProcessInfo::SetArg0(llvm::StringRef arg) { m_arg0 = arg; }
+void ProcessInfo::SetArg0(llvm::StringRef arg) { m_arg0 = std::string(arg); }
 
 void ProcessInfo::SetArguments(char const **argv,
                                bool first_arg_is_executable) {
@@ -330,4 +332,46 @@ void ProcessInstanceInfoMatch::Clear() {
   m_match_info.Clear();
   m_name_match_type = NameMatch::Ignore;
   m_match_all_users = false;
+}
+
+void llvm::yaml::MappingTraits<ProcessInstanceInfo>::mapping(
+    IO &io, ProcessInstanceInfo &Info) {
+  io.mapRequired("executable", Info.m_executable);
+  io.mapRequired("arg0", Info.m_arg0);
+  io.mapRequired("args", Info.m_arguments);
+  io.mapRequired("arch", Info.m_arch);
+  io.mapRequired("uid", Info.m_uid);
+  io.mapRequired("gid", Info.m_gid);
+  io.mapRequired("pid", Info.m_pid);
+  io.mapRequired("effective-uid", Info.m_euid);
+  io.mapRequired("effective-gid", Info.m_egid);
+  io.mapRequired("parent-pid", Info.m_parent_pid);
+}
+
+
+llvm::Optional<ProcessInstanceInfoList>
+repro::GetReplayProcessInstanceInfoList() {
+  static std::unique_ptr<repro::MultiLoader<repro::ProcessInfoProvider>>
+      loader = repro::MultiLoader<repro::ProcessInfoProvider>::Create(
+          repro::Reproducer::Instance().GetLoader());
+
+  if (!loader)
+    return {};
+
+  llvm::Optional<std::string> nextfile = loader->GetNextFile();
+  if (!nextfile)
+    return {};
+
+  auto error_or_file = llvm::MemoryBuffer::getFile(*nextfile);
+  if (std::error_code err = error_or_file.getError())
+    return {};
+
+  ProcessInstanceInfoList infos;
+  llvm::yaml::Input yin((*error_or_file)->getBuffer());
+  yin >> infos;
+
+  if (auto err = yin.error())
+    return {};
+
+  return infos;
 }

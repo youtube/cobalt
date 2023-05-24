@@ -8,7 +8,7 @@
 
 // Can a noexcept member function pointer be caught by a non-noexcept catch
 // clause?
-// UNSUPPORTED: libcxxabi-no-exceptions, libcxxabi-no-noexcept-function-type
+// UNSUPPORTED: no-exceptions, libcxxabi-no-noexcept-function-type
 
 // GCC 7 and 8 support noexcept function types but this test still fails.
 // This is likely a bug in their implementation. Investigation needed.
@@ -60,11 +60,13 @@ void check_deep() {
     }
 }
 
-int main()
+int main(int, char**)
 {
     check<false, false>();
     check<false, true>();
     check<true, false>();
     check<true, true>();
     check_deep();
+
+    return 0;
 }

@@ -27,18 +27,21 @@ add_library(LLVMExegesis
   BenchmarkRunner.cpp
   Clustering.cpp
   CodeTemplate.cpp
-  Latency.cpp
+  Error.cpp
+  LatencyBenchmarkRunner.cpp
   LlvmState.cpp
   MCInstrDescView.cpp
+  ParallelSnippetGenerator.cpp
   PerfHelper.cpp
   RegisterAliasing.cpp
   RegisterValue.cpp
   SchedClassResolution.cpp
+  SerialSnippetGenerator.cpp
   SnippetFile.cpp
   SnippetGenerator.cpp
   SnippetRepetitor.cpp
   Target.cpp
-  Uops.cpp
+  UopsBenchmarkRunner.cpp
   )
 
 llvm_update_compile_flags(LLVMExegesis)
@@ -54,6 +57,7 @@ llvm_map_components_to_libnames(libs
   MCParser
   Object
   ObjectYAML
+  RuntimeDyld
   Support
   )
 

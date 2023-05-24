@@ -35,7 +35,7 @@ struct A
     static int count;
 
     A() {++count;}
-    A(const A&) {++count;}
+    A(const A& other) : B(other) {++count;}
     ~A() {--count;}
 };
 
@@ -45,6 +45,7 @@ int main(int, char**)
 {
     {
         const std::shared_ptr<A> pA(new A);
+        assert(pA.use_count() == 1);
         {
             std::weak_ptr<B> pB;
             pB = pA;

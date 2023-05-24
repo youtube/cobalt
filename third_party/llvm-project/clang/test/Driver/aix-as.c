@@ -9,7 +9,6 @@
 // CHECK-AS32: {{.*}}clang{{(.exe)?}}" "-cc1" "-triple" "powerpc-ibm-aix7.1.0.0"
 // CHECK-AS32: "{{.*}}as{{(.exe)?}}" 
 // CHECK-AS32: "-a32" 
-// CHECK-AS32: "-u" 
 // CHECK-AS32: "-many" 
 
 // Check powerpc64-ibm-aix7.1.0.0, 64-bit.
@@ -20,9 +19,7 @@
 // CHECK-AS64: {{.*}}clang{{(.exe)?}}" "-cc1" "-triple" "powerpc64-ibm-aix7.1.0.0"
 // CHECK-AS64: "{{.*}}as{{(.exe)?}}" 
 // CHECK-AS64: "-a64" 
-// CHECK-AS64: "-u" 
 // CHECK-AS64: "-many"
-
 
 // Check powerpc-ibm-aix7.1.0.0, 32-bit. -Xassembler <arg> option. 
 // RUN: %clang -no-canonical-prefixes %s -### -c -o %t.o 2>&1 \
@@ -33,7 +30,6 @@
 // CHECK-AS32-Xassembler: {{.*}}clang{{(.exe)?}}" "-cc1" "-triple" "powerpc-ibm-aix7.1.0.0"
 // CHECK-AS32-Xassembler: "{{.*}}as{{(.exe)?}}" 
 // CHECK-AS32-Xassembler: "-a32" 
-// CHECK-AS32-Xassembler: "-u" 
 // CHECK-AS32-Xassembler: "-many"
 // CHECK-AS32-Xassembler: "-w"
 
@@ -46,7 +42,6 @@
 // CHECK-AS64-Wa: {{.*}}clang{{(.exe)?}}" "-cc1" "-triple" "powerpc64-ibm-aix7.1.0.0"
 // CHECK-AS64-Wa: "{{.*}}as{{(.exe)?}}" 
 // CHECK-AS64-Wa: "-a64" 
-// CHECK-AS64-Wa: "-u" 
 // CHECK-AS64-Wa: "-many"
 // CHECK-AS64-Wa: "-v"
 // CHECK-AS64-Wa: "-w"
@@ -61,13 +56,10 @@
 // CHECK-AS32-MultiInput-NOT: warning:
 // CHECK-AS32-MultiInput: "{{.*}}as{{(.exe)?}}"
 // CHECK-AS32-MultiInput: "-a32"
-// CHECK-AS32-MultiInput: "-u"
 // CHECK-AS32-MultiInput: "-many"
 // CHECK-AS32-MultiInput: "{{.*}}as{{(.exe)?}}"
 // CHECK-AS32-MultiInput: "-a32"
-// CHECK-AS32-MultiInput: "-u"
 // CHECK-AS32-MultiInput: "-many"
 // CHECK-AS32-MultiInput: "{{.*}}as{{(.exe)?}}"
 // CHECK-AS32-MultiInput: "-a32"
-// CHECK-AS32-MultiInput: "-u"
 // CHECK-AS32-MultiInput: "-many"

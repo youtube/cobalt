@@ -297,7 +297,7 @@ void FuzzWithFork(Random &Rand, const FuzzingOptions &Options,
   for (auto &Dir : CorpusDirs)
     GetSizedFilesFromDir(Dir, &SeedFiles);
   std::sort(SeedFiles.begin(), SeedFiles.end());
-  Env.TempDir = TempPath(".dir");
+  Env.TempDir = TempPath("FuzzWithFork", ".dir");
   Env.DFTDir = DirPlusFile(Env.TempDir, "DFT");
   RmDirRecursive(Env.TempDir);  // in case there is a leftover from old runs.
   MkDir(Env.TempDir);
@@ -309,11 +309,15 @@ void FuzzWithFork(Random &Rand, const FuzzingOptions &Options,
   else
     Env.MainCorpusDir = CorpusDirs[0];
 
-  auto CFPath = DirPlusFile(Env.TempDir, "merge.txt");
-  CrashResistantMerge(Env.Args, {}, SeedFiles, &Env.Files, {}, &Env.Features,
-                      {}, &Env.Cov,
-                      CFPath, false);
-  RemoveFile(CFPath);
+  if (Options.KeepSeed) {
+    for (auto &File : SeedFiles)
+      Env.Files.push_back(File.File);
+  } else {
+    auto CFPath = DirPlusFile(Env.TempDir, "merge.txt");
+    CrashResistantMerge(Env.Args, {}, SeedFiles, &Env.Files, {}, &Env.Features,
+                        {}, &Env.Cov, CFPath, false);
+    RemoveFile(CFPath);
+  }
   Printf("INFO: -fork=%d: %zd seed inputs, starting to fuzz in %s\n", NumJobs,
          Env.Files.size(), Env.TempDir.c_str());
 

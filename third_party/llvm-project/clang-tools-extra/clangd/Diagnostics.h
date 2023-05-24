@@ -9,16 +9,18 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_DIAGNOSTICS_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_DIAGNOSTICS_H
 
-#include "Path.h"
 #include "Protocol.h"
+#include "support/Path.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/Support/SourceMgr.h"
 #include <cassert>
 #include <string>
 
@@ -64,6 +66,7 @@ struct DiagBase {
   // Since File is only descriptive, we store a separate flag to distinguish
   // diags from the main file.
   bool InsideMainFile = false;
+  unsigned ID; // e.g. member of clang::diag, or clang-tidy assigned ID.
 };
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const DiagBase &D);
 
@@ -82,13 +85,13 @@ struct Note : DiagBase {};
 
 /// A top-level diagnostic that may have Notes and Fixes.
 struct Diag : DiagBase {
-  unsigned ID;      // e.g. member of clang::diag, or clang-tidy assigned ID.
   std::string Name; // if ID was recognized.
   // The source of this diagnostic.
-  enum {
+  enum DiagSource {
     Unknown,
     Clang,
     ClangTidy,
+    ClangdConfig,
   } Source = Unknown;
   /// Elaborate on the problem, usually pointing to a related piece of code.
   std::vector<Note> Notes;
@@ -96,6 +99,8 @@ struct Diag : DiagBase {
   std::vector<Fix> Fixes;
 };
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const Diag &D);
+
+Diag toDiag(const llvm::SMDiagnostic &, Diag::DiagSource Source);
 
 /// Conversion to LSP diagnostics. Formats the error message of each diagnostic
 /// to include all its notes. Notes inside main file are also provided as
@@ -121,7 +126,8 @@ public:
   // The ClangTidyContext populates Source and Name for clang-tidy diagnostics.
   std::vector<Diag> take(const clang::tidy::ClangTidyContext *Tidy = nullptr);
 
-  void BeginSourceFile(const LangOptions &Opts, const Preprocessor *) override;
+  void BeginSourceFile(const LangOptions &Opts,
+                       const Preprocessor *PP) override;
   void EndSourceFile() override;
   void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
                         const clang::Diagnostic &Info) override;
@@ -145,11 +151,22 @@ private:
   std::vector<Diag> Output;
   llvm::Optional<LangOptions> LangOpts;
   llvm::Optional<Diag> LastDiag;
-  /// Set iff adjustDiagFromHeader resulted in changes to LastDiag.
-  bool LastDiagWasAdjusted = false;
-  llvm::DenseSet<int> IncludeLinesWithErrors;
+  llvm::Optional<FullSourceLoc> LastDiagLoc; // Valid only when LastDiag is set.
+  bool LastDiagOriginallyError = false;      // Valid only when LastDiag is set.
+  SourceManager *OrigSrcMgr = nullptr;
+
+  llvm::DenseSet<std::pair<unsigned, unsigned>> IncludedErrorLocations;
   bool LastPrimaryDiagnosticWasSuppressed = false;
 };
+
+/// Determine whether a (non-clang-tidy) diagnostic is suppressed by config.
+bool isBuiltinDiagnosticSuppressed(unsigned ID,
+                                   const llvm::StringSet<> &Suppressed);
+/// Take a user-specified diagnostic code, and convert it to a normalized form
+/// stored in the config and consumed by isBuiltinDiagnosticsSuppressed.
+///
+/// (This strips err_ and -W prefix so we can match with or without them.)
+llvm::StringRef normalizeSuppressedCode(llvm::StringRef);
 
 } // namespace clangd
 } // namespace clang

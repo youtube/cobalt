@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ObjCPlusPlusLanguage_h_
-#define liblldb_ObjCPlusPlusLanguage_h_
+#ifndef LLDB_SOURCE_PLUGINS_LANGUAGE_OBJCPLUSPLUS_OBJCPLUSPLUSLANGUAGE_H
+#define LLDB_SOURCE_PLUGINS_LANGUAGE_OBJCPLUSPLUS_OBJCPLUSPLUSLANGUAGE_H
 
 #include "Plugins/Language/ClangCommon/ClangHighlighter.h"
 #include "lldb/Target/Language.h"
@@ -26,6 +26,8 @@ public:
   lldb::LanguageType GetLanguageType() const override {
     return lldb::eLanguageTypeObjC_plus_plus;
   }
+
+  llvm::StringRef GetNilReferenceSummaryString() override { return "nil"; }
 
   bool IsSourceFile(llvm::StringRef file_path) const override;
 
@@ -48,4 +50,4 @@ public:
 
 } // namespace lldb_private
 
-#endif // liblldb_CPlusPlusLanguage_h_
+#endif // LLDB_SOURCE_PLUGINS_LANGUAGE_OBJCPLUSPLUS_OBJCPLUSPLUSLANGUAGE_H

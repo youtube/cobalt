@@ -1,29 +1,31 @@
 //===- TestInlining.cpp - Pass to inline calls in the test dialect --------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// TODO(riverriddle) This pass is only necessary because the main inlining pass
+// TODO: This pass is only necessary because the main inlining pass
 // has no abstracted away the call+callee relationship. When the inlining
 // interface has this support, this pass should be removed.
 //
 //===----------------------------------------------------------------------===//
 
 #include "TestDialect.h"
-#include "mlir/Dialect/StandardOps/Ops.h"
-#include "mlir/IR/Function.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/InliningUtils.h"
 #include "mlir/Transforms/Passes.h"
 #include "llvm/ADT/StringSet.h"
 
 using namespace mlir;
+using namespace mlir::test;
 
 namespace {
-struct Inliner : public FunctionPass<Inliner> {
+struct Inliner : public PassWrapper<Inliner, FunctionPass> {
   void runOnFunction() override {
     auto function = getFunction();
 
@@ -44,9 +46,8 @@ struct Inliner : public FunctionPass<Inliner> {
       // Inline the functional region operation, but only clone the internal
       // region if there is more than one use.
       if (failed(inlineRegion(
-              interface, &callee.body(), caller,
-              llvm::to_vector<8>(caller.getArgOperands()),
-              SmallVector<Value, 8>(caller.getResults()), caller.getLoc(),
+              interface, &callee.body(), caller, caller.getArgOperands(),
+              caller.getResults(), caller.getLoc(),
               /*shouldCloneInlinedRegion=*/!callee.getResult().hasOneUse())))
         continue;
 
@@ -60,5 +61,10 @@ struct Inliner : public FunctionPass<Inliner> {
 };
 } // end anonymous namespace
 
-static PassRegistration<Inliner> pass("test-inline",
-                                      "Test inlining region calls");
+namespace mlir {
+namespace test {
+void registerInliner() {
+  PassRegistration<Inliner>("test-inline", "Test inlining region calls");
+}
+} // namespace test
+} // namespace mlir

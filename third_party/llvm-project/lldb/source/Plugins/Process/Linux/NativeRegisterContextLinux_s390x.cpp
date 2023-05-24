@@ -1,4 +1,4 @@
-//===-- NativeRegisterContextLinux_s390x.cpp --------------------*- C++ -*-===//
+//===-- NativeRegisterContextLinux_s390x.cpp ------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -109,8 +109,8 @@ CreateRegisterInfoInterface(const ArchSpec &target_arch) {
 
 NativeRegisterContextLinux_s390x::NativeRegisterContextLinux_s390x(
     const ArchSpec &target_arch, NativeThreadProtocol &native_thread)
-    : NativeRegisterContextLinux(native_thread,
-                                 CreateRegisterInfoInterface(target_arch)) {
+    : NativeRegisterContextRegisterInfo(
+          native_thread, CreateRegisterInfoInterface(target_arch)) {
   // Set up data about ranges of valid registers.
   switch (target_arch.GetMachine()) {
   case llvm::Triple::systemz:

@@ -1,4 +1,4 @@
-//===-- CommandObjectProcess.cpp --------------------------------*- C++ -*-===//
+//===-- CommandObjectProcess.cpp ------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,13 +7,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "CommandObjectProcess.h"
+#include "CommandOptionsProcessLaunch.h"
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Host/OptionParser.h"
-#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
@@ -49,19 +49,19 @@ protected:
       state = process->GetState();
 
       if (process->IsAlive() && state != eStateConnected) {
-        char message[1024];
+        std::string message;
         if (process->GetState() == eStateAttaching)
-          ::snprintf(message, sizeof(message),
-                     "There is a pending attach, abort it and %s?",
-                     m_new_process_action.c_str());
+          message =
+              llvm::formatv("There is a pending attach, abort it and {0}?",
+                            m_new_process_action);
         else if (process->GetShouldDetach())
-          ::snprintf(message, sizeof(message),
-                     "There is a running process, detach from it and %s?",
-                     m_new_process_action.c_str());
+          message = llvm::formatv(
+              "There is a running process, detach from it and {0}?",
+              m_new_process_action);
         else
-          ::snprintf(message, sizeof(message),
-                     "There is a running process, kill it and %s?",
-                     m_new_process_action.c_str());
+          message =
+              llvm::formatv("There is a running process, kill it and {0}?",
+                            m_new_process_action);
 
         if (!m_interpreter.Confirm(message, true)) {
           result.SetStatus(eReturnStatusFailed);
@@ -185,6 +185,9 @@ protected:
     else
       m_options.launch_info.GetFlags().Clear(eLaunchFlagDisableASLR);
 
+    if (target->GetInheritTCC())
+      m_options.launch_info.GetFlags().Set(eLaunchFlagInheritTCCFromParent);
+
     if (target->GetDetachOnError())
       m_options.launch_info.GetFlags().Set(eLaunchFlagDetachOnError);
 
@@ -249,8 +252,7 @@ protected:
     return result.Succeeded();
   }
 
-protected:
-  ProcessLaunchCommandOptions m_options;
+  CommandOptionsProcessLaunch m_options;
 };
 
 #define LLDB_OPTIONS_process_attach
@@ -319,45 +321,6 @@ public:
       return llvm::makeArrayRef(g_process_attach_options);
     }
 
-    void HandleOptionArgumentCompletion(
-        CompletionRequest &request, OptionElementVector &opt_element_vector,
-        int opt_element_index, CommandInterpreter &interpreter) override {
-      int opt_arg_pos = opt_element_vector[opt_element_index].opt_arg_pos;
-      int opt_defs_index = opt_element_vector[opt_element_index].opt_defs_index;
-
-      // We are only completing the name option for now...
-
-      // Are we in the name?
-      if (GetDefinitions()[opt_defs_index].short_option != 'n')
-        return;
-
-      // Look to see if there is a -P argument provided, and if so use that
-      // plugin, otherwise use the default plugin.
-
-      const char *partial_name = nullptr;
-      partial_name = request.GetParsedLine().GetArgumentAtIndex(opt_arg_pos);
-
-      PlatformSP platform_sp(interpreter.GetPlatform(true));
-      if (!platform_sp)
-        return;
-      ProcessInstanceInfoList process_infos;
-      ProcessInstanceInfoMatch match_info;
-      if (partial_name) {
-        match_info.GetProcessInfo().GetExecutableFile().SetFile(
-            partial_name, FileSpec::Style::native);
-        match_info.SetNameMatchType(NameMatch::StartsWith);
-      }
-      platform_sp->FindProcesses(match_info, process_infos);
-      const size_t num_matches = process_infos.GetSize();
-      if (num_matches == 0)
-        return;
-      for (size_t i = 0; i < num_matches; ++i) {
-        request.AddCompletion(process_infos.GetProcessNameAtIndex(i));
-      }
-    }
-
-    // Instance variables to hold the values for command options.
-
     ProcessAttachInfo attach_info;
   };
 
@@ -402,7 +365,6 @@ protected:
         result.AppendError(error.AsCString("Error creating target"));
         return false;
       }
-      GetDebugger().GetTargetList().SetSelectedTarget(target);
     }
 
     // Record the old executable module, we want to issue a warning if the
@@ -759,7 +721,7 @@ public:
 
       switch (short_option) {
       case 'p':
-        plugin_name.assign(option_arg);
+        plugin_name.assign(std::string(option_arg));
         break;
 
       default:
@@ -818,9 +780,15 @@ protected:
     Status error;
     Debugger &debugger = GetDebugger();
     PlatformSP platform_sp = m_interpreter.GetPlatform(true);
-    ProcessSP process_sp = platform_sp->ConnectProcess(
-        command.GetArgumentAtIndex(0), plugin_name, debugger,
-        debugger.GetSelectedTarget().get(), error);
+    ProcessSP process_sp =
+        debugger.GetAsyncExecution()
+            ? platform_sp->ConnectProcess(
+                  command.GetArgumentAtIndex(0), plugin_name, debugger,
+                  debugger.GetSelectedTarget().get(), error)
+            : platform_sp->ConnectProcessSynchronous(
+                  command.GetArgumentAtIndex(0), plugin_name, debugger,
+                  result.GetOutputStream(), debugger.GetSelectedTarget().get(),
+                  error);
     if (error.Fail() || process_sp == nullptr) {
       result.AppendError(error.AsCString("Error connecting to the process"));
       result.SetStatus(eReturnStatusFailed);
@@ -912,6 +880,17 @@ public:
 
   ~CommandObjectProcessLoad() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (!m_exe_ctx.HasProcessScope())
+      return;
+
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eDiskFileCompletion,
+        request, nullptr);
+  }
+
   Options *GetOptions() override { return &m_options; }
 
 protected:
@@ -977,6 +956,24 @@ public:
 
   ~CommandObjectProcessUnload() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+
+    if (request.GetCursorIndex() || !m_exe_ctx.HasProcessScope())
+      return;
+
+    Process *process = m_exe_ctx.GetProcessPtr();
+
+    const std::vector<lldb::addr_t> &tokens = process->GetImageTokens();
+    const size_t token_num = tokens.size();
+    for (size_t i = 0; i < token_num; ++i) {
+      if (tokens[i] == LLDB_INVALID_IMAGE_TOKEN)
+        continue;
+      request.TryCompleteCurrentArg(std::to_string(i));
+    }
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     Process *process = m_exe_ctx.GetProcessPtr();
@@ -1034,6 +1031,20 @@ public:
 
   ~CommandObjectProcessSignal() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (!m_exe_ctx.HasProcessScope() || request.GetCursorIndex() != 0)
+      return;
+
+    UnixSignalsSP signals = m_exe_ctx.GetProcessPtr()->GetUnixSignals();
+    int signo = signals->GetFirstSignalNumber();
+    while (signo != LLDB_INVALID_SIGNAL_NUMBER) {
+      request.AddCompletion(signals->GetSignalAsCString(signo), "");
+      signo = signals->GetNextSignalNumber(signo);
+    }
+  }
+
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     Process *process = m_exe_ctx.GetProcessPtr();
@@ -1042,10 +1053,10 @@ protected:
       int signo = LLDB_INVALID_SIGNAL_NUMBER;
 
       const char *signal_name = command.GetArgumentAtIndex(0);
-      if (::isxdigit(signal_name[0]))
-        signo =
-            StringConvert::ToSInt32(signal_name, LLDB_INVALID_SIGNAL_NUMBER, 0);
-      else
+      if (::isxdigit(signal_name[0])) {
+        if (!llvm::to_integer(signal_name, signo))
+          signo = LLDB_INVALID_SIGNAL_NUMBER;
+      } else
         signo = process->GetUnixSignals()->GetSignalNumberFromName(signal_name);
 
       if (signo == LLDB_INVALID_SIGNAL_NUMBER) {
@@ -1201,6 +1212,8 @@ protected:
 
 // CommandObjectProcessStatus
 #pragma mark CommandObjectProcessStatus
+#define LLDB_OPTIONS_process_status
+#include "CommandOptions.inc"
 
 class CommandObjectProcessStatus : public CommandObjectParsed {
 public:
@@ -1209,13 +1222,57 @@ public:
             interpreter, "process status",
             "Show status and stop location for the current target process.",
             "process status",
-            eCommandRequiresProcess | eCommandTryTargetAPILock) {}
+            eCommandRequiresProcess | eCommandTryTargetAPILock),
+        m_options() {}
 
   ~CommandObjectProcessStatus() override = default;
 
+  Options *GetOptions() override { return &m_options; }
+
+  class CommandOptions : public Options {
+  public:
+    CommandOptions() : Options(), m_verbose(false) {}
+
+    ~CommandOptions() override = default;
+
+    Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
+                          ExecutionContext *execution_context) override {
+      const int short_option = m_getopt_table[option_idx].val;
+
+      switch (short_option) {
+      case 'v':
+        m_verbose = true;
+        break;
+      default:
+        llvm_unreachable("Unimplemented option");
+      }
+
+      return {};
+    }
+
+    void OptionParsingStarting(ExecutionContext *execution_context) override {
+      m_verbose = false;
+    }
+
+    llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
+      return llvm::makeArrayRef(g_process_status_options);
+    }
+
+    // Instance variables to hold the values for command options.
+    bool m_verbose;
+  };
+
+protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     Stream &strm = result.GetOutputStream();
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
+
+    if (command.GetArgumentCount()) {
+      result.AppendError("'process status' takes no arguments");
+      result.SetStatus(eReturnStatusFailed);
+      return result.Succeeded();
+    }
+
     // No need to check "process" for validity as eCommandRequiresProcess
     // ensures it is valid
     Process *process = m_exe_ctx.GetProcessPtr();
@@ -1227,8 +1284,37 @@ public:
     process->GetStatus(strm);
     process->GetThreadStatus(strm, only_threads_with_stop_reason, start_frame,
                              num_frames, num_frames_with_source, stop_format);
+
+    if (m_options.m_verbose) {
+      PlatformSP platform_sp = process->GetTarget().GetPlatform();
+      if (!platform_sp) {
+        result.AppendError("Couldn'retrieve the target's platform");
+        result.SetStatus(eReturnStatusFailed);
+        return result.Succeeded();
+      }
+
+      auto expected_crash_info =
+          platform_sp->FetchExtendedCrashInformation(*process);
+
+      if (!expected_crash_info) {
+        result.AppendError(llvm::toString(expected_crash_info.takeError()));
+        result.SetStatus(eReturnStatusFailed);
+        return result.Succeeded();
+      }
+
+      StructuredData::DictionarySP crash_info_sp = *expected_crash_info;
+
+      if (crash_info_sp) {
+        strm.PutCString("Extended Crash Information:\n");
+        crash_info_sp->Dump(strm);
+      }
+    }
+
     return result.Succeeded();
   }
+
+private:
+  CommandOptions m_options;
 };
 
 // CommandObjectProcessHandle
@@ -1252,13 +1338,13 @@ public:
 
       switch (short_option) {
       case 's':
-        stop = option_arg;
+        stop = std::string(option_arg);
         break;
       case 'n':
-        notify = option_arg;
+        notify = std::string(option_arg);
         break;
       case 'p':
-        pass = option_arg;
+        pass = std::string(option_arg);
         break;
       default:
         llvm_unreachable("Unimplemented option");
@@ -1318,7 +1404,8 @@ public:
       real_value = 0;
     else {
       // If the value isn't 'true' or 'false', it had better be 0 or 1.
-      real_value = StringConvert::ToUInt32(option.c_str(), 3);
+      if (!llvm::to_integer(option, real_value))
+        real_value = 3;
       if (real_value != 0 && real_value != 1)
         okay = false;
     }

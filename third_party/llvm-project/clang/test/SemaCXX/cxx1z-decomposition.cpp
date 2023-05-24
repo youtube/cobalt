@@ -1,7 +1,22 @@
-// RUN: %clang_cc1 -std=c++1z -verify %s
+// RUN: %clang_cc1 -std=c++17 -verify %s
 
 void use_from_own_init() {
   auto [a] = a; // expected-error {{binding 'a' cannot appear in the initializer of its own decomposition declaration}}
+}
+
+void num_elems() {
+  struct A0 {} a0;
+  int a1[1], a2[2];
+
+  auto [] = a0; // expected-warning {{does not allow a decomposition group to be empty}}
+  auto [v1] = a0; // expected-error {{type 'A0' decomposes into 0 elements, but 1 name was provided}}
+  auto [] = a1; // expected-error {{type 'int [1]' decomposes into 1 element, but no names were provided}} expected-warning {{empty}}
+  auto [v2] = a1;
+  auto [v3, v4] = a1; // expected-error {{type 'int [1]' decomposes into 1 element, but 2 names were provided}}
+  auto [] = a2; // expected-error {{type 'int [2]' decomposes into 2 elements, but no names were provided}} expected-warning {{empty}}
+  auto [v5] = a2; // expected-error {{type 'int [2]' decomposes into 2 elements, but only 1 name was provided}}
+  auto [v6, v7] = a2;
+  auto [v8, v9, v10] = a2; // expected-error {{type 'int [2]' decomposes into 2 elements, but 3 names were provided}}
 }
 
 // As a Clang extension, _Complex can be decomposed.
@@ -83,7 +98,7 @@ template <class T> void dependent_foreach(T t) {
 
 struct PR37352 {
   int n;
-  void f() { static auto [a] = *this; } // expected-warning {{C++2a extension}}
+  void f() { static auto [a] = *this; } // expected-warning {{C++20 extension}}
 };
 
 namespace instantiate_template {
@@ -102,5 +117,50 @@ int f2() {
 }
 
 } // namespace instantiate_template
+
+namespace lambdas {
+  void f() {
+    int n;
+    auto [a] =  // expected-error {{cannot decompose lambda closure type}}
+        [n] {}; // expected-note {{lambda expression}}
+  }
+
+  auto [] = []{}; // expected-warning {{ISO C++17 does not allow a decomposition group to be empty}}
+
+  int g() {
+    int n = 0;
+    auto a = [=](auto &self) { // expected-note {{lambda expression}}
+      auto &[capture] = self; // expected-error {{cannot decompose lambda closure type}}
+      ++capture;
+      return n;
+    };
+    return a(a); // expected-note {{in instantiation of}}
+  }
+
+  int h() {
+    auto x = [] {};
+    struct A : decltype(x) {
+      int n;
+    };
+    auto &&[r] = A{x, 0}; // OK (presumably), non-capturing lambda has no non-static data members
+    return r;
+  }
+
+  int i() {
+    int n;
+    auto x = [n] {};
+    struct A : decltype(x) {
+      int n;
+    };
+    auto &&[r] = A{x, 0}; // expected-error-re {{cannot decompose class type 'A': both it and its base class 'decltype(x)' (aka '(lambda {{.*}})') have non-static data members}}
+    return r;
+  }
+
+  void j() {
+    auto x = [] {};
+    struct A : decltype(x) {};
+    auto &&[] = A{x}; // expected-warning {{ISO C++17 does not allow a decomposition group to be empty}}
+  }
+}
 
 // FIXME: by-value array copies

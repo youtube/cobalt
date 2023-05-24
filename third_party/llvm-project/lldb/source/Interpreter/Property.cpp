@@ -1,4 +1,4 @@
-//===-- Property.cpp --------------------------------------------*- C++ -*-===//
+//===-- Property.cpp ------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -97,6 +97,12 @@ Property::Property(const PropertyDefinition &definition)
         }
       }
     }
+    break;
+
+  case OptionValue::eTypeFileLineColumn:
+    // "definition.default_uint_value" is not used for a
+    // OptionValue::eTypeFileSpecList
+    m_value_sp = std::make_shared<OptionValueFileColonLine>();
     break;
 
   case OptionValue::eTypeFileSpec: {

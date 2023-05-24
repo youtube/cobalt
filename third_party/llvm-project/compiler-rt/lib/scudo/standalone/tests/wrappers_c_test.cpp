@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "scudo/interface.h"
 #include "tests/scudo_unit_test.h"
 
 #include <errno.h>
@@ -188,14 +189,6 @@ TEST(ScudoWrappersCTest, Realloc) {
   }
 }
 
-#ifndef M_DECAY_TIME
-#define M_DECAY_TIME -100
-#endif
-
-#ifndef M_PURGE
-#define M_PURGE -101
-#endif
-
 #if !SCUDO_FUCHSIA
 TEST(ScudoWrappersCTest, MallOpt) {
   errno = 0;
@@ -209,6 +202,12 @@ TEST(ScudoWrappersCTest, MallOpt) {
   EXPECT_EQ(mallopt(M_DECAY_TIME, 0), 1);
   EXPECT_EQ(mallopt(M_DECAY_TIME, 1), 1);
   EXPECT_EQ(mallopt(M_DECAY_TIME, 0), 1);
+
+  if (SCUDO_ANDROID) {
+    EXPECT_EQ(mallopt(M_CACHE_COUNT_MAX, 100), 1);
+    EXPECT_EQ(mallopt(M_CACHE_SIZE_MAX, 1024 * 1024 * 2), 1);
+    EXPECT_EQ(mallopt(M_TSDS_COUNT_MAX, 10), 1);
+  }
 }
 #endif
 
@@ -268,10 +267,26 @@ TEST(ScudoWrappersCTest, MallocIterateBoundary) {
   const size_t BlockDelta = FIRST_32_SECOND_64(8U, 16U);
   const size_t SpecialSize = PageSize - BlockDelta;
 
-  void *P = malloc(SpecialSize);
-  EXPECT_NE(P, nullptr);
-  BoundaryP = reinterpret_cast<uintptr_t>(P);
-  const uintptr_t Block = BoundaryP - BlockDelta;
+  // We aren't guaranteed that any size class is exactly a page wide. So we need
+  // to keep making allocations until we succeed.
+  //
+  // With a 16-byte block alignment and 4096-byte page size, each allocation has
+  // a probability of (1 - (16/4096)) of failing to meet the alignment
+  // requirements, and the probability of failing 65536 times is
+  // (1 - (16/4096))^65536 < 10^-112. So if we still haven't succeeded after
+  // 65536 tries, give up.
+  uintptr_t Block;
+  void *P = nullptr;
+  for (unsigned I = 0; I != 65536; ++I) {
+    void *PrevP = P;
+    P = malloc(SpecialSize);
+    EXPECT_NE(P, nullptr);
+    *reinterpret_cast<void **>(P) = PrevP;
+    BoundaryP = reinterpret_cast<uintptr_t>(P);
+    Block = BoundaryP - BlockDelta;
+    if ((Block & (PageSize - 1)) == 0U)
+      break;
+  }
   EXPECT_EQ((Block & (PageSize - 1)), 0U);
 
   Count = 0U;
@@ -281,11 +296,17 @@ TEST(ScudoWrappersCTest, MallocIterateBoundary) {
   malloc_enable();
   EXPECT_EQ(Count, 1U);
 
-  free(P);
+  while (P) {
+    void *NextP = *reinterpret_cast<void **>(P);
+    free(P);
+    P = NextP;
+  }
 }
 
-// We expect heap operations within a disable/enable scope to deadlock.
+// Fuchsia doesn't have alarm, fork or malloc_info.
+#if !SCUDO_FUCHSIA
 TEST(ScudoWrappersCTest, MallocDisableDeadlock) {
+  // We expect heap operations within a disable/enable scope to deadlock.
   EXPECT_DEATH(
       {
         void *P = malloc(Size);
@@ -299,11 +320,12 @@ TEST(ScudoWrappersCTest, MallocDisableDeadlock) {
       "");
 }
 
-// Fuchsia doesn't have fork or malloc_info.
-#if !SCUDO_FUCHSIA
-
 TEST(ScudoWrappersCTest, MallocInfo) {
-  char Buffer[64];
+  // Use volatile so that the allocations don't get optimized away.
+  void *volatile P1 = malloc(1234);
+  void *volatile P2 = malloc(4321);
+
+  char Buffer[16384];
   FILE *F = fmemopen(Buffer, sizeof(Buffer), "w+");
   EXPECT_NE(F, nullptr);
   errno = 0;
@@ -311,6 +333,11 @@ TEST(ScudoWrappersCTest, MallocInfo) {
   EXPECT_EQ(errno, 0);
   fclose(F);
   EXPECT_EQ(strncmp(Buffer, "<malloc version=\"scudo-", 23), 0);
+  EXPECT_NE(nullptr, strstr(Buffer, "<alloc size=\"1234\" count=\""));
+  EXPECT_NE(nullptr, strstr(Buffer, "<alloc size=\"4321\" count=\""));
+
+  free(P1);
+  free(P2);
 }
 
 TEST(ScudoWrappersCTest, Fork) {
@@ -343,6 +370,7 @@ TEST(ScudoWrappersCTest, Fork) {
 
 static pthread_mutex_t Mutex;
 static pthread_cond_t Conditional = PTHREAD_COND_INITIALIZER;
+static bool Ready;
 
 static void *enableMalloc(void *Unused) {
   // Initialize the allocator for this thread.
@@ -353,6 +381,7 @@ static void *enableMalloc(void *Unused) {
 
   // Signal the main thread we are ready.
   pthread_mutex_lock(&Mutex);
+  Ready = true;
   pthread_cond_signal(&Conditional);
   pthread_mutex_unlock(&Mutex);
 
@@ -365,11 +394,13 @@ static void *enableMalloc(void *Unused) {
 
 TEST(ScudoWrappersCTest, DisableForkEnable) {
   pthread_t ThreadId;
+  Ready = false;
   EXPECT_EQ(pthread_create(&ThreadId, nullptr, &enableMalloc, nullptr), 0);
 
   // Wait for the thread to be warmed up.
   pthread_mutex_lock(&Mutex);
-  pthread_cond_wait(&Conditional, &Mutex);
+  while (!Ready)
+    pthread_cond_wait(&Conditional, &Mutex);
   pthread_mutex_unlock(&Mutex);
 
   // Disable the allocator and fork. fork should succeed after malloc_enable.

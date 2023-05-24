@@ -8,9 +8,9 @@
 
 #include "MemIndex.h"
 #include "FuzzyMatch.h"
-#include "Logger.h"
 #include "Quality.h"
-#include "Trace.h"
+#include "support/Logger.h"
+#include "support/Trace.h"
 #include "clang/Index/IndexSymbol.h"
 
 namespace clang {
@@ -107,6 +107,18 @@ void MemIndex::relations(
     }
     lookup(LookupReq, [&](const Symbol &Object) { Callback(Subject, Object); });
   }
+}
+
+llvm::unique_function<bool(llvm::StringRef) const>
+MemIndex::indexedFiles() const {
+  return [this](llvm::StringRef FileURI) {
+    auto Path = URI::resolve(FileURI);
+    if (!Path) {
+      llvm::consumeError(Path.takeError());
+      return false;
+    }
+    return Files.contains(*Path);
+  };
 }
 
 size_t MemIndex::estimateMemoryUsage() const {

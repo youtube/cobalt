@@ -61,7 +61,7 @@ protected:
 TEST_F(TargetLibraryInfoTest, InvalidProto) {
   parseAssembly("%foo = type { %foo }\n");
 
-  auto *StructTy = M->getTypeByName("foo");
+  auto *StructTy = StructType::getTypeByName(Context, "foo");
   auto *InvalidFTy = FunctionType::get(StructTy, /*isVarArg=*/false);
 
   for (unsigned FI = 0; FI != LibFunc::NumLibFuncs; ++FI) {
@@ -96,6 +96,7 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare float @acoshf(float)\n"
       "declare x86_fp80 @acoshl(x86_fp80)\n"
       "declare x86_fp80 @acosl(x86_fp80)\n"
+      "declare i8* @aligned_alloc(i64, i64)\n"
       "declare double @asin(double)\n"
       "declare float @asinf(float)\n"
       "declare double @asinh(double)\n"
@@ -262,6 +263,9 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare i64 @readlink(i8*, i8*, i64)\n"
       "declare i8* @realloc(i8*, i64)\n"
       "declare i8* @reallocf(i8*, i64)\n"
+      "declare double @remainder(double, double)\n"
+      "declare float @remainderf(float, float)\n"
+      "declare x86_fp80 @remainderl(x86_fp80, x86_fp80)\n"
       "declare i32 @remove(i8*)\n"
       "declare i32 @rename(i8*, i8*)\n"
       "declare void @rewind(%struct*)\n"
@@ -272,6 +276,9 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare double @round(double)\n"
       "declare float @roundf(float)\n"
       "declare x86_fp80 @roundl(x86_fp80)\n"
+      "declare double @roundeven(double)\n"
+      "declare float @roundevenf(float)\n"
+      "declare x86_fp80 @roundevenl(x86_fp80)\n"
       "declare i32 @scanf(i8*, ...)\n"
       "declare void @setbuf(%struct*, i8*)\n"
       "declare i32 @setitimer(i32, %struct*, %struct*)\n"
@@ -408,13 +415,17 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare void @_ZdaPvSt11align_val_t(i8*, i64)\n"
       "declare void @_ZdaPvSt11align_val_tRKSt9nothrow_t(i8*, i64, %struct*)\n"
       "declare void @_ZdaPvj(i8*, i32)\n"
+      "declare void @_ZdaPvjSt11align_val_t(i8*, i32, i32)\n"
       "declare void @_ZdaPvm(i8*, i64)\n"
+      "declare void @_ZdaPvmSt11align_val_t(i8*, i64, i64)\n"
       "declare void @_ZdlPv(i8*)\n"
       "declare void @_ZdlPvRKSt9nothrow_t(i8*, %struct*)\n"
       "declare void @_ZdlPvSt11align_val_t(i8*, i64)\n"
       "declare void @_ZdlPvSt11align_val_tRKSt9nothrow_t(i8*, i64, %struct*)\n"
       "declare void @_ZdlPvj(i8*, i32)\n"
+      "declare void @_ZdlPvjSt11align_val_t(i8*, i32, i32)\n"
       "declare void @_ZdlPvm(i8*, i64)\n"
+      "declare void @_ZdlPvmSt11align_val_t(i8*, i64, i64)\n"
       "declare i8* @_Znaj(i32)\n"
       "declare i8* @_ZnajRKSt9nothrow_t(i32, %struct*)\n"
       "declare i8* @_ZnajSt11align_val_t(i32, i32)\n"
@@ -470,10 +481,12 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare i8* @__strcpy_chk(i8*, i8*, i64)\n"
       "declare i8* @__strncpy_chk(i8*, i8*, i64, i64)\n"
       "declare i8* @__memccpy_chk(i8*, i8*, i32, i64)\n"
+      "declare i8* @__mempcpy_chk(i8*, i8*, i64, i64)\n"
       "declare i32 @__snprintf_chk(i8*, i64, i32, i64, i8*, ...)\n"
       "declare i32 @__sprintf_chk(i8*, i32, i64, i8*, ...)\n"
       "declare i8* @__strcat_chk(i8*, i8*, i64)\n"
       "declare i64 @__strlcat_chk(i8*, i8*, i64, i64)\n"
+      "declare i64 @__strlen_chk(i8*, i64)\n"
       "declare i8* @__strncat_chk(i8*, i8*, i64, i64)\n"
       "declare i64 @__strlcpy_chk(i8*, i8*, i64, i64)\n"
       "declare i32 @__vsnprintf_chk(i8*, i64, i32, i64, i8*, %struct*)\n"
@@ -482,6 +495,9 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare i8* @memalign(i64, i64)\n"
       "declare i8* @mempcpy(i8*, i8*, i64)\n"
       "declare i8* @memrchr(i8*, i32, i64)\n"
+
+      "declare void @__atomic_load(i64, i8*, i8*, i32)\n"
+      "declare void @__atomic_store(i64, i8*, i8*, i32)\n"
 
       // These are similar to the FILE* fgetc/fputc.
       "declare i32 @_IO_getc(%struct*)\n"
@@ -564,6 +580,12 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare double @__sinh_finite(double)\n"
       "declare float @__sinhf_finite(float)\n"
       "declare x86_fp80 @__sinhl_finite(x86_fp80)\n"
+
+      // These functions are aix vec allocation/free routines
+      "declare i8* @vec_calloc(i64, i64)\n"
+      "declare i8* @vec_malloc(i64)\n"
+      "declare i8* @vec_realloc(i8*, i64)\n"
+      "declare void @vec_free(i8*)\n"
       );
 
   for (unsigned FI = 0; FI != LibFunc::NumLibFuncs; ++FI) {

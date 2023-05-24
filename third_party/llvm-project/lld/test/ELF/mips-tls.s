@@ -23,14 +23,14 @@
 
 # DIS: 00000000 l    O .tdata          00000000 loc
 # DIS: 00000004 g    O .tdata          00000000 bar
-# DIS: 00000000 g    O *UND*           00000000 foo
+# DIS: 00000000      O *UND*           00000000 foo
 
 # DIS:      Contents of section .got:
 # DIS-NEXT:  30000 00000000 80000000 00000000 ffff9004
 # DIS-NEXT:  30010 00000000 00000000 00000001 00000000
 # DIS-NEXT:  30020 00000001 ffff8004
 
-# DIS:      __start:
+# DIS:      <__start>:
 # DIS-NEXT:    addiu   $2, $3, -32736
 # DIS-NEXT:    addiu   $2, $3, -32744
 # DIS-NEXT:    addiu   $2, $3, -32728
@@ -39,9 +39,9 @@
 
 # CHECK:      Relocations [
 # CHECK-NEXT:   Section (7) .rel.dyn {
-# CHECK-NEXT:     0x30008 R_MIPS_TLS_TPREL32 foo 0x0
-# CHECK-NEXT:     0x30010 R_MIPS_TLS_DTPMOD32 foo 0x0
-# CHECK-NEXT:     0x30014 R_MIPS_TLS_DTPREL32 foo 0x0
+# CHECK-NEXT:     0x30008 R_MIPS_TLS_TPREL32 foo
+# CHECK-NEXT:     0x30010 R_MIPS_TLS_DTPMOD32 foo
+# CHECK-NEXT:     0x30014 R_MIPS_TLS_DTPREL32 foo
 # CHECK-NEXT:   }
 # CHECK-NEXT: ]
 # CHECK:      Primary GOT {
@@ -69,13 +69,13 @@
 
 # SO:      Relocations [
 # SO-NEXT:   Section (7) .rel.dyn {
-# SO-NEXT:     0x30018 R_MIPS_TLS_DTPMOD32 - 0x0
-# SO-NEXT:     0x3000C R_MIPS_TLS_TPREL32 bar 0x0
-# SO-NEXT:     0x30020 R_MIPS_TLS_DTPMOD32 bar 0x0
-# SO-NEXT:     0x30024 R_MIPS_TLS_DTPREL32 bar 0x0
-# SO-NEXT:     0x30008 R_MIPS_TLS_TPREL32 foo 0x0
-# SO-NEXT:     0x30010 R_MIPS_TLS_DTPMOD32 foo 0x0
-# SO-NEXT:     0x30014 R_MIPS_TLS_DTPREL32 foo 0x0
+# SO-NEXT:     0x30018 R_MIPS_TLS_DTPMOD32 -
+# SO-NEXT:     0x3000C R_MIPS_TLS_TPREL32 bar
+# SO-NEXT:     0x30020 R_MIPS_TLS_DTPMOD32 bar
+# SO-NEXT:     0x30024 R_MIPS_TLS_DTPREL32 bar
+# SO-NEXT:     0x30008 R_MIPS_TLS_TPREL32 foo
+# SO-NEXT:     0x30010 R_MIPS_TLS_DTPMOD32 foo
+# SO-NEXT:     0x30014 R_MIPS_TLS_DTPREL32 foo
 # SO-NEXT:   }
 # SO-NEXT: ]
 # SO:      Primary GOT {

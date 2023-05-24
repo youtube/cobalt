@@ -51,7 +51,7 @@ struct atomic_u32 {
 struct atomic_u64 {
   typedef u64 Type;
   // On 32-bit platforms u64 is not necessarily aligned on 8 bytes.
-  ALIGNED(8) volatile Type ValDoNotUse;
+  alignas(8) volatile Type ValDoNotUse;
 };
 
 struct atomic_uptr {
@@ -90,6 +90,20 @@ inline typename T::Type atomic_fetch_sub(volatile T *A, typename T::Type V,
 }
 
 template <typename T>
+inline typename T::Type atomic_fetch_and(volatile T *A, typename T::Type V,
+                                         memory_order MO) {
+  DCHECK(!(reinterpret_cast<uptr>(A) % sizeof(*A)));
+  return __atomic_fetch_and(&A->ValDoNotUse, V, MO);
+}
+
+template <typename T>
+inline typename T::Type atomic_fetch_or(volatile T *A, typename T::Type V,
+                                        memory_order MO) {
+  DCHECK(!(reinterpret_cast<uptr>(A) % sizeof(*A)));
+  return __atomic_fetch_or(&A->ValDoNotUse, V, MO);
+}
+
+template <typename T>
 inline typename T::Type atomic_exchange(volatile T *A, typename T::Type V,
                                         memory_order MO) {
   DCHECK(!(reinterpret_cast<uptr>(A) % sizeof(*A)));
@@ -103,14 +117,6 @@ inline bool atomic_compare_exchange_strong(volatile T *A, typename T::Type *Cmp,
                                            typename T::Type Xchg,
                                            memory_order MO) {
   return __atomic_compare_exchange(&A->ValDoNotUse, Cmp, &Xchg, false, MO,
-                                   __ATOMIC_RELAXED);
-}
-
-template <typename T>
-inline bool atomic_compare_exchange_weak(volatile T *A, typename T::Type *Cmp,
-                                         typename T::Type Xchg,
-                                         memory_order MO) {
-  return __atomic_compare_exchange(&A->ValDoNotUse, Cmp, &Xchg, true, MO,
                                    __ATOMIC_RELAXED);
 }
 

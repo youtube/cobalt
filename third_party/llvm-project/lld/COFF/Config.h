@@ -9,6 +9,7 @@
 #ifndef LLD_COFF_CONFIG_H
 #define LLD_COFF_CONFIG_H
 
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/COFF.h"
@@ -29,6 +30,7 @@ class DefinedRelative;
 class StringChunk;
 class Symbol;
 class InputFile;
+class SectionChunk;
 
 // Short aliases.
 static const auto AMD64 = llvm::COFF::IMAGE_FILE_MACHINE_AMD64;
@@ -110,6 +112,7 @@ struct Configuration {
   bool showSummary = false;
   unsigned debugTypes = static_cast<unsigned>(DebugType::None);
   std::vector<std::string> natvisFiles;
+  llvm::StringMap<std::string> namedStreams;
   llvm::SmallString<128> pdbAltPath;
   llvm::SmallString<128> pdbPath;
   llvm::SmallString<128> pdbSourcePath;
@@ -139,12 +142,13 @@ struct Configuration {
   bool safeSEH = false;
   Symbol *sehTable = nullptr;
   Symbol *sehCount = nullptr;
+  bool noSEH = false;
 
   // Used for /opt:lldlto=N
   unsigned ltoo = 2;
 
   // Used for /opt:lldltojobs=N
-  unsigned thinLTOJobs = 0;
+  std::string thinLTOJobs;
   // Used for /opt:lldltopartitions=N
   unsigned ltoPartitions = 1;
 
@@ -152,6 +156,11 @@ struct Configuration {
   StringRef ltoCache;
   // Used for /opt:lldltocachepolicy=policy
   llvm::CachePruningPolicy ltoCachePolicy;
+
+  // Used for /opt:[no]ltonewpassmanager
+  bool ltoNewPassManager = false;
+  // Used for /opt:[no]ltodebugpassmanager
+  bool ltoDebugPassManager = false;
 
   // Used for /merge:from=to (e.g. /merge:.rdata=.text)
   std::map<StringRef, StringRef> merge;
@@ -182,6 +191,9 @@ struct Configuration {
   llvm::StringMap<int> order;
 
   // Used for /lldmap.
+  std::string lldmapFile;
+
+  // Used for /map.
   std::string mapFile;
 
   // Used for /thinlto-index-only:
@@ -196,6 +208,15 @@ struct Configuration {
   // Used for /lto-obj-path:
   llvm::StringRef ltoObjPath;
 
+  // Used for /call-graph-ordering-file:
+  llvm::MapVector<std::pair<const SectionChunk *, const SectionChunk *>,
+                  uint64_t>
+      callGraphProfile;
+  bool callGraphProfileSort = false;
+
+  // Used for /print-symbol-order:
+  StringRef printSymbolOrder;
+
   uint64_t align = 4096;
   uint64_t imageBase = -1;
   uint64_t fileAlign = 512;
@@ -205,12 +226,17 @@ struct Configuration {
   uint64_t heapCommit = 4096;
   uint32_t majorImageVersion = 0;
   uint32_t minorImageVersion = 0;
+  // If changing the default os/subsys version here, update the default in
+  // the MinGW driver accordingly.
   uint32_t majorOSVersion = 6;
   uint32_t minorOSVersion = 0;
+  uint32_t majorSubsystemVersion = 6;
+  uint32_t minorSubsystemVersion = 0;
   uint32_t timestamp = 0;
   uint32_t functionPadMin = 0;
   bool dynamicBase = true;
   bool allowBind = true;
+  bool cetCompat = false;
   bool nxCompat = true;
   bool allowIsolation = true;
   bool terminalServerAware = true;
@@ -230,6 +256,8 @@ struct Configuration {
   bool swaprunNet = false;
   bool thinLTOEmitImportsFiles;
   bool thinLTOIndexOnly;
+  bool autoImport = false;
+  bool pseudoRelocs = false;
 };
 
 extern Configuration *config;

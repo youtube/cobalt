@@ -1,5 +1,5 @@
-; RUN: opt < %s -debug-pass=Structure -indvars -gvn -indvars 2>&1 -S | FileCheck --check-prefix=CHECK --check-prefix=IR %s
-; RUN: opt < %s -debug-pass-manager -passes='require<domtree>,loop(simplify-cfg),gvn,loop(indvars)' 2>&1 -S | FileCheck --check-prefix=NEW-PM --check-prefix=IR %s
+; RUN: opt < %s -debug-pass=Structure -indvars -gvn -indvars -enable-new-pm=0 2>&1 -S | FileCheck --check-prefix=CHECK --check-prefix=IR %s
+; RUN: opt < %s -debug-pass-manager -passes='require<domtree>,loop(loop-simplifycfg),gvn,loop(indvars)' 2>&1 -S | FileCheck --check-prefix=NEW-PM --check-prefix=IR %s
 
 ; Check CFG-only analysis are preserved by SCCP by running it between 2
 ; loop-vectorize runs.
@@ -12,7 +12,7 @@
 ; CHECK: Global Value Numbering
 ; CHECK-NOT: Dominator Tree Construction
 ; CHECK-NOT: Natural Loop Information
-; CHECK-NOT: Canonicalize natural loops
+; CHECK: Canonicalize natural loops
 
 ; NEW-PM-DAG: Running analysis: LoopAnalysis on test
 ; NEW-PM-DAG: Running analysis: DominatorTreeAnalysis on test

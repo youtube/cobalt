@@ -1,3 +1,5 @@
+add_subdirectory(support)
+
 # Configure the Features.inc file.
 if (NOT DEFINED CLANGD_BUILD_XPC)
   if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -12,7 +14,14 @@ if (NOT DEFINED CLANGD_BUILD_XPC)
   unset(CLANGD_BUILD_XPC_DEFAULT)
 endif ()
 
-llvm_canonicalize_cmake_booleans(CLANGD_BUILD_XPC)
+option(CLANGD_MALLOC_TRIM "Call malloc_trim(3) periodically in Clangd. (only takes effect when using glibc)" ON)
+
+llvm_canonicalize_cmake_booleans(
+  CLANGD_BUILD_XPC
+  CLANGD_ENABLE_REMOTE
+  CLANGD_MALLOC_TRIM
+  LLVM_ENABLE_ZLIB
+)
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/Features.inc.in
@@ -22,38 +31,42 @@ configure_file(
 set(LLVM_LINK_COMPONENTS
   Support
   AllTargetsInfos
+  FrontendOpenMP
+  Option
   )
 
-if(CLANG_BUILT_STANDALONE)
-  # needed to get HAVE_CXX_ATOMICS64_WITHOUT_LIB defined
-  include(CheckAtomic)
+include(${CMAKE_CURRENT_SOURCE_DIR}/quality/CompletionModel.cmake)
+gen_decision_forest(${CMAKE_CURRENT_SOURCE_DIR}/quality/model CompletionModel clang::clangd::Example)
+
+if(MSVC AND NOT CLANG_CL)
+ set_source_files_properties(CompileCommands.cpp PROPERTIES COMPILE_FLAGS -wd4130) # disables C4130: logical operation on address of string constant
 endif()
 
-set(CLANGD_ATOMIC_LIB "")
-if(NOT HAVE_CXX_ATOMICS64_WITHOUT_LIB)
-  list(APPEND CLANGD_ATOMIC_LIB "atomic")
-endif()
+include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}/../clang-tidy")
 
 add_clang_library(clangDaemon
   AST.cpp
-  Cancellation.cpp
+  ASTSignals.cpp
   ClangdLSPServer.cpp
   ClangdServer.cpp
   CodeComplete.cpp
   CodeCompletionStrings.cpp
+  CollectMacros.cpp
   CompileCommands.cpp
   Compiler.cpp
-  Context.cpp
+  Config.cpp
+  ConfigCompile.cpp
+  ConfigProvider.cpp
+  ConfigYAML.cpp
   Diagnostics.cpp
   DraftStore.cpp
+  DumpAST.cpp
   ExpectedTypes.cpp
   FindSymbols.cpp
   FindTarget.cpp
   FileDistance.cpp
   Format.cpp
   FS.cpp
-  FSProvider.cpp
-  FormattedString.cpp
   FuzzyMatch.cpp
   GlobalCompilationDatabase.cpp
   Headers.cpp
@@ -61,7 +74,6 @@ add_clang_library(clangDaemon
   Hover.cpp
   IncludeFixer.cpp
   JSONTransport.cpp
-  Logger.cpp
   PathMapping.cpp
   Protocol.cpp
   Quality.cpp
@@ -71,14 +83,13 @@ add_clang_library(clangDaemon
   Selection.cpp
   SemanticHighlighting.cpp
   SemanticSelection.cpp
-  Shutdown.cpp
   SourceCode.cpp
   QueryDriverDatabase.cpp
-  Threading.cpp
-  Trace.cpp
+  TidyProvider.cpp
   TUScheduler.cpp
   URI.cpp
   XRefs.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/CompletionModel.cpp
 
   index/Background.cpp
   index/BackgroundIndexLoader.cpp
@@ -91,6 +102,7 @@ add_clang_library(clangDaemon
   index/IndexAction.cpp
   index/MemIndex.cpp
   index/Merge.cpp
+  index/ProjectAware.cpp
   index/Ref.cpp
   index/Relation.cpp
   index/Serialization.cpp
@@ -109,7 +121,17 @@ add_clang_library(clangDaemon
   refactor/Rename.cpp
   refactor/Tweak.cpp
 
-  LINK_LIBS
+  DEPENDS
+  omp_gen
+  )
+
+# Include generated CompletionModel headers.
+target_include_directories(clangDaemon PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+)
+
+clang_target_link_libraries(clangDaemon
+  PRIVATE
   clangAST
   clangASTMatchers
   clangBasic
@@ -120,15 +142,20 @@ add_clang_library(clangDaemon
   clangLex
   clangSema
   clangSerialization
-  clangTidy
   clangTooling
   clangToolingCore
   clangToolingInclusions
-  clangToolingRefactoring
   clangToolingSyntax
+  )
+
+target_link_libraries(clangDaemon
+  PRIVATE
   ${LLVM_PTHREAD_LIB}
-  ${CLANGD_ATOMIC_LIB}
+
+  clangTidy
   ${ALL_CLANG_TIDY_CHECKS}
+
+  clangdSupport
   )
 
 add_subdirectory(refactor/tweaks)
@@ -138,7 +165,6 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 endif()
 add_subdirectory(tool)
 add_subdirectory(indexer)
-add_subdirectory(index/dex/dexp)
 
 if (LLVM_INCLUDE_BENCHMARKS)
   add_subdirectory(benchmarks)
@@ -147,7 +173,18 @@ if ( CLANGD_BUILD_XPC )
   add_subdirectory(xpc)
 endif ()
 
-if(CLANG_INCLUDE_TESTS)
-add_subdirectory(test)
-add_subdirectory(unittests)
+if (CLANGD_ENABLE_REMOTE)
+  include(FindGRPC)
 endif()
+
+if(CLANG_INCLUDE_TESTS)
+  add_subdirectory(test)
+  add_subdirectory(unittests)
+endif()
+
+# FIXME(kirillbobyrev): Document this in the LLVM docs once remote index is stable.
+option(CLANGD_ENABLE_REMOTE "Use gRPC library to enable remote index support for Clangd" OFF)
+set(GRPC_INSTALL_PATH "" CACHE PATH "Path to gRPC library manual installation.")
+
+add_subdirectory(index/remote)
+add_subdirectory(index/dex/dexp)

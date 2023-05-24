@@ -25,6 +25,14 @@
 #  cmake --build . --target check-clang
 #  cmake --build . --target check-lld
 
+# LLVM_PROJECT_DIR is the path to the llvm-project directory.
+# The right way to compute it would probably be to use "${CMAKE_SOURCE_DIR}/../",
+# but CMAKE_SOURCE_DIR is set to the wrong value on earlier CMake versions
+# that we still need to support (for instance, 3.10.2).
+get_filename_component(LLVM_PROJECT_DIR
+                       "${CMAKE_CURRENT_LIST_DIR}/../../../"
+                       ABSOLUTE)
+
 if (NOT DEFINED DEFAULT_SYSROOT)
   message(WARNING "DEFAULT_SYSROOT must be specified for the cross toolchain build.")
 endif()
@@ -63,7 +71,9 @@ set(COMPILER_RT_BUILD_SANITIZERS            OFF CACHE BOOL "")
 set(COMPILER_RT_BUILD_XRAY                  OFF CACHE BOOL "")
 set(COMPILER_RT_BUILD_LIBFUZZER             OFF CACHE BOOL "")
 set(COMPILER_RT_BUILD_PROFILE               OFF CACHE BOOL "")
+set(COMPILER_RT_BUILD_CRT                   OFF CACHE BOOL "")
 set(COMPILER_RT_DEFAULT_TARGET_ONLY         ON CACHE BOOL "")
+set(COMPILER_RT_INCLUDE_TESTS               ON CACHE BOOL "")
 
 set(LIBUNWIND_USE_COMPILER_RT               ON CACHE BOOL "")
 set(LIBUNWIND_TARGET_TRIPLE                 "${CMAKE_C_COMPILER_TARGET}" CACHE STRING "")
@@ -78,21 +88,38 @@ set(LIBCXXABI_TARGET_TRIPLE                 "${CMAKE_C_COMPILER_TARGET}" CACHE S
 set(LIBCXXABI_SYSROOT                       "${DEFAULT_SYSROOT}" CACHE STRING "")
 set(LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXXABI OFF CACHE BOOL "")
 set(LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXX    OFF CACHE BOOL "")
+set(LIBCXX_LINK_TESTS_WITH_SHARED_LIBCXXABI    OFF CACHE BOOL "")
+set(LIBCXX_LINK_TESTS_WITH_SHARED_LIBCXX       OFF CACHE BOOL "")
 
 set(LIBCXX_USE_COMPILER_RT                  ON CACHE BOOL "")
 set(LIBCXX_TARGET_TRIPLE                    "${CMAKE_C_COMPILER_TARGET}" CACHE STRING "")
 set(LIBCXX_SYSROOT                          "${DEFAULT_SYSROOT}" CACHE STRING "")
 set(LIBCXX_ENABLE_SHARED                    OFF CACHE BOOL "")
+set(LIBCXX_CXX_ABI                          "libcxxabi" CACHE STRING "")
+set(LIBCXX_CXX_ABI_INCLUDE_PATHS            "${LLVM_PROJECT_DIR}/libcxxabi/include" CACHE PATH "")
+set(LIBCXX_CXX_ABI_LIBRARY_PATH             "${CMAKE_BINARY_DIR}/lib/${LIBCXX_TARGET_TRIPLE}/c++" CACHE PATH "")
+set(LIBCXX_ENABLE_NEW_DELETE_DEFINITIONS    ON CACHE BOOL "")
 
-set(BUILTINS_CMAKE_ARGS                     "-DCMAKE_SYSTEM_NAME=Linux;-DCMAKE_AR=${CMAKE_AR}" CACHE STRING "")
-set(RUNTIMES_CMAKE_ARGS                     "-DCMAKE_SYSTEM_NAME=Linux;-DCMAKE_AR=${CMAKE_AR}" CACHE STRING "")
+# Set up RPATH for the target runtime/builtin libraries.
+# See some details here: https://reviews.llvm.org/D91099
+if (NOT DEFINED RUNTIMES_INSTALL_RPATH)
+  set(RUNTIMES_INSTALL_RPATH                "\$ORIGIN/../lib;${CMAKE_INSTALL_PREFIX}/lib")
+endif()
+
+set(BUILTINS_CMAKE_ARGS                     "-DCMAKE_SYSTEM_NAME=Linux;-DCMAKE_AR=${CMAKE_AR};-DCMAKE_INSTALL_RPATH=${RUNTIMES_INSTALL_RPATH};-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON" CACHE STRING "")
+set(RUNTIMES_CMAKE_ARGS                     "-DCMAKE_SYSTEM_NAME=Linux;-DCMAKE_AR=${CMAKE_AR};-DCMAKE_INSTALL_RPATH=${RUNTIMES_INSTALL_RPATH};-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON" CACHE STRING "")
+
+find_package(Python3 COMPONENTS Interpreter)
 
 # Remote test configuration.
 if(DEFINED REMOTE_TEST_HOST)
-  set(DEFAULT_TEST_EXECUTOR                 "SSHExecutor('${REMOTE_TEST_HOST}', '${REMOTE_TEST_USER}')")
-  set(DEFAULT_TEST_TARGET_INFO              "libcxx.test.target_info.LinuxLocalTI")
+  set(DEFAULT_TEST_EXECUTOR                 "\\\"${Python3_EXECUTABLE}\\\" \\\"${LLVM_PROJECT_DIR}/libcxx/utils/ssh.py\\\" --host='${REMOTE_TEST_USER}@${REMOTE_TEST_HOST}'")
+  set(DEFAULT_TEST_TARGET_INFO              "libcxx.test.target_info.LinuxRemoteTI")
 
   # Allow override with the custom values.
+  if(NOT DEFINED COMPILER_RT_EMULATOR)
+    set(COMPILER_RT_EMULATOR                "\\\"${Python3_EXECUTABLE}\\\" \\\"${LLVM_PROJECT_DIR}/llvm/utils/remote-exec.py\\\" --execdir %%T --exec-pattern='.*\\.c.*\\.tmp.*' --host='${REMOTE_TEST_USER}@${REMOTE_TEST_HOST}'" CACHE STRING "")
+  endif()
   if(NOT DEFINED LIBUNWIND_TARGET_INFO)
     set(LIBUNWIND_TARGET_INFO               "${DEFAULT_TEST_TARGET_INFO}" CACHE STRING "")
   endif()

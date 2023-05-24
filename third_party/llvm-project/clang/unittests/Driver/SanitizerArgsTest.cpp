@@ -43,7 +43,7 @@ std::string concatPaths(llvm::ArrayRef<StringRef> Components) {
   llvm::SmallString<128> P;
   for (StringRef C : Components)
     llvm::sys::path::append(P, C);
-  return P.str().str();
+  return std::string(P);
 }
 
 class SanitizerArgsTest : public ::testing::Test {
@@ -57,7 +57,7 @@ protected:
         new DiagnosticIDs, Opts,
         new TextDiagnosticPrinter(llvm::errs(), Opts.get()));
     DriverInstance.emplace(ClangBinary, "x86_64-unknown-linux-gnu", Diags,
-                           prepareFS(ExtraFiles));
+                           "clang LLVM compiler", prepareFS(ExtraFiles));
 
     std::vector<const char *> Args = {ClangBinary};
     for (const auto &A : ExtraArgs)

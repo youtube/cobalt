@@ -179,7 +179,7 @@ bool FileAnalysis::willTrapOnCFIViolation(const Instr &InstrMeta) const {
   if (!MIA->evaluateBranch(InstrMeta.Instruction, InstrMeta.VMAddress,
                            InstrMeta.InstructionSize, Target))
     return false;
-  return TrapOnFailFunctionAddresses.count(Target) > 0;
+  return TrapOnFailFunctionAddresses.contains(Target);
 }
 
 bool FileAnalysis::canFallThrough(const Instr &InstrMeta) const {
@@ -274,7 +274,8 @@ Expected<DIInliningInfo>
 FileAnalysis::symbolizeInlinedCode(object::SectionedAddress Address) {
   assert(Symbolizer != nullptr && "Symbolizer is invalid.");
 
-  return Symbolizer->symbolizeInlinedCode(Object->getFileName(), Address);
+  return Symbolizer->symbolizeInlinedCode(std::string(Object->getFileName()),
+                                          Address);
 }
 
 CFIProtectionStatus
@@ -515,8 +516,9 @@ void FileAnalysis::parseSectionContents(ArrayRef<uint8_t> SectionBytes,
 
     // Check if this instruction exists in the range of the DWARF metadata.
     if (!IgnoreDWARFFlag) {
-      auto LineInfo = Symbolizer->symbolizeCode(
-          Object->getFileName(), {VMAddress, Address.SectionIndex});
+      auto LineInfo =
+          Symbolizer->symbolizeCode(std::string(Object->getFileName()),
+                                    {VMAddress, Address.SectionIndex});
       if (!LineInfo) {
         handleAllErrors(LineInfo.takeError(), [](const ErrorInfoBase &E) {
           errs() << "Symbolizer failed to get line: " << E.message() << "\n";
@@ -556,7 +558,7 @@ Error FileAnalysis::parseSymbolTable() {
     auto SymNameOrErr = Sym.getName();
     if (!SymNameOrErr)
       consumeError(SymNameOrErr.takeError());
-    else if (TrapOnFailFunctions.count(*SymNameOrErr) > 0) {
+    else if (TrapOnFailFunctions.contains(*SymNameOrErr)) {
       auto AddrOrErr = Sym.getAddress();
       if (!AddrOrErr)
         consumeError(AddrOrErr.takeError());
@@ -566,18 +568,21 @@ Error FileAnalysis::parseSymbolTable() {
   }
   if (auto *ElfObject = dyn_cast<object::ELFObjectFileBase>(Object)) {
     for (const auto &Addr : ElfObject->getPltAddresses()) {
-      object::SymbolRef Sym(Addr.first, Object);
+      if (!Addr.first)
+        continue;
+      object::SymbolRef Sym(*Addr.first, Object);
       auto SymNameOrErr = Sym.getName();
       if (!SymNameOrErr)
         consumeError(SymNameOrErr.takeError());
-      else if (TrapOnFailFunctions.count(*SymNameOrErr) > 0)
+      else if (TrapOnFailFunctions.contains(*SymNameOrErr))
         TrapOnFailFunctionAddresses.insert(Addr.second);
     }
   }
   return Error::success();
 }
 
-UnsupportedDisassembly::UnsupportedDisassembly(StringRef Text) : Text(Text) {}
+UnsupportedDisassembly::UnsupportedDisassembly(StringRef Text)
+    : Text(std::string(Text)) {}
 
 char UnsupportedDisassembly::ID;
 void UnsupportedDisassembly::log(raw_ostream &OS) const {

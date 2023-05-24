@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// XFAIL: apple-darwin
+// XFAIL: darwin
 //
 // NetBSD does not support LC_MONETARY at the moment
 // XFAIL: netbsd
@@ -60,20 +60,6 @@ public:
     explicit Fwt(const std::string& nm, std::size_t refs = 0)
         : std::moneypunct_byname<wchar_t, true>(nm, refs) {}
 };
-
-#if defined(_CS_GNU_LIBC_VERSION)
-static bool glibc_version_less_than(char const* version) {
-    std::string test_version = std::string("glibc ") + version;
-
-    size_t n = confstr(_CS_GNU_LIBC_VERSION, nullptr, (size_t)0);
-    char *current_version = new char[n];
-    confstr(_CS_GNU_LIBC_VERSION, current_version, n);
-
-    bool result = strverscmp(current_version, test_version.c_str()) < 0;
-    delete[] current_version;
-    return result;
-}
-#endif
 
 int main(int, char**)
 {

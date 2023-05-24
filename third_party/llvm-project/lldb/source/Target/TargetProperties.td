@@ -1,6 +1,6 @@
 include "../../include/lldb/Core/PropertiesBase.td"
 
-let Definition = "experimental" in {
+let Definition = "target_experimental" in {
   def InjectLocalVars : Property<"inject-local-vars", "Boolean">,
     Global, DefaultTrue,
     Desc<"If true, inject local variables explicitly into the expression text. This will fix symbol resolution when there are name collisions between ivars and local variables. But it can make expressions run much more slowly.">;
@@ -20,6 +20,10 @@ let Definition = "target" in {
   def ExprPrefix: Property<"expr-prefix", "FileSpec">,
     DefaultStringValue<"">,
     Desc<"Path to a file containing expressions to be prepended to all expressions.">;
+  def ExprErrorLimit: Property<"expr-error-limit", "UInt64">,
+    DefaultUnsignedValue<5>,
+    Desc<"The maximum amount of errors to emit while parsing an expression. "
+         "A value of 0 means to always continue parsing if possible.">;
   def PreferDynamic: Property<"prefer-dynamic-value", "Enum">,
     DefaultEnumValue<"eDynamicDontRunTarget">,
     EnumValues<"OptionEnumValues(g_dynamic_value_types)">,
@@ -32,7 +36,7 @@ let Definition = "target" in {
     Desc<"Skip function prologues when setting breakpoints by name.">;
   def SourceMap: Property<"source-map", "PathMap">,
     DefaultStringValue<"">,
-    Desc<"Source path remappings are used to track the change of location between a source file when built, and where it exists on the current system.  It consists of an array of duples, the first element of each duple is some part (starting at the root) of the path to the file when it was built, and the second is where the remainder of the original build hierarchy is rooted on the local system.  Each element of the array is checked in order and the first one that results in a match wins.">;
+    Desc<"Source path remappings apply substitutions to the paths of source files, typically needed to debug from a different host than the one that built the target.  The source-map property consists of an array of pairs, the first element is a path prefix, and the second is its replacement.  The syntax is `prefix1 replacement1 prefix2 replacement2...`.  The pairs are checked in order, the first prefix that matches is used, and that prefix is substituted with the replacement.  A common pattern is to use source-map in conjunction with the clang -fdebug-prefix-map flag.  In the build, use `-fdebug-prefix-map=/path/to/build_dir=.` to rewrite the host specific build directory to `.`.  Then for debugging, use `settings set target.source-map . /path/to/local_dir` to convert `.` to a valid local path.">;
   def ExecutableSearchPaths: Property<"exec-search-paths", "FileSpecList">,
     DefaultStringValue<"">,
     Desc<"Executable search paths to use when locating executable files whose paths don't match the local file system.">;
@@ -45,12 +49,17 @@ let Definition = "target" in {
   def AutoImportClangModules: Property<"auto-import-clang-modules", "Boolean">,
     DefaultTrue,
     Desc<"Automatically load Clang modules referred to by the program.">;
-  def ImportStdModule: Property<"import-std-module", "Boolean">,
-    DefaultFalse,
-    Desc<"Import the C++ std module to improve debugging STL containers.">;
+  def ImportStdModule: Property<"import-std-module", "Enum">,
+    DefaultEnumValue<"eImportStdModuleFalse">,
+    EnumValues<"OptionEnumValues(g_import_std_module_value_types)">,
+    Desc<"Import the 'std' C++ module to improve expression parsing involving "
+         " C++ standard library types.">;
   def AutoApplyFixIts: Property<"auto-apply-fixits", "Boolean">,
     DefaultTrue,
     Desc<"Automatically apply fix-it hints to expressions.">;
+  def RetriesWithFixIts: Property<"retries-with-fixits", "UInt64">,
+    DefaultUnsignedValue<1>,
+    Desc<"Maximum number of attempts to fix an expression with Fix-Its">;
   def NotifyAboutFixIts: Property<"notify-about-fixits", "Boolean">,
     DefaultTrue,
     Desc<"Print the fixed expression text.">;
@@ -79,8 +88,11 @@ let Definition = "target" in {
     DefaultStringValue<"">,
     Desc<"A list containing all the arguments to be passed to the executable when it is run. Note that this does NOT include the argv[0] which is in target.arg0.">;
   def EnvVars: Property<"env-vars", "Dictionary">,
-    DefaultUnsignedValue<16>,
-    Desc<"A list of all the environment variables to be passed to the executable's environment, and their values.">;
+    ElementType<"String">,
+    Desc<"A list of user provided environment variables to be passed to the executable's environment, and their values.">;
+  def UnsetEnvVars: Property<"unset-env-vars", "Array">,
+    ElementType<"String">,
+    Desc<"A list of environment variable names to be unset in the inferior's environment. This is most useful to unset some host environment variables when target.inherit-env is true. target.env-vars takes precedence over target.unset-env-vars.">;
   def InheritEnv: Property<"inherit-env", "Boolean">,
     DefaultTrue,
     Desc<"Inherit the environment from the process that is running LLDB.">;
@@ -105,6 +117,9 @@ let Definition = "target" in {
   def DisableSTDIO: Property<"disable-stdio", "Boolean">,
     DefaultFalse,
     Desc<"Disable stdin/stdout for process (e.g. for a GUI application)">;
+  def InheritTCC: Property<"inherit-tcc", "Boolean">,
+    DefaultFalse,
+    Desc<"Inherit the TCC permissions from the inferior's parent instead of making the process itself responsible.">;
   def InlineStrategy: Property<"inline-breakpoint-strategy", "Enum">,
     DefaultEnumValue<"eInlineBreakpointsAlways">,
     EnumValues<"OptionEnumValues(g_inline_breakpoint_enums)">,
@@ -140,7 +155,7 @@ let Definition = "target" in {
     Desc<"Expressions that crash will show up in crash logs if the host system supports executable specific crash log strings and this setting is set to true.">;
   def TrapHandlerNames: Property<"trap-handler-names", "Array">,
     Global,
-    DefaultUnsignedValue<16>,
+    ElementType<"String">,
     Desc<"A list of trap handler function names, e.g. a common Unix user process one is _sigtramp.">;
   def DisplayRuntimeSupportValues: Property<"display-runtime-support-values", "Boolean">,
     DefaultFalse,
@@ -154,6 +169,16 @@ let Definition = "target" in {
   def RequireHardwareBreakpoints: Property<"require-hardware-breakpoint", "Boolean">,
     DefaultFalse,
     Desc<"Require all breakpoints to be hardware breakpoints.">;
+  def AutoInstallMainExecutable: Property<"auto-install-main-executable", "Boolean">,
+    DefaultTrue,
+    Desc<"Always install the main executable when connected to a remote platform.">;
+}
+
+let Definition = "process_experimental" in {
+  def OSPluginReportsAllThreads: Property<"os-plugin-reports-all-threads", "Boolean">,
+    Global,
+    DefaultTrue,
+    Desc<"Set to False if your OS Plugins doesn't report all threads on each stop.">;
 }
 
 let Definition = "process" in {
@@ -161,7 +186,7 @@ let Definition = "process" in {
     DefaultFalse,
     Desc<"Disable reading and caching of memory in fixed-size units.">;
   def ExtraStartCommand: Property<"extra-startup-command", "Array">,
-    DefaultUnsignedValue<16>,
+    ElementType<"String">,
     Desc<"A list containing extra commands understood by the particular process plugin used.  For instance, to turn on debugserver logging set this to 'QSetLogging:bitmask=LOG_DEFAULT;'">;
   def IgnoreBreakpointsInExpressions: Property<"ignore-breakpoints-in-expressions", "Boolean">,
     Global,
@@ -188,6 +213,9 @@ let Definition = "process" in {
   def WarningOptimization: Property<"optimization-warnings", "Boolean">,
     DefaultTrue,
     Desc<"If true, warn when stopped in code that is optimized where stepping and variable availability may not behave as expected.">;
+  def WarningUnsupportedLanguage: Property<"unsupported-language-warnings", "Boolean">,
+    DefaultTrue,
+    Desc<"If true, warn when stopped in code that is written in a source language that LLDB does not support.">;
   def StopOnExec: Property<"stop-on-exec", "Boolean">,
     Global,
     DefaultTrue,
@@ -195,6 +223,9 @@ let Definition = "process" in {
   def UtilityExpressionTimeout: Property<"utility-expression-timeout", "UInt64">,
     DefaultUnsignedValue<15>,
     Desc<"The time in seconds to wait for LLDB-internal utility expressions.">;
+  def SteppingRunsAllThreads: Property<"run-all-threads", "Boolean">,
+    DefaultFalse,
+    Desc<"If true, stepping operations will run all threads.  This is equivalent to setting the run-mode option to 'all-threads'.">;
 }
 
 let Definition = "platform" in {

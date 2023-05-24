@@ -1,4 +1,4 @@
-//===-- PlatformPOSIX.cpp ---------------------------------------*- C++ -*-===//
+//===-- PlatformPOSIX.cpp -------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,9 +8,9 @@
 
 #include "PlatformPOSIX.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/FunctionCaller.h"
@@ -22,7 +22,6 @@
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/ProcessLaunchInfo.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/DynamicLoader.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
@@ -62,148 +61,6 @@ lldb_private::OptionGroupOptions *PlatformPOSIX::GetConnectionOptions(
   }
 
   return m_options.at(&interpreter).get();
-}
-
-Status
-PlatformPOSIX::ResolveExecutable(const ModuleSpec &module_spec,
-                                 lldb::ModuleSP &exe_module_sp,
-                                 const FileSpecList *module_search_paths_ptr) {
-  Status error;
-  // Nothing special to do here, just use the actual file and architecture
-
-  char exe_path[PATH_MAX];
-  ModuleSpec resolved_module_spec(module_spec);
-
-  if (IsHost()) {
-    // If we have "ls" as the exe_file, resolve the executable location based
-    // on the current path variables
-    if (!FileSystem::Instance().Exists(resolved_module_spec.GetFileSpec())) {
-      resolved_module_spec.GetFileSpec().GetPath(exe_path, sizeof(exe_path));
-      resolved_module_spec.GetFileSpec().SetFile(exe_path,
-                                                 FileSpec::Style::native);
-      FileSystem::Instance().Resolve(resolved_module_spec.GetFileSpec());
-    }
-
-    if (!FileSystem::Instance().Exists(resolved_module_spec.GetFileSpec()))
-      FileSystem::Instance().ResolveExecutableLocation(
-          resolved_module_spec.GetFileSpec());
-
-    // Resolve any executable within a bundle on MacOSX
-    Host::ResolveExecutableInBundle(resolved_module_spec.GetFileSpec());
-
-    if (FileSystem::Instance().Exists(resolved_module_spec.GetFileSpec()))
-      error.Clear();
-    else {
-      const uint32_t permissions = FileSystem::Instance().GetPermissions(
-          resolved_module_spec.GetFileSpec());
-      if (permissions && (permissions & eFilePermissionsEveryoneR) == 0)
-        error.SetErrorStringWithFormat(
-            "executable '%s' is not readable",
-            resolved_module_spec.GetFileSpec().GetPath().c_str());
-      else
-        error.SetErrorStringWithFormat(
-            "unable to find executable for '%s'",
-            resolved_module_spec.GetFileSpec().GetPath().c_str());
-    }
-  } else {
-    if (m_remote_platform_sp) {
-      error =
-          GetCachedExecutable(resolved_module_spec, exe_module_sp,
-                              module_search_paths_ptr, *m_remote_platform_sp);
-    } else {
-      // We may connect to a process and use the provided executable (Don't use
-      // local $PATH).
-
-      // Resolve any executable within a bundle on MacOSX
-      Host::ResolveExecutableInBundle(resolved_module_spec.GetFileSpec());
-
-      if (FileSystem::Instance().Exists(resolved_module_spec.GetFileSpec()))
-        error.Clear();
-      else
-        error.SetErrorStringWithFormat("the platform is not currently "
-                                       "connected, and '%s' doesn't exist in "
-                                       "the system root.",
-                                       exe_path);
-    }
-  }
-
-  if (error.Success()) {
-    if (resolved_module_spec.GetArchitecture().IsValid()) {
-      error = ModuleList::GetSharedModule(resolved_module_spec, exe_module_sp,
-                                          module_search_paths_ptr, nullptr, nullptr);
-      if (error.Fail()) {
-        // If we failed, it may be because the vendor and os aren't known. If
-	// that is the case, try setting them to the host architecture and give
-	// it another try.
-        llvm::Triple &module_triple =
-            resolved_module_spec.GetArchitecture().GetTriple();
-        bool is_vendor_specified =
-            (module_triple.getVendor() != llvm::Triple::UnknownVendor);
-        bool is_os_specified =
-            (module_triple.getOS() != llvm::Triple::UnknownOS);
-        if (!is_vendor_specified || !is_os_specified) {
-          const llvm::Triple &host_triple =
-              HostInfo::GetArchitecture(HostInfo::eArchKindDefault).GetTriple();
-
-          if (!is_vendor_specified)
-            module_triple.setVendorName(host_triple.getVendorName());
-          if (!is_os_specified)
-            module_triple.setOSName(host_triple.getOSName());
-
-          error = ModuleList::GetSharedModule(resolved_module_spec,
-                                              exe_module_sp, module_search_paths_ptr, nullptr, nullptr);
-        }
-      }
-
-      // TODO find out why exe_module_sp might be NULL
-      if (error.Fail() || !exe_module_sp || !exe_module_sp->GetObjectFile()) {
-        exe_module_sp.reset();
-        error.SetErrorStringWithFormat(
-            "'%s' doesn't contain the architecture %s",
-            resolved_module_spec.GetFileSpec().GetPath().c_str(),
-            resolved_module_spec.GetArchitecture().GetArchitectureName());
-      }
-    } else {
-      // No valid architecture was specified, ask the platform for the
-      // architectures that we should be using (in the correct order) and see
-      // if we can find a match that way
-      StreamString arch_names;
-      for (uint32_t idx = 0; GetSupportedArchitectureAtIndex(
-               idx, resolved_module_spec.GetArchitecture());
-           ++idx) {
-        error = ModuleList::GetSharedModule(resolved_module_spec, exe_module_sp,
-                                            module_search_paths_ptr, nullptr, nullptr);
-        // Did we find an executable using one of the
-        if (error.Success()) {
-          if (exe_module_sp && exe_module_sp->GetObjectFile())
-            break;
-          else
-            error.SetErrorToGenericError();
-        }
-
-        if (idx > 0)
-          arch_names.PutCString(", ");
-        arch_names.PutCString(
-            resolved_module_spec.GetArchitecture().GetArchitectureName());
-      }
-
-      if (error.Fail() || !exe_module_sp) {
-        if (FileSystem::Instance().Readable(
-                resolved_module_spec.GetFileSpec())) {
-          error.SetErrorStringWithFormat(
-              "'%s' doesn't contain any '%s' platform architectures: %s",
-              resolved_module_spec.GetFileSpec().GetPath().c_str(),
-              GetPluginName().GetCString(), arch_names.GetData());
-        } else {
-          error.SetErrorStringWithFormat(
-              "'%s' is not readable",
-              resolved_module_spec.GetFileSpec().GetPath().c_str());
-        }
-      }
-    }
-  }
-
-  return error;
 }
 
 static uint32_t chown_file(Platform *platform, const char *path,
@@ -429,7 +286,7 @@ std::string PlatformPOSIX::GetPlatformSpecificConnectionInformation() {
   if (GetLocalCacheDirectory() && *GetLocalCacheDirectory())
     stream.Printf("cache dir: %s", GetLocalCacheDirectory());
   if (stream.GetSize())
-    return stream.GetString();
+    return std::string(stream.GetString());
   else
     return "";
 }
@@ -520,7 +377,6 @@ lldb::ProcessSP PlatformPOSIX::Attach(ProcessAttachInfo &attach_info,
     }
 
     if (target && error.Success()) {
-      debugger.GetTargetList().SetSelectedTarget(target);
       if (log) {
         ModuleSP exe_module_sp = target->GetExecutableModule();
         LLDB_LOGF(log, "PlatformPOSIX::%s set selected target to %p %s",
@@ -531,7 +387,7 @@ lldb::ProcessSP PlatformPOSIX::Attach(ProcessAttachInfo &attach_info,
 
       process_sp =
           target->CreateProcess(attach_info.GetListenerForProcess(debugger),
-                                attach_info.GetProcessPluginName(), nullptr);
+                                "gdb-remote", nullptr, true);
 
       if (process_sp) {
         ListenerSP listener_sp = attach_info.GetHijackListener();
@@ -559,24 +415,113 @@ PlatformPOSIX::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
                             Target *target, // Can be NULL, if NULL create a new
                                             // target, else use existing one
                             Status &error) {
+  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
+  LLDB_LOG(log, "target {0}", target);
+
   ProcessSP process_sp;
 
-  if (IsHost()) {
-    // We are going to hand this process off to debugserver which will be in
-    // charge of setting the exit status.  However, we still need to reap it
-    // from lldb. So, make sure we use a exit callback which does not set exit
-    // status.
-    const bool monitor_signals = false;
-    launch_info.SetMonitorProcessCallback(
-        &ProcessLaunchInfo::NoOpMonitorCallback, monitor_signals);
-    process_sp = Platform::DebugProcess(launch_info, debugger, target, error);
-  } else {
+  if (!IsHost()) {
     if (m_remote_platform_sp)
       process_sp = m_remote_platform_sp->DebugProcess(launch_info, debugger,
                                                       target, error);
     else
       error.SetErrorString("the platform is not currently connected");
+    return process_sp;
   }
+
+  //
+  // For local debugging, we'll insist on having ProcessGDBRemote create the
+  // process.
+  //
+
+  // Make sure we stop at the entry point
+  launch_info.GetFlags().Set(eLaunchFlagDebug);
+
+  // We always launch the process we are going to debug in a separate process
+  // group, since then we can handle ^C interrupts ourselves w/o having to
+  // worry about the target getting them as well.
+  launch_info.SetLaunchInSeparateProcessGroup(true);
+
+  // Ensure we have a target.
+  if (target == nullptr) {
+    LLDB_LOG(log, "creating new target");
+    TargetSP new_target_sp;
+    error = debugger.GetTargetList().CreateTarget(
+        debugger, "", "", eLoadDependentsNo, nullptr, new_target_sp);
+    if (error.Fail()) {
+      LLDB_LOG(log, "failed to create new target: {0}", error);
+      return process_sp;
+    }
+
+    target = new_target_sp.get();
+    if (!target) {
+      error.SetErrorString("CreateTarget() returned nullptr");
+      LLDB_LOG(log, "error: {0}", error);
+      return process_sp;
+    }
+  }
+
+  // Now create the gdb-remote process.
+  LLDB_LOG(log, "having target create process with gdb-remote plugin");
+  process_sp =
+      target->CreateProcess(launch_info.GetListener(), "gdb-remote", nullptr,
+                            true);
+
+  if (!process_sp) {
+    error.SetErrorString("CreateProcess() failed for gdb-remote process");
+    LLDB_LOG(log, "error: {0}", error);
+    return process_sp;
+  }
+
+  LLDB_LOG(log, "successfully created process");
+  // Adjust launch for a hijacker.
+  ListenerSP listener_sp;
+  if (!launch_info.GetHijackListener()) {
+    LLDB_LOG(log, "setting up hijacker");
+    listener_sp =
+        Listener::MakeListener("lldb.PlatformLinux.DebugProcess.hijack");
+    launch_info.SetHijackListener(listener_sp);
+    process_sp->HijackProcessEvents(listener_sp);
+  }
+
+  // Log file actions.
+  if (log) {
+    LLDB_LOG(log, "launching process with the following file actions:");
+    StreamString stream;
+    size_t i = 0;
+    const FileAction *file_action;
+    while ((file_action = launch_info.GetFileActionAtIndex(i++)) != nullptr) {
+      file_action->Dump(stream);
+      LLDB_LOG(log, "{0}", stream.GetData());
+      stream.Clear();
+    }
+  }
+
+  // Do the launch.
+  error = process_sp->Launch(launch_info);
+  if (error.Success()) {
+    // Handle the hijacking of process events.
+    if (listener_sp) {
+      const StateType state = process_sp->WaitForProcessToStop(
+          llvm::None, nullptr, false, listener_sp);
+
+      LLDB_LOG(log, "pid {0} state {0}", process_sp->GetID(), state);
+    }
+
+    // Hook up process PTY if we have one (which we should for local debugging
+    // with llgs).
+    int pty_fd = launch_info.GetPTY().ReleasePrimaryFileDescriptor();
+    if (pty_fd != PseudoTerminal::invalid_fd) {
+      process_sp->SetSTDIOFileDescriptor(pty_fd);
+      LLDB_LOG(log, "hooked up STDIO pty to process");
+    } else
+      LLDB_LOG(log, "not using process STDIO pty");
+  } else {
+    LLDB_LOG(log, "{0}", error);
+    // FIXME figure out appropriate cleanup here.  Do we delete the target? Do
+    // we delete the process?  Does our caller do that?
+  }
+
   return process_sp;
 }
 
@@ -679,34 +624,30 @@ PlatformPOSIX::MakeLoadImageUtilityFunction(ExecutionContext &exe_ctx,
   static const char *dlopen_wrapper_name = "__lldb_dlopen_wrapper";
   Process *process = exe_ctx.GetProcessSP().get();
   // Insert the dlopen shim defines into our generic expression:
-  std::string expr(GetLibdlFunctionDeclarations(process));
+  std::string expr(std::string(GetLibdlFunctionDeclarations(process)));
   expr.append(dlopen_wrapper_code);
   Status utility_error;
   DiagnosticManager diagnostics;
-  
-  std::unique_ptr<UtilityFunction> dlopen_utility_func_up(process
-      ->GetTarget().GetUtilityFunctionForLanguage(expr.c_str(),
-                                                  eLanguageTypeObjC,
-                                                  dlopen_wrapper_name,
-                                                  utility_error));
-  if (utility_error.Fail()) {
-    error.SetErrorStringWithFormat("dlopen error: could not make utility"
-                                   "function: %s", utility_error.AsCString());
+
+  auto utility_fn_or_error = process->GetTarget().CreateUtilityFunction(
+      std::move(expr), dlopen_wrapper_name, eLanguageTypeObjC, exe_ctx);
+  if (!utility_fn_or_error) {
+    std::string error_str = llvm::toString(utility_fn_or_error.takeError());
+    error.SetErrorStringWithFormat("dlopen error: could not create utility"
+                                   "function: %s",
+                                   error_str.c_str());
     return nullptr;
   }
-  if (!dlopen_utility_func_up->Install(diagnostics, exe_ctx)) {
-    error.SetErrorStringWithFormat("dlopen error: could not install utility"
-                                   "function: %s", 
-                                   diagnostics.GetString().c_str());
-    return nullptr;
-  }
+  std::unique_ptr<UtilityFunction> dlopen_utility_func_up =
+      std::move(*utility_fn_or_error);
 
   Value value;
   ValueList arguments;
   FunctionCaller *do_dlopen_function = nullptr;
 
   // Fetch the clang types we will need:
-  ClangASTContext *ast = ClangASTContext::GetScratch(process->GetTarget());
+  TypeSystemClang *ast =
+      ScratchTypeSystemClang::GetForTarget(process->GetTarget());
   if (!ast)
     return nullptr;
 
@@ -950,9 +891,10 @@ uint32_t PlatformPOSIX::DoLoadImage(lldb_private::Process *process,
 
   Value return_value;
   // Fetch the clang types we will need:
-  ClangASTContext *ast = ClangASTContext::GetScratch(process->GetTarget());
+  TypeSystemClang *ast =
+      ScratchTypeSystemClang::GetForTarget(process->GetTarget());
   if (!ast) {
-    error.SetErrorString("dlopen error: Unable to get ClangASTContext");
+    error.SetErrorString("dlopen error: Unable to get TypeSystemClang");
     return LLDB_INVALID_IMAGE_TOKEN;
   }
 

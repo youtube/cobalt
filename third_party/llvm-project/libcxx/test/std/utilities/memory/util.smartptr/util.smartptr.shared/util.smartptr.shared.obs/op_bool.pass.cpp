@@ -17,16 +17,29 @@
 
 #include "test_macros.h"
 
+struct A {
+  int a;
+  virtual ~A(){};
+};
+struct B : A {};
+
 int main(int, char**)
 {
     {
-    const std::shared_ptr<int> p(new int(32));
-    assert(p);
+      const std::shared_ptr<int> p(new int(32));
+      assert(p);
     }
     {
-    const std::shared_ptr<int> p;
-    assert(!p);
+      const std::shared_ptr<int> p;
+      assert(!p);
     }
+#if !defined(TEST_HAS_NO_RTTI)
+    {
+      std::shared_ptr<A> basePtr = std::make_shared<B>();
+      std::shared_ptr<B> sp = std::dynamic_pointer_cast<B>(basePtr);
+      assert(sp);
+    }
+#endif
 
-  return 0;
+    return 0;
 }

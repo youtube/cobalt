@@ -82,7 +82,8 @@ template <typename T> struct QueryParser::LexOrCompleteWord {
              CaseStr.substr(0, WordCompletionPos) ==
                  Word.substr(0, WordCompletionPos))
       P->Completions.push_back(LineEditor::Completion(
-          (CaseStr.substr(WordCompletionPos) + " ").str(), CaseStr));
+          (CaseStr.substr(WordCompletionPos) + " ").str(),
+          std::string(CaseStr)));
     return *this;
   }
 
@@ -125,6 +126,19 @@ template <typename QueryType> QueryRef QueryParser::parseSetOutputKind() {
   }
 
   llvm_unreachable("Invalid output kind");
+}
+
+QueryRef QueryParser::parseSetTraversalKind(TraversalKind QuerySession::*Var) {
+  StringRef ValStr;
+  unsigned Value =
+      LexOrCompleteWord<unsigned>(this, ValStr)
+          .Case("AsIs", TK_AsIs)
+          .Case("IgnoreUnlessSpelledInSource", TK_IgnoreUnlessSpelledInSource)
+          .Default(~0u);
+  if (Value == ~0u) {
+    return new InvalidQuery("expected traversal kind, got '" + ValStr + "'");
+  }
+  return new SetQuery<TraversalKind>(Var, static_cast<TraversalKind>(Value));
 }
 
 QueryRef QueryParser::endQuery(QueryRef Q) {
@@ -170,7 +184,8 @@ enum ParsedQueryVariable {
   PQV_Invalid,
   PQV_Output,
   PQV_BindRoot,
-  PQV_PrintMatcher
+  PQV_PrintMatcher,
+  PQV_Traversal
 };
 
 QueryRef makeInvalidQueryFromDiagnostics(const Diagnostics &Diag) {
@@ -271,6 +286,7 @@ QueryRef QueryParser::doParse() {
             .Case("output", PQV_Output)
             .Case("bind-root", PQV_BindRoot)
             .Case("print-matcher", PQV_PrintMatcher)
+            .Case("traversal", PQV_Traversal)
             .Default(PQV_Invalid);
     if (VarStr.empty())
       return new InvalidQuery("expected variable name");
@@ -287,6 +303,9 @@ QueryRef QueryParser::doParse() {
       break;
     case PQV_PrintMatcher:
       Q = parseSetBool(&QuerySession::PrintMatcher);
+      break;
+    case PQV_Traversal:
+      Q = parseSetTraversalKind(&QuerySession::TK);
       break;
     case PQV_Invalid:
       llvm_unreachable("Invalid query kind");

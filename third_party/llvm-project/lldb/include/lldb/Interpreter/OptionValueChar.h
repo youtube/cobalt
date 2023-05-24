@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_OptionValueChar_h_
-#define liblldb_OptionValueChar_h_
+#ifndef LLDB_INTERPRETER_OPTIONVALUECHAR_H
+#define LLDB_INTERPRETER_OPTIONVALUECHAR_H
 
 #include "lldb/Interpreter/OptionValue.h"
 
@@ -38,10 +38,9 @@ public:
   SetValueFromString(const char *,
                      VarSetOperationType = eVarSetOperationAssign) = delete;
 
-  bool Clear() override {
+  void Clear() override {
     m_current_value = m_default_value;
     m_value_was_set = false;
-    return true;
   }
 
   // Subclass specific functions
@@ -68,4 +67,4 @@ protected:
 
 } // namespace lldb_private
 
-#endif // liblldb_OptionValueChar_h_
+#endif // LLDB_INTERPRETER_OPTIONVALUECHAR_H

@@ -1,6 +1,6 @@
 //===- TestGPUMemoryPromotionPass.cpp - Test pass for GPU promotion -------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -13,6 +13,9 @@
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/GPU/MemoryPromotion.h"
+#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/Pass/Pass.h"
 
@@ -24,7 +27,12 @@ namespace {
 /// does not check whether the promotion is legal (e.g., amount of memory used)
 /// or beneficial (e.g., makes previously uncoalesced loads coalesced).
 class TestGpuMemoryPromotionPass
-    : public OperationPass<TestGpuMemoryPromotionPass, gpu::GPUFuncOp> {
+    : public PassWrapper<TestGpuMemoryPromotionPass,
+                         OperationPass<gpu::GPUFuncOp>> {
+  void getDependentDialects(DialectRegistry &registry) const override {
+    registry.insert<StandardOpsDialect, scf::SCFDialect>();
+  }
+
   void runOnOperation() override {
     gpu::GPUFuncOp op = getOperation();
     for (unsigned i = 0, e = op.getNumArguments(); i < e; ++i) {
@@ -35,6 +43,10 @@ class TestGpuMemoryPromotionPass
 };
 } // end namespace
 
-static PassRegistration<TestGpuMemoryPromotionPass> registration(
-    "test-gpu-memory-promotion",
-    "Promotes the annotated arguments of gpu.func to workgroup memory.");
+namespace mlir {
+void registerTestGpuMemoryPromotionPass() {
+  PassRegistration<TestGpuMemoryPromotionPass>(
+      "test-gpu-memory-promotion",
+      "Promotes the annotated arguments of gpu.func to workgroup memory.");
+}
+} // namespace mlir

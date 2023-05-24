@@ -241,15 +241,28 @@ public:
   /// Returns null if no name is found.
   const char *getSubroutineName(DINameKind Kind) const;
 
-  /// Return the DIE name resolving DW_AT_sepcification or DW_AT_abstract_origin
-  /// references if necessary. Returns null if no name is found.
+  /// Return the DIE name resolving DW_AT_specification or DW_AT_abstract_origin
+  /// references if necessary. For the LinkageName case it additionaly searches
+  /// for ShortName if LinkageName is not found.
+  /// Returns null if no name is found.
   const char *getName(DINameKind Kind) const;
+
+  /// Return the DIE short name resolving DW_AT_specification or
+  /// DW_AT_abstract_origin references if necessary. Returns null if no name
+  /// is found.
+  const char *getShortName() const;
+
+  /// Return the DIE linkage name resolving DW_AT_specification or
+  /// DW_AT_abstract_origin references if necessary. Returns null if no name
+  /// is found.
+  const char *getLinkageName() const;
 
   /// Returns the declaration line (start line) for a DIE, assuming it specifies
   /// a subprogram. This may be fetched from specification or abstract origin
   /// for this subprogram by resolving DW_AT_sepcification or
   /// DW_AT_abstract_origin references if necessary.
   uint64_t getDeclLine() const;
+  std::string getDeclFile(DILineInfoSpecifier::FileLineInfoKind Kind) const;
 
   /// Retrieves values of DW_AT_call_file, DW_AT_call_line and DW_AT_call_column
   /// from DIE (or zeroes if they are missing). This function looks for
@@ -367,11 +380,6 @@ public:
 inline bool operator==(const DWARFDie::iterator &LHS,
                        const DWARFDie::iterator &RHS) {
   return LHS.Die == RHS.Die;
-}
-
-inline bool operator!=(const DWARFDie::iterator &LHS,
-                       const DWARFDie::iterator &RHS) {
-  return !(LHS == RHS);
 }
 
 // These inline functions must follow the DWARFDie::iterator definition above

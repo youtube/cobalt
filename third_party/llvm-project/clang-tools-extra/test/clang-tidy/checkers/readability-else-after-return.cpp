@@ -213,3 +213,102 @@ int lifeTimeExtensionTests(int a) {
     return b;
   }
 }
+
+void test_B44745() {
+  // This is the actual minimum test case for the crash in bug 44745. We aren't
+  // too worried about the warning or fix here, more we don't want a crash.
+  // CHECK-MESSAGES: :[[@LINE+3]]:5: warning: do not use 'else' after 'return' [readability-else-after-return]
+  if (auto X = false) {
+    return;
+  } else {
+    for (;;) {
+    }
+  }
+  return;
+}
+
+void testPPConditionals() {
+
+  // These cases the return isn't inside the conditional so diagnose as normal.
+  if (true) {
+    return;
+#if 1
+#endif
+  } else {
+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: do not use 'else' after 'return'
+    return;
+  }
+  if (true) {
+#if 1
+#endif
+    return;
+  } else {
+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: do not use 'else' after 'return'
+    return;
+  }
+
+  // No return here in the AST, no special handling needed.
+  if (true) {
+#if 0
+    return;
+#endif
+  } else {
+    return;
+  }
+
+  // Return here is inside a preprocessor conditional block, ignore this case.
+  if (true) {
+#if 1
+    return;
+#endif
+  } else {
+    return;
+  }
+
+  // These cases, same as above but with an #else block.
+  if (true) {
+#if 1
+    return;
+#else
+#endif
+  } else {
+    return;
+  }
+  if (true) {
+#if 0
+#else
+    return;
+#endif
+  } else {
+    return;
+  }
+
+// Ensure it can handle macros.
+#define RETURN return
+  if (true) {
+#if 1
+    RETURN;
+#endif
+  } else {
+    return;
+  }
+#define ELSE else
+  if (true) {
+#if 1
+    return;
+#endif
+  }
+  ELSE {
+    return;
+  }
+
+  // Whole statement is in a conditional block so diagnose as normal.
+#if 1
+  if (true) {
+    return;
+  } else {
+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: do not use 'else' after 'return'
+    return;
+  }
+#endif
+}

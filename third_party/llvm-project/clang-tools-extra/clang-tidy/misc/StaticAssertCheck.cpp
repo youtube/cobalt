@@ -27,11 +27,6 @@ StaticAssertCheck::StaticAssertCheck(StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context) {}
 
 void StaticAssertCheck::registerMatchers(MatchFinder *Finder) {
-  // This checker only makes sense for languages that have static assertion
-  // capabilities: C++11 and C11.
-  if (!(getLangOpts().CPlusPlus11 || getLangOpts().C11))
-    return;
-
   auto NegatedString = unaryOperator(
       hasOperatorName("!"), hasUnaryOperand(ignoringImpCasts(stringLiteral())));
   auto IsAlwaysFalse =
@@ -43,7 +38,7 @@ void StaticAssertCheck::registerMatchers(MatchFinder *Finder) {
                          .bind("castExpr")));
   auto AssertExprRoot = anyOf(
       binaryOperator(
-          anyOf(hasOperatorName("&&"), hasOperatorName("==")),
+          hasAnyOperatorName("&&", "=="),
           hasEitherOperand(ignoringImpCasts(stringLiteral().bind("assertMSG"))),
           anyOf(binaryOperator(hasEitherOperand(IsAlwaysFalseWithCast)),
                 anything()))
@@ -145,7 +140,8 @@ SourceLocation StaticAssertCheck::getLastParenLoc(const ASTContext *ASTCtx,
   const LangOptions &Opts = ASTCtx->getLangOpts();
   const SourceManager &SM = ASTCtx->getSourceManager();
 
-  const llvm::MemoryBuffer *Buffer = SM.getBuffer(SM.getFileID(AssertLoc));
+  llvm::Optional<llvm::MemoryBufferRef> Buffer =
+      SM.getBufferOrNone(SM.getFileID(AssertLoc));
   if (!Buffer)
     return SourceLocation();
 

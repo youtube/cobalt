@@ -1,4 +1,4 @@
-//===-- PlatformAndroid.cpp -------------------------------------*- C++ -*-===//
+//===-- PlatformAndroid.cpp -----------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -25,6 +25,8 @@ using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::platform_android;
 using namespace std::chrono;
+
+LLDB_PLUGIN_DEFINE(PlatformAndroid)
 
 static uint32_t g_initialize_count = 0;
 static const unsigned int g_android_default_cache_size =
@@ -128,8 +130,6 @@ PlatformSP PlatformAndroid::CreateInstance(bool force, const ArchSpec *arch) {
 PlatformAndroid::PlatformAndroid(bool is_host)
     : PlatformLinux(is_host), m_sdk_version(0) {}
 
-PlatformAndroid::~PlatformAndroid() {}
-
 ConstString PlatformAndroid::GetPluginNameStatic(bool is_host) {
   if (is_host) {
     static ConstString g_host_name(Platform::GetHostPlatformName());
@@ -170,7 +170,7 @@ Status PlatformAndroid::ConnectRemote(Args &args) {
   if (!UriParser::Parse(url, scheme, host, port, path))
     return Status("Invalid URL: %s", url);
   if (host != "localhost")
-    m_device_id = host;
+    m_device_id = std::string(host);
 
   auto error = PlatformLinux::ConnectRemote(args);
   if (error.Success()) {

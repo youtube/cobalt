@@ -1,12 +1,16 @@
 add_llvm_component_library(LLVMTransformUtils
-  ASanStackFrameLayout.cpp
   AddDiscriminators.cpp
+  AMDGPUEmitPrintf.cpp
+  ASanStackFrameLayout.cpp
+  AssumeBundleBuilder.cpp
   BasicBlockUtils.cpp
   BreakCriticalEdges.cpp
   BuildLibCalls.cpp
   BypassSlowDivision.cpp
   CallPromotionUtils.cpp
+  CallGraphUpdater.cpp
   CanonicalizeAliases.cpp
+  CanonicalizeFreezeInLoops.cpp
   CloneFunction.cpp
   CloneModule.cpp
   CodeExtractor.cpp
@@ -17,37 +21,38 @@ add_llvm_component_library(LLVMTransformUtils
   EntryExitInstrumenter.cpp
   EscapeEnumerator.cpp
   Evaluator.cpp
+  FixIrreducible.cpp
   FlattenCFG.cpp
   FunctionComparator.cpp
   FunctionImportUtils.cpp
   GlobalStatus.cpp
   GuardUtils.cpp
   InlineFunction.cpp
-  ImportedFunctionsInliningStatistics.cpp
   InjectTLIMappings.cpp
   InstructionNamer.cpp
   IntegerDivision.cpp
   LCSSA.cpp
   LibCallsShrinkWrap.cpp
   Local.cpp
+  LoopPeel.cpp
   LoopRotationUtils.cpp
   LoopSimplify.cpp
   LoopUnroll.cpp
   LoopUnrollAndJam.cpp
-  LoopUnrollPeel.cpp
   LoopUnrollRuntime.cpp
   LoopUtils.cpp
   LoopVersioning.cpp
   LowerInvoke.cpp
   LowerMemIntrinsics.cpp
   LowerSwitch.cpp
+  MatrixUtils.cpp
   Mem2Reg.cpp
   MetaRenamer.cpp
-  MisExpect.cpp
   ModuleUtils.cpp
   NameAnonGlobals.cpp
   PredicateInfo.cpp
   PromoteMemoryToRegister.cpp
+  ScalarEvolutionExpander.cpp
   StripGCRelocates.cpp
   SSAUpdater.cpp
   SSAUpdaterBulk.cpp
@@ -60,6 +65,8 @@ add_llvm_component_library(LLVMTransformUtils
   StripNonLineTableDebugInfo.cpp
   SymbolRewriter.cpp
   UnifyFunctionExitNodes.cpp
+  UnifyLoopExits.cpp
+  UniqueInternalLinkageNames.cpp
   Utils.cpp
   ValueMapper.cpp
   VNCoercion.cpp
@@ -70,4 +77,9 @@ add_llvm_component_library(LLVMTransformUtils
 
   DEPENDS
   intrinsics_gen
+
+  LINK_COMPONENTS
+  Analysis
+  Core
+  Support
   )

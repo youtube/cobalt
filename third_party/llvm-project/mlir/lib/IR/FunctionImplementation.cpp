@@ -1,6 +1,6 @@
 //===- FunctionImplementation.cpp - Utilities for function-like ops -------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -13,12 +13,11 @@
 
 using namespace mlir;
 
-static ParseResult
-parseArgumentList(OpAsmParser &parser, bool allowVariadic,
-                  SmallVectorImpl<Type> &argTypes,
-                  SmallVectorImpl<OpAsmParser::OperandType> &argNames,
-                  SmallVectorImpl<SmallVector<NamedAttribute, 2>> &argAttrs,
-                  bool &isVariadic) {
+ParseResult mlir::impl::parseFunctionArgumentList(
+    OpAsmParser &parser, bool allowAttributes, bool allowVariadic,
+    SmallVectorImpl<OpAsmParser::OperandType> &argNames,
+    SmallVectorImpl<Type> &argTypes, SmallVectorImpl<NamedAttrList> &argAttrs,
+    bool &isVariadic) {
   if (parser.parseLParen())
     return failure();
 
@@ -54,9 +53,11 @@ parseArgumentList(OpAsmParser &parser, bool allowVariadic,
     argTypes.push_back(argumentType);
 
     // Parse any argument attributes.
-    SmallVector<NamedAttribute, 2> attrs;
+    NamedAttrList attrs;
     if (parser.parseOptionalAttrDict(attrs))
       return failure();
+    if (!allowAttributes && !attrs.empty())
+      return parser.emitError(loc, "expected arguments without attributes");
     argAttrs.push_back(attrs);
     return success();
   };
@@ -90,9 +91,9 @@ parseArgumentList(OpAsmParser &parser, bool allowVariadic,
 ///   function-result-list-no-parens ::= function-result (`,` function-result)*
 ///   function-result ::= type attribute-dict?
 ///
-static ParseResult parseFunctionResultList(
-    OpAsmParser &parser, SmallVectorImpl<Type> &resultTypes,
-    SmallVectorImpl<SmallVector<NamedAttribute, 2>> &resultAttrs) {
+static ParseResult
+parseFunctionResultList(OpAsmParser &parser, SmallVectorImpl<Type> &resultTypes,
+                        SmallVectorImpl<NamedAttrList> &resultAttrs) {
   if (failed(parser.parseOptionalLParen())) {
     // We already know that there is no `(`, so parse a type.
     // Because there is no `(`, it cannot be a function type.
@@ -127,22 +128,21 @@ static ParseResult parseFunctionResultList(
 ParseResult mlir::impl::parseFunctionSignature(
     OpAsmParser &parser, bool allowVariadic,
     SmallVectorImpl<OpAsmParser::OperandType> &argNames,
-    SmallVectorImpl<Type> &argTypes,
-    SmallVectorImpl<SmallVector<NamedAttribute, 2>> &argAttrs, bool &isVariadic,
-    SmallVectorImpl<Type> &resultTypes,
-    SmallVectorImpl<SmallVector<NamedAttribute, 2>> &resultAttrs) {
-  if (parseArgumentList(parser, allowVariadic, argTypes, argNames, argAttrs,
-                        isVariadic))
+    SmallVectorImpl<Type> &argTypes, SmallVectorImpl<NamedAttrList> &argAttrs,
+    bool &isVariadic, SmallVectorImpl<Type> &resultTypes,
+    SmallVectorImpl<NamedAttrList> &resultAttrs) {
+  bool allowArgAttrs = true;
+  if (parseFunctionArgumentList(parser, allowArgAttrs, allowVariadic, argNames,
+                                argTypes, argAttrs, isVariadic))
     return failure();
   if (succeeded(parser.parseOptionalArrow()))
     return parseFunctionResultList(parser, resultTypes, resultAttrs);
   return success();
 }
 
-void mlir::impl::addArgAndResultAttrs(
-    Builder &builder, OperationState &result,
-    ArrayRef<SmallVector<NamedAttribute, 2>> argAttrs,
-    ArrayRef<SmallVector<NamedAttribute, 2>> resultAttrs) {
+void mlir::impl::addArgAndResultAttrs(Builder &builder, OperationState &result,
+                                      ArrayRef<NamedAttrList> argAttrs,
+                                      ArrayRef<NamedAttrList> resultAttrs) {
   // Add the attributes to the function arguments.
   SmallString<8> attrNameBuf;
   for (unsigned i = 0, e = argAttrs.size(); i != e; ++i)
@@ -164,20 +164,23 @@ mlir::impl::parseFunctionLikeOp(OpAsmParser &parser, OperationState &result,
                                 bool allowVariadic,
                                 mlir::impl::FuncTypeBuilder funcTypeBuilder) {
   SmallVector<OpAsmParser::OperandType, 4> entryArgs;
-  SmallVector<SmallVector<NamedAttribute, 2>, 4> argAttrs;
-  SmallVector<SmallVector<NamedAttribute, 2>, 4> resultAttrs;
+  SmallVector<NamedAttrList, 4> argAttrs;
+  SmallVector<NamedAttrList, 4> resultAttrs;
   SmallVector<Type, 4> argTypes;
   SmallVector<Type, 4> resultTypes;
   auto &builder = parser.getBuilder();
 
+  // Parse visibility.
+  impl::parseOptionalVisibilityKeyword(parser, result.attributes);
+
   // Parse the name as a symbol.
   StringAttr nameAttr;
-  if (parser.parseSymbolName(nameAttr, ::mlir::SymbolTable::getSymbolAttrName(),
+  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes))
     return failure();
 
   // Parse the function signature.
-  auto signatureLocation = parser.getCurrentLocation();
+  llvm::SMLoc signatureLocation = parser.getCurrentLocation();
   bool isVariadic = false;
   if (parseFunctionSignature(parser, allowVariadic, entryArgs, argTypes,
                              argAttrs, isVariadic, resultTypes, resultAttrs))
@@ -193,18 +196,44 @@ mlir::impl::parseFunctionLikeOp(OpAsmParser &parser, OperationState &result,
            << (errorMessage.empty() ? "" : ": ") << errorMessage;
 
   // If function attributes are present, parse them.
-  if (parser.parseOptionalAttrDictWithKeyword(result.attributes))
+  NamedAttrList parsedAttributes;
+  llvm::SMLoc attributeDictLocation = parser.getCurrentLocation();
+  if (parser.parseOptionalAttrDictWithKeyword(parsedAttributes))
     return failure();
+
+  // Disallow attributes that are inferred from elsewhere in the attribute
+  // dictionary.
+  for (StringRef disallowed :
+       {SymbolTable::getVisibilityAttrName(), SymbolTable::getSymbolAttrName(),
+        getTypeAttrName()}) {
+    if (parsedAttributes.get(disallowed))
+      return parser.emitError(attributeDictLocation, "'")
+             << disallowed
+             << "' is an inferred attribute and should not be specified in the "
+                "explicit attribute dictionary";
+  }
+  result.attributes.append(parsedAttributes);
 
   // Add the attributes to the function arguments.
   assert(argAttrs.size() == argTypes.size());
   assert(resultAttrs.size() == resultTypes.size());
   addArgAndResultAttrs(builder, result, argAttrs, resultAttrs);
 
-  // Parse the optional function body.
+  // Parse the optional function body. The printer will not print the body if
+  // its empty, so disallow parsing of empty body in the parser.
   auto *body = result.addRegion();
-  return parser.parseOptionalRegion(
-      *body, entryArgs, entryArgs.empty() ? ArrayRef<Type>() : argTypes);
+  llvm::SMLoc loc = parser.getCurrentLocation();
+  OptionalParseResult parseResult = parser.parseOptionalRegion(
+      *body, entryArgs, entryArgs.empty() ? ArrayRef<Type>() : argTypes,
+      /*enableNameShadowing=*/false);
+  if (parseResult.hasValue()) {
+    if (failed(*parseResult))
+      return failure();
+    // Function body was parsed, make sure its not empty.
+    if (body->empty())
+      return parser.emitError(loc, "expected non-empty function body");
+  }
+  return success();
 }
 
 // Print a function result list.
@@ -216,11 +245,12 @@ static void printFunctionResultList(OpAsmPrinter &p, ArrayRef<Type> types,
       types.size() > 1 || types[0].isa<FunctionType>() || !attrs[0].empty();
   if (needsParens)
     os << '(';
-  interleaveComma(llvm::zip(types, attrs), os,
-                  [&](const std::tuple<Type, ArrayRef<NamedAttribute>> &t) {
-                    p.printType(std::get<0>(t));
-                    p.printOptionalAttrDict(std::get<1>(t));
-                  });
+  llvm::interleaveComma(
+      llvm::zip(types, attrs), os,
+      [&](const std::tuple<Type, ArrayRef<NamedAttribute>> &t) {
+        p.printType(std::get<0>(t));
+        p.printOptionalAttrDict(std::get<1>(t));
+      });
   if (needsParens)
     os << ')';
 }
@@ -240,7 +270,7 @@ void mlir::impl::printFunctionSignature(OpAsmPrinter &p, Operation *op,
       p << ", ";
 
     if (!isExternal) {
-      p.printOperand(body.front().getArgument(i));
+      p.printOperand(body.getArgument(i));
       p << ": ";
     }
 
@@ -305,14 +335,18 @@ void mlir::impl::printFunctionLikeOp(OpAsmPrinter &p, Operation *op,
                                      ArrayRef<Type> resultTypes) {
   // Print the operation and the function name.
   auto funcName =
-      op->getAttrOfType<StringAttr>(::mlir::SymbolTable::getSymbolAttrName())
+      op->getAttrOfType<StringAttr>(SymbolTable::getSymbolAttrName())
           .getValue();
   p << op->getName() << ' ';
+
+  StringRef visibilityAttrName = SymbolTable::getVisibilityAttrName();
+  if (auto visibility = op->getAttrOfType<StringAttr>(visibilityAttrName))
+    p << visibility.getValue() << ' ';
   p.printSymbolName(funcName);
 
   printFunctionSignature(p, op, argTypes, isVariadic, resultTypes);
-  printFunctionAttributes(p, op, argTypes.size(), resultTypes.size());
-
+  printFunctionAttributes(p, op, argTypes.size(), resultTypes.size(),
+                          {visibilityAttrName});
   // Print the body if this is not an external function.
   Region &body = op->getRegion(0);
   if (!body.empty())

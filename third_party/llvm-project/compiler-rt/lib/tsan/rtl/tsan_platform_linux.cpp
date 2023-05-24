@@ -8,9 +8,8 @@
 //
 // This file is a part of ThreadSanitizer (TSan), a race detector.
 //
-// Linux- and FreeBSD-specific code.
+// Linux- and BSD-specific code.
 //===----------------------------------------------------------------------===//
-
 
 #include "sanitizer_common/sanitizer_platform.h"
 #if SANITIZER_LINUX || SANITIZER_FREEBSD || SANITIZER_NETBSD
@@ -22,11 +21,11 @@
 #include "sanitizer_common/sanitizer_platform_limits_posix.h"
 #include "sanitizer_common/sanitizer_posix.h"
 #include "sanitizer_common/sanitizer_procmaps.h"
-#include "sanitizer_common/sanitizer_stoptheworld.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
+#include "sanitizer_common/sanitizer_stoptheworld.h"
+#include "tsan_flags.h"
 #include "tsan_platform.h"
 #include "tsan_rtl.h"
-#include "tsan_flags.h"
 
 #include <fcntl.h>
 #include <pthread.h>
@@ -383,12 +382,16 @@ static uptr UnmangleLongJmpSp(uptr mangled_sp) {
 #endif
 }
 
-#ifdef __powerpc__
+#if SANITIZER_NETBSD
+# ifdef __x86_64__
+#  define LONG_JMP_SP_ENV_SLOT 6
+# else
+#  error unsupported
+# endif
+#elif defined(__powerpc__)
 # define LONG_JMP_SP_ENV_SLOT 0
 #elif SANITIZER_FREEBSD
 # define LONG_JMP_SP_ENV_SLOT 2
-#elif SANITIZER_NETBSD
-# define LONG_JMP_SP_ENV_SLOT 6
 #elif SANITIZER_LINUX
 # ifdef __aarch64__
 #  define LONG_JMP_SP_ENV_SLOT 13
@@ -440,14 +443,13 @@ void ImitateTlsWrite(ThreadState *thr, uptr tls_addr, uptr tls_size) {
 
 // Note: this function runs with async signals enabled,
 // so it must not touch any tsan state.
-int call_pthread_cancel_with_cleanup(int(*fn)(void *c, void *m,
-    void *abstime), void *c, void *m, void *abstime,
-    void(*cleanup)(void *arg), void *arg) {
+int call_pthread_cancel_with_cleanup(int (*fn)(void *arg),
+                                     void (*cleanup)(void *arg), void *arg) {
   // pthread_cleanup_push/pop are hardcore macros mess.
   // We can't intercept nor call them w/o including pthread.h.
   int res;
   pthread_cleanup_push(cleanup, arg);
-  res = fn(c, m, abstime);
+  res = fn(arg);
   pthread_cleanup_pop(0);
   return res;
 }

@@ -67,8 +67,8 @@ isSafeToSpeculatePHIUsers(PHINode &PN, DominatorTree &DT,
       return false;
     }
 
-    if (auto CS = ImmutableCallSite(UI)) {
-      if (CS.isConvergent() || CS.cannotDuplicate()) {
+    if (const auto *CS = dyn_cast<CallBase>(UI)) {
+      if (CS->isConvergent() || CS->cannotDuplicate()) {
         LLVM_DEBUG(dbgs() << "  Unsafe: convergent "
                    "callsite cannot de duplicated: " << *UI << '\n');
         return false;
@@ -232,7 +232,8 @@ static bool isSafeAndProfitableToSpeculateAroundPHI(
       continue;
 
     int &MatCost = InsertResult.first->second.MatCost;
-    MatCost = TTI.getIntImmCost(IncomingC->getValue(), IncomingC->getType());
+    MatCost = TTI.getIntImmCost(IncomingC->getValue(), IncomingC->getType(),
+                                TargetTransformInfo::TCK_SizeAndLatency);
     NonFreeMat |= MatCost != TTI.TCC_Free;
   }
   if (!NonFreeMat) {
@@ -283,12 +284,15 @@ static bool isSafeAndProfitableToSpeculateAroundPHI(
       int MatCost = IncomingConstantAndCostsAndCount.second.MatCost;
       int &FoldedCost = IncomingConstantAndCostsAndCount.second.FoldedCost;
       if (IID)
-        FoldedCost += TTI.getIntImmCostIntrin(IID, Idx, IncomingC->getValue(),
-                                              IncomingC->getType());
+        FoldedCost +=
+          TTI.getIntImmCostIntrin(IID, Idx, IncomingC->getValue(),
+                                  IncomingC->getType(),
+                                  TargetTransformInfo::TCK_SizeAndLatency);
       else
         FoldedCost +=
             TTI.getIntImmCostInst(UserI->getOpcode(), Idx,
-                                  IncomingC->getValue(), IncomingC->getType());
+                                  IncomingC->getValue(), IncomingC->getType(),
+                                  TargetTransformInfo::TCK_SizeAndLatency);
 
       // If we accumulate more folded cost for this incoming constant than
       // materialized cost, then we'll regress any edge with this constant so
@@ -465,7 +469,7 @@ findProfitablePHIs(ArrayRef<PHINode *> PNs,
             if (CostMapIt != SpecCostMap.end())
               Cost += CostMapIt->second;
           }
-        Cost += TTI.getUserCost(I);
+        Cost += TTI.getUserCost(I, TargetTransformInfo::TCK_SizeAndLatency);
         bool Inserted = SpecCostMap.insert({I, Cost}).second;
         (void)Inserted;
         assert(Inserted && "Must not re-insert a cost during the DFS!");
@@ -752,13 +756,10 @@ static bool tryToSpeculatePHIs(SmallVectorImpl<PHINode *> &PNs,
   // For each PHI node in this block, check whether there are immediate folding
   // opportunities from speculation, and whether that speculation will be
   // valid. This determise the set of safe PHIs to speculate.
-  PNs.erase(llvm::remove_if(PNs,
-                            [&](PHINode *PN) {
-                              return !isSafeAndProfitableToSpeculateAroundPHI(
-                                  *PN, CostSavingsMap, PotentialSpecSet,
-                                  UnsafeSet, DT, TTI);
-                            }),
-            PNs.end());
+  llvm::erase_if(PNs, [&](PHINode *PN) {
+    return !isSafeAndProfitableToSpeculateAroundPHI(
+        *PN, CostSavingsMap, PotentialSpecSet, UnsafeSet, DT, TTI);
+  });
   // If no PHIs were profitable, skip.
   if (PNs.empty()) {
     LLVM_DEBUG(dbgs() << "  No safe and profitable PHIs found!\n");

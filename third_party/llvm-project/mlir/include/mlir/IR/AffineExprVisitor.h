@@ -1,6 +1,6 @@
 //===- AffineExprVisitor.h - MLIR AffineExpr Visitor Class ------*- C++ -*-===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -159,29 +159,29 @@ public:
 
   // Default visit methods. Note that the default op-specific binary op visit
   // methods call the general visitAffineBinaryOpExpr visit method.
-  void visitAffineBinaryOpExpr(AffineBinaryOpExpr expr) {}
-  void visitAddExpr(AffineBinaryOpExpr expr) {
-    static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
+  RetTy visitAffineBinaryOpExpr(AffineBinaryOpExpr expr) { return RetTy(); }
+  RetTy visitAddExpr(AffineBinaryOpExpr expr) {
+    return static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
   }
-  void visitMulExpr(AffineBinaryOpExpr expr) {
-    static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
+  RetTy visitMulExpr(AffineBinaryOpExpr expr) {
+    return static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
   }
-  void visitModExpr(AffineBinaryOpExpr expr) {
-    static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
+  RetTy visitModExpr(AffineBinaryOpExpr expr) {
+    return static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
   }
-  void visitFloorDivExpr(AffineBinaryOpExpr expr) {
-    static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
+  RetTy visitFloorDivExpr(AffineBinaryOpExpr expr) {
+    return static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
   }
-  void visitCeilDivExpr(AffineBinaryOpExpr expr) {
-    static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
+  RetTy visitCeilDivExpr(AffineBinaryOpExpr expr) {
+    return static_cast<SubClass *>(this)->visitAffineBinaryOpExpr(expr);
   }
-  void visitConstantExpr(AffineConstantExpr expr) {}
-  void visitDimExpr(AffineDimExpr expr) {}
-  void visitSymbolExpr(AffineSymbolExpr expr) {}
+  RetTy visitConstantExpr(AffineConstantExpr expr) { return RetTy(); }
+  RetTy visitDimExpr(AffineDimExpr expr) { return RetTy(); }
+  RetTy visitSymbolExpr(AffineSymbolExpr expr) { return RetTy(); }
 
 private:
   // Walk the operands - each operand is itself walked in post order.
-  void walkOperandsPostOrder(AffineBinaryOpExpr expr) {
+  RetTy walkOperandsPostOrder(AffineBinaryOpExpr expr) {
     walkPostOrder(expr.getLHS());
     walkPostOrder(expr.getRHS());
   }

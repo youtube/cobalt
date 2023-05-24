@@ -21,7 +21,7 @@ namespace utils {
 static std::string cleanPath(StringRef Path) {
   SmallString<256> Result = Path;
   llvm::sys::path::remove_dots(Result, true);
-  return Result.str();
+  return std::string(Result.str());
 }
 
 namespace {
@@ -123,12 +123,7 @@ public:
 
     // Emit warnings for headers that are missing guards.
     checkGuardlessHeaders();
-
-    // Clear all state.
-    Macros.clear();
-    Files.clear();
-    Ifndefs.clear();
-    EndIfs.clear();
+    clearAllState();
   }
 
   bool wouldFixEndifComment(StringRef FileName, SourceLocation EndIf,
@@ -186,7 +181,7 @@ public:
           CPPVar));
       return CPPVar;
     }
-    return CurHeaderGuard;
+    return std::string(CurHeaderGuard);
   }
 
   /// Checks the comment after the #endif of a header guard and fixes it
@@ -255,6 +250,13 @@ public:
   }
 
 private:
+  void clearAllState() {
+    Macros.clear();
+    Files.clear();
+    Ifndefs.clear();
+    EndIfs.clear();
+  }
+
   std::vector<std::pair<Token, const MacroInfo *>> Macros;
   llvm::StringMap<const FileEntry *> Files;
   std::map<const IdentifierInfo *, std::pair<SourceLocation, SourceLocation>>
@@ -266,6 +268,10 @@ private:
 };
 } // namespace
 
+void HeaderGuardCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
+  Options.store(Opts, "HeaderFileExtensions", RawStringHeaderFileExtensions);
+}
+
 void HeaderGuardCheck::registerPPCallbacks(const SourceManager &SM,
                                            Preprocessor *PP,
                                            Preprocessor *ModuleExpanderPP) {
@@ -273,19 +279,18 @@ void HeaderGuardCheck::registerPPCallbacks(const SourceManager &SM,
 }
 
 bool HeaderGuardCheck::shouldSuggestEndifComment(StringRef FileName) {
-  return utils::isHeaderFileExtension(FileName, HeaderFileExtensions);
+  return utils::isFileExtension(FileName, HeaderFileExtensions);
 }
 
 bool HeaderGuardCheck::shouldFixHeaderGuard(StringRef FileName) { return true; }
 
 bool HeaderGuardCheck::shouldSuggestToAddHeaderGuard(StringRef FileName) {
-  return utils::isHeaderFileExtension(FileName, HeaderFileExtensions);
+  return utils::isFileExtension(FileName, HeaderFileExtensions);
 }
 
 std::string HeaderGuardCheck::formatEndIf(StringRef HeaderGuard) {
   return "endif // " + HeaderGuard.str();
 }
-
 } // namespace utils
 } // namespace tidy
 } // namespace clang

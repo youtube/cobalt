@@ -4,6 +4,7 @@ set(LLVM_LINK_COMPONENTS
 
 add_clang_unittest(FrontendTests
   ASTUnitTest.cpp
+  CompilerInvocationTest.cpp
   CompilerInstanceTest.cpp
   FixedPointString.cpp
   FrontendActionTest.cpp
@@ -11,6 +12,7 @@ add_clang_unittest(FrontendTests
   ParsedSourceLocationTest.cpp
   PCHPreambleTest.cpp
   OutputStreamTest.cpp
+  TextDiagnosticTest.cpp
   )
 clang_target_link_libraries(FrontendTests
   PRIVATE

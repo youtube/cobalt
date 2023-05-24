@@ -35,19 +35,19 @@
 using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::ELF;
+using namespace lld;
+using namespace lld::elf;
 
-namespace lld {
-std::string toString(elf::RelType type) {
+const TargetInfo *elf::target;
+
+std::string lld::toString(RelType type) {
   StringRef s = getELFRelocationTypeName(elf::config->emachine, type);
   if (s == "Unknown")
     return ("Unknown (" + Twine(type) + ")").str();
-  return s;
+  return std::string(s);
 }
 
-namespace elf {
-const TargetInfo *target;
-
-TargetInfo *getTarget() {
+TargetInfo *elf::getTarget() {
   switch (config->emachine) {
   case EM_386:
   case EM_IAMCU:
@@ -95,7 +95,7 @@ template <class ELFT> static ErrorPlace getErrPlace(const uint8_t *loc) {
   assert(loc != nullptr);
   for (InputSectionBase *d : inputSections) {
     auto *isec = cast<InputSection>(d);
-    if (!isec->getParent())
+    if (!isec->getParent() || (isec->type & SHT_NOBITS))
       continue;
 
     const uint8_t *isecLoc =
@@ -112,7 +112,7 @@ template <class ELFT> static ErrorPlace getErrPlace(const uint8_t *loc) {
   return {};
 }
 
-ErrorPlace getErrorPlace(const uint8_t *loc) {
+ErrorPlace elf::getErrorPlace(const uint8_t *loc) {
   switch (config->ekind) {
   case ELF32LEKind:
     return getErrPlace<ELF32LE>(loc);
@@ -150,31 +150,36 @@ bool TargetInfo::inBranchRange(RelType type, uint64_t src, uint64_t dst) const {
   return true;
 }
 
-RelExpr TargetInfo::adjustRelaxExpr(RelType type, const uint8_t *data,
-                                    RelExpr expr) const {
+RelExpr TargetInfo::adjustTlsExpr(RelType type, RelExpr expr) const {
   return expr;
 }
 
-void TargetInfo::relaxGot(uint8_t *loc, RelType type, uint64_t val) const {
+RelExpr TargetInfo::adjustGotPcExpr(RelType type, int64_t addend,
+                                    const uint8_t *data) const {
+  return R_GOT_PC;
+}
+
+void TargetInfo::relaxGot(uint8_t *loc, const Relocation &rel,
+                          uint64_t val) const {
   llvm_unreachable("Should not have claimed to be relaxable");
 }
 
-void TargetInfo::relaxTlsGdToLe(uint8_t *loc, RelType type,
+void TargetInfo::relaxTlsGdToLe(uint8_t *loc, const Relocation &rel,
                                 uint64_t val) const {
   llvm_unreachable("Should not have claimed to be relaxable");
 }
 
-void TargetInfo::relaxTlsGdToIe(uint8_t *loc, RelType type,
+void TargetInfo::relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
                                 uint64_t val) const {
   llvm_unreachable("Should not have claimed to be relaxable");
 }
 
-void TargetInfo::relaxTlsIeToLe(uint8_t *loc, RelType type,
+void TargetInfo::relaxTlsIeToLe(uint8_t *loc, const Relocation &rel,
                                 uint64_t val) const {
   llvm_unreachable("Should not have claimed to be relaxable");
 }
 
-void TargetInfo::relaxTlsLdToLe(uint8_t *loc, RelType type,
+void TargetInfo::relaxTlsLdToLe(uint8_t *loc, const Relocation &rel,
                                 uint64_t val) const {
   llvm_unreachable("Should not have claimed to be relaxable");
 }
@@ -185,6 +190,3 @@ uint64_t TargetInfo::getImageBase() const {
     return *config->imageBase;
   return config->isPic ? 0 : defaultImageBase;
 }
-
-} // namespace elf
-} // namespace lld

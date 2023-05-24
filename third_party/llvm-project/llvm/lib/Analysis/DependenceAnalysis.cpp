@@ -647,20 +647,22 @@ void Dependence::dump(raw_ostream &OS) const {
 // tbaa, non-overlapping regions etc), then it is known there is no dependecy.
 // Otherwise the underlying objects are checked to see if they point to
 // different identifiable objects.
-static AliasResult underlyingObjectsAlias(AliasAnalysis *AA,
+static AliasResult underlyingObjectsAlias(AAResults *AA,
                                           const DataLayout &DL,
                                           const MemoryLocation &LocA,
                                           const MemoryLocation &LocB) {
   // Check the original locations (minus size) for noalias, which can happen for
   // tbaa, incompatible underlying object locations, etc.
-  MemoryLocation LocAS(LocA.Ptr, LocationSize::unknown(), LocA.AATags);
-  MemoryLocation LocBS(LocB.Ptr, LocationSize::unknown(), LocB.AATags);
+  MemoryLocation LocAS =
+      MemoryLocation::getBeforeOrAfter(LocA.Ptr, LocA.AATags);
+  MemoryLocation LocBS =
+      MemoryLocation::getBeforeOrAfter(LocB.Ptr, LocB.AATags);
   if (AA->alias(LocAS, LocBS) == NoAlias)
     return NoAlias;
 
   // Check the underlying objects are the same
-  const Value *AObj = GetUnderlyingObject(LocA.Ptr, DL);
-  const Value *BObj = GetUnderlyingObject(LocB.Ptr, DL);
+  const Value *AObj = getUnderlyingObject(LocA.Ptr);
+  const Value *BObj = getUnderlyingObject(LocB.Ptr);
 
   // If the underlying objects are the same, they must alias
   if (AObj == BObj)
@@ -871,8 +873,8 @@ void DependenceInfo::removeMatchingExtensions(Subscript *Pair) {
   const SCEV *Dst = Pair->Dst;
   if ((isa<SCEVZeroExtendExpr>(Src) && isa<SCEVZeroExtendExpr>(Dst)) ||
       (isa<SCEVSignExtendExpr>(Src) && isa<SCEVSignExtendExpr>(Dst))) {
-    const SCEVCastExpr *SrcCast = cast<SCEVCastExpr>(Src);
-    const SCEVCastExpr *DstCast = cast<SCEVCastExpr>(Dst);
+    const SCEVIntegralCastExpr *SrcCast = cast<SCEVIntegralCastExpr>(Src);
+    const SCEVIntegralCastExpr *DstCast = cast<SCEVIntegralCastExpr>(Dst);
     const SCEV *SrcCastOp = SrcCast->getOperand();
     const SCEV *DstCastOp = DstCast->getOperand();
     if (SrcCastOp->getType() == DstCastOp->getType()) {
@@ -969,8 +971,8 @@ bool DependenceInfo::isKnownPredicate(ICmpInst::Predicate Pred, const SCEV *X,
          isa<SCEVSignExtendExpr>(Y)) ||
         (isa<SCEVZeroExtendExpr>(X) &&
          isa<SCEVZeroExtendExpr>(Y))) {
-      const SCEVCastExpr *CX = cast<SCEVCastExpr>(X);
-      const SCEVCastExpr *CY = cast<SCEVCastExpr>(Y);
+      const SCEVIntegralCastExpr *CX = cast<SCEVIntegralCastExpr>(X);
+      const SCEVIntegralCastExpr *CY = cast<SCEVIntegralCastExpr>(Y);
       const SCEV *Xop = CX->getOperand();
       const SCEV *Yop = CY->getOperand();
       if (Xop->getType() == Yop->getType()) {
@@ -1459,19 +1461,6 @@ static APInt ceilingOfQuotient(const APInt &A, const APInt &B) {
     return Q;
 }
 
-
-static
-APInt maxAPInt(APInt A, APInt B) {
-  return A.sgt(B) ? A : B;
-}
-
-
-static
-APInt minAPInt(APInt A, APInt B) {
-  return A.slt(B) ? A : B;
-}
-
-
 // exactSIVtest -
 // When we have a pair of subscripts of the form [c1 + a1*i] and [c2 + a2*i],
 // where i is an induction variable, c1 and c2 are loop invariant, and a1
@@ -1542,18 +1531,18 @@ bool DependenceInfo::exactSIVtest(const SCEV *SrcCoeff, const SCEV *DstCoeff,
   // test(BM/G, LM-X) and test(-BM/G, X-UM)
   APInt TMUL = BM.sdiv(G);
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(-X, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(-X, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     if (UMvalid) {
-      TU = minAPInt(TU, floorOfQuotient(UM - X, TMUL));
+      TU = APIntOps::smin(TU, floorOfQuotient(UM - X, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     }
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(-X, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(-X, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     if (UMvalid) {
-      TL = maxAPInt(TL, ceilingOfQuotient(UM - X, TMUL));
+      TL = APIntOps::smax(TL, ceilingOfQuotient(UM - X, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     }
   }
@@ -1561,18 +1550,18 @@ bool DependenceInfo::exactSIVtest(const SCEV *SrcCoeff, const SCEV *DstCoeff,
   // test(AM/G, LM-Y) and test(-AM/G, Y-UM)
   TMUL = AM.sdiv(G);
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(-Y, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(-Y, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     if (UMvalid) {
-      TU = minAPInt(TU, floorOfQuotient(UM - Y, TMUL));
+      TU = APIntOps::smin(TU, floorOfQuotient(UM - Y, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     }
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(-Y, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(-Y, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     if (UMvalid) {
-      TL = maxAPInt(TL, ceilingOfQuotient(UM - Y, TMUL));
+      TL = APIntOps::smax(TL, ceilingOfQuotient(UM - Y, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     }
   }
@@ -1591,11 +1580,11 @@ bool DependenceInfo::exactSIVtest(const SCEV *SrcCoeff, const SCEV *DstCoeff,
   LLVM_DEBUG(dbgs() << "\t    exploring LT direction\n");
   TMUL = AM - BM;
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(X - Y + 1, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(X - Y + 1, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TL = " << TL << "\n");
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(X - Y + 1, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(X - Y + 1, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TU = " << TU << "\n");
   }
   if (TL.sle(TU)) {
@@ -1608,20 +1597,20 @@ bool DependenceInfo::exactSIVtest(const SCEV *SrcCoeff, const SCEV *DstCoeff,
   TL = SaveTL;
   LLVM_DEBUG(dbgs() << "\t    exploring EQ direction\n");
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(X - Y, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(X - Y, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TL = " << TL << "\n");
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(X - Y, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(X - Y, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TU = " << TU << "\n");
   }
   TMUL = BM - AM;
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(Y - X, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(Y - X, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TL = " << TL << "\n");
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(Y - X, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(Y - X, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TU = " << TU << "\n");
   }
   if (TL.sle(TU)) {
@@ -1634,11 +1623,11 @@ bool DependenceInfo::exactSIVtest(const SCEV *SrcCoeff, const SCEV *DstCoeff,
   TL = SaveTL;
   LLVM_DEBUG(dbgs() << "\t    exploring GT direction\n");
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(Y - X + 1, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(Y - X + 1, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TL = " << TL << "\n");
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(Y - X + 1, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(Y - X + 1, TMUL));
     LLVM_DEBUG(dbgs() << "\t\t    TU = " << TU << "\n");
   }
   if (TL.sle(TU)) {
@@ -1950,18 +1939,18 @@ bool DependenceInfo::exactRDIVtest(const SCEV *SrcCoeff, const SCEV *DstCoeff,
   // test(BM/G, LM-X) and test(-BM/G, X-UM)
   APInt TMUL = BM.sdiv(G);
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(-X, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(-X, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     if (SrcUMvalid) {
-      TU = minAPInt(TU, floorOfQuotient(SrcUM - X, TMUL));
+      TU = APIntOps::smin(TU, floorOfQuotient(SrcUM - X, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     }
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(-X, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(-X, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     if (SrcUMvalid) {
-      TL = maxAPInt(TL, ceilingOfQuotient(SrcUM - X, TMUL));
+      TL = APIntOps::smax(TL, ceilingOfQuotient(SrcUM - X, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     }
   }
@@ -1969,18 +1958,18 @@ bool DependenceInfo::exactRDIVtest(const SCEV *SrcCoeff, const SCEV *DstCoeff,
   // test(AM/G, LM-Y) and test(-AM/G, Y-UM)
   TMUL = AM.sdiv(G);
   if (TMUL.sgt(0)) {
-    TL = maxAPInt(TL, ceilingOfQuotient(-Y, TMUL));
+    TL = APIntOps::smax(TL, ceilingOfQuotient(-Y, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     if (DstUMvalid) {
-      TU = minAPInt(TU, floorOfQuotient(DstUM - Y, TMUL));
+      TU = APIntOps::smin(TU, floorOfQuotient(DstUM - Y, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     }
   }
   else {
-    TU = minAPInt(TU, floorOfQuotient(-Y, TMUL));
+    TU = APIntOps::smin(TU, floorOfQuotient(-Y, TMUL));
     LLVM_DEBUG(dbgs() << "\t    TU = " << TU << "\n");
     if (DstUMvalid) {
-      TL = maxAPInt(TL, ceilingOfQuotient(DstUM - Y, TMUL));
+      TL = APIntOps::smax(TL, ceilingOfQuotient(DstUM - Y, TMUL));
       LLVM_DEBUG(dbgs() << "\t    TL = " << TL << "\n");
     }
   }
@@ -3264,16 +3253,10 @@ bool DependenceInfo::tryDelinearize(Instruction *Src, Instruction *Dst,
   assert(isLoadOrStore(Dst) && "instruction is not load or store");
   Value *SrcPtr = getLoadStorePointerOperand(Src);
   Value *DstPtr = getLoadStorePointerOperand(Dst);
-
   Loop *SrcLoop = LI->getLoopFor(Src->getParent());
   Loop *DstLoop = LI->getLoopFor(Dst->getParent());
-
-  // Below code mimics the code in Delinearization.cpp
-  const SCEV *SrcAccessFn =
-    SE->getSCEVAtScope(SrcPtr, SrcLoop);
-  const SCEV *DstAccessFn =
-    SE->getSCEVAtScope(DstPtr, DstLoop);
-
+  const SCEV *SrcAccessFn = SE->getSCEVAtScope(SrcPtr, SrcLoop);
+  const SCEV *DstAccessFn = SE->getSCEVAtScope(DstPtr, DstLoop);
   const SCEVUnknown *SrcBase =
       dyn_cast<SCEVUnknown>(SE->getPointerBase(SrcAccessFn));
   const SCEVUnknown *DstBase =
@@ -3281,6 +3264,123 @@ bool DependenceInfo::tryDelinearize(Instruction *Src, Instruction *Dst,
 
   if (!SrcBase || !DstBase || SrcBase != DstBase)
     return false;
+
+  SmallVector<const SCEV *, 4> SrcSubscripts, DstSubscripts;
+
+  if (!tryDelinearizeFixedSize(Src, Dst, SrcAccessFn, DstAccessFn,
+                               SrcSubscripts, DstSubscripts) &&
+      !tryDelinearizeParametricSize(Src, Dst, SrcAccessFn, DstAccessFn,
+                                    SrcSubscripts, DstSubscripts))
+    return false;
+
+  int Size = SrcSubscripts.size();
+  LLVM_DEBUG({
+    dbgs() << "\nSrcSubscripts: ";
+    for (int I = 0; I < Size; I++)
+      dbgs() << *SrcSubscripts[I];
+    dbgs() << "\nDstSubscripts: ";
+    for (int I = 0; I < Size; I++)
+      dbgs() << *DstSubscripts[I];
+  });
+
+  // The delinearization transforms a single-subscript MIV dependence test into
+  // a multi-subscript SIV dependence test that is easier to compute. So we
+  // resize Pair to contain as many pairs of subscripts as the delinearization
+  // has found, and then initialize the pairs following the delinearization.
+  Pair.resize(Size);
+  for (int I = 0; I < Size; ++I) {
+    Pair[I].Src = SrcSubscripts[I];
+    Pair[I].Dst = DstSubscripts[I];
+    unifySubscriptType(&Pair[I]);
+  }
+
+  return true;
+}
+
+bool DependenceInfo::tryDelinearizeFixedSize(
+    Instruction *Src, Instruction *Dst, const SCEV *SrcAccessFn,
+    const SCEV *DstAccessFn, SmallVectorImpl<const SCEV *> &SrcSubscripts,
+    SmallVectorImpl<const SCEV *> &DstSubscripts) {
+
+  // In general we cannot safely assume that the subscripts recovered from GEPs
+  // are in the range of values defined for their corresponding array
+  // dimensions. For example some C language usage/interpretation make it
+  // impossible to verify this at compile-time. As such we give up here unless
+  // we can assume that the subscripts do not overlap into neighboring
+  // dimensions and that the number of dimensions matches the number of
+  // subscripts being recovered.
+  if (!DisableDelinearizationChecks)
+    return false;
+
+  Value *SrcPtr = getLoadStorePointerOperand(Src);
+  Value *DstPtr = getLoadStorePointerOperand(Dst);
+  const SCEVUnknown *SrcBase =
+      dyn_cast<SCEVUnknown>(SE->getPointerBase(SrcAccessFn));
+  const SCEVUnknown *DstBase =
+      dyn_cast<SCEVUnknown>(SE->getPointerBase(DstAccessFn));
+  assert(SrcBase && DstBase && SrcBase == DstBase &&
+         "expected src and dst scev unknowns to be equal");
+
+  // Check the simple case where the array dimensions are fixed size.
+  auto *SrcGEP = dyn_cast<GetElementPtrInst>(SrcPtr);
+  auto *DstGEP = dyn_cast<GetElementPtrInst>(DstPtr);
+  if (!SrcGEP || !DstGEP)
+    return false;
+
+  SmallVector<int, 4> SrcSizes, DstSizes;
+  SE->getIndexExpressionsFromGEP(SrcGEP, SrcSubscripts, SrcSizes);
+  SE->getIndexExpressionsFromGEP(DstGEP, DstSubscripts, DstSizes);
+
+  // Check that the two size arrays are non-empty and equal in length and
+  // value.
+  if (SrcSizes.empty() || SrcSubscripts.size() <= 1 ||
+      SrcSizes.size() != DstSizes.size() ||
+      !std::equal(SrcSizes.begin(), SrcSizes.end(), DstSizes.begin())) {
+    SrcSubscripts.clear();
+    DstSubscripts.clear();
+    return false;
+  }
+
+  Value *SrcBasePtr = SrcGEP->getOperand(0);
+  Value *DstBasePtr = DstGEP->getOperand(0);
+  while (auto *PCast = dyn_cast<BitCastInst>(SrcBasePtr))
+    SrcBasePtr = PCast->getOperand(0);
+  while (auto *PCast = dyn_cast<BitCastInst>(DstBasePtr))
+    DstBasePtr = PCast->getOperand(0);
+
+  // Check that for identical base pointers we do not miss index offsets
+  // that have been added before this GEP is applied.
+  if (SrcBasePtr == SrcBase->getValue() && DstBasePtr == DstBase->getValue()) {
+    assert(SrcSubscripts.size() == DstSubscripts.size() &&
+           SrcSubscripts.size() == SrcSizes.size() + 1 &&
+           "Expected equal number of entries in the list of sizes and "
+           "subscripts.");
+    LLVM_DEBUG({
+      dbgs() << "Delinearized subscripts of fixed-size array\n"
+             << "SrcGEP:" << *SrcGEP << "\n"
+             << "DstGEP:" << *DstGEP << "\n";
+    });
+    return true;
+  }
+
+  SrcSubscripts.clear();
+  DstSubscripts.clear();
+  return false;
+}
+
+bool DependenceInfo::tryDelinearizeParametricSize(
+    Instruction *Src, Instruction *Dst, const SCEV *SrcAccessFn,
+    const SCEV *DstAccessFn, SmallVectorImpl<const SCEV *> &SrcSubscripts,
+    SmallVectorImpl<const SCEV *> &DstSubscripts) {
+
+  Value *SrcPtr = getLoadStorePointerOperand(Src);
+  Value *DstPtr = getLoadStorePointerOperand(Dst);
+  const SCEVUnknown *SrcBase =
+      dyn_cast<SCEVUnknown>(SE->getPointerBase(SrcAccessFn));
+  const SCEVUnknown *DstBase =
+      dyn_cast<SCEVUnknown>(SE->getPointerBase(DstAccessFn));
+  assert(SrcBase && DstBase && SrcBase == DstBase &&
+         "expected src and dst scev unknowns to be equal");
 
   const SCEV *ElementSize = SE->getElementSize(Src);
   if (ElementSize != SE->getElementSize(Dst))
@@ -3304,7 +3404,6 @@ bool DependenceInfo::tryDelinearize(Instruction *Src, Instruction *Dst,
   SE->findArrayDimensions(Terms, Sizes, ElementSize);
 
   // Third step: compute the access functions for each subscript.
-  SmallVector<const SCEV *, 4> SrcSubscripts, DstSubscripts;
   SE->computeAccessFunctions(SrcAR, SrcSubscripts, Sizes);
   SE->computeAccessFunctions(DstAR, DstSubscripts, Sizes);
 
@@ -3313,7 +3412,7 @@ bool DependenceInfo::tryDelinearize(Instruction *Src, Instruction *Dst,
       SrcSubscripts.size() != DstSubscripts.size())
     return false;
 
-  int size = SrcSubscripts.size();
+  size_t Size = SrcSubscripts.size();
 
   // Statically check that the array bounds are in-range. The first subscript we
   // don't have a size for and it cannot overflow into another subscript, so is
@@ -3322,39 +3421,19 @@ bool DependenceInfo::tryDelinearize(Instruction *Src, Instruction *Dst,
   // FIXME: It may be better to record these sizes and add them as constraints
   // to the dependency checks.
   if (!DisableDelinearizationChecks)
-    for (int i = 1; i < size; ++i) {
-      if (!isKnownNonNegative(SrcSubscripts[i], SrcPtr))
+    for (size_t I = 1; I < Size; ++I) {
+      if (!isKnownNonNegative(SrcSubscripts[I], SrcPtr))
         return false;
 
-      if (!isKnownLessThan(SrcSubscripts[i], Sizes[i - 1]))
+      if (!isKnownLessThan(SrcSubscripts[I], Sizes[I - 1]))
         return false;
 
-      if (!isKnownNonNegative(DstSubscripts[i], DstPtr))
+      if (!isKnownNonNegative(DstSubscripts[I], DstPtr))
         return false;
 
-      if (!isKnownLessThan(DstSubscripts[i], Sizes[i - 1]))
+      if (!isKnownLessThan(DstSubscripts[I], Sizes[I - 1]))
         return false;
     }
-
-  LLVM_DEBUG({
-    dbgs() << "\nSrcSubscripts: ";
-    for (int i = 0; i < size; i++)
-      dbgs() << *SrcSubscripts[i];
-    dbgs() << "\nDstSubscripts: ";
-    for (int i = 0; i < size; i++)
-      dbgs() << *DstSubscripts[i];
-  });
-
-  // The delinearization transforms a single-subscript MIV dependence test into
-  // a multi-subscript SIV dependence test that is easier to compute. So we
-  // resize Pair to contain as many pairs of subscripts as the delinearization
-  // has found, and then initialize the pairs following the delinearization.
-  Pair.resize(size);
-  for (int i = 0; i < size; ++i) {
-    Pair[i].Src = SrcSubscripts[i];
-    Pair[i].Dst = DstSubscripts[i];
-    unifySubscriptType(&Pair[i]);
-  }
 
   return true;
 }

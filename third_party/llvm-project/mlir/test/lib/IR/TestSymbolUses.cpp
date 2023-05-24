@@ -1,13 +1,13 @@
 //===- TestSymbolUses.cpp - Pass to test symbol uselists ------------------===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "TestDialect.h"
-#include "mlir/IR/Function.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 
 using namespace mlir;
@@ -15,8 +15,9 @@ using namespace mlir;
 namespace {
 /// This is a symbol test pass that tests the symbol uselist functionality
 /// provided by the symbol table along with erasing from the symbol table.
-struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
-  WalkResult operateOnSymbol(Operation *symbol, Operation *module,
+struct SymbolUsesPass
+    : public PassWrapper<SymbolUsesPass, OperationPass<ModuleOp>> {
+  WalkResult operateOnSymbol(Operation *symbol, ModuleOp module,
                              SmallVectorImpl<FuncOp> &deadFunctions) {
     // Test computing uses on a non symboltable op.
     Optional<SymbolTable::UseRange> symbolUses =
@@ -34,7 +35,7 @@ struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
                            << " nested references";
 
     // Test the functionality of symbolKnownUseEmpty.
-    if (SymbolTable::symbolKnownUseEmpty(symbol, module)) {
+    if (SymbolTable::symbolKnownUseEmpty(symbol, &module.getBodyRegion())) {
       FuncOp funcSymbol = dyn_cast<FuncOp>(symbol);
       if (funcSymbol && funcSymbol.isExternal())
         deadFunctions.push_back(funcSymbol);
@@ -44,7 +45,7 @@ struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
     }
 
     // Test the functionality of getSymbolUses.
-    symbolUses = SymbolTable::getSymbolUses(symbol, module);
+    symbolUses = SymbolTable::getSymbolUses(symbol, &module.getBodyRegion());
     assert(symbolUses.hasValue() && "expected no unknown operations");
     for (SymbolTable::SymbolUse symbolUse : *symbolUses) {
       // Check that we can resolve back to our symbol.
@@ -59,21 +60,21 @@ struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
     return WalkResult::advance();
   }
 
-  void runOnModule() override {
-    auto module = getModule();
+  void runOnOperation() override {
+    auto module = getOperation();
 
     // Walk nested symbols.
     SmallVector<FuncOp, 4> deadFunctions;
     module.getBodyRegion().walk([&](Operation *nestedOp) {
-      if (SymbolTable::isSymbol(nestedOp))
+      if (isa<SymbolOpInterface>(nestedOp))
         return operateOnSymbol(nestedOp, module, deadFunctions);
       return WalkResult::advance();
     });
 
+    SymbolTable table(module);
     for (Operation *op : deadFunctions) {
       // In order to test the SymbolTable::erase method, also erase completely
       // useless functions.
-      SymbolTable table(module);
       auto name = SymbolTable::getSymbolName(op);
       assert(table.lookup(name) && "expected no unknown operations");
       table.erase(op);
@@ -86,9 +87,10 @@ struct SymbolUsesPass : public ModulePass<SymbolUsesPass> {
 
 /// This is a symbol test pass that tests the symbol use replacement
 /// functionality provided by the symbol table.
-struct SymbolReplacementPass : public ModulePass<SymbolReplacementPass> {
-  void runOnModule() override {
-    auto module = getModule();
+struct SymbolReplacementPass
+    : public PassWrapper<SymbolReplacementPass, OperationPass<ModuleOp>> {
+  void runOnOperation() override {
+    auto module = getOperation();
 
     // Walk nested functions and modules.
     module.getBodyRegion().walk([&](Operation *nestedOp) {
@@ -96,15 +98,19 @@ struct SymbolReplacementPass : public ModulePass<SymbolReplacementPass> {
       if (!newName)
         return;
       if (succeeded(SymbolTable::replaceAllSymbolUses(
-              nestedOp, newName.getValue(), module)))
+              nestedOp, newName.getValue(), &module.getBodyRegion())))
         SymbolTable::setSymbolName(nestedOp, newName.getValue());
     });
   }
 };
 } // end anonymous namespace
 
-static PassRegistration<SymbolUsesPass> pass("test-symbol-uses",
-                                             "Test detection of symbol uses");
+namespace mlir {
+void registerSymbolTestPasses() {
+  PassRegistration<SymbolUsesPass>("test-symbol-uses",
+                                   "Test detection of symbol uses");
 
-static PassRegistration<SymbolReplacementPass>
-    rauwPass("test-symbol-rauw", "Test replacement of symbol uses");
+  PassRegistration<SymbolReplacementPass>("test-symbol-rauw",
+                                          "Test replacement of symbol uses");
+}
+} // namespace mlir

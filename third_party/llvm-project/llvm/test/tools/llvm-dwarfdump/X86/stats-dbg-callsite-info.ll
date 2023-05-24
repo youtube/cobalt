@@ -1,4 +1,4 @@
-; RUN: llc -debug-entry-values %s -o - -filetype=obj \
+; RUN: llc -emit-call-site-info -debug-entry-values %s -o - -filetype=obj \
 ; RUN:   | llvm-dwarfdump -statistics - | FileCheck %s
 ;
 ; The LLVM IR file was generated on this source code by using
@@ -12,8 +12,8 @@
 ;   foo(&local1, arg2, 10, 15, arg3 + 3, arg1 + arg2);
 ; }
 ;
-; CHECK: "call site DIEs":2
-; CHECK-SAME: "call site parameter DIEs":6
+; CHECK:      "#call site DIEs": 2,
+; CHECK-NEXT: "#call site parameter DIEs": 6,
 ;
 ; ModuleID = 'test.c'
 source_filename = "test.c"
