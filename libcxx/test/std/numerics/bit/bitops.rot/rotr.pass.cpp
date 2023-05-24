@@ -16,6 +16,7 @@
 #include <bit>
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 
 #include "test_macros.h"
@@ -91,7 +92,7 @@ int main(int, char**)
     static_assert(!std::is_invocable_v<L, bool>);
     static_assert(!std::is_invocable_v<L, char>);
     static_assert(!std::is_invocable_v<L, wchar_t>);
-#ifndef _LIBCPP_HAS_NO_CHAR8_T
+#ifndef TEST_HAS_NO_CHAR8_T
     static_assert(!std::is_invocable_v<L, char8_t>);
 #endif
     static_assert(!std::is_invocable_v<L, char16_t>);

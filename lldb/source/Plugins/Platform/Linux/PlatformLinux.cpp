@@ -22,6 +22,7 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/State.h"
 #include "lldb/Utility/Status.h"
@@ -42,7 +43,7 @@ static uint32_t g_initialize_count = 0;
 
 
 PlatformSP PlatformLinux::CreateInstance(bool force, const ArchSpec *arch) {
-  Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
+  Log *log = GetLog(LLDBLog::Platform);
   LLDB_LOG(log, "force = {0}, arch=({1}, {2})", force,
            arch ? arch->GetArchitectureName() : "<null>",
            arch ? arch->GetTriple().getTriple() : "<null>");
@@ -127,9 +128,10 @@ PlatformLinux::PlatformLinux(bool is_host)
   }
 }
 
-std::vector<ArchSpec> PlatformLinux::GetSupportedArchitectures() {
+std::vector<ArchSpec>
+PlatformLinux::GetSupportedArchitectures(const ArchSpec &process_host_arch) {
   if (m_remote_platform_sp)
-    return m_remote_platform_sp->GetSupportedArchitectures();
+    return m_remote_platform_sp->GetSupportedArchitectures(process_host_arch);
   return m_supported_architectures;
 }
 
@@ -310,9 +312,12 @@ MmapArgList PlatformLinux::GetMmapArgumentList(const ArchSpec &arch,
 }
 
 CompilerType PlatformLinux::GetSiginfoType(const llvm::Triple &triple) {
-  if (!m_type_system_up)
-    m_type_system_up.reset(new TypeSystemClang("siginfo", triple));
-  TypeSystemClang *ast = m_type_system_up.get();
+  {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    if (!m_type_system)
+      m_type_system = std::make_shared<TypeSystemClang>("siginfo", triple);
+  }
+  TypeSystemClang *ast = m_type_system.get();
 
   bool si_errno_then_code = true;
 

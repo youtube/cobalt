@@ -11,6 +11,7 @@
 
 #include "../ClangTidyCheck.h"
 #include "clang/StaticAnalyzer/Checkers/MPIFunctionClassifier.h"
+#include <optional>
 
 namespace clang {
 namespace tidy {
@@ -24,7 +25,7 @@ namespace mpi {
 /// emitted.
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/mpi-buffer-deref.html
+/// http://clang.llvm.org/extra/clang-tidy/checks/mpi/buffer-deref.html
 class BufferDerefCheck : public ClangTidyCheck {
 public:
   BufferDerefCheck(StringRef Name, ClangTidyContext *Context)
@@ -44,7 +45,7 @@ private:
 
   enum class IndirectionType : unsigned char { Pointer, Array };
 
-  Optional<ento::mpi::MPIFunctionClassifier> FuncClassifier;
+  std::optional<ento::mpi::MPIFunctionClassifier> FuncClassifier;
 };
 
 } // namespace mpi

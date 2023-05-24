@@ -7,16 +7,14 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-concepts
 
 // template<class I2, class S2>
 //   requires convertible_to<const I2&, I> && convertible_to<const S2&, S>
 //     constexpr common_iterator(const common_iterator<I2, S2>& x);
 
-#include <iterator>
 #include <cassert>
-
-#include "test_macros.h"
+#include <iterator>
+#include <type_traits>
 
 constexpr bool test()
 {

@@ -26,49 +26,53 @@ Non-comprehensive list of changes in this release
 ELF Improvements
 ----------------
 
-* ``--export-dynamic-symbol-list`` has been added.
-  (`D107317 <https://reviews.llvm.org/D107317>`_)
-* ``--why-extract`` has been added to query why archive members/lazy object files are extracted.
-  (`D109572 <https://reviews.llvm.org/D109572>`_)
-* ``e_entry`` no longer falls back to the address of ``.text`` if the entry symbol does not exist.
-  Instead, a value of 0 will be written.
-  (`D110014 <https://reviews.llvm.org/D110014>`_)
-* If ``-Map`` is specified, ``--cref`` will be printed to the specified file.
-  (`D114663 <https://reviews.llvm.org/D114663>`_)
-* No longer deduplicate local symbol names at the default optimization level of ``-O1``.
-  This results in a larger ``.strtab`` (usually less than 1%) but a faster link
-  time. Use optimization level ``-O2`` to restore the deduplication.
-
-Architecture specific changes:
-
-* The x86-32 port now supports TLSDESC (``-mtls-dialect=gnu2``).
-  (`D112582 <https://reviews.llvm.org/D112582>`_)
-* The x86-64 port now handles non-RAX/non-adjacent ``R_X86_64_GOTPC32_TLSDESC``
-  and ``R_X86_64_TLSDESC_CALL`` (``-mtls-dialect=gnu2``).
-  (`D114416 <https://reviews.llvm.org/D114416>`_)
-* For x86-64, ``--no-relax`` now suppresses ``R_X86_64_GOTPCRELX`` and
-  ``R_X86_64_REX_GOTPCRELX`` GOT optimization
-  (`D113615 <https://reviews.llvm.org/D113615>`_)
+* ``ELFCOMPRESS_ZSTD`` compressed input sections are now supported.
+  (`D129406 <https://reviews.llvm.org/D129406>`_)
+* ``--compress-debug-sections=zstd`` is now available to compress debug
+  sections with zstd (``ELFCOMPRESS_ZSTD``).
+  (`D133548 <https://reviews.llvm.org/D133548>`_)
+* ``--no-warnings``/``-w`` is now available to suppress warnings.
+  (`D136569 <https://reviews.llvm.org/D136569>`_)
+* ``DT_RISCV_VARIANT_CC`` is now produced if at least one ``R_RISCV_JUMP_SLOT``
+  relocation references a symbol with the ``STO_RISCV_VARIANT_CC`` bit.
+  (`D107951 <https://reviews.llvm.org/D107951>`_)
+* ``--no-undefined-version`` is now the default; symbols named in version
+  scripts that have no matching symbol in the output will be reported. Use
+  ``--undefined-version`` to revert to the old behavior.
+* The output ``SHT_RISCV_ATTRIBUTES`` section now merges all input components
+  instead of picking the first input component.
+  (`D138550 <https://reviews.llvm.org/D138550>`_)
 
 Breaking changes
 ----------------
 
-* ...
-
 COFF Improvements
 -----------------
 
-* ...
+* The linker command line entry in ``S_ENVBLOCK`` of the PDB is now stripped
+  from input files, to align with MSVC behavior.
+  (`D137723 <https://reviews.llvm.org/D137723>`_)
+* Switched from SHA1 to BLAKE3 for PDB type hashing / ``-gcodeview-ghash``
+  (`D137101 <https://reviews.llvm.org/D137101>`_)
+* Improvements to the PCH.OBJ files handling. Now LLD behaves the same as MSVC
+  link.exe when merging PCH.OBJ files that don't have the same signature.
+  (`D136762 <https://reviews.llvm.org/D136762>`_)
 
 MinGW Improvements
 ------------------
 
-* ...
+* The lld-specific options ``--guard-cf``, ``--no-guard-cf``,
+  ``--guard-longjmp`` and ``--no-guard-longjmp`` has been added to allow
+  enabling Control Flow Guard and long jump hardening. These options are
+  disabled by default, but enabling ``--guard-cf`` will also enable
+  ``--guard-longjmp`` unless ``--no-guard-longjmp`` is also specified.
+  ``--guard-longjmp`` depends on ``--guard-cf`` and cannot be used by itself.
+  Note that these features require the ``_load_config_used`` symbol to contain
+  the load config directory and be filled with the required symbols.
+  (`D132808 <https://reviews.llvm.org/D132808>`_)
 
 MachO Improvements
 ------------------
-
-* Item 1.
 
 WebAssembly Improvements
 ------------------------

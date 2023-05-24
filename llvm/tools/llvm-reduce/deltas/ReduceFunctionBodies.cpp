@@ -13,7 +13,9 @@
 
 #include "ReduceFunctionBodies.h"
 #include "Delta.h"
+#include "Utils.h"
 #include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 
@@ -21,16 +23,39 @@ using namespace llvm;
 /// desired Chunks.
 static void extractFunctionBodiesFromModule(Oracle &O, Module &Program) {
   // Delete out-of-chunk function bodies
-  std::vector<Function *> FuncDefsToReduce;
-  for (auto &F : Program)
-    if (!F.isDeclaration() && !O.shouldKeep()) {
+  for (auto &F : Program) {
+    if (!F.isDeclaration() && !hasAliasUse(F) && !O.shouldKeep()) {
       F.deleteBody();
       F.setComdat(nullptr);
     }
+  }
 }
 
 void llvm::reduceFunctionBodiesDeltaPass(TestRunner &Test) {
-  errs() << "*** Reducing Function Bodies...\n";
-  runDeltaPass(Test, extractFunctionBodiesFromModule);
-  errs() << "----------------------------\n";
+  runDeltaPass(Test, extractFunctionBodiesFromModule,
+               "Reducing Function Bodies");
+}
+
+static void reduceFunctionData(Oracle &O, Module &M) {
+  for (Function &F : M) {
+    if (F.hasPersonalityFn()) {
+      if (none_of(F,
+                  [](const BasicBlock &BB) {
+                    return BB.isEHPad() || isa<ResumeInst>(BB.getTerminator());
+                  }) &&
+          !O.shouldKeep()) {
+        F.setPersonalityFn(nullptr);
+      }
+    }
+
+    if (F.hasPrefixData() && !O.shouldKeep())
+      F.setPrefixData(nullptr);
+
+    if (F.hasPrologueData() && !O.shouldKeep())
+      F.setPrologueData(nullptr);
+  }
+}
+
+void llvm::reduceFunctionDataDeltaPass(TestRunner &Test) {
+  runDeltaPass(Test, reduceFunctionData, "Reducing Function Data");
 }

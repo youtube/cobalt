@@ -10,10 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Vector/Transforms/VectorRewritePatterns.h"
-#include "mlir/Dialect/Vector/Utils/VectorUtils.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/IR/TypeUtilities.h"
 
 #define DEBUG_TYPE "vector-multi-reduction"
@@ -28,23 +27,36 @@ using namespace mlir;
 class InnerOuterDimReductionConversion
     : public OpRewritePattern<vector::MultiDimReductionOp> {
 public:
-  using OpRewritePattern<vector::MultiDimReductionOp>::OpRewritePattern;
+  using OpRewritePattern::OpRewritePattern;
 
   explicit InnerOuterDimReductionConversion(
-      MLIRContext *context, vector::VectorMultiReductionLowering options)
-      : mlir::OpRewritePattern<vector::MultiDimReductionOp>(context),
+      MLIRContext *context, vector::VectorMultiReductionLowering options,
+      PatternBenefit benefit = 1)
+      : mlir::OpRewritePattern<vector::MultiDimReductionOp>(context, benefit),
         useInnerDimsForReduction(
             options == vector::VectorMultiReductionLowering::InnerReduction) {}
 
   LogicalResult matchAndRewrite(vector::MultiDimReductionOp multiReductionOp,
                                 PatternRewriter &rewriter) const override {
-    auto src = multiReductionOp.source();
+    // Vector mask setup.
+    OpBuilder::InsertionGuard guard(rewriter);
+    auto maskableOp =
+        cast<vector::MaskableOpInterface>(multiReductionOp.getOperation());
+    Operation *rootOp;
+    if (maskableOp.isMasked()) {
+      rewriter.setInsertionPoint(maskableOp.getMaskingOp());
+      rootOp = maskableOp.getMaskingOp();
+    } else {
+      rootOp = multiReductionOp;
+    }
+
+    auto src = multiReductionOp.getSource();
     auto loc = multiReductionOp.getLoc();
     auto srcRank = multiReductionOp.getSourceVectorType().getRank();
 
     // Separate reduction and parallel dims
     auto reductionDimsRange =
-        multiReductionOp.reduction_dims().getAsValueRange<IntegerAttr>();
+        multiReductionOp.getReductionDims().getAsValueRange<IntegerAttr>();
     auto reductionDims = llvm::to_vector<4>(llvm::map_range(
         reductionDimsRange, [](const APInt &a) { return a.getZExtValue(); }));
     llvm::SmallDenseSet<int64_t> reductionDimsSet(reductionDims.begin(),
@@ -77,6 +89,15 @@ public:
       indices.append(reductionDims.begin(), reductionDims.end());
       indices.append(parallelDims.begin(), parallelDims.end());
     }
+
+    // If masked, transpose the original mask.
+    Value transposedMask;
+    if (maskableOp.isMasked()) {
+      transposedMask = rewriter.create<vector::TransposeOp>(
+          loc, maskableOp.getMaskingOp().getMask(), indices);
+    }
+
+    // Transpose reduction source.
     auto transposeOp = rewriter.create<vector::TransposeOp>(loc, src, indices);
     SmallVector<bool> reductionMask(srcRank, false);
     for (int i = 0; i < reductionSize; ++i) {
@@ -85,9 +106,14 @@ public:
       else
         reductionMask[i] = true;
     }
-    rewriter.replaceOpWithNewOp<vector::MultiDimReductionOp>(
-        multiReductionOp, transposeOp.result(), reductionMask,
-        multiReductionOp.kind());
+
+    Operation *newMultiRedOp = rewriter.create<vector::MultiDimReductionOp>(
+        multiReductionOp.getLoc(), transposeOp.getResult(),
+        multiReductionOp.getAcc(), reductionMask, multiReductionOp.getKind());
+    newMultiRedOp =
+        mlir::vector::maskOperation(rewriter, newMultiRedOp, transposedMask);
+
+    rewriter.replaceOp(rootOp, newMultiRedOp->getResult(0));
     return success();
   }
 
@@ -100,16 +126,29 @@ private:
 class ReduceMultiDimReductionRank
     : public OpRewritePattern<vector::MultiDimReductionOp> {
 public:
-  using OpRewritePattern<vector::MultiDimReductionOp>::OpRewritePattern;
+  using OpRewritePattern::OpRewritePattern;
 
   explicit ReduceMultiDimReductionRank(
-      MLIRContext *context, vector::VectorMultiReductionLowering options)
-      : mlir::OpRewritePattern<vector::MultiDimReductionOp>(context),
+      MLIRContext *context, vector::VectorMultiReductionLowering options,
+      PatternBenefit benefit = 1)
+      : mlir::OpRewritePattern<vector::MultiDimReductionOp>(context, benefit),
         useInnerDimsForReduction(
             options == vector::VectorMultiReductionLowering::InnerReduction) {}
 
   LogicalResult matchAndRewrite(vector::MultiDimReductionOp multiReductionOp,
                                 PatternRewriter &rewriter) const override {
+    // Vector mask setup.
+    OpBuilder::InsertionGuard guard(rewriter);
+    auto maskableOp =
+        cast<vector::MaskableOpInterface>(multiReductionOp.getOperation());
+    Operation *rootOp;
+    if (maskableOp.isMasked()) {
+      rewriter.setInsertionPoint(maskableOp.getMaskingOp());
+      rootOp = maskableOp.getMaskingOp();
+    } else {
+      rootOp = multiReductionOp;
+    }
+
     auto srcRank = multiReductionOp.getSourceVectorType().getRank();
     auto srcShape = multiReductionOp.getSourceVectorType().getShape();
     auto loc = multiReductionOp.getLoc();
@@ -183,29 +222,49 @@ public:
       std::swap(mask.front(), mask.back());
       std::swap(vectorShape.front(), vectorShape.back());
     }
+
+    Value newVectorMask;
+    if (maskableOp.isMasked()) {
+      Value vectorMask = maskableOp.getMaskingOp().getMask();
+      auto maskCastedType = VectorType::get(
+          vectorShape,
+          vectorMask.getType().cast<VectorType>().getElementType());
+      newVectorMask =
+          rewriter.create<vector::ShapeCastOp>(loc, maskCastedType, vectorMask);
+    }
+
     auto castedType = VectorType::get(
         vectorShape, multiReductionOp.getSourceVectorType().getElementType());
     Value cast = rewriter.create<vector::ShapeCastOp>(
-        loc, castedType, multiReductionOp.source());
+        loc, castedType, multiReductionOp.getSource());
 
-    // 5. Creates the flattened form of vector.multi_reduction with inner/outer
+    Value acc = multiReductionOp.getAcc();
+    if (flattenedParallelDim) {
+      auto accType = VectorType::get(
+          {flattenedParallelDim},
+          multiReductionOp.getSourceVectorType().getElementType());
+      acc = rewriter.create<vector::ShapeCastOp>(loc, accType, acc);
+    }
+    // 6. Creates the flattened form of vector.multi_reduction with inner/outer
     // most dim as reduction.
-    auto newOp = rewriter.create<vector::MultiDimReductionOp>(
-        loc, cast, mask, multiReductionOp.kind());
+    Operation *newMultiDimRedOp = rewriter.create<vector::MultiDimReductionOp>(
+        loc, cast, acc, mask, multiReductionOp.getKind());
+    newMultiDimRedOp =
+        mlir::vector::maskOperation(rewriter, newMultiDimRedOp, newVectorMask);
 
-    // 6. If there are no parallel shapes, the result is a scalar.
+    // 7. If there are no parallel shapes, the result is a scalar.
     // TODO: support 0-d vectors when available.
     if (parallelShapes.empty()) {
-      rewriter.replaceOp(multiReductionOp, newOp.dest());
+      rewriter.replaceOp(rootOp, newMultiDimRedOp->getResult(0));
       return success();
     }
 
-    // 7. Creates shape cast for the output n-D -> 2-D
+    // 8. Creates shape cast for the output n-D -> 2-D.
     VectorType outputCastedType = VectorType::get(
         parallelShapes,
         multiReductionOp.getSourceVectorType().getElementType());
     rewriter.replaceOpWithNewOp<vector::ShapeCastOp>(
-        multiReductionOp, outputCastedType, newOp.dest());
+        rootOp, outputCastedType, newMultiDimRedOp->getResult(0));
     return success();
   }
 
@@ -217,10 +276,16 @@ private:
 /// and combines results
 struct TwoDimMultiReductionToElementWise
     : public OpRewritePattern<vector::MultiDimReductionOp> {
-  using OpRewritePattern<vector::MultiDimReductionOp>::OpRewritePattern;
+  using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(vector::MultiDimReductionOp multiReductionOp,
                                 PatternRewriter &rewriter) const override {
+    auto maskableOp =
+        cast<vector::MaskableOpInterface>(multiReductionOp.getOperation());
+    if (maskableOp.isMasked())
+      // TODO: Support masking.
+      return failure();
+
     auto srcRank = multiReductionOp.getSourceVectorType().getRank();
     // Rank-2 ["parallel", "reduce"] or bail.
     if (srcRank != 2)
@@ -237,53 +302,12 @@ struct TwoDimMultiReductionToElementWise
     if (!elementType.isIntOrIndexOrFloat())
       return failure();
 
-    Value result =
-        rewriter.create<vector::ExtractOp>(loc, multiReductionOp.source(), 0)
-            .getResult();
-    for (int64_t i = 1; i < srcShape[0]; i++) {
-      auto operand =
-          rewriter.create<vector::ExtractOp>(loc, multiReductionOp.source(), i);
-      switch (multiReductionOp.kind()) {
-      case vector::CombiningKind::ADD:
-        if (elementType.isIntOrIndex())
-          result = rewriter.create<arith::AddIOp>(loc, operand, result);
-        else
-          result = rewriter.create<arith::AddFOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::MUL:
-        if (elementType.isIntOrIndex())
-          result = rewriter.create<arith::MulIOp>(loc, operand, result);
-        else
-          result = rewriter.create<arith::MulFOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::MINUI:
-        result = rewriter.create<arith::MinUIOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::MINSI:
-        result = rewriter.create<arith::MinSIOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::MINF:
-        result = rewriter.create<arith::MinFOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::MAXUI:
-        result = rewriter.create<arith::MaxUIOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::MAXSI:
-        result = rewriter.create<arith::MaxSIOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::MAXF:
-        result = rewriter.create<arith::MaxFOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::AND:
-        result = rewriter.create<arith::AndIOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::OR:
-        result = rewriter.create<arith::OrIOp>(loc, operand, result);
-        break;
-      case vector::CombiningKind::XOR:
-        result = rewriter.create<arith::XOrIOp>(loc, operand, result);
-        break;
-      }
+    Value result = multiReductionOp.getAcc();
+    for (int64_t i = 0; i < srcShape[0]; i++) {
+      auto operand = rewriter.create<vector::ExtractOp>(
+          loc, multiReductionOp.getSource(), i);
+      result = makeArithReduction(rewriter, loc, multiReductionOp.getKind(),
+                                  operand, result);
     }
 
     rewriter.replaceOp(multiReductionOp, result);
@@ -295,7 +319,7 @@ struct TwoDimMultiReductionToElementWise
 /// a sequence of vector.reduction ops.
 struct TwoDimMultiReductionToReduction
     : public OpRewritePattern<vector::MultiDimReductionOp> {
-  using OpRewritePattern<vector::MultiDimReductionOp>::OpRewritePattern;
+  using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(vector::MultiDimReductionOp multiReductionOp,
                                 PatternRewriter &rewriter) const override {
@@ -306,54 +330,45 @@ struct TwoDimMultiReductionToReduction
     if (multiReductionOp.isReducedDim(0) || !multiReductionOp.isReducedDim(1))
       return failure();
 
+    // Vector mask setup.
+    OpBuilder::InsertionGuard guard(rewriter);
+    auto maskableOp =
+        cast<vector::MaskableOpInterface>(multiReductionOp.getOperation());
+    Operation *rootOp;
+    if (maskableOp.isMasked()) {
+      rewriter.setInsertionPoint(maskableOp.getMaskingOp());
+      rootOp = maskableOp.getMaskingOp();
+    } else {
+      rootOp = multiReductionOp;
+    }
+
     auto loc = multiReductionOp.getLoc();
-    Value result = rewriter.create<ConstantOp>(
+    Value result = rewriter.create<arith::ConstantOp>(
         loc, multiReductionOp.getDestType(),
         rewriter.getZeroAttr(multiReductionOp.getDestType()));
     int outerDim = multiReductionOp.getSourceVectorType().getShape()[0];
 
-    // TODO: Add vector::CombiningKind attribute instead of string to
-    // vector.reduction.
-    auto getKindStr = [](vector::CombiningKind kind) {
-      switch (kind) {
-      case vector::CombiningKind::ADD:
-        return "add";
-      case vector::CombiningKind::MUL:
-        return "mul";
-      case vector::CombiningKind::MINUI:
-        return "minui";
-      case vector::CombiningKind::MINSI:
-        return "minsi";
-      case vector::CombiningKind::MINF:
-        return "minf";
-      case vector::CombiningKind::MAXUI:
-        return "maxui";
-      case vector::CombiningKind::MAXSI:
-        return "maxsi";
-      case vector::CombiningKind::MAXF:
-        return "maxf";
-      case vector::CombiningKind::AND:
-        return "and";
-      case vector::CombiningKind::OR:
-        return "or";
-      case vector::CombiningKind::XOR:
-        return "xor";
-      }
-      llvm_unreachable("unknown combining kind");
-    };
-
     for (int i = 0; i < outerDim; ++i) {
       auto v = rewriter.create<vector::ExtractOp>(
-          loc, multiReductionOp.source(), ArrayRef<int64_t>{i});
-      auto reducedValue = rewriter.create<vector::ReductionOp>(
-          loc, getElementTypeOrSelf(multiReductionOp.getDestType()),
-          rewriter.getStringAttr(getKindStr(multiReductionOp.kind())), v,
-          ValueRange{});
+          loc, multiReductionOp.getSource(), ArrayRef<int64_t>{i});
+      auto acc = rewriter.create<vector::ExtractOp>(
+          loc, multiReductionOp.getAcc(), ArrayRef<int64_t>{i});
+      Operation *reductionOp = rewriter.create<vector::ReductionOp>(
+          loc, multiReductionOp.getKind(), v, acc);
+
+      // If masked, slice the mask and mask the new reduction operation.
+      if (maskableOp.isMasked()) {
+        Value mask = rewriter.create<vector::ExtractOp>(
+            loc, maskableOp.getMaskingOp().getMask(), ArrayRef<int64_t>{i});
+        reductionOp = mlir::vector::maskOperation(rewriter, reductionOp, mask);
+      }
+
       result = rewriter.create<vector::InsertElementOp>(
-          loc, reducedValue, result,
+          loc, reductionOp->getResult(0), result,
           rewriter.create<arith::ConstantIndexOp>(loc, i));
     }
-    rewriter.replaceOp(multiReductionOp, result);
+
+    rewriter.replaceOp(rootOp, result);
     return success();
   }
 };
@@ -365,10 +380,16 @@ struct TwoDimMultiReductionToReduction
 /// separately.
 struct OneDimMultiReductionToTwoDim
     : public OpRewritePattern<vector::MultiDimReductionOp> {
-  using OpRewritePattern<vector::MultiDimReductionOp>::OpRewritePattern;
+  using OpRewritePattern::OpRewritePattern;
 
   LogicalResult matchAndRewrite(vector::MultiDimReductionOp multiReductionOp,
                                 PatternRewriter &rewriter) const override {
+    auto maskableOp =
+        cast<vector::MaskableOpInterface>(multiReductionOp.getOperation());
+    if (maskableOp.isMasked())
+      // TODO: Support masking.
+      return failure();
+
     auto srcRank = multiReductionOp.getSourceVectorType().getRank();
     // Rank-1 or bail.
     if (srcRank != 1)
@@ -379,6 +400,8 @@ struct OneDimMultiReductionToTwoDim
     auto srcShape = srcVectorType.getShape();
     auto castedType = VectorType::get(ArrayRef<int64_t>{1, srcShape.back()},
                                       srcVectorType.getElementType());
+    auto accType =
+        VectorType::get(ArrayRef<int64_t>{1}, srcVectorType.getElementType());
     assert(!multiReductionOp.getDestType().isa<VectorType>() &&
            "multi_reduction with a single dimension expects a scalar result");
 
@@ -388,9 +411,11 @@ struct OneDimMultiReductionToTwoDim
 
     /// vector.extract(vector.multi_reduce(vector.shape_cast(v, 1xk)), 0)
     Value cast = rewriter.create<vector::ShapeCastOp>(
-        loc, castedType, multiReductionOp.source());
+        loc, castedType, multiReductionOp.getSource());
+    Value castAcc = rewriter.create<vector::BroadcastOp>(
+        loc, accType, multiReductionOp.getAcc());
     Value reduced = rewriter.create<vector::MultiDimReductionOp>(
-        loc, cast, mask, multiReductionOp.kind());
+        loc, cast, castAcc, mask, multiReductionOp.getKind());
     rewriter.replaceOpWithNewOp<vector::ExtractOp>(multiReductionOp, reduced,
                                                    ArrayRef<int64_t>{0});
     return success();
@@ -398,12 +423,15 @@ struct OneDimMultiReductionToTwoDim
 };
 
 void mlir::vector::populateVectorMultiReductionLoweringPatterns(
-    RewritePatternSet &patterns, VectorMultiReductionLowering options) {
+    RewritePatternSet &patterns, VectorMultiReductionLowering options,
+    PatternBenefit benefit) {
   patterns.add<InnerOuterDimReductionConversion, ReduceMultiDimReductionRank>(
-      patterns.getContext(), options);
-  patterns.add<OneDimMultiReductionToTwoDim>(patterns.getContext());
+      patterns.getContext(), options, benefit);
+  patterns.add<OneDimMultiReductionToTwoDim>(patterns.getContext(), benefit);
   if (options == VectorMultiReductionLowering ::InnerReduction)
-    patterns.add<TwoDimMultiReductionToReduction>(patterns.getContext());
+    patterns.add<TwoDimMultiReductionToReduction>(patterns.getContext(),
+                                                  benefit);
   else
-    patterns.add<TwoDimMultiReductionToElementWise>(patterns.getContext());
+    patterns.add<TwoDimMultiReductionToElementWise>(patterns.getContext(),
+                                                    benefit);
 }

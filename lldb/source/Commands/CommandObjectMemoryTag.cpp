@@ -8,6 +8,7 @@
 
 #include "CommandObjectMemoryTag.h"
 #include "lldb/Host/OptionParser.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Interpreter/OptionGroupFormat.h"
@@ -138,12 +139,12 @@ class CommandObjectMemoryTagWrite : public CommandObjectParsed {
 public:
   class OptionGroupTagWrite : public OptionGroup {
   public:
-    OptionGroupTagWrite() : m_end_addr(LLDB_INVALID_ADDRESS) {}
+    OptionGroupTagWrite() = default;
 
     ~OptionGroupTagWrite() override = default;
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_memory_tag_write_options);
+      return llvm::ArrayRef(g_memory_tag_write_options);
     }
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_value,
@@ -168,7 +169,7 @@ public:
       m_end_addr = LLDB_INVALID_ADDRESS;
     }
 
-    lldb::addr_t m_end_addr;
+    lldb::addr_t m_end_addr = LLDB_INVALID_ADDRESS;
   };
 
   CommandObjectMemoryTagWrite(CommandInterpreter &interpreter)
