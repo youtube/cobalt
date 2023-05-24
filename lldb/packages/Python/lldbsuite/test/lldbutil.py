@@ -21,6 +21,7 @@ import six
 # LLDB modules
 import lldb
 from . import lldbtest_config
+from . import configuration
 
 # How often failed simulator process launches are retried.
 SIMULATOR_RETRY = 3
@@ -62,6 +63,11 @@ def mkdir_p(path):
 # ============================
 
 def get_xcode_sdk(os, env):
+    # Respect --apple-sdk <path> if it's specified. If the SDK is simply
+    # mounted from some disk image, and not actually installed, this is the
+    # only way to use it.
+    if configuration.apple_sdk:
+        return configuration.apple_sdk
     if os == "ios":
         if env == "simulator":
             return "iphonesimulator"
@@ -87,6 +93,11 @@ def get_xcode_sdk_version(sdk):
 def get_xcode_sdk_root(sdk):
     return subprocess.check_output(['xcrun', '--sdk', sdk, '--show-sdk-path'
                                     ]).rstrip().decode('utf-8')
+
+
+def get_xcode_clang(sdk):
+    return subprocess.check_output(['xcrun', '-sdk', sdk, '-f', 'clang'
+                                    ]).rstrip().decode("utf-8")
 
 
 # ===================================================
@@ -241,6 +252,12 @@ def stop_reason_to_str(enum):
         return "watchpoint"
     elif enum == lldb.eStopReasonExec:
         return "exec"
+    elif enum == lldb.eStopReasonFork:
+        return "fork"
+    elif enum == lldb.eStopReasonVFork:
+        return "vfork"
+    elif enum == lldb.eStopReasonVForkDone:
+        return "vforkdone"
     elif enum == lldb.eStopReasonSignal:
         return "signal"
     elif enum == lldb.eStopReasonException:
@@ -713,6 +730,62 @@ def check_breakpoint_result(
             (out_module_name,
              module_name))
 
+def check_breakpoint(
+            test,
+            bpno,
+            expected_locations = None,
+            expected_resolved_count = None,
+            expected_hit_count = None,
+            location_id = None,
+            expected_location_resolved = True,
+            expected_location_hit_count = None):
+    """
+    Test breakpoint or breakpoint location.
+    Breakpoint resolved count is always checked. If not specified the assumption is that all locations 
+    should be resolved. 
+    To test a breakpoint location, breakpoint number (bpno) and location_id must be set. In this case
+    the resolved count for a breakpoint is not tested by default. The location is expected to be resolved,
+    unless expected_location_resolved is set to False.
+    test - test context
+    bpno - breakpoint number to test
+    expected_locations - expected number of locations for this breakpoint. If 'None' this parameter is not tested.
+    expected_resolved_count - expected resolved locations number for the breakpoint.  If 'None' - all locations should be resolved.
+    expected_hit_count - expected hit count for this breakpoint. If 'None' this parameter is not tested.
+    location_id - If not 'None' sets the location ID for the breakpoint to test.
+    expected_location_resolved - Extected resolved status for the location_id (True/False). Default - True.
+    expected_location_hit_count - Expected hit count for the breakpoint at location_id. Must be set if the location_id parameter is set.
+    """
+
+    if isinstance(test.target, lldb.SBTarget):
+        target = test.target
+    else:
+        target = test.target()
+    bkpt = target.FindBreakpointByID(bpno)
+
+    test.assertTrue(bkpt.IsValid(), "Breakpoint is not valid.")
+
+    if expected_locations is not None:
+        test.assertEquals(expected_locations, bkpt.GetNumLocations())
+
+    if expected_resolved_count is not None:
+        test.assertEquals(expected_resolved_count, bkpt.GetNumResolvedLocations())
+    else:
+        expected_resolved_count = bkpt.GetNumLocations()
+        if location_id is None:
+            test.assertEquals(expected_resolved_count, bkpt.GetNumResolvedLocations())
+
+    if expected_hit_count is not None:
+        test.assertEquals(expected_hit_count, bkpt.GetHitCount())
+
+    if location_id is not None:
+        loc_bkpt = bkpt.FindLocationByID(location_id)
+        test.assertTrue(loc_bkpt.IsValid(), "Breakpoint location is not valid.")
+        test.assertEquals(loc_bkpt.IsResolved(), expected_location_resolved)
+        if expected_location_hit_count is not None:
+            test.assertEquals(expected_location_hit_count, loc_bkpt.GetHitCount())
+
+
+
 # ==================================================
 # Utility functions related to Threads and Processes
 # ==================================================
@@ -936,7 +1009,8 @@ def run_to_source_breakpoint(test, bkpt_pattern, source_spec,
                              bkpt_module = None,
                              in_cwd = True,
                              only_one_thread = True,
-                             extra_images = None):
+                             extra_images = None,
+                             has_locations_before_run = True):
     """Start up a target, using exe_name as the executable, and run it to
        a breakpoint set by source regex bkpt_pattern.
 
@@ -947,9 +1021,10 @@ def run_to_source_breakpoint(test, bkpt_pattern, source_spec,
     # Set the breakpoints
     breakpoint = target.BreakpointCreateBySourceRegex(
             bkpt_pattern, source_spec, bkpt_module)
-    test.assertTrue(breakpoint.GetNumLocations() > 0,
-        'No locations found for source breakpoint: "%s", file: "%s", dir: "%s"'
-        %(bkpt_pattern, source_spec.GetFilename(), source_spec.GetDirectory()))
+    if has_locations_before_run:
+        test.assertTrue(breakpoint.GetNumLocations() > 0,
+                        'No locations found for source breakpoint: "%s", file: "%s", dir: "%s"'
+                        %(bkpt_pattern, source_spec.GetFilename(), source_spec.GetDirectory()))
     return run_to_breakpoint_do_run(test, target, breakpoint, launch_info,
                                     only_one_thread, extra_images)
 

@@ -31,10 +31,9 @@ public:
     eDataBackup
   };
 
-  RegisterCheckpoint(Reason reason)
-      : UserID(0), m_data_sp(), m_reason(reason) {}
+  RegisterCheckpoint(Reason reason) : UserID(0), m_reason(reason) {}
 
-  ~RegisterCheckpoint() {}
+  ~RegisterCheckpoint() = default;
 
   lldb::DataBufferSP &GetData() { return m_data_sp; }
 

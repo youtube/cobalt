@@ -33,7 +33,7 @@ class ThreadPlanStack {
 
 public:
   ThreadPlanStack(const Thread &thread, bool make_empty = false);
-  ~ThreadPlanStack() {}
+  ~ThreadPlanStack() = default;
 
   using PlanStack = std::vector<lldb::ThreadPlanSP>;
 
@@ -48,10 +48,6 @@ public:
 
   void ThreadDestroyed(Thread *thread);
 
-  void EnableTracer(bool value, bool single_stepping);
-
-  void SetTracer(lldb::ThreadPlanTracerSP &tracer_sp);
-
   void PushPlan(lldb::ThreadPlanSP new_plan_sp);
 
   lldb::ThreadPlanSP PopPlan();
@@ -64,7 +60,7 @@ public:
 
   void DiscardAllPlans();
 
-  void DiscardConsultingMasterPlans();
+  void DiscardConsultingControllingPlans();
 
   lldb::ThreadPlanSP GetCurrentPlan() const;
 
@@ -114,12 +110,13 @@ private:
   size_t m_completed_plan_checkpoint = 0; // Monotonically increasing token for
                                           // completed plan checkpoints.
   std::unordered_map<size_t, PlanStack> m_completed_plan_store;
+  mutable std::recursive_mutex m_stack_mutex;
 };
 
 class ThreadPlanStackMap {
 public:
   ThreadPlanStackMap(Process &process) : m_process(process) {}
-  ~ThreadPlanStackMap() {}
+  ~ThreadPlanStackMap() = default;
 
   // Prune the map using the current_threads list.
   void Update(ThreadList &current_threads, bool delete_missing,
@@ -157,7 +154,7 @@ public:
   }
 
   void Clear() {
-    for (auto plan : m_plans_list)
+    for (auto &plan : m_plans_list)
       plan.second.ThreadDestroyed(nullptr);
     m_plans_list.clear();
   }

@@ -213,6 +213,35 @@ const Address &StackFrame::GetFrameCodeAddress() {
   return m_frame_code_addr;
 }
 
+// This can't be rewritten into a call to
+// RegisterContext::GetPCForSymbolication because this
+// StackFrame may have been constructed with a special pc,
+// e.g. tail-call artificial frames.
+Address StackFrame::GetFrameCodeAddressForSymbolication() {
+  Address lookup_addr(GetFrameCodeAddress());
+  if (!lookup_addr.IsValid())
+    return lookup_addr;
+  if (m_behaves_like_zeroth_frame)
+    return lookup_addr;
+
+  addr_t offset = lookup_addr.GetOffset();
+  if (offset > 0) {
+    lookup_addr.SetOffset(offset - 1);
+  } else {
+    // lookup_addr is the start of a section.  We need do the math on the
+    // actual load address and re-compute the section.  We're working with
+    // a 'noreturn' function at the end of a section.
+    TargetSP target_sp = CalculateTarget();
+    if (target_sp) {
+      addr_t addr_minus_one = lookup_addr.GetOpcodeLoadAddress(
+                                  target_sp.get(), AddressClass::eCode) -
+                              1;
+      lookup_addr.SetOpcodeLoadAddress(addr_minus_one, target_sp.get());
+    }
+  }
+  return lookup_addr;
+}
+
 bool StackFrame::ChangePC(addr_t pc) {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
   // We can't change the pc value of a history stack frame - it is immutable.
@@ -288,30 +317,7 @@ StackFrame::GetSymbolContext(SymbolContextItem resolve_scope) {
     // If this is not frame zero, then we need to subtract 1 from the PC value
     // when doing address lookups since the PC will be on the instruction
     // following the function call instruction...
-
-    Address lookup_addr(GetFrameCodeAddress());
-    if (!m_behaves_like_zeroth_frame && lookup_addr.IsValid()) {
-      addr_t offset = lookup_addr.GetOffset();
-      if (offset > 0) {
-        lookup_addr.SetOffset(offset - 1);
-
-      } else {
-        // lookup_addr is the start of a section.  We need do the math on the
-        // actual load address and re-compute the section.  We're working with
-        // a 'noreturn' function at the end of a section.
-        ThreadSP thread_sp(GetThread());
-        if (thread_sp) {
-          TargetSP target_sp(thread_sp->CalculateTarget());
-          if (target_sp) {
-            addr_t addr_minus_one =
-                lookup_addr.GetLoadAddress(target_sp.get()) - 1;
-            lookup_addr.SetLoadAddress(addr_minus_one, target_sp.get());
-          } else {
-            lookup_addr.SetOffset(offset - 1);
-          }
-        }
-      }
-    }
+    Address lookup_addr(GetFrameCodeAddressForSymbolication());
 
     if (m_sc.module_sp) {
       // We have something in our stack frame symbol context, lets check if we
@@ -1160,31 +1166,6 @@ StackFrame::GetValueObjectForFrameVariable(const VariableSP &variable_sp,
   return valobj_sp;
 }
 
-ValueObjectSP StackFrame::TrackGlobalVariable(const VariableSP &variable_sp,
-                                              DynamicValueType use_dynamic) {
-  std::lock_guard<std::recursive_mutex> guard(m_mutex);
-  if (IsHistorical())
-    return ValueObjectSP();
-
-  // Check to make sure we aren't already tracking this variable?
-  ValueObjectSP valobj_sp(
-      GetValueObjectForFrameVariable(variable_sp, use_dynamic));
-  if (!valobj_sp) {
-    // We aren't already tracking this global
-    VariableList *var_list = GetVariableList(true);
-    // If this frame has no variables, create a new list
-    if (var_list == nullptr)
-      m_variable_list_sp = std::make_shared<VariableList>();
-
-    // Add the global/static variable to this frame
-    m_variable_list_sp->AddVariable(variable_sp);
-
-    // Now make a value object for it so we can track its changes
-    valobj_sp = GetValueObjectForFrameVariable(variable_sp, use_dynamic);
-  }
-  return valobj_sp;
-}
-
 bool StackFrame::IsInlined() {
   if (m_sc.block == nullptr)
     GetSymbolContext(eSymbolContextBlock);
@@ -1313,11 +1294,11 @@ lldb::ValueObjectSP StackFrame::GuessValueForAddress(lldb::addr_t addr) {
 
   const char *plugin_name = nullptr;
   const char *flavor = nullptr;
-  const bool prefer_file_cache = false;
+  const bool force_live_memory = true;
 
   DisassemblerSP disassembler_sp =
       Disassembler::DisassembleRange(target_arch, plugin_name, flavor,
-                                     *target_sp, pc_range, prefer_file_cache);
+                                     *target_sp, pc_range, force_live_memory);
 
   if (!disassembler_sp || !disassembler_sp->GetInstructionList().GetSize()) {
     return ValueObjectSP();
@@ -1452,13 +1433,13 @@ ValueObjectSP GetValueForDereferincingOffset(StackFrame &frame,
 /// Attempt to reconstruct the ValueObject for the address contained in a
 /// given register plus an offset.
 ///
-/// \params [in] frame
+/// \param [in] frame
 ///   The current stack frame.
 ///
-/// \params [in] reg
+/// \param [in] reg
 ///   The register.
 ///
-/// \params [in] offset
+/// \param [in] offset
 ///   The offset from the register.
 ///
 /// \param [in] disassembler
@@ -1693,10 +1674,10 @@ lldb::ValueObjectSP StackFrame::GuessValueForRegisterAndOffset(ConstString reg,
 
   const char *plugin_name = nullptr;
   const char *flavor = nullptr;
-  const bool prefer_file_cache = false;
+  const bool force_live_memory = true;
   DisassemblerSP disassembler_sp =
       Disassembler::DisassembleRange(target_arch, plugin_name, flavor,
-                                     *target_sp, pc_range, prefer_file_cache);
+                                     *target_sp, pc_range, force_live_memory);
 
   if (!disassembler_sp || !disassembler_sp->GetInstructionList().GetSize()) {
     return ValueObjectSP();
@@ -1902,14 +1883,32 @@ bool StackFrame::GetStatus(Stream &strm, bool show_frame_info, bool show_source,
       if (m_sc.comp_unit && m_sc.line_entry.IsValid()) {
         have_debuginfo = true;
         if (source_lines_before > 0 || source_lines_after > 0) {
+          uint32_t start_line = m_sc.line_entry.line;
+          if (!start_line && m_sc.function) {
+            FileSpec source_file;
+            m_sc.function->GetStartLineSourceInfo(source_file, start_line);
+          }
+
           size_t num_lines =
               target->GetSourceManager().DisplaySourceLinesWithLineNumbers(
-                  m_sc.line_entry.file, m_sc.line_entry.line,
-                  m_sc.line_entry.column, source_lines_before,
-                  source_lines_after, "->", &strm);
+                  m_sc.line_entry.file, start_line, m_sc.line_entry.column,
+                  source_lines_before, source_lines_after, "->", &strm);
           if (num_lines != 0)
             have_source = true;
           // TODO: Give here a one time warning if source file is missing.
+          if (!m_sc.line_entry.line) {
+            ConstString fn_name = m_sc.GetFunctionName();
+
+            if (!fn_name.IsEmpty())
+              strm.Printf(
+                  "Note: this address is compiler-generated code in function "
+                  "%s that has no source code associated with it.",
+                  fn_name.AsCString());
+            else
+              strm.Printf("Note: this address is compiler-generated code that "
+                          "has no source code associated with it.");
+            strm.EOL();
+          }
         }
       }
       switch (disasm_display) {

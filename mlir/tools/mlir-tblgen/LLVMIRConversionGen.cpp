@@ -121,21 +121,23 @@ static bool emitOneBuilder(const Record &record, raw_ostream &os) {
   llvm::raw_string_ostream bs(builder);
   while (auto loc = findNextVariable(builderStrRef)) {
     auto name = loc.in(builderStrRef).drop_front();
+    auto getterName = op.getGetterName(name);
     // First, insert the non-matched part as is.
     bs << builderStrRef.substr(0, loc.pos);
     // Then, rewrite the name based on its kind.
     bool isVariadicOperand = isVariadicOperandName(op, name);
     if (isOperandName(op, name)) {
-      auto result = isVariadicOperand
-                        ? formatv("lookupValues(op.{0}())", name)
-                        : formatv("valueMapping.lookup(op.{0}())", name);
+      auto result =
+          isVariadicOperand
+              ? formatv("moduleTranslation.lookupValues(op.{0}())", getterName)
+              : formatv("moduleTranslation.lookupValue(op.{0}())", getterName);
       bs << result;
     } else if (isAttributeName(op, name)) {
-      bs << formatv("op.{0}()", name);
+      bs << formatv("op.{0}()", getterName);
     } else if (isResultName(op, name)) {
-      bs << formatv("valueMapping[op.{0}()]", name);
+      bs << formatv("moduleTranslation.mapValue(op.{0}())", getterName);
     } else if (name == "_resultType") {
-      bs << "convertType(op.getResult().getType())";
+      bs << "moduleTranslation.convertType(op.getResult().getType())";
     } else if (name == "_hasResult") {
       bs << "opInst.getNumResults() == 1";
     } else if (name == "_location") {
@@ -203,7 +205,7 @@ public:
     std::vector<LLVMEnumAttrCase> cases;
 
     for (auto &c : tblgen::EnumAttr::getAllCases())
-      cases.push_back(LLVMEnumAttrCase(c));
+      cases.emplace_back(c);
 
     return cases;
   }
@@ -221,8 +223,9 @@ static void emitOneEnumToConversion(const llvm::Record *record,
   StringRef cppNamespace = enumAttr.getCppNamespace();
 
   // Emit the function converting the enum attribute to its LLVM counterpart.
-  os << formatv("static {0} convert{1}ToLLVM({2}::{1} value) {{\n", llvmClass,
-                cppClassName, cppNamespace);
+  os << formatv(
+      "static LLVM_ATTRIBUTE_UNUSED {0} convert{1}ToLLVM({2}::{1} value) {{\n",
+      llvmClass, cppClassName, cppNamespace);
   os << "  switch (value) {\n";
 
   for (const auto &enumerant : enumAttr.getAllCases()) {
@@ -250,7 +253,8 @@ static void emitOneEnumFromConversion(const llvm::Record *record,
   StringRef cppNamespace = enumAttr.getCppNamespace();
 
   // Emit the function converting the enum attribute from its LLVM counterpart.
-  os << formatv("inline {0}::{1} convert{1}FromLLVM({2} value) {{\n",
+  os << formatv("inline LLVM_ATTRIBUTE_UNUSED {0}::{1} convert{1}FromLLVM({2} "
+                "value) {{\n",
                 cppNamespace, cppClassName, llvmClass);
   os << "  switch (value) {\n";
 

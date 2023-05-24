@@ -24,6 +24,8 @@ namespace detail {
 /// include state.
 class Parser {
 public:
+  using Delimiter = OpAsmParser::Delimiter;
+
   Builder builder;
 
   Parser(ParserState &state) : builder(state.context), state(state) {}
@@ -39,9 +41,20 @@ public:
                                function_ref<ParseResult()> parseElement,
                                bool allowEmptyList = true);
 
+  /// Parse a list of comma-separated items with an optional delimiter.  If a
+  /// delimiter is provided, then an empty list is allowed.  If not, then at
+  /// least one element will be parsed.
+  ParseResult
+  parseCommaSeparatedList(Delimiter delimiter,
+                          function_ref<ParseResult()> parseElementFn,
+                          StringRef contextMessage = StringRef());
+
   /// Parse a comma separated list of elements that must have at least one entry
   /// in it.
-  ParseResult parseCommaSeparatedList(function_ref<ParseResult()> parseElement);
+  ParseResult
+  parseCommaSeparatedList(function_ref<ParseResult()> parseElementFn) {
+    return parseCommaSeparatedList(Delimiter::None, parseElementFn);
+  }
 
   ParseResult parsePrettyDialectSymbolName(StringRef &prettyName);
 
@@ -58,11 +71,11 @@ public:
   InFlightDiagnostic emitError(const Twine &message = {}) {
     return emitError(state.curToken.getLoc(), message);
   }
-  InFlightDiagnostic emitError(llvm::SMLoc loc, const Twine &message = {});
+  InFlightDiagnostic emitError(SMLoc loc, const Twine &message = {});
 
   /// Encode the specified source location information into an attribute for
   /// attachment to the IR.
-  Location getEncodedSourceLocation(llvm::SMLoc loc) {
+  Location getEncodedSourceLocation(SMLoc loc) {
     // If there are no active nested parsers, we can get the encoded source
     // location directly.
     if (state.parserDepth == 0)
@@ -75,7 +88,7 @@ public:
   /// Remaps the given SMLoc to the top level lexer of the parser. This is used
   /// to adjust locations of potentially nested parsers to ensure that they can
   /// be emitted properly as diagnostics.
-  llvm::SMLoc remapLocationToTopLevelBuffer(llvm::SMLoc loc) {
+  SMLoc remapLocationToTopLevelBuffer(SMLoc loc) {
     // If there are no active nested parsers, we can return location directly.
     SymbolState &symbols = state.symbols;
     if (state.parserDepth == 0)
@@ -88,7 +101,7 @@ public:
     size_t offset = loc.getPointer() - state.lex.getBufferBegin();
     auto *rawLoc =
         symbols.nestedParserLocs[state.parserDepth - 1].getPointer() + offset;
-    return llvm::SMLoc::getFromPointer(rawLoc);
+    return SMLoc::getFromPointer(rawLoc);
   }
 
   //===--------------------------------------------------------------------===//
@@ -128,11 +141,27 @@ public:
   ParseResult parseToken(Token::Kind expectedToken, const Twine &message);
 
   /// Parse an optional integer value from the stream.
-  OptionalParseResult parseOptionalInteger(uint64_t &result);
+  OptionalParseResult parseOptionalInteger(APInt &result);
+
+  /// Parse a floating point value from an integer literal token.
+  ParseResult parseFloatFromIntegerLiteral(Optional<APFloat> &result,
+                                           const Token &tok, bool isNegative,
+                                           const llvm::fltSemantics &semantics,
+                                           size_t typeSizeInBits);
 
   //===--------------------------------------------------------------------===//
   // Type Parsing
   //===--------------------------------------------------------------------===//
+
+  /// Invoke the `getChecked` method of the given Attribute or Type class, using
+  /// the provided location to emit errors in the case of failure. Note that
+  /// unlike `OpBuilder::getType`, this method does not implicitly insert a
+  /// context parameter.
+  template <typename T, typename... ParamsT>
+  T getChecked(SMLoc loc, ParamsT &&...params) {
+    return T::getChecked([&] { return emitError(loc); },
+                         std::forward<ParamsT>(params)...);
+  }
 
   ParseResult parseFunctionResultTypes(SmallVectorImpl<Type> &elements);
   ParseResult parseTypeListNoParens(SmallVectorImpl<Type> &elements);
@@ -167,8 +196,11 @@ public:
 
   /// Parse a vector type.
   VectorType parseVectorType();
+  ParseResult parseVectorDimensionList(SmallVectorImpl<int64_t> &dimensions,
+                                       unsigned &numScalableDims);
   ParseResult parseDimensionListRanked(SmallVectorImpl<int64_t> &dimensions,
                                        bool allowDynamic = true);
+  ParseResult parseIntegerInDimensionList(int64_t &value);
   ParseResult parseXInDimensionList();
 
   /// Parse strided layout specification.
@@ -260,14 +292,19 @@ public:
   ParseResult
   parseAffineMapOfSSAIds(AffineMap &map,
                          function_ref<ParseResult(bool)> parseElement,
-                         OpAsmParser::Delimiter delimiter);
+                         Delimiter delimiter);
 
-private:
+  /// Parse an AffineExpr where dim and symbol identifiers are SSA ids.
+  ParseResult
+  parseAffineExprOfSSAIds(AffineExpr &expr,
+                          function_ref<ParseResult(bool)> parseElement);
+
+protected:
   /// The Parser is subclassed and reinstantiated.  Do not add additional
   /// non-trivial state here, add it to the ParserState class.
   ParserState &state;
 };
-} // end namespace detail
-} // end namespace mlir
+} // namespace detail
+} // namespace mlir
 
 #endif // MLIR_LIB_PARSER_PARSER_H

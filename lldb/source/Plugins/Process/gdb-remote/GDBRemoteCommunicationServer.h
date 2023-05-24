@@ -44,10 +44,6 @@ public:
                                         Status &error, bool &interrupt,
                                         bool &quit);
 
-  // After connecting, do a little handshake with the client to make sure
-  // we are at least communicating
-  bool HandshakeWithClient();
-
 protected:
   std::map<StringExtractorGDBRemote::ServerPacketType, PacketHandler>
       m_packet_handlers;
@@ -71,6 +67,13 @@ protected:
                                      const char *error_message);
 
   PacketResult SendOKResponse();
+
+  /// Serialize and send a JSON object response.
+  PacketResult SendJSONResponse(const llvm::json::Value &value);
+
+  /// Serialize and send a JSON object response, or respond with an error if the
+  /// input object is an \a llvm::Error.
+  PacketResult SendJSONResponse(llvm::Expected<llvm::json::Value> value);
 
 private:
   GDBRemoteCommunicationServer(const GDBRemoteCommunicationServer &) = delete;

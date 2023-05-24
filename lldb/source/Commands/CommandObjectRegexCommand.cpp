@@ -20,10 +20,10 @@ CommandObjectRegexCommand::CommandObjectRegexCommand(
     bool is_removable)
     : CommandObjectRaw(interpreter, name, help, syntax),
       m_max_matches(max_matches), m_completion_type_mask(completion_type_mask),
-      m_entries(), m_is_removable(is_removable) {}
+      m_is_removable(is_removable) {}
 
 // Destructor
-CommandObjectRegexCommand::~CommandObjectRegexCommand() {}
+CommandObjectRegexCommand::~CommandObjectRegexCommand() = default;
 
 bool CommandObjectRegexCommand::DoExecute(llvm::StringRef command,
                                           CommandReturnObject &result) {
@@ -43,7 +43,7 @@ bool CommandObjectRegexCommand::DoExecute(llvm::StringRef command,
                              percent_var, idx)) != std::string::npos;) {
             new_command.erase(percent_var_idx, percent_var_len);
             new_command.insert(percent_var_idx, match_str);
-            idx += percent_var_idx + match_str.size();
+            idx = percent_var_idx + match_str.size();
           }
         }
       }
@@ -53,8 +53,8 @@ bool CommandObjectRegexCommand::DoExecute(llvm::StringRef command,
       // Pass in true for "no context switching".  The command that called us
       // should have set up the context appropriately, we shouldn't have to
       // redo that.
-      return m_interpreter.HandleCommand(
-          new_command.c_str(), eLazyBoolCalculate, result, nullptr, true, true);
+      return m_interpreter.HandleCommand(new_command.c_str(),
+                                         eLazyBoolCalculate, result);
     }
   }
   result.SetStatus(eReturnStatusFailed);

@@ -25,11 +25,17 @@
 #include "toy/Passes.h"
 
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
+#include "mlir/Conversion/ArithmeticToLLVM/ArithmeticToLLVM.h"
+#include "mlir/Conversion/LLVMCommon/ConversionTarget.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+#include "mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h"
 #include "mlir/Conversion/SCFToStandard/SCFToStandard.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/Pass/Pass.h"
@@ -69,9 +75,10 @@ public:
     // Create a loop for each of the dimensions within the shape.
     SmallVector<Value, 4> loopIvs;
     for (unsigned i = 0, e = memRefShape.size(); i != e; ++i) {
-      auto lowerBound = rewriter.create<ConstantIndexOp>(loc, 0);
-      auto upperBound = rewriter.create<ConstantIndexOp>(loc, memRefShape[i]);
-      auto step = rewriter.create<ConstantIndexOp>(loc, 1);
+      auto lowerBound = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+      auto upperBound =
+          rewriter.create<arith::ConstantIndexOp>(loc, memRefShape[i]);
+      auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
       auto loop =
           rewriter.create<scf::ForOp>(loc, lowerBound, upperBound, step);
       for (Operation &nested : *loop.getBody())
@@ -91,7 +98,8 @@ public:
 
     // Generate a call to printf for the current element of the loop.
     auto printOp = cast<toy::PrintOp>(op);
-    auto elementLoad = rewriter.create<LoadOp>(loc, printOp.input(), loopIvs);
+    auto elementLoad =
+        rewriter.create<memref::LoadOp>(loc, printOp.input(), loopIvs);
     rewriter.create<CallOp>(loc, printfRef, rewriter.getIntegerType(32),
                             ArrayRef<Value>({formatSpecifierCst, elementLoad}));
 
@@ -107,7 +115,7 @@ private:
                                              ModuleOp module) {
     auto *context = module.getContext();
     if (module.lookupSymbol<LLVM::LLVMFuncOp>("printf"))
-      return SymbolRefAttr::get("printf", context);
+      return SymbolRefAttr::get(context, "printf");
 
     // Create a function declaration for printf, the signature is:
     //   * `i32 (i8*, ...)`
@@ -120,7 +128,7 @@ private:
     PatternRewriter::InsertionGuard insertGuard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
     rewriter.create<LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
-    return SymbolRefAttr::get("printf", context);
+    return SymbolRefAttr::get(context, "printf");
   }
 
   /// Return a value representing an access into a global string with the given
@@ -137,7 +145,8 @@ private:
           IntegerType::get(builder.getContext(), 8), value.size());
       global = builder.create<LLVM::GlobalOp>(loc, type, /*isConstant=*/true,
                                               LLVM::Linkage::Internal, name,
-                                              builder.getStringAttr(value));
+                                              builder.getStringAttr(value),
+                                              /*alignment=*/0);
     }
 
     // Get the pointer to the first character in the global string.
@@ -151,7 +160,7 @@ private:
         globalPtr, ArrayRef<Value>({cst0, cst0}));
   }
 };
-} // end anonymous namespace
+} // namespace
 
 //===----------------------------------------------------------------------===//
 // ToyToLLVMLoweringPass
@@ -165,14 +174,14 @@ struct ToyToLLVMLoweringPass
   }
   void runOnOperation() final;
 };
-} // end anonymous namespace
+} // namespace
 
 void ToyToLLVMLoweringPass::runOnOperation() {
   // The first thing to define is the conversion target. This will define the
   // final target for this lowering. For this lowering, we are only targeting
   // the LLVM dialect.
   LLVMConversionTarget target(getContext());
-  target.addLegalOp<ModuleOp, ModuleTerminatorOp>();
+  target.addLegalOp<ModuleOp>();
 
   // During this lowering, we will also be lowering the MemRef types, that are
   // currently being operated on, to a representation in LLVM. To perform this
@@ -189,14 +198,17 @@ void ToyToLLVMLoweringPass::runOnOperation() {
   // lowerings. Transitive lowering, or A->B->C lowering, is when multiple
   // patterns must be applied to fully transform an illegal operation into a
   // set of legal ones.
-  OwningRewritePatternList patterns;
-  populateAffineToStdConversionPatterns(patterns, &getContext());
-  populateLoopToStdConversionPatterns(patterns, &getContext());
+  RewritePatternSet patterns(&getContext());
+  populateAffineToStdConversionPatterns(patterns);
+  populateLoopToStdConversionPatterns(patterns);
+  mlir::arith::populateArithmeticToLLVMConversionPatterns(typeConverter,
+                                                          patterns);
+  populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
   populateStdToLLVMConversionPatterns(typeConverter, patterns);
 
   // The only remaining operation to lower from the `toy` dialect, is the
   // PrintOp.
-  patterns.insert<PrintOpLowering>(&getContext());
+  patterns.add<PrintOpLowering>(&getContext());
 
   // We want to completely lower to LLVM, so we use a `FullConversion`. This
   // ensures that only legal operations will remain after the conversion.

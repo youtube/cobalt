@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PassDetail.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/Passes.h"
 #include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/Dialect/SCF/Transforms.h"
@@ -40,9 +41,11 @@ static bool equalIterationSpaces(ParallelOp firstPloop,
     // TODO: Extend this to support aliases and equal constants.
     return std::equal(lhs.begin(), lhs.end(), rhs.begin());
   };
-  return matchOperands(firstPloop.lowerBound(), secondPloop.lowerBound()) &&
-         matchOperands(firstPloop.upperBound(), secondPloop.upperBound()) &&
-         matchOperands(firstPloop.step(), secondPloop.step());
+  return matchOperands(firstPloop.getLowerBound(),
+                       secondPloop.getLowerBound()) &&
+         matchOperands(firstPloop.getUpperBound(),
+                       secondPloop.getUpperBound()) &&
+         matchOperands(firstPloop.getStep(), secondPloop.getStep());
 }
 
 /// Checks if the parallel loops have mixed access to the same buffers. Returns
@@ -52,10 +55,10 @@ static bool haveNoReadsAfterWriteExceptSameIndex(
     ParallelOp firstPloop, ParallelOp secondPloop,
     const BlockAndValueMapping &firstToSecondPloopIndices) {
   DenseMap<Value, SmallVector<ValueRange, 1>> bufferStores;
-  firstPloop.getBody()->walk([&](StoreOp store) {
+  firstPloop.getBody()->walk([&](memref::StoreOp store) {
     bufferStores[store.getMemRef()].push_back(store.indices());
   });
-  auto walkResult = secondPloop.getBody()->walk([&](LoadOp load) {
+  auto walkResult = secondPloop.getBody()->walk([&](memref::LoadOp load) {
     // Stop if the memref is defined in secondPloop body. Careful alias analysis
     // is needed.
     auto *memrefDef = load.getMemRef().getDefiningOp();

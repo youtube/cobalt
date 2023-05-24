@@ -12,6 +12,7 @@
 #include "lldb/Expression/DiagnosticManager.h"
 #include "lldb/Expression/FunctionCaller.h"
 #include "lldb/Expression/UtilityFunction.h"
+#include "lldb/Target/ABI.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
@@ -30,19 +31,17 @@ using namespace lldb_private;
 AppleThreadPlanStepThroughObjCTrampoline::
     AppleThreadPlanStepThroughObjCTrampoline(
         Thread &thread, AppleObjCTrampolineHandler &trampoline_handler,
-        ValueList &input_values, lldb::addr_t isa_addr, lldb::addr_t sel_addr,
-        bool stop_others)
+        ValueList &input_values, lldb::addr_t isa_addr, lldb::addr_t sel_addr)
     : ThreadPlan(ThreadPlan::eKindGeneric,
                  "MacOSX Step through ObjC Trampoline", thread, eVoteNoOpinion,
                  eVoteNoOpinion),
       m_trampoline_handler(trampoline_handler),
       m_args_addr(LLDB_INVALID_ADDRESS), m_input_values(input_values),
-      m_isa_addr(isa_addr), m_sel_addr(sel_addr), m_impl_function(nullptr),
-      m_stop_others(stop_others) {}
+      m_isa_addr(isa_addr), m_sel_addr(sel_addr), m_impl_function(nullptr) {}
 
 // Destructor
 AppleThreadPlanStepThroughObjCTrampoline::
-    ~AppleThreadPlanStepThroughObjCTrampoline() {}
+    ~AppleThreadPlanStepThroughObjCTrampoline() = default;
 
 void AppleThreadPlanStepThroughObjCTrampoline::DidPush() {
   // Setting up the memory space for the called function text might require
@@ -66,7 +65,7 @@ bool AppleThreadPlanStepThroughObjCTrampoline::InitializeFunctionCaller() {
     EvaluateExpressionOptions options;
     options.SetUnwindOnError(true);
     options.SetIgnoreBreakpoints(true);
-    options.SetStopOthers(m_stop_others);
+    options.SetStopOthers(false);
     GetThread().CalculateExecutionContext(exc_ctx);
     m_func_sp = m_impl_function->GetThreadPlanToCallFunction(
         exc_ctx, m_args_addr, options, diagnostics);
@@ -136,6 +135,10 @@ bool AppleThreadPlanStepThroughObjCTrampoline::ShouldStop(Event *event_ptr) {
                                           target_addr_value);
     m_impl_function->DeallocateFunctionResults(exc_ctx, m_args_addr);
     lldb::addr_t target_addr = target_addr_value.GetScalar().ULongLong();
+
+    if (ABISP abi_sp = GetThread().GetProcess()->GetABI()) {
+      target_addr = abi_sp->FixCodeAddress(target_addr);
+    }
     Address target_so_addr;
     target_so_addr.SetOpcodeLoadAddress(target_addr, exc_ctx.GetTargetPtr());
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
@@ -157,7 +160,7 @@ bool AppleThreadPlanStepThroughObjCTrampoline::ShouldStop(Event *event_ptr) {
       const bool first_insn = true;
       const uint32_t frame_idx = 0;
       m_run_to_sp = GetThread().QueueThreadPlanForStepOutNoShouldStop(
-          abort_other_plans, &sc, first_insn, m_stop_others, eVoteNoOpinion,
+          abort_other_plans, &sc, first_insn, false, eVoteNoOpinion,
           eVoteNoOpinion, frame_idx, status);
       if (m_run_to_sp && status.Success())
         m_run_to_sp->SetPrivate(true);
@@ -179,7 +182,7 @@ bool AppleThreadPlanStepThroughObjCTrampoline::ShouldStop(Event *event_ptr) {
     // Extract the target address from the value:
 
     m_run_to_sp = std::make_shared<ThreadPlanRunToAddress>(
-        GetThread(), target_so_addr, m_stop_others);
+        GetThread(), target_so_addr, false);
     PushPlan(m_run_to_sp);
     return false;
   } else if (GetThread().IsThreadPlanDone(m_run_to_sp.get())) {
@@ -222,10 +225,9 @@ bool AppleThreadPlanStepThroughObjCTrampoline::WillStop() { return true; }
 AppleThreadPlanStepThroughDirectDispatch ::
     AppleThreadPlanStepThroughDirectDispatch(
         Thread &thread, AppleObjCTrampolineHandler &handler,
-        llvm::StringRef dispatch_func_name, bool stop_others,
-        LazyBool step_in_avoids_code_without_debug_info)
-    : ThreadPlanStepOut(thread, nullptr, true /* first instruction */,
-                        stop_others, eVoteNoOpinion, eVoteNoOpinion,
+        llvm::StringRef dispatch_func_name)
+    : ThreadPlanStepOut(thread, nullptr, true /* first instruction */, false,
+                        eVoteNoOpinion, eVoteNoOpinion,
                         0 /* Step out of zeroth frame */,
                         eLazyBoolNo /* Our parent plan will decide this
                                when we are done */
@@ -234,7 +236,7 @@ AppleThreadPlanStepThroughDirectDispatch ::
                         false /* Don't gather the return value */),
       m_trampoline_handler(handler),
       m_dispatch_func_name(std::string(dispatch_func_name)),
-      m_at_msg_send(false), m_stop_others(stop_others) {
+      m_at_msg_send(false) {
   // Set breakpoints on the dispatch functions:
   auto bkpt_callback = [&] (lldb::addr_t addr, 
                             const AppleObjCTrampolineHandler
@@ -249,20 +251,7 @@ AppleThreadPlanStepThroughDirectDispatch ::
   // We'll set the step-out plan in the DidPush so it gets queued in the right
   // order.
 
-  bool avoid_nodebug = true;
-
-  switch (step_in_avoids_code_without_debug_info) {
-  case eLazyBoolYes:
-    avoid_nodebug = true;
-    break;
-  case eLazyBoolNo:
-    avoid_nodebug = false;
-    break;
-  case eLazyBoolCalculate:
-    avoid_nodebug = GetThread().GetStepInAvoidsNoDebug();
-    break;
-  }
-  if (avoid_nodebug)
+  if (GetThread().GetStepInAvoidsNoDebug())
     GetFlags().Set(ThreadPlanShouldStopHere::eStepInAvoidNoDebug);
   else
     GetFlags().Clear(ThreadPlanShouldStopHere::eStepInAvoidNoDebug);
@@ -398,8 +387,8 @@ bool AppleThreadPlanStepThroughDirectDispatch::ShouldStop(Event *event_ptr) {
     // There's no way we could have gotten here without an ObjC language 
     // runtime.
     assert(objc_runtime);
-    m_objc_step_through_sp 
-      = objc_runtime->GetStepThroughTrampolinePlan(GetThread(), m_stop_others);
+    m_objc_step_through_sp =
+        objc_runtime->GetStepThroughTrampolinePlan(GetThread(), false);
     // If we failed to find the target for this dispatch, just keep going and
     // let the step out complete.
     if (!m_objc_step_through_sp) {

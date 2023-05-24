@@ -10,6 +10,7 @@
 #include "../PassDetail.h"
 #include "mlir/Conversion/SCFToGPU/SCFToGPU.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/Complex/IR/Complex.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/SCF/SCF.h"
@@ -33,8 +34,8 @@ struct ForLoopMapper : public ConvertAffineForToGPUBase<ForLoopMapper> {
     this->numThreadDims = numThreadDims;
   }
 
-  void runOnFunction() override {
-    for (Operation &op : llvm::make_early_inc_range(getFunction().getOps())) {
+  void runOnOperation() override {
+    for (Operation &op : llvm::make_early_inc_range(getOperation().getOps())) {
       if (auto forOp = dyn_cast<AffineForOp>(&op)) {
         if (failed(convertAffineLoopNestToGPULaunch(forOp, numBlockDims,
                                                     numThreadDims)))
@@ -47,16 +48,15 @@ struct ForLoopMapper : public ConvertAffineForToGPUBase<ForLoopMapper> {
 struct ParallelLoopToGpuPass
     : public ConvertParallelLoopToGpuBase<ParallelLoopToGpuPass> {
   void runOnOperation() override {
-    OwningRewritePatternList patterns;
-    populateParallelLoopToGPUPatterns(patterns, &getContext());
+    RewritePatternSet patterns(&getContext());
+    populateParallelLoopToGPUPatterns(patterns);
     ConversionTarget target(getContext());
-    target.addLegalDialect<AffineDialect, complex::ComplexDialect,
-                           gpu::GPUDialect, scf::SCFDialect,
-                           StandardOpsDialect>();
+    target.markUnknownOpDynamicallyLegal([](Operation *) { return true; });
     configureParallelLoopToGPULegality(target);
     if (failed(applyPartialConversion(getOperation(), target,
                                       std::move(patterns))))
       signalPassFailure();
+    finalizeParallelLoopToGPUConversion(getOperation());
   }
 };
 

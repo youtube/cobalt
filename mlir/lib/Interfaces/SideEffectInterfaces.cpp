@@ -76,9 +76,9 @@ static bool wouldOpBeTriviallyDeadImpl(Operation *rootOp) {
 
       // Otherwise, if the op has recursive side effects we can treat the
       // operation itself as having no effects.
-    } else if (hasRecursiveEffects) {
-      continue;
     }
+    if (hasRecursiveEffects)
+      continue;
 
     // If there were no effect interfaces, we treat this op as conservatively
     // having effects.
@@ -91,7 +91,7 @@ static bool wouldOpBeTriviallyDeadImpl(Operation *rootOp) {
 }
 
 bool mlir::wouldOpBeTriviallyDead(Operation *op) {
-  if (!op->isKnownNonTerminator())
+  if (op->mightHaveTrait<OpTrait::IsTerminator>())
     return false;
   return wouldOpBeTriviallyDeadImpl(op);
 }

@@ -92,13 +92,13 @@ private:
   /// configuration asked for change detection.
   DenseMap<Pass *, OperationFingerPrint> beforePassFingerPrints;
 };
-} // end anonymous namespace
+} // namespace
 
 static void printIR(Operation *op, bool printModuleScope, raw_ostream &out,
                     OpPrintingFlags flags) {
   // Otherwise, check to see if we are not printing at module scope.
   if (!printModuleScope)
-    return op->print(out << "\n",
+    return op->print(out << " //----- //\n",
                      op->getBlock() ? flags.useLocalScope() : flags);
 
   // Otherwise, we are printing at module scope.
@@ -106,7 +106,7 @@ static void printIR(Operation *op, bool printModuleScope, raw_ostream &out,
   if (auto symbolName =
           op->getAttrOfType<StringAttr>(SymbolTable::getSymbolAttrName()))
     out << ": @" << symbolName.getValue();
-  out << ")\n";
+  out << ") //----- //\n";
 
   // Find the top-level operation.
   auto *topLevelOp = op;
@@ -124,7 +124,7 @@ void IRPrinterInstrumentation::runBeforePass(Pass *pass, Operation *op) {
     beforePassFingerPrints.try_emplace(pass, op);
 
   config->printBeforeIfEnabled(pass, op, [&](raw_ostream &out) {
-    out << formatv("// *** IR Dump Before {0} ***", pass->getName());
+    out << "// -----// IR Dump Before " << pass->getName();
     printIR(op, config->shouldPrintAtModuleScope(), out,
             config->getOpPrintingFlags());
     out << "\n\n";
@@ -134,6 +134,11 @@ void IRPrinterInstrumentation::runBeforePass(Pass *pass, Operation *op) {
 void IRPrinterInstrumentation::runAfterPass(Pass *pass, Operation *op) {
   if (isa<OpToOpPassAdaptor>(pass))
     return;
+
+  // Check to see if we are only printing on failure.
+  if (config->shouldPrintAfterOnlyOnFailure())
+    return;
+
   // If the config asked to detect changes, compare the current fingerprint with
   // the previous.
   if (config->shouldPrintAfterOnlyOnChange()) {
@@ -149,7 +154,7 @@ void IRPrinterInstrumentation::runAfterPass(Pass *pass, Operation *op) {
   }
 
   config->printAfterIfEnabled(pass, op, [&](raw_ostream &out) {
-    out << formatv("// *** IR Dump After {0} ***", pass->getName());
+    out << "// -----// IR Dump After " << pass->getName();
     printIR(op, config->shouldPrintAtModuleScope(), out,
             config->getOpPrintingFlags());
     out << "\n\n";
@@ -163,7 +168,7 @@ void IRPrinterInstrumentation::runAfterPassFailed(Pass *pass, Operation *op) {
     beforePassFingerPrints.erase(pass);
 
   config->printAfterIfEnabled(pass, op, [&](raw_ostream &out) {
-    out << formatv("// *** IR Dump After {0} Failed ***", pass->getName());
+    out << formatv("// -----// IR Dump After {0} Failed", pass->getName());
     printIR(op, config->shouldPrintAtModuleScope(), out,
             OpPrintingFlags().printGenericOpForm());
     out << "\n\n";
@@ -177,11 +182,13 @@ void IRPrinterInstrumentation::runAfterPassFailed(Pass *pass, Operation *op) {
 /// Initialize the configuration.
 PassManager::IRPrinterConfig::IRPrinterConfig(bool printModuleScope,
                                               bool printAfterOnlyOnChange,
+                                              bool printAfterOnlyOnFailure,
                                               OpPrintingFlags opPrintingFlags)
     : printModuleScope(printModuleScope),
       printAfterOnlyOnChange(printAfterOnlyOnChange),
+      printAfterOnlyOnFailure(printAfterOnlyOnFailure),
       opPrintingFlags(opPrintingFlags) {}
-PassManager::IRPrinterConfig::~IRPrinterConfig() {}
+PassManager::IRPrinterConfig::~IRPrinterConfig() = default;
 
 /// A hook that may be overridden by a derived config that checks if the IR
 /// of 'operation' should be dumped *before* the pass 'pass' has been
@@ -212,12 +219,13 @@ struct BasicIRPrinterConfig : public PassManager::IRPrinterConfig {
       std::function<bool(Pass *, Operation *)> shouldPrintBeforePass,
       std::function<bool(Pass *, Operation *)> shouldPrintAfterPass,
       bool printModuleScope, bool printAfterOnlyOnChange,
-      OpPrintingFlags opPrintingFlags, raw_ostream &out)
+      bool printAfterOnlyOnFailure, OpPrintingFlags opPrintingFlags,
+      raw_ostream &out)
       : IRPrinterConfig(printModuleScope, printAfterOnlyOnChange,
-                        opPrintingFlags),
-        shouldPrintBeforePass(shouldPrintBeforePass),
-        shouldPrintAfterPass(shouldPrintAfterPass), out(out) {
-    assert((shouldPrintBeforePass || shouldPrintAfterPass) &&
+                        printAfterOnlyOnFailure, opPrintingFlags),
+        shouldPrintBeforePass(std::move(shouldPrintBeforePass)),
+        shouldPrintAfterPass(std::move(shouldPrintAfterPass)), out(out) {
+    assert((this->shouldPrintBeforePass || this->shouldPrintAfterPass) &&
            "expected at least one valid filter function");
   }
 
@@ -240,7 +248,7 @@ struct BasicIRPrinterConfig : public PassManager::IRPrinterConfig {
   /// The stream to output to.
   raw_ostream &out;
 };
-} // end anonymous namespace
+} // namespace
 
 /// Add an instrumentation to print the IR before and after pass execution,
 /// using the provided configuration.
@@ -257,9 +265,11 @@ void PassManager::enableIRPrinting(std::unique_ptr<IRPrinterConfig> config) {
 void PassManager::enableIRPrinting(
     std::function<bool(Pass *, Operation *)> shouldPrintBeforePass,
     std::function<bool(Pass *, Operation *)> shouldPrintAfterPass,
-    bool printModuleScope, bool printAfterOnlyOnChange, raw_ostream &out,
+    bool printModuleScope, bool printAfterOnlyOnChange,
+    bool printAfterOnlyOnFailure, raw_ostream &out,
     OpPrintingFlags opPrintingFlags) {
   enableIRPrinting(std::make_unique<BasicIRPrinterConfig>(
       std::move(shouldPrintBeforePass), std::move(shouldPrintAfterPass),
-      printModuleScope, printAfterOnlyOnChange, opPrintingFlags, out));
+      printModuleScope, printAfterOnlyOnChange, printAfterOnlyOnFailure,
+      opPrintingFlags, out));
 }

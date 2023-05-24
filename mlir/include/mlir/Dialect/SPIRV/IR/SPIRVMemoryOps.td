@@ -58,7 +58,7 @@ def SPV_AccessChainOp : SPV_Op<"AccessChain", [NoSideEffect]> {
     #### Example:
 
     ```mlir
-    %0 = "spv.constant"() { value = 1: i32} : () -> i32
+    %0 = "spv.Constant"() { value = 1: i32} : () -> i32
     %1 = spv.Variable : !spv.ptr<!spv.struct<f32, !spv.array<4xf32>>, Function>
     %2 = spv.AccessChain %1[%0] : !spv.ptr<!spv.struct<f32, !spv.array<4xf32>>, Function>
     %3 = spv.Load "Function" %2 ["Volatile"] : !spv.array<4xf32>
@@ -74,7 +74,7 @@ def SPV_AccessChainOp : SPV_Op<"AccessChain", [NoSideEffect]> {
     SPV_AnyPtr:$component_ptr
   );
 
-  let builders = [OpBuilderDAG<(ins "Value":$basePtr, "ValueRange":$indices)>];
+  let builders = [OpBuilder<(ins "Value":$basePtr, "ValueRange":$indices)>];
 
   let hasCanonicalizer = 1;
 }
@@ -137,6 +137,55 @@ def SPV_CopyMemoryOp : SPV_Op<"CopyMemory", []> {
 
 // -----
 
+def SPV_InBoundsPtrAccessChainOp : SPV_Op<"InBoundsPtrAccessChain", [NoSideEffect]> {
+  let summary = [{
+    Has the same semantics as OpPtrAccessChain, with the addition that the
+    resulting pointer is known to point within the base object.
+  }];
+
+  let description = [{
+
+
+    <!-- End of AutoGen section -->
+
+    ```
+    access-chain-op ::= ssa-id `=` `spv.InBoundsPtrAccessChain` ssa-use
+                        `[` ssa-use (',' ssa-use)* `]`
+                        `:` pointer-type
+    ```mlir
+
+    #### Example:
+
+    ```
+    func @inbounds_ptr_access_chain(%arg0: !spv.ptr<f32, CrossWorkgroup>, %arg1 : i64) -> () {
+      %0 = spv.InBoundsPtrAccessChain %arg0[%arg1] : !spv.ptr<f32, CrossWorkgroup>, i64
+      ...
+    }
+    ```
+  }];
+
+  let availability = [
+    MinVersion<SPV_V_1_0>,
+    MaxVersion<SPV_V_1_5>,
+    Extension<[]>,
+    Capability<[SPV_C_Addresses]>
+  ];
+
+  let arguments = (ins
+    SPV_AnyPtr:$base_ptr,
+    SPV_Integer:$element,
+    Variadic<SPV_Integer>:$indices
+  );
+
+  let results = (outs
+    SPV_AnyPtr:$result
+  );
+
+  let builders = [OpBuilder<(ins "Value":$basePtr, "Value":$element, "ValueRange":$indices)>];
+}
+
+// -----
+
 def SPV_LoadOp : SPV_Op<"Load", []> {
   let summary = "Load through a pointer.";
 
@@ -183,10 +232,82 @@ def SPV_LoadOp : SPV_Op<"Load", []> {
   );
 
   let builders = [
-    OpBuilderDAG<(ins "Value":$basePtr,
-      CArg<"IntegerAttr", "{}">:$memory_access,
+    OpBuilder<(ins "Value":$basePtr,
+      CArg<"MemoryAccessAttr", "{}">:$memory_access,
       CArg<"IntegerAttr", "{}">:$alignment)>
   ];
+}
+
+// -----
+
+def SPV_PtrAccessChainOp : SPV_Op<"PtrAccessChain", [NoSideEffect]> {
+  let summary = [{
+    Has the same semantics as OpAccessChain, with the addition of the
+    Element operand.
+  }];
+
+  let description = [{
+    Element is used to do an initial dereference of Base: Base is treated as
+    the address of an element in an array, and a new element address is
+    computed from Base and Element to become the OpAccessChain Base to
+    dereference as per OpAccessChain. This computed Base has the same type
+    as the originating Base.
+
+    To compute the new element address, Element is treated as a signed count
+    of elements E, relative to the original Base element B, and the address
+    of element B + E is computed using enough precision to avoid overflow
+    and underflow. For objects in the Uniform, StorageBuffer, or
+    PushConstant storage classes, the element's address or location is
+    calculated using a stride, which will be the Base-type's Array Stride if
+    the Base type is decorated with ArrayStride. For all other objects, the
+    implementation calculates the element's address or location.
+
+    With one exception, undefined behavior results when B + E is not an
+    element in the same array (same innermost array, if array types are
+    nested) as B. The exception being when B + E = L, where L is the length
+    of the array: the address computation for element L is done with the
+    same stride as any other B + E computation that stays within the array.
+
+    Note: If Base is typed to be a pointer to an array and the desired
+    operation is to select an element of that array, OpAccessChain should be
+    directly used, as its first Index selects the array element.
+
+    <!-- End of AutoGen section -->
+
+    ```
+    [access-chain-op ::= ssa-id `=` `spv.PtrAccessChain` ssa-use
+                        `[` ssa-use (',' ssa-use)* `]`
+                        `:` pointer-type
+    ```mlir
+
+    #### Example:
+
+    ```
+    func @ptr_access_chain(%arg0: !spv.ptr<f32, CrossWorkgroup>, %arg1 : i64) -> () {
+      %0 = spv.PtrAccessChain %arg0[%arg1] : !spv.ptr<f32, CrossWorkgroup>, i64
+      ...
+    }
+    ```
+  }];
+
+  let availability = [
+    MinVersion<SPV_V_1_0>,
+    MaxVersion<SPV_V_1_5>,
+    Extension<[]>,
+    Capability<[SPV_C_Addresses, SPV_C_PhysicalStorageBufferAddresses, SPV_C_VariablePointers, SPV_C_VariablePointersStorageBuffer]>
+  ];
+
+  let arguments = (ins
+    SPV_AnyPtr:$base_ptr,
+    SPV_Integer:$element,
+    Variadic<SPV_Integer>:$indices
+  );
+
+  let results = (outs
+    SPV_AnyPtr:$result
+  );
+
+  let builders = [OpBuilder<(ins "Value":$basePtr, "Value":$element, "ValueRange":$indices)>];
 }
 
 // -----
@@ -232,7 +353,7 @@ def SPV_StoreOp : SPV_Op<"Store", []> {
   let results = (outs);
 
   let builders = [
-    OpBuilderDAG<(ins "Value":$ptr, "Value":$value,
+    OpBuilder<(ins "Value":$ptr, "Value":$value,
       CArg<"ArrayRef<NamedAttribute>", "{}">:$namedAttrs),
     [{
       $_state.addOperands(ptr);
@@ -276,7 +397,7 @@ def SPV_VariableOp : SPV_Op<"Variable", []> {
     #### Example:
 
     ```mlir
-    %0 = spv.constant ...
+    %0 = spv.Constant ...
 
     %1 = spv.Variable : !spv.ptr<f32, Function>
     %2 = spv.Variable init(%0): !spv.ptr<f32, Function>

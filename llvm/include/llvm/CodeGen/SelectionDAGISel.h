@@ -46,8 +46,8 @@ public:
   MachineRegisterInfo *RegInfo;
   SelectionDAG *CurDAG;
   std::unique_ptr<SelectionDAGBuilder> SDB;
-  AAResults *AA;
-  GCFunctionInfo *GFI;
+  AAResults *AA = nullptr;
+  GCFunctionInfo *GFI = nullptr;
   CodeGenOpt::Level OptLevel;
   const TargetInstrInfo *TII;
   const TargetLowering *TLI;
@@ -149,6 +149,7 @@ public:
     OPC_CheckFoldableChainNode,
 
     OPC_EmitInteger,
+    OPC_EmitStringInteger,
     OPC_EmitRegister,
     OPC_EmitRegister2,
     OPC_EmitConvertToTarget,
@@ -198,7 +199,7 @@ public:
 protected:
   /// DAGSize - Size of DAG being instruction selected.
   ///
-  unsigned DAGSize;
+  unsigned DAGSize = 0;
 
   /// ReplaceUses - replace all uses of the old node F with the use
   /// of the new node T.
@@ -317,6 +318,7 @@ private:
   void CannotYetSelect(SDNode *N);
 
   void Select_FREEZE(SDNode *N);
+  void Select_ARITH_FENCE(SDNode *N);
 
 private:
   void DoInstructionSelection();

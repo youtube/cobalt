@@ -15,8 +15,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_SUPPORT_JITRUNNER_H_
-#define MLIR_SUPPORT_JITRUNNER_H_
+#ifndef MLIR_EXECUTIONENGINE_JITRUNNER_H
+#define MLIR_EXECUTIONENGINE_JITRUNNER_H
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ExecutionEngine/Orc/Core.h"
@@ -32,6 +32,7 @@ class MangleAndInterner;
 
 namespace mlir {
 
+class DialectRegistry;
 class ModuleOp;
 struct LogicalResult;
 
@@ -51,10 +52,13 @@ struct JitRunnerConfig {
       runtimesymbolMap = nullptr;
 };
 
-// Entry point for all CPU runners. Expects the common argc/argv arguments for
-// standard C++ main functions.
-int JitRunnerMain(int argc, char **argv, JitRunnerConfig config = {});
+/// Entry point for all CPU runners. Expects the common argc/argv arguments for
+/// standard C++ main functions. The supplied dialect registry is expected to
+/// contain any registers that appear in the input IR, they will be loaded
+/// on-demand by the parser.
+int JitRunnerMain(int argc, char **argv, const DialectRegistry &registry,
+                  JitRunnerConfig config = {});
 
 } // namespace mlir
 
-#endif // MLIR_SUPPORT_JITRUNNER_H_
+#endif // MLIR_EXECUTIONENGINE_JITRUNNER_H

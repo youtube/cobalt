@@ -1,4 +1,4 @@
-//===------------------------- cxa_exception.h ----------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -161,4 +161,4 @@ extern "C" _LIBCXXABI_FUNC_VIS void __cxa_free_dependent_exception (void * depen
 
 }  // namespace __cxxabiv1
 
-#endif  // _CXA_EXCEPTION_H
+#endif // _CXA_EXCEPTION_H

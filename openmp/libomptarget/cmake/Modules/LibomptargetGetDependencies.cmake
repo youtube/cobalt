@@ -20,6 +20,32 @@
 include (FindPackageHandleStandardArgs)
 
 ################################################################################
+# Looking for LLVM...
+################################################################################
+
+if (OPENMP_STANDALONE_BUILD)
+  # Complete LLVM package is required for building libomptarget
+  # in an out-of-tree mode.
+  find_package(LLVM REQUIRED)
+  message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+  message(STATUS "Using LLVM in: ${LLVM_DIR}")
+  list(APPEND LIBOMPTARGET_LLVM_INCLUDE_DIRS ${LLVM_INCLUDE_DIRS})
+  list(APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR})
+  include(AddLLVM)
+else()
+  # Note that OPENMP_STANDALONE_BUILD is FALSE, when
+  # openmp is built with -DLLVM_ENABLE_RUNTIMES="openmp" vs
+  # -DLLVM_ENABLE_PROJECTS="openmp", but openmp build
+  # is actually done as a standalone project build with many
+  # LLVM CMake variables propagated to it.
+  list(APPEND LIBOMPTARGET_LLVM_INCLUDE_DIRS
+    ${LLVM_MAIN_INCLUDE_DIR} ${LLVM_BINARY_DIR}/include
+    )
+  message(STATUS
+    "Using LLVM include directories: ${LIBOMPTARGET_LLVM_INCLUDE_DIRS}")
+endif()
+
+################################################################################
 # Looking for libelf...
 ################################################################################
 
@@ -118,9 +144,7 @@ endif()
 find_package(CUDA QUIET)
 
 # Try to get the highest Nvidia GPU architecture the system supports
-set(LIBOMPTARGET_NVPTX_AUTODETECT_COMPUTE_CAPABILITY TRUE CACHE BOOL
-  "Auto detect CUDA Compute Capability if CUDA is detected.")
-if (CUDA_FOUND AND LIBOMPTARGET_NVPTX_AUTODETECT_COMPUTE_CAPABILITY)
+if (CUDA_FOUND)
   cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS)
   string(REGEX MATCH "sm_([0-9]+)" CUDA_ARCH_MATCH_OUTPUT ${CUDA_ARCH_FLAGS})
   if (NOT DEFINED CUDA_ARCH_MATCH_OUTPUT OR "${CMAKE_MATCH_1}" LESS 35)
@@ -251,3 +275,5 @@ if (NOT LIBOMPTARGET_CUDA_TOOLKIT_ROOT_DIR_PRESET AND
     endif()
   endif()
 endif()
+
+set(OPENMP_PTHREAD_LIB ${LLVM_PTHREAD_LIB})

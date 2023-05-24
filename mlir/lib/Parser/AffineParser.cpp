@@ -13,10 +13,10 @@
 #include "Parser.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/IntegerSet.h"
+#include "llvm/Support/SourceMgr.h"
 
 using namespace mlir;
 using namespace mlir::detail;
-using llvm::SMLoc;
 
 namespace {
 
@@ -55,6 +55,7 @@ public:
   IntegerSet parseIntegerSetConstraints(unsigned numDims, unsigned numSymbols);
   ParseResult parseAffineMapOfSSAIds(AffineMap &map,
                                      OpAsmParser::Delimiter delimiter);
+  ParseResult parseAffineExprOfSSAIds(AffineExpr &expr);
   void getDimsAndSymbolSSAIds(SmallVectorImpl<StringRef> &dimAndSymbolSSAIds,
                               unsigned &numDims);
 
@@ -79,13 +80,13 @@ private:
   AffineExpr parseSymbolSSAIdExpr();
 
   AffineExpr getAffineBinaryOpExpr(AffineHighPrecOp op, AffineExpr lhs,
-                                   AffineExpr rhs, llvm::SMLoc opLoc);
+                                   AffineExpr rhs, SMLoc opLoc);
   AffineExpr getAffineBinaryOpExpr(AffineLowPrecOp op, AffineExpr lhs,
                                    AffineExpr rhs);
   AffineExpr parseAffineOperandExpr(AffineExpr lhs);
   AffineExpr parseAffineLowPrecOpExpr(AffineExpr llhs, AffineLowPrecOp llhsOp);
   AffineExpr parseAffineHighPrecOpExpr(AffineExpr llhs, AffineHighPrecOp llhsOp,
-                                       llvm::SMLoc llhsOpLoc);
+                                       SMLoc llhsOpLoc);
   AffineExpr parseAffineConstraint(bool *isEq);
 
 private:
@@ -95,7 +96,7 @@ private:
   unsigned numSymbolOperands;
   SmallVector<std::pair<StringRef, AffineExpr>, 4> dimsAndSymbols;
 };
-} // end anonymous namespace
+} // namespace
 
 /// Create an affine binary high precedence op expression (mul's, div's, mod).
 /// opLoc is the location of the op token to be used to report errors
@@ -473,26 +474,22 @@ ParseResult AffineParser::parseIdentifierDefinition(AffineExpr idExpr) {
 
 /// Parse the list of dimensional identifiers to an affine map.
 ParseResult AffineParser::parseDimIdList(unsigned &numDims) {
-  if (parseToken(Token::l_paren,
-                 "expected '(' at start of dimensional identifiers list")) {
-    return failure();
-  }
-
   auto parseElt = [&]() -> ParseResult {
     auto dimension = getAffineDimExpr(numDims++, getContext());
     return parseIdentifierDefinition(dimension);
   };
-  return parseCommaSeparatedListUntil(Token::r_paren, parseElt);
+  return parseCommaSeparatedList(Delimiter::Paren, parseElt,
+                                 " in dimensional identifier list");
 }
 
 /// Parse the list of symbolic identifiers to an affine map.
 ParseResult AffineParser::parseSymbolIdList(unsigned &numSymbols) {
-  consumeToken(Token::l_square);
   auto parseElt = [&]() -> ParseResult {
     auto symbol = getAffineSymbolExpr(numSymbols++, getContext());
     return parseIdentifierDefinition(symbol);
   };
-  return parseCommaSeparatedListUntil(Token::r_square, parseElt);
+  return parseCommaSeparatedList(Delimiter::Square, parseElt,
+                                 " in symbol list");
 }
 
 /// Parse the list of symbolic identifiers to an affine map.
@@ -525,13 +522,14 @@ ParseResult AffineParser::parseAffineMapOrIntegerSetInline(AffineMap &map,
   bool isColon = getToken().is(Token::colon);
   if (!isArrow && !isColon) {
     return emitError("expected '->' or ':'");
-  } else if (isArrow) {
+  }
+  if (isArrow) {
     parseToken(Token::arrow, "expected '->' or '['");
     map = parseAffineMapRange(numDims, numSymbols);
     return map ? success() : failure();
-  } else if (parseToken(Token::colon, "expected ':' or '['")) {
-    return failure();
   }
+  if (parseToken(Token::colon, "expected ':' or '['"))
+    return failure();
 
   if ((set = parseIntegerSetConstraints(numDims, numSymbols)))
     return success();
@@ -543,21 +541,6 @@ ParseResult AffineParser::parseAffineMapOrIntegerSetInline(AffineMap &map,
 ParseResult
 AffineParser::parseAffineMapOfSSAIds(AffineMap &map,
                                      OpAsmParser::Delimiter delimiter) {
-  Token::Kind rightToken;
-  switch (delimiter) {
-  case OpAsmParser::Delimiter::Square:
-    if (parseToken(Token::l_square, "expected '['"))
-      return failure();
-    rightToken = Token::r_square;
-    break;
-  case OpAsmParser::Delimiter::Paren:
-    if (parseToken(Token::l_paren, "expected '('"))
-      return failure();
-    rightToken = Token::r_paren;
-    break;
-  default:
-    return emitError("unexpected delimiter");
-  }
 
   SmallVector<AffineExpr, 4> exprs;
   auto parseElt = [&]() -> ParseResult {
@@ -570,13 +553,19 @@ AffineParser::parseAffineMapOfSSAIds(AffineMap &map,
   // 1-d affine expressions); the list can be empty. Grammar:
   // multi-dim-affine-expr ::= `(` `)`
   //                         | `(` affine-expr (`,` affine-expr)* `)`
-  if (parseCommaSeparatedListUntil(rightToken, parseElt,
-                                   /*allowEmptyList=*/true))
+  if (parseCommaSeparatedList(delimiter, parseElt, " in affine map"))
     return failure();
+
   // Parsed a valid affine map.
   map = AffineMap::get(numDimOperands, dimsAndSymbols.size() - numDimOperands,
                        exprs, getContext());
   return success();
+}
+
+/// Parse an AffineExpr where the dim and symbol identifiers are SSA ids.
+ParseResult AffineParser::parseAffineExprOfSSAIds(AffineExpr &expr) {
+  expr = parseAffineExpr();
+  return success(expr != nullptr);
 }
 
 /// Parse the range and sizes affine map definition inline.
@@ -587,8 +576,6 @@ AffineParser::parseAffineMapOfSSAIds(AffineMap &map,
 ///  multi-dim-affine-expr ::= `(` affine-expr (`,` affine-expr)* `)`
 AffineMap AffineParser::parseAffineMapRange(unsigned numDims,
                                             unsigned numSymbols) {
-  parseToken(Token::l_paren, "expected '(' at start of affine map range");
-
   SmallVector<AffineExpr, 4> exprs;
   auto parseElt = [&]() -> ParseResult {
     auto elt = parseAffineExpr();
@@ -601,7 +588,8 @@ AffineMap AffineParser::parseAffineMapRange(unsigned numDims,
   // 1-d affine expressions). Grammar:
   // multi-dim-affine-expr ::= `(` `)`
   //                         | `(` affine-expr (`,` affine-expr)* `)`
-  if (parseCommaSeparatedListUntil(Token::r_paren, parseElt, true))
+  if (parseCommaSeparatedList(Delimiter::Paren, parseElt,
+                              " in affine map range"))
     return AffineMap();
 
   // Parsed a valid affine map.
@@ -655,10 +643,6 @@ AffineExpr AffineParser::parseAffineConstraint(bool *isEq) {
 ///
 IntegerSet AffineParser::parseIntegerSetConstraints(unsigned numDims,
                                                     unsigned numSymbols) {
-  if (parseToken(Token::l_paren,
-                 "expected '(' at start of integer set constraint list"))
-    return IntegerSet();
-
   SmallVector<AffineExpr, 4> constraints;
   SmallVector<bool, 4> isEqs;
   auto parseElt = [&]() -> ParseResult {
@@ -673,7 +657,8 @@ IntegerSet AffineParser::parseIntegerSetConstraints(unsigned numDims,
   };
 
   // Parse a list of affine constraints (comma-separated).
-  if (parseCommaSeparatedListUntil(Token::r_paren, parseElt, true))
+  if (parseCommaSeparatedList(Delimiter::Paren, parseElt,
+                              " in integer set constraint list"))
     return IntegerSet();
 
   // If no constraints were parsed, then treat this as a degenerate 'true' case.
@@ -697,7 +682,7 @@ ParseResult Parser::parseAffineMapOrIntegerSetReference(AffineMap &map,
   return AffineParser(state).parseAffineMapOrIntegerSetInline(map, set);
 }
 ParseResult Parser::parseAffineMapReference(AffineMap &map) {
-  llvm::SMLoc curLoc = getToken().getLoc();
+  SMLoc curLoc = getToken().getLoc();
   IntegerSet set;
   if (parseAffineMapOrIntegerSetReference(map, set))
     return failure();
@@ -706,7 +691,7 @@ ParseResult Parser::parseAffineMapReference(AffineMap &map) {
   return success();
 }
 ParseResult Parser::parseIntegerSetReference(IntegerSet &set) {
-  llvm::SMLoc curLoc = getToken().getLoc();
+  SMLoc curLoc = getToken().getLoc();
   AffineMap map;
   if (parseAffineMapOrIntegerSetReference(map, set))
     return failure();
@@ -723,4 +708,39 @@ Parser::parseAffineMapOfSSAIds(AffineMap &map,
                                OpAsmParser::Delimiter delimiter) {
   return AffineParser(state, /*allowParsingSSAIds=*/true, parseElement)
       .parseAffineMapOfSSAIds(map, delimiter);
+}
+
+/// Parse an AffineExpr of SSA ids. The callback `parseElement` is used to parse
+/// SSA value uses encountered while parsing.
+ParseResult
+Parser::parseAffineExprOfSSAIds(AffineExpr &expr,
+                                function_ref<ParseResult(bool)> parseElement) {
+  return AffineParser(state, /*allowParsingSSAIds=*/true, parseElement)
+      .parseAffineExprOfSSAIds(expr);
+}
+
+IntegerSet mlir::parseIntegerSet(StringRef inputStr, MLIRContext *context,
+                                 bool printDiagnosticInfo) {
+  llvm::SourceMgr sourceMgr;
+  auto memBuffer = llvm::MemoryBuffer::getMemBuffer(
+      inputStr, /*BufferName=*/"<mlir_parser_buffer>",
+      /*RequiresNullTerminator=*/false);
+  sourceMgr.AddNewSourceBuffer(std::move(memBuffer), SMLoc());
+  SymbolState symbolState;
+  ParserState state(sourceMgr, context, symbolState, /*asmState=*/nullptr);
+  Parser parser(state);
+
+  raw_ostream &os = printDiagnosticInfo ? llvm::errs() : llvm::nulls();
+  SourceMgrDiagnosticHandler handler(sourceMgr, context, os);
+  IntegerSet set;
+  if (parser.parseIntegerSetReference(set))
+    return IntegerSet();
+
+  Token endTok = parser.getToken();
+  if (endTok.isNot(Token::eof)) {
+    parser.emitError(endTok.getLoc(), "encountered unexpected token");
+    return IntegerSet();
+  }
+
+  return set;
 }

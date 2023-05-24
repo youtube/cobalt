@@ -38,7 +38,7 @@ llvm_config.use_default_substitutions()
 llvm_config.use_lld()
 
 tool_patterns = [
-    'llc', 'llvm-as', 'llvm-mc', 'llvm-nm', 'llvm-objdump', 'llvm-pdbutil',
+    'llc', 'llvm-as', 'llvm-mc', 'llvm-nm', 'llvm-objdump', 'llvm-otool', 'llvm-pdbutil',
     'llvm-dwarfdump', 'llvm-readelf', 'llvm-readobj', 'obj2yaml', 'yaml2obj',
     'opt', 'llvm-dis']
 
@@ -63,9 +63,7 @@ if platform.system() not in ['Windows']:
     config.available_features.add('demangler')
 
 llvm_config.feature_config(
-    [('--build-mode', {'DEBUG': 'debug'}),
-     ('--assertion-mode', {'ON': 'asserts'}),
-     ('--targets-built', {'AArch64': 'aarch64',
+    [('--targets-built', {'AArch64': 'aarch64',
                           'AMDGPU': 'amdgpu',
                           'ARM': 'arm',
                           'AVR': 'avr',
@@ -81,7 +79,22 @@ llvm_config.feature_config(
 
 # Set a fake constant version so that we get consistent output.
 config.environment['LLD_VERSION'] = 'LLD 1.0'
-config.environment['LLD_IN_TEST'] = '1'
+
+# LLD_IN_TEST determines how many times `main` is run inside each process, which
+# lets us test that it's cleaning up after itself and resetting global state
+# correctly (which is important for usage as a library).
+run_lld_main_twice = lit_config.params.get('RUN_LLD_MAIN_TWICE', False)
+if not run_lld_main_twice:
+    config.environment['LLD_IN_TEST'] = '1'
+else:
+    config.environment['LLD_IN_TEST'] = '2'
+    # Many ELF tests fail in this mode.
+    config.excludes.append('ELF')
+    # Some old Mach-O backend tests fail, and it's due for removal anyway.
+    config.excludes.append('mach-o')
+    # Some new Mach-O backend tests fail; give them a way to mark themselves
+    # unsupported in this mode.
+    config.available_features.add('main-run-twice')
 
 # Indirectly check if the mt.exe Microsoft utility exists by searching for
 # cvtres, which always accompanies it.  Alternatively, check if we can use
@@ -89,6 +102,9 @@ config.environment['LLD_IN_TEST'] = '1'
 if (lit.util.which('cvtres', config.environment['PATH']) or
         config.have_libxml2):
     config.available_features.add('manifest_tool')
+
+if config.have_libxar:
+    config.available_features.add('xar')
 
 if config.have_libxml2:
     config.available_features.add('libxml2')
@@ -101,11 +117,13 @@ if config.sizeof_void_p == 8:
 
 tar_executable = lit.util.which('tar', config.environment['PATH'])
 if tar_executable:
+    env = os.environ
+    env['LANG'] = 'C'
     tar_version = subprocess.Popen(
         [tar_executable, '--version'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env={'LANG': 'C'})
+        env=env)
     sout, _ = tar_version.communicate()
     if 'GNU tar' in sout.decode():
         config.available_features.add('gnutar')

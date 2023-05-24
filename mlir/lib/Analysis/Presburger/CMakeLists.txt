@@ -1,4 +1,11 @@
 add_mlir_library(MLIRPresburger
-  Simplex.cpp
+  IntegerPolyhedron.cpp
+  LinearTransform.cpp
   Matrix.cpp
+  PresburgerSet.cpp
+  Simplex.cpp
+  Utils.cpp
+
+  LINK_LIBS PUBLIC
+  MLIRSupport
   )

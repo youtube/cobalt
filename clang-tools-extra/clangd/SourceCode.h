@@ -16,17 +16,18 @@
 #include "Protocol.h"
 #include "support/Context.h"
 #include "support/ThreadsafeFS.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Format/Format.h"
+#include "clang/Lex/HeaderSearch.h"
 #include "clang/Tooling/Core/Replacement.h"
 #include "clang/Tooling/Syntax/Tokens.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/SHA1.h"
 #include <string>
 
 namespace clang {
@@ -129,6 +130,9 @@ llvm::StringRef toSourceCode(const SourceManager &SM, SourceRange R);
 // Note that clang also uses closed source ranges, which this can't handle!
 Range halfOpenToRange(const SourceManager &SM, CharSourceRange R);
 
+// Expand range `A` to also contain `B`.
+void unionRanges(Range &A, Range B);
+
 // Converts an offset to a clang line/column (1-based, columns are bytes).
 // The offset must be in range [0, Code.size()].
 // Prefer to use SourceManager if one is available.
@@ -202,6 +206,10 @@ using FileEdits = llvm::StringMap<Edit>;
 /// Formats the edits and code around it according to Style. Changes
 /// Replacements to formatted ones if succeeds.
 llvm::Error reformatEdit(Edit &E, const format::FormatStyle &Style);
+
+/// Apply an incremental update to a text document.
+llvm::Error applyChange(std::string &Contents,
+                        const TextDocumentContentChangeEvent &Change);
 
 /// Collects identifiers with counts in the source code.
 llvm::StringMap<unsigned> collectIdentifiers(llvm::StringRef Content,
@@ -316,6 +324,18 @@ bool isHeaderFile(llvm::StringRef FileName,
 
 /// Returns true if the given location is in a generated protobuf file.
 bool isProtoFile(SourceLocation Loc, const SourceManager &SourceMgr);
+
+/// This scans source code, and should not be called when using a preamble.
+/// Prefer to access the cache in IncludeStructure::isSelfContained if you can.
+bool isSelfContainedHeader(const FileEntry *FE, FileID ID,
+                           const SourceManager &SM, HeaderSearch &HeaderInfo);
+
+/// Returns true if Name is reserved, like _Foo or __Vector_base.
+inline bool isReservedName(llvm::StringRef Name) {
+  // This doesn't catch all cases, but the most common.
+  return Name.size() >= 2 && Name[0] == '_' &&
+         (isUppercase(Name[1]) || Name[1] == '_');
+}
 
 } // namespace clangd
 } // namespace clang

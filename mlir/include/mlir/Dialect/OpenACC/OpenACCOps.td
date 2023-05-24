@@ -13,8 +13,8 @@
 #ifndef OPENACC_OPS
 #define OPENACC_OPS
 
+include "mlir/IR/EnumAttr.td"
 include "mlir/IR/OpBase.td"
-include "mlir/Dialect/OpenACC/AccCommon.td"
 
 def OpenACC_Dialect : Dialect {
   let name = "acc";
@@ -25,11 +25,15 @@ def OpenACC_Dialect : Dialect {
     This dialect models the construct from the OpenACC 3.1 directive language.
   }];
 
+  let useDefaultAttributePrinterParser = 1;
   let cppNamespace = "::mlir::acc";
 }
 
+// AccCommon requires definition of OpenACC_Dialect.
+include "mlir/Dialect/OpenACC/AccCommon.td"
+
 // Base class for OpenACC dialect ops.
-class OpenACC_Op<string mnemonic, list<OpTrait> traits = []> :
+class OpenACC_Op<string mnemonic, list<Trait> traits = []> :
   Op<OpenACC_Dialect, mnemonic, traits> {
 
   let printer = [{ return ::print(p, *this); }];
@@ -38,19 +42,19 @@ class OpenACC_Op<string mnemonic, list<OpTrait> traits = []> :
 }
 
 // Reduction operation enumeration.
-def OpenACC_ReductionOpAdd : StrEnumAttrCase<"redop_add">;
-def OpenACC_ReductionOpMul : StrEnumAttrCase<"redop_mul">;
-def OpenACC_ReductionOpMax : StrEnumAttrCase<"redop_max">;
-def OpenACC_ReductionOpMin : StrEnumAttrCase<"redop_min">;
-def OpenACC_ReductionOpAnd : StrEnumAttrCase<"redop_and">;
-def OpenACC_ReductionOpOr : StrEnumAttrCase<"redop_or">;
-def OpenACC_ReductionOpXor : StrEnumAttrCase<"redop_xor">;
-def OpenACC_ReductionOpLogEqv : StrEnumAttrCase<"redop_leqv">;
-def OpenACC_ReductionOpLogNeqv : StrEnumAttrCase<"redop_lneqv">;
-def OpenACC_ReductionOpLogAnd : StrEnumAttrCase<"redop_land">;
-def OpenACC_ReductionOpLogOr : StrEnumAttrCase<"redop_lor">;
+def OpenACC_ReductionOpAdd     : I32EnumAttrCase<"redop_add", 0>;
+def OpenACC_ReductionOpMul     : I32EnumAttrCase<"redop_mul", 1>;
+def OpenACC_ReductionOpMax     : I32EnumAttrCase<"redop_max", 2>;
+def OpenACC_ReductionOpMin     : I32EnumAttrCase<"redop_min", 3>;
+def OpenACC_ReductionOpAnd     : I32EnumAttrCase<"redop_and", 4>;
+def OpenACC_ReductionOpOr      : I32EnumAttrCase<"redop_or", 5>;
+def OpenACC_ReductionOpXor     : I32EnumAttrCase<"redop_xor", 6>;
+def OpenACC_ReductionOpLogEqv  : I32EnumAttrCase<"redop_leqv", 7>;
+def OpenACC_ReductionOpLogNeqv : I32EnumAttrCase<"redop_lneqv", 8>;
+def OpenACC_ReductionOpLogAnd  : I32EnumAttrCase<"redop_land", 9>;
+def OpenACC_ReductionOpLogOr   : I32EnumAttrCase<"redop_lor", 10>;
 
-def OpenACC_ReductionOpAttr : StrEnumAttr<"ReductionOpAttr",
+def OpenACC_ReductionOp : I32EnumAttr<"ReductionOp",
     "built-in reduction operations supported by OpenACC",
     [OpenACC_ReductionOpAdd, OpenACC_ReductionOpMul, OpenACC_ReductionOpMax,
      OpenACC_ReductionOpMin, OpenACC_ReductionOpAnd, OpenACC_ReductionOpOr,
@@ -58,8 +62,11 @@ def OpenACC_ReductionOpAttr : StrEnumAttr<"ReductionOpAttr",
      OpenACC_ReductionOpLogNeqv, OpenACC_ReductionOpLogAnd,
      OpenACC_ReductionOpLogOr
     ]> {
+  let genSpecializedAttr = 0;
   let cppNamespace = "::mlir::acc";
 }
+def OpenACC_ReductionOpAttr : EnumAttr<OpenACC_Dialect, OpenACC_ReductionOp,
+                                       "reduction_op">;
 
 // Type used in operation below.
 def IntOrIndex : AnyTypeOf<[AnyInteger, Index]>;
@@ -110,7 +117,7 @@ def OpenACC_ParallelOp : OpenACC_Op<"parallel",
                        Variadic<AnyType>:$attachOperands,
                        Variadic<AnyType>:$gangPrivateOperands,
                        Variadic<AnyType>:$gangFirstPrivateOperands,
-                       OptionalAttr<DefaultValue>:$defaultAttr);
+                       OptionalAttr<DefaultValueAttr>:$defaultAttr);
 
   let regions = (region AnyRegion:$region);
 
@@ -139,6 +146,12 @@ def OpenACC_ParallelOp : OpenACC_Op<"parallel",
     static StringRef getAttachKeyword() { return "attach"; }
     static StringRef getPrivateKeyword() { return "private"; }
     static StringRef getFirstPrivateKeyword() { return "firstprivate"; }
+
+    /// The number of data operands.
+    unsigned getNumDataOperands();
+
+    /// The i-th data operand passed.
+    Value getDataOperand(unsigned i);
   }];
 
   let verifier = ?;
@@ -182,9 +195,17 @@ def OpenACC_DataOp : OpenACC_Op<"data",
                        Variadic<AnyType>:$presentOperands,
                        Variadic<AnyType>:$deviceptrOperands,
                        Variadic<AnyType>:$attachOperands,
-                       OptionalAttr<DefaultValue>:$defaultAttr);
+                       OptionalAttr<DefaultValueAttr>:$defaultAttr);
 
   let regions = (region AnyRegion:$region);
+
+  let extraClassDeclaration = [{
+    /// The number of data operands.
+    unsigned getNumDataOperands();
+
+    /// The i-th data operand passed.
+    Value getDataOperand(unsigned i);
+  }];
 
   let assemblyFormat = [{
     ( `if` `(` $ifCond^ `)` )?
@@ -249,6 +270,14 @@ def OpenACC_EnterDataOp : OpenACC_Op<"enter_data", [AttrSizedOperandSegments]> {
                        Variadic<AnyType>:$createZeroOperands,
                        Variadic<AnyType>:$attachOperands);
 
+  let extraClassDeclaration = [{
+    /// The number of data operands.
+    unsigned getNumDataOperands();
+
+    /// The i-th data operand passed.
+    Value getDataOperand(unsigned i);
+  }];
+
   let assemblyFormat = [{
     ( `if` `(` $ifCond^ `)` )?
     ( `async` `(` $asyncOperand^ `:` type($asyncOperand) `)` )?
@@ -261,6 +290,8 @@ def OpenACC_EnterDataOp : OpenACC_Op<"enter_data", [AttrSizedOperandSegments]> {
     ( `attach` `(` $attachOperands^ `:` type($attachOperands) `)` )?
     attr-dict-with-keyword
   }];
+
+  let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -291,6 +322,14 @@ def OpenACC_ExitDataOp : OpenACC_Op<"exit_data", [AttrSizedOperandSegments]> {
                        Variadic<AnyType>:$detachOperands,
                        UnitAttr:$finalize);
 
+  let extraClassDeclaration = [{
+    /// The number of data operands.
+    unsigned getNumDataOperands();
+
+    /// The i-th data operand passed.
+    Value getDataOperand(unsigned i);
+  }];
+
   let assemblyFormat = [{
     ( `if` `(` $ifCond^ `)` )?
     ( `async` `(` $asyncOperand^ `:` type($asyncOperand) `)` )?
@@ -301,6 +340,8 @@ def OpenACC_ExitDataOp : OpenACC_Op<"exit_data", [AttrSizedOperandSegments]> {
     ( `detach` `(` $detachOperands^ `:` type($detachOperands) `)` )?
     attr-dict-with-keyword
   }];
+
+  let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -382,7 +423,7 @@ def OpenACC_YieldOp : OpenACC_Op<"yield", [Terminator,
 
   let arguments = (ins Variadic<AnyType>:$operands);
 
-  let builders = [OpBuilderDAG<(ins), [{ /* nothing to do */ }]>];
+  let builders = [OpBuilder<(ins), [{ /* nothing to do */ }]>];
 
   let verifier = ?;
 
@@ -469,16 +510,24 @@ def OpenACC_UpdateOp : OpenACC_Op<"update", [AttrSizedOperandSegments]> {
     ```
   }];
 
-  let arguments = (ins Optional<IntOrIndex>:$asyncOperand,
+  let arguments = (ins Optional<I1>:$ifCond,
+                       Optional<IntOrIndex>:$asyncOperand,
                        Optional<IntOrIndex>:$waitDevnum,
                        Variadic<IntOrIndex>:$waitOperands,
                        UnitAttr:$async,
                        UnitAttr:$wait,
                        Variadic<IntOrIndex>:$deviceTypeOperands,
-                       Optional<I1>:$ifCond,
                        Variadic<AnyType>:$hostOperands,
                        Variadic<AnyType>:$deviceOperands,
                        UnitAttr:$ifPresent);
+
+  let extraClassDeclaration = [{
+    /// The number of data operands.
+    unsigned getNumDataOperands();
+
+    /// The i-th data operand passed.
+    Value getDataOperand(unsigned i);
+  }];
 
   let assemblyFormat = [{
     ( `if` `(` $ifCond^ `)` )?
@@ -491,6 +540,8 @@ def OpenACC_UpdateOp : OpenACC_Op<"update", [AttrSizedOperandSegments]> {
     ( `device` `(` $deviceOperands^ `:` type($deviceOperands) `)` )?
     attr-dict-with-keyword
   }];
+
+  let hasCanonicalizer = 1;
 }
 
 //===----------------------------------------------------------------------===//

@@ -7,11 +7,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "Chunks.h"
+#include "COFFLinkerContext.h"
 #include "InputFiles.h"
+#include "SymbolTable.h"
 #include "Symbols.h"
 #include "Writer.h"
-#include "SymbolTable.h"
-#include "lld/Common/ErrorHandler.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/COFF.h"
 #include "llvm/Object/COFF.h"
@@ -32,12 +32,15 @@ namespace coff {
 SectionChunk::SectionChunk(ObjFile *f, const coff_section *h)
     : Chunk(SectionKind), file(f), header(h), repl(this) {
   // Initialize relocs.
-  setRelocs(file->getCOFFObj()->getRelocations(header));
+  if (file)
+    setRelocs(file->getCOFFObj()->getRelocations(header));
 
   // Initialize sectionName.
   StringRef sectionName;
-  if (Expected<StringRef> e = file->getCOFFObj()->getSectionName(header))
-    sectionName = *e;
+  if (file) {
+    if (Expected<StringRef> e = file->getCOFFObj()->getSectionName(header))
+      sectionName = *e;
+  }
   sectionNameData = sectionName.data();
   sectionNameSize = sectionName.size();
 
@@ -49,7 +52,10 @@ SectionChunk::SectionChunk(ObjFile *f, const coff_section *h)
   // enabled, treat non-comdat sections as roots. Generally optimized object
   // files will be built with -ffunction-sections or /Gy, so most things worth
   // stripping will be in a comdat.
-  live = !config->doGC || !isCOMDAT();
+  if (config)
+    live = !config->doGC || !isCOMDAT();
+  else
+    live = true;
 }
 
 // SectionChunk is one of the most frequently allocated classes, so it is
@@ -207,7 +213,8 @@ void SectionChunk::applyRelARM(uint8_t *off, uint16_t type, OutputSection *os,
 // the page offset from the current instruction to the target.
 void applyArm64Addr(uint8_t *off, uint64_t s, uint64_t p, int shift) {
   uint32_t orig = read32le(off);
-  uint64_t imm = ((orig >> 29) & 0x3) | ((orig >> 3) & 0x1FFFFC);
+  int64_t imm =
+      SignExtend64<21>(((orig >> 29) & 0x3) | ((orig >> 3) & 0x1FFFFC));
   s += imm;
   imm = (s >> shift) - (p >> shift);
   uint32_t immLo = (imm & 0x3) << 29;
@@ -379,7 +386,7 @@ void SectionChunk::applyRelocation(uint8_t *off,
   // section is needed to compute SECREL and SECTION relocations used in debug
   // info.
   Chunk *c = sym ? sym->getChunk() : nullptr;
-  OutputSection *os = c ? c->getOutputSection() : nullptr;
+  OutputSection *os = c ? file->ctx.getOutputSection(c) : nullptr;
 
   // Skip the relocation if it refers to a discarded section, and diagnose it
   // as an error if appropriate. If a symbol was discarded early, it may be
@@ -422,7 +429,7 @@ void SectionChunk::sortRelocations() {
     return;
   warn("some relocations in " + file->getName() + " are not sorted");
   MutableArrayRef<coff_relocation> newRelocs(
-      bAlloc.Allocate<coff_relocation>(relocsSize), relocsSize);
+      bAlloc().Allocate<coff_relocation>(relocsSize), relocsSize);
   memcpy(newRelocs.data(), relocsData, relocsSize * sizeof(coff_relocation));
   llvm::sort(newRelocs, cmpByVa);
   setRelocs(newRelocs);
@@ -454,11 +461,21 @@ void SectionChunk::writeAndRelocateSubsection(ArrayRef<uint8_t> sec,
 }
 
 void SectionChunk::addAssociative(SectionChunk *child) {
-  // Insert this child at the head of the list.
+  // Insert the child section into the list of associated children. Keep the
+  // list ordered by section name so that ICF does not depend on section order.
   assert(child->assocChildren == nullptr &&
          "associated sections cannot have their own associated children");
-  child->assocChildren = assocChildren;
-  assocChildren = child;
+  SectionChunk *prev = this;
+  SectionChunk *next = assocChildren;
+  for (; next != nullptr; prev = next, next = next->assocChildren) {
+    if (next->getSectionName() <= child->getSectionName())
+      break;
+  }
+
+  // Insert child between prev and next.
+  assert(prev->assocChildren == next);
+  prev->assocChildren = child;
+  child->assocChildren = next;
 }
 
 static uint8_t getBaserelType(const coff_relocation &rel) {
@@ -466,6 +483,8 @@ static uint8_t getBaserelType(const coff_relocation &rel) {
   case AMD64:
     if (rel.Type == IMAGE_REL_AMD64_ADDR64)
       return IMAGE_REL_BASED_DIR64;
+    if (rel.Type == IMAGE_REL_AMD64_ADDR32)
+      return IMAGE_REL_BASED_HIGHLOW;
     return IMAGE_REL_BASED_ABSOLUTE;
   case I386:
     if (rel.Type == IMAGE_REL_I386_DIR32)
@@ -615,7 +634,7 @@ void SectionChunk::printDiscardedMessage() const {
   // Removed by dead-stripping. If it's removed by ICF, ICF already
   // printed out the name, so don't repeat that here.
   if (sym && this == repl)
-    message("Discarded " + sym->getName());
+    log("Discarded " + sym->getName());
 }
 
 StringRef SectionChunk::getDebugName() const {
@@ -801,6 +820,27 @@ void RVATableChunk::writeTo(uint8_t *buf) const {
          "RVA tables should be de-duplicated");
 }
 
+void RVAFlagTableChunk::writeTo(uint8_t *buf) const {
+  struct RVAFlag {
+    ulittle32_t rva;
+    uint8_t flag;
+  };
+  auto flags =
+      makeMutableArrayRef(reinterpret_cast<RVAFlag *>(buf), syms.size());
+  for (auto t : zip(syms, flags)) {
+    const auto &sym = std::get<0>(t);
+    auto &flag = std::get<1>(t);
+    flag.rva = sym.inputChunk->getRVA() + sym.offset;
+    flag.flag = 0;
+  }
+  llvm::sort(flags,
+             [](const RVAFlag &a, const RVAFlag &b) { return a.rva < b.rva; });
+  assert(llvm::unique(flags, [](const RVAFlag &a,
+                                const RVAFlag &b) { return a.rva == b.rva; }) ==
+             flags.end() &&
+         "RVA tables should be de-duplicated");
+}
+
 // MinGW specific, for the "automatic import of variables from DLLs" feature.
 size_t PseudoRelocTableChunk::getSize() const {
   if (relocs.empty())
@@ -899,18 +939,16 @@ uint8_t Baserel::getDefaultType() {
   }
 }
 
-MergeChunk *MergeChunk::instances[Log2MaxSectionAlignment + 1] = {};
-
 MergeChunk::MergeChunk(uint32_t alignment)
     : builder(StringTableBuilder::RAW, alignment) {
   setAlignment(alignment);
 }
 
-void MergeChunk::addSection(SectionChunk *c) {
+void MergeChunk::addSection(COFFLinkerContext &ctx, SectionChunk *c) {
   assert(isPowerOf2_32(c->getAlignment()));
   uint8_t p2Align = llvm::Log2_32(c->getAlignment());
-  assert(p2Align < array_lengthof(instances));
-  auto *&mc = instances[p2Align];
+  assert(p2Align < array_lengthof(ctx.mergeChunkInstances));
+  auto *&mc = ctx.mergeChunkInstances[p2Align];
   if (!mc)
     mc = make<MergeChunk>(c->getAlignment());
   mc->sections.push_back(c);

@@ -609,7 +609,6 @@ void IRMemoryMap::WriteScalarToMemory(lldb::addr_t process_address,
     error.SetErrorToGenericError();
     error.SetErrorString("Couldn't write scalar: its size was zero");
   }
-  return;
 }
 
 void IRMemoryMap::WritePointerToMemory(lldb::addr_t process_address,
@@ -639,7 +638,7 @@ void IRMemoryMap::ReadMemory(uint8_t *bytes, lldb::addr_t process_address,
 
     if (target_sp) {
       Address absolute_address(process_address);
-      target_sp->ReadMemory(absolute_address, false, bytes, size, error);
+      target_sp->ReadMemory(absolute_address, bytes, size, error, true);
       return;
     }
 
@@ -757,7 +756,6 @@ void IRMemoryMap::ReadScalarFromMemory(Scalar &scalar,
     error.SetErrorToGenericError();
     error.SetErrorString("Couldn't read scalar: its size was zero");
   }
-  return;
 }
 
 void IRMemoryMap::ReadPointerFromMemory(lldb::addr_t *address,
@@ -773,8 +771,6 @@ void IRMemoryMap::ReadPointerFromMemory(lldb::addr_t *address,
     return;
 
   *address = pointer_scalar.ULongLong();
-
-  return;
 }
 
 void IRMemoryMap::GetMemoryData(DataExtractor &extractor,

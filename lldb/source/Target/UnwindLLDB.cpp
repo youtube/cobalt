@@ -312,7 +312,6 @@ void UnwindLLDB::UpdateUnwindPlanForFirstFrameIfInvalid(ABI *abi) {
   // Restore status after calling AddOneMoreFrame
   m_unwind_complete = old_m_unwind_complete;
   m_candidate_frame = old_m_candidate_frame;
-  return;
 }
 
 bool UnwindLLDB::AddOneMoreFrame(ABI *abi) {
@@ -419,6 +418,8 @@ bool UnwindLLDB::DoGetFrameInfoAtIndex(uint32_t idx, addr_t &cfa, addr_t &pc,
       // in the return address slot of the frame below, so this
       // too behaves like the zeroth frame (i.e. the pc might not
       // be pointing just past a call in it)
+      behaves_like_zeroth_frame = true;
+    } else if (m_frames[idx]->reg_ctx_lldb_sp->BehavesLikeZerothFrame()) {
       behaves_like_zeroth_frame = true;
     } else {
       behaves_like_zeroth_frame = false;

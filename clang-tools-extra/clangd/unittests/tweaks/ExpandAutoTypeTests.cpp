@@ -57,7 +57,7 @@ TEST_F(ExpandAutoTypeTest, Test) {
   EXPECT_UNAVAILABLE("au^to x = []{};");
   // inline namespaces
   EXPECT_EQ(apply("au^to x = inl_ns::Visible();"),
-            "Visible x = inl_ns::Visible();");
+            "inl_ns::Visible x = inl_ns::Visible();");
   // local class
   EXPECT_EQ(apply("namespace x { void y() { struct S{}; ^auto z = S(); } }"),
             "namespace x { void y() { struct S{}; S z = S(); } }");
@@ -67,16 +67,15 @@ TEST_F(ExpandAutoTypeTest, Test) {
 
   EXPECT_EQ(apply("ns::Class * foo() { au^to c = foo(); }"),
             "ns::Class * foo() { ns::Class * c = foo(); }");
-  EXPECT_EQ(apply("void ns::Func() { au^to x = new ns::Class::Nested{}; }"),
-            "void ns::Func() { Class::Nested * x = new ns::Class::Nested{}; }");
+  EXPECT_EQ(
+      apply("void ns::Func() { au^to x = new ns::Class::Nested{}; }"),
+      "void ns::Func() { ns::Class::Nested * x = new ns::Class::Nested{}; }");
 
-  EXPECT_UNAVAILABLE("dec^ltype(au^to) x = 10;");
+  EXPECT_EQ(apply("dec^ltype(auto) x = 10;"), "int x = 10;");
+  EXPECT_EQ(apply("decltype(au^to) x = 10;"), "int x = 10;");
   // expanding types in structured bindings is syntactically invalid.
   EXPECT_UNAVAILABLE("const ^auto &[x,y] = (int[]){1,2};");
 
-  // FIXME: Auto-completion in a template requires disabling delayed template
-  // parsing.
-  ExtraArgs.push_back("-fno-delayed-template-parsing");
   // unknown types in a template should not be replaced
   EXPECT_THAT(apply("template <typename T> void x() { ^auto y = T::z(); }"),
               StartsWith("fail: Could not deduce type for 'auto' type"));

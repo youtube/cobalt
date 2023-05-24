@@ -12,6 +12,8 @@
 using namespace mlir;
 using namespace mlir::tensor;
 
+#include "mlir/Dialect/Tensor/IR/TensorOpsDialect.cpp.inc"
+
 //===----------------------------------------------------------------------===//
 // TensorDialect Dialect Interfaces
 //===----------------------------------------------------------------------===//
@@ -28,7 +30,11 @@ struct TensorInlinerInterface : public DialectInlinerInterface {
     return true;
   }
 };
-} // end anonymous namespace
+} // namespace
+
+//===----------------------------------------------------------------------===//
+// TensorDialect Methods
+//===----------------------------------------------------------------------===//
 
 void TensorDialect::initialize() {
   addOperations<

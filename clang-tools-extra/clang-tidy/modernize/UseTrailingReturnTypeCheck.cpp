@@ -1,9 +1,8 @@
 //===--- UseTrailingReturnTypeCheck.cpp - clang-tidy-----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -31,7 +30,7 @@ public:
 
   bool shouldWalkTypesOfTypeLocs() const { return false; }
 
-  bool VisitUnqualName(StringRef UnqualName) {
+  bool visitUnqualName(StringRef UnqualName) {
     // Check for collisions with function arguments.
     for (ParmVarDecl *Param : F.parameters())
       if (const IdentifierInfo *Ident = Param->getIdentifier())
@@ -49,17 +48,17 @@ public:
     if (!Elaborated) {
       switch (TL.getTypeLocClass()) {
       case TypeLoc::Record:
-        if (VisitUnqualName(
+        if (visitUnqualName(
                 TL.getAs<RecordTypeLoc>().getTypePtr()->getDecl()->getName()))
           return false;
         break;
       case TypeLoc::Enum:
-        if (VisitUnqualName(
+        if (visitUnqualName(
                 TL.getAs<EnumTypeLoc>().getTypePtr()->getDecl()->getName()))
           return false;
         break;
       case TypeLoc::TemplateSpecialization:
-        if (VisitUnqualName(TL.getAs<TemplateSpecializationTypeLoc>()
+        if (visitUnqualName(TL.getAs<TemplateSpecializationTypeLoc>()
                                 .getTypePtr()
                                 ->getTemplateName()
                                 .getAsTemplateDecl()
@@ -67,8 +66,15 @@ public:
           return false;
         break;
       case TypeLoc::Typedef:
-        if (VisitUnqualName(
+        if (visitUnqualName(
                 TL.getAs<TypedefTypeLoc>().getTypePtr()->getDecl()->getName()))
+          return false;
+        break;
+      case TypeLoc::Using:
+        if (visitUnqualName(TL.getAs<UsingTypeLoc>()
+                                .getTypePtr()
+                                ->getFoundDecl()
+                                ->getName()))
           return false;
         break;
       default:
@@ -79,7 +85,7 @@ public:
     return RecursiveASTVisitor<UnqualNameVisitor>::TraverseTypeLoc(TL);
   }
 
-  // Replace the base method in order to call ower own
+  // Replace the base method in order to call our own
   // TraverseTypeLoc().
   bool TraverseQualifiedTypeLoc(QualifiedTypeLoc TL) {
     return TraverseTypeLoc(TL.getUnqualifiedLoc());
@@ -97,7 +103,7 @@ public:
   bool VisitDeclRefExpr(DeclRefExpr *S) {
     DeclarationName Name = S->getNameInfo().getName();
     return S->getQualifierLoc() || !Name.isIdentifier() ||
-           !VisitUnqualName(Name.getAsIdentifierInfo()->getName());
+           !visitUnqualName(Name.getAsIdentifierInfo()->getName());
   }
 
 private:
@@ -160,11 +166,11 @@ SourceLocation UseTrailingReturnTypeCheck::findTrailingReturnTypeSourceLocation(
   return Result;
 }
 
-static bool IsCVR(Token T) {
+static bool isCvr(Token T) {
   return T.isOneOf(tok::kw_const, tok::kw_volatile, tok::kw_restrict);
 }
 
-static bool IsSpecifier(Token T) {
+static bool isSpecifier(Token T) {
   return T.isOneOf(tok::kw_constexpr, tok::kw_inline, tok::kw_extern,
                    tok::kw_static, tok::kw_friend, tok::kw_virtual);
 }
@@ -173,8 +179,8 @@ static llvm::Optional<ClassifiedToken>
 classifyToken(const FunctionDecl &F, Preprocessor &PP, Token Tok) {
   ClassifiedToken CT;
   CT.T = Tok;
-  CT.isQualifier = true;
-  CT.isSpecifier = true;
+  CT.IsQualifier = true;
+  CT.IsSpecifier = true;
   bool ContainsQualifiers = false;
   bool ContainsSpecifiers = false;
   bool ContainsSomethingElse = false;
@@ -192,10 +198,10 @@ classifyToken(const FunctionDecl &F, Preprocessor &PP, Token Tok) {
     if (T.is(tok::eof))
       break;
 
-    bool Qual = IsCVR(T);
-    bool Spec = IsSpecifier(T);
-    CT.isQualifier &= Qual;
-    CT.isSpecifier &= Spec;
+    bool Qual = isCvr(T);
+    bool Spec = isSpecifier(T);
+    CT.IsQualifier &= Qual;
+    CT.IsSpecifier &= Spec;
     ContainsQualifiers |= Qual;
     ContainsSpecifiers |= Spec;
     ContainsSomethingElse |= !Qual && !Spec;
@@ -279,34 +285,6 @@ SourceRange UseTrailingReturnTypeCheck::findReturnTypeAndCVSourceRange(
     return {};
   }
 
-  // If the return type is a constrained 'auto' or 'decltype(auto)', we need to
-  // include the tokens after the concept. Unfortunately, the source range of an
-  // AutoTypeLoc, if it is constrained, does not include the 'auto' or
-  // 'decltype(auto)'. If the return type is a plain 'decltype(...)', the
-  // source range only contains the first 'decltype' token.
-  auto ATL = ReturnLoc.getAs<AutoTypeLoc>();
-  if ((ATL && (ATL.isConstrained() ||
-               ATL.getAutoKeyword() == AutoTypeKeyword::DecltypeAuto)) ||
-      ReturnLoc.getAs<DecltypeTypeLoc>()) {
-    SourceLocation End =
-        expandIfMacroId(ReturnLoc.getSourceRange().getEnd(), SM);
-    SourceLocation BeginNameF = expandIfMacroId(F.getLocation(), SM);
-
-    // Extend the ReturnTypeRange until the last token before the function
-    // name.
-    std::pair<FileID, unsigned> Loc = SM.getDecomposedLoc(End);
-    StringRef File = SM.getBufferData(Loc.first);
-    const char *TokenBegin = File.data() + Loc.second;
-    Lexer Lexer(SM.getLocForStartOfFile(Loc.first), LangOpts, File.begin(),
-                TokenBegin, File.end());
-    Token T;
-    SourceLocation LastTLoc = End;
-    while (!Lexer.LexFromRawLexer(T) &&
-           SM.isBeforeInTranslationUnit(T.getLocation(), BeginNameF)) {
-      LastTLoc = T.getLocation();
-    }
-    ReturnTypeRange.setEnd(LastTLoc);
-  }
 
   // If the return type has no local qualifiers, it's source range is accurate.
   if (!hasAnyNestedLocalQualifiers(F.getReturnType()))
@@ -330,7 +308,7 @@ SourceRange UseTrailingReturnTypeCheck::findReturnTypeAndCVSourceRange(
         !ExtendedLeft) {
       assert(I <= size_t(std::numeric_limits<int>::max()) &&
              "Integer overflow detected");
-      for (int J = static_cast<int>(I) - 1; J >= 0 && Tokens[J].isQualifier;
+      for (int J = static_cast<int>(I) - 1; J >= 0 && Tokens[J].IsQualifier;
            J--)
         ReturnTypeRange.setBegin(Tokens[J].T.getLocation());
       ExtendedLeft = true;
@@ -338,7 +316,7 @@ SourceRange UseTrailingReturnTypeCheck::findReturnTypeAndCVSourceRange(
     // If we found the end of the return type, include right qualifiers.
     if (SM.isBeforeInTranslationUnit(ReturnTypeRange.getEnd(),
                                      Tokens[I].T.getLocation())) {
-      for (size_t J = I; J < Tokens.size() && Tokens[J].isQualifier; J++)
+      for (size_t J = I; J < Tokens.size() && Tokens[J].IsQualifier; J++)
         ReturnTypeRange.setEnd(Tokens[J].T.getLocation());
       break;
     }
@@ -381,7 +359,7 @@ void UseTrailingReturnTypeCheck::keepSpecifiers(
         SM.isBeforeInTranslationUnit(ReturnTypeCVRange.getEnd(),
                                      CT.T.getLocation()))
       continue;
-    if (!CT.isSpecifier)
+    if (!CT.IsSpecifier)
       continue;
 
     // Add the token to 'auto' and remove it from the return type, including

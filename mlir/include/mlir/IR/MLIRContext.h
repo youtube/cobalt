@@ -15,14 +15,19 @@
 #include <memory>
 #include <vector>
 
+namespace llvm {
+class ThreadPool;
+} // namespace llvm
+
 namespace mlir {
-class AbstractOperation;
+class DebugActionManager;
 class DiagnosticEngine;
 class Dialect;
 class DialectRegistry;
 class InFlightDiagnostic;
 class Location;
 class MLIRContextImpl;
+class RegisteredOperationName;
 class StorageUniquer;
 
 /// MLIRContext is the top-level object for a collection of MLIR operations. It
@@ -33,20 +38,38 @@ class StorageUniquer;
 /// a very generic name ("Context") and because it is uncommon for clients to
 /// interact with it.
 ///
+/// The context wrap some multi-threading facilities, and in particular by
+/// default it will implicitly create a thread pool.
+/// This can be undesirable if multiple context exists at the same time or if a
+/// process will be long-lived and create and destroy contexts.
+/// To control better thread spawning, an externally owned ThreadPool can be
+/// injected in the context. For example:
+///
+///  llvm::ThreadPool myThreadPool;
+///  while (auto *request = nextCompilationRequests()) {
+///    MLIRContext ctx(registry, MLIRContext::Threading::DISABLED);
+///    ctx.setThreadPool(myThreadPool);
+///    processRequest(request, cxt);
+///  }
+///
 class MLIRContext {
 public:
+  enum class Threading { DISABLED, ENABLED };
   /// Create a new Context.
-  /// The loadAllDialects parameters allows to load all dialects from the global
-  /// registry on Context construction. It is deprecated and will be removed
-  /// soon.
-  explicit MLIRContext();
+  explicit MLIRContext(Threading multithreading = Threading::ENABLED);
+  explicit MLIRContext(const DialectRegistry &registry,
+                       Threading multithreading = Threading::ENABLED);
   ~MLIRContext();
 
   /// Return information about all IR dialects loaded in the context.
   std::vector<Dialect *> getLoadedDialects();
 
   /// Return the dialect registry associated with this context.
-  DialectRegistry &getDialectRegistry();
+  const DialectRegistry &getDialectRegistry();
+
+  /// Append the contents of the given dialect registry to the registry
+  /// associated with this context.
+  void appendDialectRegistry(const DialectRegistry &registry);
 
   /// Return information about all available dialects in the registry in this
   /// context.
@@ -87,6 +110,9 @@ public:
     loadDialect<OtherDialect, MoreDialects...>();
   }
 
+  /// Load all dialects available in the registry in this context.
+  void loadAllAvailableDialects();
+
   /// Get (or create) a dialect for the given derived dialect name.
   /// The dialect will be loaded from the registry if no dialect is found.
   /// If no dialect is loaded for this name and none is available in the
@@ -103,10 +129,36 @@ public:
   bool isMultithreadingEnabled();
 
   /// Set the flag specifying if multi-threading is disabled by the context.
+  /// The command line debugging flag `--mlir-disable-threading` is overriding
+  /// this call and making it a no-op!
   void disableMultithreading(bool disable = true);
   void enableMultithreading(bool enable = true) {
     disableMultithreading(!enable);
   }
+
+  /// Set a new thread pool to be used in this context. This method requires
+  /// that multithreading is disabled for this context prior to the call. This
+  /// allows to share a thread pool across multiple contexts, as well as
+  /// decoupling the lifetime of the threads from the contexts. The thread pool
+  /// must outlive the context. Multi-threading will be enabled as part of this
+  /// method.
+  /// The command line debugging flag `--mlir-disable-threading` will still
+  /// prevent threading from being enabled and threading won't be enabled after
+  /// this call in this case.
+  void setThreadPool(llvm::ThreadPool &pool);
+
+  /// Return the number of threads used by the thread pool in this context. The
+  /// number of computed hardware threads can change over the lifetime of a
+  /// process based on affinity changes, so users should use the number of
+  /// threads actually in the thread pool for dispatching work. Returns 1 if
+  /// multithreading is disabled.
+  unsigned getNumThreads();
+
+  /// Return the thread pool used by this context. This method requires that
+  /// multithreading be enabled within the context, and should generally not be
+  /// used directly. Users should instead prefer the threading utilities within
+  /// Threading.h.
+  llvm::ThreadPool &getThreadPool();
 
   /// Return true if we should attach the operation to diagnostics emitted via
   /// Operation::emit.
@@ -127,7 +179,7 @@ public:
   /// Return information about all registered operations.  This isn't very
   /// efficient: typically you should ask the operations about their properties
   /// directly.
-  std::vector<AbstractOperation *> getRegisteredOperations();
+  std::vector<RegisteredOperationName> getRegisteredOperations();
 
   /// Return true if this operation name is registered in this context.
   bool isOperationRegistered(StringRef name);
@@ -150,6 +202,9 @@ public:
   /// instances. This should not be used directly.
   StorageUniquer &getAttributeUniquer();
 
+  /// Returns the manager of debug actions within the context.
+  DebugActionManager &getDebugActionManager();
+
   /// These APIs are tracking whether the context will be used in a
   /// multithreading environment: this has no effect other than enabling
   /// assertions on misuses of some APIs.
@@ -165,6 +220,12 @@ public:
   /// 'getOrLoadDialect<DialectClass>()'.
   Dialect *getOrLoadDialect(StringRef dialectNamespace, TypeID dialectID,
                             function_ref<std::unique_ptr<Dialect>()> ctor);
+
+  /// Returns a hash of the registry of the context that may be used to give
+  /// a rough indicator of if the state of the context registry has changed. The
+  /// context registry correlates to loaded dialects and their entities
+  /// (attributes, operations, types, etc.).
+  llvm::hash_code getRegistryHash();
 
 private:
   const std::unique_ptr<MLIRContextImpl> impl;
@@ -182,6 +243,6 @@ private:
 /// an MLIR context for initialization.
 void registerMLIRContextCLOptions();
 
-} // end namespace mlir
+} // namespace mlir
 
 #endif // MLIR_IR_MLIRCONTEXT_H

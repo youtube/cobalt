@@ -95,6 +95,33 @@ void f() {
   // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
   // CHECK-FIXES: for (auto & Tea : Teas)
   // CHECK-FIXES-NEXT: Tea.g();
+
+  for (int I = 0; N > I; ++I) {
+    printf("Fibonacci number %d has address %p\n", Arr[I], &Arr[I]);
+    Sum += Arr[I] + 2;
+  }
+  // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int & I : Arr)
+  // CHECK-FIXES-NEXT: printf("Fibonacci number %d has address %p\n", I, &I);
+  // CHECK-FIXES-NEXT: Sum += I + 2;
+
+  for (int I = 0; N != I; ++I) {
+    printf("Fibonacci number %d has address %p\n", Arr[I], &Arr[I]);
+    Sum += Arr[I] + 2;
+  }
+  // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int & I : Arr)
+  // CHECK-FIXES-NEXT: printf("Fibonacci number %d has address %p\n", I, &I);
+  // CHECK-FIXES-NEXT: Sum += I + 2;
+
+  for (int I = 0; I != N; ++I) {
+    printf("Fibonacci number %d has address %p\n", Arr[I], &Arr[I]);
+    Sum += Arr[I] + 2;
+  }
+  // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int & I : Arr)
+  // CHECK-FIXES-NEXT: printf("Fibonacci number %d has address %p\n", I, &I);
+  // CHECK-FIXES-NEXT: Sum += I + 2;
 }
 
 const int *constArray() {
@@ -244,6 +271,16 @@ void f() {
   }
   // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
   // CHECK-FIXES: for (int & It : Tt)
+  // CHECK-FIXES-NEXT: printf("I found %d\n", It);
+
+  // Do not crash because of Qq.begin() converting. Q::iterator converts with a
+  // conversion operator, which has no name, to Q::const_iterator.
+  Q Qq;
+  for (Q::const_iterator It = Qq.begin(), E = Qq.end(); It != E; ++It) {
+    printf("I found %d\n", *It);
+  }
+  // CHECK-MESSAGES: :[[@LINE-3]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int & It : Qq)
   // CHECK-FIXES-NEXT: printf("I found %d\n", It);
 
   T *Pt;
@@ -587,6 +624,33 @@ void f() {
   }
   // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
   // CHECK-FIXES: for (int I : *Cv)
+  // CHECK-FIXES-NEXT: printf("Fibonacci number is %d\n", I);
+  // CHECK-FIXES-NEXT: Sum += I + 2;
+
+  for (int I = 0, E = V.size(); E > I; ++I) {
+    printf("Fibonacci number is %d\n", V[I]);
+    Sum += V[I] + 2;
+  }
+  // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int I : V)
+  // CHECK-FIXES-NEXT: printf("Fibonacci number is %d\n", I);
+  // CHECK-FIXES-NEXT: Sum += I + 2;
+
+  for (int I = 0, E = V.size(); I != E; ++I) {
+    printf("Fibonacci number is %d\n", V[I]);
+    Sum += V[I] + 2;
+  }
+  // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int I : V)
+  // CHECK-FIXES-NEXT: printf("Fibonacci number is %d\n", I);
+  // CHECK-FIXES-NEXT: Sum += I + 2;
+
+  for (int I = 0, E = V.size(); E != I; ++I) {
+    printf("Fibonacci number is %d\n", V[I]);
+    Sum += V[I] + 2;
+  }
+  // CHECK-MESSAGES: :[[@LINE-4]]:3: warning: use range-based for loop instead
+  // CHECK-FIXES: for (int I : V)
   // CHECK-FIXES-NEXT: printf("Fibonacci number is %d\n", I);
   // CHECK-FIXES-NEXT: Sum += I + 2;
 }

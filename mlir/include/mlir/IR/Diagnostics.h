@@ -20,20 +20,21 @@ namespace llvm {
 class MemoryBuffer;
 class SMLoc;
 class SourceMgr;
-} // end namespace llvm
+} // namespace llvm
 
 namespace mlir {
 class DiagnosticEngine;
-class Identifier;
 struct LogicalResult;
 class MLIRContext;
 class Operation;
 class OperationName;
+class OpPrintingFlags;
 class Type;
+class Value;
 
 namespace detail {
 struct DiagnosticEngineImpl;
-} // end namespace detail
+} // namespace detail
 
 /// Defines the different supported severity of a diagnostic.
 enum class DiagnosticSeverity {
@@ -61,16 +62,18 @@ public:
   // Construct from a signed integer.
   template <typename T>
   explicit DiagnosticArgument(
-      T val, typename std::enable_if<std::is_signed<T>::value &&
-                                     std::numeric_limits<T>::is_integer &&
-                                     sizeof(T) <= sizeof(int64_t)>::type * = 0)
+      T val,
+      typename std::enable_if<std::is_signed<T>::value &&
+                              std::numeric_limits<T>::is_integer &&
+                              sizeof(T) <= sizeof(int64_t)>::type * = nullptr)
       : kind(DiagnosticArgumentKind::Integer), opaqueVal(int64_t(val)) {}
   // Construct from an unsigned integer.
   template <typename T>
   explicit DiagnosticArgument(
-      T val, typename std::enable_if<std::is_unsigned<T>::value &&
-                                     std::numeric_limits<T>::is_integer &&
-                                     sizeof(T) <= sizeof(uint64_t)>::type * = 0)
+      T val,
+      typename std::enable_if<std::is_unsigned<T>::value &&
+                              std::numeric_limits<T>::is_integer &&
+                              sizeof(T) <= sizeof(uint64_t)>::type * = nullptr)
       : kind(DiagnosticArgumentKind::Unsigned), opaqueVal(uint64_t(val)) {}
   // Construct from a string reference.
   explicit DiagnosticArgument(StringRef val)
@@ -154,20 +157,6 @@ inline raw_ostream &operator<<(raw_ostream &os, const DiagnosticArgument &arg) {
 class Diagnostic {
   using NoteVector = std::vector<std::unique_ptr<Diagnostic>>;
 
-  /// This class implements a wrapper iterator around NoteVector::iterator to
-  /// implicitly dereference the unique_ptr.
-  template <typename IteratorTy, typename NotePtrTy = decltype(*IteratorTy()),
-            typename ResultTy = decltype(**IteratorTy())>
-  class NoteIteratorImpl
-      : public llvm::mapped_iterator<IteratorTy, ResultTy (*)(NotePtrTy)> {
-    static ResultTy &unwrap(NotePtrTy note) { return *note; }
-
-  public:
-    NoteIteratorImpl(IteratorTy it)
-        : llvm::mapped_iterator<IteratorTy, ResultTy (*)(NotePtrTy)>(it,
-                                                                     &unwrap) {}
-  };
-
 public:
   Diagnostic(Location loc, DiagnosticSeverity severity)
       : loc(loc), severity(severity) {}
@@ -194,6 +183,7 @@ public:
     arguments.push_back(DiagnosticArgument(std::forward<Arg>(val)));
     return *this;
   }
+  Diagnostic &operator<<(StringAttr val);
 
   /// Stream in a string literal.
   Diagnostic &operator<<(const char *val) {
@@ -206,9 +196,6 @@ public:
   Diagnostic &operator<<(const Twine &val);
   Diagnostic &operator<<(Twine &&val);
 
-  /// Stream in an Identifier.
-  Diagnostic &operator<<(Identifier val);
-
   /// Stream in an OperationName.
   Diagnostic &operator<<(OperationName val);
 
@@ -217,6 +204,11 @@ public:
   Diagnostic &operator<<(Operation *val) {
     return *this << *val;
   }
+  /// Append an operation with the given printing flags.
+  Diagnostic &appendOp(Operation &val, const OpPrintingFlags &flags);
+
+  /// Stream in a Value.
+  Diagnostic &operator<<(Value val);
 
   /// Stream in a range.
   template <typename T, typename ValueT = llvm::detail::ValueOfRange<T>>
@@ -258,15 +250,16 @@ public:
   /// diagnostic. Notes may not be attached to other notes.
   Diagnostic &attachNote(Optional<Location> noteLoc = llvm::None);
 
-  using note_iterator = NoteIteratorImpl<NoteVector::iterator>;
-  using const_note_iterator = NoteIteratorImpl<NoteVector::const_iterator>;
+  using note_iterator = llvm::pointee_iterator<NoteVector::iterator>;
+  using const_note_iterator =
+      llvm::pointee_iterator<NoteVector::const_iterator>;
 
   /// Returns the notes held by this diagnostic.
   iterator_range<note_iterator> getNotes() {
-    return {notes.begin(), notes.end()};
+    return llvm::make_pointee_range(notes);
   }
   iterator_range<const_note_iterator> getNotes() const {
-    return {notes.begin(), notes.end()};
+    return llvm::make_pointee_range(notes);
   }
 
   /// Allow a diagnostic to be converted to 'failure'.
@@ -438,8 +431,9 @@ public:
   }
 
   /// Emit a diagnostic using the registered issue handler if present, or with
-  /// the default behavior if not.
-  void emit(Diagnostic diag);
+  /// the default behavior if not. The diagnostic instance is consumed in the
+  /// process.
+  void emit(Diagnostic &&diag);
 
 private:
   friend class MLIRContextImpl;
@@ -525,14 +519,25 @@ private:
 
 namespace detail {
 struct SourceMgrDiagnosticHandlerImpl;
-} // end namespace detail
+} // namespace detail
 
 /// This class is a utility diagnostic handler for use with llvm::SourceMgr.
 class SourceMgrDiagnosticHandler : public ScopedDiagnosticHandler {
 public:
+  /// This type represents a functor used to filter out locations when printing
+  /// a diagnostic. It should return true if the provided location is okay to
+  /// display, false otherwise. If all locations in a diagnostic are filtered
+  /// out, the first location is used as the sole location. When deciding
+  /// whether or not to filter a location, this function should not recurse into
+  /// any nested location. This recursion is handled automatically by the
+  /// caller.
+  using ShouldShowLocFn = llvm::unique_function<bool(Location)>;
+
   SourceMgrDiagnosticHandler(llvm::SourceMgr &mgr, MLIRContext *ctx,
-                             raw_ostream &os);
-  SourceMgrDiagnosticHandler(llvm::SourceMgr &mgr, MLIRContext *ctx);
+                             raw_ostream &os,
+                             ShouldShowLocFn &&shouldShowLocFn = {});
+  SourceMgrDiagnosticHandler(llvm::SourceMgr &mgr, MLIRContext *ctx,
+                             ShouldShowLocFn &&shouldShowLocFn = {});
   ~SourceMgrDiagnosticHandler();
 
   /// Emit the given diagnostic information with the held source manager.
@@ -553,9 +558,17 @@ protected:
   /// The output stream to use when printing diagnostics.
   raw_ostream &os;
 
+  /// A functor used when determining if a location for a diagnostic should be
+  /// shown. If null, all locations should be shown.
+  ShouldShowLocFn shouldShowLocFn;
+
 private:
   /// Convert a location into the given memory buffer into an SMLoc.
-  llvm::SMLoc convertLocToSMLoc(FileLineColLoc loc);
+  SMLoc convertLocToSMLoc(FileLineColLoc loc);
+
+  /// Given a location, returns the first nested location (including 'loc') that
+  /// can be shown to the user.
+  Optional<Location> findLocToShow(Location loc);
 
   /// The maximum depth that a call stack will be printed.
   /// TODO: This should be a tunable flag.
@@ -570,7 +583,7 @@ private:
 
 namespace detail {
 struct SourceMgrDiagnosticVerifierHandlerImpl;
-} // end namespace detail
+} // namespace detail
 
 /// This class is a utility diagnostic handler for use with llvm::SourceMgr that
 /// verifies that emitted diagnostics match 'expected-*' lines on the
@@ -603,7 +616,7 @@ private:
 
 namespace detail {
 struct ParallelDiagnosticHandlerImpl;
-} // end namespace detail
+} // namespace detail
 
 /// This class is a utility diagnostic handler for use when multi-threading some
 /// part of the compiler where diagnostics may be emitted. This handler ensures

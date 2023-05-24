@@ -10,8 +10,8 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/Lambda.h"
-#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/APSInt.h"
@@ -50,8 +50,8 @@ bool StmtAncestorASTVisitor::TraverseStmt(Stmt *Statement) {
 /// Scope, as we can map a VarDecl to its DeclStmt, then walk up the parent tree
 /// using StmtAncestors.
 bool StmtAncestorASTVisitor::VisitDeclStmt(DeclStmt *Decls) {
-  for (const auto *decl : Decls->decls()) {
-    if (const auto *V = dyn_cast<VarDecl>(decl))
+  for (const auto *Decl : Decls->decls()) {
+    if (const auto *V = dyn_cast<VarDecl>(Decl))
       DeclParents.insert(std::make_pair(V, Decls));
   }
   return true;
@@ -152,20 +152,21 @@ bool DeclFinderASTVisitor::VisitTypeLoc(TypeLoc TL) {
   return true;
 }
 
-/// Look through conversion/copy constructors to find the explicit
-/// initialization expression, returning it is found.
+/// Look through conversion/copy constructors and member functions to find the
+/// explicit initialization expression, returning it is found.
 ///
 /// The main idea is that given
 ///   vector<int> v;
 /// we consider either of these initializations
 ///   vector<int>::iterator it = v.begin();
 ///   vector<int>::iterator it(v.begin());
+///   vector<int>::const_iterator it(v.begin());
 /// and retrieve `v.begin()` as the expression used to initialize `it` but do
 /// not include
 ///   vector<int>::iterator it;
 ///   vector<int>::iterator it(v.begin(), 0); // if this constructor existed
 /// as being initialized from `v.begin()`
-const Expr *digThroughConstructors(const Expr *E) {
+const Expr *digThroughConstructorsConversions(const Expr *E) {
   if (!E)
     return nullptr;
   E = E->IgnoreImplicit();
@@ -178,8 +179,13 @@ const Expr *digThroughConstructors(const Expr *E) {
     E = ConstructExpr->getArg(0);
     if (const auto *Temp = dyn_cast<MaterializeTemporaryExpr>(E))
       E = Temp->getSubExpr();
-    return digThroughConstructors(E);
+    return digThroughConstructorsConversions(E);
   }
+  // If this is a conversion (as iterators commonly convert into their const
+  // iterator counterparts), dig through that as well.
+  if (const auto *ME = dyn_cast<CXXMemberCallExpr>(E))
+    if (isa<CXXConversionDecl>(ME->getMethodDecl()))
+      return digThroughConstructorsConversions(ME->getImplicitObjectArgument());
   return E;
 }
 
@@ -356,8 +362,8 @@ static bool isAliasDecl(ASTContext *Context, const Decl *TheDecl,
 
   bool OnlyCasts = true;
   const Expr *Init = VDecl->getInit()->IgnoreParenImpCasts();
-  if (Init && isa<CXXConstructExpr>(Init)) {
-    Init = digThroughConstructors(Init);
+  if (isa_and_nonnull<CXXConstructExpr>(Init)) {
+    Init = digThroughConstructorsConversions(Init);
     OnlyCasts = false;
   }
   if (!Init)

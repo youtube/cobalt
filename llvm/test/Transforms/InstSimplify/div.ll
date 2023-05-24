@@ -153,6 +153,31 @@ define i32 @not_udiv_constant_dividend_known_smaller_than_divisor(i32 %x) {
   ret i32 %div
 }
 
+define i8 @udiv_dividend_known_smaller_than_constant_divisor2(i1 %b) {
+; CHECK-LABEL: @udiv_dividend_known_smaller_than_constant_divisor2(
+; CHECK-NEXT:    ret i8 0
+;
+  %t0 = zext i1 %b to i8
+  %xor = xor i8 %t0, 12
+  %r = udiv i8 %xor, 14
+  ret i8 %r
+}
+
+; negative test - dividend can equal 13
+
+define i8 @not_udiv_dividend_known_smaller_than_constant_divisor2(i1 %b) {
+; CHECK-LABEL: @not_udiv_dividend_known_smaller_than_constant_divisor2(
+; CHECK-NEXT:    [[T0:%.*]] = zext i1 [[B:%.*]] to i8
+; CHECK-NEXT:    [[XOR:%.*]] = xor i8 [[T0]], 12
+; CHECK-NEXT:    [[R:%.*]] = udiv i8 [[XOR]], 13
+; CHECK-NEXT:    ret i8 [[R]]
+;
+  %t0 = zext i1 %b to i8
+  %xor = xor i8 %t0, 12
+  %r = udiv i8 %xor, 13
+  ret i8 %r
+}
+
 ; This would require computing known bits on both x and y. Is it worth doing?
 
 define i32 @udiv_dividend_known_smaller_than_divisor(i32 %x, i32 %y) {
@@ -185,7 +210,7 @@ declare i32 @external()
 
 define i32 @div1() {
 ; CHECK-LABEL: @div1(
-; CHECK-NEXT:    [[CALL:%.*]] = call i32 @external(), [[RNG0:!range !.*]]
+; CHECK-NEXT:    [[CALL:%.*]] = call i32 @external(), !range [[RNG0:![0-9]+]]
 ; CHECK-NEXT:    ret i32 0
 ;
   %call = call i32 @external(), !range !0
@@ -199,31 +224,6 @@ define i8 @sdiv_minusone_divisor() {
 ;
   %v = sdiv i8 -128, -1
   ret i8 %v
-}
-
-define i32 @poison(i32 %x) {
-; CHECK-LABEL: @poison(
-; CHECK-NEXT:    ret i32 poison
-;
-  %v = udiv i32 %x, poison
-  ret i32 %v
-}
-
-; TODO: this should be poison
-define i32 @poison2(i32 %x) {
-; CHECK-LABEL: @poison2(
-; CHECK-NEXT:    ret i32 0
-;
-  %v = udiv i32 poison, %x
-  ret i32 %v
-}
-
-define <2 x i32> @poison3(<2 x i32> %x) {
-; CHECK-LABEL: @poison3(
-; CHECK-NEXT:    ret <2 x i32> poison
-;
-  %v = udiv <2 x i32> %x, <i32 poison, i32 1>
-  ret <2 x i32> %v
 }
 
 !0 = !{i32 0, i32 3}

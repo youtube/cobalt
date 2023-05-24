@@ -18,12 +18,23 @@ namespace {
 struct StripDebugInfo : public StripDebugInfoBase<StripDebugInfo> {
   void runOnOperation() override;
 };
-} // end anonymous namespace
+} // namespace
 
 void StripDebugInfo::runOnOperation() {
-  // Strip the debug info from all operations.
   auto unknownLoc = UnknownLoc::get(&getContext());
-  getOperation()->walk([&](Operation *op) { op->setLoc(unknownLoc); });
+
+  // Strip the debug info from all operations.
+  getOperation()->walk([&](Operation *op) {
+    op->setLoc(unknownLoc);
+    // Strip block arguments debug info.
+    for (Region &region : op->getRegions()) {
+      for (Block &block : region.getBlocks()) {
+        for (BlockArgument &arg : block.getArguments()) {
+          arg.setLoc(unknownLoc);
+        }
+      }
+    }
+  });
 }
 
 /// Creates a pass to strip debug information from a function.

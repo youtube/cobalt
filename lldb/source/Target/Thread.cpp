@@ -13,6 +13,7 @@
 #include "lldb/Core/Module.h"
 #include "lldb/Core/StructuredDataImpl.h"
 #include "lldb/Core/ValueObject.h"
+#include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Interpreter/OptionValueFileSpecList.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
@@ -55,12 +56,11 @@
 using namespace lldb;
 using namespace lldb_private;
 
-const ThreadPropertiesSP &Thread::GetGlobalProperties() {
+ThreadProperties &Thread::GetGlobalProperties() {
   // NOTE: intentional leak so we don't crash if global destructor chain gets
   // called as other threads still use the result of this function
-  static ThreadPropertiesSP *g_settings_sp_ptr =
-      new ThreadPropertiesSP(new ThreadProperties(true));
-  return *g_settings_sp_ptr;
+  static ThreadProperties *g_settings_ptr = new ThreadProperties(true);
+  return *g_settings_ptr;
 }
 
 #define LLDB_PROPERTIES_thread
@@ -71,16 +71,10 @@ enum {
 #include "TargetPropertiesEnum.inc"
 };
 
-class ThreadOptionValueProperties : public OptionValueProperties {
+class ThreadOptionValueProperties
+    : public Cloneable<ThreadOptionValueProperties, OptionValueProperties> {
 public:
-  ThreadOptionValueProperties(ConstString name)
-      : OptionValueProperties(name) {}
-
-  // This constructor is used when creating ThreadOptionValueProperties when it
-  // is part of a new lldb_private::Thread instance. It will copy all current
-  // global property values as needed
-  ThreadOptionValueProperties(ThreadProperties *global_properties)
-      : OptionValueProperties(*global_properties->GetValueProperties()) {}
+  ThreadOptionValueProperties(ConstString name) : Cloneable(name) {}
 
   const Property *GetPropertyAtIndex(const ExecutionContext *exe_ctx,
                                      bool will_modify,
@@ -108,8 +102,8 @@ ThreadProperties::ThreadProperties(bool is_global) : Properties() {
         std::make_shared<ThreadOptionValueProperties>(ConstString("thread"));
     m_collection_sp->Initialize(g_thread_properties);
   } else
-    m_collection_sp = std::make_shared<ThreadOptionValueProperties>(
-        Thread::GetGlobalProperties().get());
+    m_collection_sp =
+        OptionValueProperties::CreateLocalCopy(Thread::GetGlobalProperties());
 }
 
 ThreadProperties::~ThreadProperties() = default;
@@ -478,9 +472,7 @@ void Thread::SetStopInfoToNothing() {
       StopInfo::CreateStopReasonWithSignal(*this, LLDB_INVALID_SIGNAL_NUMBER));
 }
 
-bool Thread::ThreadStoppedForAReason(void) {
-  return (bool)GetPrivateStopInfo();
-}
+bool Thread::ThreadStoppedForAReason() { return (bool)GetPrivateStopInfo(); }
 
 bool Thread::CheckpointThreadState(ThreadStateCheckpoint &saved_state) {
   saved_state.register_backup_sp.reset();
@@ -530,7 +522,7 @@ bool Thread::RestoreRegisterStateFromCheckpoint(
   return false;
 }
 
-bool Thread::RestoreThreadStateFromCheckpoint(
+void Thread::RestoreThreadStateFromCheckpoint(
     ThreadStateCheckpoint &saved_state) {
   if (saved_state.stop_info_sp)
     saved_state.stop_info_sp->MakeStopInfoValid();
@@ -539,7 +531,6 @@ bool Thread::RestoreThreadStateFromCheckpoint(
       saved_state.current_inlined_depth);
   GetPlans().RestoreCompletedPlanCheckpoint(
       saved_state.m_completed_plan_checkpoint);
-  return true;
 }
 
 StateType Thread::GetState() const {
@@ -830,6 +821,8 @@ bool Thread::ShouldStop(Event *event_ptr) {
       ThreadPlan *plan_ptr = current_plan;
       while ((plan_ptr = GetPreviousPlan(plan_ptr)) != nullptr) {
         if (plan_ptr->PlanExplainsStop(event_ptr)) {
+          LLDB_LOGF(log, "Plan %s explains stop.", plan_ptr->GetName());
+
           should_stop = plan_ptr->ShouldStop(event_ptr);
 
           // plan_ptr explains the stop, next check whether plan_ptr is done,
@@ -850,7 +843,7 @@ bool Thread::ShouldStop(Event *event_ptr) {
             // we're done, otherwise we forward this to the next plan in the
             // stack below.
             done_processing_current_plan =
-                (plan_ptr->IsMasterPlan() && !plan_ptr->OkayToDiscard());
+                (plan_ptr->IsControllingPlan() && !plan_ptr->OkayToDiscard());
           } else
             done_processing_current_plan = true;
 
@@ -861,10 +854,7 @@ bool Thread::ShouldStop(Event *event_ptr) {
   }
 
   if (!done_processing_current_plan) {
-    bool over_ride_stop = current_plan->ShouldAutoContinue(event_ptr);
-
-    LLDB_LOGF(log, "Plan %s explains stop, auto-continue %i.",
-              current_plan->GetName(), over_ride_stop);
+    bool override_stop = false;
 
     // We're starting from the base plan, so just let it decide;
     if (current_plan->IsBasePlan()) {
@@ -885,20 +875,24 @@ bool Thread::ShouldStop(Event *event_ptr) {
           if (should_stop)
             current_plan->WillStop();
 
-          // If a Master Plan wants to stop, and wants to stick on the stack,
-          // we let it. Otherwise, see if the plan's parent wants to stop.
+          if (current_plan->ShouldAutoContinue(event_ptr)) {
+            override_stop = true;
+            LLDB_LOGF(log, "Plan %s auto-continue: true.",
+                      current_plan->GetName());
+          }
 
-          if (should_stop && current_plan->IsMasterPlan() &&
+          // If a Controlling Plan wants to stop, we let it. Otherwise, see if
+          // the plan's parent wants to stop.
+
+          PopPlan();
+          if (should_stop && current_plan->IsControllingPlan() &&
               !current_plan->OkayToDiscard()) {
-            PopPlan();
             break;
-          } else {
-            PopPlan();
+          }
 
-            current_plan = GetCurrentPlan();
-            if (current_plan == nullptr) {
-              break;
-            }
+          current_plan = GetCurrentPlan();
+          if (current_plan == nullptr) {
+            break;
           }
         } else {
           break;
@@ -906,12 +900,12 @@ bool Thread::ShouldStop(Event *event_ptr) {
       }
     }
 
-    if (over_ride_stop)
+    if (override_stop)
       should_stop = false;
   }
 
-  // One other potential problem is that we set up a master plan, then stop in
-  // before it is complete - for instance by hitting a breakpoint during a
+  // One other potential problem is that we set up a controlling plan, then stop
+  // in before it is complete - for instance by hitting a breakpoint during a
   // step-over - then do some step/finish/etc operations that wind up past the
   // end point condition of the initial plan.  We don't want to strand the
   // original plan on the stack, This code clears stale plans off the stack.
@@ -1181,14 +1175,6 @@ Status Thread::QueueThreadPlan(ThreadPlanSP &thread_plan_sp,
   return status;
 }
 
-void Thread::EnableTracer(bool value, bool single_stepping) {
-  GetPlans().EnableTracer(value, single_stepping);
-}
-
-void Thread::SetTracer(lldb::ThreadPlanTracerSP &tracer_sp) {
-  GetPlans().SetTracer(tracer_sp);
-}
-
 bool Thread::DiscardUserThreadPlansUpToIndex(uint32_t plan_index) {
   // Count the user thread plans from the back end to get the number of the one
   // we want to discard:
@@ -1227,7 +1213,7 @@ void Thread::DiscardThreadPlans(bool force) {
     GetPlans().DiscardAllPlans();
     return;
   }
-  GetPlans().DiscardConsultingMasterPlans();
+  GetPlans().DiscardConsultingControllingPlans();
 }
 
 Status Thread::UnwindInnermostExpression() {
@@ -1241,7 +1227,7 @@ Status Thread::UnwindInnermostExpression() {
   return error;
 }
 
-ThreadPlanSP Thread::QueueFundamentalPlan(bool abort_other_plans) {
+ThreadPlanSP Thread::QueueBasePlan(bool abort_other_plans) {
   ThreadPlanSP thread_plan_sp(new ThreadPlanBase(*this));
   QueueThreadPlan(thread_plan_sp, abort_other_plans);
   return thread_plan_sp;
@@ -1289,16 +1275,10 @@ ThreadPlanSP Thread::QueueThreadPlanForStepInRange(
     lldb::RunMode stop_other_threads, Status &status,
     LazyBool step_in_avoids_code_without_debug_info,
     LazyBool step_out_avoids_code_without_debug_info) {
-  ThreadPlanSP thread_plan_sp(
-      new ThreadPlanStepInRange(*this, range, addr_context, stop_other_threads,
-                                step_in_avoids_code_without_debug_info,
-                                step_out_avoids_code_without_debug_info));
-  ThreadPlanStepInRange *plan =
-      static_cast<ThreadPlanStepInRange *>(thread_plan_sp.get());
-
-  if (step_in_target)
-    plan->SetStepInTarget(step_in_target);
-
+  ThreadPlanSP thread_plan_sp(new ThreadPlanStepInRange(
+      *this, range, addr_context, step_in_target, stop_other_threads,
+      step_in_avoids_code_without_debug_info,
+      step_out_avoids_code_without_debug_info));
   status = QueueThreadPlan(thread_plan_sp, abort_other_plans);
   return thread_plan_sp;
 }
@@ -1321,11 +1301,12 @@ ThreadPlanSP Thread::QueueThreadPlanForStepInRange(
 
 ThreadPlanSP Thread::QueueThreadPlanForStepOut(
     bool abort_other_plans, SymbolContext *addr_context, bool first_insn,
-    bool stop_other_threads, Vote stop_vote, Vote run_vote, uint32_t frame_idx,
-    Status &status, LazyBool step_out_avoids_code_without_debug_info) {
+    bool stop_other_threads, Vote report_stop_vote, Vote report_run_vote,
+    uint32_t frame_idx, Status &status,
+    LazyBool step_out_avoids_code_without_debug_info) {
   ThreadPlanSP thread_plan_sp(new ThreadPlanStepOut(
-      *this, addr_context, first_insn, stop_other_threads, stop_vote, run_vote,
-      frame_idx, step_out_avoids_code_without_debug_info));
+      *this, addr_context, first_insn, stop_other_threads, report_stop_vote,
+      report_run_vote, frame_idx, step_out_avoids_code_without_debug_info));
 
   status = QueueThreadPlan(thread_plan_sp, abort_other_plans);
   return thread_plan_sp;
@@ -1333,13 +1314,14 @@ ThreadPlanSP Thread::QueueThreadPlanForStepOut(
 
 ThreadPlanSP Thread::QueueThreadPlanForStepOutNoShouldStop(
     bool abort_other_plans, SymbolContext *addr_context, bool first_insn,
-    bool stop_other_threads, Vote stop_vote, Vote run_vote, uint32_t frame_idx,
-    Status &status, bool continue_to_next_branch) {
+    bool stop_other_threads, Vote report_stop_vote, Vote report_run_vote,
+    uint32_t frame_idx, Status &status, bool continue_to_next_branch) {
   const bool calculate_return_value =
       false; // No need to calculate the return value here.
   ThreadPlanSP thread_plan_sp(new ThreadPlanStepOut(
-      *this, addr_context, first_insn, stop_other_threads, stop_vote, run_vote,
-      frame_idx, eLazyBoolNo, continue_to_next_branch, calculate_return_value));
+      *this, addr_context, first_insn, stop_other_threads, report_stop_vote,
+      report_run_vote, frame_idx, eLazyBoolNo, continue_to_next_branch,
+      calculate_return_value));
 
   ThreadPlanStepOut *new_plan =
       static_cast<ThreadPlanStepOut *>(thread_plan_sp.get());
@@ -1387,15 +1369,9 @@ lldb::ThreadPlanSP Thread::QueueThreadPlanForStepScripted(
     bool abort_other_plans, const char *class_name, 
     StructuredData::ObjectSP extra_args_sp,  bool stop_other_threads,
     Status &status) {
-    
-  StructuredDataImpl *extra_args_impl = nullptr; 
-  if (extra_args_sp) {
-    extra_args_impl = new StructuredDataImpl();
-    extra_args_impl->SetObjectSP(extra_args_sp);
-  }
 
-  ThreadPlanSP thread_plan_sp(new ThreadPlanPython(*this, class_name, 
-                                                   extra_args_impl));
+  ThreadPlanSP thread_plan_sp(new ThreadPlanPython(
+      *this, class_name, StructuredDataImpl(extra_args_sp)));
   thread_plan_sp->SetStopOthers(stop_other_threads);
   status = QueueThreadPlan(thread_plan_sp, abort_other_plans);
   return thread_plan_sp;
@@ -1695,12 +1671,20 @@ std::string Thread::StopReasonAsString(lldb::StopReason reason) {
     return "exception";
   case eStopReasonExec:
     return "exec";
+  case eStopReasonFork:
+    return "fork";
+  case eStopReasonVFork:
+    return "vfork";
+  case eStopReasonVForkDone:
+    return "vfork done";
   case eStopReasonPlanComplete:
     return "plan complete";
   case eStopReasonThreadExiting:
     return "thread exiting";
   case eStopReasonInstrumentation:
     return "instrumentation break";
+  case eStopReasonProcessorTrace:
+    return "processor trace";
   }
 
   return "StopReason = " + std::to_string(reason);
@@ -1923,7 +1907,7 @@ Status Thread::StepIn(bool source_step,
           false, abort_other_plans, run_mode, error);
     }
 
-    new_plan_sp->SetIsMasterPlan(true);
+    new_plan_sp->SetIsControllingPlan(true);
     new_plan_sp->SetOkayToDiscard(false);
 
     // Why do we need to set the current thread by ID here???
@@ -1956,7 +1940,7 @@ Status Thread::StepOver(bool source_step,
           true, abort_other_plans, run_mode, error);
     }
 
-    new_plan_sp->SetIsMasterPlan(true);
+    new_plan_sp->SetIsControllingPlan(true);
     new_plan_sp->SetOkayToDiscard(false);
 
     // Why do we need to set the current thread by ID here???
@@ -1980,7 +1964,7 @@ Status Thread::StepOut() {
         abort_other_plans, nullptr, first_instruction, stop_other_threads,
         eVoteYes, eVoteNoOpinion, 0, error));
 
-    new_plan_sp->SetIsMasterPlan(true);
+    new_plan_sp->SetIsControllingPlan(true);
     new_plan_sp->SetOkayToDiscard(false);
 
     // Why do we need to set the current thread by ID here???
@@ -2021,4 +2005,27 @@ ThreadSP Thread::GetCurrentExceptionBacktrace() {
   }
 
   return ThreadSP();
+}
+
+lldb::ValueObjectSP Thread::GetSiginfoValue() {
+  ProcessSP process_sp = GetProcess();
+  assert(process_sp);
+  Target &target = process_sp->GetTarget();
+  PlatformSP platform_sp = target.GetPlatform();
+  assert(platform_sp);
+  ArchSpec arch = target.GetArchitecture();
+
+  CompilerType type = platform_sp->GetSiginfoType(arch.GetTriple());
+  if (!type.IsValid())
+    return ValueObjectConstResult::Create(&target, Status("no siginfo_t for the platform"));
+
+  llvm::Optional<uint64_t> type_size = type.GetByteSize(nullptr);
+  assert(type_size);
+  llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>> data = GetSiginfo(type_size.getValue());
+  if (!data)
+    return ValueObjectConstResult::Create(&target, Status(data.takeError()));
+
+  DataExtractor data_extractor{data.get()->getBufferStart(), data.get()->getBufferSize(),
+    process_sp->GetByteOrder(), arch.GetAddressByteSize()};
+  return ValueObjectConstResult::Create(&target, type, ConstString("__lldb_siginfo"), data_extractor);
 }

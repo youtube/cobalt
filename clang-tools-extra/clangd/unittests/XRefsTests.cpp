@@ -37,10 +37,13 @@ namespace clang {
 namespace clangd {
 namespace {
 
+using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::Matcher;
+using ::testing::Not;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedElementsAreArray;
 using ::testing::UnorderedPointwise;
@@ -48,7 +51,7 @@ using ::testing::UnorderedPointwise;
 MATCHER_P2(FileRange, File, Range, "") {
   return Location{URIForFile::canonicalize(File, testRoot()), Range} == arg;
 }
-MATCHER(DeclRange, "") {
+MATCHER(declRange, "") {
   const LocatedSymbol &Sym = ::testing::get<0>(arg);
   const Range &Range = ::testing::get<1>(arg);
   return Sym.PreferredDeclaration.range == Range;
@@ -57,7 +60,7 @@ MATCHER(DeclRange, "") {
 // Extracts ranges from an annotated example, and constructs a matcher for a
 // highlight set. Ranges should be named $read/$write as appropriate.
 Matcher<const std::vector<DocumentHighlight> &>
-HighlightsFrom(const Annotations &Test) {
+highlightsFrom(const Annotations &Test) {
   std::vector<DocumentHighlight> Expected;
   auto Add = [&](const Range &R, DocumentHighlightKind K) {
     Expected.emplace_back();
@@ -114,11 +117,24 @@ TEST(HighlightsTest, All) {
           f.[[^~]]Foo();
         }
       )cpp",
+      R"cpp(// ObjC methods with split selectors.
+        @interface Foo
+          +(void) [[x]]:(int)a [[y]]:(int)b;
+        @end
+        @implementation Foo
+          +(void) [[x]]:(int)a [[y]]:(int)b {}
+        @end
+        void go() {
+          [Foo [[x]]:2 [[^y]]:4];
+        }
+      )cpp",
   };
   for (const char *Test : Tests) {
     Annotations T(Test);
-    auto AST = TestTU::withCode(T.code()).build();
-    EXPECT_THAT(findDocumentHighlights(AST, T.point()), HighlightsFrom(T))
+    auto TU = TestTU::withCode(T.code());
+    TU.ExtraArgs.push_back("-xobjective-c++");
+    auto AST = TU.build();
+    EXPECT_THAT(findDocumentHighlights(AST, T.point()), highlightsFrom(T))
         << Test;
   }
 }
@@ -255,12 +271,12 @@ TEST(HighlightsTest, ControlFlow) {
     auto TU = TestTU::withCode(T.code());
     TU.ExtraArgs.push_back("-fexceptions"); // FIXME: stop testing on PS4.
     auto AST = TU.build();
-    EXPECT_THAT(findDocumentHighlights(AST, T.point()), HighlightsFrom(T))
+    EXPECT_THAT(findDocumentHighlights(AST, T.point()), highlightsFrom(T))
         << Test;
   }
 }
 
-MATCHER_P3(Sym, Name, Decl, DefOrNone, "") {
+MATCHER_P3(sym, Name, Decl, DefOrNone, "") {
   llvm::Optional<Range> Def = DefOrNone;
   if (Name != arg.Name) {
     *result_listener << "Name is " << arg.Name;
@@ -288,9 +304,11 @@ MATCHER_P3(Sym, Name, Decl, DefOrNone, "") {
   return true;
 }
 
-MATCHER_P(Sym, Name, "") { return arg.Name == Name; }
+MATCHER_P(sym, Name, "") { return arg.Name == Name; }
 
-MATCHER_P(RangeIs, R, "") { return arg.range == R; }
+MATCHER_P(rangeIs, R, "") { return arg.Loc.range == R; }
+MATCHER_P(attrsAre, A, "") { return arg.Attributes == A; }
+MATCHER_P(hasID, ID, "") { return arg.ID == ID; }
 
 TEST(LocateSymbol, WithIndex) {
   Annotations SymbolHeader(R"cpp(
@@ -322,7 +340,7 @@ TEST(LocateSymbol, WithIndex) {
         }
       )cpp");
   EXPECT_THAT(LocateWithIndex(Test),
-              ElementsAre(Sym("f1", Test.range(), SymbolCpp.range("f1"))));
+              ElementsAre(sym("f1", Test.range(), SymbolCpp.range("f1"))));
 
   Test = Annotations(R"cpp(// definition in AST.
         void [[f1]]() {}
@@ -331,14 +349,14 @@ TEST(LocateSymbol, WithIndex) {
         }
       )cpp");
   EXPECT_THAT(LocateWithIndex(Test),
-              ElementsAre(Sym("f1", SymbolHeader.range("f1"), Test.range())));
+              ElementsAre(sym("f1", SymbolHeader.range("f1"), Test.range())));
 
   Test = Annotations(R"cpp(// forward declaration in AST.
         class [[Foo]];
         F^oo* create();
       )cpp");
   EXPECT_THAT(LocateWithIndex(Test),
-              ElementsAre(Sym("Foo", Test.range(), SymbolHeader.range("foo"))));
+              ElementsAre(sym("Foo", Test.range(), SymbolHeader.range("foo"))));
 
   Test = Annotations(R"cpp(// definition in AST.
         class [[Forward]] {};
@@ -346,7 +364,28 @@ TEST(LocateSymbol, WithIndex) {
       )cpp");
   EXPECT_THAT(
       LocateWithIndex(Test),
-      ElementsAre(Sym("Forward", SymbolHeader.range("forward"), Test.range())));
+      ElementsAre(sym("Forward", SymbolHeader.range("forward"), Test.range())));
+}
+
+TEST(LocateSymbol, AnonymousStructFields) {
+  auto Code = Annotations(R"cpp(
+    struct $2[[Foo]] {
+      struct { int $1[[x]]; };
+      void foo() {
+        // Make sure the implicit base is skipped.
+        $1^x = 42;
+      }
+    };
+    // Check that we don't skip explicit bases.
+    int a = $2^Foo{}.x;
+  )cpp");
+  TestTU TU = TestTU::withCode(Code.code());
+  auto AST = TU.build();
+  EXPECT_THAT(locateSymbolAt(AST, Code.point("1"), TU.index().get()),
+              UnorderedElementsAre(sym("x", Code.range("1"), Code.range("1"))));
+  EXPECT_THAT(
+      locateSymbolAt(AST, Code.point("2"), TU.index().get()),
+      UnorderedElementsAre(sym("Foo", Code.range("2"), Code.range("2"))));
 }
 
 TEST(LocateSymbol, FindOverrides) {
@@ -361,8 +400,8 @@ TEST(LocateSymbol, FindOverrides) {
   TestTU TU = TestTU::withCode(Code.code());
   auto AST = TU.build();
   EXPECT_THAT(locateSymbolAt(AST, Code.point(), TU.index().get()),
-              UnorderedElementsAre(Sym("foo", Code.range("1"), llvm::None),
-                                   Sym("foo", Code.range("2"), llvm::None)));
+              UnorderedElementsAre(sym("foo", Code.range("1"), llvm::None),
+                                   sym("foo", Code.range("2"), llvm::None)));
 }
 
 TEST(LocateSymbol, WithIndexPreferredLocation) {
@@ -389,12 +428,12 @@ TEST(LocateSymbol, WithIndexPreferredLocation) {
   {
     auto Locs = clangd::locateSymbolAt(AST, Test.point("p"), Index.get());
     auto CodeGenLoc = SymbolHeader.range("p");
-    EXPECT_THAT(Locs, ElementsAre(Sym("Proto", CodeGenLoc, CodeGenLoc)));
+    EXPECT_THAT(Locs, ElementsAre(sym("Proto", CodeGenLoc, CodeGenLoc)));
   }
   {
     auto Locs = clangd::locateSymbolAt(AST, Test.point("f"), Index.get());
     auto CodeGenLoc = SymbolHeader.range("f");
-    EXPECT_THAT(Locs, ElementsAre(Sym("func", CodeGenLoc, CodeGenLoc)));
+    EXPECT_THAT(Locs, ElementsAre(sym("func", CodeGenLoc, CodeGenLoc)));
   }
 }
 
@@ -404,6 +443,18 @@ TEST(LocateSymbol, All) {
   //   $def is the definition location (if absent, symbol has no definition)
   //   unnamed range becomes both $decl and $def.
   const char *Tests[] = {
+      R"cpp(
+        struct X {
+          union {
+            int [[a]];
+            float b;
+          };
+        };
+        int test(X &x) {
+          return x.^a;
+        }
+      )cpp",
+
       R"cpp(// Local variable
         int main() {
           int [[bonjour]];
@@ -626,7 +677,7 @@ TEST(LocateSymbol, All) {
 
       R"cpp(// Declaration of explicit template specialization
         template <typename T>
-        struct $decl[[Foo]] {};
+        struct $decl[[$def[[Foo]]]] {};
 
         template <>
         struct Fo^o<int> {};
@@ -634,10 +685,23 @@ TEST(LocateSymbol, All) {
 
       R"cpp(// Declaration of partial template specialization
         template <typename T>
-        struct $decl[[Foo]] {};
+        struct $decl[[$def[[Foo]]]] {};
 
         template <typename T>
         struct Fo^o<T*> {};
+      )cpp",
+
+      R"cpp(// Definition on ClassTemplateDecl
+        namespace ns {
+          // Forward declaration.
+          template<typename T>
+          struct $decl[[Foo]];
+
+          template <typename T>
+          struct $def[[Foo]] {};
+        }
+
+        using ::ns::Fo^o;
       )cpp",
 
       R"cpp(// auto builtin type (not supported)
@@ -831,6 +895,19 @@ TEST(LocateSymbol, All) {
         };
       )cpp",
 
+      R"cpp(// Enum base
+        typedef int $decl[[MyTypeDef]];
+        enum Foo : My^TypeDef {};
+      )cpp",
+      R"cpp(// Enum base
+        typedef int $decl[[MyTypeDef]];
+        enum Foo : My^TypeDef;
+      )cpp",
+      R"cpp(// Enum base
+        using $decl[[MyTypeDef]] = int;
+        enum Foo : My^TypeDef {};
+      )cpp",
+
       R"objc(
         @protocol Dog;
         @protocol $decl[[Dog]]
@@ -894,9 +971,6 @@ TEST(LocateSymbol, All) {
     TestTU TU;
     TU.Code = std::string(T.code());
 
-    // FIXME: Auto-completion in a template requires disabling delayed template
-    // parsing.
-    TU.ExtraArgs.push_back("-fno-delayed-template-parsing");
     TU.ExtraArgs.push_back("-xobjective-c++");
 
     auto AST = TU.build();
@@ -907,12 +981,31 @@ TEST(LocateSymbol, All) {
     } else {
       ASSERT_THAT(Results, ::testing::SizeIs(1)) << Test;
       EXPECT_EQ(Results[0].PreferredDeclaration.range, *WantDecl) << Test;
+      EXPECT_TRUE(Results[0].ID) << Test;
       llvm::Optional<Range> GotDef;
       if (Results[0].Definition)
         GotDef = Results[0].Definition->range;
       EXPECT_EQ(WantDef, GotDef) << Test;
     }
   }
+}
+TEST(LocateSymbol, ValidSymbolID) {
+  auto T = Annotations(R"cpp(
+    #define MACRO(x, y) ((x) + (y))
+    int add(int x, int y) { return $MACRO^MACRO(x, y); }
+    int sum = $add^add(1, 2);
+  )cpp");
+
+  TestTU TU = TestTU::withCode(T.code());
+  auto AST = TU.build();
+  auto Index = TU.index();
+  EXPECT_THAT(locateSymbolAt(AST, T.point("add"), Index.get()),
+              ElementsAre(AllOf(sym("add"),
+                                hasID(getSymbolID(&findDecl(AST, "add"))))));
+  EXPECT_THAT(
+      locateSymbolAt(AST, T.point("MACRO"), Index.get()),
+      ElementsAre(AllOf(sym("MACRO"),
+                        hasID(findSymbol(TU.headerSymbols(), "MACRO").ID))));
 }
 
 TEST(LocateSymbol, AllMulti) {
@@ -1060,8 +1153,10 @@ TEST(LocateSymbol, TextualSmoke) {
   auto TU = TestTU::withCode(T.code());
   auto AST = TU.build();
   auto Index = TU.index();
-  EXPECT_THAT(locateSymbolAt(AST, T.point(), Index.get()),
-              ElementsAre(Sym("MyClass", T.range(), T.range())));
+  EXPECT_THAT(
+      locateSymbolAt(AST, T.point(), Index.get()),
+      ElementsAre(AllOf(sym("MyClass", T.range(), T.range()),
+                        hasID(getSymbolID(&findDecl(AST, "MyClass"))))));
 }
 
 TEST(LocateSymbol, Textual) {
@@ -1168,33 +1263,33 @@ TEST(LocateSymbol, Ambiguous) {
   TU.ExtraArgs.push_back("-fno-delayed-template-parsing");
   auto AST = TU.build();
   // Ordered assertions are deliberate: we expect a predictable order.
-  EXPECT_THAT(locateSymbolAt(AST, T.point("1")), ElementsAre(Sym("str")));
-  EXPECT_THAT(locateSymbolAt(AST, T.point("2")), ElementsAre(Sym("str")));
-  EXPECT_THAT(locateSymbolAt(AST, T.point("3")), ElementsAre(Sym("f")));
-  EXPECT_THAT(locateSymbolAt(AST, T.point("4")), ElementsAre(Sym("g")));
-  EXPECT_THAT(locateSymbolAt(AST, T.point("5")), ElementsAre(Sym("f")));
-  EXPECT_THAT(locateSymbolAt(AST, T.point("6")), ElementsAre(Sym("str")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("1")), ElementsAre(sym("str")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("2")), ElementsAre(sym("str")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("3")), ElementsAre(sym("f")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("4")), ElementsAre(sym("g")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("5")), ElementsAre(sym("f")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("6")), ElementsAre(sym("str")));
   // FIXME: Target the constructor as well.
-  EXPECT_THAT(locateSymbolAt(AST, T.point("7")), ElementsAre(Sym("abc")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("7")), ElementsAre(sym("abc")));
   // FIXME: Target the constructor as well.
-  EXPECT_THAT(locateSymbolAt(AST, T.point("8")), ElementsAre(Sym("abcd")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("8")), ElementsAre(sym("abcd")));
   // FIXME: Target the constructor as well.
-  EXPECT_THAT(locateSymbolAt(AST, T.point("9")), ElementsAre(Sym("Foo")));
+  EXPECT_THAT(locateSymbolAt(AST, T.point("9")), ElementsAre(sym("Foo")));
   EXPECT_THAT(locateSymbolAt(AST, T.point("10")),
-              ElementsAre(Sym("Foo", T.range("ConstructorLoc"), llvm::None)));
+              ElementsAre(sym("Foo", T.range("ConstructorLoc"), llvm::None)));
   EXPECT_THAT(locateSymbolAt(AST, T.point("11")),
-              ElementsAre(Sym("Foo", T.range("ConstructorLoc"), llvm::None)));
+              ElementsAre(sym("Foo", T.range("ConstructorLoc"), llvm::None)));
   // These assertions are unordered because the order comes from
   // CXXRecordDecl::lookupDependentName() which doesn't appear to provide
   // an order guarantee.
   EXPECT_THAT(locateSymbolAt(AST, T.point("12")),
               UnorderedElementsAre(
-                  Sym("bar", T.range("NonstaticOverload1"), llvm::None),
-                  Sym("bar", T.range("NonstaticOverload2"), llvm::None)));
+                  sym("bar", T.range("NonstaticOverload1"), llvm::None),
+                  sym("bar", T.range("NonstaticOverload2"), llvm::None)));
   EXPECT_THAT(
       locateSymbolAt(AST, T.point("13")),
-      UnorderedElementsAre(Sym("baz", T.range("StaticOverload1"), llvm::None),
-                           Sym("baz", T.range("StaticOverload2"), llvm::None)));
+      UnorderedElementsAre(sym("baz", T.range("StaticOverload1"), llvm::None),
+                           sym("baz", T.range("StaticOverload2"), llvm::None)));
 }
 
 TEST(LocateSymbol, TextualDependent) {
@@ -1226,8 +1321,8 @@ TEST(LocateSymbol, TextualDependent) {
   auto Results = locateSymbolAt(AST, Source.point(), Index.get());
   EXPECT_THAT(Results,
               UnorderedElementsAre(
-                  Sym("uniqueMethodName", Header.range("FooLoc"), llvm::None),
-                  Sym("uniqueMethodName", Header.range("BarLoc"), llvm::None)));
+                  sym("uniqueMethodName", Header.range("FooLoc"), llvm::None),
+                  sym("uniqueMethodName", Header.range("BarLoc"), llvm::None)));
 }
 
 TEST(LocateSymbol, Alias) {
@@ -1279,7 +1374,7 @@ TEST(LocateSymbol, Alias) {
 
       R"cpp(
       namespace ns { class [[Foo]] {}; }
-      using ns::Foo;
+      using ns::[[Foo]];
       F^oo f;
     )cpp",
 
@@ -1311,7 +1406,7 @@ TEST(LocateSymbol, Alias) {
     auto T = Annotations(Case);
     auto AST = TestTU::withCode(T.code()).build();
     EXPECT_THAT(locateSymbolAt(AST, T.point()),
-                UnorderedPointwise(DeclRange(), T.ranges()));
+                UnorderedPointwise(declRange(), T.ranges()));
   }
 }
 
@@ -1359,7 +1454,7 @@ int [[bar_not_preamble]];
   auto Locations =
       runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point("p1"));
   EXPECT_TRUE(bool(Locations)) << "findDefinitions returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo", SourceAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo", SourceAnnotations.range(),
                                           SourceAnnotations.range())));
 
   // Go to a definition in header_in_preamble.h.
@@ -1367,14 +1462,14 @@ int [[bar_not_preamble]];
   EXPECT_TRUE(bool(Locations)) << "findDefinitions returned an error";
   EXPECT_THAT(
       *Locations,
-      ElementsAre(Sym("bar_preamble", HeaderInPreambleAnnotations.range(),
+      ElementsAre(sym("bar_preamble", HeaderInPreambleAnnotations.range(),
                       HeaderInPreambleAnnotations.range())));
 
   // Go to a definition in header_not_in_preamble.h.
   Locations = runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point("p3"));
   EXPECT_TRUE(bool(Locations)) << "findDefinitions returned an error";
   EXPECT_THAT(*Locations,
-              ElementsAre(Sym("bar_not_preamble",
+              ElementsAre(sym("bar_not_preamble",
                               HeaderNotInPreambleAnnotations.range(),
                               HeaderNotInPreambleAnnotations.range())));
 }
@@ -1409,24 +1504,24 @@ TEST(GoToInclude, All) {
   // Test include in preamble.
   auto Locations = runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point());
   ASSERT_TRUE(bool(Locations)) << "locateSymbolAt returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo.h", HeaderAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo.h", HeaderAnnotations.range(),
                                           HeaderAnnotations.range())));
 
   // Test include in preamble, last char.
   Locations = runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point("2"));
   ASSERT_TRUE(bool(Locations)) << "locateSymbolAt returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo.h", HeaderAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo.h", HeaderAnnotations.range(),
                                           HeaderAnnotations.range())));
 
   Locations = runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point("3"));
   ASSERT_TRUE(bool(Locations)) << "locateSymbolAt returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo.h", HeaderAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo.h", HeaderAnnotations.range(),
                                           HeaderAnnotations.range())));
 
   // Test include outside of preamble.
   Locations = runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point("6"));
   ASSERT_TRUE(bool(Locations)) << "locateSymbolAt returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo.h", HeaderAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo.h", HeaderAnnotations.range(),
                                           HeaderAnnotations.range())));
 
   // Test a few positions that do not result in Locations.
@@ -1436,12 +1531,12 @@ TEST(GoToInclude, All) {
 
   Locations = runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point("5"));
   ASSERT_TRUE(bool(Locations)) << "locateSymbolAt returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo.h", HeaderAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo.h", HeaderAnnotations.range(),
                                           HeaderAnnotations.range())));
 
   Locations = runLocateSymbolAt(Server, FooCpp, SourceAnnotations.point("7"));
   ASSERT_TRUE(bool(Locations)) << "locateSymbolAt returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo.h", HeaderAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo.h", HeaderAnnotations.range(),
                                           HeaderAnnotations.range())));
 
   // Objective C #import directive.
@@ -1454,7 +1549,7 @@ TEST(GoToInclude, All) {
   runAddDocument(Server, FooM, ObjC.code());
   Locations = runLocateSymbolAt(Server, FooM, ObjC.point());
   ASSERT_TRUE(bool(Locations)) << "locateSymbolAt returned an error";
-  EXPECT_THAT(*Locations, ElementsAre(Sym("foo.h", HeaderAnnotations.range(),
+  EXPECT_THAT(*Locations, ElementsAre(sym("foo.h", HeaderAnnotations.range(),
                                           HeaderAnnotations.range())));
 }
 
@@ -1480,7 +1575,7 @@ TEST(LocateSymbol, WithPreamble) {
   // LocateSymbol goes to a #include file: the result comes from the preamble.
   EXPECT_THAT(
       cantFail(runLocateSymbolAt(Server, FooCpp, FooWithHeader.point())),
-      ElementsAre(Sym("foo.h", FooHeader.range(), FooHeader.range())));
+      ElementsAre(sym("foo.h", FooHeader.range(), FooHeader.range())));
 
   // Only preamble is built, and no AST is built in this request.
   Server.addDocument(FooCpp, FooWithoutHeader.code(), "null",
@@ -1489,7 +1584,7 @@ TEST(LocateSymbol, WithPreamble) {
   // stale one.
   EXPECT_THAT(
       cantFail(runLocateSymbolAt(Server, FooCpp, FooWithoutHeader.point())),
-      ElementsAre(Sym("foo", FooWithoutHeader.range(), llvm::None)));
+      ElementsAre(sym("foo", FooWithoutHeader.range(), llvm::None)));
 
   // Reset test environment.
   runAddDocument(Server, FooCpp, FooWithHeader.code());
@@ -1499,7 +1594,7 @@ TEST(LocateSymbol, WithPreamble) {
   // Use the AST being built in above request.
   EXPECT_THAT(
       cantFail(runLocateSymbolAt(Server, FooCpp, FooWithoutHeader.point())),
-      ElementsAre(Sym("foo", FooWithoutHeader.range(), llvm::None)));
+      ElementsAre(sym("foo", FooWithoutHeader.range(), llvm::None)));
 }
 
 TEST(LocateSymbol, NearbyTokenSmoke) {
@@ -1510,7 +1605,7 @@ TEST(LocateSymbol, NearbyTokenSmoke) {
   auto AST = TestTU::withCode(T.code()).build();
   // We don't pass an index, so can't hit index-based fallback.
   EXPECT_THAT(locateSymbolAt(AST, T.point()),
-              ElementsAre(Sym("err", T.range(), T.range())));
+              ElementsAre(sym("err", T.range(), T.range())));
 }
 
 TEST(LocateSymbol, NearbyIdentifier) {
@@ -1659,7 +1754,7 @@ TEST(FindImplementations, Inheritance) {
   for (StringRef Label : {"0", "1", "2", "3", "4", "5", "6", "7"}) {
     for (const auto &Point : Code.points(Label)) {
       EXPECT_THAT(findImplementations(AST, Point, Index.get()),
-                  UnorderedPointwise(DeclRange(), Code.ranges(Label)))
+                  UnorderedPointwise(declRange(), Code.ranges(Label)))
           << Code.code() << " at " << Point << " for Label " << Label;
     }
   }
@@ -1683,16 +1778,113 @@ TEST(FindImplementations, CaptureDefintion) {
   auto AST = TU.build();
   EXPECT_THAT(
       findImplementations(AST, Code.point(), TU.index().get()),
-      UnorderedElementsAre(Sym("Foo", Code.range("Decl"), Code.range("Def")),
-                           Sym("Foo", Code.range("Child2"), llvm::None)))
+      UnorderedElementsAre(sym("Foo", Code.range("Decl"), Code.range("Def")),
+                           sym("Foo", Code.range("Child2"), llvm::None)))
       << Test;
+}
+
+TEST(FindType, All) {
+  Annotations HeaderA(R"cpp(
+    struct [[Target]] { operator int() const; };
+    struct Aggregate { Target a, b; };
+    Target t;
+
+    template <typename T> class smart_ptr {
+      T& operator*();
+      T* operator->();
+      T* get();
+    };
+  )cpp");
+  auto TU = TestTU::withHeaderCode(HeaderA.code());
+  for (const llvm::StringRef Case : {
+           "str^uct Target;",
+           "T^arget x;",
+           "Target ^x;",
+           "a^uto x = Target{};",
+           "namespace m { Target tgt; } auto x = m^::tgt;",
+           "Target funcCall(); auto x = ^funcCall();",
+           "Aggregate a = { {}, ^{} };",
+           "Aggregate a = { ^.a=t, };",
+           "struct X { Target a; X() : ^a() {} };",
+           "^using T = Target; ^T foo();",
+           "^template <int> Target foo();",
+           "void x() { try {} ^catch(Target e) {} }",
+           "void x() { ^throw t; }",
+           "int x() { ^return t; }",
+           "void x() { ^switch(t) {} }",
+           "void x() { ^delete (Target*)nullptr; }",
+           "Target& ^tref = t;",
+           "void x() { ^if (t) {} }",
+           "void x() { ^while (t) {} }",
+           "void x() { ^do { } while (t); }",
+           "^auto x = []() { return t; };",
+           "Target* ^tptr = &t;",
+           "Target ^tarray[3];",
+       }) {
+    Annotations A(Case);
+    TU.Code = A.code().str();
+    ParsedAST AST = TU.build();
+
+    ASSERT_GT(A.points().size(), 0u) << Case;
+    for (auto Pos : A.points())
+      EXPECT_THAT(findType(AST, Pos),
+                  ElementsAre(sym("Target", HeaderA.range(), HeaderA.range())))
+          << Case;
+  }
+
+  // FIXME: We'd like these cases to work. Fix them and move above.
+  for (const llvm::StringRef Case : {
+           "smart_ptr<Target> ^tsmart;",
+       }) {
+    Annotations A(Case);
+    TU.Code = A.code().str();
+    ParsedAST AST = TU.build();
+
+    EXPECT_THAT(findType(AST, A.point()),
+                Not(Contains(sym("Target", HeaderA.range(), HeaderA.range()))))
+        << Case;
+  }
+}
+
+void checkFindRefs(llvm::StringRef Test, bool UseIndex = false) {
+  Annotations T(Test);
+  auto TU = TestTU::withCode(T.code());
+  auto AST = TU.build();
+  std::vector<Matcher<ReferencesResult::Reference>> ExpectedLocations;
+  for (const auto &R : T.ranges())
+    ExpectedLocations.push_back(AllOf(rangeIs(R), attrsAre(0u)));
+  // $def is actually shorthand for both definition and declaration.
+  // If we have cases that are definition-only, we should change this.
+  for (const auto &R : T.ranges("def"))
+    ExpectedLocations.push_back(
+        AllOf(rangeIs(R), attrsAre(ReferencesResult::Definition |
+                                   ReferencesResult::Declaration)));
+  for (const auto &R : T.ranges("decl"))
+    ExpectedLocations.push_back(
+        AllOf(rangeIs(R), attrsAre(ReferencesResult::Declaration)));
+  for (const auto &R : T.ranges("overridedecl"))
+    ExpectedLocations.push_back(AllOf(
+        rangeIs(R),
+        attrsAre(ReferencesResult::Declaration | ReferencesResult::Override)));
+  for (const auto &R : T.ranges("overridedef"))
+    ExpectedLocations.push_back(
+        AllOf(rangeIs(R), attrsAre(ReferencesResult::Declaration |
+                                   ReferencesResult::Definition |
+                                   ReferencesResult::Override)));
+  for (const auto &P : T.points()) {
+    EXPECT_THAT(findReferences(AST, P, 0, UseIndex ? TU.index().get() : nullptr)
+                    .References,
+                UnorderedElementsAreArray(ExpectedLocations))
+        << "Failed for Refs at " << P << "\n"
+        << Test;
+  }
 }
 
 TEST(FindReferences, WithinAST) {
   const char *Tests[] = {
       R"cpp(// Local variable
         int main() {
-          int [[foo]];
+          int $def[[foo]];
           [[^foo]] = 2;
           int test1 = [[foo]];
         }
@@ -1700,7 +1892,7 @@ TEST(FindReferences, WithinAST) {
 
       R"cpp(// Struct
         namespace ns1 {
-        struct [[Foo]] {};
+        struct $def[[Foo]] {};
         } // namespace ns1
         int main() {
           ns1::[[Fo^o]]* Params;
@@ -1708,15 +1900,15 @@ TEST(FindReferences, WithinAST) {
       )cpp",
 
       R"cpp(// Forward declaration
-        class [[Foo]];
-        class [[Foo]] {};
+        class $decl[[Foo]];
+        class $def[[Foo]] {};
         int main() {
           [[Fo^o]] foo;
         }
       )cpp",
 
       R"cpp(// Function
-        int [[foo]](int) {}
+        int $def[[foo]](int) {}
         int main() {
           auto *X = &[[^foo]];
           [[foo]](42);
@@ -1725,7 +1917,7 @@ TEST(FindReferences, WithinAST) {
 
       R"cpp(// Field
         struct Foo {
-          int [[foo]];
+          int $def[[foo]];
           Foo() : [[foo]](0) {}
         };
         int main() {
@@ -1735,8 +1927,8 @@ TEST(FindReferences, WithinAST) {
       )cpp",
 
       R"cpp(// Method call
-        struct Foo { int [[foo]](); };
-        int Foo::[[foo]]() {}
+        struct Foo { int $decl[[foo]](); };
+        int Foo::$def[[foo]]() {}
         int main() {
           Foo f;
           f.[[^foo]]();
@@ -1745,7 +1937,7 @@ TEST(FindReferences, WithinAST) {
 
       R"cpp(// Constructor
         struct Foo {
-          [[F^oo]](int);
+          $decl[[F^oo]](int);
         };
         void foo() {
           Foo f = [[Foo]](42);
@@ -1753,14 +1945,14 @@ TEST(FindReferences, WithinAST) {
       )cpp",
 
       R"cpp(// Typedef
-        typedef int [[Foo]];
+        typedef int $def[[Foo]];
         int main() {
           [[^Foo]] bar;
         }
       )cpp",
 
       R"cpp(// Namespace
-        namespace [[ns]] {
+        namespace $decl[[ns]] { // FIXME: def?
         struct Foo {};
         } // namespace ns
         int main() { [[^ns]]::Foo foo; }
@@ -1770,7 +1962,7 @@ TEST(FindReferences, WithinAST) {
         #define TYPE(X) X
         #define FOO Foo
         #define CAT(X, Y) X##Y
-        class [[Fo^o]] {};
+        class $def[[Fo^o]] {};
         void test() {
           TYPE([[Foo]]) foo;
           [[FOO]] foo2;
@@ -1780,7 +1972,7 @@ TEST(FindReferences, WithinAST) {
       )cpp",
 
       R"cpp(// Macros
-        #define [[MA^CRO]](X) (X+1)
+        #define $def[[MA^CRO]](X) (X+1)
         void test() {
           int x = [[MACRO]]([[MACRO]](1));
         }
@@ -1788,31 +1980,31 @@ TEST(FindReferences, WithinAST) {
 
       R"cpp(// Macro outside preamble
         int breakPreamble;
-        #define [[MA^CRO]](X) (X+1)
+        #define $def[[MA^CRO]](X) (X+1)
         void test() {
           int x = [[MACRO]]([[MACRO]](1));
         }
       )cpp",
 
       R"cpp(
-        int [[v^ar]] = 0;
+        int $def[[v^ar]] = 0;
         void foo(int s = [[var]]);
       )cpp",
 
       R"cpp(
        template <typename T>
-       class [[Fo^o]] {};
+       class $def[[Fo^o]] {};
        void func([[Foo]]<int>);
       )cpp",
 
       R"cpp(
        template <typename T>
-       class [[Foo]] {};
+       class $def[[Foo]] {};
        void func([[Fo^o]]<int>);
       )cpp",
       R"cpp(// Not touching any identifiers.
         struct Foo {
-          [[~]]Foo() {};
+          $def[[~]]Foo() {};
         };
         void foo() {
           Foo f;
@@ -1821,28 +2013,54 @@ TEST(FindReferences, WithinAST) {
       )cpp",
       R"cpp(// Lambda capture initializer
         void foo() {
-          int [[w^aldo]] = 42;
+          int $def[[w^aldo]] = 42;
           auto lambda = [x = [[waldo]]](){};
         }
       )cpp",
       R"cpp(// Renaming alias
         template <typename> class Vector {};
-        using [[^X]] = Vector<int>;
+        using $def[[^X]] = Vector<int>;
         [[X]] x1;
         Vector<int> x2;
         Vector<double> y;
       )cpp",
+      R"cpp(// Dependent code
+        template <typename T> void $decl[[foo]](T t);
+        template <typename T> void bar(T t) { [[foo]](t); } // foo in bar is uninstantiated.
+        void baz(int x) { [[f^oo]](x); }
+      )cpp",
+      R"cpp(
+        namespace ns {
+        struct S{};
+        void $decl[[foo]](S s);
+        } // namespace ns
+        template <typename T> void foo(T t);
+        // FIXME: Maybe report this foo as a ref to ns::foo (because of ADL)
+        // when bar<ns::S> is instantiated?
+        template <typename T> void bar(T t) { foo(t); }
+        void baz(int x) {
+          ns::S s;
+          bar<ns::S>(s);
+          [[f^oo]](s);
+        }
+      )cpp",
+
+      // Enum base
+      R"cpp(
+        typedef int $def[[MyTypeD^ef]];
+        enum MyEnum : [[MyTy^peDef]] { };
+      )cpp",
+      R"cpp(
+        typedef int $def[[MyType^Def]];
+        enum MyEnum : [[MyTypeD^ef]];
+      )cpp",
+      R"cpp(
+        using $def[[MyTypeD^ef]] = int;
+        enum MyEnum : [[MyTy^peDef]] { };
+      )cpp",
   };
-  for (const char *Test : Tests) {
-    Annotations T(Test);
-    auto AST = TestTU::withCode(T.code()).build();
-    std::vector<Matcher<Location>> ExpectedLocations;
-    for (const auto &R : T.ranges())
-      ExpectedLocations.push_back(RangeIs(R));
-    EXPECT_THAT(findReferences(AST, T.point(), 0).References,
-                ElementsAreArray(ExpectedLocations))
-        << Test;
-  }
+  for (const char *Test : Tests)
+    checkFindRefs(Test);
 }
 
 TEST(FindReferences, IncludeOverrides) {
@@ -1850,24 +2068,44 @@ TEST(FindReferences, IncludeOverrides) {
       R"cpp(
         class Base {
         public:
-          virtual void [[f^unc]]() = 0;
+          virtu^al void $decl[[f^unc]]() ^= ^0;
         };
         class Derived : public Base {
         public:
-          void [[func]]() override;
+          void $overridedecl[[func]]() override;
+        };
+        void Derived::$overridedef[[func]]() {}
+        class Derived2 : public Base {
+          void $overridedef[[func]]() override {}
         };
         void test(Derived* D) {
-          D->[[func]]();
+          D->func();  // No references to the overrides.
         })cpp";
-  Annotations T(Test);
-  auto TU = TestTU::withCode(T.code());
-  auto AST = TU.build();
-  std::vector<Matcher<Location>> ExpectedLocations;
-  for (const auto &R : T.ranges())
-    ExpectedLocations.push_back(RangeIs(R));
-  EXPECT_THAT(findReferences(AST, T.point(), 0, TU.index().get()).References,
-              ElementsAreArray(ExpectedLocations))
-      << Test;
+  checkFindRefs(Test, /*UseIndex=*/true);
+}
+
+TEST(FindReferences, RefsToBaseMethod) {
+  llvm::StringRef Test =
+      R"cpp(
+        class BaseBase {
+        public:
+          virtual void [[func]]();
+        };
+        class Base : public BaseBase {
+        public:
+          void [[func]]() override;
+        };
+        class Derived : public Base {
+        public:
+          void $decl[[fu^nc]]() over^ride;
+        };
+        void test(BaseBase* BB, Base* B, Derived* D) {
+          // refs to overridden methods in complete type hierarchy are reported.
+          BB->[[func]]();
+          B->[[func]]();
+          D->[[fu^nc]]();
+        })cpp";
+  checkFindRefs(Test, /*UseIndex=*/true);
 }
 
 TEST(FindReferences, MainFileReferencesOnly) {
@@ -1886,9 +2124,9 @@ TEST(FindReferences, MainFileReferencesOnly) {
     )cpp";
   auto AST = TU.build();
 
-  std::vector<Matcher<Location>> ExpectedLocations;
+  std::vector<Matcher<ReferencesResult::Reference>> ExpectedLocations;
   for (const auto &R : Code.ranges())
-    ExpectedLocations.push_back(RangeIs(R));
+    ExpectedLocations.push_back(rangeIs(R));
   EXPECT_THAT(findReferences(AST, Code.point(), 0).References,
               ElementsAreArray(ExpectedLocations))
       << Test;
@@ -1897,7 +2135,7 @@ TEST(FindReferences, MainFileReferencesOnly) {
 TEST(FindReferences, ExplicitSymbols) {
   const char *Tests[] = {
       R"cpp(
-      struct Foo { Foo* [[self]]() const; };
+      struct Foo { Foo* $decl[[self]]() const; };
       void f() {
         Foo foo;
         if (Foo* T = foo.[[^self]]()) {} // Foo member call expr.
@@ -1907,7 +2145,7 @@ TEST(FindReferences, ExplicitSymbols) {
       R"cpp(
       struct Foo { Foo(int); };
       Foo f() {
-        int [[b]];
+        int $def[[b]];
         return [[^b]]; // Foo constructor expr.
       }
       )cpp",
@@ -1915,18 +2153,18 @@ TEST(FindReferences, ExplicitSymbols) {
       R"cpp(
       struct Foo {};
       void g(Foo);
-      Foo [[f]]();
+      Foo $decl[[f]]();
       void call() {
         g([[^f]]());  // Foo constructor expr.
       }
       )cpp",
 
       R"cpp(
-      void [[foo]](int);
-      void [[foo]](double);
+      void $decl[[foo]](int);
+      void $decl[[foo]](double);
 
       namespace ns {
-      using ::[[fo^o]];
+      using ::$decl[[fo^o]];
       }
       )cpp",
 
@@ -1936,23 +2174,14 @@ TEST(FindReferences, ExplicitSymbols) {
       };
 
       int test() {
-        X [[a]];
+        X $def[[a]];
         [[a]].operator bool();
         if ([[a^]]) {} // ignore implicit conversion-operator AST node
       }
     )cpp",
   };
-  for (const char *Test : Tests) {
-    Annotations T(Test);
-    auto AST = TestTU::withCode(T.code()).build();
-    std::vector<Matcher<Location>> ExpectedLocations;
-    for (const auto &R : T.ranges())
-      ExpectedLocations.push_back(RangeIs(R));
-    ASSERT_THAT(ExpectedLocations, Not(IsEmpty()));
-    EXPECT_THAT(findReferences(AST, T.point(), 0).References,
-                ElementsAreArray(ExpectedLocations))
-        << Test;
-  }
+  for (const char *Test : Tests)
+    checkFindRefs(Test);
 }
 
 TEST(FindReferences, NeedsIndexForSymbols) {
@@ -1966,9 +2195,9 @@ TEST(FindReferences, NeedsIndexForSymbols) {
   // References in main file are returned without index.
   EXPECT_THAT(
       findReferences(AST, Main.point(), 0, /*Index=*/nullptr).References,
-      ElementsAre(RangeIs(Main.range())));
+      ElementsAre(rangeIs(Main.range())));
   Annotations IndexedMain(R"cpp(
-    int main() { [[f^oo]](); }
+    int [[foo]]() { return 42; }
   )cpp");
 
   // References from indexed files are included.
@@ -1978,7 +2207,10 @@ TEST(FindReferences, NeedsIndexForSymbols) {
   IndexedTU.HeaderCode = Header;
   EXPECT_THAT(
       findReferences(AST, Main.point(), 0, IndexedTU.index().get()).References,
-      ElementsAre(RangeIs(Main.range()), RangeIs(IndexedMain.range())));
+      ElementsAre(rangeIs(Main.range()),
+                  AllOf(rangeIs(IndexedMain.range()),
+                        attrsAre(ReferencesResult::Declaration |
+                                 ReferencesResult::Definition))));
   auto LimitRefs =
       findReferences(AST, Main.point(), /*Limit*/ 1, IndexedTU.index().get());
   EXPECT_EQ(1u, LimitRefs.References.size());
@@ -1987,7 +2219,7 @@ TEST(FindReferences, NeedsIndexForSymbols) {
   // Avoid indexed results for the main file. Use AST for the mainfile.
   TU.Code = ("\n\n" + Main.code()).str();
   EXPECT_THAT(findReferences(AST, Main.point(), 0, TU.index().get()).References,
-              ElementsAre(RangeIs(Main.range())));
+              ElementsAre(rangeIs(Main.range())));
 }
 
 TEST(FindReferences, NeedsIndexForMacro) {
@@ -2005,7 +2237,7 @@ TEST(FindReferences, NeedsIndexForMacro) {
   // References in main file are returned without index.
   EXPECT_THAT(
       findReferences(AST, Main.point(), 0, /*Index=*/nullptr).References,
-      ElementsAre(RangeIs(Main.range())));
+      ElementsAre(rangeIs(Main.range())));
 
   Annotations IndexedMain(R"cpp(
     int indexed_main() {
@@ -2020,7 +2252,7 @@ TEST(FindReferences, NeedsIndexForMacro) {
   IndexedTU.HeaderCode = Header;
   EXPECT_THAT(
       findReferences(AST, Main.point(), 0, IndexedTU.index().get()).References,
-      ElementsAre(RangeIs(Main.range()), RangeIs(IndexedMain.range())));
+      ElementsAre(rangeIs(Main.range()), rangeIs(IndexedMain.range())));
   auto LimitRefs =
       findReferences(AST, Main.point(), /*Limit*/ 1, IndexedTU.index().get());
   EXPECT_EQ(1u, LimitRefs.References.size());

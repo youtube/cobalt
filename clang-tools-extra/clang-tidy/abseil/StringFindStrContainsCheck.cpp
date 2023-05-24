@@ -53,7 +53,7 @@ makeRewriteRule(const std::vector<std::string> &StringLikeClassNames,
       to(varDecl(hasName("npos"), hasDeclContext(StringLikeClass))));
   auto StringFind = cxxMemberCallExpr(
       callee(cxxMethodDecl(
-          hasName("find"),
+          hasName("find"), parameterCountIs(2),
           hasParameter(
               0, parmVarDecl(anyOf(hasType(StringType), hasType(CharStarType),
                                    hasType(CharType)))))),
@@ -62,7 +62,7 @@ makeRewriteRule(const std::vector<std::string> &StringLikeClassNames,
             hasArgument(1, cxxDefaultArgExpr())),
       onImplicitObjectArgument(expr().bind("string_being_searched")));
 
-  RewriteRule rule = applyFirst(
+  RewriteRule Rule = applyFirst(
       {makeRule(
            binaryOperator(hasOperatorName("=="),
                           hasOperands(ignoringParenImpCasts(StringNpos),
@@ -80,7 +80,7 @@ makeRewriteRule(const std::vector<std::string> &StringLikeClassNames,
             addInclude(AbseilStringsMatchHeader)},
            cat("use absl::StrContains instead "
                "of find() != npos"))});
-  return rule;
+  return Rule;
 }
 
 StringFindStrContainsCheck::StringFindStrContainsCheck(

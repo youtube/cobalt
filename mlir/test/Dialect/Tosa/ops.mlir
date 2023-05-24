@@ -10,10 +10,31 @@ func @test_argmax(%arg0: tensor<14x19xf32>) -> tensor<14xi32> {
 }
 
 // -----
-// CHECK-LABEL: avg_pool2d
-func @test_avg_pool2d(%arg0: tensor<1x7x7x9xf32>) -> tensor<1x7x7x9xf32> {
+// CHECK-LABEL: avg_pool2d_f32
+func @test_avg_pool2d_f32(%arg0: tensor<1x7x7x9xf32>) -> tensor<1x7x7x9xf32> {
     %0 = "tosa.avg_pool2d"(%arg0) {kernel = [2, 2], pad = [0, 1, 0, 1], stride = [1, 1]} : (tensor<1x7x7x9xf32>) -> tensor<1x7x7x9xf32>
     return %0 : tensor<1x7x7x9xf32>
+}
+
+// -----
+// CHECK-LABEL: avg_pool2d_i8
+func @test_avg_pool2d_i8(%arg0: tensor<1x7x7x9xi8>) -> tensor<1x7x7x9xi8> {
+    %0 = "tosa.avg_pool2d"(%arg0) {kernel = [2, 2], pad = [0, 1, 0, 1], stride = [1, 1]} : (tensor<1x7x7x9xi8>) -> tensor<1x7x7x9xi8>
+    return %0 : tensor<1x7x7x9xi8>
+}
+
+// -----
+// CHECK-LABEL: avg_pool2d_i16
+func @test_avg_pool2d_i16(%arg0: tensor<1x7x7x9xi16>) -> tensor<1x7x7x9xi16> {
+    %0 = "tosa.avg_pool2d"(%arg0) {kernel = [2, 2], pad = [0, 1, 0, 1], stride = [1, 1]} : (tensor<1x7x7x9xi16>) -> tensor<1x7x7x9xi16>
+    return %0 : tensor<1x7x7x9xi16>
+}
+
+// -----
+// CHECK-LABEL: avg_pool2d_q8
+func @test_avg_pool2d_q8(%arg0: tensor<1x7x7x9x!quant.uniform<i8:f32, 0.01>>) -> tensor<1x7x7x9x!quant.uniform<i8:f32, 0.01>> {
+    %0 = "tosa.avg_pool2d"(%arg0) {kernel = [2, 2], pad = [0, 1, 0, 1], stride = [1, 1]} : (tensor<1x7x7x9x!quant.uniform<i8:f32, 0.01>>) -> tensor<1x7x7x9x!quant.uniform<i8:f32, 0.01>>
+    return %0 : tensor<1x7x7x9x!quant.uniform<i8:f32, 0.01>>
 }
 
 // -----
@@ -39,9 +60,9 @@ func @test_fully_connected(%arg0: tensor<14x19xf32>, %arg1: tensor<19x28xf32>, %
 
 // -----
 // CHECK-LABEL: test_matmul
-func @test_matmul(%arg0: tensor<14x19xf32>, %arg1: tensor<19x28xf32>) -> tensor<14x28xf32> {
-  %0 = "tosa.matmul"(%arg0, %arg1) : (tensor<14x19xf32>, tensor<19x28xf32>) -> tensor<14x28xf32>
-  return %0 : tensor<14x28xf32>
+func @test_matmul(%arg0: tensor<1x14x19xf32>, %arg1: tensor<1x19x28xf32>) -> tensor<1x14x28xf32> {
+  %0 = "tosa.matmul"(%arg0, %arg1) : (tensor<1x14x19xf32>, tensor<1x19x28xf32>) -> tensor<1x14x28xf32>
+  return %0 : tensor<1x14x28xf32>
 }
 
 // -----
@@ -101,7 +122,6 @@ func @test_arithmetic_right_shift(%arg0: tensor<13x21x1xf32>, %arg1: tensor<13x2
   return %0 : tensor<13x21x3xf32>
 }
 
-
 // -----
 // CHECK-LABEL: bitwise_and
 func @test_bitwise_and(%arg0: tensor<13x21x3xi32>, %arg1: tensor<13x21x1xi32>) -> tensor<13x21x3xi32> {
@@ -120,6 +140,13 @@ func @test_bitwise_or(%arg0: tensor<13x21x3xi32>, %arg1: tensor<13x1x3xi32>) -> 
 // CHECK-LABEL: bitwise_xor
 func @test_bitwise_xor(%arg0: tensor<13x21x1xi32>, %arg1: tensor<13x21x3xi32>) -> tensor<13x21x3xi32> {
   %0 = "tosa.bitwise_xor"(%arg0, %arg1) : (tensor<13x21x1xi32>, tensor<13x21x3xi32>) -> tensor<13x21x3xi32>
+  return %0 : tensor<13x21x3xi32>
+}
+
+// -----
+// CHECK-LABEL: div
+func @test_div(%arg0: tensor<13x21x1xi32>, %arg1: tensor<13x21x3xi32>) -> tensor<13x21x3xi32> {
+  %0 = "tosa.div"(%arg0, %arg1) : (tensor<13x21x1xi32>, tensor<13x21x3xi32>) -> tensor<13x21x3xi32>
   return %0 : tensor<13x21x3xi32>
 }
 
@@ -369,6 +396,14 @@ func @test_pad(%arg0: tensor<13x21x3xf32>, %arg1: tensor<3x2xi32>) -> tensor<13x
 }
 
 // -----
+// CHECK-LABEL: pad_explicit_value
+func @test_pad_explicit_value(%arg0: tensor<13x21x3xf32>, %arg1: tensor<3x2xi32>) -> tensor<13x21x3xf32> {
+  %0 = "tosa.const"() {value = dense<3.14> : tensor<f32>} : () -> tensor<f32>
+  %1 = "tosa.pad"(%arg0, %arg1, %0) : (tensor<13x21x3xf32>, tensor<3x2xi32>, tensor<f32>) -> tensor<13x21x3xf32>
+  return %1 : tensor<13x21x3xf32>
+}
+
+// -----
 // CHECK-LABEL: reshape
 func @test_reshape(%arg0: tensor<13x21x3xf32>) -> tensor<1x819xf32> {
   %0 = "tosa.reshape"(%arg0) {new_shape = [1, 819]} : (tensor<13x21x3xf32>) -> tensor<1x819xf32>
@@ -406,18 +441,24 @@ func @test_transpose(%arg0: tensor<13x21x3xf32>) -> tensor<3x13x21xf32> {
 
 // -----
 // CHECK-LABEL: gather
-func @test_gather(%arg0: tensor<13x21x3xi32>, %arg1: tensor<26xi32>) -> tensor<26x21x3xi32> {
-  %0 = "tosa.gather"(%arg0, %arg1) {axis = 0 : i32, batch_dims = 0 : i64} : (tensor<13x21x3xi32>, tensor<26xi32>) -> tensor<26x21x3xi32>
-  return %0 : tensor<26x21x3xi32>
+func @test_gather(%arg0: tensor<13x21x3xf32>, %arg1: tensor<13x26xi32>) -> tensor<13x26x3xf32> {
+  %0 = "tosa.gather"(%arg0, %arg1) : (tensor<13x21x3xf32>, tensor<13x26xi32>) -> tensor<13x26x3xf32>
+  return %0 : tensor<13x26x3xf32>
 }
 
-// Test TBD
-// DISABLED-CHECK-LABEL: resize
-//func @test_resize(%arg0: tensor<1x32x32x8xf32>) -> tensor<1x64x64x8xf32> {
-//  %0 = "tosa.const"() {value = dense<64> : tensor<2xi32>} : () -> tensor<2xi32>
-//  %1 = "tosa.resize"(%arg0, %0) {align_corners = false, half_pixel_centers = true} : (tensor<1x32x32x8xf32>, tensor<2xi32>) -> tensor<1x64x64x8xf32>
-//  return %1 : tensor<1x64x64x8xf32>
-//}
+// -----
+// CHECK-LABEL: scatter
+func @test_scatter(%arg0: tensor<13x21x3xf32>, %arg1: tensor<13x26xi32>, %arg2: tensor<13x26x3xf32>) -> tensor<13x21x3xf32> {
+  %0 = "tosa.scatter"(%arg0, %arg1, %arg2) : (tensor<13x21x3xf32>, tensor<13x26xi32>, tensor<13x26x3xf32>) -> tensor<13x21x3xf32>
+  return %0 : tensor<13x21x3xf32>
+}
+
+// -----
+// CHECK-LABEL: resize
+func @test_resize(%arg0: tensor<1x32x32x8xf32>) -> tensor<1x64x64x8xf32> {
+  %1 = "tosa.resize"(%arg0) {output_size = [64, 64], stride = [1024, 1024], offset = [0, 0], shift = 10 : i32, stride_fp = [0.0 : f32, 0.0 : f32], offset_fp = [0.0 : f32, 0.0 : f32], mode = "BILINEAR"} : (tensor<1x32x32x8xf32>) -> tensor<1x64x64x8xf32>
+  return %1 : tensor<1x64x64x8xf32>
+}
 
 // -----
 // CHECK-LABEL: cast
@@ -462,28 +503,14 @@ func @test_identity(%arg0: tensor<13x21x3xi32>) -> tensor<13x21x3xi32> {
 }
 
 // -----
-// CHECK-LABEL: identityn
-func @test_identityn(%arg0: tensor<1xi32>, %arg1: tensor<1xi32>) -> tensor<1xi32> {
-  %0:2 = "tosa.identityn"(%arg0, %arg1) : (tensor<1xi32>, tensor<1xi32>) -> (tensor<1xi32>, tensor<1xi32>)
-  return %0#0 : tensor<1xi32>
-}
-
-// -----
-// CHECK-LABEL: placeholder
-func @test_placeholder() -> tensor<1xi32> {
-  %0 = "tosa.placeholder"() : () -> tensor<1xi32>
-  return %0 : tensor<1xi32>
-}
-
-// -----
 // CHECK-LABEL: cond_if
 func @test_cond_if(%arg0: tensor<f32>, %arg1: tensor<f32>, %arg2: tensor<i1>) -> tensor<f32> {
-  %0 = "tosa.cond_if"(%arg2, %arg0, %arg1) ( {
-  ^bb0(%arg3: tensor<f32>, %arg4: tensor<f32>):  // no predecessors
+  %0 = "tosa.cond_if"(%arg2, %arg0, %arg1) ({
+  ^bb0(%arg3: tensor<f32>, %arg4: tensor<f32>):  
     %1 = "tosa.add"(%arg3, %arg4) : (tensor<f32>, tensor<f32>) -> tensor<f32>
     "tosa.yield"(%1) : (tensor<f32>) -> ()
   },  {
-  ^bb0(%arg3: tensor<f32>, %arg4: tensor<f32>):  // no predecessors
+  ^bb0(%arg3: tensor<f32>, %arg4: tensor<f32>):  
     %1 = "tosa.sub"(%arg3, %arg4) : (tensor<f32>, tensor<f32>) -> tensor<f32>
     "tosa.yield"(%1) : (tensor<f32>) -> ()
   }) : (tensor<i1>, tensor<f32>, tensor<f32>) -> tensor<f32>
@@ -494,13 +521,13 @@ func @test_cond_if(%arg0: tensor<f32>, %arg1: tensor<f32>, %arg2: tensor<i1>) ->
 // CHECK-LABEL: while_loop
 func @test_while_loop(%arg0: tensor<10xi32>, %arg1: tensor<i32>) {
   %0 = "tosa.const"() {value = dense<0> : tensor<i32>} : () -> tensor<i32>
-  %1:3 = "tosa.while_loop"(%0, %0, %arg0) ( {
-  ^bb0(%arg2: tensor<i32>, %arg3: tensor<i32>, %arg4: tensor<10xi32>):  // no predecessors
+  %1:3 = "tosa.while_loop"(%0, %0, %arg0) ({
+  ^bb0(%arg2: tensor<i32>, %arg3: tensor<i32>, %arg4: tensor<10xi32>):  
     %2 = "tosa.greater_equal"(%arg3, %arg1) : (tensor<i32>, tensor<i32>) -> tensor<i1>
     %3 = "tosa.logical_not"(%2) : (tensor<i1>) -> tensor<i1>
     "tosa.yield"(%3) : (tensor<i1>) -> ()
   },  {
-  ^bb0(%arg2: tensor<i32>, %arg3: tensor<i32>, %arg4: tensor<10xi32>):  // no predecessors
+  ^bb0(%arg2: tensor<i32>, %arg3: tensor<i32>, %arg4: tensor<10xi32>):  
     %2 = "tosa.const"() {value = dense<1> : tensor<i32>} : () -> tensor<i32>
     %3 = "tosa.add"(%arg3, %2) : (tensor<i32>, tensor<i32>) -> tensor<i32>
     %4 = "tosa.reshape"(%2) {new_shape = [1]} : (tensor<i32>) -> tensor<1xi32>

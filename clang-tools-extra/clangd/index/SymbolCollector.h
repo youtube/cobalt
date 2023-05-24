@@ -5,8 +5,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_INDEX_SYMBOL_COLLECTOR_H
-#define LLVM_CLANG_TOOLS_EXTRA_CLANGD_INDEX_SYMBOL_COLLECTOR_H
+#ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_INDEX_SYMBOLCOLLECTOR_H
+#define LLVM_CLANG_TOOLS_EXTRA_CLANGD_INDEX_SYMBOLCOLLECTOR_H
 
 #include "CanonicalIncludes.h"
 #include "CollectMacros.h"
@@ -81,6 +81,9 @@ public:
     bool CollectMainFileSymbols = true;
     /// Collect references to main-file symbols.
     bool CollectMainFileRefs = false;
+    /// Collect symbols with reserved names, like __Vector_base.
+    /// This does not currently affect macros (many like _WIN32 are important!)
+    bool CollectReserved = false;
     /// If set to true, SymbolCollector will collect doc for all symbols.
     /// Note that documents of symbols being indexed for completion will always
     /// be collected regardless of this option.
@@ -91,6 +94,7 @@ public:
   };
 
   SymbolCollector(Options Opts);
+  ~SymbolCollector();
 
   /// Returns true is \p ND should be collected.
   static bool shouldCollectSymbol(const NamedDecl &ND, const ASTContext &ASTCtx,
@@ -99,8 +103,9 @@ public:
   void initialize(ASTContext &Ctx) override;
 
   void setPreprocessor(std::shared_ptr<Preprocessor> PP) override {
-    this->PP = std::move(PP);
+    this->PP = PP.get();
   }
+  void setPreprocessor(Preprocessor &PP) { this->PP = &PP; }
 
   bool
   handleDeclOccurrence(const Decl *D, index::SymbolRoleSet Roles,
@@ -132,10 +137,9 @@ private:
   void processRelations(const NamedDecl &ND, const SymbolID &ID,
                         ArrayRef<index::SymbolRelation> Relations);
 
+  llvm::Optional<SymbolLocation> getTokenLocation(SourceLocation TokLoc);
+
   llvm::Optional<std::string> getIncludeHeader(const Symbol &S, FileID);
-  bool isSelfContainedHeader(FileID);
-  // Heuristically headers that only want to be included via an umbrella.
-  static bool isDontIncludeMeHeader(llvm::StringRef);
 
   // All Symbols collected from the AST.
   SymbolSlab::Builder Symbols;
@@ -153,7 +157,7 @@ private:
   // All relations collected from the AST.
   RelationSlab::Builder Relations;
   ASTContext *ASTCtx;
-  std::shared_ptr<Preprocessor> PP;
+  Preprocessor *PP = nullptr;
   std::shared_ptr<GlobalCodeCompletionAllocator> CompletionAllocator;
   std::unique_ptr<CodeCompletionTUInfo> CompletionTUInfo;
   Options Opts;
@@ -175,7 +179,10 @@ private:
   llvm::DenseMap<const Decl *, const Decl *> CanonicalDecls;
   // Cache whether to index a file or not.
   llvm::DenseMap<FileID, bool> FilesToIndexCache;
-  llvm::DenseMap<FileID, bool> HeaderIsSelfContainedCache;
+  // Encapsulates calculations and caches around header paths, which headers
+  // to insert for which symbol, etc.
+  class HeaderFileURICache;
+  std::unique_ptr<HeaderFileURICache> HeaderFileURIs;
 };
 
 } // namespace clangd

@@ -9,8 +9,11 @@
 #ifndef MLIR_DIALECT_LINALG_TRANSFORMS_CODEGENSTRATEGY_H_
 #define MLIR_DIALECT_LINALG_TRANSFORMS_CODEGENSTRATEGY_H_
 
+#include <utility>
+
 #include "mlir/Conversion/VectorToSCF/VectorToSCF.h"
-#include "mlir/Dialect/Linalg/Transforms/Transforms.h"
+#include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Pass/PassManager.h"
 
 namespace mlir {
 
@@ -21,141 +24,311 @@ namespace linalg {
 /// Abstract Transformation class applied in a sequence that also handles state
 /// through markers.
 struct Transformation {
+  explicit Transformation(LinalgTransformationFilter::FilterFunction f)
+      : filter(std::move(f)) {}
   virtual ~Transformation() = default;
-  virtual OwningRewritePatternList
-  buildRewritePatterns(MLIRContext *context, linalg::LinalgMarker m) = 0;
-  linalg::LinalgMarker marker;
+  virtual void addToPassPipeline(OpPassManager &pm,
+                                 LinalgTransformationFilter m) const = 0;
+  LinalgTransformationFilter::FilterFunction filter = nullptr;
 };
 
-/// Promotion transformation enqueues a particular stage-1 pattern for
-/// `Tile<LinalgOpType>`with the appropriate `options`.
-template <typename LinalgOpType>
-struct Tile : public Transformation {
-  explicit Tile(linalg::LinalgTilingOptions options) : options(options) {}
+/// Represent one application of LinalgStrategyTileAndFusePass.
+struct TileAndFuse : public Transformation {
+  TileAndFuse(StringRef name, linalg::LinalgTilingAndFusionOptions options,
+              LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)), opName(name),
+        options(std::move(options)) {}
 
-  OwningRewritePatternList
-  buildRewritePatterns(MLIRContext *context, linalg::LinalgMarker m) override {
-    OwningRewritePatternList tilingPatterns;
-    tilingPatterns.insert<linalg::LinalgTilingPattern<LinalgOpType>>(
-        context, options, m);
-    return tilingPatterns;
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyTileAndFusePass(opName, options, m));
   }
 
 private:
+  std::string opName;
+  linalg::LinalgTilingAndFusionOptions options;
+};
+
+/// Represent one application of LinalgStrategyTilePass.
+struct Tile : public Transformation {
+  Tile(StringRef name, linalg::LinalgTilingOptions options,
+       LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)), opName(name),
+        options(std::move(options)) {}
+
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyTilePass(opName, options, m));
+  }
+
+private:
+  std::string opName;
   linalg::LinalgTilingOptions options;
 };
 
-/// Promotion transformation enqueues a particular stage-1 pattern for
-/// `Promote<LinalgOpType>`with the appropriate `options`.
-template <typename LinalgOpType>
-struct Promote : public Transformation {
-  explicit Promote(linalg::LinalgPromotionOptions options) : options(options) {}
+/// Represent one application of LinalgStrategyPadPass.
+struct Pad : public Transformation {
+  Pad(StringRef name, linalg::LinalgPaddingOptions options,
+      LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)), opName(name),
+        options(std::move(options)) {}
 
-  OwningRewritePatternList
-  buildRewritePatterns(MLIRContext *context, linalg::LinalgMarker m) override {
-    OwningRewritePatternList promotionPatterns;
-    promotionPatterns.insert<linalg::LinalgPromotionPattern<LinalgOpType>>(
-        context, options, m);
-    return promotionPatterns;
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyPadPass(opName, options, m));
   }
 
 private:
+  std::string opName;
+  linalg::LinalgPaddingOptions options;
+};
+
+/// Represent one application of createLinalgStrategyPromotePass.
+struct Promote : public Transformation {
+  Promote(StringRef name, linalg::LinalgPromotionOptions options,
+          LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)), opName(name),
+        options(std::move(options)) {}
+
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyPromotePass(opName, options, m));
+  }
+
+private:
+  std::string opName;
   linalg::LinalgPromotionOptions options;
 };
 
-/// Vectorization transformation enqueues a particular stage-1 pattern for
-/// `LinalgVectorizationPattern<LinalgOpType>` as well as copy to vector
-/// transfer rewrite forwarding patterns.
-template <typename LinalgOpType>
-struct Vectorize : public Transformation {
-  OwningRewritePatternList
-  buildRewritePatterns(MLIRContext *context, linalg::LinalgMarker m) override {
-    OwningRewritePatternList vectorizationPatterns;
-    // FillOp may interfere with forwarding patterns atm, so we bump up the
-    // priority of LinalgCopyVTRForwardingPattern /
-    // LinalgCopyVTWForwardingPattern.
-    vectorizationPatterns
-        .insert<linalg::LinalgVectorizationPattern<LinalgOpType>>(context, m);
-    vectorizationPatterns.insert<linalg::LinalgCopyVTRForwardingPattern,
-                                 linalg::LinalgCopyVTWForwardingPattern>(
-        context, /*benefit=*/2);
-    return vectorizationPatterns;
+/// Represent one application of createLinalgStrategyGeneralizePass.
+struct Generalize : public Transformation {
+  explicit Generalize(StringRef name,
+                      LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)), opName(name) {}
+
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyGeneralizePass(opName, m));
+  }
+
+private:
+  std::string opName;
+};
+
+/// Represent one application of createLinalgStrategyInterchangePass.
+struct Interchange : public Transformation {
+  explicit Interchange(ArrayRef<int64_t> iteratorInterchange,
+                       LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)),
+        iteratorInterchange(iteratorInterchange.begin(),
+                            iteratorInterchange.end()) {}
+
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyInterchangePass(iteratorInterchange, m));
+  }
+
+private:
+  SmallVector<int64_t> iteratorInterchange;
+};
+
+/// Represent one application of createLinalgStrategyDecomposePass.
+struct Decompose : public Transformation {
+  explicit Decompose(LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)) {}
+
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyDecomposePass(m));
   }
 };
 
+/// Represent one application of createLinalgStrategyVectorizePass.
+struct Vectorize : public Transformation {
+  explicit Vectorize(linalg::LinalgVectorizationOptions options,
+                     LinalgTransformationFilter::FilterFunction f = nullptr,
+                     bool padVectorize = false)
+      : Transformation(std::move(f)), opName(), options(options),
+        vectorizePadding(padVectorize) {}
+
+  Vectorize(StringRef name, linalg::LinalgVectorizationOptions options,
+            LinalgTransformationFilter::FilterFunction f = nullptr,
+            bool padVectorize = false)
+      : Transformation(std::move(f)), opName(name), options(options),
+        vectorizePadding(padVectorize) {}
+
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyVectorizePass(opName, options, m,
+                                                 vectorizePadding));
+  }
+
+private:
+  std::string opName;
+  linalg::LinalgVectorizationOptions options;
+  bool vectorizePadding;
+};
+
+/// Represent one application of createLinalgStrategyLowerVectorsPass.
+struct VectorLowering : public Transformation {
+  explicit VectorLowering(
+      linalg::LinalgVectorLoweringOptions options,
+      LinalgTransformationFilter::FilterFunction f = nullptr)
+      : Transformation(std::move(f)), options(options) {}
+
+  void addToPassPipeline(OpPassManager &pm,
+                         LinalgTransformationFilter m) const override {
+    pm.addPass(createLinalgStrategyLowerVectorsPass(options, m));
+  }
+
+private:
+  linalg::LinalgVectorLoweringOptions options;
+};
+
 /// Codegen strategy controls how a Linalg op is progressively lowered.
-/// The application uses a 3-level staged patterns strategy which allows
-/// ordering transformations by using the Linalg `applyStagedPatterns` function,
-/// where:
-///   1. The first stage consists of the successive `tile`, `promote` and
-///   `vectorize` patterns, applied sequentially.
-///   2. The second stage consists of common local canonicalization patterns
-///   that are applied eagerly after each stage-1 pattern.
-///   3. the third stage consists of more global transformation, also applied
-///   eagerly, after all stage-2 patterns. Such more global transformations
 struct CodegenStrategy {
-  /// Append a pattern to add a level of tiling for `LinalgOpType` with tiling
-  /// `options`.
-  template <typename LinalgOpType>
-  CodegenStrategy &tile(linalg::LinalgTilingOptions options) {
-    transformationSequence.emplace_back(new Tile<LinalgOpType>(options));
+  /// Append a pattern to tile the Op `opName` and fuse its producers with
+  /// tiling and fusion `options`.
+  CodegenStrategy &
+  tileAndFuse(StringRef opName, const LinalgTilingAndFusionOptions &options,
+              const LinalgTransformationFilter::FilterFunction &f = nullptr) {
+    transformationSequence.emplace_back(
+        std::make_unique<TileAndFuse>(opName, options, f));
     return *this;
   }
-  /// Conditionally append a pattern to add a level of tiling for `LinalgOpType`
-  /// with tiling `options`.
-  template <typename LinalgOpType>
-  CodegenStrategy &tileIf(bool b, linalg::LinalgTilingOptions options) {
-    return b ? tile<LinalgOpType>(options) : *this;
+  /// Conditionally append a pattern to tile the Op `opName` and fuse its
+  /// producers with tiling and fusion `options`.
+  CodegenStrategy &
+  tileAndFuseIf(bool b, StringRef opName, LinalgTilingAndFusionOptions options,
+                LinalgTransformationFilter::FilterFunction f = nullptr) {
+    return b ? tileAndFuse(opName, std::move(options), std::move(f)) : *this;
+  }
+  /// Append a pattern to add a level of tiling for Op `opName` with tiling
+  /// `options`.
+  CodegenStrategy &
+  tile(StringRef opName, const linalg::LinalgTilingOptions &options,
+       const LinalgTransformationFilter::FilterFunction &f = nullptr) {
+    transformationSequence.emplace_back(
+        std::make_unique<Tile>(opName, options, f));
+    return *this;
+  }
+  /// Conditionally append a pattern to add a level of tiling for
+  /// `LinalgOpType` with tiling `options`.
+  CodegenStrategy &
+  tileIf(bool b, StringRef opName, linalg::LinalgTilingOptions options,
+         LinalgTransformationFilter::FilterFunction f = nullptr) {
+    return b ? tile(opName, std::move(options), std::move(f)) : *this;
+  }
+  /// Append a pattern to pad and hoist the operands of Op `opName` with padding
+  /// `options`.
+  CodegenStrategy &
+  pad(StringRef opName, const linalg::LinalgPaddingOptions &options,
+      const LinalgTransformationFilter::FilterFunction &f = nullptr) {
+    transformationSequence.emplace_back(
+        std::make_unique<Pad>(opName, options, f));
+    return *this;
+  }
+  /// Conditionally append a pattern to pad and hoist the operands of Op
+  /// `opName` with padding `options`.
+  CodegenStrategy &
+  padIf(bool b, StringRef opName, linalg::LinalgPaddingOptions options,
+        LinalgTransformationFilter::FilterFunction f = nullptr) {
+    return b ? pad(opName, std::move(options), std::move(f)) : *this;
   }
   /// Append a pattern to add a level of promotion for `LinalgOpType` with
   /// promotion `options`.
-  template <typename LinalgOpType>
-  CodegenStrategy &promote(linalg::LinalgPromotionOptions options) {
-    transformationSequence.emplace_back(new Promote<LinalgOpType>(options));
+  CodegenStrategy &
+  promote(StringRef opName, const linalg::LinalgPromotionOptions &options,
+          const LinalgTransformationFilter::FilterFunction &f = nullptr) {
+    transformationSequence.emplace_back(
+        std::make_unique<Promote>(opName, options, f));
     return *this;
   }
   /// Conditionally append a pattern to add a level of promotion for
   /// `LinalgOpType` with promotion `options`.
-  template <typename LinalgOpType>
-  CodegenStrategy &promoteIf(bool b, linalg::LinalgPromotionOptions options) {
-    return b ? promote<LinalgOpType>(options) : *this;
+  CodegenStrategy &
+  promoteIf(bool b, StringRef opName, linalg::LinalgPromotionOptions options,
+            LinalgTransformationFilter::FilterFunction f = nullptr) {
+    return b ? promote(opName, std::move(options), std::move(f)) : *this;
+  }
+  /// Append a pattern to generalize named operations.
+  CodegenStrategy &
+  generalize(StringRef opName,
+             const LinalgTransformationFilter::FilterFunction &f = nullptr) {
+    transformationSequence.emplace_back(
+        std::make_unique<Generalize>(opName, f));
     return *this;
   }
+  /// Conditionally append a pattern to generalize named operations.
+  CodegenStrategy &
+  generalizeIf(bool b, StringRef opName,
+               LinalgTransformationFilter::FilterFunction f = nullptr) {
+    return b ? generalize(opName, std::move(f)) : *this;
+  }
+  /// Append a pattern to interchange iterators.
+  CodegenStrategy &
+  interchange(ArrayRef<int64_t> iteratorInterchange,
+              const LinalgTransformationFilter::FilterFunction &f = nullptr) {
+    transformationSequence.emplace_back(
+        std::make_unique<Interchange>(iteratorInterchange, f));
+    return *this;
+  }
+  /// Conditionally append a pattern to interchange iterators.
+  CodegenStrategy &
+  interchangeIf(bool b, ArrayRef<int64_t> iteratorInterchange,
+                LinalgTransformationFilter::FilterFunction f = nullptr) {
+    return b ? interchange(iteratorInterchange, std::move(f)) : *this;
+  }
+  /// Append patterns to decompose convolutions.
+  CodegenStrategy &
+  decompose(const LinalgTransformationFilter::FilterFunction &f = nullptr) {
+    transformationSequence.emplace_back(std::make_unique<Decompose>(f));
+    return *this;
+  }
+  /// Conditionally append patterns to decompose convolutions.
+  CodegenStrategy &
+  decomposeIf(bool b, LinalgTransformationFilter::FilterFunction f = nullptr) {
+    return b ? decompose(std::move(f)) : *this;
+  }
   /// Append a pattern to rewrite `LinalgOpType` as a vector operation.
-  template <typename LinalgOpType>
-  CodegenStrategy &vectorize() {
-    transformationSequence.emplace_back(new Vectorize<LinalgOpType>());
+  CodegenStrategy &
+  vectorize(StringRef opName,
+            const LinalgTransformationFilter::FilterFunction &f = nullptr,
+            bool vectorizePadding = false) {
+    transformationSequence.emplace_back(std::make_unique<Vectorize>(
+        opName, linalg::LinalgVectorizationOptions(), f, vectorizePadding));
     return *this;
   }
   /// Conditionally append a pattern to rewrite `LinalgOpType` as a vector
   /// operation.
-  template <typename LinalgOpType>
-  CodegenStrategy &vectorizeIf(bool b) {
-    return b ? vectorize<LinalgOpType>() : *this;
+  CodegenStrategy &
+  vectorizeIf(bool b, StringRef opName,
+              LinalgTransformationFilter::FilterFunction f = nullptr,
+              bool vectorizePadding = false) {
+    return b ? vectorize(opName, std::move(f), vectorizePadding) : *this;
+  }
+  /// Append a pattern to lower all vector operations.
+  CodegenStrategy &vectorLowering(LinalgVectorLoweringOptions options) {
+    transformationSequence.emplace_back(
+        std::make_unique<VectorLowering>(options));
     return *this;
   }
-  /// Configure the post staged-patterns late vector transformations.
+  /// Configure the post staged-patterns global enabling passes options.
   CodegenStrategy &
-  setVectorTransformsOptions(vector::VectorTransformsOptions options) {
-    vectorTransformsOptions = options;
-    return *this;
-  }
-  /// Configure the post staged-patterns late vector.transfer to scf conversion.
-  CodegenStrategy &
-  setVectorTransferToSCFOptions(VectorTransferToSCFOptions options) {
-    vectorToSCFOptions = options;
+  setVectorTransferToSCFOptions(LinalgEnablingOptions options) {
+    linalgEnablingOptions = options;
     return *this;
   }
 
-  /// Apply the transformation patterns in sequence with cleanup transformations
-  /// interleaved.
-  void transform(FuncOp func) const;
+  /// Apply the transformation patterns in sequence with cleanup
+  /// transformations interleaved.
+  void configurePassPipeline(OpPassManager &pm, MLIRContext *context,
+                             bool addEnablePass = true) const;
 
 private:
   LogicalResult postPatternTransforms(Operation *func) const;
 
-  vector::VectorTransformsOptions vectorTransformsOptions;
-  VectorTransferToSCFOptions vectorToSCFOptions;
+  LinalgEnablingOptions linalgEnablingOptions;
   SmallVector<std::unique_ptr<Transformation>, 4> transformationSequence;
 };
 

@@ -13,6 +13,7 @@ and when it is undefined.
 
 from __future__ import print_function
 
+import math
 import re
 import gdb
 
@@ -141,14 +142,12 @@ class StdTuplePrinter(object):
 
         def __next__(self):
             # child_iter raises StopIteration when appropriate.
-            field_name = self.child_iter.next()
+            field_name = next(self.child_iter)
             child = self.val["__base_"][field_name]["__value_"]
             self.count += 1
             return ("[%d]" % self.count, child)
 
-        # TODO Delete when we drop Python 2.
-        def next(self):
-            return self.__next__()
+        next = __next__  # Needed for GDB built against Python 2.7.
 
     def __init__(self, val):
         self.val = val
@@ -237,9 +236,7 @@ class StdStringPrinter(object):
         else:
             data = short_field["__data_"]
             size = self._get_short_size(short_field, short_size)
-        if hasattr(data, "lazy_string"):
-            return data.lazy_string(length=size)
-        return data.string(length=size)
+        return data.lazy_string(length=size)
 
     def display_hint(self):
         return "string"
@@ -251,24 +248,16 @@ class StdStringViewPrinter(object):
     def __init__(self, val):
       self.val = val
 
+    def display_hint(self):
+      return "string"
+
     def to_string(self):  # pylint: disable=g-bad-name
       """GDB calls this to compute the pretty-printed form."""
 
       ptr = self.val["__data"]
-      length = self.val["__size"]
-      print_length = length
-      # We print more than just a simple string (i.e. we also print
-      # "of length %d").  Thus we can't use the "string" display_hint,
-      # and thus we have to handle "print elements" ourselves.
-      # For reference sake, gdb ensures limit == None or limit > 0.
-      limit = gdb.parameter("print elements")
-      if limit is not None:
-        print_length = min(print_length, limit)
-      # FIXME: Passing ISO-8859-1 here isn't always correct.
-      string = ptr.string("ISO-8859-1", "ignore", print_length)
-      if length > print_length:
-        string += "..."
-      return "std::string_view of length %d: \"%s\"" % (length, string)
+      ptr = ptr.cast(ptr.type.target().strip_typedefs().pointer())
+      size = self.val["__size"]
+      return ptr.lazy_string(length=size)
 
 
 class StdUniquePtrPrinter(object):
@@ -311,12 +300,21 @@ class StdSharedPointerPrinter(object):
             return "%s is nullptr" % typename
         refcount = self.val["__cntrl_"]
         if refcount != 0:
-            usecount = refcount["__shared_owners_"] + 1
-            weakcount = refcount["__shared_weak_owners_"]
-            if usecount == 0:
-                state = "expired, weak %d" % weakcount
-            else:
-                state = "count %d, weak %d" % (usecount, weakcount)
+            try:
+                usecount = refcount["__shared_owners_"] + 1
+                weakcount = refcount["__shared_weak_owners_"]
+                if usecount == 0:
+                    state = "expired, weak %d" % weakcount
+                else:
+                    state = "count %d, weak %d" % (usecount, weakcount)
+            except:
+                # Debug info for a class with virtual functions is emitted
+                # in the same place as its key function. That means that
+                # for std::shared_ptr, __shared_owners_ is emitted into
+                # into libcxx.[so|a] itself, rather than into the shared_ptr
+                # instantiation point. So if libcxx.so was built without
+                # debug info, these fields will be missing.
+                state = "count ?, weak ? (libc++ missing debug info)"
         return "%s<%s> %s containing" % (typename, pointee_type, state)
 
     def __iter__(self):
@@ -360,9 +358,7 @@ class StdVectorPrinter(object):
                 self.offset = 0
             return ("[%d]" % self.count, outbit)
 
-        # TODO Delete when we drop Python 2.
-        def next(self):
-            return self.__next__()
+        next = __next__  # Needed for GDB built against Python 2.7.
 
     class _VectorIterator(object):
         """Class to iterate over the non-bool vector's children."""
@@ -383,9 +379,7 @@ class StdVectorPrinter(object):
             self.item += 1
             return ("[%d]" % self.count, entry)
 
-        # TODO Delete when we drop Python 2.
-        def next(self):
-            return self.__next__()
+        next = __next__  # Needed for GDB built against Python 2.7.
 
     def __init__(self, val):
         """Set val, length, capacity, and iterator for bool and normal vectors."""
@@ -425,6 +419,7 @@ class StdBitsetPrinter(object):
         self.val = val
         self.n_words = int(self.val["__n_words"])
         self.bits_per_word = int(self.val["__bits_per_word"])
+        self.bit_count = self.val.type.template_argument(0)
         if self.n_words == 1:
             self.values = [int(self.val["__first_"])]
         else:
@@ -435,21 +430,12 @@ class StdBitsetPrinter(object):
         typename = _prettify_typename(self.val.type)
         return "%s" % typename
 
-    def _byte_it(self, value):
-        index = -1
-        while value:
-            index += 1
-            will_yield = value % 2
-            value /= 2
-            if will_yield:
-                yield index
-
     def _list_it(self):
-        for word_index in range(self.n_words):
-            current = self.values[word_index]
-            if current:
-                for n in self._byte_it(current):
-                    yield ("[%d]" % (word_index * self.bits_per_word + n), 1)
+        for bit in range(self.bit_count):
+            word = bit // self.bits_per_word
+            word_bit = bit % self.bits_per_word
+            if self.values[word] & (1 << word_bit):
+                yield ("[%d]" % bit, 1)
 
     def __iter__(self):
         return self._list_it()

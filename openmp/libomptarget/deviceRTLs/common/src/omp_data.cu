@@ -12,34 +12,37 @@
 #pragma omp declare target
 
 #include "common/allocator.h"
-#include "common/device_environment.h"
 #include "common/omptarget.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // global device environment
 ////////////////////////////////////////////////////////////////////////////////
 
-DEVICE omptarget_device_environmentTy omptarget_device_environment;
+PLUGIN_ACCESSIBLE
+DeviceEnvironmentTy omptarget_device_environment;
 
 ////////////////////////////////////////////////////////////////////////////////
 // global data holding OpenMP state information
 ////////////////////////////////////////////////////////////////////////////////
 
-DEVICE
-    omptarget_nvptx_Queue<omptarget_nvptx_ThreadPrivateContext, OMP_STATE_COUNT>
-        omptarget_nvptx_device_State[MAX_SM];
+// OpenMP will try to call its ctor if we don't add the attribute explicitly
+[[clang::loader_uninitialized]] omptarget_nvptx_Queue<
+    omptarget_nvptx_ThreadPrivateContext, OMP_STATE_COUNT>
+    omptarget_nvptx_device_State[MAX_SM];
 
-DEVICE omptarget_nvptx_SimpleMemoryManager omptarget_nvptx_simpleMemoryManager;
-DEVICE uint32_t SHARED(usedMemIdx);
-DEVICE uint32_t SHARED(usedSlotIdx);
+omptarget_nvptx_SimpleMemoryManager omptarget_nvptx_simpleMemoryManager;
+uint32_t SHARED(usedMemIdx);
+uint32_t SHARED(usedSlotIdx);
 
-DEVICE uint8_t parallelLevel[MAX_THREADS_PER_TEAM / WARPSIZE];
+// SHARED doesn't work with array so we add the attribute explicitly.
+[[clang::loader_uninitialized]] uint8_t
+    parallelLevel[MAX_THREADS_PER_TEAM / WARPSIZE];
 #pragma omp allocate(parallelLevel) allocator(omp_pteam_mem_alloc)
-DEVICE uint16_t SHARED(threadLimit);
-DEVICE uint16_t SHARED(threadsInTeam);
-DEVICE uint16_t SHARED(nThreads);
+uint16_t SHARED(threadLimit);
+uint16_t SHARED(threadsInTeam);
+uint16_t SHARED(nThreads);
 // Pointer to this team's OpenMP state object
-DEVICE omptarget_nvptx_ThreadPrivateContext *
+omptarget_nvptx_ThreadPrivateContext *
     SHARED(omptarget_nvptx_threadPrivateContext);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -47,26 +50,16 @@ DEVICE omptarget_nvptx_ThreadPrivateContext *
 // communicate with the workers.  Since it is in shared memory, there is one
 // copy of these variables for each kernel, instance, and team.
 ////////////////////////////////////////////////////////////////////////////////
-volatile DEVICE omptarget_nvptx_WorkFn SHARED(omptarget_nvptx_workFn);
+omptarget_nvptx_WorkFn SHARED(omptarget_nvptx_workFn);
 
 ////////////////////////////////////////////////////////////////////////////////
 // OpenMP kernel execution parameters
 ////////////////////////////////////////////////////////////////////////////////
-DEVICE uint32_t SHARED(execution_param);
-
-////////////////////////////////////////////////////////////////////////////////
-// Data sharing state
-////////////////////////////////////////////////////////////////////////////////
-DEVICE DataSharingStateTy SHARED(DataSharingState);
+int8_t SHARED(execution_param);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Scratchpad for teams reduction.
 ////////////////////////////////////////////////////////////////////////////////
-DEVICE void *SHARED(ReductionScratchpadPtr);
-
-////////////////////////////////////////////////////////////////////////////////
-// Data sharing related variables.
-////////////////////////////////////////////////////////////////////////////////
-DEVICE omptarget_nvptx_SharedArgs SHARED(omptarget_nvptx_globalArgs);
+void *SHARED(ReductionScratchpadPtr);
 
 #pragma omp end declare target

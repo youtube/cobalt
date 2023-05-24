@@ -49,7 +49,7 @@ add_lldb_library(lldbUtility
   RegisterValue.cpp
   RegularExpression.cpp
   Reproducer.cpp
-  ReproducerInstrumentation.cpp
+  Instrumentation.cpp
   ReproducerProvider.cpp
   Scalar.cpp
   SelectHelper.cpp
@@ -65,7 +65,8 @@ add_lldb_library(lldbUtility
   StructuredData.cpp
   TildeExpressionResolver.cpp
   Timer.cpp
-  TraceOptions.cpp
+  TraceGDBRemotePackets.cpp
+  TraceIntelPTGDBRemotePackets.cpp
   UnimplementedError.cpp
   UUID.cpp
   UriParser.cpp

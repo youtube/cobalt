@@ -24,7 +24,6 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/FormatVariadic.h"
@@ -35,11 +34,6 @@
 
 namespace clang {
 namespace clangd {
-static bool isReserved(llvm::StringRef Name) {
-  // FIXME: Should we exclude _Bool and others recognized by the standard?
-  return Name.size() >= 2 && Name[0] == '_' &&
-         (isUppercase(Name[1]) || Name[1] == '_');
-}
 
 static bool hasDeclInMainFile(const Decl &D) {
   auto &SourceMgr = D.getASTContext().getSourceManager();
@@ -188,9 +182,10 @@ void SymbolQualitySignals::merge(const CodeCompletionResult &SemaCCResult) {
   if (SemaCCResult.Declaration) {
     ImplementationDetail |= isImplementationDetail(SemaCCResult.Declaration);
     if (auto *ID = SemaCCResult.Declaration->getIdentifier())
-      ReservedName = ReservedName || isReserved(ID->getName());
+      ReservedName = ReservedName || isReservedName(ID->getName());
   } else if (SemaCCResult.Kind == CodeCompletionResult::RK_Macro)
-    ReservedName = ReservedName || isReserved(SemaCCResult.Macro->getName());
+    ReservedName =
+        ReservedName || isReservedName(SemaCCResult.Macro->getName());
 }
 
 void SymbolQualitySignals::merge(const Symbol &IndexResult) {
@@ -198,7 +193,7 @@ void SymbolQualitySignals::merge(const Symbol &IndexResult) {
   ImplementationDetail |= (IndexResult.Flags & Symbol::ImplementationDetail);
   References = std::max(IndexResult.References, References);
   Category = categorize(IndexResult.SymInfo);
-  ReservedName = ReservedName || isReserved(IndexResult.Name);
+  ReservedName = ReservedName || isReservedName(IndexResult.Name);
 }
 
 float SymbolQualitySignals::evaluateHeuristics() const {
@@ -378,7 +373,7 @@ static llvm::Optional<llvm::StringRef>
 wordMatching(llvm::StringRef Name, const llvm::StringSet<> *ContextWords) {
   if (ContextWords)
     for (const auto &Word : ContextWords->keys())
-      if (Name.contains_lower(Word))
+      if (Name.contains_insensitive(Word))
         return Word;
   return llvm::None;
 }
@@ -552,7 +547,7 @@ evaluateDecisionForest(const SymbolQualitySignals &Quality,
   int NumMatch = 0;
   if (Relevance.ContextWords) {
     for (const auto &Word : Relevance.ContextWords->keys()) {
-      if (Relevance.Name.contains_lower(Word)) {
+      if (Relevance.Name.contains_insensitive(Word)) {
         ++NumMatch;
       }
     }
@@ -580,12 +575,16 @@ evaluateDecisionForest(const SymbolQualitySignals &Quality,
   // multiplciative boost (like NameMatch). This allows us to weigh the
   // prediciton score and NameMatch appropriately.
   Scores.ExcludingName = pow(Base, Evaluate(E));
-  // NeedsFixIts is not part of the DecisionForest as generating training
-  // data that needs fixits is not-feasible.
+  // Following cases are not part of the generated training dataset:
+  //  - Symbols with `NeedsFixIts`.
+  //  - Forbidden symbols.
+  //  - Keywords: Dataset contains only macros and decls.
   if (Relevance.NeedsFixIts)
     Scores.ExcludingName *= 0.5;
   if (Relevance.Forbidden)
     Scores.ExcludingName *= 0;
+  if (Quality.Category == SymbolQualitySignals::Keyword)
+    Scores.ExcludingName *= 4;
 
   // NameMatch should be a multiplier on total score to support rescoring.
   Scores.Total = Relevance.NameMatch * Scores.ExcludingName;

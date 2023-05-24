@@ -19,7 +19,6 @@ class TestConflictingSymbols(TestBase):
         lldbutil.mkdir_p(self.getBuildArtifact("Two"))
 
     @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24489")
-    @expectedFailureAll(oslist=["freebsd"], bugnumber="llvm.org/pr48416")
     def test_conflicting_symbols(self):
         self.build()
         exe = self.getBuildArtifact("a.out")
@@ -47,8 +46,7 @@ class TestConflictingSymbols(TestBase):
                     substrs=['stopped',
                              'stop reason = breakpoint'])
 
-        self.expect("breakpoint list -f", BREAKPOINT_HIT_ONCE,
-                    substrs=[' resolved, hit count = 1'])
+        lldbutil.check_breakpoint(self, bpno = 1, expected_hit_count = 1)
 
         # This should display correctly.
         self.expect(
@@ -64,8 +62,7 @@ class TestConflictingSymbols(TestBase):
                     substrs=['stopped',
                              'stop reason = breakpoint'])
 
-        self.expect("breakpoint list -f", BREAKPOINT_HIT_ONCE,
-                    substrs=[' resolved, hit count = 1'])
+        lldbutil.check_breakpoint(self, bpno = 1, expected_hit_count = 1)
 
         self.expect(
             "expr (unsigned long long)conflicting_symbol",
@@ -80,8 +77,7 @@ class TestConflictingSymbols(TestBase):
                     substrs=['stopped',
                              'stop reason = breakpoint'])
 
-        self.expect("breakpoint list -f", BREAKPOINT_HIT_ONCE,
-                    substrs=[' resolved, hit count = 1'])
+        lldbutil.check_breakpoint(self, bpno = 1, expected_hit_count = 1)
 
         self.expect(
             "expr (unsigned long long)conflicting_symbol",

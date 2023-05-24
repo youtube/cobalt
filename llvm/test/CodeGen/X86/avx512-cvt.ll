@@ -148,18 +148,12 @@ define <2 x float> @sltof2f32(<2 x i64> %a) {
 define <4 x float> @slto4f32_mem(<4 x i64>* %a) {
 ; NODQ-LABEL: slto4f32_mem:
 ; NODQ:       # %bb.0:
-; NODQ-NEXT:    vmovdqu (%rdi), %xmm0
-; NODQ-NEXT:    vmovdqu 16(%rdi), %xmm1
-; NODQ-NEXT:    vpextrq $1, %xmm0, %rax
-; NODQ-NEXT:    vcvtsi2ss %rax, %xmm2, %xmm2
-; NODQ-NEXT:    vmovq %xmm0, %rax
-; NODQ-NEXT:    vcvtsi2ss %rax, %xmm3, %xmm0
-; NODQ-NEXT:    vinsertps {{.*#+}} xmm0 = xmm0[0],xmm2[0],xmm0[2,3]
-; NODQ-NEXT:    vmovq %xmm1, %rax
-; NODQ-NEXT:    vcvtsi2ss %rax, %xmm3, %xmm2
-; NODQ-NEXT:    vinsertps {{.*#+}} xmm0 = xmm0[0,1],xmm2[0],xmm0[3]
-; NODQ-NEXT:    vpextrq $1, %xmm1, %rax
-; NODQ-NEXT:    vcvtsi2ss %rax, %xmm3, %xmm1
+; NODQ-NEXT:    vcvtsi2ssq 8(%rdi), %xmm0, %xmm0
+; NODQ-NEXT:    vcvtsi2ssq (%rdi), %xmm1, %xmm1
+; NODQ-NEXT:    vinsertps {{.*#+}} xmm0 = xmm1[0],xmm0[0],xmm1[2,3]
+; NODQ-NEXT:    vcvtsi2ssq 16(%rdi), %xmm2, %xmm1
+; NODQ-NEXT:    vinsertps {{.*#+}} xmm0 = xmm0[0,1],xmm1[0],xmm0[3]
+; NODQ-NEXT:    vcvtsi2ssq 24(%rdi), %xmm2, %xmm1
 ; NODQ-NEXT:    vinsertps {{.*#+}} xmm0 = xmm0[0,1,2],xmm1[0]
 ; NODQ-NEXT:    retq
 ;
@@ -322,10 +316,10 @@ define <8 x double> @ulto8f64(<8 x i64> %a) {
 ; NODQ-LABEL: ulto8f64:
 ; NODQ:       # %bb.0:
 ; NODQ-NEXT:    vpbroadcastq {{.*#+}} zmm1 = [4841369599423283200,4841369599423283200,4841369599423283200,4841369599423283200,4841369599423283200,4841369599423283200,4841369599423283200,4841369599423283200]
-; NODQ-NEXT:    vpternlogq $248, {{.*}}(%rip){1to8}, %zmm0, %zmm1
+; NODQ-NEXT:    vpternlogq $248, {{\.?LCPI[0-9]+_[0-9]+}}(%rip){1to8}, %zmm0, %zmm1
 ; NODQ-NEXT:    vpsrlq $32, %zmm0, %zmm0
-; NODQ-NEXT:    vporq {{.*}}(%rip){1to8}, %zmm0, %zmm0
-; NODQ-NEXT:    vsubpd {{.*}}(%rip){1to8}, %zmm0, %zmm0
+; NODQ-NEXT:    vporq {{\.?LCPI[0-9]+_[0-9]+}}(%rip){1to8}, %zmm0, %zmm0
+; NODQ-NEXT:    vsubpd {{\.?LCPI[0-9]+_[0-9]+}}(%rip){1to8}, %zmm0, %zmm0
 ; NODQ-NEXT:    vaddpd %zmm0, %zmm1, %zmm0
 ; NODQ-NEXT:    retq
 ;
@@ -1944,7 +1938,7 @@ define <8 x float> @ubto8f32(<8 x i32> %a) {
 ; VL:       # %bb.0:
 ; VL-NEXT:    vpxor %xmm1, %xmm1, %xmm1
 ; VL-NEXT:    vpcmpgtd %ymm0, %ymm1, %ymm0
-; VL-NEXT:    vpandd {{.*}}(%rip){1to8}, %ymm0, %ymm0
+; VL-NEXT:    vpandd {{\.?LCPI[0-9]+_[0-9]+}}(%rip){1to8}, %ymm0, %ymm0
 ; VL-NEXT:    retq
   %mask = icmp slt <8 x i32> %a, zeroinitializer
   %1 = uitofp <8 x i1> %mask to <8 x float>
@@ -1975,7 +1969,7 @@ define <4 x float> @ubto4f32(<4 x i32> %a) {
 ; VL:       # %bb.0:
 ; VL-NEXT:    vpxor %xmm1, %xmm1, %xmm1
 ; VL-NEXT:    vpcmpgtd %xmm0, %xmm1, %xmm0
-; VL-NEXT:    vpandd {{.*}}(%rip){1to4}, %xmm0, %xmm0
+; VL-NEXT:    vpandd {{\.?LCPI[0-9]+_[0-9]+}}(%rip){1to4}, %xmm0, %xmm0
 ; VL-NEXT:    retq
   %mask = icmp slt <4 x i32> %a, zeroinitializer
   %1 = uitofp <4 x i1> %mask to <4 x float>
@@ -2006,7 +2000,7 @@ define <2 x float> @ubto2f32(<2 x i32> %a) {
 ; VL:       # %bb.0:
 ; VL-NEXT:    vpxor %xmm1, %xmm1, %xmm1
 ; VL-NEXT:    vpcmpeqd %xmm1, %xmm0, %xmm0
-; VL-NEXT:    vpandnd {{.*}}(%rip){1to4}, %xmm0, %xmm0
+; VL-NEXT:    vpandnd {{\.?LCPI[0-9]+_[0-9]+}}(%rip){1to4}, %xmm0, %xmm0
 ; VL-NEXT:    retq
   %mask = icmp ne <2 x i32> %a, zeroinitializer
   %1 = uitofp <2 x i1> %mask to <2 x float>
@@ -2027,7 +2021,7 @@ define <2 x double> @ubto2f64(<2 x i32> %a) {
 ; VL:       # %bb.0:
 ; VL-NEXT:    vpxor %xmm1, %xmm1, %xmm1
 ; VL-NEXT:    vpcmpeqd %xmm1, %xmm0, %xmm0
-; VL-NEXT:    vpandnd {{.*}}(%rip){1to4}, %xmm0, %xmm0
+; VL-NEXT:    vpandnd {{\.?LCPI[0-9]+_[0-9]+}}(%rip){1to4}, %xmm0, %xmm0
 ; VL-NEXT:    vcvtdq2pd %xmm0, %xmm0
 ; VL-NEXT:    retq
   %mask = icmp ne <2 x i32> %a, zeroinitializer

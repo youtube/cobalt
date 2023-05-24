@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Analysis/SliceAnalysis.h"
-#include "mlir/Dialect/Linalg/IR/LinalgOps.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -33,9 +33,9 @@ static LogicalResult createBackwardSliceFunction(Operation *op,
       builder.create<FuncOp>(loc, clonedFuncOpName, parentFuncOp.getType());
   BlockAndValueMapping mapper;
   builder.setInsertionPointToEnd(clonedFuncOp.addEntryBlock());
-  for (auto arg : enumerate(parentFuncOp.getArguments()))
+  for (const auto &arg : enumerate(parentFuncOp.getArguments()))
     mapper.map(arg.value(), clonedFuncOp.getArgument(arg.index()));
-  llvm::SetVector<Operation *> slice;
+  SetVector<Operation *> slice;
   getBackwardSlice(op, &slice);
   for (Operation *slicedOp : slice)
     builder.clone(*slicedOp, mapper);
@@ -47,6 +47,10 @@ namespace {
 /// Pass to test slice generated from slice analysis.
 struct SliceAnalysisTestPass
     : public PassWrapper<SliceAnalysisTestPass, OperationPass<ModuleOp>> {
+  StringRef getArgument() const final { return "slice-analysis-test"; }
+  StringRef getDescription() const final {
+    return "Test Slice analysis functionality.";
+  }
   void runOnOperation() override;
   SliceAnalysisTestPass() = default;
   SliceAnalysisTestPass(const SliceAnalysisTestPass &) {}
@@ -65,7 +69,7 @@ void SliceAnalysisTestPass::runOnOperation() {
         return WalkResult::advance();
       std::string append =
           std::string("__backward_slice__") + std::to_string(opNum);
-      createBackwardSliceFunction(op, append);
+      (void)createBackwardSliceFunction(op, append);
       opNum++;
       return WalkResult::advance();
     });
@@ -74,7 +78,6 @@ void SliceAnalysisTestPass::runOnOperation() {
 
 namespace mlir {
 void registerSliceAnalysisTestPass() {
-  PassRegistration<SliceAnalysisTestPass> pass(
-      "slice-analysis-test", "Test Slice analysis functionality.");
+  PassRegistration<SliceAnalysisTestPass>();
 }
 } // namespace mlir

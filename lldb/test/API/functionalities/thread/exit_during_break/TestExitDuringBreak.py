@@ -22,7 +22,7 @@ class ExitDuringBreakpointTestCase(TestBase):
 
     def test(self):
         """Test thread exit during breakpoint handling."""
-        self.build(dictionary=self.getBuildFlags())
+        self.build()
         exe = self.getBuildArtifact("a.out")
         self.runCmd("file " + exe, CURRENT_EXECUTABLE_SET)
 
@@ -58,6 +58,6 @@ class ExitDuringBreakpointTestCase(TestBase):
         self.runCmd("continue")
 
         # At this point, the inferior process should have exited.
-        self.assertTrue(
-            process.GetState() == lldb.eStateExited,
+        self.assertEqual(
+            process.GetState(), lldb.eStateExited,
             PROCESS_EXITED)

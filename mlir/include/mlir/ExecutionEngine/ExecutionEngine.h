@@ -37,9 +37,9 @@ class ModuleOp;
 /// A simple object cache following Lang's LLJITWithObjectCache example.
 class SimpleObjectCache : public llvm::ObjectCache {
 public:
-  void notifyObjectCompiled(const llvm::Module *M,
-                            llvm::MemoryBufferRef ObjBuffer) override;
-  std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module *M) override;
+  void notifyObjectCompiled(const llvm::Module *m,
+                            llvm::MemoryBufferRef objBuffer) override;
+  std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module *m) override;
 
   /// Dump cached object to output file `filename`.
   void dumpToObjectFile(StringRef filename);
@@ -97,13 +97,75 @@ public:
          bool enableGDBNotificationListener = true,
          bool enablePerfNotificationListener = true);
 
-  /// Looks up a packed-argument function with the given name and returns a
-  /// pointer to it.  Propagates errors in case of failure.
-  llvm::Expected<void (*)(void **)> lookup(StringRef name) const;
+  /// Looks up a packed-argument function wrapping the function with the given
+  /// name and returns a pointer to it. Propagates errors in case of failure.
+  llvm::Expected<void (*)(void **)> lookupPacked(StringRef name) const;
+
+  /// Looks up the original function with the given name and returns a
+  /// pointer to it. This is not necesarily a packed function. Propagates
+  /// errors in case of failure.
+  llvm::Expected<void *> lookup(StringRef name) const;
+
+  /// Invokes the function with the given name passing it the list of opaque
+  /// pointers to the actual arguments.
+  llvm::Error invokePacked(StringRef name,
+                           MutableArrayRef<void *> args = llvm::None);
+
+  /// Trait that defines how a given type is passed to the JIT code. This
+  /// defaults to passing the address but can be specialized.
+  template <typename T>
+  struct Argument {
+    static void pack(SmallVectorImpl<void *> &args, T &val) {
+      args.push_back(&val);
+    }
+  };
+
+  /// Tag to wrap an output parameter when invoking a jitted function.
+  template <typename T>
+  struct Result {
+    Result(T &result) : value(result) {}
+    T &value;
+  };
+
+  /// Helper function to wrap an output operand when using
+  /// ExecutionEngine::invoke.
+  template <typename T>
+  static Result<T> result(T &t) {
+    return Result<T>(t);
+  }
+
+  // Specialization for output parameter: their address is forwarded directly to
+  // the native code.
+  template <typename T>
+  struct Argument<Result<T>> {
+    static void pack(SmallVectorImpl<void *> &args, Result<T> &result) {
+      args.push_back(&result.value);
+    }
+  };
 
   /// Invokes the function with the given name passing it the list of arguments
-  /// as a list of opaque pointers.
-  llvm::Error invoke(StringRef name, MutableArrayRef<void *> args = llvm::None);
+  /// by value. Function result can be obtain through output parameter using the
+  /// `Result` wrapper defined above. For example:
+  ///
+  ///     func @foo(%arg0 : i32) -> i32 attributes { llvm.emit_c_interface }
+  ///
+  /// can be invoked:
+  ///
+  ///     int32_t result = 0;
+  ///     llvm::Error error = jit->invoke("foo", 42,
+  ///                                     result(result));
+  template <typename... Args>
+  llvm::Error invoke(StringRef funcName, Args... args) {
+    const std::string adapterName =
+        std::string("_mlir_ciface_") + funcName.str();
+    llvm::SmallVector<void *> argsArray;
+    // Pack every arguments in an array of pointers. Delegate the packing to a
+    // trait so that it can be overridden per argument type.
+    // TODO: replace with a fold expression when migrating to C++17.
+    int dummy[] = {0, ((void)Argument<Args>::pack(argsArray, args), 0)...};
+    (void)dummy;
+    return invokePacked(adapterName, argsArray);
+  }
 
   /// Set the target triple on the module. This is implicitly done when creating
   /// the engine.
@@ -135,6 +197,6 @@ private:
   llvm::JITEventListener *perfListener;
 };
 
-} // end namespace mlir
+} // namespace mlir
 
 #endif // MLIR_EXECUTIONENGINE_EXECUTIONENGINE_H_

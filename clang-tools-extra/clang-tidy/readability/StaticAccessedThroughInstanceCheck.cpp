@@ -9,6 +9,7 @@
 #include "StaticAccessedThroughInstanceCheck.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include "llvm/ADT/StringRef.h"
 
 using namespace clang::ast_matchers;
 
@@ -39,8 +40,7 @@ void StaticAccessedThroughInstanceCheck::storeOptions(
 void StaticAccessedThroughInstanceCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(
       memberExpr(hasDeclaration(anyOf(cxxMethodDecl(isStaticStorageClass()),
-                                      varDecl(hasStaticStorageDuration()))),
-                 unless(isInTemplateInstantiation()))
+                                      varDecl(hasStaticStorageDuration()))))
           .bind("memberExpression"),
       this);
 }
@@ -55,7 +55,7 @@ void StaticAccessedThroughInstanceCheck::check(
 
   const Expr *BaseExpr = MemberExpression->getBase();
 
-  // Do not warn for overlaoded -> operators.
+  // Do not warn for overloaded -> operators.
   if (isa<CXXOperatorCallExpr>(BaseExpr))
     return;
 
@@ -70,6 +70,10 @@ void StaticAccessedThroughInstanceCheck::check(
   PrintingPolicyWithSupressedTag.SuppressUnwrittenScope = true;
   std::string BaseTypeName =
       BaseType.getAsString(PrintingPolicyWithSupressedTag);
+
+  // Do not warn for CUDA built-in variables.
+  if (StringRef(BaseTypeName).startswith("__cuda_builtin_"))
+    return;
 
   SourceLocation MemberExprStartLoc = MemberExpression->getBeginLoc();
   auto Diag =

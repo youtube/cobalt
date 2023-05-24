@@ -11,8 +11,7 @@
 #include "SyntheticSections.h"
 #include "Target.h"
 #include "Thunks.h"
-#include "lld/Common/ErrorHandler.h"
-#include "lld/Common/Memory.h"
+#include "lld/Common/CommonLinkerContext.h"
 #include "llvm/Support/Endian.h"
 
 using namespace llvm;
@@ -187,11 +186,6 @@ unsigned elf::getPPC64GlobalEntryToLocalEntryOffset(uint8_t stOther) {
   return 0;
 }
 
-bool elf::isPPC64SmallCodeModelTocReloc(RelType type) {
-  // The only small code model relocations that access the .toc section.
-  return type == R_PPC64_TOC16 || type == R_PPC64_TOC16_DS;
-}
-
 void elf::writePrefixedInstruction(uint8_t *loc, uint64_t insn) {
   insn = config->isLE ? insn << 32 | insn >> 32 : insn;
   write64(loc, insn);
@@ -202,7 +196,7 @@ static bool addOptional(StringRef name, uint64_t value,
   Symbol *sym = symtab->find(name);
   if (!sym || sym->isDefined())
     return false;
-  sym->resolve(Defined{/*file=*/nullptr, saver.save(name), STB_GLOBAL,
+  sym->resolve(Defined{/*file=*/nullptr, saver().save(name), STB_GLOBAL,
                        STV_HIDDEN, STT_FUNC, value,
                        /*size=*/0, /*section=*/nullptr});
   defined.push_back(cast<Defined>(sym));
@@ -279,9 +273,6 @@ void elf::addPPC64SaveRestore() {
 template <typename ELFT>
 static std::pair<Defined *, int64_t>
 getRelaTocSymAndAddend(InputSectionBase *tocSec, uint64_t offset) {
-  if (tocSec->numRelocations == 0)
-    return {};
-
   // .rela.toc contains exclusively R_PPC64_ADDR64 relocations sorted by
   // r_offset: 0, 8, 16, etc. For a given Offset, Offset / 8 gives us the
   // relocation index in most cases.
@@ -291,7 +282,10 @@ getRelaTocSymAndAddend(InputSectionBase *tocSec, uint64_t offset) {
   // points to a relocation with larger r_offset. Do a linear probe then.
   // Constants are extremely uncommon in .toc and the extra number of array
   // accesses can be seen as a small constant.
-  ArrayRef<typename ELFT::Rela> relas = tocSec->template relas<ELFT>();
+  ArrayRef<typename ELFT::Rela> relas =
+      tocSec->template relsOrRelas<ELFT>().relas;
+  if (relas.empty())
+    return {};
   uint64_t index = std::min<uint64_t>(offset / 8, relas.size() - 1);
   for (;;) {
     if (relas[index].r_offset == offset) {
@@ -568,7 +562,6 @@ static uint64_t readPrefixedInstruction(const uint8_t *loc) {
 PPC64::PPC64() {
   copyRel = R_PPC64_COPY;
   gotRel = R_PPC64_GLOB_DAT;
-  noneRel = R_PPC64_NONE;
   pltRel = R_PPC64_JMP_SLOT;
   relativeRel = R_PPC64_RELATIVE;
   iRelativeRel = R_PPC64_IRELATIVE;
@@ -576,7 +569,6 @@ PPC64::PPC64() {
   pltHeaderSize = 60;
   pltEntrySize = 4;
   ipltEntrySize = 16; // PPC64PltCallStub::size
-  gotBaseSymInGotPlt = false;
   gotHeaderEntriesNum = 1;
   gotPltHeaderEntriesNum = 2;
   needsThunks = true;
@@ -920,7 +912,15 @@ void PPC64::relaxTlsIeToLe(uint8_t *loc, const Relocation &rel,
       // that comes before it will already have computed the address of the
       // symbol.
       if (secondaryOp == 266) {
-        write32(loc - 1, NOP);
+        // Check if the add uses the same result register as the input register.
+        uint32_t rt = (tlsInstr & 0x03E00000) >> 21; // bits 6-10
+        uint32_t ra = (tlsInstr & 0x001F0000) >> 16; // bits 11-15
+        if (ra == rt) {
+          write32(loc - 1, NOP);
+        } else {
+          // mr rt, ra
+          write32(loc - 1, 0x7C000378 | (rt << 16) | (ra << 21) | (ra << 11));
+        }
       } else {
         uint32_t dFormOp = getPPCDFormOp(secondaryOp);
         if (dFormOp == 0)
@@ -1088,7 +1088,7 @@ void PPC64::writePltHeader(uint8_t *buf) const {
 
 void PPC64::writePlt(uint8_t *buf, const Symbol &sym,
                      uint64_t /*pltEntryAddr*/) const {
-  int32_t offset = pltHeaderSize + sym.pltIndex * pltEntrySize;
+  int32_t offset = pltHeaderSize + sym.getPltIdx() * pltEntrySize;
   // bl __glink_PLTresolve
   write32(buf, 0x48000000 | ((-offset) & 0x03FFFFFc));
 }

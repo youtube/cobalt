@@ -37,7 +37,7 @@ int main(int, char**)
 #ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
     test<char16_t, std::denorm_absent>();
     test<char32_t, std::denorm_absent>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
+#endif
     test<short, std::denorm_absent>();
     test<unsigned short, std::denorm_absent>();
     test<int, std::denorm_absent>();
@@ -46,7 +46,7 @@ int main(int, char**)
     test<unsigned long, std::denorm_absent>();
     test<long long, std::denorm_absent>();
     test<unsigned long long, std::denorm_absent>();
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test<__int128_t, std::denorm_absent>();
     test<__uint128_t, std::denorm_absent>();
 #endif

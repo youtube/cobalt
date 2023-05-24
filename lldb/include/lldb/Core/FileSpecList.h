@@ -14,7 +14,7 @@
 
 #include <vector>
 
-#include <stddef.h>
+#include <cstddef>
 
 namespace lldb_private {
 class Stream;
@@ -152,8 +152,6 @@ public:
   ///
   /// \return
   ///     The number of bytes that this object occupies in memory.
-  ///
-  /// \see ConstString::StaticMemorySize ()
   size_t MemorySize() const;
 
   bool IsEmpty() const { return m_files.empty(); }

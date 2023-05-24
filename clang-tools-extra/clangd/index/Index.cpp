@@ -49,12 +49,12 @@ bool fromJSON(const llvm::json::Value &Parameters, FuzzyFindRequest &Request,
 llvm::json::Value toJSON(const FuzzyFindRequest &Request) {
   return llvm::json::Object{
       {"Query", Request.Query},
-      {"Scopes", llvm::json::Array{Request.Scopes}},
+      {"Scopes", Request.Scopes},
       {"AnyScope", Request.AnyScope},
       {"Limit", Request.Limit},
       {"RestrictForCodeCompletion", Request.RestrictForCodeCompletion},
-      {"ProximityPaths", llvm::json::Array{Request.ProximityPaths}},
-      {"PreferredTypes", llvm::json::Array{Request.PreferredTypes}},
+      {"ProximityPaths", Request.ProximityPaths},
+      {"PreferredTypes", Request.PreferredTypes},
   };
 }
 
@@ -76,7 +76,7 @@ void SwapIndex::relations(
   return snapshot()->relations(R, CB);
 }
 
-llvm::unique_function<bool(llvm::StringRef) const>
+llvm::unique_function<IndexContents(llvm::StringRef) const>
 SwapIndex::indexedFiles() const {
   // The index snapshot should outlive this method return value.
   auto SnapShot = snapshot();

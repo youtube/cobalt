@@ -13,9 +13,17 @@
 
 namespace mlir {
 
+namespace bufferization {
+class BufferizationDialect;
+} // namespace bufferization
+
+namespace memref {
+class MemRefDialect;
+} // namespace memref
+
 #define GEN_PASS_CLASSES
 #include "mlir/Dialect/Shape/Transforms/Passes.h.inc"
 
-} // end namespace mlir
+} // namespace mlir
 
 #endif // DIALECT_SHAPE_TRANSFORMS_PASSDETAIL_H_

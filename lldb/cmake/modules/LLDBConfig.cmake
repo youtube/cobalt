@@ -25,7 +25,7 @@ endif()
 
 macro(add_optional_dependency variable description package found)
   cmake_parse_arguments(ARG
-    ""
+    "QUIET"
     "VERSION"
     ""
     ${ARGN})
@@ -45,7 +45,11 @@ macro(add_optional_dependency variable description package found)
   endif()
 
   if(${find_package})
-    find_package(${package} ${ARG_VERSION} ${maybe_required})
+    set(maybe_quiet)
+    if(ARG_QUIET)
+      set(maybe_quiet QUIET)
+    endif()
+    find_package(${package} ${ARG_VERSION} ${maybe_required} ${maybe_quiet})
     set(${variable} "${${found}}")
   endif()
 
@@ -58,6 +62,7 @@ add_optional_dependency(LLDB_ENABLE_LZMA "Enable LZMA compression support in LLD
 add_optional_dependency(LLDB_ENABLE_LUA "Enable Lua scripting support in LLDB" LuaAndSwig LUAANDSWIG_FOUND)
 add_optional_dependency(LLDB_ENABLE_PYTHON "Enable Python scripting support in LLDB" PythonAndSwig PYTHONANDSWIG_FOUND)
 add_optional_dependency(LLDB_ENABLE_LIBXML2 "Enable Libxml 2 support in LLDB" LibXml2 LIBXML2_FOUND VERSION 2.8)
+add_optional_dependency(LLDB_ENABLE_FBSDVMCORE "Enable libfbsdvmcore support in LLDB" FBSDVMCore FBSDVMCore_FOUND QUIET)
 
 option(LLDB_USE_SYSTEM_SIX "Use six.py shipped with system and do not install a copy of it" OFF)
 option(LLDB_USE_ENTITLEMENTS "When codesigning, use entitlements if available" ON)
@@ -65,6 +70,7 @@ option(LLDB_BUILD_FRAMEWORK "Build LLDB.framework (Darwin only)" OFF)
 option(LLDB_NO_INSTALL_DEFAULT_RPATH "Disable default RPATH settings in binaries" OFF)
 option(LLDB_USE_SYSTEM_DEBUGSERVER "Use the system's debugserver for testing (Darwin only)." OFF)
 option(LLDB_SKIP_STRIP "Whether to skip stripping of binaries when installing lldb." OFF)
+option(LLDB_SKIP_DSYM "Whether to skip generating a dSYM when installing lldb." OFF)
 
 if (LLDB_USE_SYSTEM_DEBUGSERVER)
   # The custom target for the system debugserver has no install target, so we
@@ -225,7 +231,7 @@ include_directories(BEFORE
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
   install(DIRECTORY include/
     COMPONENT lldb-headers
-    DESTINATION include
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN ".cmake" EXCLUDE
@@ -233,7 +239,7 @@ if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
 
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
     COMPONENT lldb-headers
-    DESTINATION include
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN ".cmake" EXCLUDE

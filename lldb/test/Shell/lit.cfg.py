@@ -36,12 +36,16 @@ config.excludes = ['Inputs', 'CMakeLists.txt', 'README.txt', 'LICENSE.txt']
 config.test_source_root = os.path.dirname(__file__)
 
 # test_exec_root: The root path where tests should be run.
-config.test_exec_root = os.path.join(config.lldb_obj_root, 'test')
+config.test_exec_root = os.path.join(config.lldb_obj_root, 'test', 'Shell')
 
-# Propagate reproducer environment vars.
-if 'LLDB_CAPTURE_REPRODUCER' in os.environ:
-  config.environment['LLDB_CAPTURE_REPRODUCER'] = os.environ[
-      'LLDB_CAPTURE_REPRODUCER']
+# Propagate environment vars.
+llvm_config.with_system_environment([
+    'FREEBSD_LEGACY_PLUGIN',
+    'HOME',
+    'TEMP',
+    'TMP',
+    'XDG_CACHE_HOME',
+])
 
 # Support running the test suite under the lldb-repro wrapper. This makes it
 # possible to capture a test suite run and then rerun all the test from the
@@ -81,7 +85,7 @@ llvm_config.feature_config(
 # lit.py invocation is close enough.
 for cachedir in [config.clang_module_cache, config.lldb_module_cache]:
   if os.path.isdir(cachedir):
-     print("Deleting module cache at %s."%cachedir)
+     lit_config.note("Deleting module cache at %s."%cachedir)
      shutil.rmtree(cachedir)
 
 # Set a default per-test timeout of 10 minutes. Setting a timeout per test
@@ -137,5 +141,5 @@ if platform.system() == 'NetBSD' and os.geteuid() != 0:
 if can_set_dbregs:
     config.available_features.add('dbregs-set')
 
-# pass control variable through
-llvm_config.with_system_environment('FREEBSD_LEGACY_PLUGIN')
+if 'LD_PRELOAD' in os.environ:
+    config.available_features.add('ld_preload-present')

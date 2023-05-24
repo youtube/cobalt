@@ -1,7 +1,8 @@
-
 #===============================================================================
 # Add an ABI library if appropriate
 #===============================================================================
+
+include(GNUInstallDirs)
 
 #
 # _setup_abi: Set up the build to use an ABI library
@@ -52,18 +53,18 @@ macro(setup_abi_lib abidefines abishared abistatic abifiles abidirs)
             COMMENT "Copying C++ ABI header ${fpath}...")
         list(APPEND abilib_headers "${dst}")
 
-        if (LIBCXX_HEADER_DIR)
-          set(dst "${LIBCXX_HEADER_DIR}/include/c++/v1/${dstdir}/${fpath}")
-          add_custom_command(OUTPUT ${dst}
-              DEPENDS ${src}
-              COMMAND ${CMAKE_COMMAND} -E copy_if_different ${src} ${dst}
-              COMMENT "Copying C++ ABI header ${fpath}...")
-          list(APPEND abilib_headers "${dst}")
-        endif()
+        # TODO: libc++ shouldn't be responsible for copying the libc++abi
+        # headers into the right location.
+        set(dst "${LIBCXX_GENERATED_INCLUDE_DIR}/${dstdir}/${fpath}")
+        add_custom_command(OUTPUT ${dst}
+            DEPENDS ${src}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${src} ${dst}
+            COMMENT "Copying C++ ABI header ${fpath}...")
+        list(APPEND abilib_headers "${dst}")
 
         if (LIBCXX_INSTALL_HEADERS)
           install(FILES "${LIBCXX_BINARY_INCLUDE_DIR}/${fpath}"
-            DESTINATION ${LIBCXX_INSTALL_HEADER_PREFIX}include/c++/v1/${dstdir}
+            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/c++/v1/${dstdir}"
             COMPONENT cxx-headers
             PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
             )
@@ -121,6 +122,8 @@ elseif ("${LIBCXX_CXX_ABI_LIBNAME}" STREQUAL "libcxxrt")
   if(NOT LIBCXX_CXX_ABI_INCLUDE_PATHS)
     set(LIBCXX_CXX_ABI_INCLUDE_PATHS "/usr/include/c++/v1")
   endif()
+  # libcxxrt does not provide aligned new and delete operators
+  set(LIBCXX_ENABLE_NEW_DELETE_DEFINITIONS ON)
   setup_abi_lib(
     "-DLIBCXXRT"
     "cxxrt" "cxxrt" "cxxabi.h;unwind.h;unwind-arm.h;unwind-itanium.h" ""

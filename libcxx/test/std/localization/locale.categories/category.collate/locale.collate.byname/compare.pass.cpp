@@ -20,9 +20,12 @@
 //     up the OS's collation files.
 
 // TODO investigation needed.
-// Glibc seems to collate files differently from the way Apple's C library does
-// it.
-// XFAIL: linux-gnu
+// Glibc seems to collate files differently from the way Apple's C library does it.
+// XFAIL: target={{.*}}-linux-gnu{{.*}}
+
+// XFAIL: LIBCXX-WINDOWS-FIXME
+
+// XFAIL: LIBCXX-AIX-FIXME
 
 #include <locale>
 #include <string>
@@ -44,6 +47,7 @@ int main(int, char**)
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
         {
             const std::collate<wchar_t>& f = std::use_facet<std::collate<wchar_t> >(l);
             std::wstring s2(L"aaaaaaA");
@@ -51,6 +55,7 @@ int main(int, char**)
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#endif
     }
     {
         std::locale l("C");
@@ -61,6 +66,7 @@ int main(int, char**)
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#ifndef TEST_HAS_NO_WIDE_CHARACTERS
         {
             const std::collate<wchar_t>& f = std::use_facet<std::collate<wchar_t> >(l);
             std::wstring s2(L"aaaaaaA");
@@ -68,6 +74,7 @@ int main(int, char**)
             assert(f.compare(s2.data(), s2.data() + s2.size(),
                              s3.data(), s3.data() + s3.size()) == 1);
         }
+#endif
     }
 
   return 0;

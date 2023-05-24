@@ -81,10 +81,11 @@ private:
 
 /// Populates the patterns needed to drive the conversion process for
 /// decomposing call graph types with the given `ValueDecomposer`.
-void populateDecomposeCallGraphTypesPatterns(
-    MLIRContext *context, TypeConverter &typeConverter,
-    ValueDecomposer &decomposer, OwningRewritePatternList &patterns);
+void populateDecomposeCallGraphTypesPatterns(MLIRContext *context,
+                                             TypeConverter &typeConverter,
+                                             ValueDecomposer &decomposer,
+                                             RewritePatternSet &patterns);
 
-} // end namespace mlir
+} // namespace mlir
 
 #endif // MLIR_DIALECT_STANDARDOPS_TRANSFORMS_DECOMPOSECALLGRAPHTYPES_H

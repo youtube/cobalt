@@ -43,23 +43,24 @@ public:
 class RemoveShapeConstraintsPass
     : public RemoveShapeConstraintsBase<RemoveShapeConstraintsPass> {
 
-  void runOnFunction() override {
+  void runOnOperation() override {
     MLIRContext &ctx = getContext();
 
-    OwningRewritePatternList patterns;
-    populateRemoveShapeConstraintsPatterns(patterns, &ctx);
+    RewritePatternSet patterns(&ctx);
+    populateRemoveShapeConstraintsPatterns(patterns);
 
-    applyPatternsAndFoldGreedily(getFunction(), std::move(patterns));
+    (void)applyPatternsAndFoldGreedily(getOperation(), std::move(patterns));
   }
 };
 
 } // namespace
 
-void mlir::populateRemoveShapeConstraintsPatterns(
-    OwningRewritePatternList &patterns, MLIRContext *ctx) {
-  patterns.insert<RemoveCstrBroadcastableOp, RemoveCstrEqOp>(ctx);
+void mlir::populateRemoveShapeConstraintsPatterns(RewritePatternSet &patterns) {
+  patterns.add<RemoveCstrBroadcastableOp, RemoveCstrEqOp>(
+      patterns.getContext());
 }
 
-std::unique_ptr<FunctionPass> mlir::createRemoveShapeConstraintsPass() {
+std::unique_ptr<OperationPass<FuncOp>>
+mlir::createRemoveShapeConstraintsPass() {
   return std::make_unique<RemoveShapeConstraintsPass>();
 }
