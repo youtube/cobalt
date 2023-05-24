@@ -15,12 +15,18 @@
 #include "starboard/nplb/player_test_util.h"
 
 #include <functional>
+#include <map>
+#include <memory>
+#include <numeric>
+#include <set>
+#include <utility>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
@@ -32,6 +38,7 @@ namespace nplb {
 namespace {
 
 using shared::starboard::media::AudioSampleInfo;
+using shared::starboard::media::AudioStreamInfo;
 using shared::starboard::media::VideoSampleInfo;
 using shared::starboard::player::video_dmp::VideoDmpReader;
 using std::placeholders::_1;
@@ -39,6 +46,24 @@ using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
 using testing::FakeGraphicsContextProvider;
+
+const char* kAudioTestFiles[] = {"beneath_the_canopy_aac_stereo.dmp",
+                                 "beneath_the_canopy_opus_stereo.dmp",
+                                 "sintel_329_ec3.dmp", "sintel_381_ac3.dmp"};
+
+// For uncommon audio formats, we add audio only tests, without tests combined
+// with a video stream, to shorten the overall test time.
+const char* kAudioOnlyTestFiles[] = {
+    "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_mono.dmp",
+    "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
+    "heaac.dmp"};
+
+const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
+                                 "beneath_the_canopy_248_vp9.dmp",
+                                 "sintel_399_av1.dmp"};
+
+const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
+                                           kSbPlayerOutputModePunchOut};
 
 void ErrorFunc(SbPlayer player,
                void* context,
@@ -50,29 +75,26 @@ void ErrorFunc(SbPlayer player,
 
 }  // namespace
 
+std::vector<const char*> GetAudioTestFiles() {
+  return std::vector<const char*>(std::begin(kAudioTestFiles),
+                                  std::end(kAudioTestFiles));
+}
+
+std::vector<const char*> GetVideoTestFiles() {
+  return std::vector<const char*>(std::begin(kVideoTestFiles),
+                                  std::end(kVideoTestFiles));
+}
+
+std::vector<SbPlayerOutputMode> GetPlayerOutputModes() {
+  return std::vector<SbPlayerOutputMode>(std::begin(kOutputModes),
+                                         std::end(kOutputModes));
+}
+
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     const char* key_system) {
   SB_DCHECK(key_system);
 
   const char* kEmptyName = NULL;
-
-  const char* kAudioTestFiles[] = {"beneath_the_canopy_aac_stereo.dmp",
-                                   "beneath_the_canopy_opus_stereo.dmp",
-                                   "sintel_329_ec3.dmp", "sintel_381_ac3.dmp"};
-
-  // For uncommon audio formats, we add audio only tests, without tests combined
-  // with a video stream, to shorten the overall test time.
-  const char* kAudioOnlyTestFiles[] = {
-      "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_mono.dmp",
-      "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
-      "heaac.dmp"};
-
-  const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
-                                   "beneath_the_canopy_248_vp9.dmp",
-                                   "sintel_399_av1.dmp"};
-
-  const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
-                                             kSbPlayerOutputModePunchOut};
 
   std::vector<const char*> supported_audio_files;
   supported_audio_files.push_back(kEmptyName);
@@ -303,6 +325,162 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
     SbDrmDestroySystem(param.drm_system);
   }
   return supported;
+}
+
+std::vector<SbPlayerMultiplePlayerTestConfig> GetMultiplePlayerTestConfig(
+    SbPlayerOutputMode output_mode,
+    const char* key_system,
+    int max_player_instances_per_config,
+    int total_instances_limitation,
+    FakeGraphicsContextProvider* fake_graphics_context_provider) {
+  SB_DCHECK(fake_graphics_context_provider);
+
+  std::vector<SbPlayerMultiplePlayerTestConfig> result;
+  MaximumPlayerConfigurationExplorer::PlayerConfigSet video_test_configs;
+  MaximumPlayerConfigurationExplorer::PlayerConfigSet audio_test_configs;
+
+  std::map<SbMediaVideoCodec, std::string> video_codec_to_test_file;
+  std::map<SbMediaAudioCodec, std::string> audio_codec_to_test_file;
+
+  for (auto video_filename : kVideoTestFiles) {
+    VideoDmpReader dmp_reader(video_filename,
+                              VideoDmpReader::kEnableReadOnDemand);
+    SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+
+    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
+                                       "")) {
+      if (IsOutputModeSupported(output_mode, kSbMediaAudioCodecNone,
+                                dmp_reader.video_codec())) {
+        video_test_configs.insert(
+            MaximumPlayerConfigurationExplorer::PlayerConfig(
+                dmp_reader.video_codec(), AudioStreamInfo(), output_mode,
+                key_system));
+        video_codec_to_test_file[dmp_reader.video_codec()] = video_filename;
+      }
+    }
+  }
+
+  // We must retain the VideoDmpReader of the audio because the lifetime of the
+  // AudioStreamInfo depends on it.
+  std::vector<std::unique_ptr<VideoDmpReader>> audio_dmp_readers;
+  for (auto audio_filename : kAudioTestFiles) {
+    audio_dmp_readers.emplace_back(
+        std::make_unique<VideoDmpReader>(audio_filename));
+    const auto& dmp_reader = audio_dmp_readers.back();
+    SB_DCHECK(dmp_reader->number_of_audio_buffers() > 0);
+
+    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader->audio_mime_type().c_str(),
+                                       "")) {
+      if (IsOutputModeSupported(output_mode, dmp_reader->audio_codec(),
+                                kSbMediaVideoCodecNone)) {
+        const shared::starboard::media::AudioStreamInfo audio_stream_info =
+            dmp_reader->audio_stream_info();
+        MaximumPlayerConfigurationExplorer::PlayerConfig player_config(
+            kSbMediaVideoCodecNone, audio_stream_info, output_mode, key_system);
+        audio_test_configs.insert(player_config);
+        audio_codec_to_test_file[dmp_reader->audio_codec()] = audio_filename;
+      }
+    }
+  }
+
+  auto total_instance_limitation_function =
+      [total_instances_limitation](const std::vector<int>& v) -> bool {
+    int sum_of_elements = std::accumulate(v.begin(), v.end(), 0);
+    return sum_of_elements <= total_instances_limitation;
+  };
+
+  // Determine the supported configurations for video-only players.
+  // We have an upper limit for each video configuration.
+  MaximumPlayerConfigurationExplorer video_explorer(
+      video_test_configs, max_player_instances_per_config,
+      fake_graphics_context_provider, total_instance_limitation_function);
+  auto max_video_config_set = video_explorer.CalculateMaxTestConfigSet();
+
+  // Determine the supported configurations for audio-only players.
+  // There are no upper limits for each audio configuration.
+  MaximumPlayerConfigurationExplorer audio_explorer(
+      audio_test_configs, max_player_instances_per_config,
+      fake_graphics_context_provider);
+  auto max_audio_config_set = audio_explorer.CalculateMaxTestConfigSet();
+
+  // We select the audio codec using a round-robin method. Initially, we choose
+  // the maximum elements set with the highest number of supported audio only
+  // players. For example, if the maximum elements set is {(1, 2, 3), (2, 1, 1),
+  // {4, 0, 3}}, (4, 0, 3) will be selected since it supports 7 players in
+  // total.
+  int max_audio_instances = 0;
+  std::vector<int> max_audio_config_with_max_instances;
+  for (const auto& max_audio_config : max_audio_config_set) {
+    int audio_instances = 0;
+    for (auto num : max_audio_config) {
+      audio_instances += num;
+    }
+    if (audio_instances > max_audio_instances) {
+      max_audio_config_with_max_instances = max_audio_config;
+      max_audio_instances = audio_instances;
+    }
+  }
+
+  // Create an index array |audio_codec_candidates| to keep track of the indices
+  // we will use. For instance, if the maximum elements of audio players are [2,
+  // 1, 3], the index array would be [0, 1, 2, 0, 2, 2].
+  std::vector<int> audio_codec_candidates(max_audio_instances, 0);
+  int codec_index = max_audio_config_with_max_instances.size() - 1;
+  for (int i = 0; i < max_audio_instances; ++i) {
+    int j;
+    for (j = 0; j < max_audio_config_with_max_instances.size(); ++j) {
+      codec_index =
+          codec_index == max_audio_config_with_max_instances.size() - 1
+              ? 0
+              : codec_index + 1;
+      int num_of_instance = max_audio_config_with_max_instances[codec_index];
+      if (max_audio_config_with_max_instances[codec_index] > 0) {
+        --max_audio_config_with_max_instances[codec_index];
+        break;
+      }
+    }
+    SB_DCHECK(j != max_audio_config_with_max_instances.size());
+
+    audio_codec_candidates[i] = codec_index;
+  }
+
+  // Generate test configurations for multiple players, ensuring that each
+  // player configuration includes a video codec. The audio codec is selected
+  // from the index array |audio_codec_candidates|. If no more audio codecs are
+  // available, set it to kSbMediaAudioCodecNone (and set the audio DMP file
+  // path to null).
+  for (const auto& max_video_config : max_video_config_set) {
+    SB_DCHECK(max_video_config.size() == video_test_configs.size());
+
+    SbPlayerMultiplePlayerTestConfig multiple_player_test_config;
+    int audio_codec_index = 0;
+    for (int i = 0; i < max_video_config.size(); ++i) {
+      const auto& video_test_config = *std::next(video_test_configs.begin(), i);
+      auto video_dmp_file_path =
+          video_codec_to_test_file[std::get<0>(video_test_config)].c_str();
+      for (int j = 0; j < max_video_config[i]; ++j) {
+        SbPlayerTestConfig player_test_config;
+        const char* audio_dmp_file_path;
+        if (audio_codec_index < audio_codec_candidates.size()) {
+          const auto& audio_test_config =
+              *std::next(audio_test_configs.begin(),
+                         audio_codec_candidates[audio_codec_index++]);
+          audio_dmp_file_path =
+              audio_codec_to_test_file[std::get<1>(audio_test_config).codec]
+                  .c_str();
+        } else {
+          audio_dmp_file_path = nullptr;
+        }
+        std::get<0>(player_test_config) = video_dmp_file_path;
+        std::get<1>(player_test_config) = audio_dmp_file_path;
+        std::get<2>(player_test_config) = output_mode;
+        multiple_player_test_config.push_back(player_test_config);
+      }
+    }
+    result.push_back(multiple_player_test_config);
+  }
+
+  return result;
 }
 
 }  // namespace nplb

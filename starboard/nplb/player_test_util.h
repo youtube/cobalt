@@ -23,6 +23,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
+#include "starboard/testing/fake_graphics_context_provider.h"
 
 namespace starboard {
 namespace nplb {
@@ -34,6 +35,14 @@ typedef std::tuple<const char* /* audio_filename */,
                    SbPlayerOutputMode /* output_mode */,
                    const char* /* key_system */>
     SbPlayerTestConfig;
+
+typedef std::vector<SbPlayerTestConfig> SbPlayerMultiplePlayerTestConfig;
+
+std::vector<const char*> GetAudioTestFiles();
+
+std::vector<const char*> GetVideoTestFiles();
+
+std::vector<SbPlayerOutputMode> GetPlayerOutputModes();
 
 std::vector<SbPlayerTestConfig> GetSupportedSbPlayerTestConfigs(
     const char* key_system = "");
@@ -84,6 +93,17 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec,
                            const char* key_system = "");
+
+// Generate test configurations for multiple players.
+// |max_player_instances_per_config| sets the upper limit for specific player
+// configurations. |total_instances_limitation| sets the upper limit for the
+// total number of player configurations.
+std::vector<SbPlayerMultiplePlayerTestConfig> GetMultiplePlayerTestConfig(
+    SbPlayerOutputMode output_mode,
+    const char* key_system,
+    int max_player_instances_per_config,
+    int total_instances_limitation,
+    testing::FakeGraphicsContextProvider* fake_graphics_context_provider);
 
 }  // namespace nplb
 }  // namespace starboard
