@@ -347,6 +347,7 @@ template("executable") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = executable_target_name
       installable_target_dep = ":$executable_target_name"
+      not_needed([ "installable_target_dep" ])
       type = "executable"
 
       deps = []
@@ -452,7 +453,8 @@ template("shared_library") {
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = shared_library_target_name
-      installable_target_dep = ":$shared_library_target_name"
+      installable_target_dep = ":$original_target_name"
+      not_needed([ "installable_target_dep" ])
       type = "shared_library"
 
       deps = []
