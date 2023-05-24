@@ -14,6 +14,7 @@
 
 if (current_toolchain == starboard_toolchain) {
   target(gtest_target_type, "player_filter_tests") {
+    build_loader = false
     testonly = true
 
     sources = [

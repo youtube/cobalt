@@ -14,6 +14,7 @@
 
 template("strip_install_target") {
   installable_target_name = invoker.installable_target_name
+  installable_target_dep = invoker.installable_target_dep
 
   assert(defined(invoker.strip_executable) && invoker.strip_executable != "",
          "strip executable required for stripping")
@@ -36,7 +37,7 @@ template("strip_install_target") {
     inputs = [ "$root_out_dir/$source_name" ]
 
     deps = invoker.deps
-    deps += [ ":$installable_target_name" ]
+    deps += [ installable_target_dep ]
 
     outputs = [ "$sb_install_output_dir/$install_subdir/$source_name" ]
 

@@ -344,7 +344,9 @@ template("executable") {
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = executable_target_name
+      installable_target_dep = ":$executable_target_name"
       type = "executable"
+
       deps = []
       if (defined(invoker.deps)) {
         deps += invoker.deps
@@ -364,14 +366,27 @@ template("executable") {
 }
 
 template("shared_library") {
-  original_target_name = target_name
+  if (defined(invoker.build_loader) && invoker.build_loader == false) {
+    build_loader = false
+  } else {
+    build_loader = build_with_separate_cobalt_toolchain
+  }
+
+  if (build_loader) {
+    original_target_name = "${target_name}_original_target"
+  } else {
+    original_target_name = target_name
+  }
+  actual_output_name = target_name
+
   target_with_platform_configs(original_target_name) {
+    output_name = actual_output_name
     target_type = "shared_library"
     forward_variables_from(invoker, "*", [ "install_target" ])
   }
 
-  if (build_with_separate_cobalt_toolchain) {
-    group("${target_name}_build") {
+  if (build_loader) {
+    group(target_name) {
       forward_variables_from(invoker, [ "testonly" ])
       deps = [
         ":${original_target_name}_loader($starboard_toolchain)",
@@ -435,7 +450,9 @@ template("shared_library") {
     install_target(target_name + "_install") {
       forward_variables_from(invoker, [ "testonly" ])
       installable_target_name = shared_library_target_name
+      installable_target_dep = ":$shared_library_target_name"
       type = "shared_library"
+
       deps = []
       if (defined(invoker.deps)) {
         deps += invoker.deps

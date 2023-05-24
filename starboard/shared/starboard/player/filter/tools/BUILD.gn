@@ -14,6 +14,7 @@
 
 if (current_toolchain == starboard_toolchain) {
   target(final_executable_type, "audio_dmp_player") {
+    build_loader = false
     sources = [ "audio_dmp_player.cc" ]
     configs += [ "//starboard/build/config:starboard_implementation" ]
     public_deps = [
