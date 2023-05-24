@@ -197,7 +197,7 @@ PWACtx SCEVAffinator::visit(const SCEV *Expr) {
 
   auto Key = std::make_pair(Expr, BB);
   PWACtx PWAC = CachedExpressions[Key];
-  if (PWAC.first)
+  if (!PWAC.first.is_null())
     return PWAC;
 
   auto ConstantAndLeftOverPair = extractConstantFactor(Expr, SE);
@@ -465,6 +465,11 @@ PWACtx SCEVAffinator::visitUMinExpr(const SCEVUMinExpr *Expr) {
   llvm_unreachable("SCEVUMinExpr not yet supported");
 }
 
+PWACtx
+SCEVAffinator::visitSequentialUMinExpr(const SCEVSequentialUMinExpr *Expr) {
+  llvm_unreachable("SCEVSequentialUMinExpr not yet supported");
+}
+
 PWACtx SCEVAffinator::visitUDivExpr(const SCEVUDivExpr *Expr) {
   // The handling of unsigned division is basically the same as for signed
   // division, except the interpretation of the operands. As the divisor
@@ -551,8 +556,15 @@ PWACtx SCEVAffinator::visitUnknown(const SCEVUnknown *Expr) {
     }
   }
 
-  llvm_unreachable(
-      "Unknowns SCEV was neither parameter nor a valid instruction.");
+  if (isa<ConstantPointerNull>(Expr->getValue())) {
+    isl::val v{Ctx, 0};
+    isl::space Space{Ctx, 0, NumIterators};
+    isl::local_space ls{Space};
+    return getPWACtxFromPWA(isl::aff(ls, v));
+  }
+
+  llvm_unreachable("Unknowns SCEV was neither a parameter, a constant nor a "
+                   "valid instruction.");
 }
 
 PWACtx SCEVAffinator::complexityBailout() {

@@ -22,7 +22,7 @@
 #include "lldb/Utility/Status.h"
 #include "lldb/lldb-types.h"
 
-#include <string.h>
+#include <cstring>
 namespace lldb_private {
 class Declaration;
 }
@@ -34,10 +34,6 @@ ValueObjectDynamicValue::ValueObjectDynamicValue(
     : ValueObject(parent), m_address(), m_dynamic_type_info(),
       m_use_dynamic(use_dynamic) {
   SetName(parent.GetName());
-}
-
-ValueObjectDynamicValue::~ValueObjectDynamicValue() {
-  m_owning_valobj_sp.reset();
 }
 
 CompilerType ValueObjectDynamicValue::GetCompilerTypeImpl() {

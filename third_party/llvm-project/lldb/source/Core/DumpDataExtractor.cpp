@@ -14,8 +14,13 @@
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/ModuleList.h"
+#include "lldb/Target/ABI.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/ExecutionContextScope.h"
+#include "lldb/Target/MemoryRegionInfo.h"
+#include "lldb/Target/MemoryTagManager.h"
+#include "lldb/Target/MemoryTagMap.h"
+#include "lldb/Target/Process.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataExtractor.h"
@@ -32,10 +37,10 @@
 #include <memory>
 #include <string>
 
-#include <assert.h>
-#include <ctype.h>
-#include <inttypes.h>
-#include <math.h>
+#include <cassert>
+#include <cctype>
+#include <cinttypes>
+#include <cmath>
 
 #include <bitset>
 #include <sstream>
@@ -50,7 +55,9 @@ static float half2float(uint16_t half) {
     float f;
     uint32_t u;
   } u;
-  int32_t v = (int16_t)half;
+  // Sign extend to 4 byte.
+  int32_t sign_extended = static_cast<int16_t>(half);
+  uint32_t v = static_cast<uint32_t>(sign_extended);
 
   if (0 == (v & 0x7c00)) {
     u.u = v & 0x80007FFFU;
@@ -112,7 +119,7 @@ static lldb::offset_t DumpAPInt(Stream *s, const DataExtractor &data,
                                 bool is_signed, unsigned radix) {
   llvm::Optional<llvm::APInt> apint = GetAPInt(data, &offset, byte_size);
   if (apint.hasValue()) {
-    std::string apint_str(apint.getValue().toString(radix, is_signed));
+    std::string apint_str = toString(apint.getValue(), radix, is_signed);
     switch (radix) {
     case 2:
       s->Write("0b", 2);
@@ -226,6 +233,108 @@ static void DumpCharacter(Stream &s, const char c) {
   s.Printf("\\x%2.2x", c);
 }
 
+/// Dump a floating point type.
+template <typename FloatT>
+void DumpFloatingPoint(std::ostringstream &ss, FloatT f) {
+  static_assert(std::is_floating_point<FloatT>::value,
+                "Only floating point types can be dumped.");
+  // NaN and Inf are potentially implementation defined and on Darwin it
+  // seems NaNs are printed without their sign. Manually implement dumping them
+  // here to avoid having to deal with platform differences.
+  if (std::isnan(f)) {
+    if (std::signbit(f))
+      ss << '-';
+    ss << "nan";
+    return;
+  }
+  if (std::isinf(f)) {
+    if (std::signbit(f))
+      ss << '-';
+    ss << "inf";
+    return;
+  }
+  ss << f;
+}
+
+static llvm::Optional<MemoryTagMap>
+GetMemoryTags(lldb::addr_t addr, size_t length,
+              ExecutionContextScope *exe_scope) {
+  assert(addr != LLDB_INVALID_ADDRESS);
+
+  if (!exe_scope)
+    return llvm::None;
+
+  TargetSP target_sp = exe_scope->CalculateTarget();
+  if (!target_sp)
+    return llvm::None;
+
+  ProcessSP process_sp = target_sp->CalculateProcess();
+  if (!process_sp)
+    return llvm::None;
+
+  llvm::Expected<const MemoryTagManager *> tag_manager_or_err =
+      process_sp->GetMemoryTagManager();
+  if (!tag_manager_or_err) {
+    llvm::consumeError(tag_manager_or_err.takeError());
+    return llvm::None;
+  }
+
+  MemoryRegionInfos memory_regions;
+  // Don't check return status, list will be just empty if an error happened.
+  process_sp->GetMemoryRegions(memory_regions);
+
+  llvm::Expected<std::vector<MemoryTagManager::TagRange>> tagged_ranges_or_err =
+      (*tag_manager_or_err)
+          ->MakeTaggedRanges(addr, addr + length, memory_regions);
+  // Here we know that our range will not be inverted but we must still check
+  // for an error.
+  if (!tagged_ranges_or_err) {
+    llvm::consumeError(tagged_ranges_or_err.takeError());
+    return llvm::None;
+  }
+  if (tagged_ranges_or_err->empty())
+    return llvm::None;
+
+  MemoryTagMap memory_tag_map(*tag_manager_or_err);
+  for (const MemoryTagManager::TagRange &range : *tagged_ranges_or_err) {
+    llvm::Expected<std::vector<lldb::addr_t>> tags_or_err =
+        process_sp->ReadMemoryTags(range.GetRangeBase(), range.GetByteSize());
+
+    if (tags_or_err)
+      memory_tag_map.InsertTags(range.GetRangeBase(), *tags_or_err);
+    else
+      llvm::consumeError(tags_or_err.takeError());
+  }
+
+  if (memory_tag_map.Empty())
+    return llvm::None;
+
+  return memory_tag_map;
+}
+
+static void
+printMemoryTags(const DataExtractor &DE, Stream *s, lldb::addr_t addr,
+                size_t len,
+                const llvm::Optional<MemoryTagMap> &memory_tag_map) {
+  std::vector<llvm::Optional<lldb::addr_t>> tags =
+      memory_tag_map->GetTags(addr, len);
+
+  // Only print if there is at least one tag for this line
+  if (tags.empty())
+    return;
+
+  s->Printf(" (tag%s:", tags.size() > 1 ? "s" : "");
+  // Some granules may not be tagged but print something for them
+  // so that the ordering remains intact.
+  for (auto tag : tags) {
+    if (tag)
+      s->Printf(" 0x%" PRIx64, *tag);
+    else
+      s->PutCString(" <no tag>");
+  }
+  s->PutCString(")");
+}
+
 lldb::offset_t lldb_private::DumpDataExtractor(
     const DataExtractor &DE, Stream *s, offset_t start_offset,
     lldb::Format item_format, size_t item_byte_size, size_t item_count,
@@ -234,7 +343,7 @@ lldb::offset_t lldb_private::DumpDataExtractor(
                               // non-zero, the value is a bitfield
     uint32_t item_bit_offset, // If "item_bit_size" is non-zero, this is the
                               // shift amount to apply to a bitfield
-    ExecutionContextScope *exe_scope) {
+    ExecutionContextScope *exe_scope, bool show_memory_tags) {
   if (s == nullptr)
     return start_offset;
 
@@ -244,6 +353,11 @@ lldb::offset_t lldb_private::DumpDataExtractor(
   }
 
   offset_t offset = start_offset;
+
+  llvm::Optional<MemoryTagMap> memory_tag_map = llvm::None;
+  if (show_memory_tags && base_addr != LLDB_INVALID_ADDRESS)
+    memory_tag_map =
+        GetMemoryTags(base_addr, DE.GetByteSize() - offset, exe_scope);
 
   if (item_format == eFormatInstruction)
     return DumpInstructions(DE, s, exe_scope, start_offset, base_addr,
@@ -256,7 +370,10 @@ lldb::offset_t lldb_private::DumpDataExtractor(
   lldb::offset_t line_start_offset = start_offset;
   for (uint32_t count = 0; DE.ValidOffset(offset) && count < item_count;
        ++count) {
+    // If we are at the beginning or end of a line
+    // Note that the last line is handled outside this for loop.
     if ((count % num_per_line) == 0) {
+      // If we are at the end of a line
       if (count > 0) {
         if (item_format == eFormatBytesWithASCII &&
             offset > line_start_offset) {
@@ -268,6 +385,15 @@ lldb::offset_t lldb_private::DumpDataExtractor(
                             offset - line_start_offset, SIZE_MAX,
                             LLDB_INVALID_ADDRESS, 0, 0);
         }
+
+        if (base_addr != LLDB_INVALID_ADDRESS && memory_tag_map) {
+          size_t line_len = offset - line_start_offset;
+          lldb::addr_t line_base =
+              base_addr +
+              (offset - start_offset - line_len) / DE.getTargetByteSize();
+          printMemoryTags(DE, s, line_base, line_len, memory_tag_map);
+        }
+
         s->EOL();
       }
       if (base_addr != LLDB_INVALID_ADDRESS)
@@ -566,14 +692,14 @@ lldb::offset_t lldb_private::DumpDataExtractor(
             f = DE.GetFloat(&offset);
           }
           ss.precision(std::numeric_limits<float>::digits10);
-          ss << f;
+          DumpFloatingPoint(ss, f);
         } else if (item_byte_size == sizeof(double)) {
           ss.precision(std::numeric_limits<double>::digits10);
-          ss << DE.GetDouble(&offset);
+          DumpFloatingPoint(ss, DE.GetDouble(&offset));
         } else if (item_byte_size == sizeof(long double) ||
                    item_byte_size == 10) {
           ss.precision(std::numeric_limits<long double>::digits10);
-          ss << DE.GetLongDouble(&offset);
+          DumpFloatingPoint(ss, DE.GetLongDouble(&offset));
         } else {
           s->Printf("error: unsupported byte size (%" PRIu64
                     ") for float format",
@@ -611,6 +737,21 @@ lldb::offset_t lldb_private::DumpDataExtractor(
             so_addr.SetOffset(addr);
             so_addr.Dump(s, exe_scope,
                          Address::DumpStyleResolvedPointerDescription);
+            if (ProcessSP process_sp = exe_scope->CalculateProcess()) {
+              if (ABISP abi_sp = process_sp->GetABI()) {
+                addr_t addr_fixed = abi_sp->FixCodeAddress(addr);
+                if (target_sp->GetSectionLoadList().ResolveLoadAddress(
+                        addr_fixed, so_addr)) {
+                  s->PutChar(' ');
+                  s->Printf("(0x%*.*" PRIx64 ")", (int)(2 * item_byte_size),
+                            (int)(2 * item_byte_size), addr_fixed);
+                  s->PutChar(' ');
+                  so_addr.Dump(s, exe_scope,
+                               Address::DumpStyleResolvedDescription,
+                               Address::DumpStyleModuleWithFileAddress);
+                }
+              }
+            }
           }
         }
       }
@@ -754,14 +895,28 @@ lldb::offset_t lldb_private::DumpDataExtractor(
     }
   }
 
-  if (item_format == eFormatBytesWithASCII && offset > line_start_offset) {
-    s->Printf("%*s", static_cast<int>(
-                         (num_per_line - (offset - line_start_offset)) * 3 + 2),
-              "");
-    DumpDataExtractor(DE, s, line_start_offset, eFormatCharPrintable, 1,
-                      offset - line_start_offset, SIZE_MAX,
-                      LLDB_INVALID_ADDRESS, 0, 0);
+  // If anything was printed we want to catch the end of the last line.
+  // Since we will exit the for loop above before we get a chance to append to
+  // it normally.
+  if (offset > line_start_offset) {
+    if (item_format == eFormatBytesWithASCII) {
+      s->Printf("%*s",
+                static_cast<int>(
+                    (num_per_line - (offset - line_start_offset)) * 3 + 2),
+                "");
+      DumpDataExtractor(DE, s, line_start_offset, eFormatCharPrintable, 1,
+                        offset - line_start_offset, SIZE_MAX,
+                        LLDB_INVALID_ADDRESS, 0, 0);
+    }
+
+    if (base_addr != LLDB_INVALID_ADDRESS && memory_tag_map) {
+      size_t line_len = offset - line_start_offset;
+      lldb::addr_t line_base = base_addr + (offset - start_offset - line_len) /
+                                               DE.getTargetByteSize();
+      printMemoryTags(DE, s, line_base, line_len, memory_tag_map);
+    }
   }
+
   return offset; // Return the offset at which we ended up
 }
 

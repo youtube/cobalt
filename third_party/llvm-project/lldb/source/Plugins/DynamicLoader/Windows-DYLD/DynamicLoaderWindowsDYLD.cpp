@@ -28,7 +28,7 @@ LLDB_PLUGIN_DEFINE(DynamicLoaderWindowsDYLD)
 DynamicLoaderWindowsDYLD::DynamicLoaderWindowsDYLD(Process *process)
     : DynamicLoader(process) {}
 
-DynamicLoaderWindowsDYLD::~DynamicLoaderWindowsDYLD() {}
+DynamicLoaderWindowsDYLD::~DynamicLoaderWindowsDYLD() = default;
 
 void DynamicLoaderWindowsDYLD::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -37,12 +37,7 @@ void DynamicLoaderWindowsDYLD::Initialize() {
 
 void DynamicLoaderWindowsDYLD::Terminate() {}
 
-ConstString DynamicLoaderWindowsDYLD::GetPluginNameStatic() {
-  static ConstString g_plugin_name("windows-dyld");
-  return g_plugin_name;
-}
-
-const char *DynamicLoaderWindowsDYLD::GetPluginDescriptionStatic() {
+llvm::StringRef DynamicLoaderWindowsDYLD::GetPluginDescriptionStatic() {
   return "Dynamic loader plug-in that watches for shared library "
          "loads/unloads in Windows processes.";
 }
@@ -174,12 +169,6 @@ void DynamicLoaderWindowsDYLD::DidLaunch() {
 
 Status DynamicLoaderWindowsDYLD::CanLoadImage() { return Status(); }
 
-ConstString DynamicLoaderWindowsDYLD::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t DynamicLoaderWindowsDYLD::GetPluginVersion() { return 1; }
-
 ThreadPlanSP
 DynamicLoaderWindowsDYLD::GetStepThroughTrampolinePlan(Thread &thread,
                                                        bool stop) {
@@ -193,7 +182,7 @@ DynamicLoaderWindowsDYLD::GetStepThroughTrampolinePlan(Thread &thread,
   AddressRange range(pc, 2 * 15);
 
   DisassemblerSP disassembler_sp = Disassembler::DisassembleRange(
-      arch, nullptr, nullptr, m_process->GetTarget(), range, true);
+      arch, nullptr, nullptr, m_process->GetTarget(), range);
   if (!disassembler_sp) {
     return ThreadPlanSP();
   }

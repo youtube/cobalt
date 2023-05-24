@@ -1,4 +1,4 @@
-//===------------------------- atomic.cpp ---------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,15 +9,22 @@
 #include <__config>
 #ifndef _LIBCPP_HAS_NO_THREADS
 
-#include <climits>
 #include <atomic>
+#include <climits>
 #include <functional>
+#include <thread>
 
 #ifdef __linux__
 
 #include <unistd.h>
 #include <linux/futex.h>
 #include <sys/syscall.h>
+
+// libc++ uses SYS_futex as a universal syscall name. However, on 32 bit architectures
+// with a 64 bit time_t, we need to specify SYS_futex_time64.
+#if !defined(SYS_futex) && defined(SYS_futex_time64)
+# define SYS_futex SYS_futex_time64
+#endif
 
 #else // <- Add other operating systems here
 

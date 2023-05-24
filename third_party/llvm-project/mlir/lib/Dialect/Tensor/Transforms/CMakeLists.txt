@@ -1,4 +1,5 @@
 add_mlir_dialect_library(MLIRTensorTransforms
+  BufferizableOpInterfaceImpl.cpp
   Bufferize.cpp
 
   ADDITIONAL_HEADER_DIRS
@@ -8,7 +9,11 @@ add_mlir_dialect_library(MLIRTensorTransforms
   MLIRTensorTransformsIncGen
 
   LINK_LIBS PUBLIC
+  MLIRArithmetic
+  MLIRBufferization
+  MLIRBufferizationTransforms
   MLIRIR
+  MLIRMemRef
   MLIRPass
   MLIRSCF
   MLIRTensor

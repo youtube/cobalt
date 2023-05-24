@@ -27,6 +27,7 @@
 #include "clang/Tooling/Core/Replacement.h"
 #include "clang/Tooling/Syntax/Tokens.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/None.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
@@ -457,7 +458,7 @@ llvm::Expected<SourceLocation> sourceLocationInMainFile(const SourceManager &SM,
                                                         Position P) {
   llvm::StringRef Code = SM.getBufferOrFake(SM.getMainFileID()).getBuffer();
   auto Offset =
-      positionToOffset(Code, P, /*AllowColumnBeyondLineLength=*/false);
+      positionToOffset(Code, P, /*AllowColumnsBeyondLineLength=*/false);
   if (!Offset)
     return Offset.takeError();
   return SM.getLocForStartOfFile(SM.getMainFileID()).getLocWithOffset(*Offset);
@@ -469,6 +470,13 @@ Range halfOpenToRange(const SourceManager &SM, CharSourceRange R) {
   Position End = sourceLocToPosition(SM, R.getEnd());
 
   return {Begin, End};
+}
+
+void unionRanges(Range &A, Range B) {
+  if (B.start < A.start)
+    A.start = B.start;
+  if (A.end < B.end)
+    A.end = B.end;
 }
 
 std::pair<size_t, size_t> offsetToClangLineColumn(llvm::StringRef Code,
@@ -599,7 +607,7 @@ lex(llvm::StringRef Code, const LangOptions &LangOpts,
         Action) {
   // FIXME: InMemoryFileAdapter crashes unless the buffer is null terminated!
   std::string NullTerminatedCode = Code.str();
-  SourceManagerForFile FileSM("dummy.cpp", NullTerminatedCode);
+  SourceManagerForFile FileSM("mock_file_name.cpp", NullTerminatedCode);
   auto &SM = FileSM.get();
   for (const auto &Tok : syntax::tokenize(SM.getMainFileID(), SM, LangOpts))
     Action(Tok, SM);
@@ -656,7 +664,7 @@ void parseNamespaceEvents(llvm::StringRef Code, const LangOptions &LangOpts,
   // Stack of enclosing namespaces, e.g. {"clang", "clangd"}
   std::vector<std::string> Enclosing; // Contains e.g. "clang", "clangd"
   // Stack counts open braces. true if the brace opened a namespace.
-  std::vector<bool> BraceStack;
+  llvm::BitVector BraceStack;
 
   enum {
     Default,
@@ -945,9 +953,9 @@ llvm::Optional<SpelledWord> SpelledWord::touching(SourceLocation SpelledLoc,
   if (Invalid)
     return llvm::None;
   unsigned B = Offset, E = Offset;
-  while (B > 0 && isIdentifierBody(Code[B - 1]))
+  while (B > 0 && isAsciiIdentifierContinue(Code[B - 1]))
     --B;
-  while (E < Code.size() && isIdentifierBody(Code[E]))
+  while (E < Code.size() && isAsciiIdentifierContinue(Code[E]))
     ++E;
   if (B == E)
     return llvm::None;
@@ -968,6 +976,8 @@ llvm::Optional<SpelledWord> SpelledWord::touching(SourceLocation SpelledLoc,
 
 llvm::Optional<DefinedMacro> locateMacroAt(const syntax::Token &SpelledTok,
                                            Preprocessor &PP) {
+  if (SpelledTok.kind() != tok::identifier)
+    return None;
   SourceLocation Loc = SpelledTok.location();
   assert(Loc.isFileID());
   const auto &SM = PP.getSourceManager();
@@ -1053,6 +1063,49 @@ llvm::Error reformatEdit(Edit &E, const format::FormatStyle &Style) {
   return llvm::Error::success();
 }
 
+llvm::Error applyChange(std::string &Contents,
+                        const TextDocumentContentChangeEvent &Change) {
+  if (!Change.range) {
+    Contents = Change.text;
+    return llvm::Error::success();
+  }
+
+  const Position &Start = Change.range->start;
+  llvm::Expected<size_t> StartIndex = positionToOffset(Contents, Start, false);
+  if (!StartIndex)
+    return StartIndex.takeError();
+
+  const Position &End = Change.range->end;
+  llvm::Expected<size_t> EndIndex = positionToOffset(Contents, End, false);
+  if (!EndIndex)
+    return EndIndex.takeError();
+
+  if (*EndIndex < *StartIndex)
+    return error(llvm::errc::invalid_argument,
+                 "Range's end position ({0}) is before start position ({1})",
+                 End, Start);
+
+  // Since the range length between two LSP positions is dependent on the
+  // contents of the buffer we compute the range length between the start and
+  // end position ourselves and compare it to the range length of the LSP
+  // message to verify the buffers of the client and server are in sync.
+
+  // EndIndex and StartIndex are in bytes, but Change.rangeLength is in UTF-16
+  // code units.
+  ssize_t ComputedRangeLength =
+      lspLength(Contents.substr(*StartIndex, *EndIndex - *StartIndex));
+
+  if (Change.rangeLength && ComputedRangeLength != *Change.rangeLength)
+    return error(llvm::errc::invalid_argument,
+                 "Change's rangeLength ({0}) doesn't match the "
+                 "computed range length ({1}).",
+                 *Change.rangeLength, ComputedRangeLength);
+
+  Contents.replace(*StartIndex, *EndIndex - *StartIndex, Change.text);
+
+  return llvm::Error::success();
+}
+
 EligibleRegion getEligiblePoints(llvm::StringRef Code,
                                  llvm::StringRef FullyQualifiedName,
                                  const LangOptions &LangOpts) {
@@ -1124,10 +1177,63 @@ bool isProtoFile(SourceLocation Loc, const SourceManager &SM) {
     return false;
   auto FID = SM.getFileID(Loc);
   // All proto generated headers should start with this line.
-  static const char *PROTO_HEADER_COMMENT =
+  static const char *ProtoHeaderComment =
       "// Generated by the protocol buffer compiler.  DO NOT EDIT!";
   // Double check that this is an actual protobuf header.
-  return SM.getBufferData(FID).startswith(PROTO_HEADER_COMMENT);
+  return SM.getBufferData(FID).startswith(ProtoHeaderComment);
+}
+
+namespace {
+
+// Is Line an #if or #ifdef directive?
+// FIXME: This makes headers with #ifdef LINUX/WINDOWS/MACOS marked as non
+// self-contained and is probably not what we want.
+bool isIf(llvm::StringRef Line) {
+  Line = Line.ltrim();
+  if (!Line.consume_front("#"))
+    return false;
+  Line = Line.ltrim();
+  return Line.startswith("if");
+}
+
+// Is Line an #error directive mentioning includes?
+bool isErrorAboutInclude(llvm::StringRef Line) {
+  Line = Line.ltrim();
+  if (!Line.consume_front("#"))
+    return false;
+  Line = Line.ltrim();
+  if (!Line.startswith("error"))
+    return false;
+  return Line.contains_insensitive(
+      "includ"); // Matches "include" or "including".
+}
+
+// Heuristically headers that only want to be included via an umbrella.
+bool isDontIncludeMeHeader(llvm::StringRef Content) {
+  llvm::StringRef Line;
+  // Only sniff up to 100 lines or 10KB.
+  Content = Content.take_front(100 * 100);
+  for (unsigned I = 0; I < 100 && !Content.empty(); ++I) {
+    std::tie(Line, Content) = Content.split('\n');
+    if (isIf(Line) && isErrorAboutInclude(Content.split('\n').first))
+      return true;
+  }
+  return false;
+}
+
+} // namespace
+
+bool isSelfContainedHeader(const FileEntry *FE, FileID FID,
+                           const SourceManager &SM, HeaderSearch &HeaderInfo) {
+  // FIXME: Should files that have been #import'd be considered
+  // self-contained? That's really a property of the includer,
+  // not of the file.
+  if (!HeaderInfo.isFileMultipleIncludeGuarded(FE) &&
+      !HeaderInfo.hasFileBeenImported(FE))
+    return false;
+  // This pattern indicates that a header can't be used without
+  // particular preprocessor state, usually set up by another header.
+  return !isDontIncludeMeHeader(SM.getBufferData(FID));
 }
 
 } // namespace clangd

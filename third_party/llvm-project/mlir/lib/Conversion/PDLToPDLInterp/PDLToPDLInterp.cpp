@@ -15,7 +15,9 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/ScopedHashTable.h"
+#include "llvm/ADT/Sequence.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 using namespace mlir;
@@ -41,28 +43,27 @@ private:
   using ValueMapScope = llvm::ScopedHashTableScope<Position *, Value>;
 
   /// Generate interpreter operations for the tree rooted at the given matcher
-  /// node.
-  Block *generateMatcher(MatcherNode &node);
+  /// node, in the specified region.
+  Block *generateMatcher(MatcherNode &node, Region &region);
 
-  /// Get or create an access to the provided positional value within the
-  /// current block.
-  Value getValueAt(Block *cur, Position *pos);
+  /// Get or create an access to the provided positional value in the current
+  /// block. This operation may mutate the provided block pointer if nested
+  /// regions (i.e., pdl_interp.iterate) are required.
+  Value getValueAt(Block *&currentBlock, Position *pos);
 
-  /// Create an interpreter predicate operation, branching to the provided true
-  /// and false destinations.
-  void generatePredicate(Block *currentBlock, Qualifier *question,
-                         Qualifier *answer, Value val, Block *trueDest,
-                         Block *falseDest);
+  /// Create the interpreter predicate operations. This operation may mutate the
+  /// provided current block pointer if nested regions (iterates) are required.
+  void generate(BoolNode *boolNode, Block *&currentBlock, Value val);
 
-  /// Create an interpreter switch predicate operation, with a provided default
-  /// and several case destinations.
-  void generateSwitch(Block *currentBlock, Qualifier *question, Value val,
-                      Block *defaultDest,
-                      ArrayRef<std::pair<Qualifier *, Block *>> dests);
+  /// Create the interpreter switch / predicate operations, with several case
+  /// destinations. This operation never mutates the provided current block
+  /// pointer, because the switch operation does not need Values beyond `val`.
+  void generate(SwitchNode *switchNode, Block *currentBlock, Value val);
 
-  /// Create the interpreter operations to record a successful pattern match.
-  void generateRecordMatch(Block *currentBlock, Block *nextBlock,
-                           pdl::PatternOp pattern);
+  /// Create the interpreter operations to record a successful pattern match
+  /// using the contained root operation. This operation may mutate the current
+  /// block pointer if nested regions (i.e., pdl_interp.iterate) are required.
+  void generate(SuccessNode *successNode, Block *&currentBlock);
 
   /// Generate a rewriter function for the given pattern operation, and returns
   /// a reference to that function.
@@ -70,6 +71,9 @@ private:
                                  SmallVectorImpl<Position *> &usedMatchValues);
 
   /// Generate the rewriter code for the given operation.
+  void generateRewriter(pdl::ApplyNativeRewriteOp rewriteOp,
+                        DenseMap<Value, Value> &rewriteValues,
+                        function_ref<Value(Value)> mapRewriteValue);
   void generateRewriter(pdl::AttributeOp attrOp,
                         DenseMap<Value, Value> &rewriteValues,
                         function_ref<Value(Value)> mapRewriteValue);
@@ -79,13 +83,19 @@ private:
   void generateRewriter(pdl::OperationOp operationOp,
                         DenseMap<Value, Value> &rewriteValues,
                         function_ref<Value(Value)> mapRewriteValue);
-  void generateRewriter(pdl::CreateNativeOp createNativeOp,
-                        DenseMap<Value, Value> &rewriteValues,
-                        function_ref<Value(Value)> mapRewriteValue);
   void generateRewriter(pdl::ReplaceOp replaceOp,
                         DenseMap<Value, Value> &rewriteValues,
                         function_ref<Value(Value)> mapRewriteValue);
+  void generateRewriter(pdl::ResultOp resultOp,
+                        DenseMap<Value, Value> &rewriteValues,
+                        function_ref<Value(Value)> mapRewriteValue);
+  void generateRewriter(pdl::ResultsOp resultOp,
+                        DenseMap<Value, Value> &rewriteValues,
+                        function_ref<Value(Value)> mapRewriteValue);
   void generateRewriter(pdl::TypeOp typeOp,
+                        DenseMap<Value, Value> &rewriteValues,
+                        function_ref<Value(Value)> mapRewriteValue);
+  void generateRewriter(pdl::TypesOp typeOp,
                         DenseMap<Value, Value> &rewriteValues,
                         function_ref<Value(Value)> mapRewriteValue);
 
@@ -123,9 +133,9 @@ private:
 
   /// The set of operation values whose whose location will be used for newly
   /// generated operations.
-  llvm::SetVector<Value> locOps;
+  SetVector<Value> locOps;
 };
-} // end anonymous namespace
+} // namespace
 
 PatternLowering::PatternLowering(FuncOp matcherFunc, ModuleOp rewriterModule)
     : builder(matcherFunc.getContext()), matcherFunc(matcherFunc),
@@ -146,7 +156,8 @@ void PatternLowering::lower(ModuleOp module) {
   // Generate a root matcher node from the provided PDL module.
   std::unique_ptr<MatcherNode> root = MatcherNode::generateMatcherTree(
       module, predicateBuilder, valueToPosition);
-  Block *firstMatcherBlock = generateMatcher(*root);
+  Block *firstMatcherBlock = generateMatcher(*root, matcherFunc.getBody());
+  assert(failureBlockStack.empty() && "failed to empty the stack");
 
   // After generation, merged the first matched block into the entry.
   matcherEntryBlock->getOperations().splice(matcherEntryBlock->end(),
@@ -154,9 +165,9 @@ void PatternLowering::lower(ModuleOp module) {
   firstMatcherBlock->erase();
 }
 
-Block *PatternLowering::generateMatcher(MatcherNode &node) {
+Block *PatternLowering::generateMatcher(MatcherNode &node, Region &region) {
   // Push a new scope for the values used by this matcher.
-  Block *block = matcherFunc.addBlock();
+  Block *block = &region.emplaceBlock();
   ValueMapScope scope(values);
 
   // If this is the return node, simply insert the corresponding interpreter
@@ -167,21 +178,27 @@ Block *PatternLowering::generateMatcher(MatcherNode &node) {
     return block;
   }
 
-  // If this node contains a position, get the corresponding value for this
-  // block.
-  Position *position = node.getPosition();
-  Value val = position ? getValueAt(block, position) : Value();
-
   // Get the next block in the match sequence.
+  // This is intentionally executed first, before we get the value for the
+  // position associated with the node, so that we preserve an "there exist"
+  // semantics: if getting a value requires an upward traversal (going from a
+  // value to its consumers), we want to perform the check on all the consumers
+  // before we pass control to the failure node.
   std::unique_ptr<MatcherNode> &failureNode = node.getFailureNode();
-  Block *nextBlock;
+  Block *failureBlock;
   if (failureNode) {
-    nextBlock = generateMatcher(*failureNode);
-    failureBlockStack.push_back(nextBlock);
+    failureBlock = generateMatcher(*failureNode, region);
+    failureBlockStack.push_back(failureBlock);
   } else {
     assert(!failureBlockStack.empty() && "expected valid failure block");
-    nextBlock = failureBlockStack.back();
+    failureBlock = failureBlockStack.back();
   }
+
+  // If this node contains a position, get the corresponding value for this
+  // block.
+  Block *currentBlock = block;
+  Position *position = node.getPosition();
+  Value val = position ? getValueAt(currentBlock, position) : Value();
 
   // If this value corresponds to an operation, record that we are going to use
   // its location as part of a fused location.
@@ -189,54 +206,100 @@ Block *PatternLowering::generateMatcher(MatcherNode &node) {
   if (isOperationValue)
     locOps.insert(val);
 
-  // Generate code for a boolean predicate node.
-  if (auto *boolNode = dyn_cast<BoolNode>(&node)) {
-    auto *child = generateMatcher(*boolNode->getSuccessNode());
-    generatePredicate(block, node.getQuestion(), boolNode->getAnswer(), val,
-                      child, nextBlock);
+  // Dispatch to the correct method based on derived node type.
+  TypeSwitch<MatcherNode *>(&node)
+      .Case<BoolNode, SwitchNode>([&](auto *derivedNode) {
+        this->generate(derivedNode, currentBlock, val);
+      })
+      .Case([&](SuccessNode *successNode) {
+        generate(successNode, currentBlock);
+      });
 
-    // Generate code for a switch node.
-  } else if (auto *switchNode = dyn_cast<SwitchNode>(&node)) {
-    // Collect the next blocks for all of the children and generate a switch.
-    llvm::MapVector<Qualifier *, Block *> children;
-    for (auto &it : switchNode->getChildren())
-      children.insert({it.first, generateMatcher(*it.second)});
-    generateSwitch(block, node.getQuestion(), val, nextBlock,
-                   children.takeVector());
-
-    // Generate code for a success node.
-  } else if (auto *successNode = dyn_cast<SuccessNode>(&node)) {
-    generateRecordMatch(block, nextBlock, successNode->getPattern());
+  // Pop all the failure blocks that were inserted due to nesting of
+  // pdl_interp.iterate.
+  while (failureBlockStack.back() != failureBlock) {
+    failureBlockStack.pop_back();
+    assert(!failureBlockStack.empty() && "unable to locate failure block");
   }
 
+  // Pop the new failure block.
   if (failureNode)
     failureBlockStack.pop_back();
+
   if (isOperationValue)
     locOps.remove(val);
+
   return block;
 }
 
-Value PatternLowering::getValueAt(Block *cur, Position *pos) {
+Value PatternLowering::getValueAt(Block *&currentBlock, Position *pos) {
   if (Value val = values.lookup(pos))
     return val;
 
   // Get the value for the parent position.
-  Value parentVal = getValueAt(cur, pos->getParent());
+  Value parentVal;
+  if (Position *parent = pos->getParent())
+    parentVal = getValueAt(currentBlock, parent);
 
   // TODO: Use a location from the position.
-  Location loc = parentVal.getLoc();
-  builder.setInsertionPointToEnd(cur);
+  Location loc = parentVal ? parentVal.getLoc() : builder.getUnknownLoc();
+  builder.setInsertionPointToEnd(currentBlock);
   Value value;
   switch (pos->getKind()) {
-  case Predicates::OperationPos:
-    value = builder.create<pdl_interp::GetDefiningOpOp>(
-        loc, builder.getType<pdl::OperationType>(), parentVal);
+  case Predicates::OperationPos: {
+    auto *operationPos = cast<OperationPosition>(pos);
+    if (operationPos->isOperandDefiningOp())
+      // Standard (downward) traversal which directly follows the defining op.
+      value = builder.create<pdl_interp::GetDefiningOpOp>(
+          loc, builder.getType<pdl::OperationType>(), parentVal);
+    else
+      // A passthrough operation position.
+      value = parentVal;
     break;
+  }
+  case Predicates::UsersPos: {
+    auto *usersPos = cast<UsersPosition>(pos);
+
+    // The first operation retrieves the representative value of a range.
+    // This applies only when the parent is a range of values and we were
+    // requested to use a representative value (e.g., upward traversal).
+    if (parentVal.getType().isa<pdl::RangeType>() &&
+        usersPos->useRepresentative())
+      value = builder.create<pdl_interp::ExtractOp>(loc, parentVal, 0);
+    else
+      value = parentVal;
+
+    // The second operation retrieves the users.
+    value = builder.create<pdl_interp::GetUsersOp>(loc, value);
+    break;
+  }
+  case Predicates::ForEachPos: {
+    assert(!failureBlockStack.empty() && "expected valid failure block");
+    auto foreach = builder.create<pdl_interp::ForEachOp>(
+        loc, parentVal, failureBlockStack.back(), /*initLoop=*/true);
+    value = foreach.getLoopVariable();
+
+    // Create the continuation block.
+    Block *continueBlock = builder.createBlock(&foreach.region());
+    builder.create<pdl_interp::ContinueOp>(loc);
+    failureBlockStack.push_back(continueBlock);
+
+    currentBlock = &foreach.region().front();
+    break;
+  }
   case Predicates::OperandPos: {
     auto *operandPos = cast<OperandPosition>(pos);
     value = builder.create<pdl_interp::GetOperandOp>(
         loc, builder.getType<pdl::ValueType>(), parentVal,
         operandPos->getOperandNumber());
+    break;
+  }
+  case Predicates::OperandGroupPos: {
+    auto *operandPos = cast<OperandGroupPosition>(pos);
+    Type valueTy = builder.getType<pdl::ValueType>();
+    value = builder.create<pdl_interp::GetOperandsOp>(
+        loc, operandPos->isVariadic() ? pdl::RangeType::get(valueTy) : valueTy,
+        parentVal, operandPos->getOperandGroupNumber());
     break;
   }
   case Predicates::AttributePos: {
@@ -247,10 +310,10 @@ Value PatternLowering::getValueAt(Block *cur, Position *pos) {
     break;
   }
   case Predicates::TypePos: {
-    if (parentVal.getType().isa<pdl::ValueType>())
-      value = builder.create<pdl_interp::GetValueTypeOp>(loc, parentVal);
-    else
+    if (parentVal.getType().isa<pdl::AttributeType>())
       value = builder.create<pdl_interp::GetAttributeTypeOp>(loc, parentVal);
+    else
+      value = builder.create<pdl_interp::GetValueTypeOp>(loc, parentVal);
     break;
   }
   case Predicates::ResultPos: {
@@ -260,70 +323,116 @@ Value PatternLowering::getValueAt(Block *cur, Position *pos) {
         resPos->getResultNumber());
     break;
   }
+  case Predicates::ResultGroupPos: {
+    auto *resPos = cast<ResultGroupPosition>(pos);
+    Type valueTy = builder.getType<pdl::ValueType>();
+    value = builder.create<pdl_interp::GetResultsOp>(
+        loc, resPos->isVariadic() ? pdl::RangeType::get(valueTy) : valueTy,
+        parentVal, resPos->getResultGroupNumber());
+    break;
+  }
+  case Predicates::AttributeLiteralPos: {
+    auto *attrPos = cast<AttributeLiteralPosition>(pos);
+    value =
+        builder.create<pdl_interp::CreateAttributeOp>(loc, attrPos->getValue());
+    break;
+  }
+  case Predicates::TypeLiteralPos: {
+    auto *typePos = cast<TypeLiteralPosition>(pos);
+    Attribute rawTypeAttr = typePos->getValue();
+    if (TypeAttr typeAttr = rawTypeAttr.dyn_cast<TypeAttr>())
+      value = builder.create<pdl_interp::CreateTypeOp>(loc, typeAttr);
+    else
+      value = builder.create<pdl_interp::CreateTypesOp>(
+          loc, rawTypeAttr.cast<ArrayAttr>());
+    break;
+  }
   default:
     llvm_unreachable("Generating unknown Position getter");
     break;
   }
+
   values.insert(pos, value);
   return value;
 }
 
-void PatternLowering::generatePredicate(Block *currentBlock,
-                                        Qualifier *question, Qualifier *answer,
-                                        Value val, Block *trueDest,
-                                        Block *falseDest) {
-  builder.setInsertionPointToEnd(currentBlock);
+void PatternLowering::generate(BoolNode *boolNode, Block *&currentBlock,
+                               Value val) {
   Location loc = val.getLoc();
-  switch (question->getKind()) {
+  Qualifier *question = boolNode->getQuestion();
+  Qualifier *answer = boolNode->getAnswer();
+  Region *region = currentBlock->getParent();
+
+  // Execute the getValue queries first, so that we create success
+  // matcher in the correct (possibly nested) region.
+  SmallVector<Value> args;
+  if (auto *equalToQuestion = dyn_cast<EqualToQuestion>(question)) {
+    args = {getValueAt(currentBlock, equalToQuestion->getValue())};
+  } else if (auto *cstQuestion = dyn_cast<ConstraintQuestion>(question)) {
+    for (Position *position : cstQuestion->getArgs())
+      args.push_back(getValueAt(currentBlock, position));
+  }
+
+  // Generate the matcher in the current (potentially nested) region
+  // and get the failure successor.
+  Block *success = generateMatcher(*boolNode->getSuccessNode(), *region);
+  Block *failure = failureBlockStack.back();
+
+  // Finally, create the predicate.
+  builder.setInsertionPointToEnd(currentBlock);
+  Predicates::Kind kind = question->getKind();
+  switch (kind) {
   case Predicates::IsNotNullQuestion:
-    builder.create<pdl_interp::IsNotNullOp>(loc, val, trueDest, falseDest);
+    builder.create<pdl_interp::IsNotNullOp>(loc, val, success, failure);
     break;
   case Predicates::OperationNameQuestion: {
     auto *opNameAnswer = cast<OperationNameAnswer>(answer);
     builder.create<pdl_interp::CheckOperationNameOp>(
-        loc, val, opNameAnswer->getValue().getStringRef(), trueDest, falseDest);
+        loc, val, opNameAnswer->getValue().getStringRef(), success, failure);
     break;
   }
   case Predicates::TypeQuestion: {
     auto *ans = cast<TypeAnswer>(answer);
-    builder.create<pdl_interp::CheckTypeOp>(
-        loc, val, TypeAttr::get(ans->getValue()), trueDest, falseDest);
+    if (val.getType().isa<pdl::RangeType>())
+      builder.create<pdl_interp::CheckTypesOp>(
+          loc, val, ans->getValue().cast<ArrayAttr>(), success, failure);
+    else
+      builder.create<pdl_interp::CheckTypeOp>(
+          loc, val, ans->getValue().cast<TypeAttr>(), success, failure);
     break;
   }
   case Predicates::AttributeQuestion: {
     auto *ans = cast<AttributeAnswer>(answer);
     builder.create<pdl_interp::CheckAttributeOp>(loc, val, ans->getValue(),
-                                                 trueDest, falseDest);
+                                                 success, failure);
     break;
   }
-  case Predicates::OperandCountQuestion: {
-    auto *unsignedAnswer = cast<UnsignedAnswer>(answer);
+  case Predicates::OperandCountAtLeastQuestion:
+  case Predicates::OperandCountQuestion:
     builder.create<pdl_interp::CheckOperandCountOp>(
-        loc, val, unsignedAnswer->getValue(), trueDest, falseDest);
+        loc, val, cast<UnsignedAnswer>(answer)->getValue(),
+        /*compareAtLeast=*/kind == Predicates::OperandCountAtLeastQuestion,
+        success, failure);
     break;
-  }
-  case Predicates::ResultCountQuestion: {
-    auto *unsignedAnswer = cast<UnsignedAnswer>(answer);
+  case Predicates::ResultCountAtLeastQuestion:
+  case Predicates::ResultCountQuestion:
     builder.create<pdl_interp::CheckResultCountOp>(
-        loc, val, unsignedAnswer->getValue(), trueDest, falseDest);
+        loc, val, cast<UnsignedAnswer>(answer)->getValue(),
+        /*compareAtLeast=*/kind == Predicates::ResultCountAtLeastQuestion,
+        success, failure);
     break;
-  }
   case Predicates::EqualToQuestion: {
-    auto *equalToQuestion = cast<EqualToQuestion>(question);
-    builder.create<pdl_interp::AreEqualOp>(
-        loc, val, getValueAt(currentBlock, equalToQuestion->getValue()),
-        trueDest, falseDest);
+    bool trueAnswer = isa<TrueAnswer>(answer);
+    builder.create<pdl_interp::AreEqualOp>(loc, val, args.front(),
+                                           trueAnswer ? success : failure,
+                                           trueAnswer ? failure : success);
     break;
   }
   case Predicates::ConstraintQuestion: {
     auto *cstQuestion = cast<ConstraintQuestion>(question);
-    SmallVector<Value, 2> args;
-    for (Position *position : std::get<1>(cstQuestion->getValue()))
-      args.push_back(getValueAt(currentBlock, position));
     builder.create<pdl_interp::ApplyConstraintOp>(
-        loc, std::get<0>(cstQuestion->getValue()), args,
-        std::get<2>(cstQuestion->getValue()).cast<ArrayAttr>(), trueDest,
-        falseDest);
+        loc, cstQuestion->getName(), args, cstQuestion->getParams(), success,
+        failure);
     break;
   }
   default:
@@ -333,7 +442,7 @@ void PatternLowering::generatePredicate(Block *currentBlock,
 
 template <typename OpT, typename PredT, typename ValT = typename PredT::KeyTy>
 static void createSwitchOp(Value val, Block *defaultDest, OpBuilder &builder,
-                           ArrayRef<std::pair<Qualifier *, Block *>> dests) {
+                           llvm::MapVector<Qualifier *, Block *> &dests) {
   std::vector<ValT> values;
   std::vector<Block *> blocks;
   values.reserve(dests.size());
@@ -345,34 +454,108 @@ static void createSwitchOp(Value val, Block *defaultDest, OpBuilder &builder,
   builder.create<OpT>(val.getLoc(), val, values, defaultDest, blocks);
 }
 
-void PatternLowering::generateSwitch(
-    Block *currentBlock, Qualifier *question, Value val, Block *defaultDest,
-    ArrayRef<std::pair<Qualifier *, Block *>> dests) {
+void PatternLowering::generate(SwitchNode *switchNode, Block *currentBlock,
+                               Value val) {
+  Qualifier *question = switchNode->getQuestion();
+  Region *region = currentBlock->getParent();
+  Block *defaultDest = failureBlockStack.back();
+
+  // If the switch question is not an exact answer, i.e. for the `at_least`
+  // cases, we generate a special block sequence.
+  Predicates::Kind kind = question->getKind();
+  if (kind == Predicates::OperandCountAtLeastQuestion ||
+      kind == Predicates::ResultCountAtLeastQuestion) {
+    // Order the children such that the cases are in reverse numerical order.
+    SmallVector<unsigned> sortedChildren = llvm::to_vector<16>(
+        llvm::seq<unsigned>(0, switchNode->getChildren().size()));
+    llvm::sort(sortedChildren, [&](unsigned lhs, unsigned rhs) {
+      return cast<UnsignedAnswer>(switchNode->getChild(lhs).first)->getValue() >
+             cast<UnsignedAnswer>(switchNode->getChild(rhs).first)->getValue();
+    });
+
+    // Build the destination for each child using the next highest child as a
+    // a failure destination. This essentially creates the following control
+    // flow:
+    //
+    // if (operand_count < 1)
+    //   goto failure
+    // if (child1.match())
+    //   ...
+    //
+    // if (operand_count < 2)
+    //   goto failure
+    // if (child2.match())
+    //   ...
+    //
+    // failure:
+    //   ...
+    //
+    failureBlockStack.push_back(defaultDest);
+    Location loc = val.getLoc();
+    for (unsigned idx : sortedChildren) {
+      auto &child = switchNode->getChild(idx);
+      Block *childBlock = generateMatcher(*child.second, *region);
+      Block *predicateBlock = builder.createBlock(childBlock);
+      builder.setInsertionPointToEnd(predicateBlock);
+      unsigned ans = cast<UnsignedAnswer>(child.first)->getValue();
+      switch (kind) {
+      case Predicates::OperandCountAtLeastQuestion:
+        builder.create<pdl_interp::CheckOperandCountOp>(
+            loc, val, ans, /*compareAtLeast=*/true, childBlock, defaultDest);
+        break;
+      case Predicates::ResultCountAtLeastQuestion:
+        builder.create<pdl_interp::CheckResultCountOp>(
+            loc, val, ans, /*compareAtLeast=*/true, childBlock, defaultDest);
+        break;
+      default:
+        llvm_unreachable("Generating invalid AtLeast operation");
+      }
+      failureBlockStack.back() = predicateBlock;
+    }
+    Block *firstPredicateBlock = failureBlockStack.pop_back_val();
+    currentBlock->getOperations().splice(currentBlock->end(),
+                                         firstPredicateBlock->getOperations());
+    firstPredicateBlock->erase();
+    return;
+  }
+
+  // Otherwise, generate each of the children and generate an interpreter
+  // switch.
+  llvm::MapVector<Qualifier *, Block *> children;
+  for (auto &it : switchNode->getChildren())
+    children.insert({it.first, generateMatcher(*it.second, *region)});
   builder.setInsertionPointToEnd(currentBlock);
+
   switch (question->getKind()) {
   case Predicates::OperandCountQuestion:
     return createSwitchOp<pdl_interp::SwitchOperandCountOp, UnsignedAnswer,
-                          int32_t>(val, defaultDest, builder, dests);
+                          int32_t>(val, defaultDest, builder, children);
   case Predicates::ResultCountQuestion:
     return createSwitchOp<pdl_interp::SwitchResultCountOp, UnsignedAnswer,
-                          int32_t>(val, defaultDest, builder, dests);
+                          int32_t>(val, defaultDest, builder, children);
   case Predicates::OperationNameQuestion:
     return createSwitchOp<pdl_interp::SwitchOperationNameOp,
                           OperationNameAnswer>(val, defaultDest, builder,
-                                               dests);
+                                               children);
   case Predicates::TypeQuestion:
+    if (val.getType().isa<pdl::RangeType>()) {
+      return createSwitchOp<pdl_interp::SwitchTypesOp, TypeAnswer>(
+          val, defaultDest, builder, children);
+    }
     return createSwitchOp<pdl_interp::SwitchTypeOp, TypeAnswer>(
-        val, defaultDest, builder, dests);
+        val, defaultDest, builder, children);
   case Predicates::AttributeQuestion:
     return createSwitchOp<pdl_interp::SwitchAttributeOp, AttributeAnswer>(
-        val, defaultDest, builder, dests);
+        val, defaultDest, builder, children);
   default:
     llvm_unreachable("Generating unknown switch predicate.");
   }
 }
 
-void PatternLowering::generateRecordMatch(Block *currentBlock, Block *nextBlock,
-                                          pdl::PatternOp pattern) {
+void PatternLowering::generate(SuccessNode *successNode, Block *&currentBlock) {
+  pdl::PatternOp pattern = successNode->getPattern();
+  Value root = successNode->getRoot();
+
   // Generate a rewriter for the pattern this success node represents, and track
   // any values used from the match region.
   SmallVector<Position *, 8> usedMatchValues;
@@ -394,14 +577,15 @@ void PatternLowering::generateRecordMatch(Block *currentBlock, Block *nextBlock,
 
   // Grab the root kind if present.
   StringAttr rootKindAttr;
-  if (Optional<StringRef> rootKind = pattern.getRootKind())
-    rootKindAttr = builder.getStringAttr(*rootKind);
+  if (pdl::OperationOp rootOp = root.getDefiningOp<pdl::OperationOp>())
+    if (Optional<StringRef> rootKind = rootOp.name())
+      rootKindAttr = builder.getStringAttr(*rootKind);
 
   builder.setInsertionPointToEnd(currentBlock);
   builder.create<pdl_interp::RecordMatchOp>(
       pattern.getLoc(), mappedMatchValues, locOps.getArrayRef(),
       rewriterFuncRef, rootKindAttr, generatedOpsAttr, pattern.benefitAttr(),
-      nextBlock);
+      failureBlockStack.back());
 }
 
 SymbolRefAttr PatternLowering::generateRewriter(
@@ -433,31 +617,40 @@ SymbolRefAttr PatternLowering::generateRewriter(
         return newValue = builder.create<pdl_interp::CreateTypeOp>(
                    typeOp.getLoc(), type);
       }
+    } else if (pdl::TypesOp typeOp = dyn_cast<pdl::TypesOp>(oldOp)) {
+      if (ArrayAttr type = typeOp.typesAttr()) {
+        return newValue = builder.create<pdl_interp::CreateTypesOp>(
+                   typeOp.getLoc(), typeOp.getType(), type);
+      }
     }
 
     // Otherwise, add this as an input to the rewriter.
     Position *inputPos = valueToPosition.lookup(oldValue);
     assert(inputPos && "expected value to be a pattern input");
     usedMatchValues.push_back(inputPos);
-    return newValue = rewriterFunc.front().addArgument(oldValue.getType());
+    return newValue = rewriterFunc.front().addArgument(oldValue.getType(),
+                                                       oldValue.getLoc());
   };
 
   // If this is a custom rewriter, simply dispatch to the registered rewrite
   // method.
   pdl::RewriteOp rewriter = pattern.getRewriter();
   if (StringAttr rewriteName = rewriter.nameAttr()) {
-    Value root = mapRewriteValue(rewriter.root());
-    SmallVector<Value, 4> args = llvm::to_vector<4>(
-        llvm::map_range(rewriter.externalArgs(), mapRewriteValue));
+    SmallVector<Value> args;
+    if (rewriter.root())
+      args.push_back(mapRewriteValue(rewriter.root()));
+    auto mappedArgs = llvm::map_range(rewriter.externalArgs(), mapRewriteValue);
+    args.append(mappedArgs.begin(), mappedArgs.end());
     builder.create<pdl_interp::ApplyRewriteOp>(
-        rewriter.getLoc(), rewriteName, root, args,
+        rewriter.getLoc(), /*resultTypes=*/TypeRange(), rewriteName, args,
         rewriter.externalConstParamsAttr());
   } else {
     // Otherwise this is a dag rewriter defined using PDL operations.
     for (Operation &rewriteOp : *rewriter.getBody()) {
       llvm::TypeSwitch<Operation *>(&rewriteOp)
-          .Case<pdl::AttributeOp, pdl::CreateNativeOp, pdl::EraseOp,
-                pdl::OperationOp, pdl::ReplaceOp, pdl::TypeOp>([&](auto op) {
+          .Case<pdl::ApplyNativeRewriteOp, pdl::AttributeOp, pdl::EraseOp,
+                pdl::OperationOp, pdl::ReplaceOp, pdl::ResultOp, pdl::ResultsOp,
+                pdl::TypeOp, pdl::TypesOp>([&](auto op) {
             this->generateRewriter(op, rewriteValues, mapRewriteValue);
           });
     }
@@ -469,9 +662,23 @@ SymbolRefAttr PatternLowering::generateRewriter(
       /*results=*/llvm::None));
 
   builder.create<pdl_interp::FinalizeOp>(rewriter.getLoc());
-  return builder.getSymbolRefAttr(
+  return SymbolRefAttr::get(
+      builder.getContext(),
       pdl_interp::PDLInterpDialect::getRewriterModuleName(),
-      builder.getSymbolRefAttr(rewriterFunc));
+      SymbolRefAttr::get(rewriterFunc));
+}
+
+void PatternLowering::generateRewriter(
+    pdl::ApplyNativeRewriteOp rewriteOp, DenseMap<Value, Value> &rewriteValues,
+    function_ref<Value(Value)> mapRewriteValue) {
+  SmallVector<Value, 2> arguments;
+  for (Value argument : rewriteOp.args())
+    arguments.push_back(mapRewriteValue(argument));
+  auto interpOp = builder.create<pdl_interp::ApplyRewriteOp>(
+      rewriteOp.getLoc(), rewriteOp.getResultTypes(), rewriteOp.nameAttr(),
+      arguments, rewriteOp.constParamsAttr());
+  for (auto it : llvm::zip(rewriteOp.results(), interpOp.results()))
+    rewriteValues[std::get<0>(it)] = std::get<1>(it);
 }
 
 void PatternLowering::generateRewriter(
@@ -511,56 +718,88 @@ void PatternLowering::generateRewriter(
       operationOp.attributeNames());
   rewriteValues[operationOp.op()] = createdOp;
 
-  // Make all of the new operation results available.
-  OperandRange resultTypes = operationOp.types();
-  for (auto it : llvm::enumerate(operationOp.results())) {
-    Value getResultVal = builder.create<pdl_interp::GetResultOp>(
-        loc, builder.getType<pdl::ValueType>(), createdOp, it.index());
-    rewriteValues[it.value()] = getResultVal;
-
-    // If any of the types have not been resolved, make those available as well.
-    Value &type = rewriteValues[resultTypes[it.index()]];
-    if (!type)
-      type = builder.create<pdl_interp::GetValueTypeOp>(loc, getResultVal);
+  // Generate accesses for any results that have their types constrained.
+  // Handle the case where there is a single range representing all of the
+  // result types.
+  OperandRange resultTys = operationOp.types();
+  if (resultTys.size() == 1 && resultTys[0].getType().isa<pdl::RangeType>()) {
+    Value &type = rewriteValues[resultTys[0]];
+    if (!type) {
+      auto results = builder.create<pdl_interp::GetResultsOp>(loc, createdOp);
+      type = builder.create<pdl_interp::GetValueTypeOp>(loc, results);
+    }
+    return;
   }
-}
 
-void PatternLowering::generateRewriter(
-    pdl::CreateNativeOp createNativeOp, DenseMap<Value, Value> &rewriteValues,
-    function_ref<Value(Value)> mapRewriteValue) {
-  SmallVector<Value, 2> arguments;
-  for (Value argument : createNativeOp.args())
-    arguments.push_back(mapRewriteValue(argument));
-  Value result = builder.create<pdl_interp::CreateNativeOp>(
-      createNativeOp.getLoc(), createNativeOp.result().getType(),
-      createNativeOp.nameAttr(), arguments, createNativeOp.constParamsAttr());
-  rewriteValues[createNativeOp] = result;
+  // Otherwise, populate the individual results.
+  bool seenVariableLength = false;
+  Type valueTy = builder.getType<pdl::ValueType>();
+  Type valueRangeTy = pdl::RangeType::get(valueTy);
+  for (const auto &it : llvm::enumerate(resultTys)) {
+    Value &type = rewriteValues[it.value()];
+    if (type)
+      continue;
+    bool isVariadic = it.value().getType().isa<pdl::RangeType>();
+    seenVariableLength |= isVariadic;
+
+    // After a variable length result has been seen, we need to use result
+    // groups because the exact index of the result is not statically known.
+    Value resultVal;
+    if (seenVariableLength)
+      resultVal = builder.create<pdl_interp::GetResultsOp>(
+          loc, isVariadic ? valueRangeTy : valueTy, createdOp, it.index());
+    else
+      resultVal = builder.create<pdl_interp::GetResultOp>(
+          loc, valueTy, createdOp, it.index());
+    type = builder.create<pdl_interp::GetValueTypeOp>(loc, resultVal);
+  }
 }
 
 void PatternLowering::generateRewriter(
     pdl::ReplaceOp replaceOp, DenseMap<Value, Value> &rewriteValues,
     function_ref<Value(Value)> mapRewriteValue) {
+  SmallVector<Value, 4> replOperands;
+
   // If the replacement was another operation, get its results. `pdl` allows
   // for using an operation for simplicitly, but the interpreter isn't as
   // user facing.
-  ValueRange origOperands;
-  if (Value replOp = replaceOp.replOperation())
-    origOperands = cast<pdl::OperationOp>(replOp.getDefiningOp()).results();
-  else
-    origOperands = replaceOp.replValues();
+  if (Value replOp = replaceOp.replOperation()) {
+    // Don't use replace if we know the replaced operation has no results.
+    auto opOp = replaceOp.operation().getDefiningOp<pdl::OperationOp>();
+    if (!opOp || !opOp.types().empty()) {
+      replOperands.push_back(builder.create<pdl_interp::GetResultsOp>(
+          replOp.getLoc(), mapRewriteValue(replOp)));
+    }
+  } else {
+    for (Value operand : replaceOp.replValues())
+      replOperands.push_back(mapRewriteValue(operand));
+  }
 
   // If there are no replacement values, just create an erase instead.
-  if (origOperands.empty()) {
+  if (replOperands.empty()) {
     builder.create<pdl_interp::EraseOp>(replaceOp.getLoc(),
                                         mapRewriteValue(replaceOp.operation()));
     return;
   }
 
-  SmallVector<Value, 4> replOperands;
-  for (Value operand : origOperands)
-    replOperands.push_back(mapRewriteValue(operand));
   builder.create<pdl_interp::ReplaceOp>(
       replaceOp.getLoc(), mapRewriteValue(replaceOp.operation()), replOperands);
+}
+
+void PatternLowering::generateRewriter(
+    pdl::ResultOp resultOp, DenseMap<Value, Value> &rewriteValues,
+    function_ref<Value(Value)> mapRewriteValue) {
+  rewriteValues[resultOp] = builder.create<pdl_interp::GetResultOp>(
+      resultOp.getLoc(), builder.getType<pdl::ValueType>(),
+      mapRewriteValue(resultOp.parent()), resultOp.index());
+}
+
+void PatternLowering::generateRewriter(
+    pdl::ResultsOp resultOp, DenseMap<Value, Value> &rewriteValues,
+    function_ref<Value(Value)> mapRewriteValue) {
+  rewriteValues[resultOp] = builder.create<pdl_interp::GetResultsOp>(
+      resultOp.getLoc(), resultOp.getType(), mapRewriteValue(resultOp.parent()),
+      resultOp.index());
 }
 
 void PatternLowering::generateRewriter(
@@ -569,9 +808,19 @@ void PatternLowering::generateRewriter(
   // If the type isn't constant, the users (e.g. OperationOp) will resolve this
   // type.
   if (TypeAttr typeAttr = typeOp.typeAttr()) {
-    Value newType =
+    rewriteValues[typeOp] =
         builder.create<pdl_interp::CreateTypeOp>(typeOp.getLoc(), typeAttr);
-    rewriteValues[typeOp] = newType;
+  }
+}
+
+void PatternLowering::generateRewriter(
+    pdl::TypesOp typeOp, DenseMap<Value, Value> &rewriteValues,
+    function_ref<Value(Value)> mapRewriteValue) {
+  // If the type isn't constant, the users (e.g. OperationOp) will resolve this
+  // type.
+  if (ArrayAttr typeAttr = typeOp.typesAttr()) {
+    rewriteValues[typeOp] = builder.create<pdl_interp::CreateTypesOp>(
+        typeOp.getLoc(), typeOp.getType(), typeAttr);
   }
 }
 
@@ -579,31 +828,40 @@ void PatternLowering::generateOperationResultTypeRewriter(
     pdl::OperationOp op, SmallVectorImpl<Value> &types,
     DenseMap<Value, Value> &rewriteValues,
     function_ref<Value(Value)> mapRewriteValue) {
-  // Functor that returns if the given use can be used to infer a type.
+  // Look for an operation that was replaced by `op`. The result types will be
+  // inferred from the results that were replaced.
   Block *rewriterBlock = op->getBlock();
-  auto getReplacedOperationFrom = [&](OpOperand &use) -> Operation * {
+  for (OpOperand &use : op.op().getUses()) {
     // Check that the use corresponds to a ReplaceOp and that it is the
     // replacement value, not the operation being replaced.
     pdl::ReplaceOp replOpUser = dyn_cast<pdl::ReplaceOp>(use.getOwner());
     if (!replOpUser || use.getOperandNumber() == 0)
-      return nullptr;
+      continue;
     // Make sure the replaced operation was defined before this one.
-    Operation *replacedOp = replOpUser.operation().getDefiningOp();
-    if (replacedOp->getBlock() != rewriterBlock ||
-        replacedOp->isBeforeInBlock(op))
-      return replacedOp;
-    return nullptr;
-  };
+    Value replOpVal = replOpUser.operation();
+    Operation *replacedOp = replOpVal.getDefiningOp();
+    if (replacedOp->getBlock() == rewriterBlock &&
+        !replacedOp->isBeforeInBlock(op))
+      continue;
 
-  // If non-None/non-Null, this is an operation that is replaced by `op`.
-  // If Null, there is no full replacement operation for `op`.
-  // If None, a replacement operation hasn't been searched for.
-  Optional<Operation *> fullReplacedOperation;
-  bool hasTypeInference = op.hasTypeInference();
-  auto resultTypeValues = op.types();
+    Value replacedOpResults = builder.create<pdl_interp::GetResultsOp>(
+        replacedOp->getLoc(), mapRewriteValue(replOpVal));
+    types.push_back(builder.create<pdl_interp::GetValueTypeOp>(
+        replacedOp->getLoc(), replacedOpResults));
+    return;
+  }
+
+  // Check if the operation has type inference support.
+  if (op.hasTypeInference()) {
+    types.push_back(builder.create<pdl_interp::InferredTypesOp>(op.getLoc()));
+    return;
+  }
+
+  // Otherwise, handle inference for each of the result types individually.
+  OperandRange resultTypeValues = op.types();
   types.reserve(resultTypeValues.size());
-  for (auto it : llvm::enumerate(op.results())) {
-    Value result = it.value(), resultType = resultTypeValues[it.index()];
+  for (const auto &it : llvm::enumerate(resultTypeValues)) {
+    Value resultType = it.value();
 
     // Check for an already translated value.
     if (Value existingRewriteValue = rewriteValues.lookup(resultType)) {
@@ -617,35 +875,11 @@ void PatternLowering::generateOperationResultTypeRewriter(
       continue;
     }
 
-    // Check if the operation has type inference support.
-    if (hasTypeInference) {
-      types.push_back(builder.create<pdl_interp::InferredTypeOp>(op.getLoc()));
-      continue;
-    }
-
-    // Look for an operation that was replaced by `op`. The result type will be
-    // inferred from the result that was replaced. There is guaranteed to be a
-    // replacement for either the op, or this specific result. Note that this is
-    // guaranteed by the verifier of `pdl::OperationOp`.
-    Operation *replacedOp = nullptr;
-    if (!fullReplacedOperation.hasValue()) {
-      for (OpOperand &use : op.op().getUses())
-        if ((replacedOp = getReplacedOperationFrom(use)))
-          break;
-      fullReplacedOperation = replacedOp;
-    } else {
-      replacedOp = fullReplacedOperation.getValue();
-    }
-    // Infer from the result, as there was no fully replaced op.
-    if (!replacedOp) {
-      for (OpOperand &use : result.getUses())
-        if ((replacedOp = getReplacedOperationFrom(use)))
-          break;
-      assert(replacedOp && "expected replaced op to infer a result type from");
-    }
-
-    auto replOpOp = cast<pdl::OperationOp>(replacedOp);
-    types.push_back(mapRewriteValue(replOpOp.types()[it.index()]));
+    // The verifier asserts that the result types of each pdl.operation can be
+    // inferred. If we reach here, there is a bug either in the logic above or
+    // in the verifier for pdl.operation.
+    op->emitOpError() << "unable to infer result type for operation";
+    llvm_unreachable("unable to infer result type for operation");
   }
 }
 

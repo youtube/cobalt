@@ -14,13 +14,14 @@
 #define DIALECT_QUANT_QUANT_OPS_
 
 include "mlir/Dialect/Quant/QuantOpsBase.td"
+include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 //===----------------------------------------------------------------------===//
 // Base classes
 //===----------------------------------------------------------------------===//
 
-class quant_Op<string mnemonic, list<OpTrait> traits> :
+class quant_Op<string mnemonic, list<Trait> traits> :
     Op<Quantization_Dialect, mnemonic, traits>;
 
 //===----------------------------------------------------------------------===//

@@ -30,6 +30,8 @@
 using namespace mlir;
 using namespace ROCDL;
 
+#include "mlir/Dialect/LLVMIR/ROCDLOpsDialect.cpp.inc"
+
 //===----------------------------------------------------------------------===//
 // Parsing for ROCDL ops
 //===----------------------------------------------------------------------===//
@@ -45,7 +47,7 @@ static ParseResult parseROCDLMubufLoadOp(OpAsmParser &parser,
       parser.addTypeToList(type, result.types))
     return failure();
 
-  MLIRContext *context = parser.getBuilder().getContext();
+  MLIRContext *context = parser.getContext();
   auto int32Ty = IntegerType::get(context, 32);
   auto int1Ty = IntegerType::get(context, 1);
   auto i32x4Ty = LLVM::getFixedVectorType(int32Ty, 4);
@@ -64,7 +66,7 @@ static ParseResult parseROCDLMubufStoreOp(OpAsmParser &parser,
   if (parser.parseOperandList(ops, 6) || parser.parseColonType(type))
     return failure();
 
-  MLIRContext *context = parser.getBuilder().getContext();
+  MLIRContext *context = parser.getContext();
   auto int32Ty = IntegerType::get(context, 32);
   auto int1Ty = IntegerType::get(context, 1);
   auto i32x4Ty = LLVM::getFixedVectorType(int32Ty, 4);
@@ -89,6 +91,18 @@ void ROCDLDialect::initialize() {
 
   // Support unknown operations because not all ROCDL operations are registered.
   allowUnknownOperations();
+}
+
+LogicalResult ROCDLDialect::verifyOperationAttribute(Operation *op,
+                                                     NamedAttribute attr) {
+  // Kernel function attribute should be attached to functions.
+  if (attr.getName() == ROCDLDialect::getKernelFuncAttrName()) {
+    if (!isa<LLVM::LLVMFuncOp>(op)) {
+      return op->emitError() << "'" << ROCDLDialect::getKernelFuncAttrName()
+                             << "' attribute attached to unexpected op";
+    }
+  }
+  return success();
 }
 
 #define GET_OP_CLASSES

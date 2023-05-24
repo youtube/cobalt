@@ -13,6 +13,7 @@
 #include "mlir/Translation.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Dialect.h"
 #include "mlir/IR/Verifier.h"
 #include "mlir/Parser.h"
 #include "mlir/Support/FileUtilities.h"
@@ -61,7 +62,7 @@ static void registerTranslateToMLIRFunction(
     StringRef name, const TranslateSourceMgrToMLIRFunction &function) {
   auto wrappedFn = [function](llvm::SourceMgr &sourceMgr, raw_ostream &output,
                               MLIRContext *context) {
-    OwningModuleRef module = function(sourceMgr, context);
+    OwningOpRef<ModuleOp> module = function(sourceMgr, context);
     if (!module || failed(verify(*module)))
       return failure();
     module->print(output);
@@ -93,13 +94,15 @@ TranslateToMLIRRegistration::TranslateToMLIRRegistration(
 
 TranslateFromMLIRRegistration::TranslateFromMLIRRegistration(
     StringRef name, const TranslateFromMLIRFunction &function,
-    std::function<void(DialectRegistry &)> dialectRegistration) {
+    const std::function<void(DialectRegistry &)> &dialectRegistration) {
   registerTranslation(name, [function, dialectRegistration](
                                 llvm::SourceMgr &sourceMgr, raw_ostream &output,
                                 MLIRContext *context) {
-    dialectRegistration(context->getDialectRegistry());
-    auto module = OwningModuleRef(parseSourceFile(sourceMgr, context));
-    if (!module)
+    DialectRegistry registry;
+    dialectRegistration(registry);
+    context->appendDialectRegistry(registry);
+    auto module = OwningOpRef<ModuleOp>(parseSourceFile(sourceMgr, context));
+    if (!module || failed(verify(*module)))
       return failure();
     return function(module.get(), output);
   });
@@ -178,7 +181,7 @@ LogicalResult mlir::mlirTranslateMain(int argc, char **argv,
     MLIRContext context;
     context.printOpOnDiagnostic(!verifyDiagnostics);
     llvm::SourceMgr sourceMgr;
-    sourceMgr.AddNewSourceBuffer(std::move(ownedBuffer), llvm::SMLoc());
+    sourceMgr.AddNewSourceBuffer(std::move(ownedBuffer), SMLoc());
 
     if (!verifyDiagnostics) {
       SourceMgrDiagnosticHandler sourceMgrHandler(sourceMgr, &context);
@@ -189,7 +192,7 @@ LogicalResult mlir::mlirTranslateMain(int argc, char **argv,
     // failed (in most cases, it is expected to fail). Instead, we check if the
     // diagnostics were produced as expected.
     SourceMgrDiagnosticVerifierHandler sourceMgrHandler(sourceMgr, &context);
-    (*translationRequested)(sourceMgr, os, &context);
+    (void)(*translationRequested)(sourceMgr, os, &context);
     return sourceMgrHandler.verify();
   };
 

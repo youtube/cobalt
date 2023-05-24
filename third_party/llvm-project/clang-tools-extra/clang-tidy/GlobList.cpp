@@ -7,15 +7,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "GlobList.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 
-using namespace clang;
-using namespace tidy;
+namespace clang {
+namespace tidy {
 
 // Returns true if GlobList starts with the negative indicator ('-'), removes it
 // from the GlobList.
-static bool ConsumeNegativeIndicator(StringRef &GlobList) {
-  GlobList = GlobList.trim(" \r\n");
+static bool consumeNegativeIndicator(StringRef &GlobList) {
+  GlobList = GlobList.trim();
   if (GlobList.startswith("-")) {
     GlobList = GlobList.substr(1);
     return true;
@@ -25,9 +26,9 @@ static bool ConsumeNegativeIndicator(StringRef &GlobList) {
 
 // Converts first glob from the comma-separated list of globs to Regex and
 // removes it and the trailing comma from the GlobList.
-static llvm::Regex ConsumeGlob(StringRef &GlobList) {
+static llvm::Regex consumeGlob(StringRef &GlobList) {
   StringRef UntrimmedGlob = GlobList.substr(0, GlobList.find(','));
-  StringRef Glob = UntrimmedGlob.trim(' ');
+  StringRef Glob = UntrimmedGlob.trim();
   GlobList = GlobList.substr(UntrimmedGlob.size() + 1);
   SmallString<128> RegexText("^");
   StringRef MetaChars("()^$|*+?.[]\\{}");
@@ -42,13 +43,14 @@ static llvm::Regex ConsumeGlob(StringRef &GlobList) {
   return llvm::Regex(RegexText);
 }
 
-GlobList::GlobList(StringRef Globs) {
+GlobList::GlobList(StringRef Globs, bool KeepNegativeGlobs /* =true */) {
   Items.reserve(Globs.count(',') + 1);
   do {
     GlobListItem Item;
-    Item.IsPositive = !ConsumeNegativeIndicator(Globs);
-    Item.Regex = ConsumeGlob(Globs);
-    Items.push_back(std::move(Item));
+    Item.IsPositive = !consumeNegativeIndicator(Globs);
+    Item.Regex = consumeGlob(Globs);
+    if (Item.IsPositive || KeepNegativeGlobs)
+      Items.push_back(std::move(Item));
   } while (!Globs.empty());
 }
 
@@ -61,3 +63,19 @@ bool GlobList::contains(StringRef S) const {
   }
   return false;
 }
+
+bool CachedGlobList::contains(StringRef S) const {
+  switch (auto &Result = Cache[S]) {
+  case Yes:
+    return true;
+  case No:
+    return false;
+  case None:
+    Result = GlobList::contains(S) ? Yes : No;
+    return Result == Yes;
+  }
+  llvm_unreachable("invalid enum");
+}
+
+} // namespace tidy
+} // namespace clang

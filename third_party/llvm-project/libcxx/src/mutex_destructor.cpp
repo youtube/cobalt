@@ -1,4 +1,4 @@
-//===--------------------- mutex_destructor.cpp ---------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -41,7 +41,7 @@ public:
 };
 
 
-mutex::~mutex() _NOEXCEPT
+mutex::~mutex() noexcept
 {
     __libcpp_mutex_destroy(&__m_);
 }

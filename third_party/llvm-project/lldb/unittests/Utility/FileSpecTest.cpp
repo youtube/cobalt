@@ -198,8 +198,10 @@ TEST(FileSpecTest, GuessPathStyle) {
             FileSpec::GuessPathStyle(R"(C:\foo.txt)"));
   EXPECT_EQ(FileSpec::Style::windows,
             FileSpec::GuessPathStyle(R"(\\net\foo.txt)"));
+  EXPECT_EQ(FileSpec::Style::windows, FileSpec::GuessPathStyle(R"(Z:\)"));
   EXPECT_EQ(llvm::None, FileSpec::GuessPathStyle("foo.txt"));
   EXPECT_EQ(llvm::None, FileSpec::GuessPathStyle("foo/bar.txt"));
+  EXPECT_EQ(llvm::None, FileSpec::GuessPathStyle("Z:"));
 }
 
 TEST(FileSpecTest, GetPath) {
@@ -305,7 +307,7 @@ TEST(FileSpecTest, IsRelative) {
     "~/",
     "~/a",
     "~/a/",
-    "~/a/b"
+    "~/a/b",
     "~/a/b/",
     "/foo/.",
     "/foo/..",

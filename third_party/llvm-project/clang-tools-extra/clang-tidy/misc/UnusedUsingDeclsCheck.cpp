@@ -45,12 +45,13 @@ AST_MATCHER_P(DeducedTemplateSpecializationType, refsToTemplatedDecl,
     return DeclMatcher.matches(*TD, Finder, Builder);
   return false;
 }
+
 } // namespace
 
 // A function that helps to tell whether a TargetDecl in a UsingDecl will be
 // checked. Only variable, function, function template, class template, class,
 // enum declaration and enum constant declaration are considered.
-static bool ShouldCheckDecl(const Decl *TargetDecl) {
+static bool shouldCheckDecl(const Decl *TargetDecl) {
   return isa<RecordDecl>(TargetDecl) || isa<ClassTemplateDecl>(TargetDecl) ||
          isa<FunctionDecl>(TargetDecl) || isa<VarDecl>(TargetDecl) ||
          isa<FunctionTemplateDecl>(TargetDecl) || isa<EnumDecl>(TargetDecl) ||
@@ -60,13 +61,10 @@ static bool ShouldCheckDecl(const Decl *TargetDecl) {
 void UnusedUsingDeclsCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(usingDecl(isExpansionInMainFile()).bind("using"), this);
   auto DeclMatcher = hasDeclaration(namedDecl().bind("used"));
-  Finder->addMatcher(loc(enumType(DeclMatcher)), this);
-  Finder->addMatcher(loc(recordType(DeclMatcher)), this);
   Finder->addMatcher(loc(templateSpecializationType(DeclMatcher)), this);
   Finder->addMatcher(loc(deducedTemplateSpecializationType(
                          refsToTemplatedDecl(namedDecl().bind("used")))),
                      this);
-  Finder->addMatcher(declRefExpr().bind("used"), this);
   Finder->addMatcher(callExpr(callee(unresolvedLookupExpr().bind("used"))),
                      this);
   Finder->addMatcher(
@@ -76,6 +74,12 @@ void UnusedUsingDeclsCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(loc(templateSpecializationType(forEachTemplateArgument(
                          templateArgument().bind("used")))),
                      this);
+  // Cases where we can identify the UsingShadowDecl directly, rather than
+  // just its target.
+  // FIXME: cover more cases in this way, as the AST supports it.
+  auto ThroughShadowMatcher = throughUsingDecl(namedDecl().bind("usedShadow"));
+  Finder->addMatcher(declRefExpr(ThroughShadowMatcher), this);
+  Finder->addMatcher(loc(usingType(ThroughShadowMatcher)), this);
 }
 
 void UnusedUsingDeclsCheck::check(const MatchFinder::MatchResult &Result) {
@@ -105,7 +109,7 @@ void UnusedUsingDeclsCheck::check(const MatchFinder::MatchResult &Result) {
             /*SkipTrailingWhitespaceAndNewLine=*/true));
     for (const auto *UsingShadow : Using->shadows()) {
       const auto *TargetDecl = UsingShadow->getTargetDecl()->getCanonicalDecl();
-      if (ShouldCheckDecl(TargetDecl))
+      if (shouldCheckDecl(TargetDecl))
         Context.UsingTargetDecls.insert(TargetDecl);
     }
     if (!Context.UsingTargetDecls.empty())
@@ -134,6 +138,12 @@ void UnusedUsingDeclsCheck::check(const MatchFinder::MatchResult &Result) {
   // marked after a corresponding using decl has been found.
   if (const auto *Used = Result.Nodes.getNodeAs<NamedDecl>("used")) {
     RemoveNamedDecl(Used);
+    return;
+  }
+
+  if (const auto *UsedShadow =
+          Result.Nodes.getNodeAs<UsingShadowDecl>("usedShadow")) {
+    removeFromFoundDecls(UsedShadow->getTargetDecl());
     return;
   }
 
@@ -172,7 +182,7 @@ void UnusedUsingDeclsCheck::removeFromFoundDecls(const Decl *D) {
   //
   // FIXME: Use a more efficient way to find a matching context.
   for (auto &Context : Contexts) {
-    if (Context.UsingTargetDecls.count(D->getCanonicalDecl()) > 0)
+    if (Context.UsingTargetDecls.contains(D->getCanonicalDecl()))
       Context.IsUsed = true;
   }
 }

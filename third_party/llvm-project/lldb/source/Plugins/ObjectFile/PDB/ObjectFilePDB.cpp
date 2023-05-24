@@ -46,11 +46,6 @@ void ObjectFilePDB::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-ConstString ObjectFilePDB::GetPluginNameStatic() {
-  static ConstString g_name("pdb");
-  return g_name;
-}
-
 ArchSpec ObjectFilePDB::GetArchitecture() {
   auto dbi_stream = m_file_up->getPDBDbiStream();
   if (!dbi_stream) {
@@ -173,7 +168,7 @@ ObjectFilePDB::loadPDBFile(std::string PdbPath,
   if (ec || magic != llvm::file_magic::pdb)
     return nullptr;
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> ErrorOrBuffer =
-      llvm::MemoryBuffer::getFile(PdbPath, /*FileSize=*/-1,
+      llvm::MemoryBuffer::getFile(PdbPath, /*IsText=*/false,
                                   /*RequiresNullTerminator=*/false);
   if (!ErrorOrBuffer)
     return nullptr;

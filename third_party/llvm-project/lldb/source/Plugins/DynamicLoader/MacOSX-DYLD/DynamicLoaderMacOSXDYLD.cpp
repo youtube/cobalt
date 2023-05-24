@@ -32,7 +32,7 @@
 
 //#define ENABLE_DEBUG_PRINTF // COMMENT THIS LINE OUT PRIOR TO CHECKIN
 #ifdef ENABLE_DEBUG_PRINTF
-#include <stdio.h>
+#include <cstdio>
 #define DEBUG_PRINTF(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
 #define DEBUG_PRINTF(fmt, ...)
@@ -242,7 +242,6 @@ void DynamicLoaderMacOSXDYLD::DoInitialImageFetch() {
       ReadDYLDInfoFromMemoryAndSetNotificationCallback(0x8fe00000);
     }
   }
-  return;
 }
 
 // Assume that dyld is in memory at ADDR and try to parse it's load commands
@@ -251,6 +250,7 @@ bool DynamicLoaderMacOSXDYLD::ReadDYLDInfoFromMemoryAndSetNotificationCallback(
   std::lock_guard<std::recursive_mutex> baseclass_guard(GetMutex());
   DataExtractor data; // Load command data
   static ConstString g_dyld_all_image_infos("dyld_all_image_infos");
+  static ConstString g_new_dyld_all_image_infos("dyld4::dyld_all_image_infos");
   if (ReadMachHeader(addr, &m_dyld.header, &data)) {
     if (m_dyld.header.filetype == llvm::MachO::MH_DYLINKER) {
       m_dyld.address = addr;
@@ -268,6 +268,10 @@ bool DynamicLoaderMacOSXDYLD::ReadDYLDInfoFromMemoryAndSetNotificationCallback(
           dyld_module_sp.get()) {
         const Symbol *symbol = dyld_module_sp->FindFirstSymbolWithNameAndType(
             g_dyld_all_image_infos, eSymbolTypeData);
+        if (!symbol) {
+          symbol = dyld_module_sp->FindFirstSymbolWithNameAndType(
+              g_new_dyld_all_image_infos, eSymbolTypeData);
+        }
         if (symbol)
           m_dyld_all_image_infos_addr = symbol->GetLoadAddress(&target);
       }
@@ -355,7 +359,7 @@ bool DynamicLoaderMacOSXDYLD::NotifyBreakpointHit(
     CompilerType clang_uint32_type =
         clang_ast_context->GetBuiltinTypeForEncodingAndBitSize(
             lldb::eEncodingUint, 32);
-    input_value.SetValueType(Value::eValueTypeScalar);
+    input_value.SetValueType(Value::ValueType::Scalar);
     input_value.SetCompilerType(clang_uint32_type);
     //        input_value.SetContext (Value::eContextTypeClangType,
     //        clang_uint32_type);
@@ -1114,6 +1118,12 @@ bool DynamicLoaderMacOSXDYLD::GetSharedCacheInformation(
   return false;
 }
 
+bool DynamicLoaderMacOSXDYLD::IsFullyInitialized() {
+  if (ReadAllImageInfosStructure())
+    return m_dyld_all_image_infos.libSystemInitialized;
+  return false;
+}
+
 void DynamicLoaderMacOSXDYLD::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
                                 GetPluginDescriptionStatic(), CreateInstance);
@@ -1125,22 +1135,10 @@ void DynamicLoaderMacOSXDYLD::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
 
-lldb_private::ConstString DynamicLoaderMacOSXDYLD::GetPluginNameStatic() {
-  static ConstString g_name("macosx-dyld");
-  return g_name;
-}
-
-const char *DynamicLoaderMacOSXDYLD::GetPluginDescriptionStatic() {
+llvm::StringRef DynamicLoaderMacOSXDYLD::GetPluginDescriptionStatic() {
   return "Dynamic loader plug-in that watches for shared library loads/unloads "
          "in MacOSX user processes.";
 }
-
-// PluginInterface protocol
-lldb_private::ConstString DynamicLoaderMacOSXDYLD::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t DynamicLoaderMacOSXDYLD::GetPluginVersion() { return 1; }
 
 uint32_t DynamicLoaderMacOSXDYLD::AddrByteSize() {
   std::lock_guard<std::recursive_mutex> baseclass_guard(GetMutex());

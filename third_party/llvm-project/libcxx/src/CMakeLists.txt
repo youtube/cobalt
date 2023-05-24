@@ -19,12 +19,26 @@ set(LIBCXX_SOURCES
   include/atomic_support.h
   include/config_elast.h
   include/refstring.h
+  include/ryu/common.h
+  include/ryu/d2fixed.h
+  include/ryu/d2fixed_full_table.h
+  include/ryu/d2s.h
+  include/ryu/d2s_full_table.h
+  include/ryu/d2s_intrinsics.h
+  include/ryu/digit_table.h
+  include/ryu/f2s.h
+  include/ryu/ryu.h
+  include/to_chars_floating_point.h
+  legacy_pointer_safety.cpp
   memory.cpp
   mutex.cpp
   mutex_destructor.cpp
   new.cpp
   optional.cpp
   random_shuffle.cpp
+  ryu/d2fixed.cpp
+  ryu/d2s.cpp
+  ryu/f2s.cpp
   shared_mutex.cpp
   stdexcept.cpp
   string.cpp
@@ -63,6 +77,7 @@ endif()
 
 if (LIBCXX_ENABLE_LOCALIZATION)
   list(APPEND LIBCXX_SOURCES
+    include/sso_allocator.h
     ios.cpp
     ios.instantiations.cpp
     iostream.cpp
@@ -72,17 +87,34 @@ if (LIBCXX_ENABLE_LOCALIZATION)
     )
 endif()
 
+if(LIBCXX_ENABLE_INCOMPLETE_FEATURES)
+  list(APPEND LIBCXX_SOURCES
+    format.cpp
+  )
+endif()
+
 if(WIN32)
   list(APPEND LIBCXX_SOURCES
     support/win32/locale_win32.cpp
     support/win32/support.cpp
-    support/win32/thread_win32.cpp
     )
+
+  if (NOT LIBCXX_HAS_PTHREAD_API)
+    list(APPEND LIBCXX_SOURCES
+      support/win32/thread_win32.cpp
+      )
+  endif()
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "SunOS")
   list(APPEND LIBCXX_SOURCES
     support/solaris/mbsnrtowcs.inc
     support/solaris/wcsnrtombs.inc
     support/solaris/xlocale.cpp
+    )
+elseif(ZOS)
+  list(APPEND LIBCXX_SOURCES
+    support/ibm/mbsnrtowcs.cpp
+    support/ibm/wcsnrtombs.cpp
+    support/ibm/xlocale_zos.cpp
     )
 endif()
 
@@ -91,6 +123,7 @@ if (LIBCXX_ENABLE_FILESYSTEM)
     filesystem/filesystem_common.h
     filesystem/operations.cpp
     filesystem/directory_iterator.cpp
+    filesystem/posix_compat.h
     )
   # Filesystem uses __int128_t, which requires a definition of __muloi4 when
   # compiled with UBSAN. This definition is not provided by libgcc_s, but is
@@ -107,7 +140,7 @@ endif()
 if (LIBCXX_CONFIGURE_IDE)
   file(GLOB_RECURSE LIBCXX_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../include/*)
   if(WIN32)
-    file( GLOB LIBCXX_WIN32_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../include/support/win32/*.h)
+    file( GLOB LIBCXX_WIN32_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/../include/__support/win32/*.h)
     list(APPEND LIBCXX_HEADERS ${LIBCXX_WIN32_HEADERS})
   endif()
   # Force them all into the headers dir on MSVC, otherwise they end up at
@@ -144,7 +177,8 @@ if (APPLE AND LLVM_USE_SANITIZER)
     message(WARNING "LLVM_USE_SANITIZER=${LLVM_USE_SANITIZER} is not supported on OS X")
   endif()
   if (LIBFILE)
-    find_compiler_rt_dir(LIBDIR)
+    find_compiler_rt_library(builtins LIBCXX_BUILTINS_LIBRARY)
+    get_filename_component(LIBDIR "${LIBCXX_BUILTINS_LIBRARY}" DIRECTORY)
     if (NOT IS_DIRECTORY "${LIBDIR}")
       message(FATAL_ERROR "Cannot find compiler-rt directory on OS X required for LLVM_USE_SANITIZER")
     endif()
@@ -176,6 +210,7 @@ split_list(LIBCXX_LINK_FLAGS)
 # Build the shared library.
 if (LIBCXX_ENABLE_SHARED)
   add_library(cxx_shared SHARED ${exclude_from_all} ${LIBCXX_SOURCES} ${LIBCXX_HEADERS})
+  target_include_directories(cxx_shared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(cxx_shared PUBLIC cxx-headers
                                    PRIVATE ${LIBCXX_LIBRARIES})
   set_target_properties(cxx_shared
@@ -248,12 +283,14 @@ if (LIBCXX_ENABLE_SHARED)
   endif()
 endif()
 
+set(CMAKE_STATIC_LIBRARY_PREFIX "lib")
+
 # Build the static library.
 if (LIBCXX_ENABLE_STATIC)
   add_library(cxx_static STATIC ${exclude_from_all} ${LIBCXX_SOURCES} ${LIBCXX_HEADERS})
+  target_include_directories(cxx_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   target_link_libraries(cxx_static PUBLIC cxx-headers
                                    PRIVATE ${LIBCXX_LIBRARIES})
-  set(CMAKE_STATIC_LIBRARY_PREFIX "lib")
   set_target_properties(cxx_static
     PROPERTIES
       COMPILE_FLAGS "${LIBCXX_COMPILE_FLAGS}"
@@ -262,6 +299,13 @@ if (LIBCXX_ENABLE_STATIC)
   )
   cxx_add_common_build_flags(cxx_static)
   cxx_set_common_defines(cxx_static)
+
+  if (LIBCXXABI_USE_LLVM_UNWINDER)
+    # If we intend to use the just-built unwinder, add a dependency so that it
+    # gets built, even if we technically aren't going to link it in at this
+    # stage.
+    add_dependencies(cxx_static unwind)
+  endif()
 
   if (LIBCXX_HERMETIC_STATIC_LIBRARY)
     # If the hermetic library doesn't define the operator new/delete functions
@@ -286,6 +330,9 @@ if (LIBCXX_ENABLE_STATIC)
     else()
       set(MERGE_ARCHIVES_ABI_TARGET
         "${CMAKE_STATIC_LIBRARY_PREFIX}${LIBCXX_CXX_STATIC_ABI_LIBRARY}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+      if (LIBCXX_CXX_ABI_LIBRARY_PATH)
+        set(MERGE_ARCHIVES_ABI_TARGET "${LIBCXX_CXX_ABI_LIBRARY_PATH}/${MERGE_ARCHIVES_ABI_TARGET}")
+      endif ()
     endif()
     if (APPLE)
       set(MERGE_ARCHIVES_LIBTOOL "--use-libtool" "--libtool" "${CMAKE_LIBTOOL}")
@@ -301,6 +348,7 @@ if (LIBCXX_ENABLE_STATIC)
       "${MERGE_ARCHIVES_ABI_TARGET}"
       "${MERGE_ARCHIVES_SEARCH_PATHS}"
     WORKING_DIRECTORY ${LIBCXX_BUILD_DIR}
+    DEPENDS ${MERGE_ARCHIVES_ABI_TARGET}
     )
   endif()
 endif()
@@ -350,32 +398,30 @@ endif()
 
 if (LIBCXX_INSTALL_SHARED_LIBRARY)
   install(TARGETS cxx_shared
-    ARCHIVE DESTINATION ${LIBCXX_INSTALL_PREFIX}${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
-    LIBRARY DESTINATION ${LIBCXX_INSTALL_PREFIX}${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
-    RUNTIME DESTINATION ${LIBCXX_INSTALL_PREFIX}bin COMPONENT cxx)
+    ARCHIVE DESTINATION ${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
+    LIBRARY DESTINATION ${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
+    RUNTIME DESTINATION ${LIBCXX_INSTALL_RUNTIME_DIR} COMPONENT cxx)
 endif()
 
 if (LIBCXX_INSTALL_STATIC_LIBRARY)
   install(TARGETS cxx_static
-    ARCHIVE DESTINATION ${LIBCXX_INSTALL_PREFIX}${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
-    LIBRARY DESTINATION ${LIBCXX_INSTALL_PREFIX}${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
-    RUNTIME DESTINATION ${LIBCXX_INSTALL_PREFIX}bin COMPONENT cxx)
+    ARCHIVE DESTINATION ${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
+    LIBRARY DESTINATION ${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
+    RUNTIME DESTINATION ${LIBCXX_INSTALL_RUNTIME_DIR} COMPONENT cxx)
 endif()
 
 if(LIBCXX_INSTALL_EXPERIMENTAL_LIBRARY)
   install(TARGETS cxx_experimental
-    LIBRARY DESTINATION ${LIBCXX_INSTALL_PREFIX}${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
-    ARCHIVE DESTINATION ${LIBCXX_INSTALL_PREFIX}${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
-    RUNTIME DESTINATION ${LIBCXX_INSTALL_PREFIX}bin COMPONENT cxx)
+    LIBRARY DESTINATION ${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
+    ARCHIVE DESTINATION ${LIBCXX_INSTALL_LIBRARY_DIR} COMPONENT cxx
+    RUNTIME DESTINATION ${LIBCXX_INSTALL_RUNTIME_DIR} COMPONENT cxx)
 endif()
 
 # NOTE: This install command must go after the cxx install command otherwise
 # it will not be executed after the library symlinks are installed.
 if (LIBCXX_ENABLE_SHARED AND LIBCXX_ENABLE_ABI_LINKER_SCRIPT)
-  # Replace the libc++ filename with $<TARGET_LINKER_FILE:cxx>
-  # after we required CMake 3.0.
-  install(FILES "${LIBCXX_LIBRARY_DIR}/libc++${CMAKE_SHARED_LIBRARY_SUFFIX}"
-    DESTINATION ${LIBCXX_INSTALL_PREFIX}${LIBCXX_INSTALL_LIBRARY_DIR}
+  install(FILES "$<TARGET_LINKER_FILE:cxx_shared>"
+    DESTINATION ${LIBCXX_INSTALL_LIBRARY_DIR}
     COMPONENT libcxx)
 endif()
 

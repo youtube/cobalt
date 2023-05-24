@@ -125,18 +125,22 @@ void QualifiedAutoCheck::registerMatchers(MatchFinder *Finder) {
       };
 
   auto IsBoundToType = refersToType(equalsBoundNode("type"));
+  auto UnlessFunctionType = unless(hasUnqualifiedDesugaredType(functionType()));
+  auto IsAutoDeducedToPointer = [](const auto &...InnerMatchers) {
+    return autoType(hasDeducedType(
+        hasUnqualifiedDesugaredType(pointerType(pointee(InnerMatchers...)))));
+  };
 
   Finder->addMatcher(
-      ExplicitSingleVarDecl(hasType(autoType(hasDeducedType(
-                                pointerType(pointee(unless(functionType())))))),
+      ExplicitSingleVarDecl(hasType(IsAutoDeducedToPointer(UnlessFunctionType)),
                             "auto"),
       this);
 
   Finder->addMatcher(
       ExplicitSingleVarDeclInTemplate(
-          allOf(hasType(autoType(hasDeducedType(pointerType(
-                    pointee(hasUnqualifiedType(qualType().bind("type")),
-                            unless(functionType())))))),
+          allOf(hasType(IsAutoDeducedToPointer(
+                    hasUnqualifiedType(qualType().bind("type")),
+                    UnlessFunctionType)),
                 anyOf(hasAncestor(
                           functionDecl(hasAnyTemplateArgument(IsBoundToType))),
                       hasAncestor(classTemplateSpecializationDecl(
@@ -209,10 +213,11 @@ void QualifiedAutoCheck::check(const MatchFinder::MatchResult &Result) {
     }();
 
     DiagnosticBuilder Diag =
-        diag(FixitLoc, "'%0%1%2auto %3' can be declared as '%4%3'")
-        << (IsLocalConst ? "const " : "")
-        << (IsLocalVolatile ? "volatile " : "")
-        << (IsLocalRestrict ? "__restrict " : "") << Var->getName() << ReplStr;
+        diag(FixitLoc,
+             "'%select{|const }0%select{|volatile }1%select{|__restrict }2auto "
+             "%3' can be declared as '%4%3'")
+        << IsLocalConst << IsLocalVolatile << IsLocalRestrict << Var->getName()
+        << ReplStr;
 
     for (SourceRange &Range : RemoveQualifiersRange) {
       Diag << FixItHint::CreateRemoval(CharSourceRange::getCharRange(Range));
@@ -225,7 +230,7 @@ void QualifiedAutoCheck::check(const MatchFinder::MatchResult &Result) {
     if (!isPointerConst(Var->getType()))
       return; // Pointer isn't const, no need to add const qualifier.
     if (!isAutoPointerConst(Var->getType()))
-      return; // Const isnt wrapped in the auto type, so must be declared
+      return; // Const isn't wrapped in the auto type, so must be declared
               // explicitly.
 
     if (Var->getType().isLocalConstQualified()) {
@@ -253,10 +258,12 @@ void QualifiedAutoCheck::check(const MatchFinder::MatchResult &Result) {
           TypeSpec->getEnd().isMacroID())
         return;
       SourceLocation InsertPos = TypeSpec->getBegin();
-      diag(InsertPos, "'auto *%0%1%2' can be declared as 'const auto *%0%1%2'")
-          << (Var->getType().isLocalConstQualified() ? "const " : "")
-          << (Var->getType().isLocalVolatileQualified() ? "volatile " : "")
-          << Var->getName() << FixItHint::CreateInsertion(InsertPos, "const ");
+      diag(InsertPos,
+           "'auto *%select{|const }0%select{|volatile }1%2' can be declared as "
+           "'const auto *%select{|const }0%select{|volatile }1%2'")
+          << Var->getType().isLocalConstQualified()
+          << Var->getType().isLocalVolatileQualified() << Var->getName()
+          << FixItHint::CreateInsertion(InsertPos, "const ");
     }
     return;
   }
@@ -264,7 +271,7 @@ void QualifiedAutoCheck::check(const MatchFinder::MatchResult &Result) {
     if (!isPointerConst(Var->getType()))
       return; // Pointer isn't const, no need to add const qualifier.
     if (!isAutoPointerConst(Var->getType()))
-      // Const isnt wrapped in the auto type, so must be declared explicitly.
+      // Const isn't wrapped in the auto type, so must be declared explicitly.
       return;
 
     if (llvm::Optional<SourceRange> TypeSpec =

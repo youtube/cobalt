@@ -96,8 +96,8 @@ lpad:                                             ; preds = %entry
 	; CHECK:        blr x9
   ; CHECK-NEXT:   .Ltmp0:
 	; CHECK-NEXT:   blr x8
-  ; CHECK:       ; %invoke.cont
-  ; CHECK:       ; %lpad
+  ; CHECK:       // %common.ret
+  ; CHECK:       // %lpad
 }
 
 declare void @h()

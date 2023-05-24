@@ -119,6 +119,16 @@ ExceptionAnalyzer::ExceptionInfo ExceptionAnalyzer::throwsException(
     CallStack.insert(Func);
     ExceptionInfo Result =
         throwsException(Body, ExceptionInfo::Throwables(), CallStack);
+
+    // For a constructor, we also have to check the initializers.
+    if (const auto *Ctor = dyn_cast<CXXConstructorDecl>(Func)) {
+      for (const CXXCtorInitializer *Init : Ctor->inits()) {
+        ExceptionInfo Excs = throwsException(
+            Init->getInit(), ExceptionInfo::Throwables(), CallStack);
+        Result.merge(Excs);
+      }
+    }
+
     CallStack.erase(Func);
     return Result;
   }
@@ -158,8 +168,8 @@ ExceptionAnalyzer::ExceptionInfo ExceptionAnalyzer::throwsException(
   } else if (const auto *Try = dyn_cast<CXXTryStmt>(St)) {
     ExceptionInfo Uncaught =
         throwsException(Try->getTryBlock(), Caught, CallStack);
-    for (unsigned i = 0; i < Try->getNumHandlers(); ++i) {
-      const CXXCatchStmt *Catch = Try->getHandler(i);
+    for (unsigned I = 0; I < Try->getNumHandlers(); ++I) {
+      const CXXCatchStmt *Catch = Try->getHandler(I);
 
       // Everything is catched through 'catch(...)'.
       if (!Catch->getExceptionDecl()) {
@@ -195,6 +205,14 @@ ExceptionAnalyzer::ExceptionInfo ExceptionAnalyzer::throwsException(
       ExceptionInfo Excs = throwsException(Func, CallStack);
       Results.merge(Excs);
     }
+  } else if (const auto *Construct = dyn_cast<CXXConstructExpr>(St)) {
+    ExceptionInfo Excs =
+        throwsException(Construct->getConstructor(), CallStack);
+    Results.merge(Excs);
+  } else if (const auto *DefaultInit = dyn_cast<CXXDefaultInitExpr>(St)) {
+    ExceptionInfo Excs =
+        throwsException(DefaultInit->getExpr(), Caught, CallStack);
+    Results.merge(Excs);
   } else {
     for (const Stmt *Child : St->children()) {
       ExceptionInfo Excs = throwsException(Child, Caught, CallStack);

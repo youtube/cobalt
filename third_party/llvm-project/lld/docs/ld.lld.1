@@ -72,10 +72,22 @@ field to the specified name.
 Link against shared libraries.
 .It Fl -Bstatic , Fl -static , Fl -dn
 Do not link against shared libraries.
-.It Fl -Bsymbolic
-Bind defined symbols locally.
-.It Fl -Bsymbolic-functions
-Bind defined function symbols locally.
+.It Fl Bno-symbolic
+Don't bind default visibility defined symbols locally for
+.Fl shared
+(default).
+.It Fl Bsymbolic
+Bind default visibility defined symbols locally for
+.Fl shared.
+Also set the
+.Dv DF_SYMBOLIC
+flag.
+.It Fl Bsymbolic-functions
+Bind default visibility defined function symbols locally for
+.Fl shared.
+.It Fl Bsymbolic-non-weak-functions
+Bind default visibility defined STB_GLOBAL function symbols locally for
+.Fl shared.
 .It Fl -build-id Ns = Ns Ar value
 Generate a build ID note.
 .Ar value
@@ -129,7 +141,9 @@ you can specify
 .Fl O2
 to set the compression level to 6.
 .It Fl -cref
-Output cross reference table.
+Output cross reference table. If
+.Fl Map
+is specified, print to the map file.
 .It Fl -define-common , Fl d
 Assign space to common symbols.
 .It Fl -defsym Ns = Ns Ar symbol Ns = Ns Ar expression
@@ -155,12 +169,15 @@ Specify the dynamic linker to be used for a dynamically linked executable.
 This is recorded in an ELF segment of type
 .Dv PT_INTERP .
 .It Fl -dynamic-list Ns = Ns Ar file
-Read a list of dynamic symbols from
-.Ar file .
-(executable) Put matched non-local defined symbols to the dynamic symbol table.
-(shared object) References to matched non-local STV_DEFAULT symbols shouldn't be bound to definitions within the shared object. Implies
+Similar to
+.Cm --export-dynamic-symbol-list .
+When creating a shared object, implies
 .Cm -Bsymbolic
 but does not set DF_SYMBOLIC
+.It Fl -EB
+Select the big-endian format in the OUTPUT_FORMAT command.
+.It Fl -EL
+Select the little-endian format in the OUTPUT_FORMAT command.
 .It Fl -eh-frame-hdr
 Request creation of
 .Li .eh_frame_hdr
@@ -209,6 +226,12 @@ Put symbols in the dynamic symbol table.
 .Cm -Bsymbolic-functions
 or
 .Cm --dynamic-list
+.It Fl -export-dynamic-symbol-list Ns = Ns Ar file
+Read a list of dynamic symbol patterns from
+.Ar file .
+Apply
+.Cm --export-dynamic-symbol
+on each pattern.
 .It Fl -fatal-warnings
 Treat warnings as errors.
 .It Fl -filter Ns = Ns Ar value , Fl F Ar value
@@ -324,7 +347,7 @@ Page align sections.
 .It Fl -no-omagic
 Do not set the text data sections to be writable, page align sections.
 .It Fl -no-relax
-Disable target-specific relaxations. This is currently a no-op.
+Disable target-specific relaxations. For x86-64 this disables R_X86_64_GOTPCRELX and R_X86_64_REX_GOTPCRELX GOT optimization.
 .It Fl -no-rosegment
 Do not put read-only non-executable sections in their own segment.
 .It Fl -no-undefined-version
@@ -433,6 +456,20 @@ is specified, use SHT_ANDROID_RELR instead of SHT_RELR.
 Always generate position independent thunks.
 .It Fl -pie , Fl -pic-executable
 Create a position independent executable.
+.It Fl -power10-stubs Ns = Ns Cm mode
+Whether to use Power10 instructions in call stubs for R_PPC64_REL24_NOTOC and TOC/NOTOC interworking.
+.Ar mode
+may be:
+.Pp
+.Bl -tag -width 2n -compact
+.It Cm yes
+(default) Use.
+.It Cm auto
+Currently the same as yes.
+.It Cm no
+Don't use.
+.El
+
 .It Fl -print-gc-sections
 List removed unused sections.
 .It Fl -print-icf-sections
@@ -449,7 +486,7 @@ Save the current state of
 and
 .Fl -whole-archive.
 .It Fl -pop-state
-Undo the effect of
+Restore the states saved by
 .Fl -push-state.
 .It Fl -relocatable , Fl r
 Create relocatable object file.
@@ -483,7 +520,8 @@ Set address of section.
 .It Fl -shared , Fl -Bsharable
 Build a shared object.
 .It Fl -shuffle-sections Ns = Ns Ar seed
-Shuffle input sections using the given seed. If 0, use a random seed.
+Shuffle matched sections using the given seed before mapping them to the output sections.
+If -1, reverse the section order. If 0, use a random seed.
 .It Fl -soname Ns = Ns Ar value , Fl h Ar value
 Set
 .Dv DT_SONAME
@@ -498,6 +536,8 @@ Start a grouping of objects that should be treated as if they were together
 in an archive.
 .It Fl -strip-all , Fl s
 Strip all symbols.
+Implies
+.Fl -strip-debug .
 .It Fl -strip-debug , Fl S
 Strip debugging information.
 .It Fl -symbol-ordering-file Ns = Ns Ar file
@@ -634,6 +674,8 @@ linkers, and may be removed in the future.
 Report unresolved symbols as warnings.
 .It Fl -whole-archive
 Force load of all members in a static library.
+.It Fl -why-extract Ns = Ns Ar file
+Print to a file about why archive members are extracted.
 .It Fl -wrap Ns = Ns Ar symbol
 Redirect
 .Ar symbol
@@ -659,6 +701,16 @@ Make the main stack executable.
 Stack permissions are recorded in the
 .Dv PT_GNU_STACK
 segment.
+.Pp
+.It Cm bti-report Ns = Ns Ar [none|warning|error]
+Specify how to report the missing GNU_PROPERTY_AARCH64_FEATURE_1_BTI property.
+.Cm none
+is the default, linker will not report the missing property otherwise will be reported as a warning or an error.
+.Pp
+.It Cm cet-report Ns = Ns Ar [none|warning|error]
+Specify how to report the missing GNU_PROPERTY_X86_FEATURE_1_IBT or GNU_PROPERTY_X86_FEATURE_1_SHSTK properties.
+.Cm none
+is the default, linker will not report the missing property otherwise will be reported as a warning or an error.
 .Pp
 .It Cm force-bti
 Force enable AArch64 BTI instruction in PLT, warn if Input ELF file does not have GNU_PROPERTY_AARCH64_FEATURE_1_BTI property.
@@ -797,6 +849,12 @@ The stack size is recorded as the size of the
 .Ar size .
 .Dv PT_GNU_STACK
 program segment.
+.Pp
+.It Cm start-stop-gc
+Don't let __start_/__stop_ references retain the associated C identifier name sections (default).
+.Pp
+.It Cm nostart-stop-gc
+Let __start_/__stop_ references retain the associated C identifier name sections.
 .Pp
 .It Cm text
 Do not allow relocations against read-only segments.

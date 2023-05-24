@@ -1,11 +1,12 @@
-//===------------------------- cxa_default_handlers.cpp -------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
-// This file implements the default terminate_handler and unexpected_handler.
+// This file implements the default terminate_handler, unexpected_handler and
+// new_handler.
 //===----------------------------------------------------------------------===//
 
 #include <exception>
@@ -15,7 +16,7 @@
 #include "cxa_handlers.h"
 #include "cxa_exception.h"
 #include "private_typeinfo.h"
-#include "include/atomic_support.h"
+#include "include/atomic_support.h" // from libc++
 
 #if !defined(LIBCXXABI_SILENT_TERMINATE)
 
@@ -104,11 +105,14 @@ _LIBCPP_SAFE_STATIC std::terminate_handler __cxa_terminate_handler = default_ter
 _LIBCXXABI_DATA_VIS
 _LIBCPP_SAFE_STATIC std::unexpected_handler __cxa_unexpected_handler = default_unexpected_handler;
 
+_LIBCXXABI_DATA_VIS
+_LIBCPP_SAFE_STATIC std::new_handler __cxa_new_handler = 0;
+
 namespace std
 {
 
 unexpected_handler
-set_unexpected(unexpected_handler func) _NOEXCEPT
+set_unexpected(unexpected_handler func) noexcept
 {
     if (func == 0)
         func = default_unexpected_handler;
@@ -117,12 +121,18 @@ set_unexpected(unexpected_handler func) _NOEXCEPT
 }
 
 terminate_handler
-set_terminate(terminate_handler func) _NOEXCEPT
+set_terminate(terminate_handler func) noexcept
 {
     if (func == 0)
         func = default_terminate_handler;
     return __libcpp_atomic_exchange(&__cxa_terminate_handler, func,
                                     _AO_Acq_Rel);
+}
+
+new_handler
+set_new_handler(new_handler handler) noexcept
+{
+    return __libcpp_atomic_exchange(&__cxa_new_handler, handler, _AO_Acq_Rel);
 }
 
 }

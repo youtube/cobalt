@@ -51,11 +51,25 @@ def GPU_Dialect : Dialect {
     /// space.
     static unsigned getPrivateAddressSpace() { return 5; }
   }];
+
+  let dependentDialects = ["arith::ArithmeticDialect"];
+  let useDefaultAttributePrinterParser = 1;
 }
 
 def GPU_AsyncToken : DialectType<
   GPU_Dialect, CPred<"$_self.isa<::mlir::gpu::AsyncTokenType>()">, "async token type">,
              BuildableType<"mlir::gpu::AsyncTokenType::get($_builder.getContext())">;
+
+// Predicat to check if type is gpu::MMAMatrixType.
+def IsMMAMatrixTypePred : CPred<"$_self.isa<::mlir::gpu::MMAMatrixType>()">;
+
+def GPU_MMAMatrix : DialectType<
+  GPU_Dialect, IsMMAMatrixTypePred, "MMAMatrix type">;
+
+class MMAMatrixOf<list<Type> allowedTypes> :
+  ContainerType<AnyTypeOf<allowedTypes>, IsMMAMatrixTypePred,
+  "$_self.cast<::mlir::gpu::MMAMatrixType>().getElementType()",
+  "gpu.mma_matrix", "::mlir::gpu::MMAMatrixType">;
 
 def GPU_AsyncOpInterface : OpInterface<"AsyncOpInterface"> {
   let description = [{

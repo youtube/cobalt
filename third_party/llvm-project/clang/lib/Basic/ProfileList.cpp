@@ -58,7 +58,7 @@ ProfileSpecialCaseList::createOrDie(const std::vector<std::string> &Paths,
   std::string Error;
   if (auto PSCL = create(Paths, VFS, Error))
     return PSCL;
-  llvm::report_fatal_error(Error);
+  llvm::report_fatal_error(llvm::Twine(Error));
 }
 
 }
@@ -82,6 +82,7 @@ static StringRef getSectionName(CodeGenOptions::ProfileInstrKind Kind) {
   case CodeGenOptions::ProfileCSIRInstr:
     return "csllvm";
   }
+  llvm_unreachable("Unhandled CodeGenOptions::ProfileInstrKind enum");
 }
 
 llvm::Optional<bool>

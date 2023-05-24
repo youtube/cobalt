@@ -184,7 +184,7 @@ private:
   }
 
 public:
-  DeclContextOverride() {}
+  DeclContextOverride() = default;
 
   void OverrideAllDeclsFromContainingFunction(clang::Decl *decl) {
     for (DeclContext *decl_context = decl->getLexicalDeclContext();
@@ -293,7 +293,7 @@ public:
 
     NamedDecl *to_named_decl = dyn_cast<NamedDecl>(to);
     // Check if we already completed this type.
-    if (m_decls_already_completed.count(to_named_decl) != 0)
+    if (m_decls_already_completed.contains(to_named_decl))
       return;
     // Queue this type to be completed.
     m_decls_to_complete.insert(to_named_decl);
@@ -358,9 +358,6 @@ clang::Decl *ClangASTImporter::DeportDecl(clang::ASTContext *dst_ctx,
 bool ClangASTImporter::CanImport(const CompilerType &type) {
   if (!ClangUtil::IsClangType(type))
     return false;
-
-  // TODO: remove external completion BOOL
-  // CompleteAndFetchChildren should get the Decl out and check for the
 
   clang::QualType qual_type(
       ClangUtil::GetCanonicalQualType(ClangUtil::RemoveFastQualifiers(type)));
@@ -435,8 +432,6 @@ bool ClangASTImporter::CanImport(const CompilerType &type) {
 bool ClangASTImporter::Import(const CompilerType &type) {
   if (!ClangUtil::IsClangType(type))
     return false;
-  // TODO: remove external completion BOOL
-  // CompleteAndFetchChildren should get the Decl out and check for the
 
   clang::QualType qual_type(
       ClangUtil::GetCanonicalQualType(ClangUtil::RemoveFastQualifiers(type)));
@@ -811,7 +806,7 @@ void ClangASTImporter::ForgetSource(clang::ASTContext *dst_ast,
   md->removeOriginsWithContext(src_ast);
 }
 
-ClangASTImporter::MapCompleter::~MapCompleter() { return; }
+ClangASTImporter::MapCompleter::~MapCompleter() {}
 
 llvm::Expected<Decl *>
 ClangASTImporter::ASTImporterDelegate::ImportImpl(Decl *From) {
@@ -829,7 +824,11 @@ ClangASTImporter::ASTImporterDelegate::ImportImpl(Decl *From) {
   }
 
   // Check which ASTContext this declaration originally came from.
-  DeclOrigin origin = m_master.GetDeclOrigin(From);
+  DeclOrigin origin = m_main.GetDeclOrigin(From);
+
+  // Prevent infinite recursion when the origin tracking contains a cycle.
+  assert(origin.decl != From && "Origin points to itself?");
+
   // If it originally came from the target ASTContext then we can just
   // pretend that the original is the one we imported. This can happen for
   // example when inspecting a persistent declaration from the scratch
@@ -854,7 +853,7 @@ ClangASTImporter::ASTImporterDelegate::ImportImpl(Decl *From) {
   // though all these different source ASTContexts just got a copy from
   // one source AST).
   if (origin.Valid()) {
-    auto R = m_master.CopyDecl(&getToContext(), origin.decl);
+    auto R = m_main.CopyDecl(&getToContext(), origin.decl);
     if (R) {
       RegisterImportedDecl(From, R);
       return R;
@@ -863,7 +862,7 @@ ClangASTImporter::ASTImporterDelegate::ImportImpl(Decl *From) {
 
   // If we have a forcefully completed type, try to find an actual definition
   // for it in other modules.
-  const ClangASTMetadata *md = m_master.GetDeclMetadata(From);
+  const ClangASTMetadata *md = m_main.GetDeclMetadata(From);
   auto *td = dyn_cast<TagDecl>(From);
   if (td && md && md->IsForcefullyCompleted()) {
     Log *log = GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS);
@@ -903,16 +902,6 @@ void ClangASTImporter::ASTImporterDelegate::ImportDefinitionTo(
   // tell the ASTImporter that 'to' was imported from 'from'.
   MapImported(from, to);
   ASTImporter::Imported(from, to);
-
-  /*
-  if (to_objc_interface)
-      to_objc_interface->startDefinition();
-
-  CXXRecordDecl *to_cxx_record = dyn_cast<CXXRecordDecl>(to);
-
-  if (to_cxx_record)
-      to_cxx_record->startDefinition();
-  */
 
   Log *log = lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS);
 
@@ -1056,7 +1045,7 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
   }
 
   lldb::user_id_t user_id = LLDB_INVALID_UID;
-  ClangASTMetadata *metadata = m_master.GetDeclMetadata(from);
+  ClangASTMetadata *metadata = m_main.GetDeclMetadata(from);
   if (metadata)
     user_id = metadata->GetUserID();
 
@@ -1080,30 +1069,31 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
   }
 
   ASTContextMetadataSP to_context_md =
-      m_master.GetContextMetadata(&to->getASTContext());
+      m_main.GetContextMetadata(&to->getASTContext());
   ASTContextMetadataSP from_context_md =
-      m_master.MaybeGetContextMetadata(m_source_ctx);
+      m_main.MaybeGetContextMetadata(m_source_ctx);
 
   if (from_context_md) {
     DeclOrigin origin = from_context_md->getOrigin(from);
 
     if (origin.Valid()) {
-      if (!to_context_md->hasOrigin(to) || user_id != LLDB_INVALID_UID)
-        if (origin.ctx != &to->getASTContext())
+      if (origin.ctx != &to->getASTContext()) {
+        if (!to_context_md->hasOrigin(to) || user_id != LLDB_INVALID_UID)
           to_context_md->setOrigin(to, origin);
 
-      ImporterDelegateSP direct_completer =
-          m_master.GetDelegate(&to->getASTContext(), origin.ctx);
+        ImporterDelegateSP direct_completer =
+            m_main.GetDelegate(&to->getASTContext(), origin.ctx);
 
-      if (direct_completer.get() != this)
-        direct_completer->ASTImporter::Imported(origin.decl, to);
+        if (direct_completer.get() != this)
+          direct_completer->ASTImporter::Imported(origin.decl, to);
 
-      LLDB_LOG(log,
-               "    [ClangASTImporter] Propagated origin "
-               "(Decl*){0}/(ASTContext*){1} from (ASTContext*){2} to "
-               "(ASTContext*){3}",
-               origin.decl, origin.ctx, &from->getASTContext(),
-               &to->getASTContext());
+        LLDB_LOG(log,
+                 "    [ClangASTImporter] Propagated origin "
+                 "(Decl*){0}/(ASTContext*){1} from (ASTContext*){2} to "
+                 "(ASTContext*){3}",
+                 origin.decl, origin.ctx, &from->getASTContext(),
+                 &to->getASTContext());
+      }
     } else {
       if (m_new_decl_listener)
         m_new_decl_listener->NewDeclImported(from, to);
@@ -1153,7 +1143,7 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
   }
 
   if (auto *to_namespace_decl = dyn_cast<NamespaceDecl>(to)) {
-    m_master.BuildNamespaceMap(to_namespace_decl);
+    m_main.BuildNamespaceMap(to_namespace_decl);
     to_namespace_decl->setHasExternalVisibleStorage();
   }
 
@@ -1182,10 +1172,10 @@ void ClangASTImporter::ASTImporterDelegate::Imported(clang::Decl *from,
   }
 
   if (clang::CXXMethodDecl *to_method = dyn_cast<CXXMethodDecl>(to))
-    MaybeCompleteReturnType(m_master, to_method);
+    MaybeCompleteReturnType(m_main, to_method);
 }
 
 clang::Decl *
 ClangASTImporter::ASTImporterDelegate::GetOriginalDecl(clang::Decl *To) {
-  return m_master.GetDeclOrigin(To).decl;
+  return m_main.GetDeclOrigin(To).decl;
 }

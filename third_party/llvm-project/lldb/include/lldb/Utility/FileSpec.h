@@ -20,8 +20,8 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/YAMLTraits.h"
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 namespace lldb_private {
 class Stream;
@@ -38,7 +38,7 @@ template <typename T> class SmallVectorImpl;
 
 namespace lldb_private {
 
-/// \class FileSpec FileSpec.h "lldb/Host/FileSpec.h"
+/// \class FileSpec FileSpec.h "lldb/Utility/FileSpec.h"
 /// A file utility class.
 ///
 /// A file specification class that divides paths up into a directory
@@ -202,7 +202,7 @@ public:
   /// \return
   ///     \b true if the file path is case sensitive (POSIX), false
   ///		if case insensitive (Windows).
-  bool IsCaseSensitive() const { return m_style != Style::windows; }
+  bool IsCaseSensitive() const { return is_style_posix(m_style); }
 
   /// Dump this object to a Stream.
   ///
@@ -334,8 +334,6 @@ public:
   ///
   /// \return
   ///     The number of bytes that this object occupies in memory.
-  ///
-  /// \see ConstString::StaticMemorySize ()
   size_t MemorySize() const;
 
   /// Change the file specified with a new path.

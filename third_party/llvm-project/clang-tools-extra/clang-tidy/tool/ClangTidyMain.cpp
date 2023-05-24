@@ -20,6 +20,7 @@
 #include "../GlobList.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
@@ -126,6 +127,15 @@ attached fix-its, clang-tidy will apply them as
 well.
 )"),
                                cl::init(false), cl::cat(ClangTidyCategory));
+
+static cl::opt<bool> FixNotes("fix-notes", cl::desc(R"(
+If a warning has no fix, but a single fix can 
+be found through an associated diagnostic note, 
+apply the fix. 
+Specifying this flag will implicitly enable the 
+'--fix' flag.
+)"),
+                              cl::init(false), cl::cat(ClangTidyCategory));
 
 static cl::opt<std::string> FormatStyle("format-style", cl::desc(R"(
 Style for formatting code around applied fixes:
@@ -377,6 +387,11 @@ getVfsFromFile(const std::string &OverlayFile,
 
 int clangTidyMain(int argc, const char **argv) {
   llvm::InitLLVM X(argc, argv);
+
+  // Enable help for -load option, if plugins are enabled.
+  if (cl::Option *LoadOpt = cl::getRegisteredOptions().lookup("load"))
+    LoadOpt->addCategory(ClangTidyCategory);
+
   llvm::Expected<CommonOptionsParser> OptionsParser =
       CommonOptionsParser::create(argc, argv, ClangTidyCategory,
                                   cl::ZeroOrMore);
@@ -483,18 +498,22 @@ int clangTidyMain(int argc, const char **argv) {
                            AllowEnablingAnalyzerAlphaCheckers);
   std::vector<ClangTidyError> Errors =
       runClangTidy(Context, OptionsParser->getCompilations(), PathList, BaseFS,
-                   EnableCheckProfile, ProfilePrefix);
+                   FixNotes, EnableCheckProfile, ProfilePrefix);
   bool FoundErrors = llvm::find_if(Errors, [](const ClangTidyError &E) {
                        return E.DiagLevel == ClangTidyError::Error;
                      }) != Errors.end();
 
-  const bool DisableFixes = Fix && FoundErrors && !FixErrors;
+  // --fix-errors and --fix-notes imply --fix.
+  FixBehaviour Behaviour = FixNotes             ? FB_FixNotes
+                           : (Fix || FixErrors) ? FB_Fix
+                                                : FB_NoFix;
+
+  const bool DisableFixes = FoundErrors && !FixErrors;
 
   unsigned WErrorCount = 0;
 
-  // -fix-errors implies -fix.
-  handleErrors(Errors, Context, (FixErrors || Fix) && !DisableFixes, WErrorCount,
-               BaseFS);
+  handleErrors(Errors, Context, DisableFixes ? FB_NoFix : Behaviour,
+               WErrorCount, BaseFS);
 
   if (!ExportFixes.empty() && !Errors.empty()) {
     std::error_code EC;
@@ -508,7 +527,7 @@ int clangTidyMain(int argc, const char **argv) {
 
   if (!Quiet) {
     printStats(Context.getStats());
-    if (DisableFixes)
+    if (DisableFixes && Behaviour != FB_NoFix)
       llvm::errs()
           << "Found compiler errors, but -fix-errors was not specified.\n"
              "Fixes have NOT been applied.\n\n";

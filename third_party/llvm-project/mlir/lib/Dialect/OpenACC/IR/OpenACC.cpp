@@ -10,10 +10,16 @@
 #include "mlir/Dialect/OpenACC/OpenACCOpsEnums.cpp.inc"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/Matchers.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 using namespace mlir;
 using namespace acc;
+
+#include "mlir/Dialect/OpenACC/OpenACCOpsDialect.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // OpenACC operations
@@ -23,6 +29,10 @@ void OpenACCDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
 #include "mlir/Dialect/OpenACC/OpenACCOps.cpp.inc"
+      >();
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "mlir/Dialect/OpenACC/OpenACCOpsAttributes.cpp.inc"
       >();
 }
 
@@ -77,7 +87,7 @@ parseOperandList(OpAsmParser &parser, StringRef keyword,
 static void printOperandList(Operation::operand_range operands,
                              StringRef listName, OpAsmPrinter &printer) {
 
-  if (operands.size() > 0) {
+  if (!operands.empty()) {
     printer << " " << listName << "(";
     llvm::interleaveComma(operands, printer, [&](Value op) {
       printer << op << ": " << op.getType();
@@ -152,6 +162,34 @@ static OptionalParseResult parserOptionalOperandAndTypeWithPrefix(
 static bool isComputeOperation(Operation *op) {
   return isa<acc::ParallelOp>(op) || isa<acc::LoopOp>(op);
 }
+
+namespace {
+/// Pattern to remove operation without region that have constant false `ifCond`
+/// and remove the condition from the operation if the `ifCond` is a true
+/// constant.
+template <typename OpTy>
+struct RemoveConstantIfCondition : public OpRewritePattern<OpTy> {
+  using OpRewritePattern<OpTy>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(OpTy op,
+                                PatternRewriter &rewriter) const override {
+    // Early return if there is no condition.
+    Value ifCond = op.ifCond();
+    if (!ifCond)
+      return success();
+
+    IntegerAttr constAttr;
+    if (matchPattern(ifCond, m_Constant(&constAttr))) {
+      if (constAttr.getInt())
+        rewriter.updateRootInPlace(op, [&]() { op.ifCondMutable().erase(0); });
+      else
+        rewriter.eraseOp(op);
+    }
+
+    return success();
+  }
+};
+} // namespace
 
 //===----------------------------------------------------------------------===//
 // ParallelOp
@@ -353,8 +391,6 @@ static ParseResult parseParallelOp(OpAsmParser &parser,
 }
 
 static void print(OpAsmPrinter &printer, ParallelOp &op) {
-  printer << ParallelOp::getOperationName();
-
   // async()?
   if (Value async = op.async())
     printer << " " << ParallelOp::getAsyncKeyword() << "(" << async << ": "
@@ -441,11 +477,32 @@ static void print(OpAsmPrinter &printer, ParallelOp &op) {
   printOperandList(op.gangFirstPrivateOperands(),
                    ParallelOp::getFirstPrivateKeyword(), printer);
 
+  printer << ' ';
   printer.printRegion(op.region(),
                       /*printEntryBlockArgs=*/false,
                       /*printBlockTerminators=*/true);
   printer.printOptionalAttrDictWithKeyword(
-      op.getAttrs(), ParallelOp::getOperandSegmentSizeAttr());
+      op->getAttrs(), ParallelOp::getOperandSegmentSizeAttr());
+}
+
+unsigned ParallelOp::getNumDataOperands() {
+  return reductionOperands().size() + copyOperands().size() +
+         copyinOperands().size() + copyinReadonlyOperands().size() +
+         copyoutOperands().size() + copyoutZeroOperands().size() +
+         createOperands().size() + createZeroOperands().size() +
+         noCreateOperands().size() + presentOperands().size() +
+         devicePtrOperands().size() + attachOperands().size() +
+         gangPrivateOperands().size() + gangFirstPrivateOperands().size();
+}
+
+Value ParallelOp::getDataOperand(unsigned i) {
+  unsigned numOptional = async() ? 1 : 0;
+  numOptional += numGangs() ? 1 : 0;
+  numOptional += numWorkers() ? 1 : 0;
+  numOptional += vectorLength() ? 1 : 0;
+  numOptional += ifCond() ? 1 : 0;
+  numOptional += selfCond() ? 1 : 0;
+  return getOperand(waitOperands().size() + numOptional + i);
 }
 
 //===----------------------------------------------------------------------===//
@@ -550,8 +607,6 @@ static ParseResult parseLoopOp(OpAsmParser &parser, OperationState &result) {
 }
 
 static void print(OpAsmPrinter &printer, LoopOp &op) {
-  printer << LoopOp::getOperationName();
-
   unsigned execMapping = op.exec_mapping();
   if (execMapping & OpenACCExecMapping::GANG) {
     printer << " " << LoopOp::getGangKeyword();
@@ -603,13 +658,14 @@ static void print(OpAsmPrinter &printer, LoopOp &op) {
   if (op.getNumResults() > 0)
     printer << " -> (" << op.getResultTypes() << ")";
 
+  printer << ' ';
   printer.printRegion(op.region(),
                       /*printEntryBlockArgs=*/false,
                       /*printBlockTerminators=*/true);
 
   printer.printOptionalAttrDictWithKeyword(
-      op.getAttrs(), {LoopOp::getExecutionMappingAttrName(),
-                      LoopOp::getOperandSegmentSizeAttr()});
+      op->getAttrs(), {LoopOp::getExecutionMappingAttrName(),
+                       LoopOp::getOperandSegmentSizeAttr()});
 }
 
 static LogicalResult verifyLoopOp(acc::LoopOp loopOp) {
@@ -646,10 +702,24 @@ static LogicalResult verify(acc::DataOp dataOp) {
   // 2.6.5. Data Construct restriction
   // At least one copy, copyin, copyout, create, no_create, present, deviceptr,
   // attach, or default clause must appear on a data construct.
-  if (dataOp.getOperands().size() == 0 && !dataOp.defaultAttr())
+  if (dataOp.getOperands().empty() && !dataOp.defaultAttr())
     return dataOp.emitError("at least one operand or the default attribute "
                             "must appear on the data operation");
   return success();
+}
+
+unsigned DataOp::getNumDataOperands() {
+  return copyOperands().size() + copyinOperands().size() +
+         copyinReadonlyOperands().size() + copyoutOperands().size() +
+         copyoutZeroOperands().size() + createOperands().size() +
+         createZeroOperands().size() + noCreateOperands().size() +
+         presentOperands().size() + deviceptrOperands().size() +
+         attachOperands().size();
+}
+
+Value DataOp::getDataOperand(unsigned i) {
+  unsigned numOptional = ifCond() ? 1 : 0;
+  return getOperand(numOptional + i);
 }
 
 //===----------------------------------------------------------------------===//
@@ -682,8 +752,25 @@ static LogicalResult verify(acc::ExitDataOp op) {
   return success();
 }
 
+unsigned ExitDataOp::getNumDataOperands() {
+  return copyoutOperands().size() + deleteOperands().size() +
+         detachOperands().size();
+}
+
+Value ExitDataOp::getDataOperand(unsigned i) {
+  unsigned numOptional = ifCond() ? 1 : 0;
+  numOptional += asyncOperand() ? 1 : 0;
+  numOptional += waitDevnum() ? 1 : 0;
+  return getOperand(waitOperands().size() + numOptional + i);
+}
+
+void ExitDataOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                             MLIRContext *context) {
+  results.add<RemoveConstantIfCondition<ExitDataOp>>(context);
+}
+
 //===----------------------------------------------------------------------===//
-// DataEnterOp
+// EnterDataOp
 //===----------------------------------------------------------------------===//
 
 static LogicalResult verify(acc::EnterDataOp op) {
@@ -710,6 +797,23 @@ static LogicalResult verify(acc::EnterDataOp op) {
     return op.emitError("wait_devnum cannot appear without waitOperands");
 
   return success();
+}
+
+unsigned EnterDataOp::getNumDataOperands() {
+  return copyinOperands().size() + createOperands().size() +
+         createZeroOperands().size() + attachOperands().size();
+}
+
+Value EnterDataOp::getDataOperand(unsigned i) {
+  unsigned numOptional = ifCond() ? 1 : 0;
+  numOptional += asyncOperand() ? 1 : 0;
+  numOptional += waitDevnum() ? 1 : 0;
+  return getOperand(waitOperands().size() + numOptional + i);
+}
+
+void EnterDataOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                              MLIRContext *context) {
+  results.add<RemoveConstantIfCondition<EnterDataOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -744,8 +848,7 @@ static LogicalResult verify(acc::ShutdownOp op) {
 
 static LogicalResult verify(acc::UpdateOp updateOp) {
   // At least one of host or device should have a value.
-  if (updateOp.hostOperands().size() == 0 &&
-      updateOp.deviceOperands().size() == 0)
+  if (updateOp.hostOperands().empty() && updateOp.deviceOperands().empty())
     return updateOp.emitError("at least one value must be present in"
                               " hostOperands or deviceOperands");
 
@@ -757,13 +860,30 @@ static LogicalResult verify(acc::UpdateOp updateOp) {
 
   // The wait attribute represent the wait clause without values. Therefore the
   // attribute and operands cannot appear at the same time.
-  if (updateOp.waitOperands().size() > 0 && updateOp.wait())
+  if (!updateOp.waitOperands().empty() && updateOp.wait())
     return updateOp.emitError("wait attribute cannot appear with waitOperands");
 
-  if (updateOp.waitDevnum() && updateOp.waitOperands().size() == 0)
+  if (updateOp.waitDevnum() && updateOp.waitOperands().empty())
     return updateOp.emitError("wait_devnum cannot appear without waitOperands");
 
   return success();
+}
+
+unsigned UpdateOp::getNumDataOperands() {
+  return hostOperands().size() + deviceOperands().size();
+}
+
+Value UpdateOp::getDataOperand(unsigned i) {
+  unsigned numOptional = asyncOperand() ? 1 : 0;
+  numOptional += waitDevnum() ? 1 : 0;
+  numOptional += ifCond() ? 1 : 0;
+  return getOperand(waitOperands().size() + deviceTypeOperands().size() +
+                    numOptional + i);
+}
+
+void UpdateOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                           MLIRContext *context) {
+  results.add<RemoveConstantIfCondition<UpdateOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -784,3 +904,6 @@ static LogicalResult verify(acc::WaitOp waitOp) {
 
 #define GET_OP_CLASSES
 #include "mlir/Dialect/OpenACC/OpenACCOps.cpp.inc"
+
+#define GET_ATTRDEF_CLASSES
+#include "mlir/Dialect/OpenACC/OpenACCOpsAttributes.cpp.inc"

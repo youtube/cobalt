@@ -8,15 +8,15 @@ gpu.module @foo {
   // CHECK-SAME: workgroup(%[[promoted:.*]] : memref<5x4xf32, 3>)
   gpu.func @memref3d(%arg0: memref<5x4xf32> {gpu.test_promote_workgroup}) kernel {
     // Verify that loop bounds are emitted, the order does not matter.
-    // CHECK-DAG: %[[c1:.*]] = constant 1
-    // CHECK-DAG: %[[c4:.*]] = constant 4
-    // CHECK-DAG: %[[c5:.*]] = constant 5
-    // CHECK-DAG: %[[tx:.*]] = "gpu.thread_id"() {dimension = "x"}
-    // CHECK-DAG: %[[ty:.*]] = "gpu.thread_id"() {dimension = "y"}
-    // CHECK-DAG: %[[tz:.*]] = "gpu.thread_id"() {dimension = "z"}
-    // CHECK-DAG: %[[bdx:.*]] = "gpu.block_dim"() {dimension = "x"}
-    // CHECK-DAG: %[[bdy:.*]] = "gpu.block_dim"() {dimension = "y"}
-    // CHECK-DAG: %[[bdz:.*]] = "gpu.block_dim"() {dimension = "z"}
+    // CHECK-DAG: %[[c1:.*]] = arith.constant 1
+    // CHECK-DAG: %[[c4:.*]] = arith.constant 4
+    // CHECK-DAG: %[[c5:.*]] = arith.constant 5
+    // CHECK-DAG: %[[tx:.*]] = gpu.thread_id x
+    // CHECK-DAG: %[[ty:.*]] = gpu.thread_id y
+    // CHECK-DAG: %[[tz:.*]] = gpu.thread_id z
+    // CHECK-DAG: %[[bdx:.*]] = gpu.block_dim x
+    // CHECK-DAG: %[[bdy:.*]] = gpu.block_dim y
+    // CHECK-DAG: %[[bdz:.*]] = gpu.block_dim z
 
     // Verify that loops for the copy are emitted. We only check the number of
     // loops here since their bounds are produced by mapLoopToProcessorIds,
@@ -26,7 +26,7 @@ gpu.module @foo {
     // CHECK:     scf.for %[[i2:.*]] =
 
     // Verify that the copy is emitted and uses only the last two loops.
-    // CHECK:       %[[v:.*]] = load %[[arg]][%[[i1]], %[[i2]]]
+    // CHECK:       %[[v:.*]] = memref.load %[[arg]][%[[i1]], %[[i2]]]
     // CHECK:       store %[[v]], %[[promoted]][%[[i1]], %[[i2]]]
 
     // Verify that the use has been rewritten.
@@ -42,7 +42,7 @@ gpu.module @foo {
     // CHECK:     scf.for %[[i2:.*]] =
 
     // Verify that the copy is emitted and uses only the last two loops.
-    // CHECK:       %[[v:.*]] = load %[[promoted]][%[[i1]], %[[i2]]]
+    // CHECK:       %[[v:.*]] = memref.load %[[promoted]][%[[i1]], %[[i2]]]
     // CHECK:       store %[[v]], %[[arg]][%[[i1]], %[[i2]]]
     gpu.return
   }
@@ -58,19 +58,19 @@ gpu.module @foo {
   // CHECK-SAME: workgroup(%[[promoted:.*]] : memref<8x7x6x5x4xf32, 3>)
   gpu.func @memref5d(%arg0: memref<8x7x6x5x4xf32> {gpu.test_promote_workgroup}) kernel {
     // Verify that loop bounds are emitted, the order does not matter.
-    // CHECK-DAG: %[[c0:.*]] = constant 0
-    // CHECK-DAG: %[[c1:.*]] = constant 1
-    // CHECK-DAG: %[[c4:.*]] = constant 4
-    // CHECK-DAG: %[[c5:.*]] = constant 5
-    // CHECK-DAG: %[[c6:.*]] = constant 6
-    // CHECK-DAG: %[[c7:.*]] = constant 7
-    // CHECK-DAG: %[[c8:.*]] = constant 8
-    // CHECK-DAG: %[[tx:.*]] = "gpu.thread_id"() {dimension = "x"}
-    // CHECK-DAG: %[[ty:.*]] = "gpu.thread_id"() {dimension = "y"}
-    // CHECK-DAG: %[[tz:.*]] = "gpu.thread_id"() {dimension = "z"}
-    // CHECK-DAG: %[[bdx:.*]] = "gpu.block_dim"() {dimension = "x"}
-    // CHECK-DAG: %[[bdy:.*]] = "gpu.block_dim"() {dimension = "y"}
-    // CHECK-DAG: %[[bdz:.*]] = "gpu.block_dim"() {dimension = "z"}
+    // CHECK-DAG: %[[c0:.*]] = arith.constant 0
+    // CHECK-DAG: %[[c1:.*]] = arith.constant 1
+    // CHECK-DAG: %[[c4:.*]] = arith.constant 4
+    // CHECK-DAG: %[[c5:.*]] = arith.constant 5
+    // CHECK-DAG: %[[c6:.*]] = arith.constant 6
+    // CHECK-DAG: %[[c7:.*]] = arith.constant 7
+    // CHECK-DAG: %[[c8:.*]] = arith.constant 8
+    // CHECK-DAG: %[[tx:.*]] = gpu.thread_id x
+    // CHECK-DAG: %[[ty:.*]] = gpu.thread_id y
+    // CHECK-DAG: %[[tz:.*]] = gpu.thread_id z
+    // CHECK-DAG: %[[bdx:.*]] = gpu.block_dim x
+    // CHECK-DAG: %[[bdy:.*]] = gpu.block_dim y
+    // CHECK-DAG: %[[bdz:.*]] = gpu.block_dim z
 
     // Verify that loops for the copy are emitted.
     // CHECK: scf.for %[[i0:.*]] =
@@ -80,7 +80,7 @@ gpu.module @foo {
     // CHECK:         scf.for %[[i4:.*]] =
 
     // Verify that the copy is emitted.
-    // CHECK:           %[[v:.*]] = load %[[arg]][%[[i0]], %[[i1]], %[[i2]], %[[i3]], %[[i4]]]
+    // CHECK:           %[[v:.*]] = memref.load %[[arg]][%[[i0]], %[[i1]], %[[i2]], %[[i3]], %[[i4]]]
     // CHECK:           store %[[v]], %[[promoted]][%[[i0]], %[[i1]], %[[i2]], %[[i3]], %[[i4]]]
 
     // Verify that the use has been rewritten.
@@ -95,7 +95,7 @@ gpu.module @foo {
     // CHECK:         scf.for %[[i4:.*]] =
 
     // Verify that the copy is emitted.
-    // CHECK:           %[[v:.*]] = load %[[promoted]][%[[i0]], %[[i1]], %[[i2]], %[[i3]], %[[i4]]]
+    // CHECK:           %[[v:.*]] = memref.load %[[promoted]][%[[i0]], %[[i1]], %[[i2]], %[[i3]], %[[i4]]]
     // CHECK:           store %[[v]], %[[arg]][%[[i0]], %[[i1]], %[[i2]], %[[i3]], %[[i4]]]
     gpu.return
   }

@@ -15,6 +15,7 @@
 
 #include "index/SymbolID.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclObjC.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Lex/MacroInfo.h"
@@ -26,6 +27,7 @@
 namespace clang {
 class SourceManager;
 class Decl;
+class DynTypedNode;
 
 namespace clangd {
 
@@ -63,6 +65,20 @@ std::string printName(const ASTContext &Ctx, const NamedDecl &ND);
 /// <typename U> struct Foo<int, U> will return '<int, U>'. Returns an empty
 /// string if decl is not a template specialization.
 std::string printTemplateSpecializationArgs(const NamedDecl &ND);
+
+/// Print the Objective-C method name, including the full container name, e.g.
+/// `-[MyClass(Category) method:]`
+std::string printObjCMethod(const ObjCMethodDecl &Method);
+
+/// Print the Objective-C container name including categories, e.g. `MyClass`,
+// `MyClass()`, `MyClass(Category)`, and `MyProtocol`.
+std::string printObjCContainer(const ObjCContainerDecl &C);
+
+/// Returns true if this is a NamedDecl with a reserved name.
+bool hasReservedName(const Decl &);
+/// Returns true if this scope would be written with a reserved name.
+/// This does not include unwritten scope elements like __1 in std::__1::vector.
+bool hasReservedScope(const DeclContext &);
 
 /// Gets the symbol ID for a declaration. Returned SymbolID might be null.
 SymbolID getSymbolID(const Decl *D);
@@ -111,6 +127,9 @@ QualType declaredType(const TypeDecl *D);
 /// It will return the underlying type.
 /// If the type is an undeduced auto, returns the type itself.
 llvm::Optional<QualType> getDeducedType(ASTContext &, SourceLocation Loc);
+
+/// Return attributes attached directly to a node.
+std::vector<const Attr *> getAttributes(const DynTypedNode &);
 
 /// Gets the nested name specifier necessary for spelling \p ND in \p
 /// DestContext, at \p InsertionPoint. It selects the shortest suffix of \p ND
@@ -161,6 +180,12 @@ std::string getQualification(ASTContext &Context,
 /// This means x has "unique external" linkage. If we computed linkage above,
 /// the cached value is incorrect. (clang catches this with an assertion).
 bool hasUnstableLinkage(const Decl *D);
+
+/// Checks whether \p D is more than \p MaxDepth away from translation unit
+/// scope.
+/// This is useful for limiting traversals to keep operation latencies
+/// reasonable.
+bool isDeeplyNested(const Decl *D, unsigned MaxDepth = 10);
 
 } // namespace clangd
 } // namespace clang

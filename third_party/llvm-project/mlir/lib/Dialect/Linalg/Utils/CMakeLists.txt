@@ -6,12 +6,14 @@ add_mlir_dialect_library(MLIRLinalgUtils
 
   LINK_LIBS PUBLIC
   MLIRAffine
-  MLIREDSC
+  MLIRAffineAnalysis
+  MLIRAffineUtils
+  MLIRArithmetic
   MLIRIR
-  MLIRLinalgEDSC
   MLIRLinalg
   MLIRSCF
   MLIRPass
   MLIRStandard
+  MLIRTensorUtils
   MLIRTransformUtils
   )

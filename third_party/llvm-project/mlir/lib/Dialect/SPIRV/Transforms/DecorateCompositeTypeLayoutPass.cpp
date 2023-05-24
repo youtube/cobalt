@@ -43,10 +43,9 @@ public:
         spirv::PointerType::get(structType, ptrType.getStorageClass());
 
     // Save all named attributes except "type" attribute.
-    for (const auto &attr : op.getAttrs()) {
-      if (attr.first == "type") {
+    for (const auto &attr : op->getAttrs()) {
+      if (attr.getName() == "type")
         continue;
-      }
       globalVarAttrs.push_back(attr);
     }
 
@@ -64,20 +63,37 @@ public:
   LogicalResult matchAndRewrite(spirv::AddressOfOp op,
                                 PatternRewriter &rewriter) const override {
     auto spirvModule = op->getParentOfType<spirv::ModuleOp>();
-    auto varName = op.variable();
+    auto varName = op.variableAttr();
     auto varOp = spirvModule.lookupSymbol<spirv::GlobalVariableOp>(varName);
 
     rewriter.replaceOpWithNewOp<spirv::AddressOfOp>(
-        op, varOp.type(), rewriter.getSymbolRefAttr(varName));
+        op, varOp.type(), SymbolRefAttr::get(varName.getAttr()));
+    return success();
+  }
+};
+
+template <typename OpT>
+class SPIRVPassThroughConversion : public OpConversionPattern<OpT> {
+public:
+  using OpConversionPattern<OpT>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(OpT op, typename OpT::Adaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.updateRootInPlace(op,
+                               [&] { op->setOperands(adaptor.getOperands()); });
     return success();
   }
 };
 } // namespace
 
-static void populateSPIRVLayoutInfoPatterns(OwningRewritePatternList &patterns,
-                                            MLIRContext *ctx) {
-  patterns.insert<SPIRVGlobalVariableOpLayoutInfoDecoration,
-                  SPIRVAddressOfOpLayoutInfoDecoration>(ctx);
+static void populateSPIRVLayoutInfoPatterns(RewritePatternSet &patterns) {
+  patterns.add<SPIRVGlobalVariableOpLayoutInfoDecoration,
+               SPIRVAddressOfOpLayoutInfoDecoration,
+               SPIRVPassThroughConversion<spirv::AccessChainOp>,
+               SPIRVPassThroughConversion<spirv::LoadOp>,
+               SPIRVPassThroughConversion<spirv::StoreOp>>(
+      patterns.getContext());
 }
 
 namespace {
@@ -90,8 +106,8 @@ class DecorateSPIRVCompositeTypeLayoutPass
 
 void DecorateSPIRVCompositeTypeLayoutPass::runOnOperation() {
   auto module = getOperation();
-  OwningRewritePatternList patterns;
-  populateSPIRVLayoutInfoPatterns(patterns, module.getContext());
+  RewritePatternSet patterns(module.getContext());
+  populateSPIRVLayoutInfoPatterns(patterns);
   ConversionTarget target(*(module.getContext()));
   target.addLegalDialect<spirv::SPIRVDialect>();
   target.addLegalOp<FuncOp>();
@@ -105,9 +121,18 @@ void DecorateSPIRVCompositeTypeLayoutPass::runOnOperation() {
     return VulkanLayoutUtils::isLegalType(op.pointer().getType());
   });
 
-  // TODO: Change the type for the indirect users such as spv.Load, spv.Store,
-  // spv.FunctionCall and so on.
-  FrozenRewritePatternList frozenPatterns(std::move(patterns));
+  // Change the type for the indirect users.
+  target.addDynamicallyLegalOp<spirv::AccessChainOp, spirv::LoadOp,
+                               spirv::StoreOp>([&](Operation *op) {
+    for (Value operand : op->getOperands()) {
+      auto addrOp = operand.getDefiningOp<spirv::AddressOfOp>();
+      if (addrOp && !VulkanLayoutUtils::isLegalType(addrOp.pointer().getType()))
+        return false;
+    }
+    return true;
+  });
+
+  FrozenRewritePatternSet frozenPatterns(std::move(patterns));
   for (auto spirvModule : module.getOps<spirv::ModuleOp>())
     if (failed(applyFullConversion(spirvModule, target, frozenPatterns)))
       signalPassFailure();

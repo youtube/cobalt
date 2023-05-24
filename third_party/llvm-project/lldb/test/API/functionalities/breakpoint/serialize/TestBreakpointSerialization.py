@@ -16,42 +16,36 @@ class BreakpointSerialization(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
 
     @add_test_categories(['pyapi'])
-    @skipIfReproducer # side_effect bypasses reproducer
     def test_resolvers(self):
         """Use Python APIs to test that we serialize resolvers."""
         self.build()
         self.setup_targets_and_cleanup()
         self.do_check_resolvers()
 
-    @skipIfReproducer # side_effect bypasses reproducer
     def test_filters(self):
         """Use Python APIs to test that we serialize search filters correctly."""
         self.build()
         self.setup_targets_and_cleanup()
         self.do_check_filters()
 
-    @skipIfReproducer # side_effect bypasses reproducer
     def test_options(self):
         """Use Python APIs to test that we serialize breakpoint options correctly."""
         self.build()
         self.setup_targets_and_cleanup()
         self.do_check_options()
 
-    @skipIfReproducer # side_effect bypasses reproducer
     def test_appending(self):
         """Use Python APIs to test that we serialize breakpoint options correctly."""
         self.build()
         self.setup_targets_and_cleanup()
         self.do_check_appending()
 
-    @skipIfReproducer # side_effect bypasses reproducer
     def test_name_filters(self):
         """Use python APIs to test that reading in by name works correctly."""
         self.build()
         self.setup_targets_and_cleanup()
         self.do_check_names()
 
-    @skipIfReproducer # side_effect bypasses reproducer
     def test_scripted_extra_args(self):
         self.build()
         self.setup_targets_and_cleanup()
@@ -133,7 +127,7 @@ class BreakpointSerialization(TestBase):
 
         num_source_bps = source_bps.GetSize()
         num_copy_bps = copy_bps.GetSize()
-        self.assertTrue(num_source_bps == num_copy_bps, "Didn't get same number of input and output breakpoints - orig: %d copy: %d"%(num_source_bps, num_copy_bps))
+        self.assertEqual(num_source_bps, num_copy_bps, "Didn't get same number of input and output breakpoints - orig: %d copy: %d"%(num_source_bps, num_copy_bps))
 
         for i in range(0, num_source_bps):
             source_bp = source_bps.GetBreakpointAtIndex(i)
@@ -327,12 +321,12 @@ class BreakpointSerialization(TestBase):
 
         error = self.copy_target.BreakpointsCreateFromFile(self.bkpts_file_spec, names_list, copy_bps)
         self.assertTrue(error.Success(), "Failed reading breakpoints from file: %s"%(error.GetCString()))
-        self.assertTrue(copy_bps.GetSize() == 0, "Found breakpoints with a nonexistent name.")
+        self.assertEqual(copy_bps.GetSize(), 0, "Found breakpoints with a nonexistent name.")
 
         names_list.AppendString(good_bkpt_name)
         error = self.copy_target.BreakpointsCreateFromFile(self.bkpts_file_spec, names_list, copy_bps)
         self.assertTrue(error.Success(), "Failed reading breakpoints from file: %s"%(error.GetCString()))
-        self.assertTrue(copy_bps.GetSize() == 1, "Found the matching breakpoint.")
+        self.assertEqual(copy_bps.GetSize(), 1, "Found the matching breakpoint.")
 
     def do_check_extra_args(self):
 

@@ -22,8 +22,8 @@
 #include <ratio>
 #include <string>
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
 namespace lldb_private {
 class Connection;
@@ -208,6 +208,22 @@ public:
   ///     The number of bytes actually Written.
   size_t Write(const void *src, size_t src_len, lldb::ConnectionStatus &status,
                Status *error_ptr);
+
+  /// Repeatedly attempt writing until either \a src_len bytes are written
+  /// or a permanent failure occurs.
+  ///
+  /// \param[in] src
+  ///     A source buffer that must be at least \a src_len bytes
+  ///     long.
+  ///
+  /// \param[in] src_len
+  ///     The number of bytes to attempt to write, and also the
+  ///     number of bytes are currently available in \a src.
+  ///
+  /// \return
+  ///     The number of bytes actually Written.
+  size_t WriteAll(const void *src, size_t src_len,
+                  lldb::ConnectionStatus &status, Status *error_ptr);
 
   /// Sets the connection that it to be used by this class.
   ///

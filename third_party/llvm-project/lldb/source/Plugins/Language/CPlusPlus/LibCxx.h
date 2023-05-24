@@ -34,6 +34,22 @@ bool LibcxxWStringSummaryProvider(
     ValueObject &valobj, Stream &stream,
     const TypeSummaryOptions &options); // libc++ std::wstring
 
+bool LibcxxStringViewSummaryProviderASCII(
+    ValueObject &valueObj, Stream &stream,
+    const TypeSummaryOptions &summary_options); // libc++ std::string_view
+
+bool LibcxxStringViewSummaryProviderUTF16(
+    ValueObject &valobj, Stream &stream,
+    const TypeSummaryOptions &summary_options); // libc++ std::u16string_view
+
+bool LibcxxStringViewSummaryProviderUTF32(
+    ValueObject &valobj, Stream &stream,
+    const TypeSummaryOptions &summary_options); // libc++ std::u32string_view
+
+bool LibcxxWStringViewSummaryProvider(
+    ValueObject &valobj, Stream &stream,
+    const TypeSummaryOptions &options); // libc++ std::wstring_view
+
 bool LibcxxOptionalSummaryProvider(
     ValueObject &valobj, Stream &stream,
     const TypeSummaryOptions &options); // libc++ std::optional<>
@@ -105,10 +121,6 @@ public:
 
 private:
   ValueObject *m_cntrl;
-  lldb::ValueObjectSP m_count_sp;
-  lldb::ValueObjectSP m_weak_count_sp;
-  uint8_t m_ptr_size;
-  lldb::ByteOrder m_byte_order;
 };
 
 class LibcxxUniquePtrSyntheticFrontEnd : public SyntheticChildrenFrontEnd {
@@ -128,7 +140,7 @@ public:
   ~LibcxxUniquePtrSyntheticFrontEnd() override;
 
 private:
-  lldb::ValueObjectSP m_compressed_pair_sp;
+  lldb::ValueObjectSP m_value_ptr_sp;
 };
 
 SyntheticChildrenFrontEnd *
@@ -174,8 +186,8 @@ SyntheticChildrenFrontEnd *LibcxxTupleFrontEndCreator(CXXSyntheticChildren *,
                                                       lldb::ValueObjectSP);
 
 SyntheticChildrenFrontEnd *
-LibcxxOptionalFrontEndCreator(CXXSyntheticChildren *,
-                              lldb::ValueObjectSP valobj_sp);
+LibcxxOptionalSyntheticFrontEndCreator(CXXSyntheticChildren *,
+                                       lldb::ValueObjectSP valobj_sp);
 
 SyntheticChildrenFrontEnd *
 LibcxxVariantFrontEndCreator(CXXSyntheticChildren *,

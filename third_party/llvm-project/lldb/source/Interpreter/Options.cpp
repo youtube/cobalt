@@ -25,9 +25,9 @@ using namespace lldb;
 using namespace lldb_private;
 
 // Options
-Options::Options() : m_getopt_table() { BuildValidOptionSets(); }
+Options::Options() { BuildValidOptionSets(); }
 
-Options::~Options() {}
+Options::~Options() = default;
 
 void Options::NotifyOptionParsingStarting(ExecutionContext *execution_context) {
   m_seen_options.clear();
@@ -137,7 +137,6 @@ bool Options::VerifyOptions(CommandReturnObject &result) {
     result.SetStatus(eReturnStatusSuccessFinishNoResult);
   } else {
     result.AppendError("invalid combination of options for the given command");
-    result.SetStatus(eReturnStatusFailed);
   }
 
   return options_are_valid;
@@ -404,7 +403,12 @@ void Options::GenerateOptionUsage(Stream &strm, CommandObject *cmd,
   } else
     name = "";
 
-  strm.PutCString("\nCommand Options Usage:\n");
+  const uint32_t num_options = NumCommandOptions();
+  if (num_options == 0)
+    return;
+
+  if (!only_print_args)
+    strm.PutCString("\nCommand Options Usage:\n");
 
   strm.IndentMore(2);
 
@@ -413,10 +417,6 @@ void Options::GenerateOptionUsage(Stream &strm, CommandObject *cmd,
   //                                                   <cmd>
   //                                                   [options-for-level-1]
   //                                                   etc.
-
-  const uint32_t num_options = NumCommandOptions();
-  if (num_options == 0)
-    return;
 
   uint32_t num_option_sets = GetRequiredOptions().size();
 
@@ -532,9 +532,9 @@ void Options::GenerateOptionUsage(Stream &strm, CommandObject *cmd,
     strm << " " << arguments_str.GetString();
   }
 
-  strm.Printf("\n\n");
-
   if (!only_print_args) {
+    strm.Printf("\n\n");
+
     // Now print out all the detailed information about the various options:
     // long form, short form and help text:
     //   -short <argument> ( --long_name <argument> )

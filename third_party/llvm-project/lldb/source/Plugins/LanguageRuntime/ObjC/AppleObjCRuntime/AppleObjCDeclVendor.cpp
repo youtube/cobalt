@@ -59,7 +59,7 @@ public:
       clang::DeclContext::lookup_result result =
           non_const_interface_decl->lookup(name);
 
-      return (result.size() != 0);
+      return (!result.empty());
     } while (false);
 
     SetNoExternalVisibleDeclsForName(decl_ctx, name);
@@ -80,8 +80,6 @@ public:
     LLDB_LOG(log, "  AOEAS::CT Before:\n{1}", ClangUtil::DumpDecl(tag_decl));
 
     LLDB_LOG(log, "  AOEAS::CT After:{1}", ClangUtil::DumpDecl(tag_decl));
-
-    return;
   }
 
   void CompleteType(clang::ObjCInterfaceDecl *interface_decl) override {
@@ -107,7 +105,6 @@ public:
       LLDB_LOGF(log, "  [CT] After:");
       LLDB_LOG(log, "    [CT] {0}", ClangUtil::DumpDecl(interface_decl));
     }
-    return;
   }
 
   bool layoutRecordType(
@@ -555,7 +552,7 @@ uint32_t AppleObjCDeclVendor::FindDecls(ConstString name, bool append,
 
     if (!lookup_result.empty()) {
       if (clang::ObjCInterfaceDecl *result_iface_decl =
-              llvm::dyn_cast<clang::ObjCInterfaceDecl>(lookup_result[0])) {
+             llvm::dyn_cast<clang::ObjCInterfaceDecl>(*lookup_result.begin())) {
         if (log) {
           clang::QualType result_iface_type =
               ast_ctx.getObjCInterfaceType(result_iface_decl);

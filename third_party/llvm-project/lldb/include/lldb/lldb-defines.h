@@ -11,18 +11,6 @@
 
 #include "lldb/lldb-types.h"
 
-#if defined(_WIN32)
-#if defined(EXPORT_LIBLLDB)
-#define LLDB_API __declspec(dllexport)
-#elif defined(IMPORT_LIBLLDB)
-#define LLDB_API __declspec(dllimport)
-#else
-#define LLDB_API
-#endif
-#else // defined (_WIN32)
-#define LLDB_API
-#endif
-
 #if !defined(INT32_MAX)
 #define INT32_MAX 2147483647
 #endif
@@ -82,6 +70,7 @@
 #define LLDB_REGNUM_GENERIC_ARG8                                               \
   12 // The register that would contain pointer size or less argument 8 (if any)
 /// Invalid value definitions
+#define LLDB_INVALID_STOP_ID 0
 #define LLDB_INVALID_ADDRESS UINT64_MAX
 #define LLDB_INVALID_INDEX32 UINT32_MAX
 #define LLDB_INVALID_IVAR_OFFSET UINT32_MAX

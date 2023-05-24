@@ -1,5 +1,5 @@
-// RUN: mlir-opt -convert-std-to-llvm='emit-c-wrappers=1' %s | FileCheck %s
-// RUN: mlir-opt -convert-std-to-llvm %s | FileCheck %s --check-prefix=EMIT_C_ATTRIBUTE
+// RUN: mlir-opt -convert-memref-to-llvm -convert-std-to-llvm='emit-c-wrappers=1' -reconcile-unrealized-casts %s | FileCheck %s
+// RUN: mlir-opt -convert-memref-to-llvm -convert-std-to-llvm -reconcile-unrealized-casts %s | FileCheck %s --check-prefix=EMIT_C_ATTRIBUTE
 
 // This tests the default memref calling convention and the emission of C
 // wrappers. We don't need to separate runs because the wrapper-emission
@@ -75,7 +75,7 @@ func @caller() {
 // CHECK-LABEL: @callee
 // EMIT_C_ATTRIBUTE-LABEL: @callee
 func @callee(%arg0: memref<?xf32>, %arg1: index) {
-  %0 = load %arg0[%arg1] : memref<?xf32>
+  %0 = memref.load %arg0[%arg1] : memref<?xf32>
   return
 }
 
@@ -100,7 +100,7 @@ func @callee(%arg0: memref<?xf32>, %arg1: index) {
 // CHECK-LABEL: @other_callee
 // EMIT_C_ATTRIBUTE-LABEL: @other_callee
 func @other_callee(%arg0: memref<?xf32>, %arg1: index) attributes { llvm.emit_c_interface } {
-  %0 = load %arg0[%arg1] : memref<?xf32>
+  %0 = memref.load %arg0[%arg1] : memref<?xf32>
   return
 }
 
@@ -144,14 +144,16 @@ func @return_var_memref_caller(%arg0: memref<4x3xf32>) {
 }
 
 // CHECK-LABEL: llvm.func @return_var_memref
-func @return_var_memref(%arg0: memref<4x3xf32>) -> memref<*xf32> {
+func @return_var_memref(%arg0: memref<4x3xf32>) -> memref<*xf32> attributes { llvm.emit_c_interface } {
   // Match the construction of the unranked descriptor.
   // CHECK: %[[ALLOCA:.*]] = llvm.alloca
   // CHECK: %[[MEMORY:.*]] = llvm.bitcast %[[ALLOCA]]
+  // CHECK: %[[RANK:.*]] = llvm.mlir.constant(2 : i64)
   // CHECK: %[[DESC_0:.*]] = llvm.mlir.undef : !llvm.struct<(i64, ptr<i8>)>
-  // CHECK: %[[DESC_1:.*]] = llvm.insertvalue %{{.*}}, %[[DESC_0]][0]
+  // CHECK: %[[DESC_1:.*]] = llvm.insertvalue %[[RANK]], %[[DESC_0]][0]
   // CHECK: %[[DESC_2:.*]] = llvm.insertvalue %[[MEMORY]], %[[DESC_1]][1]
-  %0 = memref_cast %arg0: memref<4x3xf32> to memref<*xf32>
+  %0 = memref.cast %arg0: memref<4x3xf32> to memref<*xf32>
+
 
   // CHECK: %[[ONE:.*]] = llvm.mlir.constant(1 : index)
   // CHECK: %[[TWO:.*]] = llvm.mlir.constant(2 : index)
@@ -160,22 +162,23 @@ func @return_var_memref(%arg0: memref<4x3xf32>) -> memref<*xf32> {
   // CHECK: %[[IDX_SIZE:.*]] = llvm.mlir.constant
 
   // CHECK: %[[DOUBLE_PTR_SIZE:.*]] = llvm.mul %[[TWO]], %[[PTR_SIZE]]
-  // CHECK: %[[RANK:.*]] = llvm.extractvalue %[[DESC_2]][0] : !llvm.struct<(i64, ptr<i8>)>
   // CHECK: %[[DOUBLE_RANK:.*]] = llvm.mul %[[TWO]], %[[RANK]]
   // CHECK: %[[DOUBLE_RANK_INC:.*]] = llvm.add %[[DOUBLE_RANK]], %[[ONE]]
   // CHECK: %[[TABLES_SIZE:.*]] = llvm.mul %[[DOUBLE_RANK_INC]], %[[IDX_SIZE]]
   // CHECK: %[[ALLOC_SIZE:.*]] = llvm.add %[[DOUBLE_PTR_SIZE]], %[[TABLES_SIZE]]
   // CHECK: %[[FALSE:.*]] = llvm.mlir.constant(false)
   // CHECK: %[[ALLOCATED:.*]] = llvm.call @malloc(%[[ALLOC_SIZE]])
-  // CHECK: %[[SOURCE:.*]] = llvm.extractvalue %[[DESC_2]][1]
-  // CHECK: "llvm.intr.memcpy"(%[[ALLOCATED]], %[[SOURCE]], %[[ALLOC_SIZE]], %[[FALSE]])
+  // CHECK: "llvm.intr.memcpy"(%[[ALLOCATED]], %[[MEMORY]], %[[ALLOC_SIZE]], %[[FALSE]])
   // CHECK: %[[NEW_DESC:.*]] = llvm.mlir.undef : !llvm.struct<(i64, ptr<i8>)>
-  // CHECK: %[[RANK:.*]] = llvm.extractvalue %[[DESC_2]][0] : !llvm.struct<(i64, ptr<i8>)>
   // CHECK: %[[NEW_DESC_1:.*]] = llvm.insertvalue %[[RANK]], %[[NEW_DESC]][0]
   // CHECK: %[[NEW_DESC_2:.*]] = llvm.insertvalue %[[ALLOCATED]], %[[NEW_DESC_1]][1]
   // CHECK: llvm.return %[[NEW_DESC_2]]
   return %0 : memref<*xf32>
 }
+
+// Check that the result memref is passed as parameter
+// CHECK-LABEL: @_mlir_ciface_return_var_memref
+// CHECK-SAME: (%{{.*}}: !llvm.ptr<struct<(i64, ptr<i8>)>>, %{{.*}}: !llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64, array<2 x i64>, array<2 x i64>)>>)
 
 // CHECK-LABEL: llvm.func @return_two_var_memref_caller
 func @return_two_var_memref_caller(%arg0: memref<4x3xf32>) {
@@ -206,29 +209,27 @@ func @return_two_var_memref_caller(%arg0: memref<4x3xf32>) {
 }
 
 // CHECK-LABEL: llvm.func @return_two_var_memref
-func @return_two_var_memref(%arg0: memref<4x3xf32>) -> (memref<*xf32>, memref<*xf32>) {
+func @return_two_var_memref(%arg0: memref<4x3xf32>) -> (memref<*xf32>, memref<*xf32>) attributes { llvm.emit_c_interface } {
   // Match the construction of the unranked descriptor.
   // CHECK: %[[ALLOCA:.*]] = llvm.alloca
   // CHECK: %[[MEMORY:.*]] = llvm.bitcast %[[ALLOCA]]
   // CHECK: %[[DESC_0:.*]] = llvm.mlir.undef : !llvm.struct<(i64, ptr<i8>)>
   // CHECK: %[[DESC_1:.*]] = llvm.insertvalue %{{.*}}, %[[DESC_0]][0]
   // CHECK: %[[DESC_2:.*]] = llvm.insertvalue %[[MEMORY]], %[[DESC_1]][1]
-  %0 = memref_cast %arg0 : memref<4x3xf32> to memref<*xf32>
+  %0 = memref.cast %arg0 : memref<4x3xf32> to memref<*xf32>
 
   // Only check that we allocate the memory for each operand of the "return"
   // separately, even if both operands are the same value. The calling
   // convention requires the caller to free them and the caller cannot know
   // whether they are the same value or not.
   // CHECK: %[[ALLOCATED_1:.*]] = llvm.call @malloc(%{{.*}})
-  // CHECK: %[[SOURCE_1:.*]] = llvm.extractvalue %[[DESC_2]][1]
-  // CHECK: "llvm.intr.memcpy"(%[[ALLOCATED_1]], %[[SOURCE_1]], %{{.*}}, %[[FALSE:.*]])
+  // CHECK: "llvm.intr.memcpy"(%[[ALLOCATED_1]], %[[MEMORY]], %{{.*}}, %[[FALSE:.*]])
   // CHECK: %[[RES_1:.*]] = llvm.mlir.undef
   // CHECK: %[[RES_11:.*]] = llvm.insertvalue %{{.*}}, %[[RES_1]][0]
   // CHECK: %[[RES_12:.*]] = llvm.insertvalue %[[ALLOCATED_1]], %[[RES_11]][1]
 
   // CHECK: %[[ALLOCATED_2:.*]] = llvm.call @malloc(%{{.*}})
-  // CHECK: %[[SOURCE_2:.*]] = llvm.extractvalue %[[DESC_2]][1]
-  // CHECK: "llvm.intr.memcpy"(%[[ALLOCATED_2]], %[[SOURCE_2]], %{{.*}}, %[[FALSE]])
+  // CHECK: "llvm.intr.memcpy"(%[[ALLOCATED_2]], %[[MEMORY]], %{{.*}}, %[[FALSE]])
   // CHECK: %[[RES_2:.*]] = llvm.mlir.undef
   // CHECK: %[[RES_21:.*]] = llvm.insertvalue %{{.*}}, %[[RES_2]][0]
   // CHECK: %[[RES_22:.*]] = llvm.insertvalue %[[ALLOCATED_2]], %[[RES_21]][1]
@@ -239,4 +240,9 @@ func @return_two_var_memref(%arg0: memref<4x3xf32>) -> (memref<*xf32>, memref<*x
   // CHECK: llvm.return %[[RESULTS_2]]
   return %0, %0 : memref<*xf32>, memref<*xf32>
 }
+
+// Check that the result memrefs are passed as parameter
+// CHECK-LABEL: @_mlir_ciface_return_two_var_memref
+// CHECK-SAME: (%{{.*}}: !llvm.ptr<struct<(struct<(i64, ptr<i8>)>, struct<(i64, ptr<i8>)>)>>,
+// CHECK-SAME: %{{.*}}: !llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64, array<2 x i64>, array<2 x i64>)>>)
 

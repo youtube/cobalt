@@ -10,6 +10,7 @@
 #define LLDB_SYMBOL_SYMBOLFILE_H
 
 #include "lldb/Core/PluginInterface.h"
+#include "lldb/Core/SourceLocationSpec.h"
 #include "lldb/Symbol/CompilerDecl.h"
 #include "lldb/Symbol/CompilerDeclContext.h"
 #include "lldb/Symbol/CompilerType.h"
@@ -18,6 +19,7 @@
 #include "lldb/Symbol/Type.h"
 #include "lldb/Symbol/TypeList.h"
 #include "lldb/Symbol/TypeSystem.h"
+#include "lldb/Target/Statistics.h"
 #include "lldb/Utility/XcodeSDK.h"
 #include "lldb/lldb-private.h"
 #include "llvm/ADT/DenseSet.h"
@@ -65,10 +67,9 @@ public:
 
   // Constructors and Destructors
   SymbolFile(lldb::ObjectFileSP objfile_sp)
-      : m_objfile_sp(std::move(objfile_sp)), m_abilities(0),
-        m_calculated_abilities(false) {}
+      : m_objfile_sp(std::move(objfile_sp)) {}
 
-  ~SymbolFile() override {}
+  ~SymbolFile() override = default;
 
   /// Get a mask of what this symbol file supports for the object file
   /// that it was constructed with.
@@ -179,7 +180,6 @@ public:
   virtual size_t ParseVariablesForContext(const SymbolContext &sc) = 0;
   virtual Type *ResolveTypeUID(lldb::user_id_t type_uid) = 0;
 
-
   /// The characteristics of an array type.
   struct ArrayInfo {
     int64_t first_index = 0;
@@ -209,10 +209,10 @@ public:
   virtual uint32_t ResolveSymbolContext(const Address &so_addr,
                                         lldb::SymbolContextItem resolve_scope,
                                         SymbolContext &sc) = 0;
-  virtual uint32_t ResolveSymbolContext(const FileSpec &file_spec,
-                                        uint32_t line, bool check_inlines,
-                                        lldb::SymbolContextItem resolve_scope,
-                                        SymbolContextList &sc_list);
+  virtual uint32_t
+  ResolveSymbolContext(const SourceLocationSpec &src_location_spec,
+                       lldb::SymbolContextItem resolve_scope,
+                       SymbolContextList &sc_list);
 
   virtual void DumpClangAST(Stream &s) {}
   virtual void FindGlobalVariables(ConstString name,
@@ -298,6 +298,56 @@ public:
 
   virtual void Dump(Stream &s);
 
+  /// Metrics gathering functions
+
+  /// Return the size in bytes of all debug information in the symbol file.
+  ///
+  /// If the debug information is contained in sections of an ObjectFile, then
+  /// this call should add the size of all sections that contain debug
+  /// information. Symbols the symbol tables are not considered debug
+  /// information for this call to make it easy and quick for this number to be
+  /// calculated. If the symbol file is all debug information, the size of the
+  /// entire file should be returned. The default implementation of this
+  /// function will iterate over all sections in a module and add up their
+  /// debug info only section byte sizes.
+  virtual uint64_t GetDebugInfoSize();
+
+  /// Return the time taken to parse the debug information.
+  ///
+  /// \returns 0.0 if no information has been parsed or if there is
+  /// no computational cost to parsing the debug information.
+  virtual StatsDuration::Duration GetDebugInfoParseTime() { return {}; }
+
+  /// Return the time it took to index the debug information in the object
+  /// file.
+  ///
+  /// \returns 0.0 if the file doesn't need to be indexed or if it
+  /// hasn't been indexed yet, or a valid duration if it has.
+  virtual StatsDuration::Duration GetDebugInfoIndexTime() { return {}; }
+
+  /// Accessors for the bool that indicates if the debug info index was loaded
+  /// from, or saved to the module index cache.
+  ///
+  /// In statistics it is handy to know if a module's debug info was loaded from
+  /// or saved to the cache. When the debug info index is loaded from the cache
+  /// startup times can be faster. When the cache is enabled and the debug info
+  /// index is saved to the cache, debug sessions can be slower. These accessors
+  /// can be accessed by the statistics and emitted to help track these costs.
+  /// \{
+  bool GetDebugInfoIndexWasLoadedFromCache() const {
+    return m_index_was_loaded_from_cache;
+  }
+  void SetDebugInfoIndexWasLoadedFromCache() {
+    m_index_was_loaded_from_cache = true;
+  }
+  bool GetDebugInfoIndexWasSavedToCache() const {
+    return m_index_was_saved_to_cache;
+  }
+  void SetDebugInfoIndexWasSavedToCache() {
+    m_index_was_saved_to_cache = true;
+  }
+  /// \}
+
 protected:
   void AssertModuleLock();
   virtual uint32_t CalculateNumCompileUnits() = 0;
@@ -313,8 +363,10 @@ protected:
   llvm::Optional<std::vector<lldb::CompUnitSP>> m_compile_units;
   TypeList m_type_list;
   Symtab *m_symtab = nullptr;
-  uint32_t m_abilities;
-  bool m_calculated_abilities;
+  uint32_t m_abilities = 0;
+  bool m_calculated_abilities = false;
+  bool m_index_was_loaded_from_cache = false;
+  bool m_index_was_saved_to_cache = false;
 
 private:
   SymbolFile(const SymbolFile &) = delete;

@@ -1,4 +1,4 @@
-//===------------------ directory_iterator.cpp ----------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,98 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "filesystem"
 #include "__config"
-#if defined(_LIBCPP_WIN32API)
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#else
-#include <dirent.h>
-#endif
+#include "filesystem"
+#include "stack"
 #include <errno.h>
 
 #include "filesystem_common.h"
 
 _LIBCPP_BEGIN_NAMESPACE_FILESYSTEM
-
-namespace detail {
-namespace {
-
-#if !defined(_LIBCPP_WIN32API)
-
-#if defined(DT_BLK)
-template <class DirEntT, class = decltype(DirEntT::d_type)>
-static file_type get_file_type(DirEntT* ent, int) {
-  switch (ent->d_type) {
-  case DT_BLK:
-    return file_type::block;
-  case DT_CHR:
-    return file_type::character;
-  case DT_DIR:
-    return file_type::directory;
-  case DT_FIFO:
-    return file_type::fifo;
-  case DT_LNK:
-    return file_type::symlink;
-  case DT_REG:
-    return file_type::regular;
-  case DT_SOCK:
-    return file_type::socket;
-  // Unlike in lstat, hitting "unknown" here simply means that the underlying
-  // filesystem doesn't support d_type. Report is as 'none' so we correctly
-  // set the cache to empty.
-  case DT_UNKNOWN:
-    break;
-  }
-  return file_type::none;
-}
-#endif // defined(DT_BLK)
-
-template <class DirEntT>
-static file_type get_file_type(DirEntT* ent, long) {
-  return file_type::none;
-}
-
-static pair<string_view, file_type> posix_readdir(DIR* dir_stream,
-                                                  error_code& ec) {
-  struct dirent* dir_entry_ptr = nullptr;
-  errno = 0; // zero errno in order to detect errors
-  ec.clear();
-  if ((dir_entry_ptr = ::readdir(dir_stream)) == nullptr) {
-    if (errno)
-      ec = capture_errno();
-    return {};
-  } else {
-    return {dir_entry_ptr->d_name, get_file_type(dir_entry_ptr, 0)};
-  }
-}
-#else
-// defined(_LIBCPP_WIN32API)
-
-static file_type get_file_type(const WIN32_FIND_DATAW& data) {
-  if (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT &&
-      data.dwReserved0 == IO_REPARSE_TAG_SYMLINK)
-    return file_type::symlink;
-  if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-    return file_type::directory;
-  return file_type::regular;
-}
-static uintmax_t get_file_size(const WIN32_FIND_DATAW& data) {
-  return (static_cast<uint64_t>(data.nFileSizeHigh) << 32) + data.nFileSizeLow;
-}
-static file_time_type get_write_time(const WIN32_FIND_DATAW& data) {
-  ULARGE_INTEGER tmp;
-  const FILETIME& time = data.ftLastWriteTime;
-  tmp.u.LowPart = time.dwLowDateTime;
-  tmp.u.HighPart = time.dwHighDateTime;
-  return file_time_type(file_time_type::duration(tmp.QuadPart));
-}
-
-#endif
-
-} // namespace
-} // namespace detail
 
 using detail::ErrorHandler;
 
@@ -124,7 +40,8 @@ public:
       ec = detail::make_windows_error(GetLastError());
       const bool ignore_permission_denied =
           bool(opts & directory_options::skip_permission_denied);
-      if (ignore_permission_denied && ec.value() == ERROR_ACCESS_DENIED)
+      if (ignore_permission_denied &&
+          ec.value() == static_cast<int>(errc::permission_denied))
         ec.clear();
       return;
     }
@@ -195,9 +112,9 @@ public:
       : __stream_(nullptr), __root_(root) {
     if ((__stream_ = ::opendir(root.c_str())) == nullptr) {
       ec = detail::capture_errno();
-      const bool allow_eacess =
+      const bool allow_eacces =
           bool(opts & directory_options::skip_permission_denied);
-      if (allow_eacess && ec.value() == EACCES)
+      if (allow_eacces && ec.value() == EACCES)
         ec.clear();
       return;
     }
@@ -272,7 +189,7 @@ directory_iterator& directory_iterator::__increment(error_code* ec) {
     path root = move(__imp_->__root_);
     __imp_.reset();
     if (m_ec)
-      err.report(m_ec, "at root \"%s\"", root);
+      err.report(m_ec, "at root " PATH_CSTR_FMT, root.c_str());
   }
   return *this;
 }
@@ -359,7 +276,7 @@ void recursive_directory_iterator::__advance(error_code* ec) {
   if (m_ec) {
     path root = move(stack.top().__root_);
     __imp_.reset();
-    err.report(m_ec, "at root \"%s\"", root);
+    err.report(m_ec, "at root " PATH_CSTR_FMT, root.c_str());
   } else {
     __imp_.reset();
   }
@@ -404,7 +321,8 @@ bool recursive_directory_iterator::__try_recursion(error_code* ec) {
     } else {
       path at_ent = move(curr_it.__entry_.__p_);
       __imp_.reset();
-      err.report(m_ec, "attempting recursion into \"%s\"", at_ent);
+      err.report(m_ec, "attempting recursion into " PATH_CSTR_FMT,
+                 at_ent.c_str());
     }
   }
   return false;

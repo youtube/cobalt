@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "IndexAction.h"
+#include "AST.h"
 #include "Headers.h"
 #include "index/Relation.h"
 #include "index/SymbolOrigin.h"
@@ -21,6 +22,7 @@
 #include "clang/Index/IndexingOptions.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/ADT/STLExtras.h"
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <utility>
@@ -59,7 +61,7 @@ public:
       return;
 
     const auto FileID = SM.getFileID(Loc);
-    const auto File = SM.getFileEntryForID(FileID);
+    const auto *File = SM.getFileEntryForID(FileID);
     auto URI = toURI(File);
     if (!URI)
       return;
@@ -138,6 +140,12 @@ public:
         Includes(std::move(Includes)), Opts(Opts),
         PragmaHandler(collectIWYUHeaderMaps(this->Includes.get())) {
     this->Opts.ShouldTraverseDecl = [this](const Decl *D) {
+      // Many operations performed during indexing is linear in terms of depth
+      // of the decl (USR generation, name lookups, figuring out role of a
+      // reference are some examples). Since we index all the decls nested
+      // inside, it becomes quadratic. So we give up on nested symbols.
+      if (isDeeplyNested(D))
+        return false;
       auto &SM = D->getASTContext().getSourceManager();
       auto FID = SM.getFileID(SM.getExpansionLoc(D->getLocation()));
       if (!FID.isValid())

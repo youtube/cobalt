@@ -21,6 +21,7 @@
 #include "mlir/IR/Visitors.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/StringExtras.h"
 
 using namespace mlir;
 
@@ -42,7 +43,7 @@ class UpdateVCEPass final : public SPIRVUpdateVCEBase<UpdateVCEPass> {
 static LogicalResult checkAndUpdateExtensionRequirements(
     Operation *op, const spirv::TargetEnv &targetEnv,
     const spirv::SPIRVType::ExtensionArrayRefVector &candidates,
-    llvm::SetVector<spirv::Extension> &deducedExtensions) {
+    SetVector<spirv::Extension> &deducedExtensions) {
   for (const auto &ors : candidates) {
     if (Optional<spirv::Extension> chosen = targetEnv.allows(ors)) {
       deducedExtensions.insert(*chosen);
@@ -70,7 +71,7 @@ static LogicalResult checkAndUpdateExtensionRequirements(
 static LogicalResult checkAndUpdateCapabilityRequirements(
     Operation *op, const spirv::TargetEnv &targetEnv,
     const spirv::SPIRVType::CapabilityArrayRefVector &candidates,
-    llvm::SetVector<spirv::Capability> &deducedCapabilities) {
+    SetVector<spirv::Capability> &deducedCapabilities) {
   for (const auto &ors : candidates) {
     if (Optional<spirv::Capability> chosen = targetEnv.allows(ors)) {
       deducedCapabilities.insert(*chosen);
@@ -101,20 +102,24 @@ void UpdateVCEPass::runOnOperation() {
   spirv::Version allowedVersion = targetAttr.getVersion();
 
   spirv::Version deducedVersion = spirv::Version::V_1_0;
-  llvm::SetVector<spirv::Extension> deducedExtensions;
-  llvm::SetVector<spirv::Capability> deducedCapabilities;
+  SetVector<spirv::Extension> deducedExtensions;
+  SetVector<spirv::Capability> deducedCapabilities;
 
   // Walk each SPIR-V op to deduce the minimal version/extension/capability
   // requirements.
   WalkResult walkResult = module.walk([&](Operation *op) -> WalkResult {
     // Op min version requirements
-    if (auto minVersion = dyn_cast<spirv::QueryMinVersionInterface>(op)) {
-      deducedVersion = std::max(deducedVersion, minVersion.getMinVersion());
-      if (deducedVersion > allowedVersion) {
-        return op->emitError("'") << op->getName() << "' requires min version "
-                                  << spirv::stringifyVersion(deducedVersion)
-                                  << " but target environment allows up to "
-                                  << spirv::stringifyVersion(allowedVersion);
+    if (auto minVersionIfx = dyn_cast<spirv::QueryMinVersionInterface>(op)) {
+      Optional<spirv::Version> minVersion = minVersionIfx.getMinVersion();
+      if (minVersion) {
+        deducedVersion = std::max(deducedVersion, *minVersion);
+        if (deducedVersion > allowedVersion) {
+          return op->emitError("'")
+                 << op->getName() << "' requires min version "
+                 << spirv::stringifyVersion(deducedVersion)
+                 << " but target environment allows up to "
+                 << spirv::stringifyVersion(allowedVersion);
+        }
       }
     }
 

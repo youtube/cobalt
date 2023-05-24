@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <utility>
+
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
 
 #include "mlir/Dialect/CommonFolders.h"
@@ -56,7 +58,7 @@ static Attribute extractCompositeElement(Attribute composite,
 
   if (auto vector = composite.dyn_cast<ElementsAttr>()) {
     assert(indices.size() == 1 && "must have exactly one index for a vector");
-    return vector.getValue({indices[0]});
+    return vector.getValues<Attribute>()[indices[0]];
   }
 
   if (auto array = composite.dyn_cast<ArrayAttr>()) {
@@ -74,7 +76,7 @@ static Attribute extractCompositeElement(Attribute composite,
 
 namespace {
 #include "SPIRVCanonicalization.inc"
-}
+} // namespace
 
 //===----------------------------------------------------------------------===//
 // spv.AccessChainOp
@@ -108,20 +110,20 @@ struct CombineChainedAccessChain
     return success();
   }
 };
-} // end anonymous namespace
+} // namespace
 
 void spirv::AccessChainOp::getCanonicalizationPatterns(
-    OwningRewritePatternList &results, MLIRContext *context) {
-  results.insert<CombineChainedAccessChain>(context);
+    RewritePatternSet &results, MLIRContext *context) {
+  results.add<CombineChainedAccessChain>(context);
 }
 
 //===----------------------------------------------------------------------===//
 // spv.BitcastOp
 //===----------------------------------------------------------------------===//
 
-void spirv::BitcastOp::getCanonicalizationPatterns(
-    OwningRewritePatternList &results, MLIRContext *context) {
-  results.insert<ConvertChainedBitcast>(context);
+void spirv::BitcastOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                                   MLIRContext *context) {
+  results.add<ConvertChainedBitcast>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -138,11 +140,11 @@ OpFoldResult spirv::CompositeExtractOp::fold(ArrayRef<Attribute> operands) {
 }
 
 //===----------------------------------------------------------------------===//
-// spv.constant
+// spv.Constant
 //===----------------------------------------------------------------------===//
 
 OpFoldResult spirv::ConstantOp::fold(ArrayRef<Attribute> operands) {
-  assert(operands.empty() && "spv.constant has no operands");
+  assert(operands.empty() && "spv.Constant has no operands");
   return value();
 }
 
@@ -161,8 +163,8 @@ OpFoldResult spirv::IAddOp::fold(ArrayRef<Attribute> operands) {
   // The resulting value will equal the low-order N bits of the correct result
   // R, where N is the component width and R is computed with enough precision
   // to avoid overflow and underflow.
-  return constFoldBinaryOp<IntegerAttr>(operands,
-                                        [](APInt a, APInt b) { return a + b; });
+  return constFoldBinaryOp<IntegerAttr>(
+      operands, [](APInt a, const APInt &b) { return std::move(a) + b; });
 }
 
 //===----------------------------------------------------------------------===//
@@ -183,8 +185,8 @@ OpFoldResult spirv::IMulOp::fold(ArrayRef<Attribute> operands) {
   // The resulting value will equal the low-order N bits of the correct result
   // R, where N is the component width and R is computed with enough precision
   // to avoid overflow and underflow.
-  return constFoldBinaryOp<IntegerAttr>(operands,
-                                        [](APInt a, APInt b) { return a * b; });
+  return constFoldBinaryOp<IntegerAttr>(
+      operands, [](const APInt &a, const APInt &b) { return a * b; });
 }
 
 //===----------------------------------------------------------------------===//
@@ -201,8 +203,8 @@ OpFoldResult spirv::ISubOp::fold(ArrayRef<Attribute> operands) {
   // The resulting value will equal the low-order N bits of the correct result
   // R, where N is the component width and R is computed with enough precision
   // to avoid overflow and underflow.
-  return constFoldBinaryOp<IntegerAttr>(operands,
-                                        [](APInt a, APInt b) { return a - b; });
+  return constFoldBinaryOp<IntegerAttr>(
+      operands, [](APInt a, const APInt &b) { return std::move(a) - b; });
 }
 
 //===----------------------------------------------------------------------===//
@@ -230,10 +232,11 @@ OpFoldResult spirv::LogicalAndOp::fold(ArrayRef<Attribute> operands) {
 //===----------------------------------------------------------------------===//
 
 void spirv::LogicalNotOp::getCanonicalizationPatterns(
-    OwningRewritePatternList &results, MLIRContext *context) {
-  results.insert<ConvertLogicalNotOfIEqual, ConvertLogicalNotOfINotEqual,
-                 ConvertLogicalNotOfLogicalEqual,
-                 ConvertLogicalNotOfLogicalNotEqual>(context);
+    RewritePatternSet &results, MLIRContext *context) {
+  results
+      .add<ConvertLogicalNotOfIEqual, ConvertLogicalNotOfINotEqual,
+           ConvertLogicalNotOfLogicalEqual, ConvertLogicalNotOfLogicalNotEqual>(
+          context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -257,12 +260,12 @@ OpFoldResult spirv::LogicalOrOp::fold(ArrayRef<Attribute> operands) {
 }
 
 //===----------------------------------------------------------------------===//
-// spv.selection
+// spv.mlir.selection
 //===----------------------------------------------------------------------===//
 
 namespace {
-// Blocks from the given `spv.selection` operation must satisfy the following
-// layout:
+// Blocks from the given `spv.mlir.selection` operation must satisfy the
+// following layout:
 //
 //       +-----------------------------------------------+
 //       | header block                                  |
@@ -294,7 +297,7 @@ struct ConvertSelectionOpToSelect
                                 PatternRewriter &rewriter) const override {
     auto *op = selectionOp.getOperation();
     auto &body = op->getRegion(0);
-    // Verifier allows an empty region for `spv.selection`.
+    // Verifier allows an empty region for `spv.mlir.selection`.
     if (body.empty()) {
       return failure();
     }
@@ -332,7 +335,7 @@ struct ConvertSelectionOpToSelect
     rewriter.create<spirv::StoreOp>(selectOp.getLoc(), ptrValue,
                                     selectOp.getResult(), storeOpAttributes);
 
-    // `spv.selection` is not needed anymore.
+    // `spv.mlir.selection` is not needed anymore.
     rewriter.eraseOp(op);
     return success();
   }
@@ -413,9 +416,9 @@ LogicalResult ConvertSelectionOpToSelect::canCanonicalizeSelection(
 
   return success();
 }
-} // end anonymous namespace
+} // namespace
 
-void spirv::SelectionOp::getCanonicalizationPatterns(
-    OwningRewritePatternList &results, MLIRContext *context) {
-  results.insert<ConvertSelectionOpToSelect>(context);
+void spirv::SelectionOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                                     MLIRContext *context) {
+  results.add<ConvertSelectionOpToSelect>(context);
 }

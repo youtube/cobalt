@@ -24,13 +24,20 @@ def ROCDL_Dialect : Dialect {
   let name = "rocdl";
   let cppNamespace = "::mlir::ROCDL";
   let dependentDialects = ["LLVM::LLVMDialect"];
+  let hasOperationAttrVerify = 1;
+
+  let extraClassDeclaration = [{
+    /// Get the name of the attribute used to annotate external kernel
+    /// functions.
+    static StringRef getKernelFuncAttrName() { return "rocdl.kernel"; }
+  }];
 }
 
 //===----------------------------------------------------------------------===//
 // ROCDL op definitions
 //===----------------------------------------------------------------------===//
 
-class ROCDL_Op<string mnemonic, list<OpTrait> traits = []> :
+class ROCDL_Op<string mnemonic, list<Trait> traits = []> :
   LLVM_OpBase<ROCDL_Dialect, mnemonic, traits> {
 }
 
@@ -39,7 +46,7 @@ class ROCDL_Op<string mnemonic, list<OpTrait> traits = []> :
 //===----------------------------------------------------------------------===//
 
 class ROCDL_SpecialRegisterOp<string mnemonic,
-    list<OpTrait> traits = []> :
+    list<Trait> traits = []> :
   ROCDL_Op<mnemonic, !listconcat(traits, [NoSideEffect])>,
   Results<(outs LLVM_Type:$res)>, Arguments<(ins)> {
   string llvmBuilder = "$res = createIntrinsicCall(builder,"
@@ -48,7 +55,7 @@ class ROCDL_SpecialRegisterOp<string mnemonic,
 }
 
 class ROCDL_DeviceFunctionOp<string mnemonic, string device_function,
-                             int parameter, list<OpTrait> traits = []> :
+                             int parameter, list<Trait> traits = []> :
   ROCDL_Op<mnemonic, !listconcat(traits, [NoSideEffect])>,
   Results<(outs LLVM_Type:$res)>, Arguments<(ins)> {
   string llvmBuilder = "$res = createDeviceFunctionCall(builder, \""
@@ -106,7 +113,7 @@ def ROCDL_BarrierOp : ROCDL_Op<"barrier"> {
 //===---------------------------------------------------------------------===//
 // Xdlops intrinsics
 
-class ROCDL_Mfma_IntrOp<string mnemonic, list<OpTrait> traits = []> :
+class ROCDL_Mfma_IntrOp<string mnemonic, list<Trait> traits = []> :
   LLVM_IntrOpBase<ROCDL_Dialect, mnemonic,
                   "amdgcn_" # !subst(".","_", mnemonic),
                   [], [], traits, 1>,
@@ -155,7 +162,7 @@ def ROCDL_MubufLoadOp :
   let parser = [{ return parseROCDLMubufLoadOp(parser, result); }];
   let printer = [{
     Operation *op = this->getOperation();
-    p << op->getName() << " " << op->getOperands()
+    p << " " << op->getOperands()
       << " : " << op->getResultTypes();
   }];
 }
@@ -169,7 +176,7 @@ def ROCDL_MubufStoreOp :
                  LLVM_Type:$glc,
                  LLVM_Type:$slc)>{
   string llvmBuilder = [{
-    auto vdataType = convertType(op.vdata().getType());
+    auto vdataType = moduleTranslation.convertType(op.vdata().getType());
     createIntrinsicCall(builder,
           llvm::Intrinsic::amdgcn_buffer_store, {$vdata, $rsrc, $vindex,
           $offset, $glc, $slc}, {vdataType});
@@ -177,7 +184,7 @@ def ROCDL_MubufStoreOp :
   let parser = [{ return parseROCDLMubufStoreOp(parser, result); }];
   let printer = [{
     Operation *op = this->getOperation();
-    p << op->getName() << " " << op->getOperands()
+    p << " " << op->getOperands()
       << " : " << vdata().getType();
   }];
 }

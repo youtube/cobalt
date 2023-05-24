@@ -133,7 +133,7 @@ struct CodeCompleteOptions {
   enum CodeCompletionRankingModel {
     Heuristics,
     DecisionForest,
-  } RankingModel = Heuristics;
+  } RankingModel = DecisionForest;
 
   /// Callback used to score a CompletionCandidate if DecisionForest ranking
   /// model is enabled.
@@ -284,7 +284,8 @@ CodeCompleteResult codeComplete(PathRef FileName, Position Pos,
 /// Get signature help at a specified \p Pos in \p FileName.
 SignatureHelp signatureHelp(PathRef FileName, Position Pos,
                             const PreambleData &Preamble,
-                            const ParseInputs &ParseInput);
+                            const ParseInputs &ParseInput,
+                            MarkupKind DocumentationFormat);
 
 // For index-based completion, we only consider:
 //   * symbols in namespaces or translation unit scopes (e.g. no class

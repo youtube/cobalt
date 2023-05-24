@@ -412,6 +412,9 @@ public:
     uint32_t
     GetCodeByteSize ();
 
+    uint32_t
+    GetMaximumNumberOfChildrenToDisplay() const;
+
     lldb::SBError
     SetSectionLoadAddress (lldb::SBSection section,
                            lldb::addr_t section_base_addr);
@@ -938,6 +941,16 @@ public:
     lldb::addr_t
     GetStackRedZoneSize();
 
+    %feature("docstring", "
+    Returns true if the module has been loaded in this `SBTarget`.
+    A module can be loaded either by the dynamic loader or by being manually
+    added to the target (see `SBTarget.AddModule` and the `target module add` command).
+
+    :rtype: bool
+    ") IsLoaded;
+    bool
+    IsLoaded (const lldb::SBModule &module) const;
+
     lldb::SBLaunchInfo
     GetLaunchInfo () const;
 
@@ -963,6 +976,12 @@ public:
     EvaluateExpression (const char *expr, const lldb::SBExpressionOptions &options);
 
     STRING_EXTENSION_LEVEL(SBTarget, lldb::eDescriptionLevelBrief)
+
+    lldb::SBTrace
+    GetTrace ();
+
+    lldb::SBTrace
+    CreateTrace (lldb::SBError &error);
 
 #ifdef SWIGPYTHON
     %pythoncode %{

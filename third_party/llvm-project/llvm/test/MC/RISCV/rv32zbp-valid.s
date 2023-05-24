@@ -1,15 +1,3 @@
-# With B extension:
-# RUN: llvm-mc %s -triple=riscv32 -mattr=+experimental-b -show-encoding \
-# RUN:     | FileCheck -check-prefixes=CHECK-ASM,CHECK-ASM-AND-OBJ %s
-# RUN: llvm-mc %s -triple=riscv64 -mattr=+experimental-b -show-encoding \
-# RUN:     | FileCheck -check-prefixes=CHECK-ASM,CHECK-ASM-AND-OBJ %s
-# RUN: llvm-mc -filetype=obj -triple=riscv32 -mattr=+experimental-b < %s \
-# RUN:     | llvm-objdump --mattr=+experimental-b -d -r - \
-# RUN:     | FileCheck --check-prefixes=CHECK-OBJ,CHECK-ASM-AND-OBJ %s
-# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+experimental-b < %s \
-# RUN:     | llvm-objdump --mattr=+experimental-b -d -r - \
-# RUN:     | FileCheck --check-prefixes=CHECK-OBJ,CHECK-ASM-AND-OBJ %s
-
 # With Bitmanip permutation extension:
 # RUN: llvm-mc %s -triple=riscv32 -mattr=+experimental-zbp -show-encoding \
 # RUN:     | FileCheck -check-prefixes=CHECK-ASM,CHECK-ASM-AND-OBJ %s
@@ -22,18 +10,6 @@
 # RUN:     | llvm-objdump --mattr=+experimental-zbp -d -r - \
 # RUN:     | FileCheck --check-prefixes=CHECK-OBJ,CHECK-ASM-AND-OBJ %s
 
-# CHECK-ASM-AND-OBJ: slo t0, t1, t2
-# CHECK-ASM: encoding: [0xb3,0x12,0x73,0x20]
-slo t0, t1, t2
-# CHECK-ASM-AND-OBJ: sro t0, t1, t2
-# CHECK-ASM: encoding: [0xb3,0x52,0x73,0x20]
-sro t0, t1, t2
-# CHECK-ASM-AND-OBJ: sloi t0, t1, 0
-# CHECK-ASM: encoding: [0x93,0x12,0x03,0x20]
-sloi t0, t1, 0
-# CHECK-ASM-AND-OBJ: sroi t0, t1, 0
-# CHECK-ASM: encoding: [0x93,0x52,0x03,0x20]
-sroi t0, t1, 0
 # CHECK-ASM-AND-OBJ: gorc t0, t1, t2
 # CHECK-ASM: encoding: [0xb3,0x52,0x73,0x28]
 gorc t0, t1, t2
@@ -78,5 +54,5 @@ xperm.n t0, t1, t2
 # CHECK-ASM: encoding: [0xb3,0x42,0x73,0x28]
 xperm.b t0, t1, t2
 # CHECK-ASM-AND-OBJ: xperm.h t0, t1, t2
-# CHECK-ASM: encoding: [0xb3,0x62,0x73,0x28
+# CHECK-ASM: encoding: [0xb3,0x62,0x73,0x28]
 xperm.h t0, t1, t2

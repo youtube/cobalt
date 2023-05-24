@@ -10,10 +10,10 @@
 #define LLDB_SYMBOL_FUNCTION_H
 
 #include "lldb/Core/AddressRange.h"
+#include "lldb/Core/Declaration.h"
 #include "lldb/Core/Mangled.h"
 #include "lldb/Expression/DWARFExpression.h"
 #include "lldb/Symbol/Block.h"
-#include "lldb/Symbol/Declaration.h"
 #include "lldb/Utility/UserID.h"
 #include "llvm/ADT/ArrayRef.h"
 
@@ -110,8 +110,6 @@ public:
   ///     The number of bytes that this object occupies in memory.
   ///     The returned value does not include the bytes for any
   ///     shared string values.
-  ///
-  /// \see ConstString::StaticMemorySize ()
   virtual size_t MemorySize() const;
 
 protected:
@@ -238,8 +236,6 @@ public:
   ///     The number of bytes that this object occupies in memory.
   ///     The returned value does not include the bytes for any
   ///     shared string values.
-  ///
-  /// \see ConstString::StaticMemorySize ()
   size_t MemorySize() const override;
 
 private:
@@ -271,7 +267,7 @@ using CallSiteParameterArray = llvm::SmallVector<CallSiteParameter, 0>;
 class CallEdge {
 public:
   enum class AddrType : uint8_t { Call, AfterCall };
-  virtual ~CallEdge() {}
+  virtual ~CallEdge() = default;
 
   /// Get the callee's definition.
   ///
@@ -595,8 +591,6 @@ public:
   ///     The number of bytes that this object occupies in memory.
   ///     The returned value does not include the bytes for any
   ///     shared string values.
-  ///
-  /// \see ConstString::StaticMemorySize ()
   size_t MemorySize() const;
 
   /// Get whether compiler optimizations were enabled for this function
@@ -631,10 +625,10 @@ public:
 
   lldb::DisassemblerSP GetInstructions(const ExecutionContext &exe_ctx,
                                        const char *flavor,
-                                       bool prefer_file_cache);
+                                       bool force_live_memory = false);
 
   bool GetDisassembly(const ExecutionContext &exe_ctx, const char *flavor,
-                      bool prefer_file_cache, Stream &strm);
+                      Stream &strm, bool force_live_memory = false);
 
 protected:
   enum {

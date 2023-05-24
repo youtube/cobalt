@@ -44,7 +44,7 @@ int main(int, char**)
 #ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
     test<char16_t, integral_types_trap>();
     test<char32_t, integral_types_trap>();
-#endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
+#endif
     test<short, integral_types_trap>();
     test<unsigned short, integral_types_trap>();
     test<int, integral_types_trap>();
@@ -53,7 +53,7 @@ int main(int, char**)
     test<unsigned long, integral_types_trap>();
     test<long long, integral_types_trap>();
     test<unsigned long long, integral_types_trap>();
-#ifndef _LIBCPP_HAS_NO_INT128
+#ifndef TEST_HAS_NO_INT128
     test<__int128_t, integral_types_trap>();
     test<__uint128_t, integral_types_trap>();
 #endif

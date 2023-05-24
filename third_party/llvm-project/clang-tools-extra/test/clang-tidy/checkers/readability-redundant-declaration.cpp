@@ -1,14 +1,14 @@
 // RUN: %check_clang_tidy %s readability-redundant-declaration %t -- \
 // RUN:   -config="{CheckOptions: \
 // RUN:             [{key: readability-redundant-declaration.IgnoreMacros, \
-// RUN:               value: 0}]}"
+// RUN:               value: false}]}"
 //
 // With -fms-compatibility and -DEXTERNINLINE, the extern inline shouldn't
 // produce additional diagnostics, so same check suffix as before:
 // RUN: %check_clang_tidy %s readability-redundant-declaration %t -- \
 // RUN:   -config="{CheckOptions: \
 // RUN:             [{key: readability-redundant-declaration.IgnoreMacros, \
-// RUN:               value: 0}]}" -- -fms-compatibility -DEXTERNINLINE
+// RUN:               value: false}]}" -- -fms-compatibility -DEXTERNINLINE
 //
 // With -fno-ms-compatibility, DEXTERNINLINE causes additional output.
 // (The leading ',' means "default checks in addition to NOMSCOMPAT checks.)
@@ -16,7 +16,7 @@
 // RUN:   %s readability-redundant-declaration %t -- \
 // RUN:   -config="{CheckOptions: \
 // RUN:             [{key: readability-redundant-declaration.IgnoreMacros, \
-// RUN:               value: 0}]}" -- -fno-ms-compatibility -DEXTERNINLINE
+// RUN:               value: false}]}" -- -fno-ms-compatibility -DEXTERNINLINE
 
 extern int Xyz;
 extern int Xyz; // Xyz
@@ -69,6 +69,32 @@ struct Friendly {
 };
 
 void enemy();
+
+template <typename>
+struct TemplateFriendly {
+  template <typename T>
+  friend void generic_friend();
+};
+
+template <typename T>
+void generic_friend() {}
+
+TemplateFriendly<int> template_friendly;
+
+template <typename>
+struct TemplateFriendly2 {
+  template <typename T>
+  friend void generic_friend2() {}
+};
+
+template <typename T>
+void generic_friend2();
+
+void generic_friend_caller() {
+  TemplateFriendly2<int> f;
+  generic_friend2<int>();
+}
+
 
 namespace macros {
 #define DECLARE(x) extern int x

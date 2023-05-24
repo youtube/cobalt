@@ -49,7 +49,7 @@ bool AppleObjCRuntimeV1::GetDynamicTypeAndAddress(
     TypeAndOrName &class_type_or_name, Address &address,
     Value::ValueType &value_type) {
   class_type_or_name.Clear();
-  value_type = Value::ValueType::eValueTypeScalar;
+  value_type = Value::ValueType::Scalar;
   if (CouldHaveDynamicValue(in_value)) {
     auto class_descriptor(GetClassDescriptor(in_value));
     if (class_descriptor && class_descriptor->IsValid() &&
@@ -91,18 +91,6 @@ void AppleObjCRuntimeV1::Initialize() {
 void AppleObjCRuntimeV1::Terminate() {
   PluginManager::UnregisterPlugin(CreateInstance);
 }
-
-lldb_private::ConstString AppleObjCRuntimeV1::GetPluginNameStatic() {
-  static ConstString g_name("apple-objc-v1");
-  return g_name;
-}
-
-// PluginInterface protocol
-ConstString AppleObjCRuntimeV1::GetPluginName() {
-  return GetPluginNameStatic();
-}
-
-uint32_t AppleObjCRuntimeV1::GetPluginVersion() { return 1; }
 
 BreakpointResolverSP
 AppleObjCRuntimeV1::CreateExceptionResolver(const BreakpointSP &bkpt,
@@ -339,8 +327,6 @@ void AppleObjCRuntimeV1::UpdateISAToDescriptorMapIfNeeded() {
     if (!objc_module_sp)
       return;
 
-    uint32_t isa_count = 0;
-
     lldb::addr_t hash_table_ptr = GetISAHashTablePointer();
     if (hash_table_ptr != LLDB_INVALID_ADDRESS) {
       // Read the NXHashTable struct:
@@ -382,8 +368,6 @@ void AppleObjCRuntimeV1::UpdateISAToDescriptorMapIfNeeded() {
 
               if (bucket_isa_count == 0)
                 continue;
-
-              isa_count += bucket_isa_count;
 
               ObjCISA isa;
               if (bucket_isa_count == 1) {

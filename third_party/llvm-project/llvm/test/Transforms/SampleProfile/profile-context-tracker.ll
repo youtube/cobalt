@@ -1,18 +1,21 @@
 ; Test for CSSPGO's SampleContextTracker to make sure context profile tree is promoted and merged properly
 ; based on inline decision, so post inline counts are accurate.
 
+; RUN: llvm-profdata merge --sample --extbinary %S/Inputs/profile-context-tracker.prof -o %t
+
 ; Note that we need new pass manager to enable top-down processing for sample profile loader
-; Testwe we inlined the following in top-down order and entry counts accurate reflects post-inline base profile
+; Test we inlined the following in top-down order and entry counts accurate reflects post-inline base profile
 ;   main:3 @ _Z5funcAi
 ;   main:3 @ _Z5funcAi:1 @ _Z8funcLeafi
 ;   _Z5funcBi:1 @ _Z8funcLeafi
-; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profile-context-tracker.prof -sample-profile-inline-size -profile-sample-accurate -S | FileCheck %s --check-prefix=INLINE-ALL
-
-; Testwe we inlined the following in top-down order and entry counts accurate reflects post-inline base profile
-;   main:3 @ _Z5funcAi
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profile-context-tracker.prof -sample-profile-inline-size -sample-profile-prioritized-inline=0 -profile-sample-accurate -S | FileCheck %s --check-prefix=INLINE-ALL
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%t -sample-profile-inline-size -sample-profile-prioritized-inline=0 -profile-sample-accurate -S | FileCheck %s --check-prefix=INLINE-ALL
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profile-context-tracker.prof -sample-profile-inline-size -sample-profile-cold-inline-threshold=200 -profile-sample-accurate -S | FileCheck %s --check-prefix=INLINE-ALL
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%t -sample-profile-inline-size -sample-profile-cold-inline-threshold=200 -profile-sample-accurate -S | FileCheck %s --check-prefix=INLINE-ALL
+;
+; Test we inlined the following in top-down order and entry counts accurate reflects post-inline base profile
 ;   _Z5funcAi:1 @ _Z8funcLeafi
 ;   _Z5funcBi:1 @ _Z8funcLeafi
-; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/profile-context-tracker.prof -profile-sample-accurate -S | FileCheck %s --check-prefix=INLINE-HOT
 
 
 @factor = dso_local global i32 3, align 4, !dbg !0
@@ -107,15 +110,15 @@ entry:
   ret i32 %call, !dbg !53
 }
 
-; INLINE-ALL-DAG: [[MAIN_PROF]] = !{!"function_entry_count", i64 13}
+; INLINE-ALL-DAG: [[MAIN_PROF]] = !{!"function_entry_count", i64 1}
 ; INLINE-ALL-DAG: [[FUNCA_PROF]] = !{!"function_entry_count", i64 0}
 ; INLINE-ALL-DAG-SAME: [[LEAF_PROF]] = !{!"function_entry_count", i64 0}
-; INLINE-ALL-DAG: [[FUNCB_PROF]] = !{!"function_entry_count", i64 33}
+; INLINE-ALL-DAG: [[FUNCB_PROF]] = !{!"function_entry_count", i64 13}
 
-; INLINE-HOT-DAG: [[MAIN_PROF]] = !{!"function_entry_count", i64 13}
+; INLINE-HOT-DAG: [[MAIN_PROF]] = !{!"function_entry_count", i64 1}
 ; INLINE-HOT-DAG: [[FUNCA_PROF]] = !{!"function_entry_count", i64 12}
 ; INLINE-HOT-DAG-SAME: [[LEAF_PROF]] = !{!"function_entry_count", i64 0}
-; INLINE-HOT-DAG: [[FUNCB_PROF]] = !{!"function_entry_count", i64 33}
+; INLINE-HOT-DAG: [[FUNCB_PROF]] = !{!"function_entry_count", i64 13}
 
 declare i32 @_Z3fibi(i32)
 
