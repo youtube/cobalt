@@ -185,7 +185,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       // fact supports av1 or/and vp9 because the system can make async
       // initialization at startup.
       // To minimize probability of false negative we check result few times
-      static bool decoder_was_checked = false;
+      static bool decoder_has_been_checked_once = false;
       int counter = 5;
       const SbMediaVideoCodec video_codec = dmp_reader.video_codec();
       bool need_to_check_with_wait = video_codec == kSbMediaVideoCodecAv1 ||
@@ -199,14 +199,14 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
                 dmp_reader.video_bitrate(), dmp_reader.video_fps(), false)) {
           test_params.push_back(std::make_tuple(filename, output_mode));
           break;
-        } else if (need_to_check_with_wait && !decoder_was_checked) {
+        } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {
           SbThreadSleep(kSbTimeSecond);
         } else {
           break;
         }
       } while (--counter);
       if (need_to_check_with_wait) {
-        decoder_was_checked = true;
+        decoder_has_been_checked_once = true;
       }
     }
   }
