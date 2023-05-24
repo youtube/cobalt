@@ -1,9 +1,8 @@
 //===--- DeclSpec.cpp - Declaration Specifier Semantic Analysis -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -156,14 +155,8 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
                                              unsigned NumParams,
                                              SourceLocation EllipsisLoc,
                                              SourceLocation RParenLoc,
-                                             unsigned TypeQuals,
                                              bool RefQualifierIsLvalueRef,
                                              SourceLocation RefQualifierLoc,
-                                             SourceLocation ConstQualifierLoc,
-                                             SourceLocation
-                                                 VolatileQualifierLoc,
-                                             SourceLocation
-                                                 RestrictQualifierLoc,
                                              SourceLocation MutableLoc,
                                              ExceptionSpecificationType
                                                  ESpecType,
@@ -178,8 +171,9 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
                                              SourceLocation LocalRangeBegin,
                                              SourceLocation LocalRangeEnd,
                                              Declarator &TheDeclarator,
-                                             TypeResult TrailingReturnType) {
-  assert(!(TypeQuals & DeclSpec::TQ_atomic) &&
+                                             TypeResult TrailingReturnType,
+                                             DeclSpec *MethodQualifiers) {
+  assert(!(MethodQualifiers && MethodQualifiers->getTypeQualifiers() & DeclSpec::TQ_atomic) &&
          "function cannot have _Atomic qualifier");
 
   DeclaratorChunk I;
@@ -193,14 +187,10 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
   I.Fun.EllipsisLoc             = EllipsisLoc.getRawEncoding();
   I.Fun.RParenLoc               = RParenLoc.getRawEncoding();
   I.Fun.DeleteParams            = false;
-  I.Fun.TypeQuals               = TypeQuals;
   I.Fun.NumParams               = NumParams;
   I.Fun.Params                  = nullptr;
   I.Fun.RefQualifierIsLValueRef = RefQualifierIsLvalueRef;
   I.Fun.RefQualifierLoc         = RefQualifierLoc.getRawEncoding();
-  I.Fun.ConstQualifierLoc       = ConstQualifierLoc.getRawEncoding();
-  I.Fun.VolatileQualifierLoc    = VolatileQualifierLoc.getRawEncoding();
-  I.Fun.RestrictQualifierLoc    = RestrictQualifierLoc.getRawEncoding();
   I.Fun.MutableLoc              = MutableLoc.getRawEncoding();
   I.Fun.ExceptionSpecType       = ESpecType;
   I.Fun.ExceptionSpecLocBeg     = ESpecRange.getBegin().getRawEncoding();
@@ -211,8 +201,21 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto,
   I.Fun.HasTrailingReturnType   = TrailingReturnType.isUsable() ||
                                   TrailingReturnType.isInvalid();
   I.Fun.TrailingReturnType      = TrailingReturnType.get();
+  I.Fun.MethodQualifiers        = nullptr;
+  I.Fun.QualAttrFactory         = nullptr;
 
-  assert(I.Fun.TypeQuals == TypeQuals && "bitfield overflow");
+  if (MethodQualifiers && (MethodQualifiers->getTypeQualifiers() ||
+                           MethodQualifiers->getAttributes().size())) {
+    auto &attrs = MethodQualifiers->getAttributes();
+    I.Fun.MethodQualifiers = new DeclSpec(attrs.getPool().getFactory());
+    MethodQualifiers->forEachCVRUQualifier(
+        [&](DeclSpec::TQ TypeQual, StringRef PrintName, SourceLocation SL) {
+          I.Fun.MethodQualifiers->SetTypeQual(TypeQual, SL);
+        });
+    I.Fun.MethodQualifiers->getAttributes().takeAllFrom(attrs);
+    I.Fun.MethodQualifiers->getAttributePool().takeAllFrom(attrs.getPool());
+  }
+
   assert(I.Fun.ExceptionSpecType == ESpecType && "bitfield overflow");
 
   // new[] a parameter array if needed.
@@ -403,6 +406,24 @@ bool Declarator::isCtorOrDtor() {
          (getName().getKind() == UnqualifiedIdKind::IK_DestructorName);
 }
 
+void DeclSpec::forEachCVRUQualifier(
+    llvm::function_ref<void(TQ, StringRef, SourceLocation)> Handle) {
+  if (TypeQualifiers & TQ_const)
+    Handle(TQ_const, "const", TQ_constLoc);
+  if (TypeQualifiers & TQ_volatile)
+    Handle(TQ_volatile, "volatile", TQ_volatileLoc);
+  if (TypeQualifiers & TQ_restrict)
+    Handle(TQ_restrict, "restrict", TQ_restrictLoc);
+  if (TypeQualifiers & TQ_unaligned)
+    Handle(TQ_unaligned, "unaligned", TQ_unalignedLoc);
+}
+
+void DeclSpec::forEachQualifier(
+    llvm::function_ref<void(TQ, StringRef, SourceLocation)> Handle) {
+  forEachCVRUQualifier(Handle);
+  // FIXME: Add code below to iterate through the attributes and call Handle.
+}
+
 bool DeclSpec::hasTagDefinition() const {
   if (!TypeSpecOwned)
     return false;
@@ -424,7 +445,7 @@ unsigned DeclSpec::getParsedSpecifiers() const {
   if (hasTypeSpecifier())
     Res |= PQ_TypeSpecifier;
 
-  if (FS_inline_specified || FS_virtual_specified || FS_explicit_specified ||
+  if (FS_inline_specified || FS_virtual_specified || hasExplicitSpecifier() ||
       FS_noreturn_specified || FS_forceinline_specified)
     Res |= PQ_FunctionSpecifier;
   return Res;
@@ -438,7 +459,7 @@ template <class T> static bool BadSpecifier(T TNew, T TPrev,
   if (TNew != TPrev)
     DiagID = diag::err_invalid_decl_spec_combination;
   else
-    DiagID = IsExtension ? diag::ext_duplicate_declspec :
+    DiagID = IsExtension ? diag::ext_warn_duplicate_declspec :
                            diag::warn_duplicate_declspec;
   return true;
 }
@@ -543,6 +564,16 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   llvm_unreachable("Unknown typespec!");
 }
 
+const char *DeclSpec::getSpecifierName(ConstexprSpecKind C) {
+  switch (C) {
+  case CSK_unspecified: return "unspecified";
+  case CSK_constexpr:   return "constexpr";
+  case CSK_consteval:   return "consteval";
+  case CSK_constinit:   return "constinit";
+  }
+  llvm_unreachable("Unknown ConstexprSpecKind");
+}
+
 const char *DeclSpec::getSpecifierName(TQ T) {
   switch (T) {
   case DeclSpec::TQ_unspecified: return "unspecified";
@@ -572,8 +603,9 @@ bool DeclSpec::SetStorageClassSpec(Sema &S, SCS SC, SourceLocation Loc,
     case SCS_extern:
     case SCS_private_extern:
     case SCS_static:
-      if (S.getLangOpts().OpenCLVersion < 120) {
-        DiagID   = diag::err_opencl_unknown_type_specifier;
+      if (S.getLangOpts().OpenCLVersion < 120 &&
+          !S.getLangOpts().OpenCLCPlusPlus) {
+        DiagID = diag::err_opencl_unknown_type_specifier;
         PrevSpec = getSpecifierName(SC);
         return true;
       }
@@ -683,6 +715,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation TagKwLoc,
                                const PrintingPolicy &Policy) {
   assert(isTypeRep(T) && "T does not store a type");
   assert(Rep && "no type provided!");
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -703,6 +737,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
                                const PrintingPolicy &Policy) {
   assert(isExprRep(T) && "T does not store an expr");
   assert(Rep && "no expression provided!");
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -733,6 +769,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation TagKwLoc,
   assert(isDeclRep(T) && "T does not store a decl");
   // Unlike the other cases, we don't assert that we actually get a decl.
 
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -752,6 +790,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
                                const PrintingPolicy &Policy) {
   assert(!isDeclRep(T) && !isTypeRep(T) && !isExprRep(T) &&
          "rep required for these type-spec kinds!");
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -784,6 +824,8 @@ bool DeclSpec::SetTypeSpecSat(SourceLocation Loc, const char *&PrevSpec,
 bool DeclSpec::SetTypeAltiVecVector(bool isAltiVecVector, SourceLocation Loc,
                           const char *&PrevSpec, unsigned &DiagID,
                           const PrintingPolicy &Policy) {
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_vector_decl_spec_combination;
@@ -797,7 +839,8 @@ bool DeclSpec::SetTypeAltiVecVector(bool isAltiVecVector, SourceLocation Loc,
 bool DeclSpec::SetTypePipe(bool isPipe, SourceLocation Loc,
                            const char *&PrevSpec, unsigned &DiagID,
                            const PrintingPolicy &Policy) {
-
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST)TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -813,6 +856,8 @@ bool DeclSpec::SetTypePipe(bool isPipe, SourceLocation Loc,
 bool DeclSpec::SetTypeAltiVecPixel(bool isAltiVecPixel, SourceLocation Loc,
                           const char *&PrevSpec, unsigned &DiagID,
                           const PrintingPolicy &Policy) {
+  if (TypeSpecType == TST_error)
+    return false;
   if (!TypeAltiVecVector || TypeAltiVecPixel ||
       (TypeSpecType != TST_unspecified)) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
@@ -828,6 +873,8 @@ bool DeclSpec::SetTypeAltiVecPixel(bool isAltiVecPixel, SourceLocation Loc,
 bool DeclSpec::SetTypeAltiVecBool(bool isAltiVecBool, SourceLocation Loc,
                                   const char *&PrevSpec, unsigned &DiagID,
                                   const PrintingPolicy &Policy) {
+  if (TypeSpecType == TST_error)
+    return false;
   if (!TypeAltiVecVector || TypeAltiVecBool ||
       (TypeSpecType != TST_unspecified)) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
@@ -860,6 +907,11 @@ bool DeclSpec::SetTypeQual(TQ T, SourceLocation Loc, const char *&PrevSpec,
       IsExtension = false;
     return BadSpecifier(T, T, PrevSpec, DiagID, IsExtension);
   }
+
+  return SetTypeQual(T, Loc);
+}
+
+bool DeclSpec::SetTypeQual(TQ T, SourceLocation Loc) {
   TypeQualifiers |= T;
 
   switch (T) {
@@ -916,17 +968,24 @@ bool DeclSpec::setFunctionSpecVirtual(SourceLocation Loc,
 }
 
 bool DeclSpec::setFunctionSpecExplicit(SourceLocation Loc,
-                                       const char *&PrevSpec,
-                                       unsigned &DiagID) {
+                                       const char *&PrevSpec, unsigned &DiagID,
+                                       ExplicitSpecifier ExplicitSpec,
+                                       SourceLocation CloseParenLoc) {
+  assert((ExplicitSpec.getKind() == ExplicitSpecKind::ResolvedTrue ||
+          ExplicitSpec.getExpr()) &&
+         "invalid ExplicitSpecifier");
   // 'explicit explicit' is ok, but warn as this is likely not what the user
   // intended.
-  if (FS_explicit_specified) {
-    DiagID = diag::warn_duplicate_declspec;
+  if (hasExplicitSpecifier()) {
+    DiagID = (ExplicitSpec.getExpr() || FS_explicit_specifier.getExpr())
+                 ? diag::err_duplicate_declspec
+                 : diag::ext_warn_duplicate_declspec;
     PrevSpec = "explicit";
     return true;
   }
-  FS_explicit_specified = true;
+  FS_explicit_specifier = ExplicitSpec;
   FS_explicitLoc = Loc;
+  FS_explicitCloseParenLoc = CloseParenLoc;
   return false;
 }
 
@@ -967,7 +1026,7 @@ bool DeclSpec::setModulePrivateSpec(SourceLocation Loc, const char *&PrevSpec,
                                     unsigned &DiagID) {
   if (isModulePrivateSpecified()) {
     PrevSpec = "__module_private__";
-    DiagID = diag::ext_duplicate_declspec;
+    DiagID = diag::ext_warn_duplicate_declspec;
     return true;
   }
 
@@ -975,16 +1034,13 @@ bool DeclSpec::setModulePrivateSpec(SourceLocation Loc, const char *&PrevSpec,
   return false;
 }
 
-bool DeclSpec::SetConstexprSpec(SourceLocation Loc, const char *&PrevSpec,
+bool DeclSpec::SetConstexprSpec(ConstexprSpecKind ConstexprKind,
+                                SourceLocation Loc, const char *&PrevSpec,
                                 unsigned &DiagID) {
-  // 'constexpr constexpr' is ok, but warn as this is likely not what the user
-  // intended.
-  if (Constexpr_specified) {
-    DiagID = diag::warn_duplicate_declspec;
-    PrevSpec = "constexpr";
-    return true;
-  }
-  Constexpr_specified = true;
+  if (getConstexprSpecifier() != CSK_unspecified)
+    return BadSpecifier(ConstexprKind, getConstexprSpecifier(), PrevSpec,
+                        DiagID);
+  ConstexprSpecifier = ConstexprKind;
   ConstexprLoc = Loc;
   return false;
 }
@@ -1005,7 +1061,10 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
   // Before possibly changing their values, save specs as written.
   SaveWrittenBuiltinSpecs();
 
-  // Check the type specifier components first.
+  // Check the type specifier components first. No checking for an invalid
+  // type.
+  if (TypeSpecType == TST_error)
+    return;
 
   // If decltype(auto) is used, no other type specifiers are permitted.
   if (TypeSpecType == TST_decltype_auto &&
@@ -1227,9 +1286,12 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
   else if (TypeSpecType == TST_char16 || TypeSpecType == TST_char32)
     S.Diag(TSTLoc, diag::warn_cxx98_compat_unicode_type)
       << (TypeSpecType == TST_char16 ? "char16_t" : "char32_t");
-  if (Constexpr_specified)
+  if (getConstexprSpecifier() == CSK_constexpr)
     S.Diag(ConstexprLoc, diag::warn_cxx98_compat_constexpr);
-
+  else if (getConstexprSpecifier() == CSK_consteval)
+    S.Diag(ConstexprLoc, diag::warn_cxx20_compat_consteval);
+  else if (getConstexprSpecifier() == CSK_constinit)
+    S.Diag(ConstexprLoc, diag::warn_cxx20_compat_constinit);
   // C++ [class.friend]p6:
   //   No storage-class-specifier shall appear in the decl-specifier-seq
   //   of a friend declaration.
@@ -1265,23 +1327,26 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
   //   The explicit specifier shall be used only in the declaration of
   //   a constructor or conversion function within its class
   //   definition;
-  if (isFriendSpecified() && (isVirtualSpecified() || isExplicitSpecified())) {
+  if (isFriendSpecified() && (isVirtualSpecified() || hasExplicitSpecifier())) {
     StringRef Keyword;
+    FixItHint Hint;
     SourceLocation SCLoc;
 
     if (isVirtualSpecified()) {
       Keyword = "virtual";
       SCLoc = getVirtualSpecLoc();
+      Hint = FixItHint::CreateRemoval(SCLoc);
     } else {
       Keyword = "explicit";
       SCLoc = getExplicitSpecLoc();
+      Hint = FixItHint::CreateRemoval(getExplicitSpecRange());
     }
 
-    FixItHint Hint = FixItHint::CreateRemoval(SCLoc);
     S.Diag(SCLoc, diag::err_friend_decl_spec)
       << Keyword << Hint;
 
-    FS_virtual_specified = FS_explicit_specified = false;
+    FS_virtual_specified = false;
+    FS_explicit_specifier = ExplicitSpecifier();
     FS_virtualLoc = FS_explicitLoc = SourceLocation();
   }
 

@@ -1,32 +1,27 @@
 //===-- PlatformNetBSD.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "PlatformNetBSD.h"
 #include "lldb/Host/Config.h"
 
-// C Includes
 #include <stdio.h>
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
 #include <sys/utsname.h>
 #endif
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/State.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
 
@@ -41,7 +36,6 @@ using namespace lldb_private::platform_netbsd;
 
 static uint32_t g_initialize_count = 0;
 
-//------------------------------------------------------------------
 
 PlatformSP PlatformNetBSD::CreateInstance(bool force, const ArchSpec *arch) {
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
@@ -50,7 +44,7 @@ PlatformSP PlatformNetBSD::CreateInstance(bool force, const ArchSpec *arch) {
            arch ? arch->GetTriple().getTriple() : "<null>");
 
   bool create = force;
-  if (create == false && arch && arch->IsValid()) {
+  if (!create && arch && arch->IsValid()) {
     const llvm::Triple &triple = arch->GetTriple();
     switch (triple.getOS()) {
     case llvm::Triple::NetBSD:
@@ -116,9 +110,7 @@ void PlatformNetBSD::Terminate() {
   PlatformPOSIX::Terminate();
 }
 
-//------------------------------------------------------------------
 /// Default Constructor
-//------------------------------------------------------------------
 PlatformNetBSD::PlatformNetBSD(bool is_host)
     : PlatformPOSIX(is_host) // This is the local host platform
 {}
@@ -176,7 +168,7 @@ bool PlatformNetBSD::GetSupportedArchitectureAtIndex(uint32_t idx,
 void PlatformNetBSD::GetStatus(Stream &strm) {
   Platform::GetStatus(strm);
 
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
   // Display local kernel information only when we are running in host mode.
   // Otherwise, we would end up printing non-NetBSD information (when running
   // on Mac OS for example).
@@ -214,7 +206,7 @@ PlatformNetBSD::GetResumeCountForLaunchInfo(ProcessLaunchInfo &launch_info) {
 
   // Figure out what shell we're planning on using.
   const char *shell_name = strrchr(shell_string.c_str(), '/');
-  if (shell_name == NULL)
+  if (shell_name == nullptr)
     shell_name = shell_string.c_str();
   else
     shell_name++;
@@ -271,8 +263,8 @@ PlatformNetBSD::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
   if (target == nullptr) {
     LLDB_LOG(log, "creating new target");
     TargetSP new_target_sp;
-    error = debugger.GetTargetList().CreateTarget(debugger, "", "", false,
-                                                  nullptr, new_target_sp);
+    error = debugger.GetTargetList().CreateTarget(
+        debugger, "", "", eLoadDependentsNo, nullptr, new_target_sp);
     if (error.Fail()) {
       LLDB_LOG(log, "failed to create new target: {0}", error);
       return process_sp;
@@ -291,8 +283,8 @@ PlatformNetBSD::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
 
   // Now create the gdb-remote process.
   LLDB_LOG(log, "having target create process with gdb-remote plugin");
-  process_sp = target->CreateProcess(
-      launch_info.GetListenerForProcess(debugger), "gdb-remote", nullptr);
+  process_sp =
+      target->CreateProcess(launch_info.GetListener(), "gdb-remote", nullptr);
 
   if (!process_sp) {
     error.SetErrorString("CreateProcess() failed for gdb-remote process");
@@ -330,7 +322,7 @@ PlatformNetBSD::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
     // Handle the hijacking of process events.
     if (listener_sp) {
       const StateType state = process_sp->WaitForProcessToStop(
-          llvm::None, NULL, false, listener_sp);
+          llvm::None, nullptr, false, listener_sp);
 
       LLDB_LOG(log, "pid {0} state {0}", process_sp->GetID(), state);
     }

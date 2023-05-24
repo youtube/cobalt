@@ -1,9 +1,8 @@
 //===- PredicateInfo.h - Build PredicateInfo ----------------------*-C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -60,6 +59,7 @@
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/iterator.h"
 #include "llvm/Analysis/AssumptionCache.h"
+#include "llvm/Analysis/OrderedInstructions.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
@@ -76,7 +76,6 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Transforms/Utils/OrderedInstructions.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -230,10 +229,10 @@ protected:
 
 private:
   void buildPredicateInfo();
-  void processAssume(IntrinsicInst *, BasicBlock *, SmallPtrSetImpl<Value *> &);
-  void processBranch(BranchInst *, BasicBlock *, SmallPtrSetImpl<Value *> &);
-  void processSwitch(SwitchInst *, BasicBlock *, SmallPtrSetImpl<Value *> &);
-  void renameUses(SmallPtrSetImpl<Value *> &);
+  void processAssume(IntrinsicInst *, BasicBlock *, SmallVectorImpl<Value *> &);
+  void processBranch(BranchInst *, BasicBlock *, SmallVectorImpl<Value *> &);
+  void processSwitch(SwitchInst *, BasicBlock *, SmallVectorImpl<Value *> &);
+  void renameUses(SmallVectorImpl<Value *> &);
   using ValueDFS = PredicateInfoClasses::ValueDFS;
   typedef SmallVectorImpl<ValueDFS> ValueDFSStack;
   void convertUsesToDFSOrdered(Value *, SmallVectorImpl<ValueDFS> &);
@@ -241,7 +240,7 @@ private:
   bool stackIsInScope(const ValueDFSStack &, const ValueDFS &) const;
   void popStackUntilDFSScope(ValueDFSStack &, const ValueDFS &);
   ValueInfo &getOrCreateValueInfo(Value *);
-  void addInfoFor(SmallPtrSetImpl<Value *> &OpsToRename, Value *Op,
+  void addInfoFor(SmallVectorImpl<Value *> &OpsToRename, Value *Op,
                   PredicateBase *PB);
   const ValueInfo &getValueInfo(Value *) const;
   Function &F;

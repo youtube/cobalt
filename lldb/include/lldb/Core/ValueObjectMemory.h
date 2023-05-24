@@ -1,37 +1,31 @@
 //===-- ValueObjectMemory.h -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_ValueObjectMemory_h_
 #define liblldb_ValueObjectMemory_h_
 
-#include "lldb/Core/Address.h" // for Address
+#include "lldb/Core/Address.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Symbol/CompilerType.h"
-#include "lldb/Utility/ConstString.h" // for ConstString
-#include "lldb/lldb-defines.h"        // for DISALLOW_COPY_AND_ASSIGN
-#include "lldb/lldb-enumerations.h"   // for ValueType
-#include "lldb/lldb-forward.h"        // for TypeSP, ValueObjectSP, ModuleSP
-#include "llvm/ADT/StringRef.h"       // for StringRef
+#include "lldb/Utility/ConstString.h"
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-enumerations.h"
+#include "lldb/lldb-forward.h"
+#include "llvm/ADT/StringRef.h"
 
-#include <stddef.h> // for size_t
-#include <stdint.h> // for uint32_t, uint64_t
+#include <stddef.h>
+#include <stdint.h>
 
 namespace lldb_private {
 class ExecutionContextScope;
-}
 
-namespace lldb_private {
-
-//----------------------------------------------------------------------
 // A ValueObject that represents memory at a given address, viewed as some
 // set lldb type.
-//----------------------------------------------------------------------
 class ValueObjectMemory : public ValueObject {
 public:
   ~ValueObjectMemory() override;
@@ -75,9 +69,7 @@ private:
 
   ValueObjectMemory(ExecutionContextScope *exe_scope, llvm::StringRef name,
                     const Address &address, const CompilerType &ast_type);
-  //------------------------------------------------------------------
   // For ValueObject only
-  //------------------------------------------------------------------
   DISALLOW_COPY_AND_ASSIGN(ValueObjectMemory);
 };
 

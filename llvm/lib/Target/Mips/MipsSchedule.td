@@ -1,9 +1,8 @@
 //===-- MipsSchedule.td - Mips Scheduling Definitions ------*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -154,6 +153,7 @@ def II_DERET            : InstrItinClass;
 def II_ERETNC           : InstrItinClass;
 def II_EHB              : InstrItinClass;
 def II_SDBBP            : InstrItinClass;
+def II_SIGRIE           : InstrItinClass;
 def II_SSNOP            : InstrItinClass;
 def II_SYSCALL          : InstrItinClass;
 def II_PAUSE            : InstrItinClass;
@@ -546,6 +546,7 @@ def MipsGenericItineraries : ProcessorItineraries<[ALU, IMULDIV], [], [
   InstrItinData<II_ERETNC          , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_EHB             , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_SDBBP           , [InstrStage<1,  [ALU]>]>,
+  InstrItinData<II_SIGRIE          , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_SSNOP           , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_SYSCALL         , [InstrStage<1,  [ALU]>]>,
   InstrItinData<II_PAUSE           , [InstrStage<1,  [ALU]>]>,

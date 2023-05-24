@@ -1,9 +1,8 @@
 //===- lib/MC/ARMELFStreamer.cpp - ELF Object Output for ARM --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -442,10 +441,12 @@ public:
   friend class ARMTargetELFStreamer;
 
   ARMELFStreamer(MCContext &Context, std::unique_ptr<MCAsmBackend> TAB,
-                 std::unique_ptr<MCObjectWriter> OW, std::unique_ptr<MCCodeEmitter> Emitter,
-                 bool IsThumb)
-      : MCELFStreamer(Context, std::move(TAB), std::move(OW), std::move(Emitter)),
-        IsThumb(IsThumb) {
+                 std::unique_ptr<MCObjectWriter> OW,
+                 std::unique_ptr<MCCodeEmitter> Emitter, bool IsThumb,
+                 bool IsAndroid)
+      : MCELFStreamer(Context, std::move(TAB), std::move(OW),
+                      std::move(Emitter)),
+        IsThumb(IsThumb), IsAndroid(IsAndroid) {
     EHReset();
   }
 
@@ -465,6 +466,11 @@ public:
   void emitPad(int64_t Offset);
   void emitRegSave(const SmallVectorImpl<unsigned> &RegList, bool isVector);
   void emitUnwindRaw(int64_t Offset, const SmallVectorImpl<uint8_t> &Opcodes);
+  void emitFill(const MCExpr &NumBytes, uint64_t FillValue,
+                SMLoc Loc) override {
+    EmitDataMappingSymbol();
+    MCObjectStreamer::emitFill(NumBytes, FillValue, Loc);
+  }
 
   void ChangeSection(MCSection *Section, const MCExpr *Subsection) override {
     LastMappingSymbols[getCurrentSection().first] = std::move(LastEMSInfo);
@@ -480,8 +486,8 @@ public:
   /// This function is the one used to emit instruction data into the ELF
   /// streamer. We override it to add the appropriate mapping symbol if
   /// necessary.
-  void EmitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI,
-                       bool) override {
+  void EmitInstruction(const MCInst &Inst,
+                       const MCSubtargetInfo &STI) override {
     if (IsThumb)
       EmitThumbMappingSymbol();
     else
@@ -653,11 +659,10 @@ private:
                          uint64_t Offset) {
     auto *Symbol = cast<MCSymbolELF>(getContext().getOrCreateSymbol(
         Name + "." + Twine(MappingSymbolCounter++)));
-    EmitLabel(Symbol, Loc, F);
+    EmitLabelAtPos(Symbol, Loc, F, Offset);
     Symbol->setType(ELF::STT_NOTYPE);
     Symbol->setBinding(ELF::STB_LOCAL);
     Symbol->setExternal(false);
-    Symbol->setOffset(Offset);
   }
 
   void EmitThumbFunc(MCSymbol *Func) override {
@@ -683,6 +688,7 @@ private:
   void EmitFixup(const MCExpr *Expr, MCFixupKind Kind);
 
   bool IsThumb;
+  bool IsAndroid;
   int64_t MappingSymbolCounter = 0;
 
   DenseMap<const MCSection *, std::unique_ptr<ElfMappingSymbolInfo>>
@@ -861,6 +867,7 @@ void ARMTargetELFStreamer::emitArchDefaultAttributes() {
   case ARM::ArchKind::ARMV8_2A:
   case ARM::ArchKind::ARMV8_3A:
   case ARM::ArchKind::ARMV8_4A:
+  case ARM::ArchKind::ARMV8_5A:
     setAttributeItem(CPU_arch_profile, ApplicationProfile, false);
     setAttributeItem(ARM_ISA_use, Allowed, false);
     setAttributeItem(THUMB_ISA_use, AllowThumb32, false);
@@ -1071,7 +1078,7 @@ void ARMTargetELFStreamer::finishAttributeSection() {
   if (Contents.empty())
     return;
 
-  llvm::sort(Contents.begin(), Contents.end(), AttributeItem::LessTag);
+  llvm::sort(Contents, AttributeItem::LessTag);
 
   ARMELFStreamer &Streamer = getStreamer();
 
@@ -1264,7 +1271,12 @@ void ARMELFStreamer::emitFnEnd() {
   // Emit the exception index table entry
   SwitchToExIdxSection(*FnStart);
 
-  if (PersonalityIndex < ARM::EHABI::NUM_PERSONALITY_INDEX)
+  // The EHABI requires a dependency preserving R_ARM_NONE relocation to the
+  // personality routine to protect it from an arbitrary platform's static
+  // linker garbage collection. We disable this for Android where the unwinder
+  // is either dynamically linked or directly references the personality
+  // routine.
+  if (PersonalityIndex < ARM::EHABI::NUM_PERSONALITY_INDEX && !IsAndroid)
     EmitPersonalityFixup(GetAEABIUnwindPersonalityName(PersonalityIndex));
 
   const MCSymbolRefExpr *FnStartRef =
@@ -1499,9 +1511,11 @@ MCELFStreamer *createARMELFStreamer(MCContext &Context,
                                     std::unique_ptr<MCAsmBackend> TAB,
                                     std::unique_ptr<MCObjectWriter> OW,
                                     std::unique_ptr<MCCodeEmitter> Emitter,
-                                    bool RelaxAll, bool IsThumb) {
-  ARMELFStreamer *S = new ARMELFStreamer(Context, std::move(TAB), std::move(OW),
-                                         std::move(Emitter), IsThumb);
+                                    bool RelaxAll, bool IsThumb,
+                                    bool IsAndroid) {
+  ARMELFStreamer *S =
+      new ARMELFStreamer(Context, std::move(TAB), std::move(OW),
+                         std::move(Emitter), IsThumb, IsAndroid);
   // FIXME: This should eventually end up somewhere else where more
   // intelligent flag decisions can be made. For now we are just maintaining
   // the status quo for ARM and setting EF_ARM_EABI_VER5 as the default.

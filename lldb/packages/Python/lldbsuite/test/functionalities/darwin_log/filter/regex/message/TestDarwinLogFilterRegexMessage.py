@@ -7,9 +7,7 @@ targets.
 """
 
 # System imports
-from __future__ import print_function
 
-import re
 
 # LLDB imports
 import lldb

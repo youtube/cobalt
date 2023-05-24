@@ -1,9 +1,8 @@
 //=======-- PPCInstrSPE.td - The PowerPC SPE Extension -*- tablegen -*-=======//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -512,7 +511,7 @@ def EVLWWSPLATX    : EVXForm_1<792, (outs sperc:$RT), (ins memrr:$src),
 
 def EVMERGEHI      : EVXForm_1<556, (outs sperc:$RT), (ins sperc:$RA, sperc:$RB),
                                "evmergehi $RT, $RA, $RB", IIC_VecGeneral, []>;
-def EVMERGELO      : EVXForm_1<557, (outs sperc:$RT), (ins sperc:$RA, sperc:$RB),
+def EVMERGELO      : EVXForm_1<557, (outs sperc:$RT), (ins gprc:$RA, gprc:$RB),
                                "evmergelo $RT, $RA, $RB", IIC_VecGeneral, []>;
 def EVMERGEHILO    : EVXForm_1<558, (outs sperc:$RT), (ins sperc:$RA, sperc:$RB),
                                "evmergehilo $RT, $RA, $RB", IIC_VecGeneral, []>;
@@ -831,22 +830,20 @@ def : Pat<(f64 (fpextend f32:$src)),
 }
 
 let Predicates = [HasSPE] in {
-  let usesCustomInserter = 1 in {
-def SELECT_CC_SPE4 : Pseudo<(outs spe4rc:$dst),
+def SELECT_CC_SPE4 : PPCCustomInserterPseudo<(outs spe4rc:$dst),
                             (ins crrc:$cond, spe4rc:$T, spe4rc:$F,
                             i32imm:$BROPC), "#SELECT_CC_SPE4",
                             []>;
-def SELECT_CC_SPE  : Pseudo<(outs sperc:$dst),
+def SELECT_CC_SPE  : PPCCustomInserterPseudo<(outs sperc:$dst),
                             (ins crrc:$cond, sperc:$T, sperc:$F, i32imm:$BROPC),
                             "#SELECT_CC_SPE",
                             []>;
-def SELECT_SPE4  : Pseudo<(outs spe4rc:$dst), (ins crbitrc:$cond,
+def SELECT_SPE4  : PPCCustomInserterPseudo<(outs spe4rc:$dst), (ins crbitrc:$cond,
                           spe4rc:$T, spe4rc:$F), "#SELECT_SPE4",
                           [(set f32:$dst, (select i1:$cond, f32:$T, f32:$F))]>;
-def SELECT_SPE   : Pseudo<(outs sperc:$dst), (ins crbitrc:$cond,
+def SELECT_SPE   : PPCCustomInserterPseudo<(outs sperc:$dst), (ins crbitrc:$cond,
                           sperc:$T, sperc:$F), "#SELECT_SPE",
                           [(set f64:$dst, (select i1:$cond, f64:$T, f64:$F))]>;
-  }
 
 def : Pat<(f32 (selectcc i1:$lhs, i1:$rhs, f32:$tval, f32:$fval, SETLT)),
           (SELECT_SPE4 (CRANDC $lhs, $rhs), $tval, $fval)>;
@@ -889,4 +886,14 @@ def : Pat<(f64 (selectcc i1:$lhs, i1:$rhs, f64:$tval, f64:$fval, SETUGT)),
           (SELECT_SPE (CRANDC $lhs, $rhs), $tval, $fval)>;
 def : Pat<(f64 (selectcc i1:$lhs, i1:$rhs, f64:$tval, f64:$fval, SETNE)),
           (SELECT_SPE (CRXOR $lhs, $rhs), $tval, $fval)>;
+
+
+def : Pat<(f64 (PPCbuild_spe64 i32:$rB, i32:$rA)),
+          (f64 (COPY_TO_REGCLASS (EVMERGELO $rA, $rB), SPERC))>;
+
+def : Pat<(i32 (PPCextract_spe f64:$rA, 1)),
+          (i32 (EXTRACT_SUBREG (EVMERGEHI $rA, $rA), sub_32))>;
+def : Pat<(i32 (PPCextract_spe f64:$rA, 0)),
+          (i32 (EXTRACT_SUBREG $rA, sub_32))>;
+
 }

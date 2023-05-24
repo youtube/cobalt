@@ -1,9 +1,8 @@
 //===--- AMDGPU.cpp - Implement AMDGPU target feature support -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,11 +12,12 @@
 
 #include "AMDGPU.h"
 #include "clang/Basic/Builtins.h"
+#include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/MacroBuilder.h"
 #include "clang/Basic/TargetBuiltins.h"
-#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/IR/DataLayout.h"
 
 using namespace clang;
 using namespace clang::targets;
@@ -35,7 +35,8 @@ static const char *const DataLayoutStringR600 =
 static const char *const DataLayoutStringAMDGCN =
     "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32"
     "-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128"
-    "-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5";
+    "-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5"
+    "-ni:7";
 
 const LangASMap AMDGPUTargetInfo::AMDGPUDefIsGenMap = {
     Generic,  // Default
@@ -46,7 +47,10 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsGenMap = {
     Generic,  // opencl_generic
     Global,   // cuda_device
     Constant, // cuda_constant
-    Local     // cuda_shared
+    Local,    // cuda_shared
+    Generic,  // ptr32_sptr
+    Generic,  // ptr32_uptr
+    Generic   // ptr64
 };
 
 const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
@@ -58,7 +62,11 @@ const LangASMap AMDGPUTargetInfo::AMDGPUDefIsPrivMap = {
     Generic,  // opencl_generic
     Global,   // cuda_device
     Constant, // cuda_constant
-    Local     // cuda_shared
+    Local,    // cuda_shared
+    Generic,  // ptr32_sptr
+    Generic,  // ptr32_uptr
+    Generic   // ptr64
+
 };
 } // namespace targets
 } // namespace clang
@@ -127,15 +135,41 @@ bool AMDGPUTargetInfo::initFeatureMap(
     llvm::StringMap<bool> &Features, DiagnosticsEngine &Diags, StringRef CPU,
     const std::vector<std::string> &FeatureVec) const {
 
+  using namespace llvm::AMDGPU;
+
   // XXX - What does the member GPU mean if device name string passed here?
   if (isAMDGCN(getTriple())) {
-    if (CPU.empty())
-      CPU = "gfx600";
-
-    switch (parseAMDGCNName(CPU).Kind) {
+    switch (llvm::AMDGPU::parseArchAMDGCN(CPU)) {
+    case GK_GFX1012:
+    case GK_GFX1011:
+      Features["dot1-insts"] = true;
+      Features["dot2-insts"] = true;
+      Features["dot5-insts"] = true;
+      Features["dot6-insts"] = true;
+      LLVM_FALLTHROUGH;
+    case GK_GFX1010:
+      Features["dl-insts"] = true;
+      Features["ci-insts"] = true;
+      Features["flat-address-space"] = true;
+      Features["16-bit-insts"] = true;
+      Features["dpp"] = true;
+      Features["gfx8-insts"] = true;
+      Features["gfx9-insts"] = true;
+      Features["gfx10-insts"] = true;
+      Features["s-memrealtime"] = true;
+      break;
+    case GK_GFX908:
+      Features["dot3-insts"] = true;
+      Features["dot4-insts"] = true;
+      Features["dot5-insts"] = true;
+      Features["dot6-insts"] = true;
+      LLVM_FALLTHROUGH;
     case GK_GFX906:
       Features["dl-insts"] = true;
+      Features["dot1-insts"] = true;
+      Features["dot2-insts"] = true;
       LLVM_FALLTHROUGH;
+    case GK_GFX909:
     case GK_GFX904:
     case GK_GFX902:
     case GK_GFX900:
@@ -145,20 +179,24 @@ bool AMDGPUTargetInfo::initFeatureMap(
     case GK_GFX803:
     case GK_GFX802:
     case GK_GFX801:
+      Features["gfx8-insts"] = true;
       Features["16-bit-insts"] = true;
       Features["dpp"] = true;
       Features["s-memrealtime"] = true;
-      break;
+      LLVM_FALLTHROUGH;
     case GK_GFX704:
     case GK_GFX703:
     case GK_GFX702:
     case GK_GFX701:
     case GK_GFX700:
+      Features["ci-insts"] = true;
+      Features["flat-address-space"] = true;
+      LLVM_FALLTHROUGH;
     case GK_GFX601:
     case GK_GFX600:
       break;
     case GK_NONE:
-      return false;
+      break;
     default:
       llvm_unreachable("Unhandled GPU!");
     }
@@ -166,7 +204,7 @@ bool AMDGPUTargetInfo::initFeatureMap(
     if (CPU.empty())
       CPU = "r600";
 
-    switch (parseR600Name(CPU).Kind) {
+    switch (llvm::AMDGPU::parseArchR600(CPU)) {
     case GK_CAYMAN:
     case GK_CYPRESS:
     case GK_RV770:
@@ -198,7 +236,7 @@ void AMDGPUTargetInfo::adjustTargetOptions(const CodeGenOptions &CGOpts,
                                            TargetOptions &TargetOpts) const {
   bool hasFP32Denormals = false;
   bool hasFP64Denormals = false;
-  GPUInfo CGOptsGPU = parseGPUName(TargetOpts.CPU);
+
   for (auto &I : TargetOpts.FeaturesAsWritten) {
     if (I == "+fp32-denormals" || I == "-fp32-denormals")
       hasFP32Denormals = true;
@@ -207,53 +245,20 @@ void AMDGPUTargetInfo::adjustTargetOptions(const CodeGenOptions &CGOpts,
   }
   if (!hasFP32Denormals)
     TargetOpts.Features.push_back(
-        (Twine(CGOptsGPU.HasFastFMAF && !CGOpts.FlushDenorm
-                   ? '+'
-                   : '-') +
-         Twine("fp32-denormals"))
+      (Twine(hasFastFMAF() && hasFullRateDenormalsF32() && !CGOpts.FlushDenorm
+             ? '+' : '-') + Twine("fp32-denormals"))
             .str());
   // Always do not flush fp64 or fp16 denorms.
-  if (!hasFP64Denormals && CGOptsGPU.HasFP64)
+  if (!hasFP64Denormals && hasFP64())
     TargetOpts.Features.push_back("+fp64-fp16-denormals");
-}
-
-constexpr AMDGPUTargetInfo::GPUInfo AMDGPUTargetInfo::InvalidGPU;
-constexpr AMDGPUTargetInfo::GPUInfo AMDGPUTargetInfo::R600GPUs[];
-constexpr AMDGPUTargetInfo::GPUInfo AMDGPUTargetInfo::AMDGCNGPUs[];
-
-AMDGPUTargetInfo::GPUInfo AMDGPUTargetInfo::parseR600Name(StringRef Name) {
-  const auto *Result = llvm::find_if(
-      R600GPUs, [Name](const GPUInfo &GPU) { return GPU.Name == Name; });
-
-  if (Result == std::end(R600GPUs))
-    return InvalidGPU;
-  return *Result;
-}
-
-AMDGPUTargetInfo::GPUInfo AMDGPUTargetInfo::parseAMDGCNName(StringRef Name) {
-  const auto *Result = llvm::find_if(
-      AMDGCNGPUs, [Name](const GPUInfo &GPU) { return GPU.Name == Name; });
-
-  if (Result == std::end(AMDGCNGPUs))
-    return InvalidGPU;
-  return *Result;
-}
-
-AMDGPUTargetInfo::GPUInfo AMDGPUTargetInfo::parseGPUName(StringRef Name) const {
-  if (isAMDGCN(getTriple()))
-    return parseAMDGCNName(Name);
-  else
-    return parseR600Name(Name);
 }
 
 void AMDGPUTargetInfo::fillValidCPUList(
     SmallVectorImpl<StringRef> &Values) const {
   if (isAMDGCN(getTriple()))
-    llvm::for_each(AMDGCNGPUs, [&Values](const GPUInfo &GPU) {
-                   Values.emplace_back(GPU.Name);});
+    llvm::AMDGPU::fillValidArchListAMDGCN(Values);
   else
-    llvm::for_each(R600GPUs, [&Values](const GPUInfo &GPU) {
-                   Values.emplace_back(GPU.Name);});
+    llvm::AMDGPU::fillValidArchListR600(Values);
 }
 
 void AMDGPUTargetInfo::setAddressSpaceMap(bool DefaultIsPrivate) {
@@ -263,7 +268,12 @@ void AMDGPUTargetInfo::setAddressSpaceMap(bool DefaultIsPrivate) {
 AMDGPUTargetInfo::AMDGPUTargetInfo(const llvm::Triple &Triple,
                                    const TargetOptions &Opts)
     : TargetInfo(Triple),
-      GPU(isAMDGCN(Triple) ? AMDGCNGPUs[0] : parseR600Name(Opts.CPU)) {
+      GPUKind(isAMDGCN(Triple) ?
+              llvm::AMDGPU::parseArchAMDGCN(Opts.CPU) :
+              llvm::AMDGPU::parseArchR600(Opts.CPU)),
+      GPUFeatures(isAMDGCN(Triple) ?
+                  llvm::AMDGPU::getArchAttrAMDGCN(GPUKind) :
+                  llvm::AMDGPU::getArchAttrR600(GPUKind)) {
   resetDataLayout(isAMDGCN(getTriple()) ? DataLayoutStringAMDGCN
                                         : DataLayoutStringR600);
   assert(DataLayout->getAllocaAddrSpace() == Private);
@@ -271,6 +281,9 @@ AMDGPUTargetInfo::AMDGPUTargetInfo(const llvm::Triple &Triple,
   setAddressSpaceMap(Triple.getOS() == llvm::Triple::Mesa3D ||
                      !isAMDGCN(Triple));
   UseAddrSpaceMapMangling = true;
+
+  HasLegalHalfType = true;
+  HasFloat16 = true;
 
   // Set pointer width and alignment for target address space 0.
   PointerWidth = PointerAlign = DataLayout->getPointerSizeInBits();
@@ -308,19 +321,37 @@ void AMDGPUTargetInfo::getTargetDefines(const LangOptions &Opts,
   else
     Builder.defineMacro("__R600__");
 
-  if (GPU.Kind != GK_NONE)
-    Builder.defineMacro(Twine("__") + Twine(GPU.CanonicalName) + Twine("__"));
+  if (GPUKind != llvm::AMDGPU::GK_NONE) {
+    StringRef CanonName = isAMDGCN(getTriple()) ?
+      getArchNameAMDGCN(GPUKind) : getArchNameR600(GPUKind);
+    Builder.defineMacro(Twine("__") + Twine(CanonName) + Twine("__"));
+  }
 
   // TODO: __HAS_FMAF__, __HAS_LDEXPF__, __HAS_FP64__ are deprecated and will be
   // removed in the near future.
-  if (GPU.HasFMAF)
+  if (hasFMAF())
     Builder.defineMacro("__HAS_FMAF__");
-  if (GPU.HasFastFMAF)
+  if (hasFastFMAF())
     Builder.defineMacro("FP_FAST_FMAF");
-  if (GPU.HasLDEXPF)
+  if (hasLDEXPF())
     Builder.defineMacro("__HAS_LDEXPF__");
-  if (GPU.HasFP64)
+  if (hasFP64())
     Builder.defineMacro("__HAS_FP64__");
-  if (GPU.HasFastFMA)
+  if (hasFastFMA())
     Builder.defineMacro("FP_FAST_FMA");
+}
+
+void AMDGPUTargetInfo::setAuxTarget(const TargetInfo *Aux) {
+  assert(HalfFormat == Aux->HalfFormat);
+  assert(FloatFormat == Aux->FloatFormat);
+  assert(DoubleFormat == Aux->DoubleFormat);
+
+  // On x86_64 long double is 80-bit extended precision format, which is
+  // not supported by AMDGPU. 128-bit floating point format is also not
+  // supported by AMDGPU. Therefore keep its own format for these two types.
+  auto SaveLongDoubleFormat = LongDoubleFormat;
+  auto SaveFloat128Format = Float128Format;
+  copyAuxTarget(Aux);
+  LongDoubleFormat = SaveLongDoubleFormat;
+  Float128Format = SaveFloat128Format;
 }

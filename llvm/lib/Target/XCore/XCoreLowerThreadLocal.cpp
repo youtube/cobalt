@@ -1,9 +1,8 @@
 //===-- XCoreLowerThreadLocal - Lower thread local variables --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -19,6 +18,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsXCore.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/NoFolder.h"
 #include "llvm/IR/ValueHandle.h"
@@ -129,7 +129,7 @@ createReplacementInstr(ConstantExpr *CE, Instruction *Instr) {
 static bool replaceConstantExprOp(ConstantExpr *CE, Pass *P) {
   do {
     SmallVector<WeakTrackingVH, 8> WUsers(CE->user_begin(), CE->user_end());
-    llvm::sort(WUsers.begin(), WUsers.end());
+    llvm::sort(WUsers);
     WUsers.erase(std::unique(WUsers.begin(), WUsers.end()), WUsers.end());
     while (!WUsers.empty())
       if (WeakTrackingVH WU = WUsers.pop_back_val()) {

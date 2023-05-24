@@ -3,10 +3,10 @@ include(CompilerRTCompile)
 filter_available_targets(INTERCEPTION_UNITTEST_SUPPORTED_ARCH x86_64 i386 mips64 mips64el)
 
 set(INTERCEPTION_UNITTESTS
-  interception_linux_test.cc
-  interception_test_main.cc
-  interception_win_test.cc
-)
+  interception_linux_test.cpp
+  interception_test_main.cpp
+  interception_win_test.cpp
+  )
 
 set(INTERCEPTION_TEST_HEADERS)
 
@@ -21,6 +21,9 @@ set(INTERCEPTION_TEST_CFLAGS_COMMON
   -Werror=sign-compare
   -Wno-non-virtual-dtor)
 
+set(INTERCEPTION_TEST_LINK_FLAGS_COMMON
+  ${COMPILER_RT_UNITTEST_LINK_FLAGS})
+
 # -gline-tables-only must be enough for these tests, so use it if possible.
 if(COMPILER_RT_TEST_COMPILER_ID MATCHES "Clang")
   list(APPEND INTERCEPTION_TEST_CFLAGS_COMMON -gline-tables-only)
@@ -29,7 +32,10 @@ else()
 endif()
 if(MSVC)
   list(APPEND INTERCEPTION_TEST_CFLAGS_COMMON -gcodeview)
-  list(APPEND INTERCEPTION_TEST_LINK_FLAGS_COMMON -Wl,-largeaddressaware)
+  list(APPEND INTERCEPTION_TEST_LINK_FLAGS_COMMON
+    -Wl,-largeaddressaware
+    -Wl,-nodefaultlib:libcmt,-defaultlib:msvcrt,-defaultlib:oldnames
+    )
 endif()
 list(APPEND INTERCEPTION_TEST_LINK_FLAGS_COMMON -g)
 

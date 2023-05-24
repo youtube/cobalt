@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,15 +16,15 @@
 // void last_write_time(const path& p, file_time_type new_type,
 //                      std::error_code& ec) noexcept;
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <chrono>
 #include <fstream>
 #include <cstdlib>
 
 #include "test_macros.h"
-#include "rapid-cxx-test.hpp"
-#include "filesystem_test_helper.hpp"
+#include "rapid-cxx-test.h"
+#include "filesystem_test_helper.h"
 
 #include <sys/stat.h>
 #include <iostream>
@@ -108,7 +107,6 @@ struct Times {
 };
 
 Times GetTimes(path const& p) {
-    using Clock = file_time_type::clock;
     StatT st;
     if (::stat(p.c_str(), &st) == -1) {
         std::error_code ec(errno, std::generic_category());
@@ -126,8 +124,7 @@ TimeSpec LastAccessTime(path const& p) { return GetTimes(p).access; }
 
 TimeSpec LastWriteTime(path const& p) { return GetTimes(p).write; }
 
-std::pair<TimeSpec, TimeSpec> GetSymlinkTimes(path const& p) {
-  using Clock = file_time_type::clock;
+Times GetSymlinkTimes(path const& p) {
   StatT st;
   if (::lstat(p.c_str(), &st) == -1) {
     std::error_code ec(errno, std::generic_category());
@@ -138,7 +135,10 @@ std::pair<TimeSpec, TimeSpec> GetSymlinkTimes(path const& p) {
         std::exit(EXIT_FAILURE);
 #endif
     }
-    return {extract_atime(st), extract_mtime(st)};
+    Times res;
+    res.access = extract_atime(st);
+    res.write = extract_mtime(st);
+    return res;
 }
 
 namespace {
@@ -429,7 +429,7 @@ TEST_CASE(set_last_write_time_dynamic_env_test)
         epoch_time - Minutes(3) - Sec(42) - SubSec(17);
     // FreeBSD has a bug in their utimes implementation where the time is not update
     // when the number of seconds is '-1'.
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
     const file_time_type just_before_epoch_time =
         epoch_time - Sec(2) - SubSec(17);
 #else
@@ -502,15 +502,13 @@ TEST_CASE(last_write_time_symlink_test)
 
     TEST_CHECK(CompareTime(LastWriteTime(file), new_time));
     TEST_CHECK(CompareTime(LastAccessTime(sym), old_times.access));
-    std::pair<TimeSpec, TimeSpec> sym_times = GetSymlinkTimes(sym);
-    TEST_CHECK(CompareTime(sym_times.first, old_sym_times.first));
-    TEST_CHECK(CompareTime(sym_times.second, old_sym_times.second));
+    Times sym_times = GetSymlinkTimes(sym);
+    TEST_CHECK(CompareTime(sym_times.write, old_sym_times.write));
 }
 
 
 TEST_CASE(test_write_min_time)
 {
-    using Clock = file_time_type::clock;
     scoped_test_env env;
     const path p = env.create_file("file", 42);
     const file_time_type old_time = last_write_time(p);
@@ -545,10 +543,6 @@ TEST_CASE(test_write_min_time)
 }
 
 TEST_CASE(test_write_max_time) {
-  using Clock = file_time_type::clock;
-  using Sec = std::chrono::seconds;
-  using Hours = std::chrono::hours;
-
   scoped_test_env env;
   const path p = env.create_file("file", 42);
   const file_time_type old_time = last_write_time(p);

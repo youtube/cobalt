@@ -1,9 +1,8 @@
 //===-- xray_trampoline_x86.s -----------------------------------*- ASM -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,6 +18,7 @@
 
 
 .macro SAVE_REGISTERS
+	pushfq
 	subq $240, %rsp
 	CFI_DEF_CFA_OFFSET(248)
 	movq %rbp, 232(%rsp)
@@ -69,6 +69,7 @@
 	movq  8(%rsp), %r14
 	movq  0(%rsp), %r15
 	addq	$240, %rsp
+	popfq
 	CFI_DEF_CFA_OFFSET(8)
 .endm
 
@@ -89,10 +90,10 @@
 	.text
 #if !defined(__APPLE__)
 	.section .text
+	.file "xray_trampoline_x86.S"
 #else
 	.section __TEXT,__text
 #endif
-	.file "xray_trampoline_x86.S"
 
 //===----------------------------------------------------------------------===//
 

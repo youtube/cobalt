@@ -1,9 +1,8 @@
 //===-- LoopSink.cpp - Loop Sink Pass -------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -42,14 +41,15 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 using namespace llvm;
 
@@ -202,17 +202,22 @@ static bool sinkInstruction(Loop &L, Instruction &I,
   if (BBsToSinkInto.empty())
     return false;
 
+  // Return if any of the candidate blocks to sink into is non-cold.
+  if (BBsToSinkInto.size() > 1) {
+    for (auto *BB : BBsToSinkInto)
+      if (!LoopBlockNumber.count(BB))
+        return false;
+  }
+
   // Copy the final BBs into a vector and sort them using the total ordering
   // of the loop block numbers as iterating the set doesn't give a useful
   // order. No need to stable sort as the block numbers are a total ordering.
   SmallVector<BasicBlock *, 2> SortedBBsToSinkInto;
   SortedBBsToSinkInto.insert(SortedBBsToSinkInto.begin(), BBsToSinkInto.begin(),
                              BBsToSinkInto.end());
-  llvm::sort(SortedBBsToSinkInto.begin(), SortedBBsToSinkInto.end(),
-             [&](BasicBlock *A, BasicBlock *B) {
-               return LoopBlockNumber.find(A)->second <
-                      LoopBlockNumber.find(B)->second;
-             });
+  llvm::sort(SortedBBsToSinkInto, [&](BasicBlock *A, BasicBlock *B) {
+    return LoopBlockNumber.find(A)->second < LoopBlockNumber.find(B)->second;
+  });
 
   BasicBlock *MoveBB = *SortedBBsToSinkInto.begin();
   // FIXME: Optimize the efficiency for cloned value replacement. The current
@@ -226,12 +231,9 @@ static bool sinkInstruction(Loop &L, Instruction &I,
     IC->setName(I.getName());
     IC->insertBefore(&*N->getFirstInsertionPt());
     // Replaces uses of I with IC in N
-    for (Value::use_iterator UI = I.use_begin(), UE = I.use_end(); UI != UE;) {
-      Use &U = *UI++;
-      auto *I = cast<Instruction>(U.getUser());
-      if (I->getParent() == N)
-        U.set(IC);
-    }
+    I.replaceUsesWithIf(IC, [N](Use &U) {
+      return cast<Instruction>(U.getUser())->getParent() == N;
+    });
     // Replaces uses of I with IC in blocks dominated by N
     replaceDominatedUsesWith(&I, IC, DT, N);
     LLVM_DEBUG(dbgs() << "Sinking a clone of " << I << " To: " << N->getName()
@@ -275,6 +277,7 @@ static bool sinkLoopInvariantInstructions(Loop &L, AAResults &AA, LoopInfo &LI,
   // Compute alias set.
   for (BasicBlock *BB : L.blocks())
     CurAST.add(*BB);
+  CurAST.add(*Preheader);
 
   // Sort loop's basic blocks by frequency
   SmallVector<BasicBlock *, 10> ColdLoopBBs;
@@ -285,10 +288,9 @@ static bool sinkLoopInvariantInstructions(Loop &L, AAResults &AA, LoopInfo &LI,
       ColdLoopBBs.push_back(B);
       LoopBlockNumber[B] = ++i;
     }
-  std::stable_sort(ColdLoopBBs.begin(), ColdLoopBBs.end(),
-                   [&](BasicBlock *A, BasicBlock *B) {
-                     return BFI.getBlockFreq(A) < BFI.getBlockFreq(B);
-                   });
+  llvm::stable_sort(ColdLoopBBs, [&](BasicBlock *A, BasicBlock *B) {
+    return BFI.getBlockFreq(A) < BFI.getBlockFreq(B);
+  });
 
   // Traverse preheader's instructions in reverse order becaue if A depends
   // on B (A appears after B), A needs to be sinked first before B can be
@@ -298,7 +300,7 @@ static bool sinkLoopInvariantInstructions(Loop &L, AAResults &AA, LoopInfo &LI,
     // No need to check for instruction's operands are loop invariant.
     assert(L.hasLoopInvariantOperands(I) &&
            "Insts in a loop's preheader should have loop invariant operands!");
-    if (!canSinkOrHoistInst(*I, &AA, &DT, &L, &CurAST, nullptr))
+    if (!canSinkOrHoistInst(*I, &AA, &DT, &L, &CurAST, nullptr, false))
       continue;
     if (sinkInstruction(L, *I, ColdLoopBBs, LoopBlockNumber, LI, DT, BFI))
       Changed = true;

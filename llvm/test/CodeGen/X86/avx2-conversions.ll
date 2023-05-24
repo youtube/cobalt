@@ -7,9 +7,8 @@
 define <4 x i32> @trunc4(<4 x i64> %A) nounwind {
 ; X32-SLOW-LABEL: trunc4:
 ; X32-SLOW:       # %bb.0:
-; X32-SLOW-NEXT:    vpermilps {{.*#+}} ymm0 = ymm0[0,2,2,3,4,6,6,7]
-; X32-SLOW-NEXT:    vpermpd {{.*#+}} ymm0 = ymm0[0,2,2,3]
-; X32-SLOW-NEXT:    # kill: def $xmm0 killed $xmm0 killed $ymm0
+; X32-SLOW-NEXT:    vextractf128 $1, %ymm0, %xmm1
+; X32-SLOW-NEXT:    vshufps {{.*#+}} xmm0 = xmm0[0,2],xmm1[0,2]
 ; X32-SLOW-NEXT:    vzeroupper
 ; X32-SLOW-NEXT:    retl
 ;
@@ -23,9 +22,8 @@ define <4 x i32> @trunc4(<4 x i64> %A) nounwind {
 ;
 ; X64-SLOW-LABEL: trunc4:
 ; X64-SLOW:       # %bb.0:
-; X64-SLOW-NEXT:    vpermilps {{.*#+}} ymm0 = ymm0[0,2,2,3,4,6,6,7]
-; X64-SLOW-NEXT:    vpermpd {{.*#+}} ymm0 = ymm0[0,2,2,3]
-; X64-SLOW-NEXT:    # kill: def $xmm0 killed $xmm0 killed $ymm0
+; X64-SLOW-NEXT:    vextractf128 $1, %ymm0, %xmm1
+; X64-SLOW-NEXT:    vshufps {{.*#+}} xmm0 = xmm0[0,2],xmm1[0,2]
 ; X64-SLOW-NEXT:    vzeroupper
 ; X64-SLOW-NEXT:    retq
 ;
@@ -119,14 +117,12 @@ define <8 x i32> @zext8(<8 x i16> %A) nounwind {
 define <8 x i32> @zext_8i8_8i32(<8 x i8> %A) nounwind {
 ; X32-LABEL: zext_8i8_8i32:
 ; X32:       # %bb.0:
-; X32-NEXT:    vpand {{\.LCPI.*}}, %xmm0, %xmm0
-; X32-NEXT:    vpmovzxwd {{.*#+}} ymm0 = xmm0[0],zero,xmm0[1],zero,xmm0[2],zero,xmm0[3],zero,xmm0[4],zero,xmm0[5],zero,xmm0[6],zero,xmm0[7],zero
+; X32-NEXT:    vpmovzxbd {{.*#+}} ymm0 = xmm0[0],zero,zero,zero,xmm0[1],zero,zero,zero,xmm0[2],zero,zero,zero,xmm0[3],zero,zero,zero,xmm0[4],zero,zero,zero,xmm0[5],zero,zero,zero,xmm0[6],zero,zero,zero,xmm0[7],zero,zero,zero
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: zext_8i8_8i32:
 ; X64:       # %bb.0:
-; X64-NEXT:    vpand {{.*}}(%rip), %xmm0, %xmm0
-; X64-NEXT:    vpmovzxwd {{.*#+}} ymm0 = xmm0[0],zero,xmm0[1],zero,xmm0[2],zero,xmm0[3],zero,xmm0[4],zero,xmm0[5],zero,xmm0[6],zero,xmm0[7],zero
+; X64-NEXT:    vpmovzxbd {{.*#+}} ymm0 = xmm0[0],zero,zero,zero,xmm0[1],zero,zero,zero,xmm0[2],zero,zero,zero,xmm0[3],zero,zero,zero,xmm0[4],zero,zero,zero,xmm0[5],zero,zero,zero,xmm0[6],zero,zero,zero,xmm0[7],zero,zero,zero
 ; X64-NEXT:    retq
   %B = zext <8 x i8> %A to <8 x i32>
   ret <8 x i32>%B
@@ -163,21 +159,17 @@ define <16 x i16> @sext_16i8_16i16(<16 x i8> %z) {
 define <16 x i8> @trunc_16i16_16i8(<16 x i16> %z) {
 ; X32-LABEL: trunc_16i16_16i8:
 ; X32:       # %bb.0:
+; X32-NEXT:    vpand {{\.LCPI.*}}, %ymm0, %ymm0
 ; X32-NEXT:    vextracti128 $1, %ymm0, %xmm1
-; X32-NEXT:    vmovdqa {{.*#+}} xmm2 = <0,2,4,6,8,10,12,14,u,u,u,u,u,u,u,u>
-; X32-NEXT:    vpshufb %xmm2, %xmm1, %xmm1
-; X32-NEXT:    vpshufb %xmm2, %xmm0, %xmm0
-; X32-NEXT:    vpunpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
+; X32-NEXT:    vpackuswb %xmm1, %xmm0, %xmm0
 ; X32-NEXT:    vzeroupper
 ; X32-NEXT:    retl
 ;
 ; X64-LABEL: trunc_16i16_16i8:
 ; X64:       # %bb.0:
+; X64-NEXT:    vpand {{.*}}(%rip), %ymm0, %ymm0
 ; X64-NEXT:    vextracti128 $1, %ymm0, %xmm1
-; X64-NEXT:    vmovdqa {{.*#+}} xmm2 = <0,2,4,6,8,10,12,14,u,u,u,u,u,u,u,u>
-; X64-NEXT:    vpshufb %xmm2, %xmm1, %xmm1
-; X64-NEXT:    vpshufb %xmm2, %xmm0, %xmm0
-; X64-NEXT:    vpunpcklqdq {{.*#+}} xmm0 = xmm0[0],xmm1[0]
+; X64-NEXT:    vpackuswb %xmm1, %xmm0, %xmm0
 ; X64-NEXT:    vzeroupper
 ; X64-NEXT:    retq
   %t = trunc <16 x i16> %z to <16 x i8>

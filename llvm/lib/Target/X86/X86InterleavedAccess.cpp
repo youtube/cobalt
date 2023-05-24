@@ -1,9 +1,8 @@
 //===- X86InterleavedAccess.cpp -------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -194,7 +193,7 @@ void X86InterleavedAccessGroup::decompose(
 
   // Decompose the load instruction.
   LoadInst *LI = cast<LoadInst>(VecInst);
-  Type *VecBasePtrTy = SubVecTy->getPointerTo(LI->getPointerAddressSpace());
+  Type *VecBaseTy, *VecBasePtrTy;
   Value *VecBasePtr;
   unsigned int NumLoads = NumSubVectors;
   // In the case of stride 3 with a vector of 32 elements load the information
@@ -202,18 +201,22 @@ void X86InterleavedAccessGroup::decompose(
   // [0,1...,VF/2-1,VF/2+VF,VF/2+VF+1,...,2VF-1]
   unsigned VecLength = DL.getTypeSizeInBits(VecWidth);
   if (VecLength == 768 || VecLength == 1536) {
-    Type *VecTran =
-        VectorType::get(Type::getInt8Ty(LI->getContext()), 16)->getPointerTo();
-    VecBasePtr = Builder.CreateBitCast(LI->getPointerOperand(), VecTran);
-    NumLoads = NumSubVectors * (VecLength / 384);
-  } else
+    VecBaseTy = VectorType::get(Type::getInt8Ty(LI->getContext()), 16);
+    VecBasePtrTy = VecBaseTy->getPointerTo(LI->getPointerAddressSpace());
     VecBasePtr = Builder.CreateBitCast(LI->getPointerOperand(), VecBasePtrTy);
+    NumLoads = NumSubVectors * (VecLength / 384);
+  } else {
+    VecBaseTy = SubVecTy;
+    VecBasePtrTy = VecBaseTy->getPointerTo(LI->getPointerAddressSpace());
+    VecBasePtr = Builder.CreateBitCast(LI->getPointerOperand(), VecBasePtrTy);
+  }
   // Generate N loads of T type.
   for (unsigned i = 0; i < NumLoads; i++) {
     // TODO: Support inbounds GEP.
-    Value *NewBasePtr = Builder.CreateGEP(VecBasePtr, Builder.getInt32(i));
+    Value *NewBasePtr =
+        Builder.CreateGEP(VecBaseTy, VecBasePtr, Builder.getInt32(i));
     Instruction *NewLoad =
-        Builder.CreateAlignedLoad(NewBasePtr, LI->getAlignment());
+        Builder.CreateAlignedLoad(VecBaseTy, NewBasePtr, LI->getAlignment());
     DecomposedVectors.push_back(NewLoad);
   }
 }
@@ -416,7 +419,7 @@ void X86InterleavedAccessGroup::interleave8bitStride4(
   }
 
   reorderSubVector(VT, TransposedMatrix, VecOut, makeArrayRef(Concat, 16),
-		   NumOfElm, 4, Builder);
+                   NumOfElm, 4, Builder);
 }
 
 //  createShuffleStride returns shuffle mask of size N.
@@ -463,7 +466,7 @@ static void setGroupSize(MVT VT, SmallVectorImpl<uint32_t> &SizeInfo) {
 //  {DiffToJump,...,VF/2-1,VF,...,DiffToJump+VF-1}.
 //  Imm variable sets the offset amount. The result of the
 //  function is stored inside ShuffleMask vector and it built as described in
-//  the begin of the description. AlignDirection is a boolean that indecat the
+//  the begin of the description. AlignDirection is a boolean that indicates the
 //  direction of the alignment. (false - align to the "right" side while true -
 //  align to the "left" side)
 static void DecodePALIGNRMask(MVT VT, unsigned Imm,

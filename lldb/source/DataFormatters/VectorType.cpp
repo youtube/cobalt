@@ -1,16 +1,11 @@
 //===-- VectorType.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/DataFormatters/VectorType.h"
 
 #include "lldb/Core/ValueObject.h"
@@ -20,6 +15,7 @@
 #include "lldb/Target/Target.h"
 
 #include "lldb/Utility/LLDBAssert.h"
+#include "lldb/Utility/Log.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -175,13 +171,14 @@ static size_t CalculateNumChildren(
     lldb_private::ExecutionContextScope *exe_scope =
         nullptr // does not matter here because all we trade in are basic types
     ) {
-  auto container_size = container_type.GetByteSize(exe_scope);
-  auto element_size = element_type.GetByteSize(exe_scope);
+  llvm::Optional<uint64_t> container_size =
+      container_type.GetByteSize(exe_scope);
+  llvm::Optional<uint64_t> element_size = element_type.GetByteSize(exe_scope);
 
-  if (element_size) {
-    if (container_size % element_size)
+  if (container_size && element_size && *element_size) {
+    if (*container_size % *element_size)
       return 0;
-    return container_size / element_size;
+    return *container_size / *element_size;
   }
   return 0;
 }
@@ -201,8 +198,11 @@ public:
 
   lldb::ValueObjectSP GetChildAtIndex(size_t idx) override {
     if (idx >= CalculateNumChildren())
-      return lldb::ValueObjectSP();
-    auto offset = idx * m_child_type.GetByteSize(nullptr);
+      return {};
+    llvm::Optional<uint64_t> size = m_child_type.GetByteSize(nullptr);
+    if (!size)
+      return {};
+    auto offset = idx * *size;
     StreamString idx_name;
     idx_name.Printf("[%" PRIu64 "]", (uint64_t)idx);
     ValueObjectSP child_sp(m_backend.GetSyntheticChildAtOffset(
@@ -220,13 +220,20 @@ public:
     CompilerType parent_type(m_backend.GetCompilerType());
     CompilerType element_type;
     parent_type.IsVectorType(&element_type, nullptr);
-    TargetSP target_sp(m_backend.GetTargetSP());
-    m_child_type = ::GetCompilerTypeForFormat(
-        m_parent_format, element_type,
-        target_sp
-            ? target_sp->GetScratchTypeSystemForLanguage(nullptr,
-                                                         lldb::eLanguageTypeC)
-            : nullptr);
+    TypeSystem *type_system = nullptr;
+    if (auto target_sp = m_backend.GetTargetSP()) {
+      auto type_system_or_err =
+          target_sp->GetScratchTypeSystemForLanguage(lldb::eLanguageTypeC);
+      if (auto err = type_system_or_err.takeError()) {
+        LLDB_LOG_ERROR(
+            lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DATAFORMATTERS),
+            std::move(err), "Unable to update from scratch TypeSystem");
+      } else {
+        type_system = &type_system_or_err.get();
+      }
+    }
+    m_child_type =
+        ::GetCompilerTypeForFormat(m_parent_format, element_type, type_system);
     m_num_children = ::CalculateNumChildren(parent_type, m_child_type);
     m_item_format = GetItemFormatForFormat(m_parent_format, m_child_type);
     return false;
@@ -234,7 +241,7 @@ public:
 
   bool MightHaveChildren() override { return true; }
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override {
+  size_t GetIndexOfChildWithName(ConstString name) override {
     const char *item_name = name.GetCString();
     uint32_t idx = ExtractIndexFromString(item_name);
     if (idx < UINT32_MAX && idx >= CalculateNumChildren())

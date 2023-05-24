@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,14 +21,15 @@
 #include "min_allocator.h"
 #include "asan_testing.h"
 
-int main()
+int main(int, char**)
 {
     {
-        std::vector<int> v(100);
+        typedef std::vector<int> V;
+        V v(100);
         int a[] = {1, 2, 3, 4, 5};
         const int N = sizeof(a)/sizeof(a[0]);
-        std::vector<int>::iterator i = v.insert(v.cbegin() + 10, input_iterator<const int*>(a),
-                                        input_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, input_iterator<const int*>(a),
+                                 input_iterator<const int*>(a+N));
         assert(v.size() == 100 + N);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
@@ -42,11 +42,12 @@ int main()
             assert(v[j] == 0);
     }
     {
-        std::vector<int> v(100);
+        typedef std::vector<int> V;
+        V v(100);
         int a[] = {1, 2, 3, 4, 5};
         const int N = sizeof(a)/sizeof(a[0]);
-        std::vector<int>::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
-                                        forward_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
+                                 forward_iterator<const int*>(a+N));
         assert(v.size() == 100 + N);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
@@ -59,13 +60,14 @@ int main()
             assert(v[j] == 0);
     }
     {
-        std::vector<int> v(100);
+        typedef std::vector<int> V;
+        V v(100);
         while(v.size() < v.capacity()) v.push_back(0); // force reallocation
         size_t sz = v.size();
         int a[] = {1, 2, 3, 4, 5};
         const unsigned N = sizeof(a)/sizeof(a[0]);
-        std::vector<int>::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
-                                        forward_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
+                                 forward_iterator<const int*>(a+N));
         assert(v.size() == sz + N);
         assert(i == v.begin() + 10);
         std::size_t j;
@@ -77,13 +79,14 @@ int main()
             assert(v[j] == 0);
     }
     {
-        std::vector<int> v(100);
+        typedef std::vector<int> V;
+        V v(100);
         v.reserve(128); // force no reallocation
         size_t sz = v.size();
         int a[] = {1, 2, 3, 4, 5};
         const unsigned N = sizeof(a)/sizeof(a[0]);
-        std::vector<int>::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
-                                        forward_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
+                                 forward_iterator<const int*>(a+N));
         assert(v.size() == sz + N);
         assert(i == v.begin() + 10);
         std::size_t j;
@@ -95,11 +98,12 @@ int main()
             assert(v[j] == 0);
     }
     {
-        std::vector<int, limited_allocator<int, 308> > v(100);
+        typedef std::vector<int, limited_allocator<int, 308> > V;
+        V v(100);
         int a[] = {1, 2, 3, 4, 5};
         const int N = sizeof(a)/sizeof(a[0]);
-        std::vector<int>::iterator i = v.insert(v.cbegin() + 10, input_iterator<const int*>(a),
-                                        input_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, input_iterator<const int*>(a),
+                                 input_iterator<const int*>(a+N));
         assert(v.size() == 100 + N);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
@@ -112,11 +116,12 @@ int main()
             assert(v[j] == 0);
     }
     {
-        std::vector<int, limited_allocator<int, 300> > v(100);
+        typedef std::vector<int, limited_allocator<int, 300> > V;
+        V v(100);
         int a[] = {1, 2, 3, 4, 5};
         const int N = sizeof(a)/sizeof(a[0]);
-        std::vector<int>::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
-                                        forward_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
+                                 forward_iterator<const int*>(a+N));
         assert(v.size() == 100 + N);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
@@ -130,11 +135,12 @@ int main()
     }
 #if TEST_STD_VER >= 11
     {
-        std::vector<int, min_allocator<int>> v(100);
+        typedef std::vector<int, min_allocator<int> > V;
+        V v(100);
         int a[] = {1, 2, 3, 4, 5};
         const int N = sizeof(a)/sizeof(a[0]);
-        std::vector<int, min_allocator<int>>::iterator i = v.insert(v.cbegin() + 10, input_iterator<const int*>(a),
-                                        input_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, input_iterator<const int*>(a),
+                                 input_iterator<const int*>(a+N));
         assert(v.size() == 100 + N);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
@@ -147,11 +153,12 @@ int main()
             assert(v[j] == 0);
     }
     {
-        std::vector<int, min_allocator<int>> v(100);
+        typedef std::vector<int, min_allocator<int> > V;
+        V v(100);
         int a[] = {1, 2, 3, 4, 5};
         const int N = sizeof(a)/sizeof(a[0]);
-        std::vector<int, min_allocator<int>>::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
-                                        forward_iterator<const int*>(a+N));
+        V::iterator i = v.insert(v.cbegin() + 10, forward_iterator<const int*>(a),
+                                 forward_iterator<const int*>(a+N));
         assert(v.size() == 100 + N);
         assert(is_contiguous_container_asan_correct(v));
         assert(i == v.begin() + 10);
@@ -164,4 +171,6 @@ int main()
             assert(v[j] == 0);
     }
 #endif
+
+  return 0;
 }

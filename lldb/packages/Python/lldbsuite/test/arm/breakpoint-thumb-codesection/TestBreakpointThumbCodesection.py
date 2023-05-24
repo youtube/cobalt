@@ -2,12 +2,9 @@
 Test that breakpoints correctly work in an thumb function in an arbitrary
 named codesection.
 """
-from __future__ import print_function
 
 
 import lldb
-import os
-import time
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
@@ -18,6 +15,7 @@ class TestBreakpointThumbCodesection(TestBase):
     mydir = TestBase.compute_mydir(__file__)
 
     @skipIf(archs=no_match(["arm"]))
+    @skipIfDarwinEmbedded   # codegen on darwin always defaults to thumb for armv7/armv7k targets
     def test_breakpoint(self):
         self.build()
         exe = self.getBuildArtifact("a.out")

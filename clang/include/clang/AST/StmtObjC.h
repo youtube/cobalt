@@ -1,9 +1,8 @@
 //===--- StmtObjC.h - Classes for representing ObjC statements --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -55,11 +54,9 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation Loc) { RParenLoc = Loc; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return ForLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return SubExprs[BODY]->getLocEnd();
+    return SubExprs[BODY]->getEndLoc();
   }
 
   static bool classof(const Stmt *T) {
@@ -69,6 +66,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(&SubExprs[0], &SubExprs[END_EXPR]);
+  }
+
+  const_child_range children() const {
+    return const_child_range(&SubExprs[0], &SubExprs[END_EXPR]);
   }
 };
 
@@ -106,10 +107,8 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation Loc) { RParenLoc = Loc; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtCatchLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
-  SourceLocation getEndLoc() const LLVM_READONLY { return Body->getLocEnd(); }
+  SourceLocation getEndLoc() const LLVM_READONLY { return Body->getEndLoc(); }
 
   bool hasEllipsis() const { return getCatchParamDecl() == nullptr; }
 
@@ -118,6 +117,10 @@ public:
   }
 
   child_range children() { return child_range(&Body, &Body + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&Body, &Body + 1);
+  }
 };
 
 /// Represents Objective-C's \@finally statement
@@ -137,11 +140,9 @@ public:
   Stmt *getFinallyBody() { return AtFinallyStmt; }
   void setFinallyBody(Stmt *S) { AtFinallyStmt = S; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtFinallyLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return AtFinallyStmt->getLocEnd();
+    return AtFinallyStmt->getEndLoc();
   }
 
   SourceLocation getAtFinallyLoc() const { return AtFinallyLoc; }
@@ -153,6 +154,10 @@ public:
 
   child_range children() {
     return child_range(&AtFinallyStmt, &AtFinallyStmt+1);
+  }
+
+  const_child_range children() const {
+    return const_child_range(&AtFinallyStmt, &AtFinallyStmt + 1);
   }
 };
 
@@ -244,9 +249,7 @@ public:
     getStmts()[1 + NumCatchStmts] = S;
   }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtTryLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY;
 
   static bool classof(const Stmt *T) {
@@ -256,6 +259,10 @@ public:
   child_range children() {
     return child_range(getStmts(),
                        getStmts() + 1 + NumCatchStmts + HasFinally);
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_cast<ObjCAtTryStmt *>(this)->children());
   }
 };
 
@@ -303,11 +310,9 @@ public:
   }
   void setSynchExpr(Stmt *S) { SubStmts[SYNC_EXPR] = S; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtSynchronizedLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return getSynchBody()->getLocEnd();
+    return getSynchBody()->getEndLoc();
   }
 
   static bool classof(const Stmt *T) {
@@ -316,6 +321,10 @@ public:
 
   child_range children() {
     return child_range(&SubStmts[0], &SubStmts[0]+END_EXPR);
+  }
+
+  const_child_range children() const {
+    return const_child_range(&SubStmts[0], &SubStmts[0] + END_EXPR);
   }
 };
 
@@ -339,11 +348,9 @@ public:
   SourceLocation getThrowLoc() const LLVM_READONLY { return AtThrowLoc; }
   void setThrowLoc(SourceLocation Loc) { AtThrowLoc = Loc; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtThrowLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return Throw ? Throw->getLocEnd() : AtThrowLoc;
+    return Throw ? Throw->getEndLoc() : AtThrowLoc;
   }
 
   static bool classof(const Stmt *T) {
@@ -351,6 +358,10 @@ public:
   }
 
   child_range children() { return child_range(&Throw, &Throw+1); }
+
+  const_child_range children() const {
+    return const_child_range(&Throw, &Throw + 1);
+  }
 };
 
 /// Represents Objective-C's \@autoreleasepool Statement
@@ -369,11 +380,9 @@ public:
   Stmt *getSubStmt() { return SubStmt; }
   void setSubStmt(Stmt *S) { SubStmt = S; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return SubStmt->getLocEnd();
+    return SubStmt->getEndLoc();
   }
 
   SourceLocation getAtLoc() const { return AtLoc; }
@@ -384,6 +393,10 @@ public:
   }
 
   child_range children() { return child_range(&SubStmt, &SubStmt + 1); }
+
+  const_child_range children() const {
+    return const_child_range(&SubStmt, &SubStmt + 1);
+  }
 };
 
 }  // end namespace clang

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,15 +21,15 @@
 //      path& append(InputIterator first, InputIterator last);
 
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <string_view>
 #include <cassert>
 
 #include "test_macros.h"
 #include "test_iterators.h"
-#include "count_new.hpp"
-#include "filesystem_test_helper.hpp"
+#include "count_new.h"
+#include "filesystem_test_helper.h"
 #include "verbose_assert.h"
 
 
@@ -312,7 +311,7 @@ void test_sfinae()
   }
 }
 
-int main()
+int main(int, char**)
 {
   using namespace fs;
   for (auto const & TC : Cases) {
@@ -336,4 +335,6 @@ int main()
     doAppendSourceAllocTest<wchar_t>(TC);
   }
   test_sfinae();
+
+  return 0;
 }

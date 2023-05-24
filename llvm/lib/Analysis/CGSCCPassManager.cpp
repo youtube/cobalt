@@ -1,9 +1,8 @@
 //===- CGSCCPassManager.cpp - Managing & running CGSCC passes -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -54,6 +53,11 @@ PassManager<LazyCallGraph::SCC, CGSCCAnalysisManager, LazyCallGraph &,
             CGSCCUpdateResult &>::run(LazyCallGraph::SCC &InitialC,
                                       CGSCCAnalysisManager &AM,
                                       LazyCallGraph &G, CGSCCUpdateResult &UR) {
+  // Request PassInstrumentation from analysis manager, will use it to run
+  // instrumenting callbacks for the passes later.
+  PassInstrumentation PI =
+      AM.getResult<PassInstrumentationAnalysis>(InitialC, G);
+
   PreservedAnalyses PA = PreservedAnalyses::all();
 
   if (DebugLogging)
@@ -67,7 +71,17 @@ PassManager<LazyCallGraph::SCC, CGSCCAnalysisManager, LazyCallGraph &,
     if (DebugLogging)
       dbgs() << "Running pass: " << Pass->name() << " on " << *C << "\n";
 
+    // Check the PassInstrumentation's BeforePass callbacks before running the
+    // pass, skip its execution completely if asked to (callback returns false).
+    if (!PI.runBeforePass(*Pass, *C))
+      continue;
+
     PreservedAnalyses PassPA = Pass->run(*C, AM, G, UR);
+
+    if (UR.InvalidatedSCCs.count(C))
+      PI.runAfterPassInvalidated<LazyCallGraph::SCC>(*Pass);
+    else
+      PI.runAfterPass<LazyCallGraph::SCC>(*Pass, *C);
 
     // Update the SCC if necessary.
     C = UR.UpdatedC ? UR.UpdatedC : C;
@@ -95,6 +109,12 @@ PassManager<LazyCallGraph::SCC, CGSCCAnalysisManager, LazyCallGraph &,
     // in the new pass manager so it is currently omitted.
     // ...getContext().yield();
   }
+
+  // Before we mark all of *this* SCC's analyses as preserved below, intersect
+  // this with the cross-SCC preserved analysis set. This is used to allow
+  // CGSCC passes to mutate ancestor SCCs and still trigger proper invalidation
+  // for them.
+  UR.CrossSCCPA.intersect(PA);
 
   // Invalidation was handled after each pass in the above loop for the current
   // SCC. Therefore, the remaining analysis results in the AnalysisManager are

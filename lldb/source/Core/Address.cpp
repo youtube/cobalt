@@ -1,52 +1,51 @@
 //===-- Address.cpp ---------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/Address.h"
 #include "lldb/Core/DumpDataExtractor.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/ModuleList.h" // for ModuleList
+#include "lldb/Core/ModuleList.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Symbol/Block.h"
-#include "lldb/Symbol/Declaration.h" // for Declaration
-#include "lldb/Symbol/LineEntry.h"   // for LineEntry
+#include "lldb/Symbol/Declaration.h"
+#include "lldb/Symbol/LineEntry.h"
 #include "lldb/Symbol/ObjectFile.h"
-#include "lldb/Symbol/Symbol.h"        // for Symbol
-#include "lldb/Symbol/SymbolContext.h" // for SymbolContext
+#include "lldb/Symbol/Symbol.h"
+#include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/SymbolVendor.h"
-#include "lldb/Symbol/Symtab.h" // for Symtab
-#include "lldb/Symbol/Type.h"   // for Type
+#include "lldb/Symbol/Symtab.h"
+#include "lldb/Symbol/Type.h"
 #include "lldb/Symbol/Variable.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ExecutionContext.h"
-#include "lldb/Target/ExecutionContextScope.h" // for ExecutionContextScope
+#include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
-#include "lldb/Utility/ConstString.h"   // for ConstString
-#include "lldb/Utility/DataExtractor.h" // for DataExtractor
-#include "lldb/Utility/Endian.h"        // for InlHostByteOrder
-#include "lldb/Utility/FileSpec.h"      // for FileSpec
-#include "lldb/Utility/Status.h"        // for Status
-#include "lldb/Utility/Stream.h"        // for Stream
-#include "lldb/Utility/StreamString.h"  // for StreamString
+#include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/Endian.h"
+#include "lldb/Utility/FileSpec.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/Utility/Stream.h"
+#include "lldb/Utility/StreamString.h"
 
-#include "llvm/ADT/StringRef.h" // for StringRef
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/Compiler.h" // for LLVM_FALLTHROUGH
+#include "llvm/Support/Compiler.h"
 
-#include <cstdint> // for uint8_t, uint32_t
-#include <memory>  // for shared_ptr, operator!=
-#include <vector>  // for vector
+#include <cstdint>
+#include <memory>
+#include <vector>
 
-#include <assert.h>   // for assert
-#include <inttypes.h> // for PRIu64, PRIx64
-#include <string.h>   // for size_t, strlen
+#include <assert.h>
+#include <inttypes.h>
+#include <string.h>
 
 namespace lldb_private {
 class CompileUnit;
@@ -162,7 +161,7 @@ static bool ReadAddress(ExecutionContextScope *exe_scope,
 static bool DumpUInt(ExecutionContextScope *exe_scope, const Address &address,
                      uint32_t byte_size, Stream *strm) {
   if (exe_scope == nullptr || byte_size == 0)
-    return 0;
+    return false;
   std::vector<uint8_t> buf(byte_size, 0);
 
   if (ReadBytes(exe_scope, address, &buf[0], buf.size()) == buf.size()) {
@@ -260,6 +259,24 @@ bool Address::ResolveAddressUsingFileSections(addr_t file_addr,
   }
   m_offset = file_addr;
   return false; // Failed to resolve this address to a section offset value
+}
+
+/// if "addr_range_ptr" is not NULL, then fill in with the address range of the function.
+bool Address::ResolveFunctionScope(SymbolContext &sym_ctx,
+                                   AddressRange *addr_range_ptr) {
+  constexpr SymbolContextItem resolve_scope =
+    eSymbolContextFunction | eSymbolContextSymbol;
+
+  if (!(CalculateSymbolContext(&sym_ctx, resolve_scope) & resolve_scope)) {
+    if (addr_range_ptr)
+      addr_range_ptr->Clear();
+   return false;
+  }
+
+  if (!addr_range_ptr)
+    return true;
+
+  return sym_ctx.GetAddressRange(resolve_scope, 0, false, *addr_range_ptr);
 }
 
 ModuleSP Address::GetModule() const {
@@ -401,13 +418,13 @@ bool Address::Dump(Stream *s, ExecutionContextScope *exe_scope, DumpStyle style,
       section_sp->DumpName(s);
       s->Printf(" + %" PRIu64, m_offset);
     } else {
-      s->Address(m_offset, addr_size);
+      DumpAddress(s->AsRawOstream(), m_offset, addr_size);
     }
     break;
 
   case DumpStyleSectionPointerOffset:
     s->Printf("(Section *)%p + ", static_cast<void *>(section_sp.get()));
-    s->Address(m_offset, addr_size);
+    DumpAddress(s->AsRawOstream(), m_offset, addr_size);
     break;
 
   case DumpStyleModuleWithFileAddress:
@@ -427,7 +444,7 @@ bool Address::Dump(Stream *s, ExecutionContextScope *exe_scope, DumpStyle style,
         return Dump(s, exe_scope, fallback_style, DumpStyleInvalid, addr_size);
       return false;
     }
-    s->Address(file_addr, addr_size);
+    DumpAddress(s->AsRawOstream(), file_addr, addr_size);
     if (style == DumpStyleModuleWithFileAddress && section_sp)
       s->PutChar(']');
   } break;
@@ -455,7 +472,7 @@ bool Address::Dump(Stream *s, ExecutionContextScope *exe_scope, DumpStyle style,
         return Dump(s, exe_scope, fallback_style, DumpStyleInvalid, addr_size);
       return false;
     }
-    s->Address(load_addr, addr_size);
+    DumpAddress(s->AsRawOstream(), load_addr, addr_size);
   } break;
 
   case DumpStyleResolvedDescription:
@@ -476,23 +493,19 @@ bool Address::Dump(Stream *s, ExecutionContextScope *exe_scope, DumpStyle style,
         switch (sect_type) {
         case eSectionTypeData:
           if (module_sp) {
-            SymbolVendor *sym_vendor = module_sp->GetSymbolVendor();
-            if (sym_vendor) {
-              Symtab *symtab = sym_vendor->GetSymtab();
-              if (symtab) {
-                const addr_t file_Addr = GetFileAddress();
-                Symbol *symbol =
-                    symtab->FindSymbolContainingFileAddress(file_Addr);
-                if (symbol) {
-                  const char *symbol_name = symbol->GetName().AsCString();
-                  if (symbol_name) {
-                    s->PutCString(symbol_name);
-                    addr_t delta =
-                        file_Addr - symbol->GetAddressRef().GetFileAddress();
-                    if (delta)
-                      s->Printf(" + %" PRIu64, delta);
-                    showed_info = true;
-                  }
+            if (Symtab *symtab = module_sp->GetSymtab()) {
+              const addr_t file_Addr = GetFileAddress();
+              Symbol *symbol =
+                  symtab->FindSymbolContainingFileAddress(file_Addr);
+              if (symbol) {
+                const char *symbol_name = symbol->GetName().AsCString();
+                if (symbol_name) {
+                  s->PutCString(symbol_name);
+                  addr_t delta =
+                      file_Addr - symbol->GetAddressRef().GetFileAddress();
+                  if (delta)
+                    s->Printf(" + %" PRIu64, delta);
+                  showed_info = true;
                 }
               }
             }
@@ -699,22 +712,20 @@ bool Address::Dump(Stream *s, ExecutionContextScope *exe_scope, DumpStyle style,
                                     [](Variable *) { return true; },
                                     &variable_list);
 
-          const size_t num_variables = variable_list.GetSize();
-          for (size_t var_idx = 0; var_idx < num_variables; ++var_idx) {
-            Variable *var = variable_list.GetVariableAtIndex(var_idx).get();
-            if (var && var->LocationIsValidForAddress(*this)) {
+          for (const VariableSP &var_sp : variable_list) {
+            if (var_sp && var_sp->LocationIsValidForAddress(*this)) {
               s->Indent();
               s->Printf("   Variable: id = {0x%8.8" PRIx64 "}, name = \"%s\"",
-                        var->GetID(), var->GetName().GetCString());
-              Type *type = var->GetType();
+                        var_sp->GetID(), var_sp->GetName().GetCString());
+              Type *type = var_sp->GetType();
               if (type)
                 s->Printf(", type = \"%s\"", type->GetName().GetCString());
               else
                 s->PutCString(", type = <unknown>");
               s->PutCString(", location = ");
-              var->DumpLocationForAddress(s, *this);
+              var_sp->DumpLocationForAddress(s, *this);
               s->PutCString(", decl = ");
-              var->GetDeclaration().DumpStopContext(s, false);
+              var_sp->GetDeclaration().DumpStopContext(s, false);
               s->EOL();
             }
           }
@@ -743,7 +754,8 @@ bool Address::Dump(Stream *s, ExecutionContextScope *exe_scope, DumpStyle style,
             if (dereferenced_addr.Dump(&strm, exe_scope,
                                        DumpStyleResolvedDescription,
                                        DumpStyleInvalid, addr_size)) {
-              s->Address(dereferenced_load_addr, addr_size, " -> ", " ");
+              DumpAddress(s->AsRawOstream(), dereferenced_load_addr, addr_size,
+                          " -> ", " ");
               s->Write(strm.GetString().data(), strm.GetSize());
               return true;
             }
@@ -779,8 +791,9 @@ bool Address::SectionWasDeletedPrivate() const {
          m_section_wp.owner_before(empty_section_wp);
 }
 
-uint32_t Address::CalculateSymbolContext(SymbolContext *sc,
-                                         uint32_t resolve_scope) const {
+uint32_t
+Address::CalculateSymbolContext(SymbolContext *sc,
+                                SymbolContextItem resolve_scope) const {
   sc->Clear(false);
   // Absolute addresses don't have enough information to reconstruct even their
   // target.
@@ -927,7 +940,6 @@ size_t Address::MemorySize() const {
   return sizeof(Address);
 }
 
-//----------------------------------------------------------------------
 // NOTE: Be careful using this operator. It can correctly compare two
 // addresses from the same Module correctly. It can't compare two addresses
 // from different modules in any meaningful way, but it will compare the module
@@ -939,7 +951,6 @@ size_t Address::MemorySize() const {
 //   address results to make much sense
 //
 // This basically lets Address objects be used in ordered collection classes.
-//----------------------------------------------------------------------
 
 bool lldb_private::operator<(const Address &lhs, const Address &rhs) {
   ModuleSP lhs_module_sp(lhs.GetModule());
@@ -987,8 +998,9 @@ AddressClass Address::GetAddressClass() const {
   if (module_sp) {
     ObjectFile *obj_file = module_sp->GetObjectFile();
     if (obj_file) {
-      // Give the symbol vendor a chance to add to the unified section list.
-      module_sp->GetSymbolVendor();
+      // Give the symbol file a chance to add to the unified section list
+      // and to the symtab.
+      module_sp->GetSymtab();
       return obj_file->GetAddressClass(GetFileAddress());
     }
   }

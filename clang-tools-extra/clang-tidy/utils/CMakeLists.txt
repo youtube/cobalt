@@ -3,7 +3,7 @@ set(LLVM_LINK_COMPONENTS support)
 add_clang_library(clangTidyUtils
   ASTUtils.cpp
   DeclRefExprUtils.cpp
-  ExprMutationAnalyzer.cpp
+  ExceptionAnalyzer.cpp
   ExprSequence.cpp
   FixItHintUtils.cpp
   HeaderFileExtensionsUtils.cpp
@@ -13,6 +13,7 @@ add_clang_library(clangTidyUtils
   LexerUtils.cpp
   NamespaceAliaser.cpp
   OptionsUtils.cpp
+  TransformerClangTidyCheck.cpp
   TypeTraits.cpp
   UsingInserter.cpp
 
@@ -21,5 +22,7 @@ add_clang_library(clangTidyUtils
   clangASTMatchers
   clangBasic
   clangLex
+  clangSema
   clangTidy
+  clangTransformer
   )

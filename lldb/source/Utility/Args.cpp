@@ -1,9 +1,8 @@
 //===-- Args.cpp ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -96,7 +95,7 @@ ParseSingleArgument(llvm::StringRef command) {
   bool arg_complete = false;
   do {
     // Skip over over regular characters and append them.
-    size_t regular = command.find_first_of(" \t\"'`\\");
+    size_t regular = command.find_first_of(" \t\r\"'`\\");
     arg += command.substr(0, regular);
     command = command.substr(regular);
 
@@ -124,6 +123,7 @@ ParseSingleArgument(llvm::StringRef command) {
 
     case ' ':
     case '\t':
+    case '\r':
       // We are not inside any quotes, we just found a space after an argument.
       // We are done.
       arg_complete = true;
@@ -163,19 +163,16 @@ Args::ArgEntry::ArgEntry(llvm::StringRef str, char quote) : quote(quote) {
 
   ::memcpy(data(), str.data() ? str.data() : "", size);
   ptr[size] = 0;
-  ref = llvm::StringRef(c_str(), size);
 }
 
-//----------------------------------------------------------------------
 // Args constructor
-//----------------------------------------------------------------------
 Args::Args(llvm::StringRef command) { SetCommandString(command); }
 
 Args::Args(const Args &rhs) { *this = rhs; }
 
 Args::Args(const StringList &list) : Args() {
-  for (size_t i = 0; i < list.GetSize(); ++i)
-    AppendArgument(list[i]);
+  for (const std::string &arg : list)
+    AppendArgument(arg);
 }
 
 Args &Args::operator=(const Args &rhs) {
@@ -184,16 +181,14 @@ Args &Args::operator=(const Args &rhs) {
   m_argv.clear();
   m_entries.clear();
   for (auto &entry : rhs.m_entries) {
-    m_entries.emplace_back(entry.ref, entry.quote);
+    m_entries.emplace_back(entry.ref(), entry.quote);
     m_argv.push_back(m_entries.back().data());
   }
   m_argv.push_back(nullptr);
   return *this;
 }
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 Args::~Args() {}
 
 void Args::Dump(Stream &s, const char *label_name) const {
@@ -203,7 +198,7 @@ void Args::Dump(Stream &s, const char *label_name) const {
   int i = 0;
   for (auto &entry : m_entries) {
     s.Indent();
-    s.Format("{0}[{1}]=\"{2}\"\n", label_name, i++, entry.ref);
+    s.Format("{0}[{1}]=\"{2}\"\n", label_name, i++, entry.ref());
   }
   s.Format("{0}[{1}]=NULL\n", label_name, i);
   s.EOL();
@@ -215,7 +210,7 @@ bool Args::GetCommandString(std::string &command) const {
   for (size_t i = 0; i < m_entries.size(); ++i) {
     if (i > 0)
       command += ' ';
-    command += m_entries[i].ref;
+    command += m_entries[i].ref();
   }
 
   return !m_entries.empty();
@@ -230,10 +225,10 @@ bool Args::GetQuotedCommandString(std::string &command) const {
 
     if (m_entries[i].quote) {
       command += m_entries[i].quote;
-      command += m_entries[i].ref;
+      command += m_entries[i].ref();
       command += m_entries[i].quote;
     } else {
-      command += m_entries[i].ref;
+      command += m_entries[i].ref();
     }
   }
 
@@ -262,12 +257,6 @@ const char *Args::GetArgumentAtIndex(size_t idx) const {
   if (idx < m_argv.size())
     return m_argv[idx];
   return nullptr;
-}
-
-char Args::GetArgumentQuoteCharAtIndex(size_t idx) const {
-  if (idx < m_entries.size())
-    return m_entries[idx].quote;
-  return '\0';
 }
 
 char **Args::GetArgumentVector() {
@@ -303,7 +292,7 @@ void Args::AppendArguments(const Args &rhs) {
   assert(m_argv.back() == nullptr);
   m_argv.pop_back();
   for (auto &entry : rhs.m_entries) {
-    m_entries.emplace_back(entry.ref, entry.quote);
+    m_entries.emplace_back(entry.ref(), entry.quote);
     m_argv.push_back(m_entries.back().data());
   }
   m_argv.push_back(nullptr);
@@ -346,15 +335,8 @@ void Args::ReplaceArgumentAtIndex(size_t idx, llvm::StringRef arg_str,
   if (idx >= m_entries.size())
     return;
 
-  if (arg_str.size() > m_entries[idx].ref.size()) {
-    m_entries[idx] = ArgEntry(arg_str, quote_char);
-    m_argv[idx] = m_entries[idx].data();
-  } else {
-    const char *src_data = arg_str.data() ? arg_str.data() : "";
-    ::memcpy(m_entries[idx].data(), src_data, arg_str.size());
-    m_entries[idx].ptr[arg_str.size()] = 0;
-    m_entries[idx].ref = m_entries[idx].ref.take_front(arg_str.size());
-  }
+  m_entries[idx] = ArgEntry(arg_str, quote_char);
+  m_argv[idx] = m_entries[idx].data();
 }
 
 void Args::DeleteArgumentAtIndex(size_t idx) {
@@ -390,29 +372,6 @@ void Args::Clear() {
   m_entries.clear();
   m_argv.clear();
   m_argv.push_back(nullptr);
-}
-
-const char *Args::StripSpaces(std::string &s, bool leading, bool trailing,
-                              bool return_null_if_empty) {
-  static const char *k_white_space = " \t\v";
-  if (!s.empty()) {
-    if (leading) {
-      size_t pos = s.find_first_not_of(k_white_space);
-      if (pos == std::string::npos)
-        s.clear();
-      else if (pos > 0)
-        s.erase(0, pos);
-    }
-
-    if (trailing) {
-      size_t rpos = s.find_last_not_of(k_white_space);
-      if (rpos != std::string::npos && rpos + 1 < s.size())
-        s.erase(rpos + 1);
-    }
-  }
-  if (return_null_if_empty && s.empty())
-    return nullptr;
-  return s.c_str();
 }
 
 const char *Args::GetShellSafeArgument(const FileSpec &shell,
@@ -546,7 +505,7 @@ void Args::EncodeEscapeSequences(const char *src, std::string &dst) {
             p += i - 1;
             unsigned long octal_value = ::strtoul(oct_str, nullptr, 8);
             if (octal_value <= UINT8_MAX) {
-              dst.append(1, (char)octal_value);
+              dst.append(1, static_cast<char>(octal_value));
             }
           }
           break;
@@ -566,7 +525,7 @@ void Args::EncodeEscapeSequences(const char *src, std::string &dst) {
 
             unsigned long hex_value = strtoul(hex_str, nullptr, 16);
             if (hex_value <= UINT8_MAX)
-              dst.append(1, (char)hex_value);
+              dst.append(1, static_cast<char>(hex_value));
           } else {
             dst.append(1, 'x');
           }
@@ -641,14 +600,15 @@ std::string Args::EscapeLLDBCommandArgument(const std::string &arg,
   case '\0':
     chars_to_escape = " \t\\'\"`";
     break;
-  case '\'':
-    chars_to_escape = "";
-    break;
   case '"':
     chars_to_escape = "$\"`\\";
     break;
+  case '`':
+  case '\'':
+    return arg;
   default:
     assert(false && "Unhandled quote character");
+    return arg;
   }
 
   std::string res;

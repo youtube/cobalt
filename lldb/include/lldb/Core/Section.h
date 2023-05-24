@@ -1,9 +1,8 @@
 //===-- Section.h -----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,37 +13,24 @@
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Flags.h"
 #include "lldb/Utility/UserID.h"
-#include "lldb/lldb-defines.h"      // for DISALLOW_COPY_AND_ASSIGN
-#include "lldb/lldb-enumerations.h" // for SectionType
-#include "lldb/lldb-forward.h"      // for SectionSP, ModuleSP, SectionWP
-#include "lldb/lldb-types.h"        // for addr_t, offset_t, user_id_t
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-enumerations.h"
+#include "lldb/lldb-forward.h"
+#include "lldb/lldb-types.h"
 
-#include <memory> // for enable_shared_from_this
-#include <vector> // for vector
+#include <memory>
+#include <vector>
 
-#include <stddef.h> // for size_t
-#include <stdint.h> // for uint32_t, UINT32_MAX
+#include <stddef.h>
+#include <stdint.h>
 
 namespace lldb_private {
 class Address;
-}
-namespace lldb_private {
 class DataExtractor;
-}
-namespace lldb_private {
 class ObjectFile;
-}
-namespace lldb_private {
 class Section;
-}
-namespace lldb_private {
 class Stream;
-}
-namespace lldb_private {
 class Target;
-}
-
-namespace lldb_private {
 
 class SectionList {
 public:
@@ -52,9 +38,13 @@ public:
   typedef collection::iterator iterator;
   typedef collection::const_iterator const_iterator;
 
-  SectionList();
+  const_iterator begin() const { return m_sections.begin(); }
+  const_iterator end() const { return m_sections.end(); }
+  const_iterator begin() { return m_sections.begin(); }
+  const_iterator end() { return m_sections.end(); }
 
-  ~SectionList();
+  /// Create an empty list.
+  SectionList() = default;
 
   SectionList &operator=(const SectionList &rhs);
 
@@ -68,7 +58,7 @@ public:
 
   void Dump(Stream *s, Target *target, bool show_header, uint32_t depth) const;
 
-  lldb::SectionSP FindSectionByName(const ConstString &section_dstr) const;
+  lldb::SectionSP FindSectionByName(ConstString section_dstr) const;
 
   lldb::SectionSP FindSectionByID(lldb::user_id_t sect_id) const;
 
@@ -110,7 +100,7 @@ class Section : public std::enable_shared_from_this<Section>,
 public:
   // Create a root section (one that has no parent)
   Section(const lldb::ModuleSP &module_sp, ObjectFile *obj_file,
-          lldb::user_id_t sect_id, const ConstString &name,
+          lldb::user_id_t sect_id, ConstString name,
           lldb::SectionType sect_type, lldb::addr_t file_vm_addr,
           lldb::addr_t vm_size, lldb::offset_t file_offset,
           lldb::offset_t file_size, uint32_t log2align, uint32_t flags,
@@ -121,7 +111,7 @@ public:
                                                     // sections, non-NULL for
                                                     // child sections
           const lldb::ModuleSP &module_sp, ObjectFile *obj_file,
-          lldb::user_id_t sect_id, const ConstString &name,
+          lldb::user_id_t sect_id, ConstString name,
           lldb::SectionType sect_type, lldb::addr_t file_vm_addr,
           lldb::addr_t vm_size, lldb::offset_t file_offset,
           lldb::offset_t file_size, uint32_t log2align, uint32_t flags,
@@ -176,7 +166,7 @@ public:
 
   bool IsDescendant(const Section *section);
 
-  const ConstString &GetName() const { return m_name; }
+  ConstString GetName() const { return m_name; }
 
   bool Slide(lldb::addr_t slide_amount, bool slide_children);
 
@@ -190,56 +180,48 @@ public:
 
   void SetIsThreadSpecific(bool b) { m_thread_specific = b; }
 
-  //------------------------------------------------------------------
   /// Get the permissions as OR'ed bits from lldb::Permissions
-  //------------------------------------------------------------------
   uint32_t GetPermissions() const;
 
-  //------------------------------------------------------------------
   /// Set the permissions using bits OR'ed from lldb::Permissions
-  //------------------------------------------------------------------
   void SetPermissions(uint32_t permissions);
 
   ObjectFile *GetObjectFile() { return m_obj_file; }
   const ObjectFile *GetObjectFile() const { return m_obj_file; }
 
-  //------------------------------------------------------------------
   /// Read the section data from the object file that the section
   /// resides in.
   ///
-  /// @param[in] dst
+  /// \param[in] dst
   ///     Where to place the data
   ///
-  /// @param[in] dst_len
+  /// \param[in] dst_len
   ///     How many bytes of section data to read
   ///
-  /// @param[in] offset
+  /// \param[in] offset
   ///     The offset in bytes within this section's data at which to
   ///     start copying data from.
   ///
-  /// @return
+  /// \return
   ///     The number of bytes read from the section, or zero if the
   ///     section has no data or \a offset is not a valid offset
   ///     in this section.
-  //------------------------------------------------------------------
   lldb::offset_t GetSectionData(void *dst, lldb::offset_t dst_len,
                                 lldb::offset_t offset = 0);
 
-  //------------------------------------------------------------------
   /// Get the shared reference to the section data from the object
   /// file that the section resides in. No copies of the data will be
   /// make unless the object file has been read from memory. If the
   /// object file is on disk, it will shared the mmap data for the
   /// entire object file.
   ///
-  /// @param[in] data
+  /// \param[in] data
   ///     Where to place the data, address byte size, and byte order
   ///
-  /// @return
+  /// \return
   ///     The number of bytes read from the section, or zero if the
   ///     section has no data or \a offset is not a valid offset
   ///     in this section.
-  //------------------------------------------------------------------
   lldb::offset_t GetSectionData(DataExtractor &data);
 
   uint32_t GetLog2Align() { return m_log2align; }

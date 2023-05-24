@@ -1,9 +1,8 @@
 //===-- EmulateInstructionARM.cpp -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -26,8 +25,7 @@
 #include "Utility/ARM_DWARF_Registers.h"
 
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/MathExtras.h" // for SignExtend32 template function
-                                     // and countTrailingZeros function
+#include "llvm/Support/MathExtras.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -38,11 +36,9 @@ using namespace lldb_private;
 
 #define AlignPC(pc_val) (pc_val & 0xFFFFFFFC)
 
-//----------------------------------------------------------------------
 //
 // ITSession implementation
 //
-//----------------------------------------------------------------------
 
 static bool GetARMDWARFRegisterInfo(unsigned reg_num, RegisterInfo &reg_info) {
   ::memset(&reg_info, 0, sizeof(RegisterInfo));
@@ -711,11 +707,9 @@ uint32_t ITSession::GetCond() {
 #define VFPv2_ABOVE (VFPv2 | VFPv3 | AdvancedSIMD)
 #define VFPv2v3 (VFPv2 | VFPv3)
 
-//----------------------------------------------------------------------
 //
 // EmulateInstructionARM implementation
 //
-//----------------------------------------------------------------------
 
 void EmulateInstructionARM::Initialize() {
   PluginManager::RegisterPlugin(GetPluginNameStatic(),
@@ -741,21 +735,21 @@ EmulateInstructionARM::CreateInstance(const ArchSpec &arch,
   if (EmulateInstructionARM::SupportsEmulatingInstructionsOfTypeStatic(
           inst_type)) {
     if (arch.GetTriple().getArch() == llvm::Triple::arm) {
-      std::unique_ptr<EmulateInstructionARM> emulate_insn_ap(
+      std::unique_ptr<EmulateInstructionARM> emulate_insn_up(
           new EmulateInstructionARM(arch));
 
-      if (emulate_insn_ap.get())
-        return emulate_insn_ap.release();
+      if (emulate_insn_up)
+        return emulate_insn_up.release();
     } else if (arch.GetTriple().getArch() == llvm::Triple::thumb) {
-      std::unique_ptr<EmulateInstructionARM> emulate_insn_ap(
+      std::unique_ptr<EmulateInstructionARM> emulate_insn_up(
           new EmulateInstructionARM(arch));
 
-      if (emulate_insn_ap.get())
-        return emulate_insn_ap.release();
+      if (emulate_insn_up)
+        return emulate_insn_up.release();
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 bool EmulateInstructionARM::SetTargetTriple(const ArchSpec &arch) {
@@ -777,10 +771,7 @@ bool EmulateInstructionARM::WriteBits32UnknownToMemory(addr_t address) {
   uint32_t random_data = rand();
   const uint32_t addr_byte_size = GetAddressByteSize();
 
-  if (!MemAWrite(context, address, random_data, addr_byte_size))
-    return false;
-
-  return true;
+  return MemAWrite(context, address, random_data, addr_byte_size);
 }
 
 // Write "bits (32) UNKNOWN" to register n.  Helper function for many ARM
@@ -850,6 +841,7 @@ uint32_t EmulateInstructionARM::GetFramePointerRegisterNumber() const {
   case llvm::Triple::IOS:
   case llvm::Triple::TvOS:
   case llvm::Triple::WatchOS:
+  // NEED_BRIDGEOS_TRIPLE case llvm::Triple::BridgeOS:
     is_apple = true;
     break;
   default:
@@ -858,6 +850,7 @@ uint32_t EmulateInstructionARM::GetFramePointerRegisterNumber() const {
 
   /* On Apple iOS et al, the frame pointer register is always r7.
    * Typically on other ARM systems, thumb code uses r7; arm code uses r11.
+   * Windows on ARM, which is in thumb mode, uses r11 though.
    */
 
   uint32_t fp_regnum = 11;
@@ -865,7 +858,7 @@ uint32_t EmulateInstructionARM::GetFramePointerRegisterNumber() const {
   if (is_apple)
     fp_regnum = 7;
 
-  if (m_opcode_mode == eModeThumb)
+  if (m_opcode_mode == eModeThumb && !m_arch.GetTriple().isOSWindows())
     fp_regnum = 7;
 
   return fp_regnum;
@@ -887,6 +880,7 @@ uint32_t EmulateInstructionARM::GetFramePointerDWARFRegisterNumber() const {
 
   /* On Apple iOS et al, the frame pointer register is always r7.
    * Typically on other ARM systems, thumb code uses r7; arm code uses r11.
+   * Windows on ARM, which is in thumb mode, uses r11 though.
    */
 
   uint32_t fp_regnum = dwarf_r11;
@@ -894,7 +888,7 @@ uint32_t EmulateInstructionARM::GetFramePointerDWARFRegisterNumber() const {
   if (is_apple)
     fp_regnum = dwarf_r7;
 
-  if (m_opcode_mode == eModeThumb)
+  if (m_opcode_mode == eModeThumb && !m_arch.GetTriple().isOSWindows())
     fp_regnum = dwarf_r7;
 
   return fp_regnum;
@@ -1351,6 +1345,8 @@ bool EmulateInstructionARM::EmulateMOVRdRm(const uint32_t opcode,
     EmulateInstruction::Context context;
     if (Rd == 13)
       context.type = EmulateInstruction::eContextAdjustStackPointer;
+    else if (Rd == GetFramePointerRegisterNumber() && Rm == 13)
+      context.type = EmulateInstruction::eContextSetFramePointer;
     else
       context.type = EmulateInstruction::eContextRegisterPlusOffset;
     RegisterInfo dwarf_reg;
@@ -3340,10 +3336,7 @@ bool EmulateInstructionARM::EmulateCMNImm(const uint32_t opcode,
   EmulateInstruction::Context context;
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
-  if (!WriteFlags(context, res.result, res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteFlags(context, res.result, res.carry_out, res.overflow);
 }
 
 // Compare Negative (register) adds a register value and an optionally-shifted
@@ -3410,10 +3403,7 @@ bool EmulateInstructionARM::EmulateCMNReg(const uint32_t opcode,
   EmulateInstruction::Context context;
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
-  if (!WriteFlags(context, res.result, res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteFlags(context, res.result, res.carry_out, res.overflow);
 }
 
 // Compare (immediate) subtracts an immediate value from a register value. It
@@ -3463,10 +3453,7 @@ bool EmulateInstructionARM::EmulateCMPImm(const uint32_t opcode,
   EmulateInstruction::Context context;
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
-  if (!WriteFlags(context, res.result, res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteFlags(context, res.result, res.carry_out, res.overflow);
 }
 
 // Compare (register) subtracts an optionally-shifted register value from a
@@ -3542,10 +3529,7 @@ bool EmulateInstructionARM::EmulateCMPReg(const uint32_t opcode,
   EmulateInstruction::Context context;
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
-  if (!WriteFlags(context, res.result, res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteFlags(context, res.result, res.carry_out, res.overflow);
 }
 
 // Arithmetic Shift Right (immediate) shifts a register value right by an
@@ -9245,11 +9229,8 @@ bool EmulateInstructionARM::EmulateRSBImm(const uint32_t opcode,
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
 
-  if (!WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
-                                 res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
+                                   res.carry_out, res.overflow);
 }
 
 // Reverse Subtract (register) subtracts a register value from an optionally-
@@ -9326,11 +9307,8 @@ bool EmulateInstructionARM::EmulateRSBReg(const uint32_t opcode,
   EmulateInstruction::Context context;
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
-  if (!WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
-                                 res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
+                                   res.carry_out, res.overflow);
 }
 
 // Reverse Subtract with Carry (immediate) subtracts a register value and the
@@ -9388,11 +9366,8 @@ bool EmulateInstructionARM::EmulateRSCImm(const uint32_t opcode,
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
 
-  if (!WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
-                                 res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
+                                   res.carry_out, res.overflow);
 }
 
 // Reverse Subtract with Carry (register) subtracts a register value and the
@@ -9460,11 +9435,8 @@ bool EmulateInstructionARM::EmulateRSCReg(const uint32_t opcode,
   EmulateInstruction::Context context;
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
-  if (!WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
-                                 res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
+                                   res.carry_out, res.overflow);
 }
 
 // Subtract with Carry (immediate) subtracts an immediate value and the value
@@ -9531,11 +9503,8 @@ bool EmulateInstructionARM::EmulateSBCImm(const uint32_t opcode,
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
 
-  if (!WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
-                                 res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
+                                   res.carry_out, res.overflow);
 }
 
 // Subtract with Carry (register) subtracts an optionally-shifted register
@@ -9620,11 +9589,8 @@ bool EmulateInstructionARM::EmulateSBCReg(const uint32_t opcode,
   EmulateInstruction::Context context;
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
-  if (!WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
-                                 res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
+                                   res.carry_out, res.overflow);
 }
 
 // This instruction subtracts an immediate value from a register value, and
@@ -9713,11 +9679,8 @@ bool EmulateInstructionARM::EmulateSUBImmThumb(const uint32_t opcode,
   context.type = EmulateInstruction::eContextImmediate;
   context.SetNoArgs();
 
-  if (!WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
-                                 res.carry_out, res.overflow))
-    return false;
-
-  return true;
+  return WriteCoreRegOptionalFlags(context, res.result, Rd, setflags,
+                                   res.carry_out, res.overflow);
 }
 
 // This instruction subtracts an immediate value from a register value, and
@@ -10191,7 +10154,7 @@ bool EmulateInstructionARM::EmulateADDRegShift(const uint32_t opcode,
       shift_t = DecodeRegShift(Bits32(opcode, 6, 5));
 
       // if d == 15 || n == 15 || m == 15 || s == 15 then UNPREDICTABLE;
-      if ((d == 15) || (m == 15) || (m == 15) || (s == 15))
+      if ((d == 15) || (n == 15) || (m == 15) || (s == 15))
         return false;
       break;
 
@@ -12889,9 +12852,7 @@ EmulateInstructionARM::ARMOpcode *
 EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
                                                   uint32_t arm_isa) {
   static ARMOpcode g_arm_opcodes[] = {
-      //----------------------------------------------------------------------
       // Prologue instructions
-      //----------------------------------------------------------------------
 
       // push register(s)
       {0x0fff0000, 0x092d0000, ARMvAll, eEncodingA1, No_VFP, eSize32,
@@ -12930,9 +12891,7 @@ EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
       {0x0fbf0f00, 0x0d2d0a00, ARMV6T2_ABOVE, eEncodingA2, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateVPUSH, "vpush.32 <list>"},
 
-      //----------------------------------------------------------------------
       // Epilogue instructions
-      //----------------------------------------------------------------------
 
       {0x0fff0000, 0x08bd0000, ARMvAll, eEncodingA1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulatePOP, "pop <registers>"},
@@ -12943,15 +12902,11 @@ EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
       {0x0fbf0f00, 0x0cbd0a00, ARMV6T2_ABOVE, eEncodingA2, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateVPOP, "vpop.32 <list>"},
 
-      //----------------------------------------------------------------------
       // Supervisor Call (previously Software Interrupt)
-      //----------------------------------------------------------------------
       {0x0f000000, 0x0f000000, ARMvAll, eEncodingA1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateSVC, "svc #imm24"},
 
-      //----------------------------------------------------------------------
       // Branch instructions
-      //----------------------------------------------------------------------
       // To resolve ambiguity, "blx <label>" should come before "b #imm24" and
       // "bl <label>".
       {0xfe000000, 0xfa000000, ARMV5_ABOVE, eEncodingA2, No_VFP, eSize32,
@@ -12969,9 +12924,7 @@ EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
       {0x0ffffff0, 0x012fff20, ARMvAll, eEncodingA1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateBXJRm, "bxj <Rm>"},
 
-      //----------------------------------------------------------------------
       // Data-processing instructions
-      //----------------------------------------------------------------------
       // adc (immediate)
       {0x0fe00000, 0x02a00000, ARMvAll, eEncodingA1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateADCImm, "adc{s}<c> <Rd>, <Rn>, #const"},
@@ -13135,9 +13088,7 @@ EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
        &EmulateInstructionARM::EmulateSUBSPcLrEtc,
        "<opc>S<c> PC,<Rn>,<Rm{,<shift>}"},
 
-      //----------------------------------------------------------------------
       // Load instructions
-      //----------------------------------------------------------------------
       {0x0fd00000, 0x08900000, ARMvAll, eEncodingA1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateLDM, "ldm<c> <Rn>{!} <registers>"},
       {0x0fd00000, 0x08100000, ARMvAll, eEncodingA1, No_VFP, eSize32,
@@ -13202,9 +13153,7 @@ EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
        &EmulateInstructionARM::EmulateVLD1SingleAll,
        "vld1<c>.<size> <list>, [<Rn>{@<align>}], <Rm>"},
 
-      //----------------------------------------------------------------------
       // Store instructions
-      //----------------------------------------------------------------------
       {0x0fd00000, 0x08800000, ARMvAll, eEncodingA1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateSTM, "stm<c> <Rn>{!} <registers>"},
       {0x0fd00000, 0x08000000, ARMvAll, eEncodingA1, No_VFP, eSize32,
@@ -13248,9 +13197,7 @@ EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
        &EmulateInstructionARM::EmulateVST1Single,
        "vst1<c>.<size> <list>, [<Rn>{@<align>}], <Rm>"},
 
-      //----------------------------------------------------------------------
       // Other instructions
-      //----------------------------------------------------------------------
       {0x0fff00f0, 0x06af00f0, ARMV6_ABOVE, eEncodingA1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateSXTB, "sxtb<c> <Rd>,<Rm>{,<rotation>}"},
       {0x0fff00f0, 0x06bf0070, ARMV6_ABOVE, eEncodingA1, No_VFP, eSize32,
@@ -13270,7 +13217,7 @@ EmulateInstructionARM::GetARMOpcodeForInstruction(const uint32_t opcode,
         (g_arm_opcodes[i].variants & arm_isa) != 0)
       return &g_arm_opcodes[i];
   }
-  return NULL;
+  return nullptr;
 }
 
 EmulateInstructionARM::ARMOpcode *
@@ -13278,9 +13225,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
                                                     uint32_t arm_isa) {
 
   static ARMOpcode g_thumb_opcodes[] = {
-      //----------------------------------------------------------------------
       // Prologue instructions
-      //----------------------------------------------------------------------
 
       // push register(s)
       {0xfffffe00, 0x0000b400, ARMvAll, eEncodingT1, No_VFP, eSize16,
@@ -13324,9 +13269,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
       {0xffbf0f00, 0xed2d0a00, ARMV6T2_ABOVE, eEncodingT2, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateVPUSH, "vpush.32 <list>"},
 
-      //----------------------------------------------------------------------
       // Epilogue instructions
-      //----------------------------------------------------------------------
 
       {0xfffff800, 0x0000a800, ARMV4T_ABOVE, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateADDSPImm, "add<c> <Rd>, sp, #imm"},
@@ -13343,15 +13286,11 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
       {0xffbf0f00, 0xecbd0a00, ARMV6T2_ABOVE, eEncodingT2, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateVPOP, "vpop.32 <list>"},
 
-      //----------------------------------------------------------------------
       // Supervisor Call (previously Software Interrupt)
-      //----------------------------------------------------------------------
       {0xffffff00, 0x0000df00, ARMvAll, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateSVC, "svc #imm8"},
 
-      //----------------------------------------------------------------------
       // If Then makes up to four following instructions conditional.
-      //----------------------------------------------------------------------
       // The next 5 opcode _must_ come before the if then instruction
       {0xffffffff, 0x0000bf00, ARMV6T2_ABOVE, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateNop, "nop"},
@@ -13366,9 +13305,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
       {0xffffff00, 0x0000bf00, ARMV6T2_ABOVE, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateIT, "it{<x>{<y>{<z>}}} <firstcond>"},
 
-      //----------------------------------------------------------------------
       // Branch instructions
-      //----------------------------------------------------------------------
       // To resolve ambiguity, "b<c> #imm8" should come after "svc #imm8".
       {0xfffff000, 0x0000d000, ARMvAll, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateB, "b<c> #imm8 (outside IT)"},
@@ -13403,9 +13340,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
       {0xfff0fff0, 0xe8d0f010, ARMV6T2_ABOVE, eEncodingT1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateTB, "tbh<c> <Rn>, <Rm>, lsl #1"},
 
-      //----------------------------------------------------------------------
       // Data-processing instructions
-      //----------------------------------------------------------------------
       // adc (immediate)
       {0xfbe08000, 0xf1400000, ARMV6T2_ABOVE, eEncodingT1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateADCImm, "adc{s}<c> <Rd>, <Rn>, #<const>"},
@@ -13633,20 +13568,16 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
       {0xffffff00, 0xf3de8f00, ARMV6T2_ABOVE, eEncodingT1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateSUBSPcLrEtc, "SUBS<c> PC, LR, #<imm8>"},
 
-      //----------------------------------------------------------------------
       // RFE instructions  *** IMPORTANT *** THESE MUST BE LISTED **BEFORE** THE
       // LDM.. Instructions in this table;
       // otherwise the wrong instructions will be selected.
-      //----------------------------------------------------------------------
 
       {0xffd0ffff, 0xe810c000, ARMV6T2_ABOVE, eEncodingT1, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateRFE, "rfedb<c> <Rn>{!}"},
       {0xffd0ffff, 0xe990c000, ARMV6T2_ABOVE, eEncodingT2, No_VFP, eSize32,
        &EmulateInstructionARM::EmulateRFE, "rfe{ia}<c> <Rn>{!}"},
 
-      //----------------------------------------------------------------------
       // Load instructions
-      //----------------------------------------------------------------------
       {0xfffff800, 0x0000c800, ARMV4T_ABOVE, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateLDM, "ldm<c> <Rn>{!} <registers>"},
       {0xffd02000, 0xe8900000, ARMV6T2_ABOVE, eEncodingT2, No_VFP, eSize32,
@@ -13754,9 +13685,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
        &EmulateInstructionARM::EmulateVLD1SingleAll,
        "vld1<c>.<size> <list>, [<Rn>{@<align>}], <Rm>"},
 
-      //----------------------------------------------------------------------
       // Store instructions
-      //----------------------------------------------------------------------
       {0xfffff800, 0x0000c000, ARMV4T_ABOVE, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateSTM, "stm<c> <Rn>{!} <registers>"},
       {0xffd00000, 0xe8800000, ARMV6T2_ABOVE, eEncodingT2, No_VFP, eSize32,
@@ -13813,9 +13742,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
        &EmulateInstructionARM::EmulateVST1Single,
        "vst1<c>.<size> <list>, [<Rn>{@<align>}], <Rm>"},
 
-      //----------------------------------------------------------------------
       // Other instructions
-      //----------------------------------------------------------------------
       {0xffffffc0, 0x0000b240, ARMV6_ABOVE, eEncodingT1, No_VFP, eSize16,
        &EmulateInstructionARM::EmulateSXTB, "sxtb<c> <Rd>,<Rm>"},
       {0xfffff080, 0xfa4ff080, ARMV6_ABOVE, eEncodingT2, No_VFP, eSize32,
@@ -13840,7 +13767,7 @@ EmulateInstructionARM::GetThumbOpcodeForInstruction(const uint32_t opcode,
         (g_thumb_opcodes[i].variants & arm_isa) != 0)
       return &g_thumb_opcodes[i];
   }
-  return NULL;
+  return nullptr;
 }
 
 bool EmulateInstructionARM::SetArchitecture(const ArchSpec &arch) {
@@ -14153,11 +14080,8 @@ bool EmulateInstructionARM::BranchWritePC(const Context &context,
   else
     target = addr & 0xfffffffe;
 
-  if (!WriteRegisterUnsigned(context, eRegisterKindGeneric,
-                             LLDB_REGNUM_GENERIC_PC, target))
-    return false;
-
-  return true;
+  return WriteRegisterUnsigned(context, eRegisterKindGeneric,
+                               LLDB_REGNUM_GENERIC_PC, target);
 }
 
 // As a side effect, BXWritePC sets context.arg2 to eModeARM or eModeThumb by
@@ -14191,11 +14115,8 @@ bool EmulateInstructionARM::BXWritePC(Context &context, uint32_t addr) {
                                LLDB_REGNUM_GENERIC_FLAGS, m_new_inst_cpsr))
       return false;
   }
-  if (!WriteRegisterUnsigned(context, eRegisterKindGeneric,
-                             LLDB_REGNUM_GENERIC_PC, target))
-    return false;
-
-  return true;
+  return WriteRegisterUnsigned(context, eRegisterKindGeneric,
+                               LLDB_REGNUM_GENERIC_PC, target);
 }
 
 // Dispatches to either BXWritePC or BranchWritePC based on architecture
@@ -14394,7 +14315,7 @@ bool EmulateInstructionARM::WriteFlags(Context &context, const uint32_t result,
 }
 
 bool EmulateInstructionARM::EvaluateInstruction(uint32_t evaluate_options) {
-  ARMOpcode *opcode_data = NULL;
+  ARMOpcode *opcode_data = nullptr;
 
   if (m_opcode_mode == eModeThumb)
     opcode_data =
@@ -14408,14 +14329,14 @@ bool EmulateInstructionARM::EvaluateInstruction(uint32_t evaluate_options) {
       evaluate_options & eEmulateInstructionOptionIgnoreConditions;
 
   bool success = false;
-  if (m_opcode_cpsr == 0 || m_ignore_conditions == false) {
+  if (m_opcode_cpsr == 0 || !m_ignore_conditions) {
     m_opcode_cpsr =
         ReadRegisterUnsigned(eRegisterKindDWARF, dwarf_cpsr, 0, &success);
   }
 
   // Only return false if we are unable to read the CPSR if we care about
   // conditions
-  if (success == false && m_ignore_conditions == false)
+  if (!success && !m_ignore_conditions)
     return false;
 
   uint32_t orig_pc_value = 0;
@@ -14483,7 +14404,7 @@ bool EmulateInstructionARM::TestEmulation(Stream *out_stream, ArchSpec &arch,
   OptionValueSP value_sp = test_data->GetValueForKey(opcode_key);
 
   uint32_t test_opcode;
-  if ((value_sp.get() == NULL) ||
+  if ((value_sp.get() == nullptr) ||
       (value_sp->GetType() != OptionValue::eTypeUInt64)) {
     out_stream->Printf("TestEmulation: Error reading opcode from test file.\n");
     return false;
@@ -14509,7 +14430,7 @@ bool EmulateInstructionARM::TestEmulation(Stream *out_stream, ArchSpec &arch,
   EmulationStateARM after_state;
 
   value_sp = test_data->GetValueForKey(before_key);
-  if ((value_sp.get() == NULL) ||
+  if ((value_sp.get() == nullptr) ||
       (value_sp->GetType() != OptionValue::eTypeDictionary)) {
     out_stream->Printf("TestEmulation:  Failed to find 'before' state.\n");
     return false;
@@ -14522,7 +14443,7 @@ bool EmulateInstructionARM::TestEmulation(Stream *out_stream, ArchSpec &arch,
   }
 
   value_sp = test_data->GetValueForKey(after_key);
-  if ((value_sp.get() == NULL) ||
+  if ((value_sp.get() == nullptr) ||
       (value_sp->GetType() != OptionValue::eTypeDictionary)) {
     out_stream->Printf("TestEmulation:  Failed to find 'after' state.\n");
     return false;
@@ -14590,6 +14511,7 @@ bool EmulateInstructionARM::CreateFunctionEntryUnwind(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("EmulateInstructionARM");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolYes);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   unwind_plan.SetReturnAddressRegister(dwarf_lr);
   return true;
 }

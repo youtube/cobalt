@@ -1,9 +1,8 @@
 //===--- ComparisonInTempFailureRetryCheck.cpp - clang-tidy----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,15 +20,15 @@ namespace android {
 
 namespace {
 AST_MATCHER(BinaryOperator, isRHSATempFailureRetryArg) {
-  if (!Node.getLocStart().isMacroID())
+  if (!Node.getBeginLoc().isMacroID())
     return false;
 
   const SourceManager &SM = Finder->getASTContext().getSourceManager();
-  if (!SM.isMacroArgExpansion(Node.getRHS()->IgnoreParenCasts()->getLocStart()))
+  if (!SM.isMacroArgExpansion(Node.getRHS()->IgnoreParenCasts()->getBeginLoc()))
     return false;
 
   const LangOptions &Opts = Finder->getASTContext().getLangOpts();
-  SourceLocation LocStart = Node.getLocStart();
+  SourceLocation LocStart = Node.getBeginLoc();
   while (LocStart.isMacroID()) {
     SourceLocation Invocation = SM.getImmediateMacroCallerLoc(LocStart);
     Token Tok;

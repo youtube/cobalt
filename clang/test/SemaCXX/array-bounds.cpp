@@ -284,3 +284,28 @@ struct multi_s multi2[4]; // expected-note {{array 'multi2' declared here}}
 int test_struct_multiarray() {
   return multi2[4].arr[0]; // expected-warning {{array index 4 is past the end of the array (which contains 4 elements)}}
 }
+
+namespace PR39746 {
+  struct S;
+  extern S xxx[2]; // expected-note {{array 'xxx' declared here}}
+  class C {};
+
+  C &f() { return reinterpret_cast<C *>(xxx)[1]; } // no-warning
+  // We have no info on whether this is out-of-bounds.
+  C &g() { return reinterpret_cast<C *>(xxx)[2]; } // no-warning
+  // We can still diagnose this.
+  C &h() { return reinterpret_cast<C *>(xxx)[-1]; } // expected-warning {{array index -1 is before the beginning of the array}}
+}
+
+namespace PR41087 {
+  template <typename Ty> void foo() {
+    Ty buffer[2]; // expected-note 3{{array 'buffer' declared here}}
+    ((char *)buffer)[2] = 'A'; // expected-warning 1{{array index 2 is past the end of the array (which contains 2 elements)}}
+    ((char *)buffer)[-1] = 'A'; // expected-warning 2{{array index -1 is before the beginning of the array}}
+  }
+
+  void f() {
+    foo<char>(); // expected-note 1{{in instantiation of function template specialization}}
+    foo<int>(); // expected-note 1{{in instantiation of function template specialization}}
+  };
+}

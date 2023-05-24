@@ -4,7 +4,22 @@ endif()
 
 get_property(LLDB_ALL_PLUGINS GLOBAL PROPERTY LLDB_PLUGINS)
 
-add_lldb_library(liblldb SHARED
+if(LLDB_ENABLE_PYTHON)
+  get_target_property(lldb_bindings_dir swig_wrapper BINARY_DIR)
+  set(lldb_python_wrapper ${lldb_bindings_dir}/LLDBWrapPython.cpp)
+endif()
+
+if(LLDB_ENABLE_LUA)
+  get_target_property(lldb_bindings_dir swig_wrapper_lua BINARY_DIR)
+  set(lldb_lua_wrapper ${lldb_bindings_dir}/LLDBWrapLua.cpp)
+endif()
+
+if(LLDB_BUILD_FRAMEWORK)
+  set(option_install_prefix INSTALL_PREFIX ${LLDB_FRAMEWORK_INSTALL_DIR})
+  set(option_framework FRAMEWORK)
+endif()
+
+add_lldb_library(liblldb SHARED ${option_framework}
   SBAddress.cpp
   SBAttachInfo.cpp
   SBBlock.cpp
@@ -25,6 +40,7 @@ add_lldb_library(liblldb SHARED
   SBExecutionContext.cpp
   SBExpressionOptions.cpp
   SBFileSpec.cpp
+  SBFile.cpp
   SBFileSpecList.cpp
   SBFrame.cpp
   SBFunction.cpp
@@ -44,6 +60,7 @@ add_lldb_library(liblldb SHARED
   SBProcessInfo.cpp
   SBQueue.cpp
   SBQueueItem.cpp
+  SBReproducer.cpp
   SBSection.cpp
   SBSourceManager.cpp
   SBStream.cpp
@@ -72,7 +89,8 @@ add_lldb_library(liblldb SHARED
   SBWatchpoint.cpp
   SBUnixSignals.cpp
   SystemInitializerFull.cpp
-  ${LLDB_WRAP_PYTHON}
+  ${lldb_python_wrapper}
+  ${lldb_lua_wrapper}
 
   LINK_LIBS
     lldbBase
@@ -89,26 +107,55 @@ add_lldb_library(liblldb SHARED
     ${LLDB_ALL_PLUGINS}
   LINK_COMPONENTS
     Support
-  )
 
-add_dependencies(lldb-suite liblldb)
+  ${option_install_prefix}
+)
+
+# lib/pythonX.Y/dist-packages/lldb/_lldb.so is a symlink to lib/liblldb.so,
+# which depends on lib/libLLVM*.so (BUILD_SHARED_LIBS) or lib/libLLVM-10git.so
+# (LLVM_LINK_LLVM_DYLIB). Add an additional rpath $ORIGIN/../../../../lib so
+# that _lldb.so can be loaded from Python.
+if(LLDB_ENABLE_PYTHON AND (BUILD_SHARED_LIBS OR LLVM_LINK_LLVM_DYLIB) AND UNIX AND NOT APPLE)
+  set_property(TARGET liblldb APPEND PROPERTY INSTALL_RPATH "\$ORIGIN/../../../../lib${LLVM_LIBDIR_SUFFIX}")
+endif()
 
 if (MSVC)
-  set_property(SOURCE ${LLDB_WRAP_PYTHON} APPEND_STRING PROPERTY COMPILE_FLAGS " /W0")
-else()
-  set_property(SOURCE ${LLDB_WRAP_PYTHON} APPEND_STRING PROPERTY COMPILE_FLAGS " -w")
+  set_source_files_properties(SBReproducer.cpp PROPERTIES COMPILE_FLAGS /bigobj)
 endif()
 
-set_source_files_properties(${LLDB_WRAP_PYTHON} PROPERTIES GENERATED 1)
-if (CLANG_CL)
-  set_property(SOURCE ${LLDB_WRAP_PYTHON} APPEND_STRING
-    PROPERTY COMPILE_FLAGS " -Wno-unused-function")
+if(lldb_python_wrapper)
+  add_dependencies(liblldb swig_wrapper)
+
+  if (MSVC)
+    set_property(SOURCE ${lldb_python_wrapper} APPEND_STRING PROPERTY COMPILE_FLAGS " /W0")
+  else()
+    set_property(SOURCE ${lldb_python_wrapper} APPEND_STRING PROPERTY COMPILE_FLAGS " -w")
+  endif()
+
+  set_source_files_properties(${lldb_python_wrapper} PROPERTIES GENERATED ON)
+  if (CLANG_CL)
+    set_property(SOURCE ${lldb_python_wrapper} APPEND_STRING
+      PROPERTY COMPILE_FLAGS " -Wno-unused-function")
+  endif()
+  if (LLVM_COMPILER_IS_GCC_COMPATIBLE AND
+      NOT "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin")
+    set_property(SOURCE ${lldb_python_wrapper} APPEND_STRING
+      PROPERTY COMPILE_FLAGS " -Wno-sequence-point -Wno-cast-qual")
+  endif ()
 endif()
-if (LLVM_COMPILER_IS_GCC_COMPATIBLE AND
-    NOT "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin")
-  set_property(SOURCE ${LLDB_WRAP_PYTHON} APPEND_STRING
-    PROPERTY COMPILE_FLAGS " -Wno-sequence-point -Wno-cast-qual")
-endif ()
+
+if(lldb_lua_wrapper)
+  add_dependencies(liblldb swig_wrapper_lua)
+  target_include_directories(liblldb PRIVATE ${LUA_INCLUDE_DIR})
+
+  if (MSVC)
+    set_property(SOURCE ${lldb_lua_wrapper} APPEND_STRING PROPERTY COMPILE_FLAGS " /W0")
+  else()
+    set_property(SOURCE ${lldb_lua_wrapper} APPEND_STRING PROPERTY COMPILE_FLAGS " -w")
+  endif()
+
+  set_source_files_properties(${lldb_lua_wrapper} PROPERTIES GENERATED ON)
+endif()
 
 set_target_properties(liblldb
   PROPERTIES
@@ -128,13 +175,14 @@ if (NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
     MESSAGE("-- Symbols (liblldb): exporting all symbols from the lldb and lldb_private namespaces")
     add_llvm_symbol_exports(liblldb ${CMAKE_CURRENT_SOURCE_DIR}/liblldb-private.exports)
   endif()
+  set_target_properties(liblldb_exports PROPERTIES FOLDER "lldb misc")
 endif()
 
 if ( CMAKE_SYSTEM_NAME MATCHES "Windows" )
   # Only MSVC has the ABI compatibility problem and avoids using FindPythonLibs,
-  # so only it needs to explicitly link against ${PYTHON_LIBRARY}
-  if (MSVC AND NOT LLDB_DISABLE_PYTHON)
-    target_link_libraries(liblldb PRIVATE ${PYTHON_LIBRARY})
+  # so only it needs to explicitly link against ${PYTHON_LIBRARIES}
+  if (MSVC AND LLDB_ENABLE_PYTHON)
+    target_link_libraries(liblldb PRIVATE ${PYTHON_LIBRARIES})
   endif()
 else()
   set_target_properties(liblldb
@@ -143,6 +191,10 @@ else()
   )
 endif()
 
-if (LLDB_WRAP_PYTHON)
-  add_dependencies(liblldb swig_wrapper)
+if (NOT LLDB_BUILT_STANDALONE)
+  add_dependencies(liblldb clang-resource-headers)
+endif()
+
+if(LLDB_BUILD_FRAMEWORK)
+  include(LLDBFramework)
 endif()

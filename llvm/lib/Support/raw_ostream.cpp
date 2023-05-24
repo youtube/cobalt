@@ -1,9 +1,8 @@
 //===--- raw_ostream.cpp - Implement the raw_ostream classes --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -60,10 +59,22 @@
 #endif
 
 #ifdef _WIN32
+#include "llvm/Support/ConvertUTF.h"
 #include "Windows/WindowsSupport.h"
 #endif
 
 using namespace llvm;
+
+const raw_ostream::Colors raw_ostream::BLACK;
+const raw_ostream::Colors raw_ostream::RED;
+const raw_ostream::Colors raw_ostream::GREEN;
+const raw_ostream::Colors raw_ostream::YELLOW;
+const raw_ostream::Colors raw_ostream::BLUE;
+const raw_ostream::Colors raw_ostream::MAGENTA;
+const raw_ostream::Colors raw_ostream::CYAN;
+const raw_ostream::Colors raw_ostream::WHITE;
+const raw_ostream::Colors raw_ostream::SAVEDCOLOR;
+const raw_ostream::Colors raw_ostream::RESET;
 
 raw_ostream::~raw_ostream() {
   // raw_ostream's subclasses should take care to flush the buffer
@@ -71,7 +82,7 @@ raw_ostream::~raw_ostream() {
   assert(OutBufCur == OutBufStart &&
          "raw_ostream destructor called with non-empty buffer!");
 
-  if (BufferMode == InternalBuffer)
+  if (BufferMode == BufferKind::InternalBuffer)
     delete [] OutBufStart;
 }
 
@@ -91,14 +102,14 @@ void raw_ostream::SetBuffered() {
 
 void raw_ostream::SetBufferAndMode(char *BufferStart, size_t Size,
                                    BufferKind Mode) {
-  assert(((Mode == Unbuffered && !BufferStart && Size == 0) ||
-          (Mode != Unbuffered && BufferStart && Size != 0)) &&
+  assert(((Mode == BufferKind::Unbuffered && !BufferStart && Size == 0) ||
+          (Mode != BufferKind::Unbuffered && BufferStart && Size != 0)) &&
          "stream must be unbuffered or have at least one byte");
   // Make sure the current buffer is free of content (we can't flush here; the
   // child buffer management logic will be in write_impl).
   assert(GetNumBytesInBuffer() == 0 && "Current buffer is non-empty!");
 
-  if (BufferMode == InternalBuffer)
+  if (BufferMode == BufferKind::InternalBuffer)
     delete [] OutBufStart;
   OutBufStart = BufferStart;
   OutBufEnd = OutBufStart+Size;
@@ -130,6 +141,14 @@ raw_ostream &raw_ostream::operator<<(long long N) {
 
 raw_ostream &raw_ostream::write_hex(unsigned long long N) {
   llvm::write_hex(*this, N, HexPrintStyle::Lower);
+  return *this;
+}
+
+raw_ostream &raw_ostream::operator<<(Colors C) {
+  if (C == Colors::RESET)
+    resetColor();
+  else
+    changeColor(C);
   return *this;
 }
 
@@ -204,7 +223,7 @@ raw_ostream &raw_ostream::write(unsigned char C) {
   // Group exceptional cases into a single branch.
   if (LLVM_UNLIKELY(OutBufCur >= OutBufEnd)) {
     if (LLVM_UNLIKELY(!OutBufStart)) {
-      if (BufferMode == Unbuffered) {
+      if (BufferMode == BufferKind::Unbuffered) {
         write_impl(reinterpret_cast<char*>(&C), 1);
         return *this;
       }
@@ -224,7 +243,7 @@ raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
   // Group exceptional cases into a single branch.
   if (LLVM_UNLIKELY(size_t(OutBufEnd - OutBufCur) < Size)) {
     if (LLVM_UNLIKELY(!OutBufStart)) {
-      if (BufferMode == Unbuffered) {
+      if (BufferMode == BufferKind::Unbuffered) {
         write_impl(Ptr, Size);
         return *this;
       }
@@ -567,6 +586,12 @@ raw_fd_ostream::raw_fd_ostream(int fd, bool shouldClose, bool unbuffered)
   if (FD <= STDERR_FILENO)
     ShouldClose = false;
 
+#ifdef _WIN32
+  // Check if this is a console device. This is not equivalent to isatty.
+  IsWindowsConsole =
+      ::GetFileType((HANDLE)::_get_osfhandle(fd)) == FILE_TYPE_CHAR;
+#endif
+
   // Get the starting position.
   off_t loc = ::lseek(FD, 0, SEEK_CUR);
 #ifdef _WIN32
@@ -606,28 +631,80 @@ raw_fd_ostream::~raw_fd_ostream() {
   // destructing raw_ostream objects which may have errors.
   if (has_error())
     report_fatal_error("IO failure on output stream: " + error().message(),
-                       /*GenCrashDiag=*/false);
+                       /*gen_crash_diag=*/false);
 }
+
+#if defined(_WIN32)
+// The most reliable way to print unicode in a Windows console is with
+// WriteConsoleW. To use that, first transcode from UTF-8 to UTF-16. This
+// assumes that LLVM programs always print valid UTF-8 to the console. The data
+// might not be UTF-8 for two major reasons:
+// 1. The program is printing binary (-filetype=obj -o -), in which case it
+// would have been gibberish anyway.
+// 2. The program is printing text in a semi-ascii compatible codepage like
+// shift-jis or cp1252.
+//
+// Most LLVM programs don't produce non-ascii text unless they are quoting
+// user source input. A well-behaved LLVM program should either validate that
+// the input is UTF-8 or transcode from the local codepage to UTF-8 before
+// quoting it. If they don't, this may mess up the encoding, but this is still
+// probably the best compromise we can make.
+static bool write_console_impl(int FD, StringRef Data) {
+  SmallVector<wchar_t, 256> WideText;
+
+  // Fall back to ::write if it wasn't valid UTF-8.
+  if (auto EC = sys::windows::UTF8ToUTF16(Data, WideText))
+    return false;
+
+  // On Windows 7 and earlier, WriteConsoleW has a low maximum amount of data
+  // that can be written to the console at a time.
+  size_t MaxWriteSize = WideText.size();
+  if (!RunningWindows8OrGreater())
+    MaxWriteSize = 32767;
+
+  size_t WCharsWritten = 0;
+  do {
+    size_t WCharsToWrite =
+        std::min(MaxWriteSize, WideText.size() - WCharsWritten);
+    DWORD ActuallyWritten;
+    bool Success =
+        ::WriteConsoleW((HANDLE)::_get_osfhandle(FD), &WideText[WCharsWritten],
+                        WCharsToWrite, &ActuallyWritten,
+                        /*Reserved=*/nullptr);
+
+    // The most likely reason for WriteConsoleW to fail is that FD no longer
+    // points to a console. Fall back to ::write. If this isn't the first loop
+    // iteration, something is truly wrong.
+    if (!Success)
+      return false;
+
+    WCharsWritten += ActuallyWritten;
+  } while (WCharsWritten != WideText.size());
+  return true;
+}
+#endif
 
 void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
   assert(FD >= 0 && "File already closed.");
   pos += Size;
 
-  // The maximum write size is limited to SSIZE_MAX because a write
-  // greater than SSIZE_MAX is implementation-defined in POSIX.
-  // Since SSIZE_MAX is not portable, we use SIZE_MAX >> 1 instead.
-  size_t MaxWriteSize = SIZE_MAX >> 1;
+#if defined(_WIN32)
+  // If this is a Windows console device, try re-encoding from UTF-8 to UTF-16
+  // and using WriteConsoleW. If that fails, fall back to plain write().
+  if (IsWindowsConsole)
+    if (write_console_impl(FD, StringRef(Ptr, Size)))
+      return;
+#endif
+
+  // The maximum write size is limited to INT32_MAX. A write
+  // greater than SSIZE_MAX is implementation-defined in POSIX,
+  // and Windows _write requires 32 bit input.
+  size_t MaxWriteSize = INT32_MAX;
 
 #if defined(__linux__)
   // It is observed that Linux returns EINVAL for a very large write (>2G).
   // Make it a reasonably small value.
   MaxWriteSize = 1024 * 1024 * 1024;
-#elif defined(_WIN32)
-  // Writing a large size of output to Windows console returns ENOMEM. It seems
-  // that, prior to Windows 8, WriteFile() is redirecting to WriteConsole(), and
-  // the latter has a size limit (66000 bytes or less, depending on heap usage).
-  if (::_isatty(FD) && !RunningWindows8OrGreater())
-    MaxWriteSize = 32767;
 #endif
 
   do {
@@ -696,8 +773,17 @@ void raw_fd_ostream::pwrite_impl(const char *Ptr, size_t Size,
 }
 
 size_t raw_fd_ostream::preferred_buffer_size() const {
-#if !defined(_MSC_VER) && !defined(__MINGW32__) && !defined(__minix)
-  // Windows and Minix have no st_blksize.
+#if defined(_WIN32)
+  // Disable buffering for console devices. Console output is re-encoded from
+  // UTF-8 to UTF-16 on Windows, and buffering it would require us to split the
+  // buffer on a valid UTF-8 codepoint boundary. Terminal buffering is disabled
+  // below on most other OSs, so do the same thing on Windows and avoid that
+  // complexity.
+  if (IsWindowsConsole)
+    return 0;
+  return raw_ostream::preferred_buffer_size();
+#elif !defined(__minix)
+  // Minix has no st_blksize.
   assert(FD >= 0 && "File not yet open!");
   struct stat statbuf;
   if (fstat(FD, &statbuf) != 0)
@@ -717,11 +803,15 @@ size_t raw_fd_ostream::preferred_buffer_size() const {
 
 raw_ostream &raw_fd_ostream::changeColor(enum Colors colors, bool bold,
                                          bool bg) {
+  if (!ColorEnabled)
+    return *this;
+
   if (sys::Process::ColorNeedsFlush())
     flush();
   const char *colorcode =
-    (colors == SAVEDCOLOR) ? sys::Process::OutputBold(bg)
-    : sys::Process::OutputColor(colors, bold, bg);
+      (colors == SAVEDCOLOR)
+          ? sys::Process::OutputBold(bg)
+          : sys::Process::OutputColor(static_cast<char>(colors), bold, bg);
   if (colorcode) {
     size_t len = strlen(colorcode);
     write(colorcode, len);
@@ -732,6 +822,9 @@ raw_ostream &raw_fd_ostream::changeColor(enum Colors colors, bool bold,
 }
 
 raw_ostream &raw_fd_ostream::resetColor() {
+  if (!ColorEnabled)
+    return *this;
+
   if (sys::Process::ColorNeedsFlush())
     flush();
   const char *colorcode = sys::Process::ResetColor();
@@ -745,6 +838,9 @@ raw_ostream &raw_fd_ostream::resetColor() {
 }
 
 raw_ostream &raw_fd_ostream::reverseColor() {
+  if (!ColorEnabled)
+    return *this;
+
   if (sys::Process::ColorNeedsFlush())
     flush();
   const char *colorcode = sys::Process::OutputReverse();
@@ -776,7 +872,7 @@ void raw_fd_ostream::anchor() {}
 raw_ostream &llvm::outs() {
   // Set buffer settings to model stdout behavior.
   std::error_code EC;
-  static raw_fd_ostream S("-", EC, sys::fs::F_None);
+  static raw_fd_ostream S("-", EC, sys::fs::OF_None);
   assert(!EC);
   return S;
 }
@@ -846,3 +942,5 @@ void raw_null_ostream::pwrite_impl(const char *Ptr, size_t Size,
                                    uint64_t Offset) {}
 
 void raw_pwrite_stream::anchor() {}
+
+void buffer_ostream::anchor() {}

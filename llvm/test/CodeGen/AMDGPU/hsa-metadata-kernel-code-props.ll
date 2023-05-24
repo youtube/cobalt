@@ -1,6 +1,6 @@
-; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx700 -enable-misched=0 -filetype=obj -o - < %s | llvm-readobj -elf-output-style=GNU -notes | FileCheck --check-prefix=CHECK --check-prefix=GFX700 --check-prefix=NOTES %s
-; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx803 -enable-misched=0 -filetype=obj -o - < %s | llvm-readobj -elf-output-style=GNU -notes | FileCheck --check-prefix=CHECK --check-prefix=GFX803 --check-prefix=NOTES %s
-; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx900 -enable-misched=0 -filetype=obj -o - < %s | llvm-readobj -elf-output-style=GNU -notes | FileCheck --check-prefix=CHECK --check-prefix=GFX900 --check-prefix=NOTES %s
+; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx700 -mattr=-code-object-v3 -enable-misched=0 -filetype=obj -o - < %s | llvm-readelf --notes | FileCheck --check-prefix=CHECK --check-prefix=GFX700 --check-prefix=NOTES %s
+; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx803 -mattr=-code-object-v3 -enable-misched=0 -filetype=obj -o - < %s | llvm-readelf --notes | FileCheck --check-prefix=CHECK --check-prefix=GFX803 --check-prefix=NOTES %s
+; RUN: llc -mtriple=amdgcn-amd-amdhsa -mcpu=gfx900 -mattr=-code-object-v3 -enable-misched=0 -filetype=obj -o - < %s | llvm-readelf --notes | FileCheck --check-prefix=CHECK --check-prefix=GFX900 --check-prefix=NOTES %s
 
 @var = addrspace(1) global float 0.0
 
@@ -18,11 +18,34 @@
 ; CHECK:     WavefrontSize:           64
 ; CHECK:     NumSGPRs:                8
 ; CHECK:     NumVGPRs:                6
-; CHECK:     MaxFlatWorkGroupSize:    256
+; CHECK:     MaxFlatWorkGroupSize:    1024
 define amdgpu_kernel void @test(
     half addrspace(1)* %r,
     half addrspace(1)* %a,
     half addrspace(1)* %b) {
+entry:
+  %a.val = load half, half addrspace(1)* %a
+  %b.val = load half, half addrspace(1)* %b
+  %r.val = fadd half %a.val, %b.val
+  store half %r.val, half addrspace(1)* %r
+  ret void
+}
+
+; CHECK-LABEL: - Name:       test_max_flat_workgroup_size
+; CHECK:   SymbolName: 'test_max_flat_workgroup_size@kd'
+; CHECK:   CodeProps:
+; CHECK:     KernargSegmentSize:      24
+; CHECK:     GroupSegmentFixedSize:   0
+; CHECK:     PrivateSegmentFixedSize: 0
+; CHECK:     KernargSegmentAlign:     8
+; CHECK:     WavefrontSize:           64
+; CHECK:     NumSGPRs:                8
+; CHECK:     NumVGPRs:                6
+; CHECK:     MaxFlatWorkGroupSize:    256
+define amdgpu_kernel void @test_max_flat_workgroup_size(
+    half addrspace(1)* %r,
+    half addrspace(1)* %a,
+    half addrspace(1)* %b) #2 {
 entry:
   %a.val = load half, half addrspace(1)* %a
   %b.val = load half, half addrspace(1)* %b
@@ -144,3 +167,4 @@ define amdgpu_kernel void @num_spilled_vgprs() #1 {
 
 attributes #0 = { "amdgpu-num-sgpr"="14" }
 attributes #1 = { "amdgpu-num-vgpr"="20" }
+attributes #2 = { "amdgpu-flat-work-group-size"="1,256" }

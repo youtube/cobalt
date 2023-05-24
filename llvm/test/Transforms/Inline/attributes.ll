@@ -22,7 +22,15 @@ define i32 @sanitize_memory_callee(i32 %i) sanitize_memory {
   ret i32 %i
 }
 
+define i32 @sanitize_memtag_callee(i32 %i) sanitize_memtag {
+  ret i32 %i
+}
+
 define i32 @safestack_callee(i32 %i) safestack {
+  ret i32 %i
+}
+
+define i32 @slh_callee(i32 %i) speculative_load_hardening {
   ret i32 %i
 }
 
@@ -43,6 +51,10 @@ define i32 @alwaysinline_sanitize_thread_callee(i32 %i) alwaysinline sanitize_th
 }
 
 define i32 @alwaysinline_sanitize_memory_callee(i32 %i) alwaysinline sanitize_memory {
+  ret i32 %i
+}
+
+define i32 @alwaysinline_sanitize_memtag_callee(i32 %i) alwaysinline sanitize_memtag {
   ret i32 %i
 }
 
@@ -100,6 +112,17 @@ define i32 @test_no_sanitize_thread(i32 %arg) {
 ; CHECK-NEXT: ret i32
 }
 
+define i32 @test_no_sanitize_memtag(i32 %arg) {
+  %x1 = call i32 @noattr_callee(i32 %arg)
+  %x2 = call i32 @sanitize_memtag_callee(i32 %x1)
+  %x3 = call i32 @alwaysinline_callee(i32 %x2)
+  %x4 = call i32 @alwaysinline_sanitize_memtag_callee(i32 %x3)
+  ret i32 %x4
+; CHECK-LABEL: @test_no_sanitize_memtag(
+; CHECK-NEXT: @sanitize_memtag_callee
+; CHECK-NEXT: ret i32
+}
+
 
 ; Check that:
 ;  * noattr callee is not inlined into sanitize_(address|memory|thread) caller,
@@ -150,6 +173,17 @@ define i32 @test_sanitize_thread(i32 %arg) sanitize_thread {
 ; CHECK-NEXT: ret i32
 }
 
+define i32 @test_sanitize_memtag(i32 %arg) sanitize_memtag {
+  %x1 = call i32 @noattr_callee(i32 %arg)
+  %x2 = call i32 @sanitize_memtag_callee(i32 %x1)
+  %x3 = call i32 @alwaysinline_callee(i32 %x2)
+  %x4 = call i32 @alwaysinline_sanitize_memtag_callee(i32 %x3)
+  ret i32 %x4
+; CHECK-LABEL: @test_sanitize_memtag(
+; CHECK-NEXT: @noattr_callee
+; CHECK-NEXT: ret i32
+}
+
 define i32 @test_safestack(i32 %arg) safestack {
   %x1 = call i32 @noattr_callee(i32 %arg)
   %x2 = call i32 @safestack_callee(i32 %x1)
@@ -159,6 +193,28 @@ define i32 @test_safestack(i32 %arg) safestack {
 ; CHECK-LABEL: @test_safestack(
 ; CHECK-NEXT: @noattr_callee
 ; CHECK-NEXT: ret i32
+}
+
+; Can inline a normal function into an SLH'ed function.
+define i32 @test_caller_slh(i32 %i) speculative_load_hardening {
+; CHECK-LABEL: @test_caller_slh(
+; CHECK-SAME: ) [[SLH:.*]] {
+; CHECK-NOT: call
+; CHECK: ret i32
+entry:
+  %callee = call i32 @noattr_callee(i32 %i)
+  ret i32 %callee
+}
+
+; Can inline a SLH'ed function into a normal one, propagating SLH.
+define i32 @test_callee_slh(i32 %i) {
+; CHECK-LABEL: @test_callee_slh(
+; CHECK-SAME: ) [[SLH:.*]] {
+; CHECK-NOT: call
+; CHECK: ret i32
+entry:
+  %callee = call i32 @slh_callee(i32 %i)
+  ret i32 %callee
 }
 
 ; Check that a function doesn't get inlined if target-cpu strings don't match
@@ -384,6 +440,7 @@ define i32 @test_null-pointer-is-valid2(i32 %i) "null-pointer-is-valid"="true" {
 ; CHECK-NEXT: ret i32
 }
 
+; CHECK: attributes [[SLH]] = { speculative_load_hardening }
 ; CHECK: attributes [[FPMAD_FALSE]] = { "less-precise-fpmad"="false" }
 ; CHECK: attributes [[FPMAD_TRUE]] = { "less-precise-fpmad"="true" }
 ; CHECK: attributes [[NOIMPLICITFLOAT]] = { noimplicitfloat }

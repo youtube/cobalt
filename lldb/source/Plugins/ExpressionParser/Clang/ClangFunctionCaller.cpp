@@ -1,9 +1,8 @@
 //===-- ClangFunctionCaller.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,9 +11,6 @@
 #include "ASTStructExtractor.h"
 #include "ClangExpressionParser.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/CodeGen/CodeGenAction.h"
@@ -25,9 +21,7 @@
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/IR/Module.h"
 
-// Project includes
 #include "lldb/Core/Module.h"
-#include "lldb/Core/State.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectList.h"
 #include "lldb/Expression/IRExecutionUnit.h"
@@ -44,12 +38,13 @@
 #include "lldb/Target/ThreadPlanCallFunction.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
+char ClangFunctionCaller::ID;
+
 // ClangFunctionCaller constructor
-//----------------------------------------------------------------------
 ClangFunctionCaller::ClangFunctionCaller(ExecutionContextScope &exe_scope,
                                          const CompilerType &return_type,
                                          const Address &functionAddress,
@@ -63,9 +58,7 @@ ClangFunctionCaller::ClangFunctionCaller(ExecutionContextScope &exe_scope,
   assert(m_jit_process_wp.lock());
 }
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 ClangFunctionCaller::~ClangFunctionCaller() {}
 
 unsigned
@@ -188,18 +181,17 @@ ClangFunctionCaller::CompileFunction(lldb::ThreadSP thread_to_use_sp,
   m_wrapper_function_text.append(");\n}\n");
 
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
-  if (log)
-    log->Printf("Expression: \n\n%s\n\n", m_wrapper_function_text.c_str());
+  LLDB_LOGF(log, "Expression: \n\n%s\n\n", m_wrapper_function_text.c_str());
 
   // Okay, now compile this expression
 
   lldb::ProcessSP jit_process_sp(m_jit_process_wp.lock());
   if (jit_process_sp) {
     const bool generate_debug_info = true;
-    m_parser.reset(new ClangExpressionParser(jit_process_sp.get(), *this,
-                                             generate_debug_info));
-
-    num_errors = m_parser->Parse(diagnostic_manager);
+    auto *clang_parser = new ClangExpressionParser(jit_process_sp.get(), *this,
+                                                   generate_debug_info);
+    num_errors = clang_parser->Parse(diagnostic_manager);
+    m_parser.reset(clang_parser);
   } else {
     diagnostic_manager.PutString(eDiagnosticSeverityError,
                                  "no process - unable to inject function");

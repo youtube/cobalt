@@ -1,23 +1,40 @@
 //===--- Distro.cpp - Linux distribution detection support ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Distro.h"
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/ADT/Triple.h"
 
 using namespace clang::driver;
 using namespace clang;
 
-static Distro::DistroType DetectDistro(vfs::FileSystem &VFS) {
+static Distro::DistroType DetectDistro(llvm::vfs::FileSystem &VFS,
+                                       const llvm::Triple &TargetOrHost) {
+  // If we don't target Linux, no need to check the distro. This saves a few
+  // OS calls.
+  if (!TargetOrHost.isOSLinux())
+    return Distro::UnknownDistro;
+
+  // If the host is not running Linux, and we're backed by a real file system,
+  // no need to check the distro. This is the case where someone is
+  // cross-compiling from BSD or Windows to Linux, and it would be meaningless
+  // to try to figure out the "distro" of the non-Linux host.
+  IntrusiveRefCntPtr<llvm::vfs::FileSystem> RealFS =
+      llvm::vfs::getRealFileSystem();
+  llvm::Triple HostTriple(llvm::sys::getProcessTriple());
+  if (!HostTriple.isOSLinux() && &VFS == RealFS.get())
+    return Distro::UnknownDistro;
+
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> File =
       VFS.getBufferForFile("/etc/lsb-release");
   if (File) {
@@ -50,6 +67,9 @@ static Distro::DistroType DetectDistro(vfs::FileSystem &VFS) {
                       .Case("artful", Distro::UbuntuArtful)
                       .Case("bionic", Distro::UbuntuBionic)
                       .Case("cosmic", Distro::UbuntuCosmic)
+                      .Case("disco", Distro::UbuntuDisco)
+                      .Case("eoan", Distro::UbuntuEoan)
+                      .Case("focal", Distro::UbuntuFocal)
                       .Default(Distro::UnknownDistro);
     if (Version != Distro::UnknownDistro)
       return Version;
@@ -92,6 +112,8 @@ static Distro::DistroType DetectDistro(vfs::FileSystem &VFS) {
         return Distro::DebianStretch;
       case 10:
         return Distro::DebianBuster;
+      case 11:
+        return Distro::DebianBullseye;
       default:
         return Distro::UnknownDistro;
       }
@@ -101,6 +123,8 @@ static Distro::DistroType DetectDistro(vfs::FileSystem &VFS) {
         .Case("wheezy/sid", Distro::DebianWheezy)
         .Case("jessie/sid", Distro::DebianJessie)
         .Case("stretch/sid", Distro::DebianStretch)
+        .Case("buster/sid", Distro::DebianBuster)
+        .Case("bullseye/sid", Distro::DebianBullseye)
         .Default(Distro::UnknownDistro);
   }
 
@@ -136,7 +160,11 @@ static Distro::DistroType DetectDistro(vfs::FileSystem &VFS) {
   if (VFS.exists("/etc/arch-release"))
     return Distro::ArchLinux;
 
+  if (VFS.exists("/etc/gentoo-release"))
+    return Distro::Gentoo;
+
   return Distro::UnknownDistro;
 }
 
-Distro::Distro(vfs::FileSystem &VFS) : DistroVal(DetectDistro(VFS)) {}
+Distro::Distro(llvm::vfs::FileSystem &VFS, const llvm::Triple &TargetOrHost)
+    : DistroVal(DetectDistro(VFS, TargetOrHost)) {}

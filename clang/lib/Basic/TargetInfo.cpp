@@ -1,9 +1,8 @@
 //===--- TargetInfo.cpp - Information about Target machine ----------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +17,7 @@
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetParser.h"
 #include <cstdlib>
@@ -35,6 +35,7 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : TargetOpts(), Triple(T) {
   NoAsmVariants = false;
   HasLegalHalfType = false;
   HasFloat128 = false;
+  HasFloat16 = false;
   PointerWidth = PointerAlign = 32;
   BoolWidth = BoolAlign = 8;
   IntWidth = IntAlign = 32;
@@ -63,8 +64,9 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : TargetOpts(), Triple(T) {
   MinGlobalAlign = 0;
   // From the glibc documentation, on GNU systems, malloc guarantees 16-byte
   // alignment on 64-bit systems and 8-byte alignment on 32-bit systems. See
-  // https://www.gnu.org/software/libc/manual/html_node/Malloc-Examples.html
-  if (T.isGNUEnvironment() || T.isWindowsMSVCEnvironment())
+  // https://www.gnu.org/software/libc/manual/html_node/Malloc-Examples.html.
+  // This alignment guarantee also applies to Windows and Android.
+  if (T.isGNUEnvironment() || T.isWindowsMSVCEnvironment() || T.isAndroid())
     NewAlign = Triple.isArch64Bit() ? 128 : Triple.isArch32Bit() ? 64 : 0;
   else
     NewAlign = 0; // Infer from basic type alignment.
@@ -110,6 +112,7 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : TargetOpts(), Triple(T) {
   HasAlignMac68kSupport = false;
   HasBuiltinMSVaList = false;
   IsRenderScriptTarget = false;
+  HasAArch64SVETypes = false;
 
   // Default to no types using fpret.
   RealTypeUsesObjCFPRet = 0;
@@ -133,6 +136,10 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : TargetOpts(), Triple(T) {
 
 // Out of line virtual dtor for TargetInfo.
 TargetInfo::~TargetInfo() {}
+
+void TargetInfo::resetDataLayout(StringRef DL) {
+  DataLayout.reset(new llvm::DataLayout(DL));
+}
 
 bool
 TargetInfo::checkCFProtectionBranchSupported(DiagnosticsEngine &Diags) const {
@@ -372,6 +379,17 @@ void TargetInfo::adjust(LangOptions &Opts) {
     LongDoubleFormat = &llvm::APFloat::IEEEquad();
   }
 
+  if (Opts.LongDoubleSize) {
+    if (Opts.LongDoubleSize == DoubleWidth) {
+      LongDoubleWidth = DoubleWidth;
+      LongDoubleAlign = DoubleAlign;
+      LongDoubleFormat = DoubleFormat;
+    } else if (Opts.LongDoubleSize == 128) {
+      LongDoubleWidth = LongDoubleAlign = 128;
+      LongDoubleFormat = &llvm::APFloat::IEEEquad();
+    }
+  }
+
   if (Opts.NewAlignOverride)
     NewAlign = Opts.NewAlignOverride * getCharWidth();
 
@@ -455,7 +473,7 @@ bool TargetInfo::isValidGCCRegisterName(StringRef Name) const {
   }
 
   // Check register names.
-  if (std::find(Names.begin(), Names.end(), Name) != Names.end())
+  if (llvm::is_contained(Names, Name))
     return true;
 
   // Check any additional names that we have.
@@ -684,7 +702,9 @@ bool TargetInfo::validateInputConstraint(
       // FIXME: Fail if % is used with the last operand.
       break;
     case 'i': // immediate integer.
+      break;
     case 'n': // immediate integer with a known value.
+      Info.setRequiresImmediate();
       break;
     case 'I':  // Various constant constraints with target-specific meanings.
     case 'J':
@@ -792,4 +812,10 @@ void TargetInfo::CheckFixedPointBits() const {
   assert(getShortAccumIBits() >= getUnsignedShortAccumIBits());
   assert(getAccumIBits() >= getUnsignedAccumIBits());
   assert(getLongAccumIBits() >= getUnsignedLongAccumIBits());
+}
+
+void TargetInfo::copyAuxTarget(const TargetInfo *Aux) {
+  auto *Target = static_cast<TransferrableTargetInfo*>(this);
+  auto *Src = static_cast<const TransferrableTargetInfo*>(Aux);
+  *Target = *Src;
 }

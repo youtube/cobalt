@@ -1,10 +1,9 @@
 #
 #//===----------------------------------------------------------------------===//
 #//
-#//                     The LLVM Compiler Infrastructure
-#//
-#// This file is dual licensed under the MIT and the University of Illinois Open
-#// Source Licenses. See LICENSE.txt for details.
+#// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+#// See https://llvm.org/LICENSE.txt for license information.
+#// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #//
 #//===----------------------------------------------------------------------===//
 #
@@ -23,7 +22,7 @@
 #  - Available for Unix, Intel(R) MIC Architecture dynamic library builds. Not available otherwise.
 # (3) test-execstack
 #  - Tests if stack is executable
-#  - Fails if stack is executable. Should only be readable and writable. Not exectuable.
+#  - Fails if stack is executable. Should only be readable and writable. Not executable.
 #  - Program dependencies: perl, readelf
 #  - Available for Unix dynamic library builds. Not available otherwise.
 # (4) test-instr (Intel(R) MIC Architecutre only)
@@ -171,10 +170,13 @@ add_custom_command(
 add_custom_target(libomp-test-deps DEPENDS test-deps/.success)
 set(libomp_expected_library_deps)
 if(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-  set(libomp_expected_library_deps libc.so.7 libthr.so.3)
+  set(libomp_expected_library_deps libc.so.7 libthr.so.3 libm.so.5)
   libomp_append(libomp_expected_library_deps libhwloc.so.5 LIBOMP_USE_HWLOC)
 elseif(CMAKE_SYSTEM_NAME MATCHES "NetBSD")
   set(libomp_expected_library_deps libc.so.12 libpthread.so.1 libm.so.0)
+  libomp_append(libomp_expected_library_deps libhwloc.so.5 LIBOMP_USE_HWLOC)
+elseif(CMAKE_SYSTEM_NAME MATCHES "DragonFly")
+  set(libomp_expected_library_deps libc.so.8 libpthread.so.0 libm.so.4)
   libomp_append(libomp_expected_library_deps libhwloc.so.5 LIBOMP_USE_HWLOC)
 elseif(APPLE)
   set(libomp_expected_library_deps /usr/lib/libSystem.B.dylib)
@@ -207,6 +209,9 @@ else()
       libomp_append(libomp_expected_library_deps libc.so.6)
       libomp_append(libomp_expected_library_deps ld64.so.1)
     elseif(${MIPS} OR ${MIPS64})
+      libomp_append(libomp_expected_library_deps libc.so.6)
+      libomp_append(libomp_expected_library_deps ld.so.1)
+    elseif(${RISCV64})
       libomp_append(libomp_expected_library_deps libc.so.6)
       libomp_append(libomp_expected_library_deps ld.so.1)
     endif()

@@ -16,22 +16,22 @@ define void @foo() {
 ; X86-O0-NEXT:    subl %edx, %eax
 ; X86-O0-NEXT:    movslq %eax, %rsi
 ; X86-O0-NEXT:    subq %rsi, %rcx
-; X86-O0-NEXT:    movb %cl, %dil
-; X86-O0-NEXT:    cmpb $0, %dil
-; X86-O0-NEXT:    setne %dil
-; X86-O0-NEXT:    andb $1, %dil
-; X86-O0-NEXT:    movb %dil, -{{[0-9]+}}(%rsp)
+; X86-O0-NEXT:    # kill: def $cl killed $cl killed $rcx
+; X86-O0-NEXT:    cmpb $0, %cl
+; X86-O0-NEXT:    setne %cl
+; X86-O0-NEXT:    andb $1, %cl
+; X86-O0-NEXT:    movb %cl, -{{[0-9]+}}(%rsp)
 ; X86-O0-NEXT:    cmpb $0, c
-; X86-O0-NEXT:    setne %dil
-; X86-O0-NEXT:    xorb $-1, %dil
-; X86-O0-NEXT:    xorb $-1, %dil
-; X86-O0-NEXT:    andb $1, %dil
-; X86-O0-NEXT:    movzbl %dil, %eax
+; X86-O0-NEXT:    setne %cl
+; X86-O0-NEXT:    xorb $-1, %cl
+; X86-O0-NEXT:    xorb $-1, %cl
+; X86-O0-NEXT:    andb $1, %cl
+; X86-O0-NEXT:    movzbl %cl, %eax
 ; X86-O0-NEXT:    movzbl c, %edx
 ; X86-O0-NEXT:    cmpl %edx, %eax
-; X86-O0-NEXT:    setle %dil
-; X86-O0-NEXT:    andb $1, %dil
-; X86-O0-NEXT:    movzbl %dil, %eax
+; X86-O0-NEXT:    setle %cl
+; X86-O0-NEXT:    andb $1, %cl
+; X86-O0-NEXT:    movzbl %cl, %eax
 ; X86-O0-NEXT:    movl %eax, -{{[0-9]+}}(%rsp)
 ; X86-O0-NEXT:    retq
 ;
@@ -81,9 +81,8 @@ define void @foo() {
 ; 686-NEXT:    movzbl c, %eax
 ; 686-NEXT:    xorl %ecx, %ecx
 ; 686-NEXT:    testl %eax, %eax
-; 686-NEXT:    setne %cl
-; 686-NEXT:    testb %al, %al
 ; 686-NEXT:    setne {{[0-9]+}}(%esp)
+; 686-NEXT:    setne %cl
 ; 686-NEXT:    xorl %edx, %edx
 ; 686-NEXT:    cmpl %eax, %ecx
 ; 686-NEXT:    setle %dl
@@ -187,8 +186,8 @@ define void @f1() {
 ; 686-O0-NEXT:    .cfi_def_cfa_offset 16
 ; 686-O0-NEXT:    pushl %esi
 ; 686-O0-NEXT:    .cfi_def_cfa_offset 20
-; 686-O0-NEXT:    subl $24, %esp
-; 686-O0-NEXT:    .cfi_def_cfa_offset 44
+; 686-O0-NEXT:    subl $1, %esp
+; 686-O0-NEXT:    .cfi_def_cfa_offset 21
 ; 686-O0-NEXT:    .cfi_offset %esi, -20
 ; 686-O0-NEXT:    .cfi_offset %edi, -16
 ; 686-O0-NEXT:    .cfi_offset %ebx, -12
@@ -199,7 +198,7 @@ define void @f1() {
 ; 686-O0-NEXT:    xorl $208307499, %eax # imm = 0xC6A852B
 ; 686-O0-NEXT:    xorl $-2, %ecx
 ; 686-O0-NEXT:    orl %ecx, %eax
-; 686-O0-NEXT:    setne {{[0-9]+}}(%esp)
+; 686-O0-NEXT:    setne (%esp)
 ; 686-O0-NEXT:    movl var_5, %ecx
 ; 686-O0-NEXT:    movl %ecx, %edx
 ; 686-O0-NEXT:    sarl $31, %edx
@@ -207,9 +206,8 @@ define void @f1() {
 ; 686-O0-NEXT:    subl $-1, %esi
 ; 686-O0-NEXT:    sete %bl
 ; 686-O0-NEXT:    movzbl %bl, %edi
-; 686-O0-NEXT:    xorl %ebp, %ebp
 ; 686-O0-NEXT:    addl $7093, %ecx # imm = 0x1BB5
-; 686-O0-NEXT:    adcxl %ebp, %edx
+; 686-O0-NEXT:    adcl $0, %edx
 ; 686-O0-NEXT:    subl %edi, %ecx
 ; 686-O0-NEXT:    sbbl $0, %edx
 ; 686-O0-NEXT:    setl %bl
@@ -222,12 +220,7 @@ define void @f1() {
 ; 686-O0-NEXT:    movzbl %bl, %ebp
 ; 686-O0-NEXT:    movl %ebp, _ZN8struct_210member_2_0E
 ; 686-O0-NEXT:    movl $0, _ZN8struct_210member_2_0E+4
-; 686-O0-NEXT:    movl %eax, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; 686-O0-NEXT:    movl %esi, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; 686-O0-NEXT:    movl %ecx, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; 686-O0-NEXT:    movl %edx, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; 686-O0-NEXT:    movl %edi, (%esp) # 4-byte Spill
-; 686-O0-NEXT:    addl $24, %esp
+; 686-O0-NEXT:    addl $1, %esp
 ; 686-O0-NEXT:    .cfi_def_cfa_offset 20
 ; 686-O0-NEXT:    popl %esi
 ; 686-O0-NEXT:    .cfi_def_cfa_offset 16
@@ -241,14 +234,11 @@ define void @f1() {
 ;
 ; 686-LABEL: f1:
 ; 686:       # %bb.0: # %entry
-; 686-NEXT:    pushl %edi
-; 686-NEXT:    .cfi_def_cfa_offset 8
 ; 686-NEXT:    pushl %esi
-; 686-NEXT:    .cfi_def_cfa_offset 12
+; 686-NEXT:    .cfi_def_cfa_offset 8
 ; 686-NEXT:    subl $1, %esp
-; 686-NEXT:    .cfi_def_cfa_offset 13
-; 686-NEXT:    .cfi_offset %esi, -12
-; 686-NEXT:    .cfi_offset %edi, -8
+; 686-NEXT:    .cfi_def_cfa_offset 9
+; 686-NEXT:    .cfi_offset %esi, -8
 ; 686-NEXT:    movl var_5, %edx
 ; 686-NEXT:    movl %edx, %eax
 ; 686-NEXT:    xorl $208307499, %eax # imm = 0xC6A852B
@@ -266,9 +256,8 @@ define void @f1() {
 ; 686-NEXT:    xorl %ecx, %ecx
 ; 686-NEXT:    cmpl $-1, %edx
 ; 686-NEXT:    sete %cl
-; 686-NEXT:    xorl %edi, %edi
 ; 686-NEXT:    addl $7093, %edx # imm = 0x1BB5
-; 686-NEXT:    adcxl %edi, %esi
+; 686-NEXT:    adcl $0, %esi
 ; 686-NEXT:    cmpl %ecx, %edx
 ; 686-NEXT:    sbbl $0, %esi
 ; 686-NEXT:    setl %cl
@@ -278,10 +267,8 @@ define void @f1() {
 ; 686-NEXT:    movl %eax, _ZN8struct_210member_2_0E
 ; 686-NEXT:    movl $0, _ZN8struct_210member_2_0E+4
 ; 686-NEXT:    addl $1, %esp
-; 686-NEXT:    .cfi_def_cfa_offset 12
-; 686-NEXT:    popl %esi
 ; 686-NEXT:    .cfi_def_cfa_offset 8
-; 686-NEXT:    popl %edi
+; 686-NEXT:    popl %esi
 ; 686-NEXT:    .cfi_def_cfa_offset 4
 ; 686-NEXT:    retl
 entry:
@@ -325,23 +312,23 @@ define void @f2() {
 ; X86-O0-NEXT:    andb $1, %cl
 ; X86-O0-NEXT:    movzbl %cl, %edx
 ; X86-O0-NEXT:    xorl %edx, %eax
-; X86-O0-NEXT:    movw %ax, %si
-; X86-O0-NEXT:    movw %si, -{{[0-9]+}}(%rsp)
-; X86-O0-NEXT:    movzbl var_7, %eax
-; X86-O0-NEXT:    movw %ax, %si
-; X86-O0-NEXT:    cmpw $0, %si
+; X86-O0-NEXT:    # kill: def $ax killed $ax killed $eax
+; X86-O0-NEXT:    movw %ax, -{{[0-9]+}}(%rsp)
+; X86-O0-NEXT:    movzbl var_7, %edx
+; X86-O0-NEXT:    # kill: def $dx killed $dx killed $edx
+; X86-O0-NEXT:    cmpw $0, %dx
 ; X86-O0-NEXT:    setne %cl
 ; X86-O0-NEXT:    xorb $-1, %cl
 ; X86-O0-NEXT:    andb $1, %cl
-; X86-O0-NEXT:    movzbl %cl, %eax
-; X86-O0-NEXT:    movzbl var_7, %edx
-; X86-O0-NEXT:    cmpl %edx, %eax
+; X86-O0-NEXT:    movzbl %cl, %esi
+; X86-O0-NEXT:    movzbl var_7, %edi
+; X86-O0-NEXT:    cmpl %edi, %esi
 ; X86-O0-NEXT:    sete %cl
 ; X86-O0-NEXT:    andb $1, %cl
-; X86-O0-NEXT:    movzbl %cl, %eax
-; X86-O0-NEXT:    movw %ax, %si
-; X86-O0-NEXT:    # implicit-def: $rdi
-; X86-O0-NEXT:    movw %si, (%rdi)
+; X86-O0-NEXT:    movzbl %cl, %esi
+; X86-O0-NEXT:    # kill: def $si killed $si killed $esi
+; X86-O0-NEXT:    # implicit-def: $r8
+; X86-O0-NEXT:    movw %si, (%r8)
 ; X86-O0-NEXT:    retq
 ;
 ; X64-LABEL: f2:
@@ -363,11 +350,14 @@ define void @f2() {
 ;
 ; 686-O0-LABEL: f2:
 ; 686-O0:       # %bb.0: # %entry
-; 686-O0-NEXT:    pushl %esi
+; 686-O0-NEXT:    pushl %edi
 ; 686-O0-NEXT:    .cfi_def_cfa_offset 8
+; 686-O0-NEXT:    pushl %esi
+; 686-O0-NEXT:    .cfi_def_cfa_offset 12
 ; 686-O0-NEXT:    subl $2, %esp
-; 686-O0-NEXT:    .cfi_def_cfa_offset 10
-; 686-O0-NEXT:    .cfi_offset %esi, -8
+; 686-O0-NEXT:    .cfi_def_cfa_offset 14
+; 686-O0-NEXT:    .cfi_offset %esi, -12
+; 686-O0-NEXT:    .cfi_offset %edi, -8
 ; 686-O0-NEXT:    movzbl var_7, %eax
 ; 686-O0-NEXT:    cmpb $0, var_7
 ; 686-O0-NEXT:    setne %cl
@@ -375,26 +365,28 @@ define void @f2() {
 ; 686-O0-NEXT:    andb $1, %cl
 ; 686-O0-NEXT:    movzbl %cl, %edx
 ; 686-O0-NEXT:    xorl %edx, %eax
-; 686-O0-NEXT:    movw %ax, %si
-; 686-O0-NEXT:    movw %si, (%esp)
-; 686-O0-NEXT:    movzbl var_7, %eax
-; 686-O0-NEXT:    movw %ax, %si
-; 686-O0-NEXT:    cmpw $0, %si
+; 686-O0-NEXT:    # kill: def $ax killed $ax killed $eax
+; 686-O0-NEXT:    movw %ax, (%esp)
+; 686-O0-NEXT:    movzbl var_7, %edx
+; 686-O0-NEXT:    # kill: def $dx killed $dx killed $edx
+; 686-O0-NEXT:    cmpw $0, %dx
 ; 686-O0-NEXT:    setne %cl
 ; 686-O0-NEXT:    xorb $-1, %cl
 ; 686-O0-NEXT:    andb $1, %cl
-; 686-O0-NEXT:    movzbl %cl, %eax
-; 686-O0-NEXT:    movzbl var_7, %edx
-; 686-O0-NEXT:    cmpl %edx, %eax
+; 686-O0-NEXT:    movzbl %cl, %esi
+; 686-O0-NEXT:    movzbl var_7, %edi
+; 686-O0-NEXT:    cmpl %edi, %esi
 ; 686-O0-NEXT:    sete %cl
 ; 686-O0-NEXT:    andb $1, %cl
-; 686-O0-NEXT:    movzbl %cl, %eax
-; 686-O0-NEXT:    movw %ax, %si
-; 686-O0-NEXT:    # implicit-def: $eax
-; 686-O0-NEXT:    movw %si, (%eax)
+; 686-O0-NEXT:    movzbl %cl, %esi
+; 686-O0-NEXT:    # kill: def $si killed $si killed $esi
+; 686-O0-NEXT:    # implicit-def: $edi
+; 686-O0-NEXT:    movw %si, (%edi)
 ; 686-O0-NEXT:    addl $2, %esp
-; 686-O0-NEXT:    .cfi_def_cfa_offset 8
+; 686-O0-NEXT:    .cfi_def_cfa_offset 12
 ; 686-O0-NEXT:    popl %esi
+; 686-O0-NEXT:    .cfi_def_cfa_offset 8
+; 686-O0-NEXT:    popl %edi
 ; 686-O0-NEXT:    .cfi_def_cfa_offset 4
 ; 686-O0-NEXT:    retl
 ;
@@ -481,8 +473,8 @@ define void @f3() #0 {
 ; X86-O0-NEXT:    movl %eax, %esi
 ; X86-O0-NEXT:    andq $0, %rsi
 ; X86-O0-NEXT:    orq %rsi, %rcx
-; X86-O0-NEXT:    movl %ecx, %eax
-; X86-O0-NEXT:    movl %eax, var_46
+; X86-O0-NEXT:    # kill: def $ecx killed $ecx killed $rcx
+; X86-O0-NEXT:    movl %ecx, var_46
 ; X86-O0-NEXT:    retq
 ;
 ; X64-LABEL: f3:

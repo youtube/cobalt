@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,7 @@
 // class function<R(ArgTypes...)>
 
 // function(const function&  f);
-// function(function&& f);
+// function(function&& f); // noexcept in C++20
 
 #include <functional>
 #include <memory>
@@ -20,7 +19,7 @@
 #include <cassert>
 
 #include "test_macros.h"
-#include "count_new.hpp"
+#include "count_new.h"
 
 class A
 {
@@ -51,7 +50,7 @@ int A::count = 0;
 
 int g(int) {return 0;}
 
-int main()
+int main(int, char**)
 {
     assert(globalMemCounter.checkOutstandingNewEq(0));
     {
@@ -109,6 +108,10 @@ int main()
         assert(globalMemCounter.checkOutstandingNewEq(1));
         assert(f.target<A>());
         assert(f.target<int(*)(int)>() == 0);
+		LIBCPP_ASSERT_NOEXCEPT(std::function<int(int)>(std::move(f)));
+#if TEST_STD_VER > 17
+		ASSERT_NOEXCEPT(std::function<int(int)>(std::move(f)));
+#endif
         std::function<int(int)> f2 = std::move(f);
         assert(A::count == 1);
         assert(globalMemCounter.checkOutstandingNewEq(1));
@@ -129,6 +132,10 @@ int main()
         assert(A::count == 1);
         assert(f.target<A>() == nullptr);
         assert(f.target<Ref>());
+		LIBCPP_ASSERT_NOEXCEPT(std::function<int(int)>(std::move(f)));
+#if TEST_STD_VER > 17
+		ASSERT_NOEXCEPT(std::function<int(int)>(std::move(f)));
+#endif
         std::function<int(int)> f2(std::move(f));
         assert(A::count == 1);
         assert(f2.target<A>() == nullptr);
@@ -144,10 +151,16 @@ int main()
         std::function<int(int)> f(p);
         assert(f.target<A>() == nullptr);
         assert(f.target<Ptr>());
+		LIBCPP_ASSERT_NOEXCEPT(std::function<int(int)>(std::move(f)));
+#if TEST_STD_VER > 17
+		ASSERT_NOEXCEPT(std::function<int(int)>(std::move(f)));
+#endif
         std::function<int(int)> f2(std::move(f));
         assert(f2.target<A>() == nullptr);
         assert(f2.target<Ptr>());
         LIBCPP_ASSERT(f.target<Ptr>()); // f is unchanged because the target is small
     }
 #endif  // TEST_STD_VER >= 11
+
+  return 0;
 }

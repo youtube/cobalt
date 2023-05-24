@@ -1,9 +1,8 @@
 //===- GenericDomTree.h - Generic dominator trees for graphs ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -24,6 +23,14 @@
 #ifndef LLVM_SUPPORT_GENERICDOMTREE_H
 #define LLVM_SUPPORT_GENERICDOMTREE_H
 
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/CFGUpdate.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -32,13 +39,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/PointerIntPair.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 
@@ -192,42 +192,16 @@ template <typename DomTreeT>
 void Calculate(DomTreeT &DT);
 
 template <typename DomTreeT>
+void CalculateWithUpdates(DomTreeT &DT,
+                          ArrayRef<typename DomTreeT::UpdateType> Updates);
+
+template <typename DomTreeT>
 void InsertEdge(DomTreeT &DT, typename DomTreeT::NodePtr From,
                 typename DomTreeT::NodePtr To);
 
 template <typename DomTreeT>
 void DeleteEdge(DomTreeT &DT, typename DomTreeT::NodePtr From,
                 typename DomTreeT::NodePtr To);
-
-// UpdateKind and Update are used by the batch update API and it's easiest to
-// define them here.
-enum class UpdateKind : unsigned char { Insert, Delete };
-
-template <typename NodePtr>
-struct Update {
-  using NodeKindPair = PointerIntPair<NodePtr, 1, UpdateKind>;
-
-  NodePtr From;
-  NodeKindPair ToAndKind;
-
-  Update(UpdateKind Kind, NodePtr From, NodePtr To)
-      : From(From), ToAndKind(To, Kind) {}
-
-  UpdateKind getKind() const { return ToAndKind.getInt(); }
-  NodePtr getFrom() const { return From; }
-  NodePtr getTo() const { return ToAndKind.getPointer(); }
-  bool operator==(const Update &RHS) const {
-    return From == RHS.From && ToAndKind == RHS.ToAndKind;
-  }
-
-  friend raw_ostream &operator<<(raw_ostream &OS, const Update &U) {
-    OS << (U.getKind() == UpdateKind::Insert ? "Insert " : "Delete ");
-    U.getFrom()->printAsOperand(OS, false);
-    OS << " -> ";
-    U.getTo()->printAsOperand(OS, false);
-    return OS;
-  }
-};
 
 template <typename DomTreeT>
 void ApplyUpdates(DomTreeT &DT,
@@ -254,8 +228,8 @@ class DominatorTreeBase {
   using ParentType = typename std::remove_pointer<ParentPtr>::type;
   static constexpr bool IsPostDominator = IsPostDom;
 
-  using UpdateType = DomTreeBuilder::Update<NodePtr>;
-  using UpdateKind = DomTreeBuilder::UpdateKind;
+  using UpdateType = cfg::Update<NodePtr>;
+  using UpdateKind = cfg::UpdateKind;
   static constexpr UpdateKind Insert = UpdateKind::Insert;
   static constexpr UpdateKind Delete = UpdateKind::Delete;
 
@@ -268,7 +242,7 @@ protected:
   using DomTreeNodeMapType =
      DenseMap<NodeT *, std::unique_ptr<DomTreeNodeBase<NodeT>>>;
   DomTreeNodeMapType DomTreeNodes;
-  DomTreeNodeBase<NodeT> *RootNode;
+  DomTreeNodeBase<NodeT> *RootNode = nullptr;
   ParentPtr Parent = nullptr;
 
   mutable bool DFSInfoValid = false;
@@ -597,7 +571,7 @@ protected:
     assert(IDomNode && "Not immediate dominator specified for block!");
     DFSInfoValid = false;
     return (DomTreeNodes[BB] = IDomNode->addChild(
-                llvm::make_unique<DomTreeNodeBase<NodeT>>(BB, IDomNode))).get();
+                std::make_unique<DomTreeNodeBase<NodeT>>(BB, IDomNode))).get();
   }
 
   /// Add a new node to the forward dominator tree and make it a new root.
@@ -611,7 +585,7 @@ protected:
            "Cannot change root of post-dominator tree");
     DFSInfoValid = false;
     DomTreeNodeBase<NodeT> *NewNode = (DomTreeNodes[BB] =
-      llvm::make_unique<DomTreeNodeBase<NodeT>>(BB, nullptr)).get();
+      std::make_unique<DomTreeNodeBase<NodeT>>(BB, nullptr)).get();
     if (Roots.empty()) {
       addRoot(BB);
     } else {
@@ -695,14 +669,12 @@ protected:
 
     // The postdom tree can have a null root if there are no returns.
     if (getRootNode()) PrintDomTree<NodeT>(getRootNode(), O, 1);
-    if (IsPostDominator) {
-      O << "Roots: ";
-      for (const NodePtr Block : Roots) {
-        Block->printAsOperand(O, false);
-        O << " ";
-      }
-      O << "\n";
+    O << "Roots: ";
+    for (const NodePtr Block : Roots) {
+      Block->printAsOperand(O, false);
+      O << " ";
     }
+    O << "\n";
   }
 
 public:
@@ -759,6 +731,11 @@ public:
     DomTreeBuilder::Calculate(*this);
   }
 
+  void recalculate(ParentType &Func, ArrayRef<UpdateType> Updates) {
+    Parent = &Func;
+    DomTreeBuilder::CalculateWithUpdates(*this, Updates);
+  }
+
   /// verify - checks if the tree is correct. There are 3 level of verification:
   ///  - Full --  verifies if the tree is correct by making sure all the
   ///             properties (including the parent and the sibling property)
@@ -801,13 +778,13 @@ protected:
     NodeRef NewBBSucc = *GraphT::child_begin(NewBB);
 
     std::vector<NodeRef> PredBlocks;
-    for (const auto &Pred : children<Inverse<N>>(NewBB))
+    for (auto Pred : children<Inverse<N>>(NewBB))
       PredBlocks.push_back(Pred);
 
     assert(!PredBlocks.empty() && "No predblocks?");
 
     bool NewBBDominatesNewBBSucc = true;
-    for (const auto &Pred : children<Inverse<N>>(NewBBSucc)) {
+    for (auto Pred : children<Inverse<N>>(NewBBSucc)) {
       if (Pred != NewBB && !dominates(NewBBSucc, Pred) &&
           isReachableFromEntry(Pred)) {
         NewBBDominatesNewBBSucc = false;

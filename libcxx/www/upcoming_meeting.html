@@ -25,8 +25,7 @@
     <a href="https://lists.llvm.org/mailman/listinfo/cfe-dev">cfe-dev</a>
     <a href="https://lists.llvm.org/mailman/listinfo/cfe-commits">cfe-commits</a>
     <a href="https://bugs.llvm.org/">Bug Reports</a>
-    <a href="https://llvm.org/svn/llvm-project/libcxx/trunk/">Browse SVN</a>
-    <a href="https://llvm.org/viewvc/llvm-project/libcxx/trunk/">Browse ViewVC</a>
+    <a href="https://github.com/llvm/llvm-project/tree/master/libcxx/">Browse Sources</a>
   </div>
 </div>
 
@@ -35,7 +34,7 @@
   <h1>libc++ Upcoming Meeting Status</h1>
   <!--*********************************************************************-->
 
-  <p>This is a temporary page; please check the c++1z status <a href="cxx1z_status.html">here</a></p>
+  <p>This is a temporary page; please check the c++2a status <a href="cxx2a_status.html">here</a></p>
   <p>This page shows the status of the papers and issues that are expected to be adopted in the next WG21 Meeting.</p>
 
   <p>The groups that have contributed papers:
@@ -47,77 +46,88 @@
   </p>
 
   <h3>Paper Status</h3>
-  <table id="papers" border="1">
-	<tr><th>Paper #</th><th>Paper Name</th><th>Meeting</th><th>Status</th></tr>
-	<tr><td><a href="https://wg21.link/P0805R1">P0805R1</a></td><td>Comparing Containers</td><td>Jacksonville</td><td><i>Patch Ready: <a href="https://reviews.llvm.org/D43773">D43773</a></i></td></tr>
-<!--
-	<tr><td><a href="https://wg21.link/LWGn3346">3346</a></td><td>LWG</td><td>Terminology for Container Element Requirements - Rev 1</td><td>Kona</td><td>Complete</td><td>3.4</td></tr>
--->
-<!--  	<tr><td></td><td></td><td></td><td></td><td></td><td></td></tr> -->
-  </table>
+	<table border="1">
+	<tr><th>Paper #</th><th>Group</th><th>Paper Name</th><th>Meeting</th><th>Status</th></tr>
+	</table>
+
 
   <h3>Library Working group Issues Status</h3>
   <table id="issues" border="1">
 	<tr><th>Issue #</th><th>Issue Name</th><th>Meeting</th><th>Status</th></tr>
-
-<tr><td><a href="https://wg21.link/LWG2139">2139</a></td><td>What is a user-defined type?</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG2970">2970</a></td><td>Return type of std::visit misspecified</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3058">3058</a></td><td>Parallel adjacent_difference shouldn't require creating temporaries</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3062">3062</a></td><td>Unnecessary decay_t in is_execution_policy_v should be remove_cvref_t</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3067">3067</a></td><td>recursive_directory_iterator::pop must invalidate</td><td>Rapperswil</td><td><i>Nothing to do</i></td></tr>
-<tr><td><a href="https://wg21.link/LWG3071">3071</a></td><td>[networking.ts] read_until still refers to "input sequence"</td><td>Rapperswil</td><td><i>Nothing to do</i></td></tr>
-<tr><td><a href="https://wg21.link/LWG3074">3074</a></td><td>Non-member functions for valarray should only deduce from the valarray</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3076">3076</a></td><td>basic_string CTAD ambiguity</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3079">3079</a></td><td>LWG 2935 forgot to fix the existing_p overloads of create_directory</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3080">3080</a></td><td>Floating point from_chars pattern specification breaks round-tripping</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3083">3083</a></td><td>What should ios::iword(-1) do?</td><td>Rapperswil</td><td><i>Nothing to do</i></td></tr>
-<tr><td><a href="https://wg21.link/LWG3094">3094</a></td><td>[time.duration.io]p4 makes surprising claims about encoding</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3100">3100</a></td><td>Unnecessary and confusing "empty span" wording</td><td>Rapperswil</td><td><i>Nothing to do</i></td></tr>
-<tr><td><a href="https://wg21.link/LWG3102">3102</a></td><td>Clarify span iterator and const_iterator behavior</td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG3104">3104</a></td><td>Fixing duration division</td><td>Rapperswil</td><td>Complete</td></tr>
-
+	
+<tr><td><a href="https://wg21.link/LWG3231">3231</a></td><td><tt>year_month_day_last::day</tt> specification does not cover <tt>!ok()</tt> values</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3225">3225</a></td><td><tt>zoned_time</tt> converting constructor shall not be <tt>noexcept</tt></td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3190">3190</a></td><td><tt>std::allocator::allocate</tt> sometimes returns too little storage</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3218">3218</a></td><td>Modifier for <tt>%d</tt> parse flag does not match POSIX and <tt>format</tt> specification</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3224">3224</a></td><td><tt>zoned_time</tt> constructor from <tt>TimeZonePtr</tt> does not specify initialization of <tt>tp_</tt></td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3230">3230</a></td><td>Format specifier <tt>%y/%Y</tt> is missing locale alternative versions</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3232">3232</a></td><td>Inconsistency in <tt>zoned_time</tt> deduction guides</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3222">3222</a></td><td>P0574R1 introduced preconditions on non-existent parameters</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3221">3221</a></td><td>Result of <tt>year_month</tt> arithmetic with <tt>months</tt> is ambiguous</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3235">3235</a></td><td><code>parse</code> manipulator without abbreviation is not callable</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3246">3246</a></td><td>What are the constraints on the template parameter of <tt>basic_format_arg</tt>?</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3253">3253</a></td><td><tt>basic_syncbuf::basic_syncbuf()</tt> should not be explicit</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3245">3245</a></td><td>Unnecessary restriction on <tt>'%p'</tt> parse specifier</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3244">3244</a></td><td>Constraints for <tt>Source</tt> in &sect;[fs.path.req] insufficiently constrainty</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3241">3241</a></td><td><tt>chrono-spec</tt> grammar ambiguity in &sect;[time.format]</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3257">3257</a></td><td>Missing feature testing macro update from P0858</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3256">3256</a></td><td>Feature testing macro for <tt>constexpr</tt> algorithms</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3273">3273</a></td><td>Specify <tt>weekday_indexed</tt> to range of <tt>[0, 7]</tt></td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3070">3070</a></td><td><tt>path::lexically_relative</tt> causes surprising results if a filename can also be a  <i>root-name</i></td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3266">3266</a></td><td><tt>to_chars(bool)</tt> should be deleted</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3272">3272</a></td><td><tt>%I%p</tt> should parse/format <tt>duration</tt> since midnight</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3259">3259</a></td><td>The definition of <i>constexpr iterators</i> should be adjusted</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3103">3103</a></td><td>Errors in taking subview of <tt>span</tt> should be ill-formed where possible</td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3274">3274</a></td><td>Missing feature test macro for <tt>&lt;span&gt;</tt></td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3276">3276</a></td><td>Class <tt>split_view::outer_iterator::value_type</tt> should inherit from <tt>view_interface</tt></td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3277">3277</a></td><td>Pre-increment on prvalues is not a requirement of <tt>weakly_incrementable</tt></td><td>Belfast</td><td></td></tr>
+<tr><td><a href="https://wg21.link/LWG3149">3149</a></td><td><tt>DefaultConstructible</tt> should require default initialization</td><td>Belfast</td><td></td></tr>
 </table>
 
 <h3>Issues to "Review"</h3>
 <table border="1">
 <tr><th>Issue #</th><th>Issue Name</th><th>Meeting</th><th>Status</th></tr>
-<tr><td><a href="https://wg21.link/LWG2412">2412</a></td><td><tt>promise::set_value()</tt> and <tt>promise::get_future()</tt> should not race</td><td>Rapperswil</td><td>Complete</td></tr>
-<tr><td><a href="https://wg21.link/LWG2682">2682</a></td><td><code>filesystem::copy()</code> won't create a symlink to a directory</td><td>Rapperswil</td><td>Complete</td></tr>
-<tr><td><a href="https://wg21.link/LWG2697">2697</a></td><td>[concurr.ts] Behavior of <tt>future/shared_future</tt> unwrapping constructor when given an invalid <tt>future</tt></td><td>Rapperswil</td><td></td></tr>
-<tr><td><a href="https://wg21.link/LWG2708">2708</a></td><td><tt>recursive_directory_iterator::recursion_pending()</tt> is incorrectly specified</td><td>Rapperswil</td><td>Complete</td></tr>
-<tr><td><a href="https://wg21.link/LWG2936">2936</a></td><td>Path comparison is defined in terms of the generic format</td><td>Rapperswil</td><td></td></tr>
 </table>
+
+<h3>Comments about the papers</h3>
+<ul>
+</ul>
 
 
 <h3>Comments about the issues</h3>
 <ul>
-<li>2139 - I think that this is just wording cleanup.</li>
-<li>2970 - I think that we already do this - checking with Michael.</li>
-<li>3058 - We don't do the parallel algos yet</li>
-<li>3062 - This should be very easy.</li>
-<li>3067 - Adding restrictions; no code changes needed.</li>
-<li>3071 - This is just wording cleanup.</li>
-<li>3074 - Large change, that looks straightforward.</li>
-<li>3076 - </li>
-<li>3079 - Eric? </li>
-<li>3080 - We don't have a from_chars implementation yet.</li>
-<li>3083 - This is just wording cleanup.</li>
-<li>3094 - We haven't implemented Howard's date library yet.</li>
-<li>3100 - This is just wording cleanup.</li>
-<li>3102 - This should be just adding tests.</li>
-<li>3104 - We already do this.</li>
+<li>3231 - </li>
+<li>3225 - </li>
+<li>3190 - </li>
+<li>3218 - </li>
+<li>3224 - </li>
+<li>3230 - </li>
+<li>3232 - </li>
+<li>3222 - </li>
+<li>3221 - </li>
+<li>3235 - </li>
+<li>3246 - </li>
+<li>3253 - </li>
+<li>3245 - </li>
+<li>3244 - </li>
+<li>3241 - </li>
+<li>3257 - </li>
+<li>3256 - </li>
+<li>3273 - </li>
+<li>3070 - </li>
+<li>3266 - </li>
+<li>3272 - </li>
+<li>3259 - </li>
+<li>3103 - </li>
+<li>3274 - </li>
+<li>3276 - </li>
+<li>3277 - </li>
+<li>3149 - </li>
 </ul>
 
-<h3>Comments about the "Review" issues</h3>
-<ul>
-<li> 2412 - I think we do this already</li>
-<li> 2682 - We already to this </li>
-<li> 2697 - No concurrency TS implementation yet</li>
-<li> 2708 - We already do this </li>
-<li> 2936 - Eric - don't we do this already?</li>
-</ul>
 
-<p>Last Updated: 10-May-2018</p>
+
+<p>Last Updated: 22-Oct-2019</p>
 </div>
 </body>
 </html>

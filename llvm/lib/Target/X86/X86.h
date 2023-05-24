@@ -1,9 +1,8 @@
 //===-- X86.h - Top-level interface for X86 representation ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -50,11 +49,6 @@ FunctionPass *createX86FloatingPointStackifierPass();
 /// transition penalty between functions encoded with AVX and SSE.
 FunctionPass *createX86IssueVZeroUpperPass();
 
-/// This pass instruments the function prolog to save the return address to a
-/// 'shadow call stack' and the function epilog to check that the return address
-/// did not change during function execution.
-FunctionPass *createShadowCallStackPass();
-
 /// This pass inserts ENDBR instructions before indirect jump/call
 /// destinations as part of CET IBT mechanism.
 FunctionPass *createX86IndirectBranchTrackingPass();
@@ -75,6 +69,9 @@ FunctionPass *createX86OptimizeLEAs();
 /// Return a pass that transforms setcc + movzx pairs into xor + setcc.
 FunctionPass *createX86FixupSetCC();
 
+/// Return a pass that folds conditional branch jumps.
+FunctionPass *createX86CondBrFolding();
+
 /// Return a pass that avoids creating store forward block issues in the hardware.
 FunctionPass *createX86AvoidStoreForwardingBlocks();
 
@@ -83,6 +80,12 @@ FunctionPass *createX86FlagsCopyLoweringPass();
 
 /// Return a pass that expands WinAlloca pseudo-instructions.
 FunctionPass *createX86WinAllocaExpander();
+
+/// Return a pass that inserts int3 at the end of the function if it ends with a
+/// CALL instruction. The pass does the same for each funclet as well. This
+/// ensures that the open interval of function start and end PCs contains all
+/// return addresses for the benefit of the Windows x64 unwinder.
+FunctionPass *createX86AvoidTrailingCallPass();
 
 /// Return a pass that optimizes the code-size of x86 call sequences. This is
 /// done by replacing esp-relative movs with pushes.
@@ -112,8 +115,6 @@ FunctionPass *createX86FixupBWInsts();
 /// to another, when profitable.
 FunctionPass *createX86DomainReassignmentPass();
 
-void initializeFixupBWInstPassPass(PassRegistry &);
-
 /// This pass replaces EVEX encoded of AVX-512 instructiosn by VEX
 /// encoding when possible in order to reduce code size.
 FunctionPass *createX86EvexToVexInsts();
@@ -121,13 +122,45 @@ FunctionPass *createX86EvexToVexInsts();
 /// This pass creates the thunks for the retpoline feature.
 FunctionPass *createX86RetpolineThunksPass();
 
+/// This pass ensures instructions featuring a memory operand
+/// have distinctive <LineNumber, Discriminator> (with respect to eachother)
+FunctionPass *createX86DiscriminateMemOpsPass();
+
+/// This pass applies profiling information to insert cache prefetches.
+FunctionPass *createX86InsertPrefetchPass();
+
 InstructionSelector *createX86InstructionSelector(const X86TargetMachine &TM,
                                                   X86Subtarget &,
                                                   X86RegisterBankInfo &);
 
-void initializeEvexToVexInstPassPass(PassRegistry &);
-
 FunctionPass *createX86SpeculativeLoadHardeningPass();
+
+void initializeEvexToVexInstPassPass(PassRegistry &);
+void initializeFixupBWInstPassPass(PassRegistry &);
+void initializeFixupLEAPassPass(PassRegistry &);
+void initializeFPSPass(PassRegistry &);
+void initializeWinEHStatePassPass(PassRegistry &);
+void initializeX86AvoidSFBPassPass(PassRegistry &);
+void initializeX86CallFrameOptimizationPass(PassRegistry &);
+void initializeX86CmovConverterPassPass(PassRegistry &);
+void initializeX86CondBrFoldingPassPass(PassRegistry &);
+void initializeX86DomainReassignmentPass(PassRegistry &);
+void initializeX86ExecutionDomainFixPass(PassRegistry &);
+void initializeX86ExpandPseudoPass(PassRegistry &);
+void initializeX86FlagsCopyLoweringPassPass(PassRegistry &);
+void initializeX86OptimizeLEAPassPass(PassRegistry &);
+void initializeX86SpeculativeLoadHardeningPassPass(PassRegistry &);
+
+namespace X86AS {
+enum : unsigned {
+  GS = 256,
+  FS = 257,
+  SS = 258,
+  PTR32_SPTR = 270,
+  PTR32_UPTR = 271,
+  PTR64 = 272
+};
+} // End X86AS namespace
 
 } // End llvm namespace
 

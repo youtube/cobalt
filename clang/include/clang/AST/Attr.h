@@ -1,9 +1,8 @@
 //===--- Attr.h - Classes for representing attributes ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -14,11 +13,13 @@
 #ifndef LLVM_CLANG_AST_ATTR_H
 #define LLVM_CLANG_AST_ATTR_H
 
+#include "clang/AST/ASTContextAllocate.h"  // For Attrs.inc
 #include "clang/AST/AttrIterator.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/AttrKinds.h"
+#include "clang/Basic/AttributeCommonInfo.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/OpenMPKinds.h"
 #include "clang/Basic/Sanitizers.h"
@@ -31,24 +32,23 @@
 #include <cassert>
 
 namespace clang {
-  class ASTContext;
-  class IdentifierInfo;
-  class ObjCInterfaceDecl;
-  class Expr;
-  class QualType;
-  class FunctionDecl;
-  class TypeSourceInfo;
+class ASTContext;
+class AttributeCommonInfo;
+class IdentifierInfo;
+class ObjCInterfaceDecl;
+class Expr;
+class QualType;
+class FunctionDecl;
+class TypeSourceInfo;
 
 /// Attr - This represents one attribute.
-class Attr {
+class Attr : public AttributeCommonInfo {
 private:
-  SourceRange Range;
   unsigned AttrKind : 16;
 
 protected:
   /// An index into the spelling list of an
   /// attribute defined in Attr.td file.
-  unsigned SpellingListIndex : 4;
   unsigned Inherited : 1;
   unsigned IsPackExpansion : 1;
   unsigned Implicit : 1;
@@ -75,24 +75,21 @@ public:
   }
 
 protected:
-  Attr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
-       bool IsLateParsed)
-    : Range(R), AttrKind(AK), SpellingListIndex(SpellingListIndex),
-      Inherited(false), IsPackExpansion(false), Implicit(false),
-      IsLateParsed(IsLateParsed), InheritEvenIfAlreadyPresent(false) {}
+  Attr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+       attr::Kind AK, bool IsLateParsed)
+      : AttributeCommonInfo(CommonInfo), AttrKind(AK), Inherited(false),
+        IsPackExpansion(false), Implicit(false), IsLateParsed(IsLateParsed),
+        InheritEvenIfAlreadyPresent(false) {}
 
 public:
+  attr::Kind getKind() const { return static_cast<attr::Kind>(AttrKind); }
 
-  attr::Kind getKind() const {
-    return static_cast<attr::Kind>(AttrKind);
+  unsigned getSpellingListIndex() const {
+    return getAttributeSpellingListIndex();
   }
-
-  unsigned getSpellingListIndex() const { return SpellingListIndex; }
   const char *getSpelling() const;
 
-  SourceLocation getLocation() const { return Range.getBegin(); }
-  SourceRange getRange() const { return Range; }
-  void setRange(SourceRange R) { Range = R; }
+  SourceLocation getLocation() const { return getRange().getBegin(); }
 
   bool isInherited() const { return Inherited; }
 
@@ -113,11 +110,24 @@ public:
   void printPretty(raw_ostream &OS, const PrintingPolicy &Policy) const;
 };
 
+class TypeAttr : public Attr {
+protected:
+  TypeAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+           attr::Kind AK, bool IsLateParsed)
+      : Attr(Context, CommonInfo, AK, IsLateParsed) {}
+
+public:
+  static bool classof(const Attr *A) {
+    return A->getKind() >= attr::FirstTypeAttr &&
+           A->getKind() <= attr::LastTypeAttr;
+  }
+};
+
 class StmtAttr : public Attr {
 protected:
-  StmtAttr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
-                  bool IsLateParsed)
-      : Attr(AK, R, SpellingListIndex, IsLateParsed) {}
+  StmtAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+           attr::Kind AK, bool IsLateParsed)
+      : Attr(Context, CommonInfo, AK, IsLateParsed) {}
 
 public:
   static bool classof(const Attr *A) {
@@ -128,9 +138,10 @@ public:
 
 class InheritableAttr : public Attr {
 protected:
-  InheritableAttr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
-                  bool IsLateParsed, bool InheritEvenIfAlreadyPresent)
-      : Attr(AK, R, SpellingListIndex, IsLateParsed) {
+  InheritableAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+                  attr::Kind AK, bool IsLateParsed,
+                  bool InheritEvenIfAlreadyPresent)
+      : Attr(Context, CommonInfo, AK, IsLateParsed) {
     this->InheritEvenIfAlreadyPresent = InheritEvenIfAlreadyPresent;
   }
 
@@ -152,9 +163,10 @@ public:
 
 class InheritableParamAttr : public InheritableAttr {
 protected:
-  InheritableParamAttr(attr::Kind AK, SourceRange R, unsigned SpellingListIndex,
+  InheritableParamAttr(ASTContext &Context,
+                       const AttributeCommonInfo &CommonInfo, attr::Kind AK,
                        bool IsLateParsed, bool InheritEvenIfAlreadyPresent)
-      : InheritableAttr(AK, R, SpellingListIndex, IsLateParsed,
+      : InheritableAttr(Context, CommonInfo, AK, IsLateParsed,
                         InheritEvenIfAlreadyPresent) {}
 
 public:
@@ -169,11 +181,11 @@ public:
 /// for the parameter.
 class ParameterABIAttr : public InheritableParamAttr {
 protected:
-  ParameterABIAttr(attr::Kind AK, SourceRange R,
-                   unsigned SpellingListIndex, bool IsLateParsed,
+  ParameterABIAttr(ASTContext &Context, const AttributeCommonInfo &CommonInfo,
+                   attr::Kind AK, bool IsLateParsed,
                    bool InheritEvenIfAlreadyPresent)
-    : InheritableParamAttr(AK, R, SpellingListIndex, IsLateParsed,
-                           InheritEvenIfAlreadyPresent) {}
+      : InheritableParamAttr(Context, CommonInfo, AK, IsLateParsed,
+                             InheritEvenIfAlreadyPresent) {}
 
 public:
   ParameterABI getABI() const {
@@ -316,6 +328,18 @@ public:
 
 static_assert(sizeof(ParamIdx) == sizeof(ParamIdx::SerialType),
               "ParamIdx does not fit its serialization type");
+
+/// Contains information gathered from parsing the contents of TargetAttr.
+struct ParsedTargetAttr {
+  std::vector<std::string> Features;
+  StringRef Architecture;
+  StringRef BranchProtection;
+  bool DuplicateArchitecture = false;
+  bool operator ==(const ParsedTargetAttr &Other) const {
+    return DuplicateArchitecture == Other.DuplicateArchitecture &&
+           Architecture == Other.Architecture && Features == Other.Features;
+  }
+};
 
 #include "clang/AST/Attrs.inc"
 

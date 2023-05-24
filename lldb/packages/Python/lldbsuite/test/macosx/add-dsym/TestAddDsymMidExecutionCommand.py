@@ -1,12 +1,8 @@
 """Test that the 'add-dsym', aka 'target symbols add', succeeds in the middle of debug session."""
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
-import sys
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil

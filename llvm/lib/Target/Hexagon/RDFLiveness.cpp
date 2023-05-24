@@ -1,9 +1,8 @@
 //===- RDFLiveness.cpp ----------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -58,7 +57,6 @@ static cl::opt<unsigned> MaxRecNest("rdf-liveness-max-rec", cl::init(25),
 namespace llvm {
 namespace rdf {
 
-  template<>
   raw_ostream &operator<< (raw_ostream &OS, const Print<Liveness::RefMap> &P) {
     OS << '{';
     for (auto &I : P.Obj) {
@@ -207,7 +205,7 @@ NodeList Liveness::getAllReachingDefs(RegisterRef RefRR,
   };
 
   std::vector<NodeId> Tmp(Owners.begin(), Owners.end());
-  llvm::sort(Tmp.begin(), Tmp.end(), Less);
+  llvm::sort(Tmp, Less);
 
   // The vector is a list of instructions, so that defs coming from
   // the same instruction don't need to be artificially ordered.
@@ -622,7 +620,7 @@ void Liveness::computePhiInfo() {
     for (NodeAddr<UseNode*> UA : PUs) {
       std::map<NodeId,RegisterAggr> &PUM = PhiUp[UA.Id];
       RegisterRef UR = PRI.normalize(UA.Addr->getRegRef(DFG));
-      for (const std::pair<NodeId,RegisterAggr> &P : PUM) {
+      for (const std::pair<const NodeId, RegisterAggr> &P : PUM) {
         bool Changed = false;
         const RegisterAggr &MidDefs = P.second;
 
@@ -638,7 +636,7 @@ void Liveness::computePhiInfo() {
         //     if MidDefs does not cover (R,U)
         //       then add (R-MidDefs,U) to RealUseMap[P]
         //
-        for (const std::pair<RegisterId,NodeRefSet> &T : RUM) {
+        for (const std::pair<const RegisterId, NodeRefSet> &T : RUM) {
           RegisterRef R(T.first);
           // The current phi (PA) could be a phi for a regmask. It could
           // reach a whole variety of uses that are not related to the
@@ -770,7 +768,7 @@ void Liveness::computeLiveIns() {
         auto PrA = DFG.addr<BlockNode*>(PUA.Addr->getPredecessor());
         RefMap &LOX = PhiLOX[PrA.Addr->getCode()];
 
-        for (const std::pair<RegisterId,NodeRefSet> &RS : RUs) {
+        for (const std::pair<const RegisterId, NodeRefSet> &RS : RUs) {
           // We need to visit each individual use.
           for (std::pair<NodeId,LaneBitmask> P : RS.second) {
             // Create a register ref corresponding to the use, and find
@@ -813,7 +811,7 @@ void Liveness::computeLiveIns() {
       std::vector<RegisterRef> LV;
       for (auto I = B.livein_begin(), E = B.livein_end(); I != E; ++I)
         LV.push_back(RegisterRef(I->PhysReg, I->LaneMask));
-      llvm::sort(LV.begin(), LV.end());
+      llvm::sort(LV);
       dbgs() << printMBBReference(B) << "\t rec = {";
       for (auto I : LV)
         dbgs() << ' ' << Print<RegisterRef>(I, DFG);
@@ -824,7 +822,7 @@ void Liveness::computeLiveIns() {
       const RegisterAggr &LG = LiveMap[&B];
       for (auto I = LG.rr_begin(), E = LG.rr_end(); I != E; ++I)
         LV.push_back(*I);
-      llvm::sort(LV.begin(), LV.end());
+      llvm::sort(LV);
       dbgs() << "\tcomp = {";
       for (auto I : LV)
         dbgs() << ' ' << Print<RegisterRef>(I, DFG);
@@ -891,8 +889,8 @@ void Liveness::resetKills(MachineBasicBlock *B) {
       // implicit defs.
       if (!Op.isReg() || !Op.isDef() || Op.isImplicit())
         continue;
-      unsigned R = Op.getReg();
-      if (!TargetRegisterInfo::isPhysicalRegister(R))
+      Register R = Op.getReg();
+      if (!Register::isPhysicalRegister(R))
         continue;
       for (MCSubRegIterator SR(R, &TRI, true); SR.isValid(); ++SR)
         Live.reset(*SR);
@@ -900,8 +898,8 @@ void Liveness::resetKills(MachineBasicBlock *B) {
     for (auto &Op : MI->operands()) {
       if (!Op.isReg() || !Op.isUse() || Op.isUndef())
         continue;
-      unsigned R = Op.getReg();
-      if (!TargetRegisterInfo::isPhysicalRegister(R))
+      Register R = Op.getReg();
+      if (!Register::isPhysicalRegister(R))
         continue;
       bool IsLive = false;
       for (MCRegAliasIterator AR(R, &TRI, true); AR.isValid(); ++AR) {
@@ -993,7 +991,7 @@ void Liveness::traverse(MachineBasicBlock *B, RefMap &LiveIn) {
   RefMap LiveInCopy = LiveIn;
   LiveIn.clear();
 
-  for (const std::pair<RegisterId,NodeRefSet> &LE : LiveInCopy) {
+  for (const std::pair<const RegisterId, NodeRefSet> &LE : LiveInCopy) {
     RegisterRef LRef(LE.first);
     NodeRefSet &NewDefs = LiveIn[LRef.Reg]; // To be filled.
     const NodeRefSet &OldDefs = LE.second;
@@ -1107,7 +1105,7 @@ void Liveness::traverse(MachineBasicBlock *B, RefMap &LiveIn) {
 
   for (auto C : IIDF[B]) {
     RegisterAggr &LiveC = LiveMap[C];
-    for (const std::pair<RegisterId,NodeRefSet> &S : LiveIn)
+    for (const std::pair<const RegisterId, NodeRefSet> &S : LiveIn)
       for (auto R : S.second)
         if (MDT.properlyDominates(getBlockWithRef(R.first), C))
           LiveC.insert(RegisterRef(S.first, R.second));

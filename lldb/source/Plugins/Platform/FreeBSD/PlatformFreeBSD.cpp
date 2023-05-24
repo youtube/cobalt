@@ -1,34 +1,29 @@
 //===-- PlatformFreeBSD.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "PlatformFreeBSD.h"
 #include "lldb/Host/Config.h"
 
-// C Includes
 #include <stdio.h>
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
 #include <sys/utsname.h>
 #endif
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Breakpoint/BreakpointSite.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/State.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
 
@@ -43,7 +38,6 @@ using namespace lldb_private::platform_freebsd;
 
 static uint32_t g_initialize_count = 0;
 
-//------------------------------------------------------------------
 
 PlatformSP PlatformFreeBSD::CreateInstance(bool force, const ArchSpec *arch) {
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
@@ -52,7 +46,7 @@ PlatformSP PlatformFreeBSD::CreateInstance(bool force, const ArchSpec *arch) {
            arch ? arch->GetTriple().getTriple() : "<null>");
 
   bool create = force;
-  if (create == false && arch && arch->IsValid()) {
+  if (!create && arch && arch->IsValid()) {
     const llvm::Triple &triple = arch->GetTriple();
     switch (triple.getOS()) {
     case llvm::Triple::FreeBSD:
@@ -124,9 +118,7 @@ void PlatformFreeBSD::Terminate() {
   PlatformPOSIX::Terminate();
 }
 
-//------------------------------------------------------------------
 /// Default Constructor
-//------------------------------------------------------------------
 PlatformFreeBSD::PlatformFreeBSD(bool is_host)
     : PlatformPOSIX(is_host) // This is the local host platform
 {}
@@ -202,7 +194,7 @@ bool PlatformFreeBSD::GetSupportedArchitectureAtIndex(uint32_t idx,
 void PlatformFreeBSD::GetStatus(Stream &strm) {
   Platform::GetStatus(strm);
 
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
   // Display local kernel information only when we are running in host mode.
   // Otherwise, we would end up printing non-FreeBSD information (when running
   // on Mac OS for example).
@@ -270,13 +262,13 @@ lldb::ProcessSP PlatformFreeBSD::Attach(ProcessAttachInfo &attach_info,
                                         Status &error) {
   lldb::ProcessSP process_sp;
   if (IsHost()) {
-    if (target == NULL) {
+    if (target == nullptr) {
       TargetSP new_target_sp;
       ArchSpec emptyArchSpec;
 
-      error = debugger.GetTargetList().CreateTarget(debugger, "", emptyArchSpec,
-                                                    false, m_remote_platform_sp,
-                                                    new_target_sp);
+      error = debugger.GetTargetList().CreateTarget(
+          debugger, "", emptyArchSpec, eLoadDependentsNo, m_remote_platform_sp,
+          new_target_sp);
       target = new_target_sp.get();
     } else
       error.Clear();
@@ -287,7 +279,7 @@ lldb::ProcessSP PlatformFreeBSD::Attach(ProcessAttachInfo &attach_info,
       // even when debugging locally we are debugging remotely! Just like the
       // darwin plugin.
       process_sp = target->CreateProcess(
-          attach_info.GetListenerForProcess(debugger), "gdb-remote", NULL);
+          attach_info.GetListenerForProcess(debugger), "gdb-remote", nullptr);
 
       if (process_sp)
         error = process_sp->Attach(attach_info);

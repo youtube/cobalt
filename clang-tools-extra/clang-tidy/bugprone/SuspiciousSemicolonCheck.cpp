@@ -1,9 +1,8 @@
 //===--- SuspiciousSemicolonCheck.cpp - clang-tidy-------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,7 +20,8 @@ namespace bugprone {
 void SuspiciousSemicolonCheck::registerMatchers(MatchFinder *Finder) {
   Finder->addMatcher(
       stmt(anyOf(ifStmt(hasThen(nullStmt().bind("semi")),
-                        unless(hasElse(stmt()))),
+                        unless(hasElse(stmt())),
+                        unless(isConstexpr())),
                  forStmt(hasBody(nullStmt().bind("semi"))),
                  cxxForRangeStmt(hasBody(nullStmt().bind("semi"))),
                  whileStmt(hasBody(nullStmt().bind("semi")))))
@@ -34,13 +34,14 @@ void SuspiciousSemicolonCheck::check(const MatchFinder::MatchResult &Result) {
     return;
 
   const auto *Semicolon = Result.Nodes.getNodeAs<NullStmt>("semi");
-  SourceLocation LocStart = Semicolon->getLocStart();
+  SourceLocation LocStart = Semicolon->getBeginLoc();
 
   if (LocStart.isMacroID())
     return;
 
   ASTContext &Ctxt = *Result.Context;
-  auto Token = utils::lexer::getPreviousToken(Ctxt, LocStart);
+  auto Token = utils::lexer::getPreviousToken(LocStart, Ctxt.getSourceManager(),
+                                              Ctxt.getLangOpts());
   auto &SM = *Result.SourceManager;
   unsigned SemicolonLine = SM.getSpellingLineNumber(LocStart);
 
@@ -51,16 +52,16 @@ void SuspiciousSemicolonCheck::check(const MatchFinder::MatchResult &Result) {
       SM.getSpellingLineNumber(Token.getLocation()) != SemicolonLine)
     return;
 
-  SourceLocation LocEnd = Semicolon->getLocEnd();
+  SourceLocation LocEnd = Semicolon->getEndLoc();
   FileID FID = SM.getFileID(LocEnd);
-  llvm::MemoryBuffer *Buffer = SM.getBuffer(FID, LocEnd);
+  const llvm::MemoryBuffer *Buffer = SM.getBuffer(FID, LocEnd);
   Lexer Lexer(SM.getLocForStartOfFile(FID), Ctxt.getLangOpts(),
               Buffer->getBufferStart(), SM.getCharacterData(LocEnd) + 1,
               Buffer->getBufferEnd());
   if (Lexer.LexFromRawLexer(Token))
     return;
 
-  unsigned BaseIndent = SM.getSpellingColumnNumber(Statement->getLocStart());
+  unsigned BaseIndent = SM.getSpellingColumnNumber(Statement->getBeginLoc());
   unsigned NewTokenIndent = SM.getSpellingColumnNumber(Token.getLocation());
   unsigned NewTokenLine = SM.getSpellingLineNumber(Token.getLocation());
 

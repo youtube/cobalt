@@ -1,9 +1,8 @@
 //===--- UseAutoCheck.cpp - clang-tidy-------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -56,7 +55,7 @@ size_t GetTypeNameLength(bool RemoveStars, StringRef Text) {
   return NumChars;
 }
 
-/// \brief Matches variable declarations that have explicit initializers that
+/// Matches variable declarations that have explicit initializers that
 /// are not initializer lists.
 ///
 /// Given
@@ -85,7 +84,7 @@ AST_MATCHER(VarDecl, hasWrittenNonListInitializer) {
   return Node.getInitStyle() != VarDecl::ListInit;
 }
 
-/// \brief Matches QualTypes that are type sugar for QualTypes that match \c
+/// Matches QualTypes that are type sugar for QualTypes that match \c
 /// SugarMatcher.
 ///
 /// Given
@@ -110,7 +109,7 @@ AST_MATCHER_P(QualType, isSugarFor, Matcher<QualType>, SugarMatcher) {
   }
 }
 
-/// \brief Matches named declarations that have one of the standard iterator
+/// Matches named declarations that have one of the standard iterator
 /// names: iterator, reverse_iterator, const_iterator, const_reverse_iterator.
 ///
 /// Given
@@ -132,7 +131,7 @@ AST_MATCHER(NamedDecl, hasStdIteratorName) {
   return false;
 }
 
-/// \brief Matches named declarations that have one of the standard container
+/// Matches named declarations that have one of the standard container
 /// names.
 ///
 /// Given
@@ -208,32 +207,32 @@ AST_POLYMORPHIC_MATCHER(hasExplicitTemplateArgs,
   return Node.hasExplicitTemplateArgs();
 }
 
-/// \brief Returns a DeclarationMatcher that matches standard iterators nested
+/// Returns a DeclarationMatcher that matches standard iterators nested
 /// inside records with a standard container name.
 DeclarationMatcher standardIterator() {
-  return allOf(
+  return decl(
       namedDecl(hasStdIteratorName()),
       hasDeclContext(recordDecl(hasStdContainerName(), isFromStdNamespace())));
 }
 
-/// \brief Returns a TypeMatcher that matches typedefs for standard iterators
+/// Returns a TypeMatcher that matches typedefs for standard iterators
 /// inside records with a standard container name.
 TypeMatcher typedefIterator() {
   return typedefType(hasDeclaration(standardIterator()));
 }
 
-/// \brief Returns a TypeMatcher that matches records named for standard
+/// Returns a TypeMatcher that matches records named for standard
 /// iterators nested inside records named for standard containers.
 TypeMatcher nestedIterator() {
   return recordType(hasDeclaration(standardIterator()));
 }
 
-/// \brief Returns a TypeMatcher that matches types declared with using
+/// Returns a TypeMatcher that matches types declared with using
 /// declarations and which name standard iterators for standard containers.
 TypeMatcher iteratorFromUsingDeclaration() {
   auto HasIteratorDecl = hasDeclaration(namedDecl(hasStdIteratorName()));
   // Types resulting from using declarations are represented by elaboratedType.
-  return elaboratedType(allOf(
+  return elaboratedType(
       // Unwrap the nested name specifier to test for one of the standard
       // containers.
       hasQualifier(specifiesType(templateSpecializationType(hasDeclaration(
@@ -241,10 +240,10 @@ TypeMatcher iteratorFromUsingDeclaration() {
       // the named type is what comes after the final '::' in the type. It
       // should name one of the standard iterator names.
       namesType(
-          anyOf(typedefType(HasIteratorDecl), recordType(HasIteratorDecl)))));
+          anyOf(typedefType(HasIteratorDecl), recordType(HasIteratorDecl))));
 }
 
-/// \brief This matcher returns declaration statements that contain variable
+/// This matcher returns declaration statements that contain variable
 /// declarations with written non-list initializer for standard iterators.
 StatementMatcher makeIteratorDeclMatcher() {
   return declStmt(unless(has(
@@ -360,7 +359,7 @@ void UseAutoCheck::replaceIterators(const DeclStmt *D, ASTContext *Context) {
     }
 
     if (const auto *NestedConstruct = dyn_cast<CXXConstructExpr>(E)) {
-      // If we ran into an implicit conversion contructor, can't convert.
+      // If we ran into an implicit conversion constructor, can't convert.
       //
       // FIXME: The following only checks if the constructor can be used
       // implicitly, not if it actually was. Cases where the converting

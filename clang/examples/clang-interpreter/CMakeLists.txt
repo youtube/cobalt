@@ -16,15 +16,16 @@ add_clang_executable(clang-interpreter
   )
 
 add_dependencies(clang-interpreter
-  clang-headers
+  clang-resource-headers
   )
 
-target_link_libraries(clang-interpreter
+clang_target_link_libraries(clang-interpreter
   PRIVATE
   clangBasic
   clangCodeGen
   clangDriver
   clangFrontend
+  clangSerialization
   )
 
 export_executable_symbols(clang-interpreter)

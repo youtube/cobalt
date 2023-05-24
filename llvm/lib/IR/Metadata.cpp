@@ -1,9 +1,8 @@
 //===- Metadata.cpp - Implement Metadata classes --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -237,7 +236,7 @@ void ReplaceableMetadataImpl::replaceAllUsesWith(Metadata *MD) {
   // Copy out uses since UseMap will get touched below.
   using UseTy = std::pair<void *, std::pair<OwnerTy, uint64_t>>;
   SmallVector<UseTy, 8> Uses(UseMap.begin(), UseMap.end());
-  llvm::sort(Uses.begin(), Uses.end(), [](const UseTy &L, const UseTy &R) {
+  llvm::sort(Uses, [](const UseTy &L, const UseTy &R) {
     return L.second.second < R.second.second;
   });
   for (const auto &Pair : Uses) {
@@ -290,7 +289,7 @@ void ReplaceableMetadataImpl::resolveAllUses(bool ResolveUsers) {
   // Copy out uses since UseMap could get touched below.
   using UseTy = std::pair<void *, std::pair<OwnerTy, uint64_t>>;
   SmallVector<UseTy, 8> Uses(UseMap.begin(), UseMap.end());
-  llvm::sort(Uses.begin(), Uses.end(), [](const UseTy &L, const UseTy &R) {
+  llvm::sort(Uses, [](const UseTy &L, const UseTy &R) {
     return L.second.second < R.second.second;
   });
   UseMap.clear();
@@ -490,7 +489,9 @@ void *MDNode::operator new(size_t Size, unsigned NumOps) {
   return Ptr;
 }
 
-void MDNode::operator delete(void *Mem) {
+// Repress memory sanitization, due to use-after-destroy by operator
+// delete. Bug report 24578 identifies this issue.
+LLVM_NO_SANITIZE_MEMORY_ATTRIBUTE void MDNode::operator delete(void *Mem) {
   MDNode *N = static_cast<MDNode *>(Mem);
   size_t OpSize = N->NumOperands * sizeof(MDOperand);
   OpSize = alignTo(OpSize, alignof(uint64_t));
@@ -1180,10 +1181,7 @@ void MDGlobalAttachmentMap::getAll(
 
   // Sort the resulting array so it is stable with respect to metadata IDs. We
   // need to preserve the original insertion order though.
-  std::stable_sort(
-      Result.begin(), Result.end(),
-      [](const std::pair<unsigned, MDNode *> &A,
-         const std::pair<unsigned, MDNode *> &B) { return A.first < B.first; });
+  llvm::stable_sort(Result, less_first());
 }
 
 void Instruction::setMetadata(StringRef Kind, MDNode *Node) {
@@ -1264,6 +1262,7 @@ void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
 
 void Instruction::setAAMetadata(const AAMDNodes &N) {
   setMetadata(LLVMContext::MD_tbaa, N.TBAA);
+  setMetadata(LLVMContext::MD_tbaa_struct, N.TBAAStruct);
   setMetadata(LLVMContext::MD_alias_scope, N.Scope);
   setMetadata(LLVMContext::MD_noalias, N.NoAlias);
 }
@@ -1484,7 +1483,7 @@ void GlobalObject::copyMetadata(const GlobalObject *Other, unsigned Offset) {
       std::vector<uint64_t> Elements(OrigElements.size() + 2);
       Elements[0] = dwarf::DW_OP_plus_uconst;
       Elements[1] = Offset;
-      std::copy(OrigElements.begin(), OrigElements.end(), Elements.begin() + 2);
+      llvm::copy(OrigElements, Elements.begin() + 2);
       E = DIExpression::get(getContext(), Elements);
       Attachment = DIGlobalVariableExpression::get(getContext(), GV, E);
     }
@@ -1499,6 +1498,24 @@ void GlobalObject::addTypeMetadata(unsigned Offset, Metadata *TypeID) {
                     {ConstantAsMetadata::get(ConstantInt::get(
                          Type::getInt64Ty(getContext()), Offset)),
                      TypeID}));
+}
+
+void GlobalObject::addVCallVisibilityMetadata(VCallVisibility Visibility) {
+  addMetadata(LLVMContext::MD_vcall_visibility,
+              *MDNode::get(getContext(),
+                           {ConstantAsMetadata::get(ConstantInt::get(
+                               Type::getInt64Ty(getContext()), Visibility))}));
+}
+
+GlobalObject::VCallVisibility GlobalObject::getVCallVisibility() const {
+  if (MDNode *MD = getMetadata(LLVMContext::MD_vcall_visibility)) {
+    uint64_t Val = cast<ConstantInt>(
+                       cast<ConstantAsMetadata>(MD->getOperand(0))->getValue())
+                       ->getZExtValue();
+    assert(Val <= 2 && "unknown vcall visibility!");
+    return (VCallVisibility)Val;
+  }
+  return VCallVisibility::VCallVisibilityPublic;
 }
 
 void Function::setSubprogram(DISubprogram *SP) {

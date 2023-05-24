@@ -1,9 +1,8 @@
 //===- GVN.h - Eliminate redundant values and loads -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -22,13 +21,14 @@
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/InstructionPrecedenceTracking.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Transforms/Utils/OrderedInstructions.h"
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -94,7 +94,7 @@ public:
     // value number to the index of Expression in Expressions. We use it
     // instead of a DenseMap because filling such mapping is faster than
     // filling a DenseMap and the compile time is a little better.
-    uint32_t nextExprNumber;
+    uint32_t nextExprNumber = 0;
 
     std::vector<Expression> Expressions;
     std::vector<uint32_t> ExprIdx;
@@ -107,9 +107,9 @@ public:
         DenseMap<std::pair<uint32_t, const BasicBlock *>, uint32_t>;
     PhiTranslateMap PhiTranslateTable;
 
-    AliasAnalysis *AA;
-    MemoryDependenceResults *MD;
-    DominatorTree *DT;
+    AliasAnalysis *AA = nullptr;
+    MemoryDependenceResults *MD = nullptr;
+    DominatorTree *DT = nullptr;
 
     uint32_t nextValueNumber = 1;
 
@@ -120,6 +120,8 @@ public:
     uint32_t lookupOrAddCall(CallInst *C);
     uint32_t phiTranslateImpl(const BasicBlock *BB, const BasicBlock *PhiBlock,
                               uint32_t Num, GVN &Gvn);
+    bool areCallValsEqual(uint32_t Num, uint32_t NewNum, const BasicBlock *Pred,
+                          const BasicBlock *PhiBlock, GVN &Gvn);
     std::pair<uint32_t, bool> assignExpNewValueNum(Expression &exp);
     bool areAllValsInBB(uint32_t num, const BasicBlock *BB, GVN &Gvn);
 
@@ -128,6 +130,7 @@ public:
     ValueTable(const ValueTable &Arg);
     ValueTable(ValueTable &&Arg);
     ~ValueTable();
+    ValueTable &operator=(const ValueTable &Arg);
 
     uint32_t lookupOrAdd(Value *V);
     uint32_t lookup(Value *V, bool Verify = true) const;
@@ -152,17 +155,15 @@ private:
   friend class gvn::GVNLegacyPass;
   friend struct DenseMapInfo<Expression>;
 
-  MemoryDependenceResults *MD;
-  DominatorTree *DT;
-  const TargetLibraryInfo *TLI;
-  AssumptionCache *AC;
+  MemoryDependenceResults *MD = nullptr;
+  DominatorTree *DT = nullptr;
+  const TargetLibraryInfo *TLI = nullptr;
+  AssumptionCache *AC = nullptr;
   SetVector<BasicBlock *> DeadBlocks;
-  OptimizationRemarkEmitter *ORE;
-  // Maps a block to the topmost instruction with implicit control flow in it.
-  DenseMap<const BasicBlock *, const Instruction *>
-      FirstImplicitControlFlowInsts;
+  OptimizationRemarkEmitter *ORE = nullptr;
+  ImplicitControlFlowTracking *ICF = nullptr;
+  LoopInfo *LI = nullptr;
 
-  OrderedInstructions *OI;
   ValueTable VN;
 
   /// A mapping from value numbers to lists of Value*'s that
@@ -178,12 +179,17 @@ private:
   // Block-local map of equivalent values to their leader, does not
   // propagate to any successors. Entries added mid-block are applied
   // to the remaining instructions in the block.
-  SmallMapVector<Value *, Constant *, 4> ReplaceWithConstMap;
+  SmallMapVector<Value *, Value *, 4> ReplaceOperandsWithMap;
   SmallVector<Instruction *, 8> InstrsToErase;
 
   // Map the block to reversed postorder traversal number. It is used to
   // find back edge easily.
-  DenseMap<const BasicBlock *, uint32_t> BlockRPONumber;
+  DenseMap<AssertingVH<BasicBlock>, uint32_t> BlockRPONumber;
+
+  // This is set 'true' initially and also when new blocks have been added to
+  // the function being analyzed. This boolean is used to control the updating
+  // of BlockRPONumber prior to accessing the contents of BlockRPONumber.
+  bool InvalidBlockRPONumbers = true;
 
   using LoadDepVect = SmallVector<NonLocalDepResult, 64>;
   using AvailValInBlkVect = SmallVector<gvn::AvailableValueInBlock, 64>;
@@ -240,7 +246,7 @@ private:
   }
 
   // List of critical edges to be split between iterations.
-  SmallVector<std::pair<TerminatorInst *, unsigned>, 4> toSplit;
+  SmallVector<std::pair<Instruction *, unsigned>, 4> toSplit;
 
   // Helper functions of redundant load elimination
   bool processLoad(LoadInst *L);
@@ -278,7 +284,7 @@ private:
   void verifyRemoved(const Instruction *I) const;
   bool splitCriticalEdges();
   BasicBlock *splitCriticalEdges(BasicBlock *Pred, BasicBlock *Succ);
-  bool replaceOperandsWithConsts(Instruction *I) const;
+  bool replaceOperandsForInBlockEquality(Instruction *I) const;
   bool propagateEquality(Value *LHS, Value *RHS, const BasicBlockEdge &Root,
                          bool DominatesByEdge);
   bool processFoldableCondBr(BranchInst *BI);
@@ -288,8 +294,8 @@ private:
 };
 
 /// Create a legacy GVN pass. This also allows parameterizing whether or not
-/// loads are eliminated by the pass.
-FunctionPass *createGVNPass(bool NoLoads = false);
+/// MemDep is enabled.
+FunctionPass *createGVNPass(bool NoMemDepAnalysis = false);
 
 /// A simple and fast domtree-based GVN pass to hoist common expressions
 /// from sibling branches.

@@ -1,4 +1,4 @@
-// RUN: llvm-mc -triple x86_64-apple-darwin10 %s -filetype=obj -o - | llvm-readobj -file-headers -s -sd -r -t -macho-segment -macho-dysymtab -macho-indirect-symbols | FileCheck %s
+// RUN: llvm-mc -triple x86_64-apple-darwin10 %s -filetype=obj -o - | llvm-readobj --file-headers -S --sd -r --symbols --macho-segment --macho-dysymtab --macho-indirect-symbols | FileCheck %s
 
         .text
 
@@ -149,7 +149,7 @@ L3:
 // CHECK:     Alignment: 0
 // CHECK:     RelocationOffset: 0x26C
 // CHECK:     RelocationCount: 12
-// CHECK:     Type: 0x0
+// CHECK:     Type: Regular (0x0)
 // CHECK:     Attributes [ (0x800004)
 // CHECK:       PureInstructions (0x800000)
 // CHECK:       SomeInstructions (0x4)
@@ -176,7 +176,7 @@ L3:
 // CHECK:     Alignment: 0
 // CHECK:     RelocationOffset: 0x2CC
 // CHECK:     RelocationCount: 16
-// CHECK:     Type: 0x0
+// CHECK:     Type: Regular (0x0)
 // CHECK:     Attributes [ (0x4)
 // CHECK:       SomeInstructions (0x4)
 // CHECK:     ]

@@ -1,12 +1,9 @@
 """
 Test that argdumper is a viable launching strategy.
 """
-from __future__ import print_function
 
 
 import lldb
-import os
-import time
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil

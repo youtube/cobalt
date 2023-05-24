@@ -1,18 +1,13 @@
 //===-- BreakpointResolverAddress.cpp ---------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Breakpoint/BreakpointResolverAddress.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Module.h"
@@ -25,9 +20,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // BreakpointResolverAddress:
-//----------------------------------------------------------------------
 BreakpointResolverAddress::BreakpointResolverAddress(
     Breakpoint *bkpt, const Address &addr, const FileSpec &module_spec)
     : BreakpointResolver(bkpt, BreakpointResolver::AddressResolver),
@@ -66,7 +59,7 @@ BreakpointResolver *BreakpointResolverAddress::CreateFromStructuredData(
       error.SetErrorString("BRA::CFSD: Couldn't read module name entry.");
       return nullptr;
     }
-    module_filespec.SetFile(module_name, false, FileSpec::Style::native);
+    module_filespec.SetFile(module_name, FileSpec::Style::native);
   }
   return new BreakpointResolverAddress(bkpt, address, module_filespec);
 }
@@ -127,11 +120,9 @@ void BreakpointResolverAddress::ResolveBreakpointInModules(
     BreakpointResolver::ResolveBreakpointInModules(filter, modules);
 }
 
-Searcher::CallbackReturn
-BreakpointResolverAddress::SearchCallback(SearchFilter &filter,
-                                          SymbolContext &context, Address *addr,
-                                          bool containing) {
-  assert(m_breakpoint != NULL);
+Searcher::CallbackReturn BreakpointResolverAddress::SearchCallback(
+    SearchFilter &filter, SymbolContext &context, Address *addr) {
+  assert(m_breakpoint != nullptr);
 
   if (filter.AddressPasses(m_addr)) {
     if (m_breakpoint->GetNumLocations() == 0) {
@@ -156,8 +147,7 @@ BreakpointResolverAddress::SearchCallback(SearchFilter &filter,
         bp_loc_sp->GetDescription(&s, lldb::eDescriptionLevelVerbose);
         Log *log(
             lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_BREAKPOINTS));
-        if (log)
-          log->Printf("Added location: %s\n", s.GetData());
+        LLDB_LOGF(log, "Added location: %s\n", s.GetData());
       }
     } else {
       BreakpointLocationSP loc_sp = m_breakpoint->GetLocationAtIndex(0);
@@ -173,8 +163,8 @@ BreakpointResolverAddress::SearchCallback(SearchFilter &filter,
   return Searcher::eCallbackReturnStop;
 }
 
-Searcher::Depth BreakpointResolverAddress::GetDepth() {
-  return Searcher::eDepthTarget;
+lldb::SearchDepth BreakpointResolverAddress::GetDepth() {
+  return lldb::eSearchDepthTarget;
 }
 
 void BreakpointResolverAddress::GetDescription(Stream *s) {

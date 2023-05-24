@@ -8,22 +8,21 @@ define i32 @t1(i32 %a, i32 %b) nounwind  {
 ; CHECK:       ## %bb.0: ## %entry
 ; CHECK-NEXT:    movl %edi, %eax
 ; CHECK-NEXT:    testl %esi, %esi
-; CHECK-NEXT:    je LBB0_1
-; CHECK-NEXT:  ## %bb.2: ## %while.body.preheader
+; CHECK-NEXT:    je LBB0_4
+; CHECK-NEXT:  ## %bb.1: ## %while.body.preheader
 ; CHECK-NEXT:    movl %esi, %edx
 ; CHECK-NEXT:    .p2align 4, 0x90
-; CHECK-NEXT:  LBB0_3: ## %while.body
+; CHECK-NEXT:  LBB0_2: ## %while.body
 ; CHECK-NEXT:    ## =>This Inner Loop Header: Depth=1
 ; CHECK-NEXT:    movl %edx, %ecx
 ; CHECK-NEXT:    cltd
 ; CHECK-NEXT:    idivl %ecx
 ; CHECK-NEXT:    testl %edx, %edx
 ; CHECK-NEXT:    movl %ecx, %eax
-; CHECK-NEXT:    jne LBB0_3
-; CHECK-NEXT:  ## %bb.4: ## %while.end
+; CHECK-NEXT:    jne LBB0_2
+; CHECK-NEXT:  ## %bb.3: ## %while.end
 ; CHECK-NEXT:    movl %ecx, %eax
-; CHECK-NEXT:    retq
-; CHECK-NEXT:  LBB0_1:
+; CHECK-NEXT:  LBB0_4:
 ; CHECK-NEXT:    retq
 entry:
   %cmp1 = icmp eq i32 %b, 0
@@ -60,22 +59,21 @@ define i32 @t3(i64 %a, i64 %b) nounwind  {
 ; CHECK:       ## %bb.0: ## %entry
 ; CHECK-NEXT:    movq %rdi, %rax
 ; CHECK-NEXT:    testq %rsi, %rsi
-; CHECK-NEXT:    je LBB2_1
-; CHECK-NEXT:  ## %bb.2: ## %while.body.preheader
+; CHECK-NEXT:    je LBB2_4
+; CHECK-NEXT:  ## %bb.1: ## %while.body.preheader
 ; CHECK-NEXT:    movq %rsi, %rdx
 ; CHECK-NEXT:    .p2align 4, 0x90
-; CHECK-NEXT:  LBB2_3: ## %while.body
+; CHECK-NEXT:  LBB2_2: ## %while.body
 ; CHECK-NEXT:    ## =>This Inner Loop Header: Depth=1
 ; CHECK-NEXT:    movq %rdx, %rcx
 ; CHECK-NEXT:    cqto
 ; CHECK-NEXT:    idivq %rcx
 ; CHECK-NEXT:    testq %rdx, %rdx
 ; CHECK-NEXT:    movq %rcx, %rax
-; CHECK-NEXT:    jne LBB2_3
-; CHECK-NEXT:  ## %bb.4: ## %while.end
+; CHECK-NEXT:    jne LBB2_2
+; CHECK-NEXT:  ## %bb.3: ## %while.end
 ; CHECK-NEXT:    movl %ecx, %eax
-; CHECK-NEXT:    retq
-; CHECK-NEXT:  LBB2_1:
+; CHECK-NEXT:  LBB2_4:
 ; CHECK-NEXT:    retq
 entry:
   %cmp1 = icmp eq i64 %b, 0
@@ -103,30 +101,29 @@ define <16 x float> @foo(<16 x float> %x) {
 ; CHECK:       ## %bb.0: ## %bb
 ; CHECK-NEXT:    movaps %xmm3, %xmm9
 ; CHECK-NEXT:    movaps %xmm2, %xmm8
-; CHECK-NEXT:    movaps %xmm1, %xmm6
 ; CHECK-NEXT:    movaps %xmm0, %xmm7
 ; CHECK-NEXT:    xorps %xmm0, %xmm0
-; CHECK-NEXT:    movaps %xmm3, %xmm1
-; CHECK-NEXT:    cmpltps %xmm0, %xmm1
-; CHECK-NEXT:    movaps %xmm1, %xmm4
+; CHECK-NEXT:    movaps %xmm3, %xmm2
+; CHECK-NEXT:    cmpltps %xmm0, %xmm2
+; CHECK-NEXT:    movaps %xmm2, %xmm4
 ; CHECK-NEXT:    orps {{.*}}(%rip), %xmm4
 ; CHECK-NEXT:    movaps %xmm4, %xmm10
-; CHECK-NEXT:    andnps %xmm1, %xmm10
-; CHECK-NEXT:    movaps %xmm2, %xmm1
-; CHECK-NEXT:    cmpltps %xmm0, %xmm1
+; CHECK-NEXT:    andnps %xmm2, %xmm10
+; CHECK-NEXT:    movaps %xmm8, %xmm5
+; CHECK-NEXT:    cmpltps %xmm0, %xmm5
 ; CHECK-NEXT:    movaps {{.*#+}} xmm11 = [9,10,11,12]
-; CHECK-NEXT:    movaps %xmm1, %xmm3
-; CHECK-NEXT:    orps %xmm11, %xmm3
-; CHECK-NEXT:    movaps %xmm3, %xmm14
-; CHECK-NEXT:    andnps %xmm1, %xmm14
-; CHECK-NEXT:    cvttps2dq %xmm6, %xmm12
-; CHECK-NEXT:    cmpltps %xmm0, %xmm6
+; CHECK-NEXT:    movaps %xmm5, %xmm2
+; CHECK-NEXT:    orps %xmm11, %xmm2
+; CHECK-NEXT:    movaps %xmm2, %xmm14
+; CHECK-NEXT:    andnps %xmm5, %xmm14
+; CHECK-NEXT:    cvttps2dq %xmm1, %xmm12
+; CHECK-NEXT:    cmpltps %xmm0, %xmm1
 ; CHECK-NEXT:    movaps {{.*#+}} xmm13 = [5,6,7,8]
-; CHECK-NEXT:    movaps %xmm6, %xmm2
-; CHECK-NEXT:    orps %xmm13, %xmm2
-; CHECK-NEXT:    movaps %xmm2, %xmm5
-; CHECK-NEXT:    andnps %xmm6, %xmm5
-; CHECK-NEXT:    cvttps2dq %xmm7, %xmm6
+; CHECK-NEXT:    movaps %xmm1, %xmm6
+; CHECK-NEXT:    orps %xmm13, %xmm6
+; CHECK-NEXT:    movaps %xmm6, %xmm5
+; CHECK-NEXT:    andnps %xmm1, %xmm5
+; CHECK-NEXT:    cvttps2dq %xmm7, %xmm3
 ; CHECK-NEXT:    cmpltps %xmm0, %xmm7
 ; CHECK-NEXT:    movaps {{.*#+}} xmm15 = [1,2,3,4]
 ; CHECK-NEXT:    movaps %xmm7, %xmm0
@@ -134,30 +131,29 @@ define <16 x float> @foo(<16 x float> %x) {
 ; CHECK-NEXT:    movaps %xmm0, %xmm1
 ; CHECK-NEXT:    andnps %xmm7, %xmm1
 ; CHECK-NEXT:    andps %xmm15, %xmm0
-; CHECK-NEXT:    cvtdq2ps %xmm6, %xmm6
-; CHECK-NEXT:    andps %xmm6, %xmm0
-; CHECK-NEXT:    movaps {{.*#+}} xmm6 = [1,1,1,1]
-; CHECK-NEXT:    andps %xmm6, %xmm1
+; CHECK-NEXT:    cvtdq2ps %xmm3, %xmm3
+; CHECK-NEXT:    andps %xmm3, %xmm0
+; CHECK-NEXT:    movaps {{.*#+}} xmm3 = [1,1,1,1]
+; CHECK-NEXT:    andps %xmm3, %xmm1
 ; CHECK-NEXT:    orps %xmm1, %xmm0
-; CHECK-NEXT:    andps %xmm13, %xmm2
+; CHECK-NEXT:    andps %xmm13, %xmm6
 ; CHECK-NEXT:    cvtdq2ps %xmm12, %xmm1
-; CHECK-NEXT:    andps %xmm1, %xmm2
-; CHECK-NEXT:    andps %xmm6, %xmm5
-; CHECK-NEXT:    orps %xmm5, %xmm2
-; CHECK-NEXT:    andps %xmm11, %xmm3
+; CHECK-NEXT:    andps %xmm1, %xmm6
+; CHECK-NEXT:    andps %xmm3, %xmm5
+; CHECK-NEXT:    orps %xmm5, %xmm6
+; CHECK-NEXT:    andps %xmm11, %xmm2
 ; CHECK-NEXT:    cvttps2dq %xmm8, %xmm1
 ; CHECK-NEXT:    cvtdq2ps %xmm1, %xmm1
-; CHECK-NEXT:    andps %xmm1, %xmm3
-; CHECK-NEXT:    andps %xmm6, %xmm14
-; CHECK-NEXT:    orps %xmm14, %xmm3
-; CHECK-NEXT:    andps %xmm6, %xmm10
+; CHECK-NEXT:    andps %xmm1, %xmm2
+; CHECK-NEXT:    andps %xmm3, %xmm14
+; CHECK-NEXT:    orps %xmm14, %xmm2
+; CHECK-NEXT:    andps %xmm3, %xmm10
 ; CHECK-NEXT:    andps {{.*}}(%rip), %xmm4
 ; CHECK-NEXT:    cvttps2dq %xmm9, %xmm1
 ; CHECK-NEXT:    cvtdq2ps %xmm1, %xmm1
 ; CHECK-NEXT:    andps %xmm1, %xmm4
 ; CHECK-NEXT:    orps %xmm10, %xmm4
-; CHECK-NEXT:    movaps %xmm2, %xmm1
-; CHECK-NEXT:    movaps %xmm3, %xmm2
+; CHECK-NEXT:    movaps %xmm6, %xmm1
 ; CHECK-NEXT:    movaps %xmm4, %xmm3
 ; CHECK-NEXT:    retq
 bb:

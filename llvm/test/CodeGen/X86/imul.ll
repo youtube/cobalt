@@ -2,6 +2,8 @@
 ; RUN: llc < %s -mtriple=x86_64-pc-linux-gnu | FileCheck %s --check-prefix=X64
 ; RUN: llc < %s -mtriple=x86_64-pc-linux-gnux32 | FileCheck %s --check-prefix=X64
 ; RUN: llc < %s -mtriple=i686-pc-linux | FileCheck %s --check-prefix=X86
+; At least one of the test cases in here crashed when linearizing the DAG.
+; RUN: llc < %s -mtriple=x86_64-pc-linux-gnu -pre-RA-sched=linearize | FileCheck %s --check-prefix=X64
 
 define i32 @mul4_32(i32 %A) {
 ; X64-LABEL: mul4_32:
@@ -39,8 +41,8 @@ define i64 @mul4_64(i64 %A) {
 define i32 @mul4096_32(i32 %A) {
 ; X64-LABEL: mul4096_32:
 ; X64:       # %bb.0:
-; X64-NEXT:    shll $12, %edi
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    shll $12, %eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: mul4096_32:
@@ -55,8 +57,8 @@ define i32 @mul4096_32(i32 %A) {
 define i64 @mul4096_64(i64 %A) {
 ; X64-LABEL: mul4096_64:
 ; X64:       # %bb.0:
-; X64-NEXT:    shlq $12, %rdi
 ; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    shlq $12, %rax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: mul4096_64:
@@ -73,9 +75,9 @@ define i64 @mul4096_64(i64 %A) {
 define i32 @mulmin4096_32(i32 %A) {
 ; X64-LABEL: mulmin4096_32:
 ; X64:       # %bb.0:
-; X64-NEXT:    shll $12, %edi
-; X64-NEXT:    negl %edi
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    shll $12, %eax
+; X64-NEXT:    negl %eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: mulmin4096_32:
@@ -91,9 +93,9 @@ define i32 @mulmin4096_32(i32 %A) {
 define i64 @mulmin4096_64(i64 %A) {
 ; X64-LABEL: mulmin4096_64:
 ; X64:       # %bb.0:
-; X64-NEXT:    shlq $12, %rdi
-; X64-NEXT:    negq %rdi
 ; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    shlq $12, %rax
+; X64-NEXT:    negq %rax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: mulmin4096_64:
@@ -218,7 +220,7 @@ define i32 @mul33_32(i32 %A) {
 ; X64-NEXT:    # kill: def $edi killed $edi def $rdi
 ; X64-NEXT:    movl %edi, %eax
 ; X64-NEXT:    shll $5, %eax
-; X64-NEXT:    leal (%rax,%rdi), %eax
+; X64-NEXT:    addl %edi, %eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: mul33_32:
@@ -268,8 +270,8 @@ define i32 @mul0_32(i32 %A) {
 define i32 @mul4294967295_32(i32 %A) {
 ; X64-LABEL: mul4294967295_32:
 ; X64:       # %bb.0:
-; X64-NEXT:    negl %edi
 ; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    negl %eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: mul4294967295_32:
@@ -284,8 +286,8 @@ define i32 @mul4294967295_32(i32 %A) {
 define i64 @mul18446744073709551615_64(i64 %A) {
 ; X64-LABEL: mul18446744073709551615_64:
 ; X64:       # %bb.0:
-; X64-NEXT:    negq %rdi
 ; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    negq %rax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: mul18446744073709551615_64:
@@ -323,9 +325,9 @@ define i32 @test1(i32 %a) {
 ; X64-LABEL: test1:
 ; X64:       # %bb.0: # %entry
 ; X64-NEXT:    movl %edi, %eax
-; X64-NEXT:    shll $5, %eax
-; X64-NEXT:    subl %eax, %edi
-; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    movl %edi, %ecx
+; X64-NEXT:    shll $5, %ecx
+; X64-NEXT:    subl %ecx, %eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: test1:
@@ -347,7 +349,7 @@ define i32 @test2(i32 %a) {
 ; X64-NEXT:    # kill: def $edi killed $edi def $rdi
 ; X64-NEXT:    movl %edi, %eax
 ; X64-NEXT:    shll $5, %eax
-; X64-NEXT:    leal (%rax,%rdi), %eax
+; X64-NEXT:    addl %edi, %eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: test2:
@@ -368,7 +370,7 @@ define i32 @test3(i32 %a) {
 ; X64-NEXT:    # kill: def $edi killed $edi def $rdi
 ; X64-NEXT:    movl %edi, %eax
 ; X64-NEXT:    shll $5, %eax
-; X64-NEXT:    leal (%rax,%rdi), %eax
+; X64-NEXT:    addl %edi, %eax
 ; X64-NEXT:    negl %eax
 ; X64-NEXT:    retq
 ;
@@ -412,9 +414,9 @@ define i64 @test5(i64 %a) {
 ; X64-LABEL: test5:
 ; X64:       # %bb.0: # %entry
 ; X64-NEXT:    movq %rdi, %rax
-; X64-NEXT:    shlq $5, %rax
-; X64-NEXT:    subq %rax, %rdi
-; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    movq %rdi, %rcx
+; X64-NEXT:    shlq $5, %rcx
+; X64-NEXT:    subq %rcx, %rax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: test5:
@@ -446,7 +448,7 @@ define i64 @test6(i64 %a) {
 ; X64:       # %bb.0: # %entry
 ; X64-NEXT:    movq %rdi, %rax
 ; X64-NEXT:    shlq $5, %rax
-; X64-NEXT:    leaq (%rax,%rdi), %rax
+; X64-NEXT:    addq %rdi, %rax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: test6:
@@ -469,7 +471,7 @@ define i64 @test7(i64 %a) {
 ; X64:       # %bb.0: # %entry
 ; X64-NEXT:    movq %rdi, %rax
 ; X64-NEXT:    shlq $5, %rax
-; X64-NEXT:    leaq (%rax,%rdi), %rax
+; X64-NEXT:    addq %rdi, %rax
 ; X64-NEXT:    negq %rax
 ; X64-NEXT:    retq
 ;
@@ -530,19 +532,16 @@ define i64 @testNegOverflow(i64 %a) {
 ; X64-LABEL: testNegOverflow:
 ; X64:       # %bb.0: # %entry
 ; X64-NEXT:    movq %rdi, %rax
-; X64-NEXT:    shlq $63, %rax
-; X64-NEXT:    subq %rax, %rdi
-; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    movq %rdi, %rcx
+; X64-NEXT:    shlq $63, %rcx
+; X64-NEXT:    subq %rcx, %rax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: testNegOverflow:
 ; X86:       # %bb.0: # %entry
-; X86-NEXT:    movl {{[0-9]+}}(%esp), %ecx
-; X86-NEXT:    movl $1, %edx
-; X86-NEXT:    movl %ecx, %eax
-; X86-NEXT:    mull %edx
-; X86-NEXT:    shll $31, %ecx
-; X86-NEXT:    addl %ecx, %edx
+; X86-NEXT:    movl {{[0-9]+}}(%esp), %eax
+; X86-NEXT:    movl %eax, %edx
+; X86-NEXT:    shll $31, %edx
 ; X86-NEXT:    addl {{[0-9]+}}(%esp), %edx
 ; X86-NEXT:    retl
 entry:

@@ -16,6 +16,14 @@
 // CHECK-ASAN-LINUX: "-lrt"
 // CHECK-ASAN-LINUX: "-ldl"
 
+// RUN: %clang -fsanitize=address -fno-sanitize-link-runtime %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
+// RUN:     -resource-dir=%S/Inputs/resource_dir \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-ASAN-NO-LINK-RUNTIME-LINUX %s
+//
+// CHECK-ASAN-NO-LINK-RUNTIME-LINUX-NOT: libclang_rt.asan
+
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:     -target i386-unknown-linux -fuse-ld=ld -fsanitize=address -shared-libsan \
 // RUN:     -resource-dir=%S/Inputs/resource_dir \
@@ -239,6 +247,14 @@
 // CHECK-TSAN-LINUX-CXX: "-lrt"
 // CHECK-TSAN-LINUX-CXX: "-ldl"
 
+// RUN: %clang -fsanitize=thread -fno-sanitize-link-runtime %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
+// RUN:     -resource-dir=%S/Inputs/resource_dir \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-TSAN-NO-LINK-RUNTIME-LINUX %s
+//
+// CHECK-TSAN-NO-LINK-RUNTIME-LINUX-NOT: libclang_rt.tsan
+
 // RUN: %clangxx -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:     -target x86_64-unknown-linux -fuse-ld=ld -stdlib=platform -lstdc++ \
 // RUN:     -fsanitize=memory \
@@ -258,7 +274,20 @@
 // CHECK-MSAN-LINUX-CXX: "-lrt"
 // CHECK-MSAN-LINUX-CXX: "-ldl"
 
+// RUN: %clang -fsanitize=memory -fno-sanitize-link-runtime %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
+// RUN:     -resource-dir=%S/Inputs/resource_dir \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-MSAN-NO-LINK-RUNTIME-LINUX %s
+//
+// CHECK-MSAN-NO-LINK-RUNTIME-LINUX-NOT: libclang_rt.msan
+
 // RUN: %clang -fsanitize=undefined %s -### -o %t.o 2>&1 \
+// RUN:     -target i386-unknown-linux -fuse-ld=ld \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-UBSAN-LINUX %s
+
+// RUN: %clang -fsanitize=float-divide-by-zero %s -### -o %t.o 2>&1 \
 // RUN:     -target i386-unknown-linux -fuse-ld=ld \
 // RUN:     --sysroot=%S/Inputs/basic_linux_tree \
 // RUN:   | FileCheck --check-prefix=CHECK-UBSAN-LINUX %s
@@ -277,6 +306,14 @@
 // CHECK-UBSAN-LINUX-NOT: libclang_rt.ubsan_standalone_cxx
 // CHECK-UBSAN-LINUX-NOT: "-lstdc++"
 // CHECK-UBSAN-LINUX: "-lpthread"
+
+// RUN: %clang -fsanitize=undefined -fno-sanitize-link-runtime %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
+// RUN:     -resource-dir=%S/Inputs/resource_dir \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-UBSAN-NO-LINK-RUNTIME-LINUX %s
+//
+// CHECK-UBSAN-NO-LINK-RUNTIME-LINUX-NOT: libclang_rt.undefined
 
 // RUN: %clang -fsanitize=undefined %s -### -o %t.o 2>&1 \
 // RUN:     -target i386-unknown-linux -fuse-ld=ld \
@@ -403,6 +440,14 @@
 // CHECK-LSAN-LINUX: libclang_rt.lsan-x86_64.a"
 // CHECK-LSAN-LINUX: "-lpthread"
 // CHECK-LSAN-LINUX: "-ldl"
+
+// RUN: %clang -fsanitize=leak -fno-sanitize-link-runtime %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
+// RUN:     -resource-dir=%S/Inputs/resource_dir \
+// RUN:     --sysroot=%S/Inputs/basic_linux_tree \
+// RUN:   | FileCheck --check-prefix=CHECK-LSAN-NO-LINK-RUNTIME-LINUX %s
+//
+// CHECK-LSAN-NO-LINK-RUNTIME-LINUX-NOT: libclang_rt.lsan
 
 // RUN: %clang -no-canonical-prefixes %s -### -o %t.o 2>&1 \
 // RUN:  -target x86_64-unknown-linux -fuse-ld=ld -fsanitize=leak -fsanitize-coverage=func \
@@ -575,6 +620,9 @@
 // RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
 // RUN:     -target arm64-unknown-ios -fuse-ld=ld \
 // RUN:   | FileCheck --check-prefix=CHECK-SHADOWCALLSTACK-LINUX-AARCH64-X18 %s
+// RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
+// RUN:     -target aarch64-unknown-linux-android -fuse-ld=ld \
+// RUN:   | FileCheck --check-prefix=CHECK-SHADOWCALLSTACK-LINUX-AARCH64-X18 %s
 // CHECK-SHADOWCALLSTACK-LINUX-AARCH64-X18-NOT: error:
 
 // RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
@@ -585,7 +633,7 @@
 // RUN: %clang -fsanitize=shadow-call-stack %s -### -o %t.o 2>&1 \
 // RUN:     -fsanitize=safe-stack -target x86_64-unknown-linux -fuse-ld=ld \
 // RUN:   | FileCheck --check-prefix=CHECK-SHADOWCALLSTACK-SAFESTACK %s
-// CHECK-SHADOWCALLSTACK-SAFESTACK: error: invalid argument '-fsanitize=shadow-call-stack' not allowed with '-fsanitize=safe-stack'
+// CHECK-SHADOWCALLSTACK-SAFESTACK-NOT: error:
 
 // RUN: %clang -fsanitize=cfi -fsanitize-stats %s -### -o %t.o 2>&1 \
 // RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
@@ -670,15 +718,12 @@
 // CHECK-AUBSAN-PS4: "{{.*}}ld{{(.gold)?(.exe)?}}"
 // CHECK-AUBSAN-PS4: -lSceDbgAddressSanitizer_stub_weak
 
-// RUN: %clang -fsanitize=efficiency-cache-frag %s -### -o %t.o 2>&1 \
-// RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
-// RUN:   | FileCheck --check-prefix=CHECK-ESAN-LINUX %s
-// RUN: %clang -fsanitize=efficiency-working-set %s -### -o %t.o 2>&1 \
-// RUN:     -target x86_64-unknown-linux -fuse-ld=ld \
-// RUN:   | FileCheck --check-prefix=CHECK-ESAN-LINUX %s
-//
-// CHECK-ESAN-LINUX: "{{(.*[^-.0-9A-Z_a-z])?}}ld{{(.exe)?}}"
-// CHECK-ESAN-LINUX: libclang_rt.esan-x86_64.a
+// RUN: %clang -fsanitize=address,undefined %s -### -o %t.o 2>&1 \
+// RUN:     -target x86_64-scei-ps4 -fuse-ld=ld \
+// RUN:     -shared \
+// RUN:     -nostdlib \
+// RUN:   | FileCheck --check-prefix=CHECK-NOLIB-PS4 %s
+// CHECK-NOLIB-PS4-NOT: SceDbgAddressSanitizer_stub_weak
 
 // RUN: %clang -fsanitize=scudo %s -### -o %t.o 2>&1 \
 // RUN:     -target i386-unknown-linux -fuse-ld=ld \

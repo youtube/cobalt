@@ -1,9 +1,8 @@
 //===- SemaTemplate.h - C++ Templates ---------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //===----------------------------------------------------------------------===//
 //
 // This file provides types used in the semantic analysis of C++ templates.
@@ -228,7 +227,7 @@ class VarDecl;
   class LocalInstantiationScope {
   public:
     /// A set of declarations.
-    using DeclArgumentPack = SmallVector<ParmVarDecl *, 4>;
+    using DeclArgumentPack = SmallVector<VarDecl *, 4>;
 
   private:
     /// Reference to the semantic analysis that is performing
@@ -379,7 +378,7 @@ class VarDecl;
     findInstantiationOf(const Decl *D);
 
     void InstantiatedLocal(const Decl *D, Decl *Inst);
-    void InstantiatedLocalPackArg(const Decl *D, ParmVarDecl *Inst);
+    void InstantiatedLocalPackArg(const Decl *D, VarDecl *Inst);
     void MakeInstantiatedLocalArgPack(const Decl *D);
 
     /// Note that the given parameter pack has been partially substituted
@@ -465,20 +464,30 @@ class VarDecl;
 #define OBJCPROPERTY(DERIVED, BASE)
 #define OBJCPROPERTYIMPL(DERIVED, BASE)
 #define EMPTY(DERIVED, BASE)
+#define LIFETIMEEXTENDEDTEMPORARY(DERIVED, BASE)
 
-// Decls which use special-case instantiation code.
+    // Decls which use special-case instantiation code.
 #define BLOCK(DERIVED, BASE)
 #define CAPTURED(DERIVED, BASE)
 #define IMPLICITPARAM(DERIVED, BASE)
 
 #include "clang/AST/DeclNodes.inc"
 
+    enum class RewriteKind { None, RewriteSpaceshipAsEqualEqual };
+
+    void adjustForRewrite(RewriteKind RK, FunctionDecl *Orig, QualType &T,
+                          TypeSourceInfo *&TInfo,
+                          DeclarationNameInfo &NameInfo);
+
     // A few supplemental visitor functions.
     Decl *VisitCXXMethodDecl(CXXMethodDecl *D,
                              TemplateParameterList *TemplateParams,
-                             bool IsClassScopeSpecialization = false);
+                             Optional<const ASTTemplateArgumentListInfo *>
+                                 ClassScopeSpecializationArgs = llvm::None,
+                             RewriteKind RK = RewriteKind::None);
     Decl *VisitFunctionDecl(FunctionDecl *D,
-                            TemplateParameterList *TemplateParams);
+                            TemplateParameterList *TemplateParams,
+                            RewriteKind RK = RewriteKind::None);
     Decl *VisitDecl(Decl *D);
     Decl *VisitVarDecl(VarDecl *D, bool InstantiatingVarTemplate,
                        ArrayRef<BindingDecl *> *Bindings = nullptr);
@@ -534,6 +543,8 @@ class VarDecl;
     bool InitFunctionInstantiation(FunctionDecl *New, FunctionDecl *Tmpl);
     bool InitMethodInstantiation(CXXMethodDecl *New, CXXMethodDecl *Tmpl);
 
+    bool SubstDefaultedFunction(FunctionDecl *New, FunctionDecl *Tmpl);
+
     TemplateParameterList *
       SubstTemplateParams(TemplateParameterList *List);
 
@@ -545,7 +556,8 @@ class VarDecl;
     Decl *VisitVarTemplateSpecializationDecl(
         VarTemplateDecl *VarTemplate, VarDecl *FromVar, void *InsertPos,
         const TemplateArgumentListInfo &TemplateArgsInfo,
-        ArrayRef<TemplateArgument> Converted);
+        ArrayRef<TemplateArgument> Converted,
+        VarTemplateSpecializationDecl *PrevDecl = nullptr);
 
     Decl *InstantiateTypedefNameDecl(TypedefNameDecl *D, bool IsTypeAlias);
     ClassTemplatePartialSpecializationDecl *

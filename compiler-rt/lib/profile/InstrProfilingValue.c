@@ -1,9 +1,8 @@
 /*===- InstrProfilingValue.c - Support library for PGO instrumentation ----===*\
 |*
-|*                     The LLVM Compiler Infrastructure
-|*
-|* This file is distributed under the University of Illinois Open Source
-|* License. See LICENSE.TXT for details.
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+|* See https://llvm.org/LICENSE.txt for license information.
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 |*
 \*===----------------------------------------------------------------------===*/
 
@@ -18,7 +17,7 @@
 
 #define INSTR_PROF_VALUE_PROF_DATA
 #define INSTR_PROF_COMMON_API_IMPL
-#include "InstrProfData.inc"
+#include "profile/InstrProfData.inc"
 
 static int hasStaticCounters = 1;
 static int OutOfNodesWarnings = 0;
@@ -32,7 +31,7 @@ static int hasNonDefaultValsPerSite = 0;
  * allocated by the compiler.  */
 COMPILER_RT_VISIBILITY ValueProfNode
     lprofValueProfNodes[INSTR_PROF_VNODE_POOL_SIZE] COMPILER_RT_SECTION(
-       COMPILER_RT_SEG INSTR_PROF_VNODES_SECT_NAME_STR);
+       COMPILER_RT_SEG INSTR_PROF_VNODES_SECT_NAME);
 #endif
 
 COMPILER_RT_VISIBILITY uint32_t VPMaxNumValsPerSite =
@@ -105,8 +104,7 @@ static int allocateValueProfileCounters(__llvm_profile_data *Data) {
   return 1;
 }
 
-static ValueProfNode *allocateOneNode(__llvm_profile_data *Data, uint32_t Index,
-                                      uint64_t Value) {
+static ValueProfNode *allocateOneNode(void) {
   ValueProfNode *Node;
 
   if (!hasStaticCounters)
@@ -205,7 +203,7 @@ instrumentTargetValueImpl(uint64_t TargetValue, void *Data,
     return;
   }
 
-  CurVNode = allocateOneNode(PData, CounterIndex, TargetValue);
+  CurVNode = allocateOneNode();
   if (!CurVNode)
     return;
   CurVNode->Value = TargetValue;

@@ -1,18 +1,13 @@
 //===-- ValueObjectPrinter.cpp -----------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/ValueObject.h"
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -80,8 +75,6 @@ bool ValueObjectPrinter::PrintValueObject() {
     return false;
 
   if (ShouldPrintValueObject()) {
-    PrintValidationMarkerIfNeeded();
-
     PrintLocationIfNeeded();
     m_stream->Indent();
 
@@ -98,8 +91,6 @@ bool ValueObjectPrinter::PrintValueObject() {
     PrintChildrenIfNeeded(value_printed, summary_printed);
   else
     m_stream->EOL();
-
-  PrintValidationErrorIfNeeded();
 
   return true;
 }
@@ -133,13 +124,13 @@ bool ValueObjectPrinter::GetMostSpecializedValue() {
     }
 
     if (m_valobj->IsSynthetic()) {
-      if (m_options.m_use_synthetic == false) {
+      if (!m_options.m_use_synthetic) {
         ValueObject *non_synthetic = m_valobj->GetNonSyntheticValue().get();
         if (non_synthetic)
           m_valobj = non_synthetic;
       }
     } else {
-      if (m_options.m_use_synthetic == true) {
+      if (m_options.m_use_synthetic) {
         ValueObject *synthetic = m_valobj->GetSyntheticValue().get();
         if (synthetic)
           m_valobj = synthetic;
@@ -170,7 +161,7 @@ const char *ValueObjectPrinter::GetRootNameForDisplay(const char *if_fail) {
 bool ValueObjectPrinter::ShouldPrintValueObject() {
   if (m_should_print == eLazyBoolCalculate)
     m_should_print =
-        (m_options.m_flat_output == false || m_type_flags.Test(eTypeHasValue))
+        (!m_options.m_flat_output || m_type_flags.Test(eTypeHasValue))
             ? eLazyBoolYes
             : eLazyBoolNo;
   return m_should_print == eLazyBoolYes;
@@ -330,13 +321,13 @@ bool ValueObjectPrinter::CheckScopeIfNeeded() {
 }
 
 TypeSummaryImpl *ValueObjectPrinter::GetSummaryFormatter(bool null_if_omitted) {
-  if (m_summary_formatter.second == false) {
+  if (!m_summary_formatter.second) {
     TypeSummaryImpl *entry = m_options.m_summary_sp
                                  ? m_options.m_summary_sp.get()
                                  : m_valobj->GetSummaryFormat().get();
 
     if (m_options.m_omit_summary_depth > 0)
-      entry = NULL;
+      entry = nullptr;
     m_summary_formatter.first = entry;
     m_summary_formatter.second = true;
   }
@@ -420,8 +411,9 @@ bool ValueObjectPrinter::PrintValueAndSummaryIfNeeded(bool &value_printed,
       // explicitly)
       TypeSummaryImpl *entry = GetSummaryFormatter();
       if (!IsNil() && !IsUninitialized() && !m_value.empty() &&
-          (entry == NULL || (entry->DoesPrintValue(m_valobj) ||
-                             m_options.m_format != eFormatDefault) ||
+          (entry == nullptr ||
+           (entry->DoesPrintValue(m_valobj) ||
+            m_options.m_format != eFormatDefault) ||
            m_summary.empty()) &&
           !m_options.m_hide_value) {
         if (m_options.m_hide_pointer_value &&
@@ -460,9 +452,9 @@ bool ValueObjectPrinter::PrintObjectDescriptionIfNeeded(bool value_printed,
         if (object_desc[object_end] == '\n')
             m_stream->Printf("%s", object_desc);
         else
-            m_stream->Printf("%s\n", object_desc);        
+            m_stream->Printf("%s\n", object_desc);
         return true;
-      } else if (value_printed == false && summary_printed == false)
+      } else if (!value_printed && !summary_printed)
         return true;
       else
         return false;
@@ -629,7 +621,7 @@ bool ValueObjectPrinter::ShouldPrintEmptyBrackets(bool value_printed,
   if (!IsAggregate())
     return false;
 
-  if (m_options.m_reveal_empty_aggregates == false) {
+  if (!m_options.m_reveal_empty_aggregates) {
     if (value_printed || summary_printed)
       return false;
   }
@@ -755,34 +747,30 @@ bool ValueObjectPrinter::PrintChildrenOneLiner(bool hide_names) {
 
 void ValueObjectPrinter::PrintChildrenIfNeeded(bool value_printed,
                                                bool summary_printed) {
-  // this flag controls whether we tried to display a description for this
-  // object and failed if that happens, we want to display the children, if any
+  // This flag controls whether we tried to display a description for this
+  // object and failed if that happens, we want to display the children if any.
   bool is_failed_description =
       !PrintObjectDescriptionIfNeeded(value_printed, summary_printed);
 
-  auto curr_ptr_depth = m_ptr_depth;
-  bool print_children =
+  DumpValueObjectOptions::PointerDepth curr_ptr_depth = m_ptr_depth;
+  const bool print_children =
       ShouldPrintChildren(is_failed_description, curr_ptr_depth);
-  bool print_oneline =
+  const bool print_oneline =
       (curr_ptr_depth.CanAllowExpansion() || m_options.m_show_types ||
        !m_options.m_allow_oneliner_mode || m_options.m_flat_output ||
        (m_options.m_pointer_as_array) || m_options.m_show_location)
           ? false
           : DataVisualization::ShouldPrintAsOneLiner(*m_valobj);
-  bool is_instance_ptr = IsInstancePointer();
-  uint64_t instance_ptr_value = LLDB_INVALID_ADDRESS;
-
-  if (print_children && is_instance_ptr) {
-    instance_ptr_value = m_valobj->GetValueAsUnsigned(0);
+  if (print_children && IsInstancePointer()) {
+    uint64_t instance_ptr_value = m_valobj->GetValueAsUnsigned(0);
     if (m_printed_instance_pointers->count(instance_ptr_value)) {
-      // we already printed this instance-is-pointer thing, so don't expand it
+      // We already printed this instance-is-pointer thing, so don't expand it.
       m_stream->PutCString(" {...}\n");
-
-      // we're done here - get out fast
       return;
-    } else
-      m_printed_instance_pointers->emplace(
-          instance_ptr_value); // remember this guy for future reference
+    } else {
+      // Remember this guy for future reference.
+      m_printed_instance_pointers->emplace(instance_ptr_value);
+    }
   }
 
   if (print_children) {
@@ -797,38 +785,4 @@ void ValueObjectPrinter::PrintChildrenIfNeeded(bool value_printed,
     m_stream->PutCString("{...}\n");
   } else
     m_stream->EOL();
-}
-
-bool ValueObjectPrinter::ShouldPrintValidation() {
-  return m_options.m_run_validator;
-}
-
-bool ValueObjectPrinter::PrintValidationMarkerIfNeeded() {
-  if (!ShouldPrintValidation())
-    return false;
-
-  m_validation = m_valobj->GetValidationStatus();
-
-  if (TypeValidatorResult::Failure == m_validation.first) {
-    m_stream->Printf("! ");
-    return true;
-  }
-
-  return false;
-}
-
-bool ValueObjectPrinter::PrintValidationErrorIfNeeded() {
-  if (!ShouldPrintValidation())
-    return false;
-
-  if (TypeValidatorResult::Success == m_validation.first)
-    return false;
-
-  if (m_validation.second.empty())
-    m_validation.second.assign("unknown error");
-
-  m_stream->Printf(" ! validation error: %s", m_validation.second.c_str());
-  m_stream->EOL();
-
-  return true;
 }

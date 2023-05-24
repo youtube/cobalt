@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -134,7 +133,6 @@ void test_ctor_under_alloc() {
   int arr2[] = {1, 101, 42};
   {
     using C = TCT::vector<>;
-    using T = typename C::value_type;
     using It = forward_iterator<int*>;
     using Alloc = typename C::allocator_type;
     Alloc a;
@@ -149,7 +147,6 @@ void test_ctor_under_alloc() {
   }
   {
     using C = TCT::vector<>;
-    using T = typename C::value_type;
     using It = input_iterator<int*>;
     using Alloc = typename C::allocator_type;
     Alloc a;
@@ -165,8 +162,10 @@ void test_ctor_under_alloc() {
 #endif
 }
 
-int main() {
+int main(int, char**) {
   basic_tests();
   emplaceable_concept_tests(); // See PR34898
   test_ctor_under_alloc();
+
+  return 0;
 }

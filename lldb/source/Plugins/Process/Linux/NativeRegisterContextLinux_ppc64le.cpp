@@ -1,9 +1,8 @@
 //===-- NativeRegisterContextLinux_ppc64le.cpp ------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,10 +13,10 @@
 
 #include "NativeRegisterContextLinux_ppc64le.h"
 
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Host/common/NativeProcessProtocol.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
 
 #include "Plugins/Process/Linux/NativeProcessLinux.h"
@@ -119,7 +118,7 @@ NativeRegisterContextLinux::CreateHostNativeRegisterContextLinux(
     const ArchSpec &target_arch, NativeThreadProtocol &native_thread) {
   switch (target_arch.GetMachine()) {
   case llvm::Triple::ppc64le:
-    return llvm::make_unique<NativeRegisterContextLinux_ppc64le>(target_arch,
+    return std::make_unique<NativeRegisterContextLinux_ppc64le>(target_arch,
                                                                  native_thread);
   default:
     llvm_unreachable("have no register context for architecture");
@@ -355,10 +354,6 @@ Status NativeRegisterContextLinux_ppc64le::ReadAllRegisterValues(
   Status error;
 
   data_sp.reset(new DataBufferHeap(REG_CONTEXT_SIZE, 0));
-  if (!data_sp)
-    return Status("failed to allocate DataBufferHeap instance of size %" PRIu64,
-                  REG_CONTEXT_SIZE);
-
   error = ReadGPR();
   if (error.Fail())
     return error;
@@ -376,13 +371,6 @@ Status NativeRegisterContextLinux_ppc64le::ReadAllRegisterValues(
     return error;
 
   uint8_t *dst = data_sp->GetBytes();
-  if (dst == nullptr) {
-    error.SetErrorStringWithFormat("DataBufferHeap instance of size %" PRIu64
-                                   " returned a null pointer",
-                                   REG_CONTEXT_SIZE);
-    return error;
-  }
-
   ::memcpy(dst, &m_gpr_ppc64le, GetGPRSize());
   dst += GetGPRSize();
   ::memcpy(dst, &m_fpr_ppc64le, GetFPRSize());
@@ -455,34 +443,6 @@ bool NativeRegisterContextLinux_ppc64le::IsGPR(unsigned reg) const {
 
 bool NativeRegisterContextLinux_ppc64le::IsFPR(unsigned reg) const {
   return (k_first_fpr_ppc64le <= reg && reg <= k_last_fpr_ppc64le);
-}
-
-Status NativeRegisterContextLinux_ppc64le::DoReadGPR(
-    void *buf, size_t buf_size) {
-  int regset = NT_PRSTATUS;
-  return NativeProcessLinux::PtraceWrapper(PTRACE_GETREGS, m_thread.GetID(),
-                                           &regset, buf, buf_size);
-}
-
-Status NativeRegisterContextLinux_ppc64le::DoWriteGPR(
-    void *buf, size_t buf_size) {
-  int regset = NT_PRSTATUS;
-  return NativeProcessLinux::PtraceWrapper(PTRACE_SETREGS, m_thread.GetID(),
-                                           &regset, buf, buf_size);
-}
-
-Status NativeRegisterContextLinux_ppc64le::DoReadFPR(void *buf,
-                                                     size_t buf_size) {
-  int regset = NT_FPREGSET;
-  return NativeProcessLinux::PtraceWrapper(PTRACE_GETFPREGS, m_thread.GetID(),
-                                           &regset, buf, buf_size);
-}
-
-Status NativeRegisterContextLinux_ppc64le::DoWriteFPR(void *buf,
-                                                      size_t buf_size) {
-  int regset = NT_FPREGSET;
-  return NativeProcessLinux::PtraceWrapper(PTRACE_SETFPREGS, m_thread.GetID(),
-                                           &regset, buf, buf_size);
 }
 
 uint32_t NativeRegisterContextLinux_ppc64le::CalculateFprOffset(

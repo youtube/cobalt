@@ -1,9 +1,8 @@
 //===- CoreEngine.cpp - Path-Sensitive Dataflow Engine --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -53,26 +52,28 @@ STATISTIC(NumPathsExplored,
 // Core analysis engine.
 //===----------------------------------------------------------------------===//
 
-static std::unique_ptr<WorkList> generateWorkList(AnalyzerOptions &Opts) {
+static std::unique_ptr<WorkList> generateWorkList(AnalyzerOptions &Opts,
+                                                  SubEngine &subengine) {
   switch (Opts.getExplorationStrategy()) {
-    case AnalyzerOptions::ExplorationStrategyKind::DFS:
+    case ExplorationStrategyKind::DFS:
       return WorkList::makeDFS();
-    case AnalyzerOptions::ExplorationStrategyKind::BFS:
+    case ExplorationStrategyKind::BFS:
       return WorkList::makeBFS();
-    case AnalyzerOptions::ExplorationStrategyKind::BFSBlockDFSContents:
+    case ExplorationStrategyKind::BFSBlockDFSContents:
       return WorkList::makeBFSBlockDFSContents();
-    case AnalyzerOptions::ExplorationStrategyKind::UnexploredFirst:
+    case ExplorationStrategyKind::UnexploredFirst:
       return WorkList::makeUnexploredFirst();
-    case AnalyzerOptions::ExplorationStrategyKind::UnexploredFirstQueue:
+    case ExplorationStrategyKind::UnexploredFirstQueue:
       return WorkList::makeUnexploredFirstPriorityQueue();
-    default:
-      llvm_unreachable("Unexpected case");
+    case ExplorationStrategyKind::UnexploredFirstLocationQueue:
+      return WorkList::makeUnexploredFirstPriorityLocationQueue();
   }
+  llvm_unreachable("Unknown AnalyzerOptions::ExplorationStrategyKind");
 }
 
 CoreEngine::CoreEngine(SubEngine &subengine, FunctionSummariesTy *FS,
                        AnalyzerOptions &Opts)
-    : SubEng(subengine), WList(generateWorkList(Opts)),
+    : SubEng(subengine), WList(generateWorkList(Opts, subengine)),
       BCounterFactory(G.getAllocator()), FunctionSummaries(FS) {}
 
 /// ExecuteWorkList - Run the worklist algorithm for a maximum number of steps.
@@ -146,7 +147,7 @@ bool CoreEngine::ExecuteWorkList(const LocationContext *L, unsigned Steps,
 
     dispatchWorkItem(Node, Node->getLocation(), WU);
   }
-  SubEng.processEndWorklist(hasWorkRemaining());
+  SubEng.processEndWorklist();
   return WList->hasWork();
 }
 
@@ -215,6 +216,25 @@ void CoreEngine::HandleBlockEdge(const BlockEdge &L, ExplodedNode *Pred) {
                                            LC->getDecl(),
                                            LC->getCFG()->getNumBlockIDs());
 
+  // Display a prunable path note to the user if it's a virtual bases branch
+  // and we're taking the path that skips virtual base constructors.
+  if (L.getSrc()->getTerminator().isVirtualBaseBranch() &&
+      L.getDst() == *L.getSrc()->succ_begin()) {
+    ProgramPoint P = L.withTag(getNoteTags().makeNoteTag(
+        [](BugReporterContext &, BugReport &) -> std::string {
+          // TODO: Just call out the name of the most derived class
+          // when we know it.
+          return "Virtual base initialization skipped because "
+                 "it has already been handled by the most derived class";
+        }, /*IsPrunable=*/true));
+    // Perform the transition.
+    ExplodedNodeSet Dst;
+    NodeBuilder Bldr(Pred, Dst, BuilderCtx);
+    Pred = Bldr.generateNode(P, Pred->getState(), Pred);
+    if (!Pred)
+      return;
+  }
+
   // Check if we are entering the EXIT block.
   if (Blk == &(L.getLocationContext()->getCFG()->getExit())) {
     assert(L.getLocationContext()->getCFG()->getExit().empty() &&
@@ -223,8 +243,12 @@ void CoreEngine::HandleBlockEdge(const BlockEdge &L, ExplodedNode *Pred) {
     // Get return statement..
     const ReturnStmt *RS = nullptr;
     if (!L.getSrc()->empty()) {
-      if (Optional<CFGStmt> LastStmt = L.getSrc()->back().getAs<CFGStmt>()) {
+      CFGElement LastElement = L.getSrc()->back();
+      if (Optional<CFGStmt> LastStmt = LastElement.getAs<CFGStmt>()) {
         RS = dyn_cast<ReturnStmt>(LastStmt->getStmt());
+      } else if (Optional<CFGAutomaticObjDtor> AutoDtor =
+                 LastElement.getAs<CFGAutomaticObjDtor>()) {
+        RS = dyn_cast<ReturnStmt>(AutoDtor->getTriggerStmt());
       }
     }
 
@@ -270,14 +294,14 @@ void CoreEngine::HandleBlockEntrance(const BlockEntrance &L,
 }
 
 void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
-  if (const Stmt *Term = B->getTerminator()) {
+  if (const Stmt *Term = B->getTerminatorStmt()) {
     switch (Term->getStmtClass()) {
       default:
         llvm_unreachable("Analysis for this terminator not implemented.");
 
       case Stmt::CXXBindTemporaryExprClass:
         HandleCleanupTemporaryBranch(
-            cast<CXXBindTemporaryExpr>(B->getTerminator().getStmt()), B, Pred);
+            cast<CXXBindTemporaryExpr>(Term), B, Pred);
         return;
 
       // Model static initializers.
@@ -372,7 +396,17 @@ void CoreEngine::HandleBlockExit(const CFGBlock * B, ExplodedNode *Pred) {
       case Stmt::WhileStmtClass:
         HandleBranch(cast<WhileStmt>(Term)->getCond(), Term, B, Pred);
         return;
+
+      case Stmt::GCCAsmStmtClass:
+        assert(cast<GCCAsmStmt>(Term)->isAsmGoto() && "Encountered GCCAsmStmt without labels");
+        // TODO: Handle jumping to labels
+        return;
     }
+  }
+
+  if (B->getTerminator().isVirtualBaseBranch()) {
+    HandleVirtualBaseBranch(B, Pred);
+    return;
   }
 
   assert(B->succ_size() == 1 &&
@@ -392,8 +426,8 @@ void CoreEngine::HandleBranch(const Stmt *Cond, const Stmt *Term,
   assert(B->succ_size() == 2);
   NodeBuilderContext Ctx(*this, B, Pred);
   ExplodedNodeSet Dst;
-  SubEng.processBranch(Cond, Term, Ctx, Pred, Dst,
-                       *(B->succ_begin()), *(B->succ_begin()+1));
+  SubEng.processBranch(Cond, Ctx, Pred, Dst, *(B->succ_begin()),
+                       *(B->succ_begin() + 1));
   // Enqueue the new frontier onto the worklist.
   enqueue(Dst);
 }
@@ -432,6 +466,29 @@ void CoreEngine::HandlePostStmt(const CFGBlock *B, unsigned StmtIdx,
     NodeBuilderContext Ctx(*this, B, Pred);
     SubEng.processCFGElement((*B)[StmtIdx], Pred, StmtIdx, &Ctx);
   }
+}
+
+void CoreEngine::HandleVirtualBaseBranch(const CFGBlock *B,
+                                         ExplodedNode *Pred) {
+  const LocationContext *LCtx = Pred->getLocationContext();
+  if (const auto *CallerCtor = dyn_cast_or_null<CXXConstructExpr>(
+          LCtx->getStackFrame()->getCallSite())) {
+    switch (CallerCtor->getConstructionKind()) {
+    case CXXConstructExpr::CK_NonVirtualBase:
+    case CXXConstructExpr::CK_VirtualBase: {
+      BlockEdge Loc(B, *B->succ_begin(), LCtx);
+      HandleBlockEdge(Loc, Pred);
+      return;
+    }
+    default:
+      break;
+    }
+  }
+
+  // We either don't see a parent stack frame because we're in the top frame,
+  // or the parent stack frame doesn't initialize our virtual bases.
+  BlockEdge Loc(B, *(B->succ_begin() + 1), LCtx);
+  HandleBlockEdge(Loc, Pred);
 }
 
 /// generateNode - Utility method to generate nodes, hook up successors,

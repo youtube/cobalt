@@ -1,9 +1,8 @@
 //===- Allocator.h - Simple memory allocation abstraction -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 /// \file
@@ -21,7 +20,9 @@
 #ifndef LLVM_SUPPORT_ALLOCATOR_H
 #define LLVM_SUPPORT_ALLOCATOR_H
 
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
@@ -211,13 +212,11 @@ public:
 
   /// Allocate space at the specified alignment.
   LLVM_ATTRIBUTE_RETURNS_NONNULL LLVM_ATTRIBUTE_RETURNS_NOALIAS void *
-  Allocate(size_t Size, size_t Alignment) {
-    assert(Alignment > 0 && "0-byte alignnment is not allowed. Use 1 instead.");
-
+  Allocate(size_t Size, Align Alignment) {
     // Keep track of how many bytes we've allocated.
     BytesAllocated += Size;
 
-    size_t Adjustment = alignmentAdjustment(CurPtr, Alignment);
+    size_t Adjustment = offsetToAlignedAddr(CurPtr, Alignment);
     assert(Adjustment + Size >= Size && "Adjustment + Size must not overflow");
 
     size_t SizeToAllocate = Size;
@@ -240,7 +239,7 @@ public:
     }
 
     // If Size is really big, allocate a separate slab for it.
-    size_t PaddedSize = SizeToAllocate + Alignment - 1;
+    size_t PaddedSize = SizeToAllocate + Alignment.value() - 1;
     if (PaddedSize > SizeThreshold) {
       void *NewSlab = Allocator.Allocate(PaddedSize, 0);
       // We own the new slab and don't want anyone reading anyting other than
@@ -268,6 +267,12 @@ public:
     return AlignedPtr;
   }
 
+  inline LLVM_ATTRIBUTE_RETURNS_NONNULL LLVM_ATTRIBUTE_RETURNS_NOALIAS void *
+  Allocate(size_t Size, size_t Alignment) {
+    assert(Alignment > 0 && "0-byte alignment is not allowed. Use 1 instead.");
+    return Allocate(Size, Align(Alignment));
+  }
+
   // Pull in base class overloads.
   using AllocatorBase<BumpPtrAllocatorImpl>::Allocate;
 
@@ -282,6 +287,60 @@ public:
   using AllocatorBase<BumpPtrAllocatorImpl>::Deallocate;
 
   size_t GetNumSlabs() const { return Slabs.size() + CustomSizedSlabs.size(); }
+
+  /// \return An index uniquely and reproducibly identifying
+  /// an input pointer \p Ptr in the given allocator.
+  /// The returned value is negative iff the object is inside a custom-size
+  /// slab.
+  /// Returns an empty optional if the pointer is not found in the allocator.
+  llvm::Optional<int64_t> identifyObject(const void *Ptr) {
+    const char *P = static_cast<const char *>(Ptr);
+    int64_t InSlabIdx = 0;
+    for (size_t Idx = 0, E = Slabs.size(); Idx < E; Idx++) {
+      const char *S = static_cast<const char *>(Slabs[Idx]);
+      if (P >= S && P < S + computeSlabSize(Idx))
+        return InSlabIdx + static_cast<int64_t>(P - S);
+      InSlabIdx += static_cast<int64_t>(computeSlabSize(Idx));
+    }
+
+    // Use negative index to denote custom sized slabs.
+    int64_t InCustomSizedSlabIdx = -1;
+    for (size_t Idx = 0, E = CustomSizedSlabs.size(); Idx < E; Idx++) {
+      const char *S = static_cast<const char *>(CustomSizedSlabs[Idx].first);
+      size_t Size = CustomSizedSlabs[Idx].second;
+      if (P >= S && P < S + Size)
+        return InCustomSizedSlabIdx - static_cast<int64_t>(P - S);
+      InCustomSizedSlabIdx -= static_cast<int64_t>(Size);
+    }
+    return None;
+  }
+
+  /// A wrapper around identifyObject that additionally asserts that
+  /// the object is indeed within the allocator.
+  /// \return An index uniquely and reproducibly identifying
+  /// an input pointer \p Ptr in the given allocator.
+  int64_t identifyKnownObject(const void *Ptr) {
+    Optional<int64_t> Out = identifyObject(Ptr);
+    assert(Out && "Wrong allocator used");
+    return *Out;
+  }
+
+  /// A wrapper around identifyKnownObject. Accepts type information
+  /// about the object and produces a smaller identifier by relying on
+  /// the alignment information. Note that sub-classes may have different
+  /// alignment, so the most base class should be passed as template parameter
+  /// in order to obtain correct results. For that reason automatic template
+  /// parameter deduction is disabled.
+  /// \return An index uniquely and reproducibly identifying
+  /// an input pointer \p Ptr in the given allocator. This identifier is
+  /// different from the ones produced by identifyObject and
+  /// identifyAlignedObject.
+  template <typename T>
+  int64_t identifyKnownAlignedObject(const void *Ptr) {
+    int64_t Out = identifyKnownObject(Ptr);
+    assert(Out % alignof(T) == 0 && "Wrong alignment information");
+    return Out / alignof(T);
+  }
 
   size_t getTotalMemory() const {
     size_t TotalMemory = 0;
@@ -407,7 +466,7 @@ public:
   /// all memory allocated so far.
   void DestroyAll() {
     auto DestroyElements = [](char *Begin, char *End) {
-      assert(Begin == (char *)alignAddr(Begin, alignof(T)));
+      assert(Begin == (char *)alignAddr(Begin, Align::Of<T>()));
       for (char *Ptr = Begin; Ptr + sizeof(T) <= End; Ptr += sizeof(T))
         reinterpret_cast<T *>(Ptr)->~T();
     };
@@ -416,7 +475,7 @@ public:
          ++I) {
       size_t AllocatedSlabSize = BumpPtrAllocator::computeSlabSize(
           std::distance(Allocator.Slabs.begin(), I));
-      char *Begin = (char *)alignAddr(*I, alignof(T));
+      char *Begin = (char *)alignAddr(*I, Align::Of<T>());
       char *End = *I == Allocator.Slabs.back() ? Allocator.CurPtr
                                                : (char *)*I + AllocatedSlabSize;
 
@@ -426,7 +485,8 @@ public:
     for (auto &PtrAndSize : Allocator.CustomSizedSlabs) {
       void *Ptr = PtrAndSize.first;
       size_t Size = PtrAndSize.second;
-      DestroyElements((char *)alignAddr(Ptr, alignof(T)), (char *)Ptr + Size);
+      DestroyElements((char *)alignAddr(Ptr, Align::Of<T>()),
+                      (char *)Ptr + Size);
     }
 
     Allocator.Reset();

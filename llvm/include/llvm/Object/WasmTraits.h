@@ -1,9 +1,8 @@
 //===- WasmTraits.h - DenseMap traits for the Wasm structures ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,14 +23,20 @@ template <typename T> struct DenseMapInfo;
 // Traits for using WasmSignature in a DenseMap.
 template <> struct DenseMapInfo<wasm::WasmSignature> {
   static wasm::WasmSignature getEmptyKey() {
-    return wasm::WasmSignature{{}, 1};
+    wasm::WasmSignature Sig;
+    Sig.State = wasm::WasmSignature::Empty;
+    return Sig;
   }
   static wasm::WasmSignature getTombstoneKey() {
-    return wasm::WasmSignature{{}, 2};
+    wasm::WasmSignature Sig;
+    Sig.State = wasm::WasmSignature::Tombstone;
+    return Sig;
   }
   static unsigned getHashValue(const wasm::WasmSignature &Sig) {
-    unsigned H = hash_value(Sig.ReturnType);
-    for (int32_t Param : Sig.ParamTypes)
+    uintptr_t H = hash_value(Sig.State);
+    for (auto Ret : Sig.Returns)
+      H = hash_combine(H, Ret);
+    for (auto Param : Sig.Params)
       H = hash_combine(H, Param);
     return H;
   }

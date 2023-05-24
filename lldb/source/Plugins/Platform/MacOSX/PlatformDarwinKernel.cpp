@@ -1,10 +1,9 @@
 //===-- PlatformDarwinKernel.cpp -----------------------------------*- C++
 //-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,10 +12,6 @@
 #if defined(__APPLE__) // This Plugin uses the Mac-specific
                        // source/Host/macosx/cfcpp utilities
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
@@ -40,19 +35,17 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 
+#include <memory>
+
 #include "Host/macosx/cfcpp/CFCBundle.h"
 
 using namespace lldb;
 using namespace lldb_private;
 
-//------------------------------------------------------------------
 // Static Variables
-//------------------------------------------------------------------
 static uint32_t g_initialize_count = 0;
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 void PlatformDarwinKernel::Initialize() {
   PlatformDarwin::Initialize();
 
@@ -87,26 +80,26 @@ PlatformSP PlatformDarwinKernel::CreateInstance(bool force,
     const char *triple_cstr =
         arch ? arch->GetTriple().getTriple().c_str() : "<null>";
 
-    log->Printf("PlatformDarwinKernel::%s(force=%s, arch={%s,%s})",
-                __FUNCTION__, force ? "true" : "false", arch_name, triple_cstr);
+    LLDB_LOGF(log, "PlatformDarwinKernel::%s(force=%s, arch={%s,%s})",
+              __FUNCTION__, force ? "true" : "false", arch_name, triple_cstr);
   }
 
   // This is a special plugin that we don't want to activate just based on an
   // ArchSpec for normal userland debugging.  It is only useful in kernel debug
   // sessions and the DynamicLoaderDarwinPlugin (or a user doing 'platform
   // select') will force the creation of this Platform plugin.
-  if (force == false) {
-    if (log)
-      log->Printf("PlatformDarwinKernel::%s() aborting creation of platform "
-                  "because force == false",
-                  __FUNCTION__);
+  if (!force) {
+    LLDB_LOGF(log,
+              "PlatformDarwinKernel::%s() aborting creation of platform "
+              "because force == false",
+              __FUNCTION__);
     return PlatformSP();
   }
 
   bool create = force;
   LazyBool is_ios_debug_session = eLazyBoolCalculate;
 
-  if (create == false && arch && arch->IsValid()) {
+  if (!create && arch && arch->IsValid()) {
     const llvm::Triple &triple = arch->GetTriple();
     switch (triple.getVendor()) {
     case llvm::Triple::Apple:
@@ -115,7 +108,7 @@ PlatformSP PlatformDarwinKernel::CreateInstance(bool force,
 
     // Only accept "unknown" for vendor if the host is Apple and it "unknown"
     // wasn't specified (it was just returned because it was NOT specified)
-    case llvm::Triple::UnknownArch:
+    case llvm::Triple::UnknownVendor:
       create = !arch->TripleVendorWasSpecified();
       break;
     default:
@@ -129,6 +122,7 @@ PlatformSP PlatformDarwinKernel::CreateInstance(bool force,
       case llvm::Triple::IOS:
       case llvm::Triple::WatchOS:
       case llvm::Triple::TvOS:
+      // NEED_BRIDGEOS_TRIPLE case llvm::Triple::BridgeOS:
         break;
       // Only accept "vendor" for vendor if the host is Apple and it "unknown"
       // wasn't specified (it was just returned because it was NOT specified)
@@ -160,15 +154,14 @@ PlatformSP PlatformDarwinKernel::CreateInstance(bool force,
     }
   }
   if (create) {
-    if (log)
-      log->Printf("PlatformDarwinKernel::%s() creating platform", __FUNCTION__);
+    LLDB_LOGF(log, "PlatformDarwinKernel::%s() creating platform",
+              __FUNCTION__);
 
     return PlatformSP(new PlatformDarwinKernel(is_ios_debug_session));
   }
 
-  if (log)
-    log->Printf("PlatformDarwinKernel::%s() aborting creation of platform",
-                __FUNCTION__);
+  LLDB_LOGF(log, "PlatformDarwinKernel::%s() aborting creation of platform",
+            __FUNCTION__);
 
   return PlatformSP();
 }
@@ -182,20 +175,15 @@ const char *PlatformDarwinKernel::GetDescriptionStatic() {
   return "Darwin Kernel platform plug-in.";
 }
 
-//------------------------------------------------------------------
 /// Code to handle the PlatformDarwinKernel settings
-//------------------------------------------------------------------
 
-static PropertyDefinition g_properties[] = {
-    {"search-locally-for-kexts", OptionValue::eTypeBoolean, true, true, NULL,
-     NULL, "Automatically search for kexts on the local system when doing "
-           "kernel debugging."},
-    {"kext-directories", OptionValue::eTypeFileSpecList, false, 0, NULL, NULL,
-     "Directories/KDKs to search for kexts in when starting a kernel debug "
-     "session."},
-    {NULL, OptionValue::eTypeInvalid, false, 0, NULL, NULL, NULL}};
+#define LLDB_PROPERTIES_platformdarwinkernel
+#include "PlatformMacOSXProperties.inc"
 
-enum { ePropertySearchForKexts = 0, ePropertyKextDirectories };
+enum {
+#define LLDB_PROPERTIES_platformdarwinkernel
+#include "PlatformMacOSXPropertiesEnum.inc"
+};
 
 class PlatformDarwinKernelProperties : public Properties {
 public:
@@ -205,8 +193,8 @@ public:
   }
 
   PlatformDarwinKernelProperties() : Properties() {
-    m_collection_sp.reset(new OptionValueProperties(GetSettingName()));
-    m_collection_sp->Initialize(g_properties);
+    m_collection_sp = std::make_shared<OptionValueProperties>(GetSettingName());
+    m_collection_sp->Initialize(g_platformdarwinkernel_properties);
   }
 
   virtual ~PlatformDarwinKernelProperties() {}
@@ -214,12 +202,13 @@ public:
   bool GetSearchForKexts() const {
     const uint32_t idx = ePropertySearchForKexts;
     return m_collection_sp->GetPropertyAtIndexAsBoolean(
-        NULL, idx, g_properties[idx].default_uint_value != 0);
+        NULL, idx,
+        g_platformdarwinkernel_properties[idx].default_uint_value != 0);
   }
 
-  FileSpecList &GetKextDirectories() const {
+  FileSpecList GetKextDirectories() const {
     const uint32_t idx = ePropertyKextDirectories;
-    OptionValueFileSpecList *option_value =
+    const OptionValueFileSpecList *option_value =
         m_collection_sp->GetPropertyAtIndexAsOptionValueFileSpecList(
             NULL, false, idx);
     assert(option_value);
@@ -233,7 +222,7 @@ typedef std::shared_ptr<PlatformDarwinKernelProperties>
 static const PlatformDarwinKernelPropertiesSP &GetGlobalProperties() {
   static PlatformDarwinKernelPropertiesSP g_settings_sp;
   if (!g_settings_sp)
-    g_settings_sp.reset(new PlatformDarwinKernelProperties());
+    g_settings_sp = std::make_shared<PlatformDarwinKernelProperties>();
   return g_settings_sp;
 }
 
@@ -249,9 +238,7 @@ void PlatformDarwinKernel::DebuggerInitialize(
   }
 }
 
-//------------------------------------------------------------------
 /// Default Constructor
-//------------------------------------------------------------------
 PlatformDarwinKernel::PlatformDarwinKernel(
     lldb_private::LazyBool is_ios_debug_session)
     : PlatformDarwin(false), // This is a remote platform
@@ -268,12 +255,10 @@ PlatformDarwinKernel::PlatformDarwinKernel(
   }
 }
 
-//------------------------------------------------------------------
 /// Destructor.
 ///
 /// The destructor is virtual since this class is designed to be
 /// inherited from by the plug-in instance.
-//------------------------------------------------------------------
 PlatformDarwinKernel::~PlatformDarwinKernel() {}
 
 void PlatformDarwinKernel::GetStatus(Stream &strm) {
@@ -311,24 +296,24 @@ void PlatformDarwinKernel::GetStatus(Stream &strm) {
 
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
   if (log) {
-    log->Printf("\nkexts with dSYMs");
+    LLDB_LOGF(log, "\nkexts with dSYMs");
     for (auto pos : m_name_to_kext_path_map_with_dsyms) {
-      log->Printf("%s", pos.second.GetPath().c_str());
+      LLDB_LOGF(log, "%s", pos.second.GetPath().c_str());
     }
-    log->Printf("\nkexts without dSYMs");
+    LLDB_LOGF(log, "\nkexts without dSYMs");
 
     for (auto pos : m_name_to_kext_path_map_without_dsyms) {
-      log->Printf("%s", pos.second.GetPath().c_str());
+      LLDB_LOGF(log, "%s", pos.second.GetPath().c_str());
     }
-    log->Printf("\nkernels with dSYMS");
+    LLDB_LOGF(log, "\nkernels with dSYMS");
     for (auto fs : m_kernel_binaries_with_dsyms) {
-      log->Printf("%s", fs.GetPath().c_str());
+      LLDB_LOGF(log, "%s", fs.GetPath().c_str());
     }
-    log->Printf("\nkernels without dSYMS");
+    LLDB_LOGF(log, "\nkernels without dSYMS");
     for (auto fs : m_kernel_binaries_without_dsyms) {
-      log->Printf("%s", fs.GetPath().c_str());
+      LLDB_LOGF(log, "%s", fs.GetPath().c_str());
     }
-    log->Printf("\n");
+    LLDB_LOGF(log, "\n");
   }
 }
 
@@ -354,6 +339,8 @@ void PlatformDarwinKernel::CollectKextAndKernelDirectories() {
                                "/Platforms/AppleTVOS.platform/Developer/SDKs");
     AddSDKSubdirsToSearchPaths(developer_dir +
                                "/Platforms/WatchOS.platform/Developer/SDKs");
+    AddSDKSubdirsToSearchPaths(developer_dir +
+                               "/Platforms/BridgeOS.platform/Developer/SDKs");
   }
   if (m_ios_debug_session != eLazyBoolYes) {
     AddSDKSubdirsToSearchPaths(developer_dir +
@@ -375,12 +362,15 @@ void PlatformDarwinKernel::CollectKextAndKernelDirectories() {
   GetUserSpecifiedDirectoriesToSearch();
 
   // Add simple directory /Applications/Xcode.app/Contents/Developer/../Symbols
-  FileSpec possible_dir(developer_dir + "/../Symbols", true);
-  if (llvm::sys::fs::is_directory(possible_dir.GetPath()))
+  FileSpec possible_dir(developer_dir + "/../Symbols");
+  FileSystem::Instance().Resolve(possible_dir);
+  if (FileSystem::Instance().IsDirectory(possible_dir))
     m_search_directories.push_back(possible_dir);
 
   // Add simple directory of the current working directory
-  m_search_directories_no_recursing.push_back(FileSpec(".", true));
+  FileSpec cwd(".");
+  FileSystem::Instance().Resolve(cwd);
+  m_search_directories_no_recursing.push_back(cwd);
 }
 
 void PlatformDarwinKernel::GetUserSpecifiedDirectoriesToSearch() {
@@ -390,8 +380,8 @@ void PlatformDarwinKernel::GetUserSpecifiedDirectoriesToSearch() {
   const uint32_t user_dirs_count = user_dirs.GetSize();
   for (uint32_t i = 0; i < user_dirs_count; i++) {
     FileSpec dir = user_dirs.GetFileSpecAtIndex(i);
-    dir.ResolvePath();
-    if (llvm::sys::fs::is_directory(dir.GetPath())) {
+    FileSystem::Instance().Resolve(dir);
+    if (FileSystem::Instance().IsDirectory(dir)) {
       m_search_directories.push_back(dir);
     }
   }
@@ -406,14 +396,14 @@ void PlatformDarwinKernel::AddRootSubdirsToSearchPaths(
                                         // /AppleInternal/Developer/KDKs/*.kdk/...
       nullptr};
   for (int i = 0; subdirs[i] != nullptr; i++) {
-    FileSpec testdir(dir + subdirs[i], true);
-    if (llvm::sys::fs::is_directory(testdir.GetPath()))
+    FileSpec testdir(dir + subdirs[i]);
+    FileSystem::Instance().Resolve(testdir);
+    if (FileSystem::Instance().IsDirectory(testdir))
       thisp->m_search_directories.push_back(testdir);
   }
 
   // Look for kernel binaries in the top level directory, without any recursion
-  thisp->m_search_directories_no_recursing.push_back(
-      FileSpec(dir + "/", false));
+  thisp->m_search_directories_no_recursing.push_back(FileSpec(dir + "/"));
 }
 
 // Given a directory path dir, look for any subdirs named *.kdk and *.sdk
@@ -422,25 +412,26 @@ void PlatformDarwinKernel::AddSDKSubdirsToSearchPaths(const std::string &dir) {
   const bool find_directories = true;
   const bool find_files = false;
   const bool find_other = false;
-  FileSpec::EnumerateDirectory(dir.c_str(), find_directories, find_files,
-                               find_other, FindKDKandSDKDirectoriesInDirectory,
-                               this);
+  FileSystem::Instance().EnumerateDirectory(
+      dir.c_str(), find_directories, find_files, find_other,
+      FindKDKandSDKDirectoriesInDirectory, this);
 }
 
 // Helper function to find *.sdk and *.kdk directories in a given directory.
-FileSpec::EnumerateDirectoryResult
+FileSystem::EnumerateDirectoryResult
 PlatformDarwinKernel::FindKDKandSDKDirectoriesInDirectory(
-    void *baton, llvm::sys::fs::file_type ft, const FileSpec &file_spec) {
+    void *baton, llvm::sys::fs::file_type ft, llvm::StringRef path) {
   static ConstString g_sdk_suffix = ConstString(".sdk");
   static ConstString g_kdk_suffix = ConstString(".kdk");
 
   PlatformDarwinKernel *thisp = (PlatformDarwinKernel *)baton;
+  FileSpec file_spec(path);
   if (ft == llvm::sys::fs::file_type::directory_file &&
       (file_spec.GetFileNameExtension() == g_sdk_suffix ||
        file_spec.GetFileNameExtension() == g_kdk_suffix)) {
     AddRootSubdirsToSearchPaths(thisp, file_spec.GetPath());
   }
-  return FileSpec::eEnumerateDirectoryResultNext;
+  return FileSystem::eEnumerateDirectoryResultNext;
 }
 
 // Recursively search trough m_search_directories looking for kext and kernel
@@ -452,7 +443,7 @@ void PlatformDarwinKernel::SearchForKextsAndKernelsRecursively() {
     const bool find_directories = true;
     const bool find_files = true;
     const bool find_other = true; // I think eFileTypeSymbolicLink are "other"s.
-    FileSpec::EnumerateDirectory(
+    FileSystem::Instance().EnumerateDirectory(
         dir.GetPath().c_str(), find_directories, find_files, find_other,
         GetKernelsAndKextsInDirectoryWithRecursion, this);
   }
@@ -462,7 +453,7 @@ void PlatformDarwinKernel::SearchForKextsAndKernelsRecursively() {
     const bool find_directories = true;
     const bool find_files = true;
     const bool find_other = true; // I think eFileTypeSymbolicLink are "other"s.
-    FileSpec::EnumerateDirectory(
+    FileSystem::Instance().EnumerateDirectory(
         dir.GetPath().c_str(), find_directories, find_files, find_other,
         GetKernelsAndKextsInDirectoryNoRecursion, this);
   }
@@ -476,32 +467,34 @@ void PlatformDarwinKernel::SearchForKextsAndKernelsRecursively() {
 //
 // Recurse into any subdirectories found.
 
-FileSpec::EnumerateDirectoryResult
+FileSystem::EnumerateDirectoryResult
 PlatformDarwinKernel::GetKernelsAndKextsInDirectoryWithRecursion(
-    void *baton, llvm::sys::fs::file_type ft, const FileSpec &file_spec) {
-  return GetKernelsAndKextsInDirectoryHelper(baton, ft, file_spec, true);
+    void *baton, llvm::sys::fs::file_type ft, llvm::StringRef path) {
+  return GetKernelsAndKextsInDirectoryHelper(baton, ft, path, true);
 }
 
-FileSpec::EnumerateDirectoryResult
+FileSystem::EnumerateDirectoryResult
 PlatformDarwinKernel::GetKernelsAndKextsInDirectoryNoRecursion(
-    void *baton, llvm::sys::fs::file_type ft, const FileSpec &file_spec) {
-  return GetKernelsAndKextsInDirectoryHelper(baton, ft, file_spec, false);
+    void *baton, llvm::sys::fs::file_type ft, llvm::StringRef path) {
+  return GetKernelsAndKextsInDirectoryHelper(baton, ft, path, false);
 }
 
-FileSpec::EnumerateDirectoryResult
+FileSystem::EnumerateDirectoryResult
 PlatformDarwinKernel::GetKernelsAndKextsInDirectoryHelper(
-    void *baton, llvm::sys::fs::file_type ft, const FileSpec &file_spec,
+    void *baton, llvm::sys::fs::file_type ft, llvm::StringRef path,
     bool recurse) {
   static ConstString g_kext_suffix = ConstString(".kext");
   static ConstString g_dsym_suffix = ConstString(".dSYM");
   static ConstString g_bundle_suffix = ConstString("Bundle");
+
+  FileSpec file_spec(path);
   ConstString file_spec_extension = file_spec.GetFileNameExtension();
 
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM));
   Log *log_verbose(GetLogIfAllCategoriesSet(LIBLLDB_LOG_PLATFORM | LLDB_LOG_OPTION_VERBOSE));
 
-  if (log_verbose)
-      log_verbose->Printf ("PlatformDarwinKernel examining '%s'", file_spec.GetPath().c_str());
+  LLDB_LOGF(log_verbose, "PlatformDarwinKernel examining '%s'",
+            file_spec.GetPath().c_str());
 
   PlatformDarwinKernel *thisp = (PlatformDarwinKernel *)baton;
   if (ft == llvm::sys::fs::file_type::regular_file ||
@@ -512,33 +505,32 @@ PlatformDarwinKernel::GetKernelsAndKextsInDirectoryHelper(
         file_spec_extension != g_dsym_suffix) {
       if (KernelHasdSYMSibling(file_spec))
       {
-        if (log)
-        {
-            log->Printf ("PlatformDarwinKernel registering kernel binary '%s' with dSYM sibling", file_spec.GetPath().c_str());
-        }
+        LLDB_LOGF(log,
+                  "PlatformDarwinKernel registering kernel binary '%s' with "
+                  "dSYM sibling",
+                  file_spec.GetPath().c_str());
         thisp->m_kernel_binaries_with_dsyms.push_back(file_spec);
       }
       else
       {
-        if (log)
-        {
-            log->Printf ("PlatformDarwinKernel registering kernel binary '%s', no dSYM", file_spec.GetPath().c_str());
-        }
+        LLDB_LOGF(
+            log, "PlatformDarwinKernel registering kernel binary '%s', no dSYM",
+            file_spec.GetPath().c_str());
         thisp->m_kernel_binaries_without_dsyms.push_back(file_spec);
       }
-      return FileSpec::eEnumerateDirectoryResultNext;
+      return FileSystem::eEnumerateDirectoryResultNext;
     }
   } else if (ft == llvm::sys::fs::file_type::directory_file &&
              file_spec_extension == g_kext_suffix) {
     AddKextToMap(thisp, file_spec);
     // Look to see if there is a PlugIns subdir with more kexts
-    FileSpec contents_plugins(file_spec.GetPath() + "/Contents/PlugIns", false);
+    FileSpec contents_plugins(file_spec.GetPath() + "/Contents/PlugIns");
     std::string search_here_too;
-    if (llvm::sys::fs::is_directory(contents_plugins.GetPath())) {
+    if (FileSystem::Instance().IsDirectory(contents_plugins)) {
       search_here_too = contents_plugins.GetPath();
     } else {
-      FileSpec plugins(file_spec.GetPath() + "/PlugIns", false);
-      if (llvm::sys::fs::is_directory(plugins.GetPath())) {
+      FileSpec plugins(file_spec.GetPath() + "/PlugIns");
+      if (FileSystem::Instance().IsDirectory(plugins)) {
         search_here_too = plugins.GetPath();
       }
     }
@@ -547,23 +539,24 @@ PlatformDarwinKernel::GetKernelsAndKextsInDirectoryHelper(
       const bool find_directories = true;
       const bool find_files = false;
       const bool find_other = false;
-      FileSpec::EnumerateDirectory(
+      FileSystem::Instance().EnumerateDirectory(
           search_here_too.c_str(), find_directories, find_files, find_other,
           recurse ? GetKernelsAndKextsInDirectoryWithRecursion
                   : GetKernelsAndKextsInDirectoryNoRecursion,
           baton);
     }
-    return FileSpec::eEnumerateDirectoryResultNext;
+    return FileSystem::eEnumerateDirectoryResultNext;
   }
   // Don't recurse into dSYM/kext/bundle directories
   if (recurse && file_spec_extension != g_dsym_suffix &&
       file_spec_extension != g_kext_suffix &&
       file_spec_extension != g_bundle_suffix) {
-    if (log_verbose)
-        log_verbose->Printf ("PlatformDarwinKernel descending into directory '%s'", file_spec.GetPath().c_str());
-    return FileSpec::eEnumerateDirectoryResultEnter;
+    LLDB_LOGF(log_verbose,
+              "PlatformDarwinKernel descending into directory '%s'",
+              file_spec.GetPath().c_str());
+    return FileSystem::eEnumerateDirectoryResultEnter;
   } else {
-    return FileSpec::eEnumerateDirectoryResultNext;
+    return FileSystem::eEnumerateDirectoryResultNext;
   }
 }
 
@@ -579,19 +572,18 @@ void PlatformDarwinKernel::AddKextToMap(PlatformDarwinKernel *thisp,
       ConstString bundle_conststr(bundle_id_buf);
       if (KextHasdSYMSibling(file_spec))
       {
-        if (log)
-        {
-            log->Printf ("PlatformDarwinKernel registering kext binary '%s' with dSYM sibling", file_spec.GetPath().c_str());
-        }
+        LLDB_LOGF(log,
+                  "PlatformDarwinKernel registering kext binary '%s' with dSYM "
+                  "sibling",
+                  file_spec.GetPath().c_str());
         thisp->m_name_to_kext_path_map_with_dsyms.insert(
             std::pair<ConstString, FileSpec>(bundle_conststr, file_spec));
       }
       else
       {
-        if (log)
-        {
-            log->Printf ("PlatformDarwinKernel registering kext binary '%s', no dSYM", file_spec.GetPath().c_str());
-        }
+        LLDB_LOGF(log,
+                  "PlatformDarwinKernel registering kext binary '%s', no dSYM",
+                  file_spec.GetPath().c_str());
         thisp->m_name_to_kext_path_map_without_dsyms.insert(
             std::pair<ConstString, FileSpec>(bundle_conststr, file_spec));
       }
@@ -610,7 +602,7 @@ bool PlatformDarwinKernel::KextHasdSYMSibling(
   std::string filename = dsym_fspec.GetFilename().AsCString();
   filename += ".dSYM";
   dsym_fspec.GetFilename() = ConstString(filename);
-  if (llvm::sys::fs::is_directory(dsym_fspec.GetPath())) {
+  if (FileSystem::Instance().IsDirectory(dsym_fspec)) {
     return true;
   }
   // Should probably get the CFBundleExecutable here or call
@@ -623,8 +615,9 @@ bool PlatformDarwinKernel::KextHasdSYMSibling(
       kext_bundle_filepath.GetPath() + "/Contents/MacOS/";
   deep_bundle_str += executable_name.AsCString();
   deep_bundle_str += ".dSYM";
-  dsym_fspec.SetFile(deep_bundle_str, true, FileSpec::Style::native);
-  if (llvm::sys::fs::is_directory(dsym_fspec.GetPath())) {
+  dsym_fspec.SetFile(deep_bundle_str, FileSpec::Style::native);
+  FileSystem::Instance().Resolve(dsym_fspec);
+  if (FileSystem::Instance().IsDirectory(dsym_fspec)) {
     return true;
   }
 
@@ -633,11 +626,9 @@ bool PlatformDarwinKernel::KextHasdSYMSibling(
   std::string shallow_bundle_str = kext_bundle_filepath.GetPath() + "/";
   shallow_bundle_str += executable_name.AsCString();
   shallow_bundle_str += ".dSYM";
-  dsym_fspec.SetFile(shallow_bundle_str, true, FileSpec::Style::native);
-  if (llvm::sys::fs::is_directory(dsym_fspec.GetPath())) {
-    return true;
-  }
-  return false;
+  dsym_fspec.SetFile(shallow_bundle_str, FileSpec::Style::native);
+  FileSystem::Instance().Resolve(dsym_fspec);
+  return FileSystem::Instance().IsDirectory(dsym_fspec);
 }
 
 // Given a FileSpec of /dir/dir/mach.development.t7004 Return true if a dSYM
@@ -648,10 +639,7 @@ bool PlatformDarwinKernel::KernelHasdSYMSibling(const FileSpec &kernel_binary) {
   std::string filename = kernel_binary.GetFilename().AsCString();
   filename += ".dSYM";
   kernel_dsym.GetFilename() = ConstString(filename);
-  if (llvm::sys::fs::is_directory(kernel_dsym.GetPath())) {
-    return true;
-  }
-  return false;
+  return FileSystem::Instance().IsDirectory(kernel_dsym);
 }
 
 Status PlatformDarwinKernel::GetSharedModule(
@@ -710,11 +698,10 @@ Status PlatformDarwinKernel::GetSharedModule(
     }
   }
 
-  if (kext_bundle_id.compare("mach_kernel") == 0 &&
-      module_spec.GetUUID().IsValid()) {
+  if (kext_bundle_id == "mach_kernel" && module_spec.GetUUID().IsValid()) {
     // First try all kernel binaries that have a dSYM next to them
     for (auto possible_kernel : m_kernel_binaries_with_dsyms) {
-      if (possible_kernel.Exists()) {
+      if (FileSystem::Instance().Exists(possible_kernel)) {
         ModuleSpec kern_spec(possible_kernel);
         kern_spec.GetUUID() = module_spec.GetUUID();
         ModuleSP module_sp(new Module(kern_spec));
@@ -750,7 +737,7 @@ Status PlatformDarwinKernel::GetSharedModule(
 
     // Next try all kernel binaries that don't have a dSYM
     for (auto possible_kernel : m_kernel_binaries_without_dsyms) {
-      if (possible_kernel.Exists()) {
+      if (FileSystem::Instance().Exists(possible_kernel)) {
         ModuleSpec kern_spec(possible_kernel);
         kern_spec.GetUUID() = module_spec.GetUUID();
         ModuleSP module_sp(new Module(kern_spec));
@@ -791,7 +778,7 @@ PlatformDarwinKernel::SearchForExecutablesRecursively(const std::string &dir) {
       break;
     if (llvm::sys::fs::is_regular_file(*status) &&
         llvm::sys::fs::can_execute(it->path()))
-      executables.emplace_back(it->path(), false);
+      executables.emplace_back(it->path());
   }
   return executables;
 }
@@ -801,7 +788,7 @@ Status PlatformDarwinKernel::ExamineKextForMatchingUUID(
     const ArchSpec &arch, ModuleSP &exe_module_sp) {
   for (const auto &exe_file :
        SearchForExecutablesRecursively(kext_bundle_path.GetPath())) {
-    if (exe_file.Exists()) {
+    if (FileSystem::Instance().Exists(exe_file)) {
       ModuleSpec exe_spec(exe_file);
       exe_spec.GetUUID() = uuid;
       if (!uuid.IsValid()) {

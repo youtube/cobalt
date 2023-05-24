@@ -1,5 +1,5 @@
-; RUN: llc -filetype=obj -o - -mtriple=x86_64-apple-macosx < %s | llvm-objdump -triple x86_64-apple-macosx -disassemble - | FileCheck %s
-; RUN: llc -mtriple=x86_64-apple-macosx < %s | FileCheck %s --check-prefix=CHECK-ALIGN
+; RUN: llc -verify-machineinstrs -filetype=obj -o - -mtriple=x86_64-apple-macosx < %s | llvm-objdump -triple x86_64-apple-macosx -disassemble - | FileCheck %s
+; RUN: llc -verify-machineinstrs -mtriple=x86_64-apple-macosx < %s | FileCheck %s --check-prefix=CHECK-ALIGN
 
 declare void @callee(i64*)
 
@@ -13,7 +13,7 @@ define void @f0() "patchable-function"="prologue-short-redirect" {
   ret void
 }
 
-define void @f1() "patchable-function"="prologue-short-redirect" "no-frame-pointer-elim"="true" {
+define void @f1() "patchable-function"="prologue-short-redirect" "frame-pointer"="all" {
 ; CHECK-LABEL: _f1
 ; CHECK-NEXT: ff f5 	pushq	%rbp
 

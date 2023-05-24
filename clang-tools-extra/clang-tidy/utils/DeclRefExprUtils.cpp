@@ -1,9 +1,8 @@
 //===--- DeclRefExprUtils.cpp - clang-tidy---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,7 +23,7 @@ using llvm::SmallPtrSet;
 namespace {
 
 template <typename S> bool isSetDifferenceEmpty(const S &S1, const S &S2) {
-  for (const auto &E : S1)
+  for (auto E : S1)
     if (S2.count(E) == 0)
       return false;
   return true;

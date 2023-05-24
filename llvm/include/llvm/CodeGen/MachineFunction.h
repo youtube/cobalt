@@ -1,9 +1,8 @@
 //===- llvm/CodeGen/MachineFunction.h ---------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,6 +20,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/FloatingPointMode.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
@@ -31,11 +31,6 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
-#include "llvm/IR/DebugLoc.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Metadata.h"
-#include "llvm/MC/MCDwarf.h"
-#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ArrayRecycler.h"
 #include "llvm/Support/AtomicOrdering.h"
@@ -53,11 +48,13 @@ namespace llvm {
 class BasicBlock;
 class BlockAddress;
 class DataLayout;
+class DebugLoc;
 class DIExpression;
 class DILocalVariable;
 class DILocation;
 class Function;
 class GlobalValue;
+class LLVMTargetMachine;
 class MachineConstantPool;
 class MachineFrameInfo;
 class MachineFunction;
@@ -66,11 +63,11 @@ class MachineModuleInfo;
 class MachineRegisterInfo;
 class MCContext;
 class MCInstrDesc;
+class MCSymbol;
 class Pass;
 class PseudoSourceValueManager;
 class raw_ostream;
 class SlotIndexes;
-class TargetMachine;
 class TargetRegisterClass;
 class TargetSubtargetInfo;
 struct WasmEHFuncInfo;
@@ -86,7 +83,7 @@ template <> struct ilist_callback_traits<MachineBasicBlock> {
 
   template <class Iterator>
   void transferNodesFromList(ilist_callback_traits &OldList, Iterator, Iterator) {
-    llvm_unreachable("Never transfer between lists");
+    assert(this == &OldList && "never transfer MBBs between functions");
   }
 };
 
@@ -225,7 +222,7 @@ struct LandingPadInfo {
 
 class MachineFunction {
   const Function &F;
-  const TargetMachine &Target;
+  const LLVMTargetMachine &Target;
   const TargetSubtargetInfo *STI;
   MCContext &Ctx;
   MachineModuleInfo &MMI;
@@ -281,7 +278,7 @@ class MachineFunction {
   unsigned FunctionNumber;
 
   /// Alignment - The alignment of the function.
-  unsigned Alignment;
+  Align Alignment;
 
   /// ExposesReturnsTwice - True if the function calls setjmp or related
   /// functions with attribute "returns twice", but doesn't have
@@ -294,7 +291,7 @@ class MachineFunction {
   bool HasInlineAsm = false;
 
   /// True if any WinCFI instruction have been emitted in this function.
-  Optional<bool> HasWinCFI;
+  bool HasWinCFI = false;
 
   /// Current high-level properties of the IR of the function (e.g. is in SSA
   /// form or whether registers have been allocated)
@@ -307,6 +304,10 @@ class MachineFunction {
   /// by debug and exception handling consumers.
   std::vector<MCCFIInstruction> FrameInstructions;
 
+  /// List of basic blocks immediately following calls to _setjmp. Used to
+  /// construct a table of valid longjmp targets for Windows Control Flow Guard.
+  std::vector<MCSymbol *> LongjmpTargets;
+
   /// \name Exception Handling
   /// \{
 
@@ -315,6 +316,9 @@ class MachineFunction {
 
   /// Map a landing pad's EH symbol to the call site indexes.
   DenseMap<MCSymbol*, SmallVector<unsigned, 4>> LPadToCallSiteMap;
+
+  /// Map a landing pad to its index.
+  DenseMap<const MachineBasicBlock *, unsigned> WasmLPadToIndexMap;
 
   /// Map of invoke call site index values to associated begin EH_LABEL.
   DenseMap<MCSymbol*, unsigned> CallSiteMap;
@@ -363,10 +367,54 @@ public:
                     int Slot, const DILocation *Loc)
         : Var(Var), Expr(Expr), Slot(Slot), Loc(Loc) {}
   };
+
+  class Delegate {
+    virtual void anchor();
+
+  public:
+    virtual ~Delegate() = default;
+    /// Callback after an insertion. This should not modify the MI directly.
+    virtual void MF_HandleInsertion(MachineInstr &MI) = 0;
+    /// Callback before a removal. This should not modify the MI directly.
+    virtual void MF_HandleRemoval(MachineInstr &MI) = 0;
+  };
+
+  /// Structure used to represent pair of argument number after call lowering
+  /// and register used to transfer that argument.
+  /// For now we support only cases when argument is transferred through one
+  /// register.
+  struct ArgRegPair {
+    unsigned Reg;
+    uint16_t ArgNo;
+    ArgRegPair(unsigned R, unsigned Arg) : Reg(R), ArgNo(Arg) {
+      assert(Arg < (1 << 16) && "Arg out of range");
+    }
+  };
+  /// Vector of call argument and its forwarding register.
+  using CallSiteInfo = SmallVector<ArgRegPair, 1>;
+  using CallSiteInfoImpl = SmallVectorImpl<ArgRegPair>;
+
+private:
+  Delegate *TheDelegate = nullptr;
+
+  using CallSiteInfoMap = DenseMap<const MachineInstr *, CallSiteInfo>;
+  /// Map a call instruction to call site arguments forwarding info.
+  CallSiteInfoMap CallSitesInfo;
+
+  /// A helper function that returns call site info for a give call
+  /// instruction if debug entry value support is enabled.
+  CallSiteInfoMap::iterator getCallSiteInfo(const MachineInstr *MI);
+
+  // Callbacks for insertion and removal.
+  void handleInsertion(MachineInstr &MI);
+  void handleRemoval(MachineInstr &MI);
+  friend struct ilist_traits<MachineInstr>;
+
+public:
   using VariableDbgInfoMapTy = SmallVector<VariableDbgInfo, 4>;
   VariableDbgInfoMapTy VariableDbgInfos;
 
-  MachineFunction(const Function &F, const TargetMachine &Target,
+  MachineFunction(const Function &F, const LLVMTargetMachine &Target,
                   const TargetSubtargetInfo &STI, unsigned FunctionNum,
                   MachineModuleInfo &MMI);
   MachineFunction(const MachineFunction &) = delete;
@@ -377,6 +425,23 @@ public:
   void reset() {
     clear();
     init();
+  }
+
+  /// Reset the currently registered delegate - otherwise assert.
+  void resetDelegate(Delegate *delegate) {
+    assert(TheDelegate == delegate &&
+           "Only the current delegate can perform reset!");
+    TheDelegate = nullptr;
+  }
+
+  /// Set the delegate. resetDelegate must be called before attempting
+  /// to set.
+  void setDelegate(Delegate *delegate) {
+    assert(delegate && !TheDelegate &&
+           "Attempted to set delegate to null, or to change it without "
+           "first resetting it!");
+
+    TheDelegate = delegate;
   }
 
   MachineModuleInfo &getMMI() const { return MMI; }
@@ -397,12 +462,11 @@ public:
   unsigned getFunctionNumber() const { return FunctionNumber; }
 
   /// getTarget - Return the target machine this machine code is compiled with
-  const TargetMachine &getTarget() const { return Target; }
+  const LLVMTargetMachine &getTarget() const { return Target; }
 
   /// getSubtarget - Return the subtarget for which this machine code is being
   /// compiled.
   const TargetSubtargetInfo &getSubtarget() const { return *STI; }
-  void setSubtarget(const TargetSubtargetInfo *ST) { STI = ST; }
 
   /// getSubtarget - This method returns a pointer to the specified type of
   /// TargetSubtargetInfo.  In debug builds, it verifies that the object being
@@ -449,15 +513,16 @@ public:
   const WinEHFuncInfo *getWinEHFuncInfo() const { return WinEHInfo; }
   WinEHFuncInfo *getWinEHFuncInfo() { return WinEHInfo; }
 
-  /// getAlignment - Return the alignment (log2, not bytes) of the function.
-  unsigned getAlignment() const { return Alignment; }
+  /// getAlignment - Return the alignment of the function.
+  Align getAlignment() const { return Alignment; }
 
-  /// setAlignment - Set the alignment (log2, not bytes) of the function.
-  void setAlignment(unsigned A) { Alignment = A; }
+  /// setAlignment - Set the alignment of the function.
+  void setAlignment(Align A) { Alignment = A; }
 
-  /// ensureAlignment - Make sure the function is at least 1 << A bytes aligned.
-  void ensureAlignment(unsigned A) {
-    if (Alignment < A) Alignment = A;
+  /// ensureAlignment - Make sure the function is at least A bytes aligned.
+  void ensureAlignment(Align A) {
+    if (Alignment < A)
+      Alignment = A;
   }
 
   /// exposesReturnsTwice - Returns true if the function calls setjmp or
@@ -484,10 +549,12 @@ public:
   }
 
   bool hasWinCFI() const {
-    assert(HasWinCFI.hasValue() && "HasWinCFI not set yet!");
-    return *HasWinCFI;
+    return HasWinCFI;
   }
   void setHasWinCFI(bool v) { HasWinCFI = v; }
+
+  /// True if this function needs frame moves for debug or exceptions.
+  bool needsFrameMoves() const;
 
   /// Get the function properties
   const MachineFunctionProperties &getProperties() const { return Properties; }
@@ -507,6 +574,10 @@ public:
   const Ty *getInfo() const {
      return const_cast<MachineFunction*>(this)->getInfo<Ty>();
   }
+
+  /// Returns the denormal handling type for the default rounding mode of the
+  /// function.
+  DenormalMode getDenormalMode(const fltSemantics &FPType) const;
 
   /// getBlockNumbered - MachineBasicBlocks are automatically numbered when they
   /// are inserted into the machine function.  The block number for a machine
@@ -619,6 +690,14 @@ public:
     BasicBlocks.sort(comp);
   }
 
+  /// Return the number of \p MachineInstrs in this \p MachineFunction.
+  unsigned getInstructionCount() const {
+    unsigned InstrCount = 0;
+    for (const MachineBasicBlock &MBB : BasicBlocks)
+      InstrCount += MBB.size();
+    return InstrCount;
+  }
+
   //===--------------------------------------------------------------------===//
   // Internal functions used to automatically number MachineBasicBlocks
 
@@ -693,6 +772,12 @@ public:
   MachineMemOperand *getMachineMemOperand(const MachineMemOperand *MMO,
                                           const AAMDNodes &AAInfo);
 
+  /// Allocate a new MachineMemOperand by copying an existing one,
+  /// replacing the flags. MachineMemOperands are owned
+  /// by the MachineFunction and need not be explicitly deallocated.
+  MachineMemOperand *getMachineMemOperand(const MachineMemOperand *MMO,
+                                          MachineMemOperand::Flags Flags);
+
   using OperandCapacity = ArrayRecycler<MachineOperand>::Capacity;
 
   /// Allocate an array of MachineOperands. This is only intended for use by
@@ -711,23 +796,15 @@ public:
   /// Allocate and initialize a register mask with @p NumRegister bits.
   uint32_t *allocateRegMask();
 
-  /// allocateMemRefsArray - Allocate an array to hold MachineMemOperand
-  /// pointers.  This array is owned by the MachineFunction.
-  MachineInstr::mmo_iterator allocateMemRefsArray(unsigned long Num);
+  ArrayRef<int> allocateShuffleMask(ArrayRef<int> Mask);
 
-  /// extractLoadMemRefs - Allocate an array and populate it with just the
-  /// load information from the given MachineMemOperand sequence.
-  std::pair<MachineInstr::mmo_iterator,
-            MachineInstr::mmo_iterator>
-    extractLoadMemRefs(MachineInstr::mmo_iterator Begin,
-                       MachineInstr::mmo_iterator End);
-
-  /// extractStoreMemRefs - Allocate an array and populate it with just the
-  /// store information from the given MachineMemOperand sequence.
-  std::pair<MachineInstr::mmo_iterator,
-            MachineInstr::mmo_iterator>
-    extractStoreMemRefs(MachineInstr::mmo_iterator Begin,
-                        MachineInstr::mmo_iterator End);
+  /// Allocate and construct an extra info structure for a `MachineInstr`.
+  ///
+  /// This is allocated on the function's allocator and so lives the life of
+  /// the function.
+  MachineInstr::ExtraInfo *createMIExtraInfo(
+      ArrayRef<MachineMemOperand *> MMOs, MCSymbol *PreInstrSymbol = nullptr,
+      MCSymbol *PostInstrSymbol = nullptr, MDNode *HeapAllocMarker = nullptr);
 
   /// Allocate a string and populate it with the given external symbol name.
   const char *createExternalSymbolName(StringRef Name);
@@ -752,10 +829,18 @@ public:
     return FrameInstructions;
   }
 
-  LLVM_NODISCARD unsigned addFrameInst(const MCCFIInstruction &Inst) {
-    FrameInstructions.push_back(Inst);
-    return FrameInstructions.size() - 1;
+  LLVM_NODISCARD unsigned addFrameInst(const MCCFIInstruction &Inst);
+
+  /// Returns a reference to a list of symbols immediately following calls to
+  /// _setjmp in the function. Used to construct the longjmp target table used
+  /// by Windows Control Flow Guard.
+  const std::vector<MCSymbol *> &getLongjmpTargets() const {
+    return LongjmpTargets;
   }
+
+  /// Add the specified symbol to the list of valid longjmp targets for Windows
+  /// Control Flow Guard.
+  void addLongjmpTarget(MCSymbol *Target) { LongjmpTargets.push_back(Target); }
 
   /// \name Exception Handling
   /// \{
@@ -776,7 +861,8 @@ public:
   LandingPadInfo &getOrCreateLandingPadInfo(MachineBasicBlock *LandingPad);
 
   /// Remap landing pad labels and remove any deleted landing pads.
-  void tidyLandingPads(DenseMap<MCSymbol*, uintptr_t> *LPMap = nullptr);
+  void tidyLandingPads(DenseMap<MCSymbol *, uintptr_t> *LPMap = nullptr,
+                       bool TidyIfNoBeginLabels = true);
 
   /// Return a reference to the landing pad info for the current function.
   const std::vector<LandingPadInfo> &getLandingPads() const {
@@ -788,7 +874,9 @@ public:
   void addInvoke(MachineBasicBlock *LandingPad,
                  MCSymbol *BeginLabel, MCSymbol *EndLabel);
 
-  /// Add a new panding pad.  Returns the label ID for the landing pad entry.
+  /// Add a new panding pad, and extract the exception handling information from
+  /// the landingpad instruction. Returns the label ID for the landing pad
+  /// entry.
   MCSymbol *addLandingPad(MachineBasicBlock *LandingPad);
 
   /// Provide the catch typeinfo for a landing pad.
@@ -816,6 +904,22 @@ public:
 
   /// Map the landing pad's EH symbol to the call site indexes.
   void setCallSiteLandingPad(MCSymbol *Sym, ArrayRef<unsigned> Sites);
+
+  /// Map the landing pad to its index. Used for Wasm exception handling.
+  void setWasmLandingPadIndex(const MachineBasicBlock *LPad, unsigned Index) {
+    WasmLPadToIndexMap[LPad] = Index;
+  }
+
+  /// Returns true if the landing pad has an associate index in wasm EH.
+  bool hasWasmLandingPadIndex(const MachineBasicBlock *LPad) const {
+    return WasmLPadToIndexMap.count(LPad);
+  }
+
+  /// Get the index in wasm EH for a given landing pad.
+  unsigned getWasmLandingPadIndex(const MachineBasicBlock *LPad) const {
+    assert(hasWasmLandingPadIndex(LPad));
+    return WasmLPadToIndexMap.lookup(LPad);
+  }
 
   /// Get the call site indexes for a landing pad EH symbol.
   SmallVectorImpl<unsigned> &getCallSiteLandingPad(MCSymbol *Sym) {
@@ -878,16 +982,36 @@ public:
   const VariableDbgInfoMapTy &getVariableDbgInfo() const {
     return VariableDbgInfos;
   }
+
+  void addCallArgsForwardingRegs(const MachineInstr *CallI,
+                                 CallSiteInfoImpl &&CallInfo) {
+    assert(CallI->isCall());
+    CallSitesInfo[CallI] = std::move(CallInfo);
+  }
+
+  const CallSiteInfoMap &getCallSitesInfo() const {
+    return CallSitesInfo;
+  }
+
+  /// Following functions update call site info. They should be called before
+  /// removing, replacing or copying call instruction.
+
+  /// Move the call site info from \p Old to \New call site info. This function
+  /// is used when we are replacing one call instruction with another one to
+  /// the same callee.
+  void moveCallSiteInfo(const MachineInstr *Old,
+                        const MachineInstr *New);
+
+  /// Erase the call site info for \p MI. It is used to remove a call
+  /// instruction from the instruction stream.
+  void eraseCallSiteInfo(const MachineInstr *MI);
+
+  /// Copy the call site info from \p Old to \ New. Its usage is when we are
+  /// making a copy of the instruction that will be inserted at different point
+  /// of the instruction stream.
+  void copyCallSiteInfo(const MachineInstr *Old,
+                        const MachineInstr *New);
 };
-
-/// \name Exception Handling
-/// \{
-
-/// Extract the exception handling information from the landingpad instruction
-/// and add them to the specified machine module info.
-void addLandingPadInfo(const LandingPadInst &I, MachineBasicBlock &MBB);
-
-/// \}
 
 //===--------------------------------------------------------------------===//
 // GraphTraits specializations for function basic block graphs (CFGs)

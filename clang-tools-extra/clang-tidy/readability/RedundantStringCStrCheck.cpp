@@ -1,9 +1,8 @@
 //===- RedundantStringCStrCheck.cpp - Check for redundant c_str calls -----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,6 +12,7 @@
 
 #include "RedundantStringCStrCheck.h"
 #include "clang/Lex/Lexer.h"
+#include "clang/Tooling/FixIt.h"
 
 using namespace clang::ast_matchers;
 
@@ -21,14 +21,6 @@ namespace tidy {
 namespace readability {
 
 namespace {
-
-template <typename T>
-StringRef getText(const ast_matchers::MatchFinder::MatchResult &Result,
-                  T const &Node) {
-  return Lexer::getSourceText(
-      CharSourceRange::getTokenRange(Node.getSourceRange()),
-      *Result.SourceManager, Result.Context->getLangOpts());
-}
 
 // Return true if expr needs to be put in parens when it is an argument of a
 // prefix unary operator, e.g. when it is a binary or ternary operator
@@ -54,10 +46,12 @@ formatDereference(const ast_matchers::MatchFinder::MatchResult &Result,
   if (const auto *Op = dyn_cast<clang::UnaryOperator>(&ExprNode)) {
     if (Op->getOpcode() == UO_AddrOf) {
       // Strip leading '&'.
-      return getText(Result, *Op->getSubExpr()->IgnoreParens());
+      return tooling::fixit::getText(*Op->getSubExpr()->IgnoreParens(),
+                                     *Result.Context);
     }
   }
-  StringRef Text = getText(Result, ExprNode);
+  StringRef Text = tooling::fixit::getText(ExprNode, *Result.Context);
+
   if (Text.empty())
     return std::string();
   // Add leading '*'.
@@ -185,11 +179,12 @@ void RedundantStringCStrCheck::check(const MatchFinder::MatchResult &Result) {
   // Replace the "call" node with the "arg" node, prefixed with '*'
   // if the call was using '->' rather than '.'.
   std::string ArgText =
-      Arrow ? formatDereference(Result, *Arg) : getText(Result, *Arg).str();
+      Arrow ? formatDereference(Result, *Arg)
+            : tooling::fixit::getText(*Arg, *Result.Context).str();
   if (ArgText.empty())
     return;
 
-  diag(Call->getLocStart(), "redundant call to %0")
+  diag(Call->getBeginLoc(), "redundant call to %0")
       << Member->getMemberDecl()
       << FixItHint::CreateReplacement(Call->getSourceRange(), ArgText);
 }

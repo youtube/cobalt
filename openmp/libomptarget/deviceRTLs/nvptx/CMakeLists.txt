@@ -1,9 +1,8 @@
 ##===----------------------------------------------------------------------===##
 #
-#                     The LLVM Compiler Infrastructure
-#
-# This file is dual licensed under the MIT and the University of Illinois Open
-# Source Licenses. See LICENSE.txt for details.
+# Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+# See https://llvm.org/LICENSE.txt for license information.
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #
 ##===----------------------------------------------------------------------===##
 #
@@ -36,6 +35,14 @@ if(CUDA_HOST_COMPILER MATCHES clang)
   set(CUDA_HOST_COMPILER "${LIBOMPTARGET_NVPTX_ALTERNATE_GCC_HOST_COMPILER}" CACHE FILEPATH "" FORCE)
 endif()
 
+get_filename_component(devicertl_base_directory
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  DIRECTORY)
+set(devicertl_common_directory
+  ${devicertl_base_directory}/common)
+set(devicertl_nvptx_directory
+  ${devicertl_base_directory}/nvptx)
+
 if(LIBOMPTARGET_DEP_CUDA_FOUND)
   libomptarget_say("Building CUDA offloading device RTL.")
 
@@ -44,19 +51,21 @@ if(LIBOMPTARGET_DEP_CUDA_FOUND)
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 
   set(cuda_src_files
-      src/cancel.cu
-      src/critical.cu
-      src/data_sharing.cu
-      src/libcall.cu
-      src/loop.cu
-      src/omptarget-nvptx.cu
-      src/parallel.cu
-      src/reduction.cu
-      src/sync.cu
-      src/task.cu
+      ${devicertl_common_directory}/src/cancel.cu
+      ${devicertl_common_directory}/src/critical.cu
+      ${devicertl_common_directory}/src/data_sharing.cu
+      ${devicertl_common_directory}/src/libcall.cu
+      ${devicertl_common_directory}/src/loop.cu
+      ${devicertl_common_directory}/src/omptarget.cu
+      ${devicertl_common_directory}/src/parallel.cu
+      ${devicertl_common_directory}/src/reduction.cu
+      ${devicertl_common_directory}/src/support.cu
+      ${devicertl_common_directory}/src/sync.cu
+      ${devicertl_common_directory}/src/task.cu
+      src/target_impl.cu
   )
 
-  set(omp_data_objects src/omp_data.cu)
+  set(omp_data_objects ${devicertl_common_directory}/src/omp_data.cu)
 
   # Get the compute capability the user requested or use SM_35 by default.
   # SM_35 is what clang uses by default.
@@ -84,7 +93,8 @@ if(LIBOMPTARGET_DEP_CUDA_FOUND)
   # yet supported by the CUDA toolchain on the device.
   set(BUILD_SHARED_LIBS OFF)
   set(CUDA_SEPARABLE_COMPILATION ON)
-
+  list(APPEND CUDA_NVCC_FLAGS -I${devicertl_base_directory}
+                              -I${devicertl_nvptx_directory}/src)
   cuda_add_library(omptarget-nvptx STATIC ${cuda_src_files} ${omp_data_objects}
       OPTIONS ${CUDA_ARCH} ${CUDA_DEBUG})
 
@@ -118,7 +128,10 @@ if(LIBOMPTARGET_DEP_CUDA_FOUND)
     libomptarget_say("Building CUDA LLVM bitcode offloading device RTL.")
 
     # Set flags for LLVM Bitcode compilation.
-    set(bc_flags ${LIBOMPTARGET_NVPTX_SELECTED_CUDA_COMPILER_FLAGS} -DOMPTARGET_NVPTX_TEST=0)
+    set(bc_flags ${LIBOMPTARGET_NVPTX_SELECTED_CUDA_COMPILER_FLAGS}
+                 -I${devicertl_base_directory}
+                 -I${devicertl_nvptx_directory}/src)
+
     if(${LIBOMPTARGET_NVPTX_DEBUG})
       set(bc_flags ${bc_flags} -DOMPTARGET_NVPTX_DEBUG=-1)
     else()
@@ -131,6 +144,9 @@ if(LIBOMPTARGET_DEP_CUDA_FOUND)
     if(CUDA_VERSION_MAJOR GREATER 8)
       set(bc_flags ${bc_flags} -Dnv_weak=weak)
     endif()
+
+    # Create target to build all Bitcode libraries.
+    add_custom_target(omptarget-nvptx-bc)
 
     # Generate a Bitcode library for all the compute capabilities the user requested.
     foreach(sm ${nvptx_sm_list})
@@ -165,6 +181,7 @@ if(LIBOMPTARGET_DEP_CUDA_FOUND)
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES libomptarget-nvptx-sm_${sm}.bc)
 
       add_custom_target(omptarget-nvptx-${sm}-bc ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/libomptarget-nvptx-sm_${sm}.bc)
+      add_dependencies(omptarget-nvptx-bc omptarget-nvptx-${sm}-bc)
 
       # Copy library to destination.
       add_custom_command(TARGET omptarget-nvptx-${sm}-bc POST_BUILD
@@ -176,6 +193,7 @@ if(LIBOMPTARGET_DEP_CUDA_FOUND)
     endforeach()
   endif()
 
+  add_subdirectory(test)
 else()
   libomptarget_say("Not building CUDA offloading device RTL: CUDA tools not found in the system.")
 endif()

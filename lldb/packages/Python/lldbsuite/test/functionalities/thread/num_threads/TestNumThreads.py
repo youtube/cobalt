@@ -2,11 +2,8 @@
 Test number of threads.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -64,7 +61,8 @@ class NumberOfThreadsTestCase(TestBase):
             'Number of expected threads and actual threads do not match.')
 
     @skipIfDarwin # rdar://33462362
-    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr37658")
+    @skipIfWindows # This is flakey on Windows: llvm.org/pr37658, llvm.org/pr38373
+    @expectedFailureNetBSD
     def test_unique_stacks(self):
         """Test backtrace unique with multiple threads executing the same stack."""
         self.build()

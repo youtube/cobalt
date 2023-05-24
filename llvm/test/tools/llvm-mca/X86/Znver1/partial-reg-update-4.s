@@ -11,7 +11,10 @@ add %cx, %bx
 # CHECK:      Iterations:        1500
 # CHECK-NEXT: Instructions:      4500
 # CHECK-NEXT: Total Cycles:      7503
-# CHECK-NEXT: Dispatch Width:    4
+# CHECK-NEXT: Total uOps:        4500
+
+# CHECK:      Dispatch Width:    4
+# CHECK-NEXT: uOps Per Cycle:    0.60
 # CHECK-NEXT: IPC:               0.60
 # CHECK-NEXT: Block RThroughput: 1.0
 
@@ -88,3 +91,4 @@ add %cx, %bx
 # CHECK-NEXT: 0.     7     14.1   0.1    0.0       imulw	%ax, %bx
 # CHECK-NEXT: 1.     7     15.9   0.0    0.0       lzcntw	%ax, %bx
 # CHECK-NEXT: 2.     7     17.6   0.0    0.0       addw	%cx, %bx
+# CHECK-NEXT:        7     15.9   0.0    0.0       <total>

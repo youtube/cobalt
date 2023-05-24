@@ -1,8 +1,7 @@
 """
-                     The LLVM Compiler Infrastructure
-
-This file is distributed under the University of Illinois Open Source
-License. See LICENSE.TXT for details.
+Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+See https://llvm.org/LICENSE.txt for license information.
+SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 Provides an xUnit ResultsFormatter for integrating the LLDB
 test suite with the Jenkins xUnit aggregator and other xUnit-compliant
@@ -156,14 +155,14 @@ class XunitFormatter(ResultsFormatter):
                 regex_list.append(re.compile(pattern))
         return regex_list
 
-    def __init__(self, out_file, options, file_is_stream):
+    def __init__(self, out_file, options):
         """Initializes the XunitFormatter instance.
         @param out_file file-like object where formatted output is written.
         @param options specifies a dictionary of options for the
         formatter.
         """
         # Initialize the parent
-        super(XunitFormatter, self).__init__(out_file, options, file_is_stream)
+        super(XunitFormatter, self).__init__(out_file, options)
         self.text_encoding = "UTF-8"
         self.invalid_xml_re = XunitFormatter._build_illegal_xml_regex()
         self.total_test_count = 0

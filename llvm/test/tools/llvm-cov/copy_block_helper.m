@@ -1,8 +1,8 @@
 // Make sure that compiler-added functions (whose line number is zero) don't
 // crash llvm-cov.
 
-// We need shell for cd
-// REQUIRES: shell
+
+
 
 // RUN: rm -rf %t
 // RUN: mkdir %t
@@ -29,4 +29,4 @@ void test(id x) { // GCOV: -:    [[@LINE]]:void test
 int main(int argc, const char *argv[]) { test(0); }
 
 // llvm-cov doesn't work on big endian yet
-// XFAIL: powerpc-, powerpc64-, s390x, mips-, mips64-, sparc
+// XFAIL: host-byteorder-big-endian

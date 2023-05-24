@@ -1,9 +1,8 @@
 //===-- CGProfile.cpp -----------------------------------------------------===//
 //
-//                      The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -88,11 +87,10 @@ void CGProfilePass::addModuleFlags(
   std::vector<Metadata *> Nodes;
 
   for (auto E : Counts) {
-    SmallVector<Metadata *, 3> Vals;
-    Vals.push_back(ValueAsMetadata::get(E.first.first));
-    Vals.push_back(ValueAsMetadata::get(E.first.second));
-    Vals.push_back(MDB.createConstant(
-        ConstantInt::get(Type::getInt64Ty(Context), E.second)));
+    Metadata *Vals[] = {ValueAsMetadata::get(E.first.first),
+                        ValueAsMetadata::get(E.first.second),
+                        MDB.createConstant(ConstantInt::get(
+                            Type::getInt64Ty(Context), E.second))};
     Nodes.push_back(MDNode::get(Context, Vals));
   }
 

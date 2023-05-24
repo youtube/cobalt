@@ -1,9 +1,8 @@
 //===--- SizeofExpressionCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -85,8 +84,11 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
   const auto IntegerCallExpr = expr(ignoringParenImpCasts(
       callExpr(anyOf(hasType(isInteger()), hasType(enumType())),
                unless(isInTemplateInstantiation()))));
-  const auto SizeOfExpr =
-      expr(anyOf(sizeOfExpr(has(type())), sizeOfExpr(has(expr()))));
+  const auto SizeOfExpr = expr(anyOf(
+      sizeOfExpr(
+          has(hasUnqualifiedDesugaredType(type().bind("sizeof-arg-type")))),
+      sizeOfExpr(has(expr(hasType(
+          hasUnqualifiedDesugaredType(type().bind("sizeof-arg-type"))))))));
   const auto SizeOfZero = expr(
       sizeOfExpr(has(ignoringParenImpCasts(expr(integerLiteral(equals(0)))))));
 
@@ -143,10 +145,17 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
       unaryOperator(hasOperatorName("&"),
                     hasUnaryOperand(ignoringParenImpCasts(expr(
                         hasType(qualType(hasCanonicalType(recordType())))))));
+  const auto PointerToStructType = type(hasUnqualifiedDesugaredType(
+      pointerType(pointee(recordType()))));
+  const auto PointerToStructExpr = expr(ignoringParenImpCasts(expr(
+      hasType(qualType(hasCanonicalType(PointerToStructType))),
+      unless(cxxThisExpr()))));
 
   Finder->addMatcher(
-      expr(sizeOfExpr(has(expr(ignoringParenImpCasts(
-               anyOf(ArrayCastExpr, PointerToArrayExpr, StructAddrOfExpr))))))
+      expr(anyOf(sizeOfExpr(has(expr(ignoringParenImpCasts(
+               anyOf(ArrayCastExpr, PointerToArrayExpr, StructAddrOfExpr,
+                     PointerToStructExpr))))),
+                            sizeOfExpr(has(PointerToStructType))))
           .bind("sizeof-pointer-to-aggregate"),
       this);
 
@@ -210,35 +219,65 @@ void SizeofExpressionCheck::registerMatchers(MatchFinder *Finder) {
                hasSizeOfDescendant(8, expr(SizeOfExpr, unless(SizeOfZero))))))))
           .bind("sizeof-sizeof-expr"),
       this);
+
+  // Detect sizeof in pointer aritmetic like: N * sizeof(S) == P1 - P2 or
+  // (P1 - P2) / sizeof(S) where P1 and P2 are pointers to type S.
+  const auto PtrDiffExpr = binaryOperator(
+      hasOperatorName("-"),
+      hasLHS(expr(hasType(hasUnqualifiedDesugaredType(pointerType(pointee(
+          hasUnqualifiedDesugaredType(type().bind("left-ptr-type")))))))),
+      hasRHS(expr(hasType(hasUnqualifiedDesugaredType(pointerType(pointee(
+          hasUnqualifiedDesugaredType(type().bind("right-ptr-type")))))))));
+
+  Finder->addMatcher(
+      binaryOperator(
+          anyOf(hasOperatorName("=="), hasOperatorName("!="),
+                hasOperatorName("<"), hasOperatorName("<="),
+                hasOperatorName(">"), hasOperatorName(">="),
+                hasOperatorName("+"), hasOperatorName("-")),
+          hasEitherOperand(expr(anyOf(
+              ignoringParenImpCasts(SizeOfExpr),
+              ignoringParenImpCasts(binaryOperator(
+                  hasOperatorName("*"),
+                  hasEitherOperand(ignoringParenImpCasts(SizeOfExpr))))))),
+          hasEitherOperand(ignoringParenImpCasts(PtrDiffExpr)))
+          .bind("sizeof-in-ptr-arithmetic-mul"),
+      this);
+
+  Finder->addMatcher(binaryOperator(hasOperatorName("/"),
+                                    hasLHS(ignoringParenImpCasts(PtrDiffExpr)),
+                                    hasRHS(ignoringParenImpCasts(SizeOfExpr)))
+                         .bind("sizeof-in-ptr-arithmetic-div"),
+                     this);
 }
 
 void SizeofExpressionCheck::check(const MatchFinder::MatchResult &Result) {
   const ASTContext &Ctx = *Result.Context;
 
   if (const auto *E = Result.Nodes.getNodeAs<Expr>("sizeof-constant")) {
-    diag(E->getLocStart(),
+    diag(E->getBeginLoc(),
          "suspicious usage of 'sizeof(K)'; did you mean 'K'?");
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("sizeof-integer-call")) {
-    diag(E->getLocStart(), "suspicious usage of 'sizeof()' on an expression "
+    diag(E->getBeginLoc(), "suspicious usage of 'sizeof()' on an expression "
                            "that results in an integer");
   } else if (const auto *E = Result.Nodes.getNodeAs<Expr>("sizeof-this")) {
-    diag(E->getLocStart(),
+    diag(E->getBeginLoc(),
          "suspicious usage of 'sizeof(this)'; did you mean 'sizeof(*this)'");
   } else if (const auto *E = Result.Nodes.getNodeAs<Expr>("sizeof-charp")) {
-    diag(E->getLocStart(),
+    diag(E->getBeginLoc(),
          "suspicious usage of 'sizeof(char*)'; do you mean 'strlen'?");
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("sizeof-pointer-to-aggregate")) {
-    diag(E->getLocStart(),
+    diag(E->getBeginLoc(),
          "suspicious usage of 'sizeof(A*)'; pointer to aggregate");
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("sizeof-compare-constant")) {
-    diag(E->getLocStart(),
+    diag(E->getBeginLoc(),
          "suspicious comparison of 'sizeof(expr)' to a constant");
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("sizeof-comma-expr")) {
-    diag(E->getLocStart(), "suspicious usage of 'sizeof(..., ...)'");
+    diag(E->getBeginLoc(), "suspicious usage of 'sizeof(..., ...)'");
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("sizeof-divide-expr")) {
     const auto *NumTy = Result.Nodes.getNodeAs<Type>("num-type");
@@ -252,30 +291,50 @@ void SizeofExpressionCheck::check(const MatchFinder::MatchResult &Result) {
 
     if (DenominatorSize > CharUnits::Zero() &&
         !NumeratorSize.isMultipleOf(DenominatorSize)) {
-      diag(E->getLocStart(), "suspicious usage of 'sizeof(...)/sizeof(...)';"
+      diag(E->getBeginLoc(), "suspicious usage of 'sizeof(...)/sizeof(...)';"
                              " numerator is not a multiple of denominator");
     } else if (ElementSize > CharUnits::Zero() &&
                DenominatorSize > CharUnits::Zero() &&
                ElementSize != DenominatorSize) {
-      diag(E->getLocStart(), "suspicious usage of 'sizeof(...)/sizeof(...)';"
+      diag(E->getBeginLoc(), "suspicious usage of 'sizeof(...)/sizeof(...)';"
                              " numerator is not a multiple of denominator");
     } else if (NumTy && DenomTy && NumTy == DenomTy) {
-      diag(E->getLocStart(),
+      diag(E->getBeginLoc(),
            "suspicious usage of sizeof pointer 'sizeof(T)/sizeof(T)'");
     } else if (PointedTy && DenomTy && PointedTy == DenomTy) {
-      diag(E->getLocStart(),
+      diag(E->getBeginLoc(),
            "suspicious usage of sizeof pointer 'sizeof(T*)/sizeof(T)'");
     } else if (NumTy && DenomTy && NumTy->isPointerType() &&
                DenomTy->isPointerType()) {
-      diag(E->getLocStart(),
+      diag(E->getBeginLoc(),
            "suspicious usage of sizeof pointer 'sizeof(P*)/sizeof(Q*)'");
     }
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("sizeof-sizeof-expr")) {
-    diag(E->getLocStart(), "suspicious usage of 'sizeof(sizeof(...))'");
+    diag(E->getBeginLoc(), "suspicious usage of 'sizeof(sizeof(...))'");
   } else if (const auto *E =
                  Result.Nodes.getNodeAs<Expr>("sizeof-multiply-sizeof")) {
-    diag(E->getLocStart(), "suspicious 'sizeof' by 'sizeof' multiplication");
+    diag(E->getBeginLoc(), "suspicious 'sizeof' by 'sizeof' multiplication");
+  } else if (const auto *E =
+                 Result.Nodes.getNodeAs<Expr>("sizeof-in-ptr-arithmetic-mul")) {
+    const auto *LPtrTy = Result.Nodes.getNodeAs<Type>("left-ptr-type");
+    const auto *RPtrTy = Result.Nodes.getNodeAs<Type>("right-ptr-type");
+    const auto *SizeofArgTy = Result.Nodes.getNodeAs<Type>("sizeof-arg-type");
+
+    if ((LPtrTy == RPtrTy) && (LPtrTy == SizeofArgTy)) {
+      diag(E->getBeginLoc(), "suspicious usage of 'sizeof(...)' in "
+                              "pointer arithmetic");
+    }
+  } else if (const auto *E =
+                 Result.Nodes.getNodeAs<Expr>("sizeof-in-ptr-arithmetic-div")) {
+    const auto *LPtrTy = Result.Nodes.getNodeAs<Type>("left-ptr-type");
+    const auto *RPtrTy = Result.Nodes.getNodeAs<Type>("right-ptr-type");
+    const auto *SizeofArgTy = Result.Nodes.getNodeAs<Type>("sizeof-arg-type");
+
+    if ((LPtrTy == RPtrTy) && (LPtrTy == SizeofArgTy)) {
+      diag(E->getBeginLoc(), "suspicious usage of 'sizeof(...)' in "
+                              "pointer arithmetic");
+    }
   }
 }
 

@@ -1,9 +1,8 @@
 //===-- GDBRemoteCommunicationClientTest.cpp --------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include "Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.h"
@@ -63,7 +62,8 @@ std::string one_register_hex = "41424344";
 class GDBRemoteCommunicationClientTest : public GDBRemoteTest {
 public:
   void SetUp() override {
-    ASSERT_THAT_ERROR(Connect(client, server), llvm::Succeeded());
+    ASSERT_THAT_ERROR(GDBRemoteCommunication::ConnectLocally(client, server),
+                      llvm::Succeeded());
   }
 
 protected:
@@ -169,14 +169,14 @@ TEST_F(GDBRemoteCommunicationClientTest, GetModulesInfo) {
   llvm::Triple triple("i386-pc-linux");
 
   FileSpec file_specs[] = {
-      FileSpec("/foo/bar.so", false, FileSpec::Style::posix),
-      FileSpec("/foo/baz.so", false, FileSpec::Style::posix),
+      FileSpec("/foo/bar.so", FileSpec::Style::posix),
+      FileSpec("/foo/baz.so", FileSpec::Style::posix),
 
       // This is a bit dodgy but we currently depend on GetModulesInfo not
       // performing denormalization. It can go away once the users
       // (DynamicLoaderPOSIXDYLD, at least) correctly set the path syntax for
       // the FileSpecs they create.
-      FileSpec("/foo/baw.so", false, FileSpec::Style::windows),
+      FileSpec("/foo/baw.so", FileSpec::Style::windows),
   };
   std::future<llvm::Optional<std::vector<ModuleSpec>>> async_result =
       std::async(std::launch::async,
@@ -203,7 +203,7 @@ TEST_F(GDBRemoteCommunicationClientTest, GetModulesInfo) {
 TEST_F(GDBRemoteCommunicationClientTest, GetModulesInfo_UUID20) {
   llvm::Triple triple("i386-pc-linux");
 
-  FileSpec file_spec("/foo/bar.so", false, FileSpec::Style::posix);
+  FileSpec file_spec("/foo/bar.so", FileSpec::Style::posix);
   std::future<llvm::Optional<std::vector<ModuleSpec>>> async_result =
       std::async(std::launch::async,
                  [&] { return client.GetModulesInfo(file_spec, triple); });
@@ -227,7 +227,7 @@ TEST_F(GDBRemoteCommunicationClientTest, GetModulesInfo_UUID20) {
 
 TEST_F(GDBRemoteCommunicationClientTest, GetModulesInfoInvalidResponse) {
   llvm::Triple triple("i386-pc-linux");
-  FileSpec file_spec("/foo/bar.so", false, FileSpec::Style::posix);
+  FileSpec file_spec("/foo/bar.so", FileSpec::Style::posix);
 
   const char *invalid_responses[] = {
       // no UUID
@@ -384,9 +384,9 @@ TEST_F(GDBRemoteCommunicationClientTest, SendStartTracePacket) {
 
   // Since the line is exceeding 80 characters.
   std::string expected_packet1 =
-      R"(jTraceStart:{"buffersize" : 8192,"metabuffersize" : 8192,"params" :)";
+      R"(jTraceStart:{"buffersize":8192,"metabuffersize":8192,"params":)";
   std::string expected_packet2 =
-      R"( {"psb" : 1,"tracetech" : "intel-pt"},"threadid" : 35,"type" : 1})";
+      R"({"psb":1,"tracetech":"intel-pt"},"threadid":35,"type":1})";
   HandlePacket(server, (expected_packet1 + expected_packet2), "1");
   ASSERT_TRUE(error.Success());
   ASSERT_EQ(result.get(), 1u);
@@ -409,8 +409,7 @@ TEST_F(GDBRemoteCommunicationClientTest, SendStopTracePacket) {
     return client.SendStopTracePacket(trace_id, thread_id);
   });
 
-  const char *expected_packet =
-      R"(jTraceStop:{"threadid" : 35,"traceid" : 3})";
+  const char *expected_packet = R"(jTraceStop:{"threadid":35,"traceid":3})";
   HandlePacket(server, expected_packet, "OK");
   ASSERT_TRUE(result.get().Success());
 
@@ -435,8 +434,8 @@ TEST_F(GDBRemoteCommunicationClientTest, SendGetDataPacket) {
   });
 
   std::string expected_packet1 =
-      R"(jTraceBufferRead:{"buffersize" : 32,"offset" : 0,"threadid" : 35,)";
-  std::string expected_packet2 = R"("traceid" : 3})";
+      R"(jTraceBufferRead:{"buffersize":32,"offset":0,"threadid":35,)";
+  std::string expected_packet2 = R"("traceid":3})";
   HandlePacket(server, expected_packet1+expected_packet2, "123456");
   ASSERT_TRUE(result.get().Success());
   ASSERT_EQ(buffer.size(), 3u);
@@ -467,8 +466,8 @@ TEST_F(GDBRemoteCommunicationClientTest, SendGetMetaDataPacket) {
   });
 
   std::string expected_packet1 =
-      R"(jTraceMetaRead:{"buffersize" : 32,"offset" : 0,"threadid" : 35,)";
-  std::string expected_packet2 = R"("traceid" : 3})";
+      R"(jTraceMetaRead:{"buffersize":32,"offset":0,"threadid":35,)";
+  std::string expected_packet2 = R"("traceid":3})";
   HandlePacket(server, expected_packet1+expected_packet2, "123456");
   ASSERT_TRUE(result.get().Success());
   ASSERT_EQ(buffer.size(), 3u);
@@ -497,11 +496,10 @@ TEST_F(GDBRemoteCommunicationClientTest, SendGetTraceConfigPacket) {
   });
 
   const char *expected_packet =
-      R"(jTraceConfigRead:{"threadid" : 35,"traceid" : 3})";
+      R"(jTraceConfigRead:{"threadid":35,"traceid":3})";
   std::string response1 =
-      R"({"buffersize" : 8192,"params" : {"psb" : 1,"tracetech" : "intel-pt"})";
-  std::string response2 =
-      R"(],"metabuffersize" : 8192,"threadid" : 35,"type" : 1}])";
+      R"({"buffersize":8192,"params":{"psb":1,"tracetech":"intel-pt"})";
+  std::string response2 = R"(],"metabuffersize":8192,"threadid":35,"type":1}])";
   HandlePacket(server, expected_packet, response1+response2);
   ASSERT_TRUE(result.get().Success());
   ASSERT_EQ(options.getTraceBufferSize(), 8192u);

@@ -1,6 +1,6 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,SI,SIVI %s
-; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,VI,SIVI %s
-; RUN: llc -march=amdgcn -mcpu=gfx900 -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,GFX9 %s
+; RUN: llc -march=amdgcn -amdgpu-atomic-optimizations=false -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,SI,SIVI %s
+; RUN: llc -march=amdgcn -mcpu=tonga -amdgpu-atomic-optimizations=false -mattr=-flat-for-global -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,VI,SIVI %s
+; RUN: llc -march=amdgcn -mcpu=gfx900 -amdgpu-atomic-optimizations=false -verify-machineinstrs < %s | FileCheck -enable-var-scope -check-prefixes=GCN,GFX9 %s
 
 ; GCN-LABEL: {{^}}atomic_add_i32_offset:
 ; SIVI: buffer_atomic_add v{{[0-9]+}}, off, s[{{[0-9]+}}:{{[0-9]+}}], 0 offset:16{{$}}
@@ -25,7 +25,9 @@ entry:
 ; SIVI: s_mov_b32 [[SREG:s[0-9]+]], 0x8ca0
 ; SIVI: buffer_atomic_add v{{[0-9]+}}, off, s[{{[0-9]+}}:{{[0-9]+}}], [[SREG]]{{$}}
 
-; GFX9: global_atomic_add v[{{[0-9]+}}:{{[0-9]+}}], v{{[0-9]+}}, off{{$}}
+; GFX9: v_add_co_u32_e32 v{{[0-9]+}}, vcc, 0x8000,
+; GFX9-NEXT: v_addc_co_u32_e32 v{{[0-9]+}}, vcc, 0, v{{[0-9]+}}, vcc
+; GFX9: global_atomic_add v[{{[0-9]+}}:{{[0-9]+}}], v{{[0-9]+}}, off offset:3232{{$}}
 define amdgpu_kernel void @atomic_add_i32_soffset(i32 addrspace(1)* %out, i32 %in) {
 entry:
   %gep = getelementptr i32, i32 addrspace(1)* %out, i64 9000
@@ -40,7 +42,10 @@ entry:
 
 ; VI: flat_atomic_add
 
-; GFX9: global_atomic_add v[{{[0-9]+}}:{{[0-9]+}}], v{{[0-9]+}}, off{{$}}
+; GFX9: v_mov_b32_e32 [[HIGH_K:v[0-9]+]], 0xabcd
+; GFX9: v_add_co_u32_e32 v{{[0-9]+}}, vcc, 0xd000,
+; GFX9-NEXT: v_addc_co_u32_e32 v{{[0-9]+}}, vcc, [[HIGH_K]], v{{[0-9]+}}, vcc
+; GFX9: global_atomic_add v[{{[0-9]+}}:{{[0-9]+}}], v{{[0-9]+}}, off offset:3756{{$}}
 define amdgpu_kernel void @atomic_add_i32_huge_offset(i32 addrspace(1)* %out, i32 %in) {
 entry:
   %gep = getelementptr i32, i32 addrspace(1)* %out, i64 47224239175595
@@ -836,6 +841,17 @@ define amdgpu_kernel void @atomic_xchg_i32_offset(i32 addrspace(1)* %out, i32 %i
 entry:
   %gep = getelementptr i32, i32 addrspace(1)* %out, i64 4
   %val = atomicrmw volatile xchg i32 addrspace(1)* %gep, i32 %in seq_cst
+  ret void
+}
+
+; GCN-LABEL: {{^}}atomic_xchg_f32_offset:
+; SIVI: buffer_atomic_swap v{{[0-9]+}}, off, s[{{[0-9]+}}:{{[0-9]+}}], 0 offset:16{{$}}
+
+; GFX9: global_atomic_swap v[{{[0-9]+:[0-9]+}}], v{{[0-9]+}}, off offset:16{{$}}
+define amdgpu_kernel void @atomic_xchg_f32_offset(float addrspace(1)* %out, float %in) {
+entry:
+  %gep = getelementptr float, float addrspace(1)* %out, i64 4
+  %val = atomicrmw volatile xchg float addrspace(1)* %gep, float %in seq_cst
   ret void
 }
 

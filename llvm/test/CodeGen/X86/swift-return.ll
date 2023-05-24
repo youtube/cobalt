@@ -28,10 +28,11 @@ define i16 @test(i32 %key) {
 ; CHECK-O0-NEXT:    movl %edi, {{[0-9]+}}(%rsp)
 ; CHECK-O0-NEXT:    movl {{[0-9]+}}(%rsp), %edi
 ; CHECK-O0-NEXT:    callq gen
-; CHECK-O0-NEXT:    movswl %ax, %edi
-; CHECK-O0-NEXT:    movsbl %dl, %ecx
-; CHECK-O0-NEXT:    addl %ecx, %edi
-; CHECK-O0-NEXT:    movw %di, %ax
+; CHECK-O0-NEXT:    movswl %ax, %ecx
+; CHECK-O0-NEXT:    movsbl %dl, %esi
+; CHECK-O0-NEXT:    addl %esi, %ecx
+; CHECK-O0-NEXT:    # kill: def $cx killed $cx killed $ecx
+; CHECK-O0-NEXT:    movw %cx, %ax
 ; CHECK-O0-NEXT:    popq %rcx
 ; CHECK-O0-NEXT:    .cfi_def_cfa_offset 8
 ; CHECK-O0-NEXT:    retq
@@ -79,16 +80,16 @@ define i32 @test2(i32 %key) #0 {
 ; CHECK-O0-NEXT:    movl {{[0-9]+}}(%rsp), %edi
 ; CHECK-O0-NEXT:    movq %rsp, %rax
 ; CHECK-O0-NEXT:    callq gen2
-; CHECK-O0-NEXT:    movl {{[0-9]+}}(%rsp), %edi
 ; CHECK-O0-NEXT:    movl {{[0-9]+}}(%rsp), %ecx
 ; CHECK-O0-NEXT:    movl {{[0-9]+}}(%rsp), %edx
-; CHECK-O0-NEXT:    movl (%rsp), %esi
+; CHECK-O0-NEXT:    movl {{[0-9]+}}(%rsp), %esi
+; CHECK-O0-NEXT:    movl (%rsp), %edi
 ; CHECK-O0-NEXT:    movl {{[0-9]+}}(%rsp), %r8d
-; CHECK-O0-NEXT:    addl %r8d, %esi
-; CHECK-O0-NEXT:    addl %edx, %esi
-; CHECK-O0-NEXT:    addl %ecx, %esi
-; CHECK-O0-NEXT:    addl %edi, %esi
-; CHECK-O0-NEXT:    movl %esi, %eax
+; CHECK-O0-NEXT:    addl %r8d, %edi
+; CHECK-O0-NEXT:    addl %esi, %edi
+; CHECK-O0-NEXT:    addl %edx, %edi
+; CHECK-O0-NEXT:    addl %ecx, %edi
+; CHECK-O0-NEXT:    movl %edi, %eax
 ; CHECK-O0-NEXT:    addq $24, %rsp
 ; CHECK-O0-NEXT:    .cfi_def_cfa_offset 8
 ; CHECK-O0-NEXT:    retq
@@ -457,18 +458,18 @@ define swiftcc { i8, i8, i8, i8 } @gen9(i8 %key) {
 ; CHECK-LABEL: gen9:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    movl %edi, %eax
-; CHECK-NEXT:    movl %edi, %edx
-; CHECK-NEXT:    movl %edi, %ecx
-; CHECK-NEXT:    movl %edi, %r8d
+; CHECK-NEXT:    movl %eax, %edx
+; CHECK-NEXT:    movl %eax, %ecx
+; CHECK-NEXT:    movl %eax, %r8d
 ; CHECK-NEXT:    retq
 ;
 ; CHECK-O0-LABEL: gen9:
 ; CHECK-O0:       # %bb.0:
+; CHECK-O0-NEXT:    # kill: def $dil killed $dil killed $edi
 ; CHECK-O0-NEXT:    movb %dil, %al
-; CHECK-O0-NEXT:    movb %al, -{{[0-9]+}}(%rsp) # 1-byte Spill
-; CHECK-O0-NEXT:    movb -{{[0-9]+}}(%rsp), %dl # 1-byte Reload
-; CHECK-O0-NEXT:    movb -{{[0-9]+}}(%rsp), %cl # 1-byte Reload
-; CHECK-O0-NEXT:    movb -{{[0-9]+}}(%rsp), %r8b # 1-byte Reload
+; CHECK-O0-NEXT:    movb %dil, %dl
+; CHECK-O0-NEXT:    movb %dil, %cl
+; CHECK-O0-NEXT:    movb %dil, %r8b
 ; CHECK-O0-NEXT:    retq
   %v0 = insertvalue { i8, i8, i8, i8 } undef, i8 %key, 0
   %v1 = insertvalue { i8, i8, i8, i8 } %v0, i8 %key, 1
@@ -479,10 +480,10 @@ define swiftcc { i8, i8, i8, i8 } @gen9(i8 %key) {
 define swiftcc { double, double, double, double, i64, i64, i64, i64 } @gen10(double %keyd, i64 %keyi) {
 ; CHECK-LABEL: gen10:
 ; CHECK:       # %bb.0:
+; CHECK-NEXT:    movq %rdi, %rax
 ; CHECK-NEXT:    movaps %xmm0, %xmm1
 ; CHECK-NEXT:    movaps %xmm0, %xmm2
 ; CHECK-NEXT:    movaps %xmm0, %xmm3
-; CHECK-NEXT:    movq %rdi, %rax
 ; CHECK-NEXT:    movq %rdi, %rdx
 ; CHECK-NEXT:    movq %rdi, %rcx
 ; CHECK-NEXT:    movq %rdi, %r8
@@ -490,12 +491,12 @@ define swiftcc { double, double, double, double, i64, i64, i64, i64 } @gen10(dou
 ;
 ; CHECK-O0-LABEL: gen10:
 ; CHECK-O0:       # %bb.0:
-; CHECK-O0-NEXT:    movsd %xmm0, -{{[0-9]+}}(%rsp) # 8-byte Spill
-; CHECK-O0-NEXT:    movsd -{{[0-9]+}}(%rsp), %xmm1 # 8-byte Reload
+; CHECK-O0-NEXT:    movsd %xmm0, {{[-0-9]+}}(%r{{[sb]}}p) # 8-byte Spill
+; CHECK-O0-NEXT:    movsd {{[-0-9]+}}(%r{{[sb]}}p), %xmm1 # 8-byte Reload
 ; CHECK-O0-NEXT:    # xmm1 = mem[0],zero
-; CHECK-O0-NEXT:    movsd -{{[0-9]+}}(%rsp), %xmm2 # 8-byte Reload
+; CHECK-O0-NEXT:    movsd {{[-0-9]+}}(%r{{[sb]}}p), %xmm2 # 8-byte Reload
 ; CHECK-O0-NEXT:    # xmm2 = mem[0],zero
-; CHECK-O0-NEXT:    movsd -{{[0-9]+}}(%rsp), %xmm3 # 8-byte Reload
+; CHECK-O0-NEXT:    movsd {{[-0-9]+}}(%r{{[sb]}}p), %xmm3 # 8-byte Reload
 ; CHECK-O0-NEXT:    # xmm3 = mem[0],zero
 ; CHECK-O0-NEXT:    movq %rdi, %rax
 ; CHECK-O0-NEXT:    movq %rdi, %rdx

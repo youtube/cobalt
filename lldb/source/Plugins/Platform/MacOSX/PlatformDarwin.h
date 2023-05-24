@@ -1,21 +1,17 @@
 //===-- PlatformDarwin.h ----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_PlatformDarwin_h_
 #define liblldb_PlatformDarwin_h_
 
-// C Includes
-// C++ Includes
 
-// Other libraries and framework includes
-// Project includes
 #include "Plugins/Platform/POSIX/PlatformPOSIX.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Utility/FileSpec.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/FileSystem.h"
@@ -29,9 +25,7 @@ public:
 
   ~PlatformDarwin() override;
 
-  //------------------------------------------------------------
   // lldb_private::Platform functions
-  //------------------------------------------------------------
   lldb_private::Status
   ResolveSymbolFile(lldb_private::Target &target,
                     const lldb_private::ModuleSpec &sym_spec,
@@ -85,6 +79,12 @@ public:
   static std::tuple<llvm::VersionTuple, llvm::StringRef>
   ParseVersionBuildDir(llvm::StringRef str);
 
+  enum SDKType : unsigned {
+    MacOSX = 0,
+    iPhoneSimulator,
+    iPhoneOS,
+  };
+
 protected:
   void ReadLibdispatchOffsetsAddress(lldb_private::Process *process);
 
@@ -94,12 +94,6 @@ protected:
       const lldb_private::ModuleSpec &module_spec, lldb::ModuleSP &module_sp,
       const lldb_private::FileSpecList *module_search_paths_ptr,
       lldb::ModuleSP *old_module_sp_ptr, bool *did_create_ptr);
-
-  enum class SDKType {
-    MacOSX = 0,
-    iPhoneSimulator,
-    iPhoneOS,
-  };
 
   static bool SDKSupportsModules(SDKType sdk_type, llvm::VersionTuple version);
 
@@ -111,9 +105,9 @@ protected:
     SDKType sdk_type;
   };
 
-  static lldb_private::FileSpec::EnumerateDirectoryResult
+  static lldb_private::FileSystem::EnumerateDirectoryResult
   DirectoryEnumerator(void *baton, llvm::sys::fs::file_type file_type,
-                      const lldb_private::FileSpec &spec);
+                      llvm::StringRef path);
 
   static lldb_private::FileSpec
   FindSDKInXcodeForModules(SDKType sdk_type,

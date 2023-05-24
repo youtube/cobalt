@@ -1,9 +1,8 @@
 //===- ExprObjC.h - Classes for representing ObjC expressions ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -67,13 +66,15 @@ public:
   SourceLocation getAtLoc() const { return AtLoc; }
   void setAtLoc(SourceLocation L) { AtLoc = L; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
-  SourceLocation getEndLoc() const LLVM_READONLY { return String->getLocEnd(); }
+  SourceLocation getEndLoc() const LLVM_READONLY { return String->getEndLoc(); }
 
   // Iterators
   child_range children() { return child_range(&String, &String+1); }
+
+  const_child_range children() const {
+    return const_child_range(&String, &String + 1);
+  }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCStringLiteralClass;
@@ -96,9 +97,7 @@ public:
   bool getValue() const { return Value; }
   void setValue(bool V) { Value = V; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return Loc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return Loc; }
 
   SourceLocation getLocation() const { return Loc; }
@@ -107,6 +106,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 
   static bool classof(const Stmt *T) {
@@ -143,11 +146,15 @@ public:
     return BoxingMethod;
   }
 
+  // Indicates whether this boxed expression can be emitted as a compile-time
+  // constant.
+  bool isExpressibleAsConstantInitializer() const {
+    return !BoxingMethod && SubExpr;
+  }
+
   SourceLocation getAtLoc() const { return Range.getBegin(); }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return Range.getBegin(); }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return Range.getEnd(); }
 
   SourceRange getSourceRange() const LLVM_READONLY {
@@ -156,6 +163,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&SubExpr, &SubExpr+1); }
+
+  const_child_range children() const {
+    return const_child_range(&SubExpr, &SubExpr + 1);
+  }
 
   using const_arg_iterator = ConstExprIterator;
 
@@ -200,9 +211,7 @@ public:
   static ObjCArrayLiteral *CreateEmpty(const ASTContext &C,
                                        unsigned NumElements);
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return Range.getBegin(); }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return Range.getEnd(); }
   SourceRange getSourceRange() const LLVM_READONLY { return Range; }
 
@@ -237,6 +246,11 @@ public:
                        reinterpret_cast<Stmt **>(getElements()) + NumElements);
   }
 
+  const_child_range children() const {
+    auto Children = const_cast<ObjCArrayLiteral *>(this)->children();
+    return const_child_range(Children.begin(), Children.end());
+  }
+
   static bool classof(const Stmt *T) {
       return T->getStmtClass() == ObjCArrayLiteralClass;
   }
@@ -263,12 +277,6 @@ struct ObjCDictionaryElement {
 };
 
 } // namespace clang
-
-namespace llvm {
-
-template <> struct isPodLike<clang::ObjCDictionaryElement> : std::true_type {};
-
-} // namespace llvm
 
 namespace clang {
 
@@ -367,9 +375,7 @@ public:
     return DictWithObjectsMethod;
   }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return Range.getBegin(); }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return Range.getEnd(); }
   SourceRange getSourceRange() const LLVM_READONLY { return Range; }
 
@@ -383,6 +389,11 @@ public:
         reinterpret_cast<Stmt **>(getTrailingObjects<KeyValuePair>()),
         reinterpret_cast<Stmt **>(getTrailingObjects<KeyValuePair>()) +
             NumElements * 2);
+  }
+
+  const_child_range children() const {
+    auto Children = const_cast<ObjCDictionaryLiteral *>(this)->children();
+    return const_child_range(Children.begin(), Children.end());
   }
 
   static bool classof(const Stmt *T) {
@@ -422,14 +433,16 @@ public:
     EncodedType = EncType;
   }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return RParenLoc; }
 
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 
   static bool classof(const Stmt *T) {
@@ -459,9 +472,7 @@ public:
   void setAtLoc(SourceLocation L) { AtLoc = L; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return RParenLoc; }
 
   /// getNumArgs - Return the number of actual arguments to this call.
@@ -470,6 +481,10 @@ public:
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 
   static bool classof(const Stmt *T) {
@@ -510,14 +525,16 @@ public:
   void setAtLoc(SourceLocation L) { AtLoc = L; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return AtLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return RParenLoc; }
 
   // Iterators
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 
   static bool classof(const Stmt *T) {
@@ -572,11 +589,9 @@ public:
   SourceLocation getLocation() const { return Loc; }
   void setLocation(SourceLocation L) { Loc = L; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY {
-    return isFreeIvar() ? Loc : getBase()->getLocStart();
+    return isFreeIvar() ? Loc : getBase()->getBeginLoc();
   }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return Loc; }
 
   SourceLocation getOpLoc() const { return OpLoc; }
@@ -584,6 +599,10 @@ public:
 
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
+
+  const_child_range children() const {
+    return const_child_range(&Base, &Base + 1);
+  }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCIvarRefExprClass;
@@ -623,7 +642,7 @@ private:
   /// the location of the 'super' keyword.  When it's an interface,
   /// this is that interface.
   SourceLocation ReceiverLoc;
-  llvm::PointerUnion3<Stmt *, const Type *, ObjCInterfaceDecl *> Receiver;
+  llvm::PointerUnion<Stmt *, const Type *, ObjCInterfaceDecl *> Receiver;
 
 public:
   ObjCPropertyRefExpr(ObjCPropertyDecl *PD, QualType t,
@@ -760,12 +779,11 @@ public:
   /// Determine the type of the base, regardless of the kind of receiver.
   QualType getReceiverType(const ASTContext &ctx) const;
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY {
-    return isObjectReceiver() ? getBase()->getLocStart() :getReceiverLocation();
+    return isObjectReceiver() ? getBase()->getBeginLoc()
+                              : getReceiverLocation();
   }
 
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return IdLoc; }
 
   // Iterators
@@ -775,6 +793,11 @@ public:
       return child_range(begin, begin+1);
     }
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    auto Children = const_cast<ObjCPropertyRefExpr *>(this)->children();
+    return const_child_range(Children.begin(), Children.end());
   }
 
   static bool classof(const Stmt *T) {
@@ -858,12 +881,10 @@ public:
   SourceLocation getRBracket() const { return RBracket; }
   void setRBracket(SourceLocation RB) { RBracket = RB; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY {
-    return SubExprs[BASE]->getLocStart();
+    return SubExprs[BASE]->getBeginLoc();
   }
 
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return RBracket; }
 
   Expr *getBaseExpr() const { return cast<Expr>(SubExprs[BASE]); }
@@ -886,6 +907,10 @@ public:
 
   child_range children() {
     return child_range(SubExprs, SubExprs+END_EXPR);
+  }
+
+  const_child_range children() const {
+    return const_child_range(SubExprs, SubExprs + END_EXPR);
   }
 
   static bool classof(const Stmt *T) {
@@ -1208,6 +1233,13 @@ public:
   /// sent to.
   ReceiverKind getReceiverKind() const { return (ReceiverKind)Kind; }
 
+  /// \return the return type of the message being sent.
+  /// This is not always the type of the message expression itself because
+  /// of references (the expression would not have a reference type).
+  /// It is also not always the declared return type of the method because
+  /// of `instancetype` (in that case it's an expression type).
+  QualType getCallReturnType(ASTContext &Ctx) const;
+
   /// Source range of the receiver.
   SourceRange getReceiverRange() const;
 
@@ -1386,7 +1418,7 @@ public:
 
   SourceLocation getSelectorStartLoc() const {
     if (isImplicit())
-      return getLocStart();
+      return getBeginLoc();
     return getSelectorLoc(0);
   }
 
@@ -1417,13 +1449,13 @@ public:
     RBracLoc = R.getEnd();
   }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return LBracLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return RBracLoc; }
 
   // Iterators
   child_range children();
+
+  const_child_range children() const;
 
   using arg_iterator = ExprIterator;
   using const_arg_iterator = ConstExprIterator;
@@ -1496,22 +1528,24 @@ public:
   SourceLocation getOpLoc() const { return OpLoc; }
   void setOpLoc(SourceLocation L) { OpLoc = L; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY {
-    return getBase()->getLocStart();
+    return getBase()->getBeginLoc();
   }
 
   SourceLocation getBaseLocEnd() const LLVM_READONLY {
-    return getBase()->getLocEnd();
+    return getBase()->getEndLoc();
   }
 
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY { return IsaMemberLoc; }
 
   SourceLocation getExprLoc() const LLVM_READONLY { return IsaMemberLoc; }
 
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
+
+  const_child_range children() const {
+    return const_child_range(&Base, &Base + 1);
+  }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCIsaExprClass;
@@ -1574,14 +1608,16 @@ public:
 
   child_range children() { return child_range(&Operand, &Operand+1); }
 
-  // Source locations are determined by the subexpression.
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
-  SourceLocation getBeginLoc() const LLVM_READONLY {
-    return Operand->getLocStart();
+  const_child_range children() const {
+    return const_child_range(&Operand, &Operand + 1);
   }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
+
+  // Source locations are determined by the subexpression.
+  SourceLocation getBeginLoc() const LLVM_READONLY {
+    return Operand->getBeginLoc();
+  }
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return Operand->getLocEnd();
+    return Operand->getEndLoc();
   }
 
   SourceLocation getExprLoc() const LLVM_READONLY {
@@ -1601,8 +1637,7 @@ public:
 /// \endcode
 class ObjCBridgedCastExpr final
     : public ExplicitCastExpr,
-      private llvm::TrailingObjects<
-          ObjCBridgedCastExpr, CastExpr::BasePathSizeTy, CXXBaseSpecifier *> {
+      private llvm::TrailingObjects<ObjCBridgedCastExpr, CXXBaseSpecifier *> {
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
   friend class CastExpr;
@@ -1611,10 +1646,6 @@ class ObjCBridgedCastExpr final
   SourceLocation LParenLoc;
   SourceLocation BridgeKeywordLoc;
   unsigned Kind : 2;
-
-  size_t numTrailingObjects(OverloadToken<CastExpr::BasePathSizeTy>) const {
-    return path_empty() ? 0 : 1;
-  }
 
 public:
   ObjCBridgedCastExpr(SourceLocation LParenLoc, ObjCBridgeCastKind Kind,
@@ -1641,12 +1672,10 @@ public:
   /// The location of the bridge keyword.
   SourceLocation getBridgeKeywordLoc() const { return BridgeKeywordLoc; }
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const LLVM_READONLY { return LParenLoc; }
 
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const LLVM_READONLY {
-    return getSubExpr()->getLocEnd();
+    return getSubExpr()->getEndLoc();
   }
 
   static bool classof(const Stmt *T) {
@@ -1683,9 +1712,7 @@ public:
   explicit ObjCAvailabilityCheckExpr(EmptyShell Shell)
       : Expr(ObjCAvailabilityCheckExprClass, Shell) {}
 
-  SourceLocation getLocStart() const LLVM_READONLY { return getBeginLoc(); }
   SourceLocation getBeginLoc() const { return AtLoc; }
-  SourceLocation getLocEnd() const LLVM_READONLY { return getEndLoc(); }
   SourceLocation getEndLoc() const { return RParen; }
   SourceRange getSourceRange() const { return {AtLoc, RParen}; }
 
@@ -1695,6 +1722,10 @@ public:
 
   child_range children() {
     return child_range(child_iterator(), child_iterator());
+  }
+
+  const_child_range children() const {
+    return const_child_range(const_child_iterator(), const_child_iterator());
   }
 
   static bool classof(const Stmt *T) {

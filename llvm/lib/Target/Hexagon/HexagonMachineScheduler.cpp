@@ -1,9 +1,8 @@
 //===- HexagonMachineScheduler.cpp - MI Scheduler for Hexagon -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -105,6 +104,7 @@ bool VLIWResourceModel::isResourceAvailable(SUnit *SU, bool IsTop) {
   default:
     if (!ResourcesModel->canReserveResources(*SU->getInstr()))
       return false;
+    break;
   case TargetOpcode::EXTRACT_SUBREG:
   case TargetOpcode::INSERT_SUBREG:
   case TargetOpcode::SUBREG_TO_REG:
@@ -112,6 +112,7 @@ bool VLIWResourceModel::isResourceAvailable(SUnit *SU, bool IsTop) {
   case TargetOpcode::IMPLICIT_DEF:
   case TargetOpcode::COPY:
   case TargetOpcode::INLINEASM:
+  case TargetOpcode::INLINEASM_BR:
     break;
   }
 
@@ -167,6 +168,7 @@ bool VLIWResourceModel::reserveResources(SUnit *SU, bool IsTop) {
   case TargetOpcode::EH_LABEL:
   case TargetOpcode::COPY:
   case TargetOpcode::INLINEASM:
+  case TargetOpcode::INLINEASM_BR:
     break;
   }
   Packet.push_back(SU);
@@ -215,8 +217,7 @@ void VLIWMachineScheduler::schedule() {
                   ++su) if (SUnits[su].getDepth() > maxD) maxD =
                  SUnits[su].getDepth();
              dbgs() << "Max Depth " << maxD << "\n";);
-  LLVM_DEBUG(for (unsigned su = 0, e = SUnits.size(); su != e; ++su) SUnits[su]
-                 .dumpAll(this));
+  LLVM_DEBUG(dump());
 
   initQueues(TopRoots, BotRoots);
 
@@ -489,7 +490,7 @@ void ConvergingVLIWScheduler::traceCandidate(const char *Label,
   else
     dbgs() << "     ";
   dbgs() << "cost(" << Cost << ")\t";
-  SU->dump(DAG);
+  DAG->dumpNode(*SU);
 }
 
 // Very detailed queue dump, to be used with higher verbosity levels.
@@ -982,7 +983,7 @@ SUnit *ConvergingVLIWScheduler::pickNode(bool &IsTopNode) {
                     << " Scheduling instruction in cycle "
                     << (IsTopNode ? Top.CurrCycle : Bot.CurrCycle) << " ("
                     << reportPackets() << ")\n";
-             SU->dump(DAG));
+             DAG->dumpNode(*SU));
   return SU;
 }
 

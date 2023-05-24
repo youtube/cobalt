@@ -3,11 +3,8 @@ Test that inlined breakpoints (breakpoint set on a file/line included from
 another source file) works correctly.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.lldbtest import *
 import lldbsuite.test.lldbutil as lldbutil

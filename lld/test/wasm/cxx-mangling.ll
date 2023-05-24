@@ -1,8 +1,8 @@
 ; RUN: llc -filetype=obj %s -o %t.o
-; RUN: wasm-ld --demangle -o %t_demangle.wasm %t.o
-; RUN: obj2yaml %t_demangle.wasm | FileCheck %s
-; RUN: wasm-ld --no-demangle -o %t_nodemangle.wasm %t.o
-; RUN: obj2yaml %t_nodemangle.wasm | FileCheck %s
+; RUN: wasm-ld --export=_Z3fooi --demangle -o %t_demangle.wasm %t.o
+; RUN: obj2yaml %t_demangle.wasm | FileCheck --check-prefixes=CHECK,DEMANGLE %s
+; RUN: wasm-ld --export=_Z3fooi --no-demangle -o %t_nodemangle.wasm %t.o
+; RUN: obj2yaml %t_nodemangle.wasm | FileCheck --check-prefixes=CHECK,MANGLE %s
 
 target triple = "wasm32-unknown-unknown"
 
@@ -26,41 +26,32 @@ define void @_start() {
 ; CHECK-NEXT:       - Name:            memory
 ; CHECK-NEXT:         Kind:            MEMORY
 ; CHECK-NEXT:         Index:           0
-; CHECK-NEXT:       - Name:            __heap_base
-; CHECK-NEXT:         Kind:            GLOBAL
-; CHECK-NEXT:         Index:           1
-; CHECK-NEXT:       - Name:            __data_end
-; CHECK-NEXT:         Kind:            GLOBAL
-; CHECK-NEXT:         Index:           2
-; CHECK-NEXT:       - Name:            _start
-; CHECK-NEXT:         Kind:            FUNCTION
-; CHECK-NEXT:         Index:           3
 ; CHECK-NEXT:       - Name:            _Z3fooi
+; CHECK-NEXT:         Kind:            FUNCTION
+; CHECK-NEXT:         Index:           1
+; CHECK-NEXT:       - Name:            _start
 ; CHECK-NEXT:         Kind:            FUNCTION
 ; CHECK-NEXT:         Index:           2
 ; CHECK-NEXT:   - Type:            CODE
 ; CHECK-NEXT:     Functions:
 ; CHECK-NEXT:       - Index:           0
 ; CHECK-NEXT:         Locals:
-; CHECK-NEXT:         Body:            0B
+; CHECK-NEXT:         Body:            000B
 ; CHECK-NEXT:       - Index:           1
 ; CHECK-NEXT:         Locals:
-; CHECK-NEXT:         Body:            000B
+; CHECK-NEXT:         Body:            0B
 ; CHECK-NEXT:       - Index:           2
 ; CHECK-NEXT:         Locals:
-; CHECK-NEXT:         Body:            0B
-; CHECK-NEXT:       - Index:           3
-; CHECK-NEXT:         Locals:
-; CHECK-NEXT:         Body:            410110828080800041011081808080000B
+; CHECK-NEXT:         Body:            410110818080800041011080808080000B
 ; CHECK-NEXT:   - Type:            CUSTOM
 ; CHECK-NEXT:     Name:            name
 ; CHECK-NEXT:     FunctionNames:
 ; CHECK-NEXT:       - Index:           0
-; CHECK-NEXT:         Name:            __wasm_call_ctors
+; DEMANGLE-NEXT:      Name:            'undefined:bar(int)'
+; MANGLE-NEXT:        Name:            'undefined:_Z3bari'
 ; CHECK-NEXT:       - Index:           1
-; CHECK-NEXT:         Name:            'undefined function bar(int)'
+; DEMANGLE-NEXT:      Name:            'foo(int)'
+; MANGLE-NEXT:        Name:            _Z3fooi
 ; CHECK-NEXT:       - Index:           2
-; CHECK-NEXT:         Name:            'foo(int)'
-; CHECK-NEXT:       - Index:           3
 ; CHECK-NEXT:         Name:            _start
 ; CHECK-NEXT: ...

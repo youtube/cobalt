@@ -5,12 +5,15 @@
 # LLVM-MCA-END
   add %esi, %eax
 
-# CHECK:      [0] Code Region - Default
+# CHECK:      [0] Code Region
 
 # CHECK:      Iterations:        1
 # CHECK-NEXT: Instructions:      1
 # CHECK-NEXT: Total Cycles:      4
-# CHECK-NEXT: Dispatch Width:    2
+# CHECK-NEXT: Total uOps:        1
+
+# CHECK:      Dispatch Width:    2
+# CHECK-NEXT: uOps Per Cycle:    0.25
 # CHECK-NEXT: IPC:               0.25
 # CHECK-NEXT: Block RThroughput: 0.5
 

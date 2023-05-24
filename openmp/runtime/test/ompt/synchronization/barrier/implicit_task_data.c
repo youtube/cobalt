@@ -12,9 +12,9 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <omp.h>
-#include <ompt.h>
+#include <omp-tools.h>
 
-static const char* ompt_thread_type_t_values[] = {
+static const char* ompt_thread_t_values[] = {
   NULL,
   "ompt_thread_initial",
   "ompt_thread_worker",
@@ -59,18 +59,18 @@ int main()
 
 static void
 on_ompt_callback_thread_begin(
-  ompt_thread_type_t thread_type,
+  ompt_thread_t thread_type,
   ompt_data_t *thread_data)
 {
   if(thread_data->ptr)
     printf("%s\n", "0: thread_data initially not null");
   thread_data->value = ompt_get_unique_id();
-  printf("%" PRIu64 ": ompt_event_thread_begin: thread_type=%s=%d, thread_id=%" PRIu64 "\n", ompt_get_thread_data()->value, ompt_thread_type_t_values[thread_type], thread_type, thread_data->value);
+  printf("%" PRIu64 ": ompt_event_thread_begin: thread_type=%s=%d, thread_id=%" PRIu64 "\n", ompt_get_thread_data()->value, ompt_thread_t_values[thread_type], thread_type, thread_data->value);
 }
 
 static void
 on_ompt_callback_sync_region(
-  ompt_sync_region_kind_t kind,
+  ompt_sync_region_t kind,
   ompt_scope_endpoint_t endpoint,
   ompt_data_t *parallel_data,
   ompt_data_t *task_data,
@@ -80,11 +80,11 @@ on_ompt_callback_sync_region(
   {
     case ompt_scope_begin:
       task_data->value = ompt_get_unique_id();
-      if(kind == ompt_sync_region_barrier)
+      if (kind == ompt_sync_region_barrier_implicit)
         printf("%" PRIu64 ": ompt_event_barrier_begin: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, parallel_data->value, task_data->value, codeptr_ra);
       break;
     case ompt_scope_end:
-      if(kind == ompt_sync_region_barrier)
+      if (kind == ompt_sync_region_barrier_implicit)
         printf("%" PRIu64 ": ompt_event_barrier_end: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, (parallel_data)?parallel_data->value:0, task_data->value, codeptr_ra);
       break;
   }
@@ -92,7 +92,7 @@ on_ompt_callback_sync_region(
 
 static void
 on_ompt_callback_sync_region_wait(
-  ompt_sync_region_kind_t kind,
+  ompt_sync_region_t kind,
   ompt_scope_endpoint_t endpoint,
   ompt_data_t *parallel_data,
   ompt_data_t *task_data,
@@ -101,11 +101,15 @@ on_ompt_callback_sync_region_wait(
   switch(endpoint)
   {
     case ompt_scope_begin:
-      if(kind == ompt_sync_region_barrier)
-          printf("%" PRIu64 ": ompt_event_wait_barrier_begin: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, parallel_data->value, task_data->value, codeptr_ra);
+      if (kind == ompt_sync_region_barrier_implicit)
+        printf("%" PRIu64
+               ": ompt_event_wait_barrier_begin: parallel_id=%" PRIu64
+               ", task_id=%" PRIu64 ", codeptr_ra=%p\n",
+               ompt_get_thread_data()->value, parallel_data->value,
+               task_data->value, codeptr_ra);
       break;
     case ompt_scope_end:
-      if(kind == ompt_sync_region_barrier)
+      if (kind == ompt_sync_region_barrier_implicit)
         printf("%" PRIu64 ": ompt_event_wait_barrier_end: parallel_id=%" PRIu64 ", task_id=%" PRIu64 ", codeptr_ra=%p\n", ompt_get_thread_data()->value, (parallel_data)?parallel_data->value:0, task_data->value, codeptr_ra);
       break;
   }

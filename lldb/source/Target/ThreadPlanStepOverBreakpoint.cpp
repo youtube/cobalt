@@ -1,18 +1,13 @@
 //===-- ThreadPlanStepOverBreakpoint.cpp ------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Target/ThreadPlanStepOverBreakpoint.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Utility/Log.h"
@@ -21,10 +16,8 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // ThreadPlanStepOverBreakpoint: Single steps over a breakpoint bp_site_sp at
 // the pc.
-//----------------------------------------------------------------------
 
 ThreadPlanStepOverBreakpoint::ThreadPlanStepOverBreakpoint(Thread &thread)
     : ThreadPlan(
@@ -69,11 +62,9 @@ bool ThreadPlanStepOverBreakpoint::DoPlanExplainsStop(Event *event_ptr) {
     StopReason reason = stop_info_sp->GetStopReason();
 
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
+    LLDB_LOGF(log, "Step over breakpoint stopped for reason: %s.",
+              Thread::StopReasonAsCString(reason));
 
-    if (log)
-      log->Printf("Step over breakpoint stopped for reason: %s.", 
-          Thread::StopReasonAsCString(reason));
-  
     switch (reason) {
       case eStopReasonTrace:
       case eStopReasonNone:
@@ -98,9 +89,10 @@ bool ThreadPlanStepOverBreakpoint::DoPlanExplainsStop(Event *event_ptr) {
         lldb::addr_t pc_addr = m_thread.GetRegisterContext()->GetPC();
 
         if (pc_addr == m_breakpoint_addr) {
-          if (log)
-            log->Printf("Got breakpoint stop reason but pc: 0x%" PRIx64
-                        "hasn't changed.", pc_addr);
+          LLDB_LOGF(log,
+                    "Got breakpoint stop reason but pc: 0x%" PRIx64
+                    "hasn't changed.",
+                    pc_addr);
           return true;
         }
 
@@ -156,8 +148,7 @@ bool ThreadPlanStepOverBreakpoint::MischiefManaged() {
     return false;
   } else {
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
-    if (log)
-      log->Printf("Completed step over breakpoint plan.");
+    LLDB_LOGF(log, "Completed step over breakpoint plan.");
     // Otherwise, re-enable the breakpoint we were stepping over, and we're
     // done.
     ReenableBreakpointSite();

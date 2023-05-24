@@ -2,9 +2,7 @@
 Test SBSymbolContext APIs.
 """
 
-from __future__ import print_function
 
-import os
 
 import lldb
 from lldbsuite.test.decorators import *

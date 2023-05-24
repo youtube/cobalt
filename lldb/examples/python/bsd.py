@@ -1,5 +1,7 @@
 #!/usr/bin/python
+from __future__ import print_function
 
+import cmd
 import optparse
 import os
 import shlex
@@ -75,6 +77,22 @@ class Object(object):
         bytes = self.file.read(self.obj_size)
         self.file.seek(saved_pos, 0)
         return bytes
+
+    def save(self, path=None, overwrite=False):
+        '''
+            Save the contents of the object to disk using 'path' argument as
+            the path, or save it to the current working directory using the
+            object name.
+        '''
+
+        if path is None:
+            path = self.name
+        if not overwrite and os.path.exists(path):
+            print('error: outfile "%s" already exists' % (path))
+            return
+        print('Saving "%s" to "%s"...' % (self.name, path))
+        with open(path, 'w') as f:
+            f.write(self.get_bytes())
 
 
 class StringTable(object):
@@ -186,6 +204,67 @@ class Archive(object):
         for obj in self.objects:
             obj.dump(f=f, flat=flat)
 
+class Interactive(cmd.Cmd):
+    '''Interactive prompt for exploring contents of BSD archive files, type
+      "help" to see a list of supported commands.'''
+    image_option_parser = None
+
+    def __init__(self, archives):
+        cmd.Cmd.__init__(self)
+        self.use_rawinput = False
+        self.intro = ('Interactive  BSD archive prompt, type "help" to see a '
+                      'list of supported commands.')
+        self.archives = archives
+        self.prompt = '% '
+
+    def default(self, line):
+        '''Catch all for unknown command, which will exit the interpreter.'''
+        print("unknown command: %s" % line)
+        return True
+
+    def do_q(self, line):
+        '''Quit command'''
+        return True
+
+    def do_quit(self, line):
+        '''Quit command'''
+        return True
+
+    def do_extract(self, line):
+        args = shlex.split(line)
+        if args:
+            extracted = False
+            for object_name in args:
+                for archive in self.archives:
+                    matches = archive.find(object_name)
+                    if matches:
+                        for object in matches:
+                            object.save(overwrite=False)
+                            extracted = True
+            if not extracted:
+                print('error: no object matches "%s" in any archives' % (
+                        object_name))
+        else:
+            print('error: must specify the name of an object to extract')
+
+    def do_ls(self, line):
+        args = shlex.split(line)
+        if args:
+            for object_name in args:
+                for archive in self.archives:
+                    matches = archive.find(object_name)
+                    if matches:
+                        for object in matches:
+                            object.dump(flat=False)
+                    else:
+                        print('error: no object matches "%s" in "%s"' % (
+                                object_name, archive.path))
+        else:
+            for archive in self.archives:
+                archive.dump(flat=True)
+                print('')
+
+
 
 def main():
     parser = optparse.OptionParser(
@@ -243,8 +322,23 @@ def main():
               'then the extracted object file will be extracted into the '
               'current working directory if a file doesn\'t already exist '
               'with that name.'))
+    parser.add_option(
+        '-i', '--interactive',
+        action='store_true',
+        dest='interactive',
+        default=False,
+        help=('Enter an interactive shell that allows users to interactively '
+              'explore contents of .a files.'))
 
     (options, args) = parser.parse_args(sys.argv[1:])
+
+    if options.interactive:
+        archives = []
+        for path in args:
+            archives.append(Archive(path))
+        interpreter = Interactive(archives)
+        interpreter.cmdloop()
+        return
 
     for path in args:
         archive = Archive(path)
@@ -256,17 +350,7 @@ def main():
                 if options.extract:
                     if len(matches) == 1:
                         dump_all = False
-                        if options.outfile is None:
-                            outfile_path = matches[0].name
-                        else:
-                            outfile_path = options.outfile
-                        if os.path.exists(outfile_path):
-                            print('error: outfile "%s" already exists' % (
-                              outfile_path))
-                        else:
-                            print('Saving file to "%s"...' % (outfile_path))
-                            with open(outfile_path, 'w') as outfile:
-                                outfile.write(matches[0].get_bytes())
+                        matches[0].save(path=options.outfile, overwrite=False)
                     else:
                         print('error: multiple objects match "%s". Specify '
                               'the modification time using --mtime.' % (
@@ -308,18 +392,18 @@ if __name__ == '__main__':
 
 
 def print_mtime_error(result, dmap_mtime, actual_mtime):
-    print >>result, ("error: modification time in debug map (%#08.8x) doesn't "
+    print("error: modification time in debug map (%#08.8x) doesn't "
                      "match the .o file modification time (%#08.8x)" % (
-                        dmap_mtime, actual_mtime))
+                        dmap_mtime, actual_mtime), file=result)
 
 
 def print_file_missing_error(result, path):
-    print >>result, "error: file \"%s\" doesn't exist" % (path)
+    print("error: file \"%s\" doesn't exist" % (path), file=result)
 
 
 def print_multiple_object_matches(result, object_name, mtime, matches):
-    print >>result, ("error: multiple matches for object '%s' with with "
-                     "modification time %#08.8x:" % (object_name, mtime))
+    print("error: multiple matches for object '%s' with with "
+                     "modification time %#08.8x:" % (object_name, mtime), file=result)
     Archive.dump_header(f=result)
     for match in matches:
         match.dump(f=result, flat=True)
@@ -328,15 +412,15 @@ def print_multiple_object_matches(result, object_name, mtime, matches):
 def print_archive_object_error(result, object_name, mtime, archive):
     matches = archive.find(object_name, f=result)
     if len(matches) > 0:
-        print >>result, ("error: no objects have a modification time that "
+        print("error: no objects have a modification time that "
                          "matches %#08.8x for '%s'. Potential matches:" % (
-                            mtime, object_name))
+                            mtime, object_name), file=result)
         Archive.dump_header(f=result)
         for match in matches:
             match.dump(f=result, flat=True)
     else:
-        print >>result, "error: no object named \"%s\" found in archive:" % (
-            object_name)
+        print("error: no object named \"%s\" found in archive:" % (
+            object_name), file=result)
         Archive.dump_header(f=result)
         for match in archive.objects:
             match.dump(f=result, flat=True)
@@ -413,13 +497,13 @@ or whose modification times don't match in the debug map of an executable.'''
                 dmap_mtime = int(str(symbol).split('value = ')
                                  [1].split(',')[0], 16)
                 if not options.errors:
-                    print >>result, '%s' % (path)
+                    print('%s' % (path), file=result)
                 if os.path.exists(path):
                     actual_mtime = int(os.stat(path).st_mtime)
                     if dmap_mtime != actual_mtime:
                         num_errors += 1
                         if options.errors:
-                            print >>result, '%s' % (path),
+                            print('%s' % (path), end=' ', file=result)
                         print_mtime_error(result, dmap_mtime,
                                           actual_mtime)
                 elif path[-1] == ')':
@@ -427,13 +511,13 @@ or whose modification times don't match in the debug map of an executable.'''
                     if not archive_path and not object_name:
                         num_errors += 1
                         if options.errors:
-                            print >>result, '%s' % (path),
+                            print('%s' % (path), end=' ', file=result)
                         print_file_missing_error(path)
                         continue
                     if not os.path.exists(archive_path):
                         num_errors += 1
                         if options.errors:
-                            print >>result, '%s' % (path),
+                            print('%s' % (path), end=' ', file=result)
                         print_file_missing_error(archive_path)
                         continue
                     if archive_path in archives:
@@ -444,30 +528,30 @@ or whose modification times don't match in the debug map of an executable.'''
                     matches = archive.find(object_name, dmap_mtime)
                     num_matches = len(matches)
                     if num_matches == 1:
-                        print >>result, '1 match'
+                        print('1 match', file=result)
                         obj = matches[0]
                         if obj.date != dmap_mtime:
                             num_errors += 1
                             if options.errors:
-                                print >>result, '%s' % (path),
+                                print('%s' % (path), end=' ', file=result)
                             print_mtime_error(result, dmap_mtime, obj.date)
                     elif num_matches == 0:
                         num_errors += 1
                         if options.errors:
-                            print >>result, '%s' % (path),
+                            print('%s' % (path), end=' ', file=result)
                         print_archive_object_error(result, object_name,
                                                    dmap_mtime, archive)
                     elif num_matches > 1:
                         num_errors += 1
                         if options.errors:
-                            print >>result, '%s' % (path),
+                            print('%s' % (path), end=' ', file=result)
                         print_multiple_object_matches(result,
                                                       object_name,
                                                       dmap_mtime, matches)
             if num_errors > 0:
-                print >>result, "%u errors found" % (num_errors)
+                print("%u errors found" % (num_errors), file=result)
             else:
-                print >>result, "No errors detected in debug map"
+                print("No errors detected in debug map", file=result)
 
 
 def __lldb_init_module(debugger, dict):

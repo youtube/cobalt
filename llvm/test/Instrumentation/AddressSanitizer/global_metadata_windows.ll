@@ -14,8 +14,8 @@ $mystr = comdat any
 ; CHECK: $dead_global = comdat noduplicates
 ; CHECK: $private_str = comdat noduplicates
 
-; CHECK: @dead_global = local_unnamed_addr global { i32, [60 x i8] } { i32 42, [60 x i8] zeroinitializer }, comdat, align 32
-; CHECK: @private_str = internal unnamed_addr constant { [8 x i8], [56 x i8] } { [8 x i8] c"private\00", [56 x i8] zeroinitializer }, comdat, align 32
+; CHECK: @dead_global = global { i32, [60 x i8] } { i32 42, [60 x i8] zeroinitializer }, comdat, align 32
+; CHECK: @private_str = internal constant { [8 x i8], [56 x i8] } { [8 x i8] c"private\00", [56 x i8] zeroinitializer }, comdat, align 32
 
 ; CHECK: @__asan_global_dead_global = private global { {{.*}} }, section ".ASAN$GL", comdat($dead_global), align 64
 ; CHECK: @__asan_global_private_str = private global { {{.*}} }, section ".ASAN$GL", comdat($private_str), align 64
@@ -37,8 +37,8 @@ entry:
 ; Function Attrs: nounwind
 declare i32 @puts(i8* nocapture readonly) local_unnamed_addr #1
 
-attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { nounwind "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.module.flags = !{!0}
 !llvm.ident = !{!1}

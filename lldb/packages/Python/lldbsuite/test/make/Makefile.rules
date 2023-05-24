@@ -13,12 +13,19 @@
 # the building of the a.out executable program.  For example,
 # DYLIB_ONLY := YES
 #
+# Specifying FRAMEWORK and its variants has the effect of building a NeXT-style
+# framework.
+# FRAMEWORK := "Foo"
+# FRAMEWORK_HEADERS := "Foo.h"
+# FRAMEWORK_MODULES := "module.modulemap"
+#
 # Also might be of interest:
 # FRAMEWORK_INCLUDES (Darwin only) :=
 # CFLAGS_EXTRAS :=
 # LD_EXTRAS :=
 # SPLIT_DEBUG_SYMBOLS := YES
 # CROSS_COMPILE :=
+# USE_PRIVATE_MODULE_CACHE := YES
 #
 # And test/functionalities/archives/Makefile:
 # MAKE_DSYM := NO
@@ -28,10 +35,11 @@
 # Uncomment line below for debugging shell commands
 # SHELL = /bin/sh -x
 
-SRCDIR := $(shell dirname $(firstword $(MAKEFILE_LIST)))/
-THIS_FILE_DIR := $(shell dirname $(lastword $(MAKEFILE_LIST)))/
-LLDB_BASE_DIR := $(THIS_FILE_DIR)../../../../../
-
+SRCDIR := $(shell dirname $(firstword $(MAKEFILE_LIST)))
+BUILDDIR := $(shell pwd)
+MAKEFILE_RULES := $(lastword $(MAKEFILE_LIST))
+THIS_FILE_DIR := $(shell dirname $(MAKEFILE_RULES))
+LLDB_BASE_DIR := $(THIS_FILE_DIR)/../../../../../
 
 #----------------------------------------------------------------------
 # If OS is not defined, use 'uname -s' to determine the OS name.
@@ -50,6 +58,33 @@ ifeq "$(OS)" ""
 endif
 
 #----------------------------------------------------------------------
+# If OS is Windows, force SHELL to be cmd
+#
+# Some versions of make on Windows will search for other shells such as
+# C:\cygwin\bin\sh.exe. This shell fails for numerous different reasons
+# so default to using cmd.exe.
+#----------------------------------------------------------------------
+ifeq "$(OS)" "Windows_NT"
+	SHELL = $(WINDIR)\system32\cmd.exe
+endif
+
+#----------------------------------------------------------------------
+# If the OS is Windows use double-quotes in commands
+#
+# For other operating systems, single-quotes work fine, but on Windows
+# we strictly required double-quotes
+#----------------------------------------------------------------------
+ifeq "$(HOST_OS)" "Windows_NT"
+	JOIN_CMD = &
+	QUOTE = "
+	FIXUP_SYNTAX_HIGHLIGHTING_IN_MY_EDITOR = "
+else
+	JOIN_CMD = ;
+	QUOTE = '
+	FIXUP_SYNTAX_HIGHLIGHTING_IN_MY_EDITOR = '
+endif
+
+#----------------------------------------------------------------------
 # If TRIPLE is not defined try to set the ARCH, CC, CFLAGS, and more
 # from the triple alone
 #----------------------------------------------------------------------
@@ -61,9 +96,11 @@ ifneq "$(TRIPLE)" ""
 	triple_os_and_version =$(shell echo $(word 3, $(triple_space)) | sed 's/\([a-z]*\)\(.*\)/\1 \2/')
 	TRIPLE_OS =$(word 1, $(triple_os_and_version))
 	TRIPLE_VERSION =$(word 2, $(triple_os_and_version))
+	TRIPLE_ENV =$(word 4, $(triple_space))
 	ifeq "$(TRIPLE_VENDOR)" "apple"
 		ifeq "$(TRIPLE_OS)" "ios"
-		    ifeq "$(SDKROOT)" ""
+			CODESIGN := codesign
+			ifeq "$(SDKROOT)" ""
 				# Set SDKROOT if it wasn't set
 				ifneq (,$(findstring arm,$(ARCH)))
 					SDKROOT = $(shell xcrun --sdk iphoneos --show-sdk-path)
@@ -72,16 +109,25 @@ ifneq "$(TRIPLE)" ""
 					endif
 					ARCH_CFLAGS :=-mios-version-min=$(TRIPLE_VERSION) -isysroot "$(SDKROOT)"
 				else
-					SDKROOT = $(shell xcrun --sdk iphonesimulator --show-sdk-path)
+					ifeq "$(TRIPLE_ENV)" "macabi"
+						SDKROOT = $(shell xcrun --sdk macosx --show-sdk-path)
+					else
+						SDKROOT = $(shell xcrun --sdk iphonesimulator --show-sdk-path)
+					endif
 					ifeq "$(TRIPLE_VERSION)" ""
 						TRIPLE_VERSION =$(shell echo $(notdir $(SDKROOT)) | sed -e 's/.*\([0-9]\.[0-9]\).*/\1/')
 					endif
-					ARCH_CFLAGS :=-mios-simulator-version-min=$(TRIPLE_VERSION) -isysroot "$(SDKROOT)"
+					ifeq "$(TRIPLE_ENV)" "macabi"
+						ARCH_CFLAGS :=-mios-version-min=$(TRIPLE_VERSION) -isysroot "$(SDKROOT)"
+					else
+						ARCH_CFLAGS :=-mios-simulator-version-min=$(TRIPLE_VERSION) -isysroot "$(SDKROOT)"
+					endif
 				endif
 			endif
 		endif
 		ifeq "$(TRIPLE_OS)" "watchos"
-		    ifeq "$(SDKROOT)" ""
+			CODESIGN := codesign
+			ifeq "$(SDKROOT)" ""
 				# Set SDKROOT if it wasn't set
 				ifneq (,$(findstring arm,$(ARCH)))
 					SDKROOT = $(shell xcrun --sdk watchos --show-sdk-path)
@@ -126,15 +172,19 @@ endif
 #   o cxx_compiler
 #   o cxx_linker
 #----------------------------------------------------------------------
-CC ?= clang
-ifeq "$(CC)" "cc"
-	ifneq "$(shell which clang)" ""
-		CC = clang
-	else ifneq "$(shell which clang-3.5)" ""
-		CC = clang-3.5
-	else ifneq "$(shell which gcc)" ""
-		CC = gcc
-	endif
+ifeq "$(CC)" ""
+$(error "C compiler is not specified. Please run tests through lldb-dotest or lit")
+endif
+
+#----------------------------------------------------------------------
+# Handle SDKROOT on Darwin
+#----------------------------------------------------------------------
+
+ifeq "$(OS)" "Darwin"
+    ifeq "$(SDKROOT)" ""
+	# We haven't otherwise set the SDKROOT, so set it now to macosx
+	SDKROOT := $(shell xcrun --sdk macosx --show-sdk-path)
+    endif
 endif
 
 #----------------------------------------------------------------------
@@ -190,7 +240,7 @@ else
 		override ARCH :=
 		override ARCHFLAG :=
 	endif
-	ifeq "$(ARCH)" "arm"
+	ifeq "$(findstring arm,$(ARCH))" "arm"
 		override ARCH :=
 		override ARCHFLAG :=
 	endif
@@ -219,14 +269,32 @@ endif
 DEBUG_INFO_FLAG ?= -g
 
 CFLAGS ?= $(DEBUG_INFO_FLAG) -O0 -fno-builtin
+
+ifeq "$(OS)" "Darwin"
+	ifneq "$(SDKROOT)" ""
+		CFLAGS += -isysroot "$(SDKROOT)"
+	endif
+endif
+
 ifeq "$(OS)" "Darwin"
 	CFLAGS += $(ARCHFLAG) $(ARCH) $(FRAMEWORK_INCLUDES) -I$(LLDB_BASE_DIR)include
 else
 	CFLAGS += $(ARCHFLAG)$(ARCH) $(FRAMEWORK_INCLUDES) -I$(LLDB_BASE_DIR)include
 endif
 
-CFLAGS += -I$(SRCDIR) -include $(THIS_FILE_DIR)test_common.h -I$(THIS_FILE_DIR)
+CFLAGS += -I$(SRCDIR) -I$(THIS_FILE_DIR)
+
+ifndef NO_TEST_COMMON_H
+  CFLAGS += -include $(THIS_FILE_DIR)/test_common.h
+endif
+
 CFLAGS += $(NO_LIMIT_DEBUG_INFO_FLAGS) $(ARCH_CFLAGS) $(CFLAGS_EXTRAS)
+
+# If the OS is Windows, we need to pass -gdwarf to clang, otherwise it will build
+# with codeview by default but all the tests rely on dwarf.
+ifeq "$(OS)" "Windows_NT"
+	CFLAGS += -gdwarf
+endif
 
 # Use this one if you want to build one part of the result without debug information:
 ifeq "$(OS)" "Darwin"
@@ -239,18 +307,36 @@ ifeq "$(MAKE_DWO)" "YES"
 	CFLAGS += -gsplit-dwarf
 endif
 
-CLANG_MODULE_CACHE_DIR := module-cache
+ifeq "$(USE_PRIVATE_MODULE_CACHE)" "YES"
+THE_CLANG_MODULE_CACHE_DIR := $(BUILDDIR)/private-module-cache
+else
+THE_CLANG_MODULE_CACHE_DIR := $(CLANG_MODULE_CACHE_DIR)
+endif
 
-MANDATORY_MODULE_BUILD_CFLAGS := -fmodules -gmodules -fmodules-cache-path=$(CLANG_MODULE_CACHE_DIR)
+MODULE_BASE_FLAGS := -fmodules -gmodules -fmodules-cache-path=$(THE_CLANG_MODULE_CACHE_DIR)
+MANDATORY_MODULE_BUILD_CFLAGS := $(MODULE_BASE_FLAGS) -gmodules
+# Build flags for building with C++ modules.
+# -glldb is necessary for emitting information about what modules were imported.
+MANDATORY_CXXMODULE_BUILD_CFLAGS := $(MODULE_BASE_FLAGS) -fcxx-modules -glldb
+
+ifeq "$(OS)" "Darwin"
+	MANDATORY_MODULE_BUILD_CFLAGS += -fcxx-modules
+endif
 
 ifeq "$(MAKE_GMODULES)" "YES"
 	CFLAGS += $(MANDATORY_MODULE_BUILD_CFLAGS)
+	CXXFLAGS += $(MANDATORY_MODULE_BUILD_CFLAGS)
 endif
 
-CXXFLAGS += -std=c++11 $(CFLAGS) $(ARCH_CXXFLAGS)
+CXXFLAGS += -std=c++11 $(CFLAGS) $(ARCH_CXXFLAGS) $(CXXFLAGS_EXTRAS)
 LD = $(CC)
 LDFLAGS ?= $(CFLAGS)
 LDFLAGS += $(LD_EXTRAS) $(ARCH_LDFLAGS)
+ifneq (,$(LLVM_LIBS_DIR))
+	ifeq ($(OS),NetBSD)
+		LDFLAGS += -L$(LLVM_LIBS_DIR) -Wl,-rpath,$(LLVM_LIBS_DIR)
+	endif
+endif
 ifeq (,$(filter $(OS), Windows_NT Android Darwin))
 	ifneq (,$(filter YES,$(ENABLE_THREADS)))
 		LDFLAGS += -pthread
@@ -259,10 +345,19 @@ endif
 OBJECTS =
 EXE ?= a.out
 
+ifneq "$(FRAMEWORK)" ""
+	DYLIB_NAME ?= $(FRAMEWORK).framework/Versions/A/$(FRAMEWORK)
+	DYLIB_FILENAME ?= $(FRAMEWORK).framework/Versions/A/$(FRAMEWORK)
+endif
+
 ifneq "$(DYLIB_NAME)" ""
 	ifeq "$(OS)" "Darwin"
-		DYLIB_FILENAME = lib$(DYLIB_NAME).dylib
-		DYLIB_EXECUTABLE_PATH ?= @executable_path
+		ifneq "$(FRAMEWORK)" ""
+			DYLIB_INSTALL_NAME ?= @executable_path/$(FRAMEWORK).framework/Versions/A/$(FRAMEWORK)
+		else
+			DYLIB_FILENAME = lib$(DYLIB_NAME).dylib
+			DYLIB_INSTALL_NAME ?= @executable_path/$(DYLIB_FILENAME)
+		endif
 	else ifeq "$(OS)" "Windows_NT"
 		DYLIB_FILENAME = $(DYLIB_NAME).dll
 	else
@@ -272,50 +367,50 @@ endif
 
 # Function that returns the counterpart C++ compiler, given $(CC) as arg.
 cxx_compiler_notdir = $(if $(findstring icc,$(1)), \
-                            $(subst icc,icpc,$(1)), \
-                            $(if $(findstring llvm-gcc,$(1)), \
-                                 $(subst llvm-gcc,llvm-g++,$(1)), \
-                                 $(if $(findstring gcc,$(1)), \
-                                      $(subst gcc,g++,$(1)), \
-                                      $(subst cc,c++,$(1)))))
+			$(subst icc,icpc,$(1)), \
+			$(if $(findstring llvm-gcc,$(1)), \
+				$(subst llvm-gcc,llvm-g++,$(1)), \
+				$(if $(findstring gcc,$(1)), \
+					$(subst gcc,g++,$(1)), \
+					$(subst cc,c++,$(1)))))
 cxx_compiler = $(if $(findstring /,$(1)),$(join $(dir $(1)), $(call cxx_compiler_notdir,$(notdir $(1)))),$(call cxx_compiler_notdir,$(1)))
 
 # Function that returns the C++ linker, given $(CC) as arg.
 cxx_linker_notdir = $(if $(findstring icc,$(1)), \
-                          $(subst icc,icpc,$(1)), \
-                          $(if $(findstring llvm-gcc,$(1)), \
-                               $(subst llvm-gcc,llvm-g++,$(1)), \
-                               $(if $(findstring gcc,$(1)), \
-                                    $(subst gcc,g++,$(1)), \
-                                    $(subst cc,c++,$(1)))))
+			$(subst icc,icpc,$(1)), \
+			$(if $(findstring llvm-gcc,$(1)), \
+				$(subst llvm-gcc,llvm-g++,$(1)), \
+				$(if $(findstring gcc,$(1)), \
+					$(subst gcc,g++,$(1)), \
+					$(subst cc,c++,$(1)))))
 cxx_linker = $(if $(findstring /,$(1)),$(join $(dir $(1)), $(call cxx_linker_notdir,$(notdir $(1)))),$(call cxx_linker_notdir,$(1)))
 
 ifneq "$(OS)" "Darwin"
-    CLANG_OR_GCC := $(strip $(if $(findstring clang,$(CC)), \
-                                 $(findstring clang,$(CC)), \
-                                 $(if $(findstring gcc,$(CC)), \
-                                      $(findstring gcc,$(CC)), \
-                                      cc)))
+	CLANG_OR_GCC := $(strip $(if $(findstring clang,$(CC)), \
+				$(findstring clang,$(CC)), \
+				$(if $(findstring gcc,$(CC)), \
+					$(findstring gcc,$(CC)), \
+					cc)))
 
-    CC_LASTWORD := $(strip $(lastword $(subst -, ,$(CC))))
+	CC_LASTWORD := $(strip $(lastword $(subst -, ,$(CC))))
 
-    replace_with = $(strip $(if $(findstring $(3),$(CC_LASTWORD)), \
-                           $(subst $(3),$(1),$(2)), \
-                           $(subst $(3),$(1),$(subst -$(CC_LASTWORD),,$(2)))))
+	replace_with = $(strip $(if $(findstring $(3),$(CC_LASTWORD)), \
+			$(subst $(3),$(1),$(2)), \
+			$(subst $(3),$(1),$(subst -$(CC_LASTWORD),,$(2)))))
 
-    ifeq "$(notdir $(CC))" "$(CC)"
-        replace_cc_with = $(call replace_with,$(1),$(CC),$(CLANG_OR_GCC))
-    else
-        replace_cc_with = $(join $(dir $(CC)),$(call replace_with,$(1),$(notdir $(CC)),$(CLANG_OR_GCC)))
-    endif
+	ifeq "$(notdir $(CC))" "$(CC)"
+		replace_cc_with = $(call replace_with,$(1),$(CC),$(CLANG_OR_GCC))
+	else
+		replace_cc_with = $(join $(dir $(CC)),$(call replace_with,$(1),$(notdir $(CC)),$(CLANG_OR_GCC)))
+	endif
 
-    OBJCOPY ?= $(call replace_cc_with,objcopy)
-    ARCHIVER ?= $(call replace_cc_with,ar)
-    override AR = $(ARCHIVER)
+	OBJCOPY ?= $(call replace_cc_with,objcopy)
+	ARCHIVER ?= $(call replace_cc_with,ar)
+	override AR = $(ARCHIVER)
 endif
 
 ifdef PIE
-    LDFLAGS += -pie
+	LDFLAGS += -pie
 endif
 
 #----------------------------------------------------------------------
@@ -369,28 +464,32 @@ ifeq (1,$(USE_LIBCPP))
 endif
 
 #----------------------------------------------------------------------
+# Additional system libraries
+#----------------------------------------------------------------------
+ifeq (1,$(USE_LIBDL))
+	ifneq ($(OS),NetBSD)
+		LDFLAGS += -ldl
+	endif
+endif
+
+#----------------------------------------------------------------------
 # dylib settings
 #----------------------------------------------------------------------
-ifneq "$(strip $(DYLIB_C_SOURCES))" ""
-	DYLIB_OBJECTS +=$(strip $(DYLIB_C_SOURCES:.c=.o))
-endif
 
-ifneq "$(strip $(DYLIB_OBJC_SOURCES))" ""
-	DYLIB_OBJECTS +=$(strip $(DYLIB_OBJC_SOURCES:.m=.o))
-endif
-
+DYLIB_OBJECTS +=$(strip $(DYLIB_C_SOURCES:.c=.o))
+DYLIB_OBJECTS +=$(strip $(DYLIB_OBJC_SOURCES:.m=.o))
 ifneq "$(strip $(DYLIB_CXX_SOURCES))" ""
-    DYLIB_OBJECTS +=$(strip $(DYLIB_CXX_SOURCES:.cpp=.o))
-    CXX = $(call cxx_compiler,$(CC))
-    LD = $(call cxx_linker,$(CC))
+	DYLIB_OBJECTS +=$(strip $(patsubst %.mm, %.o, $(DYLIB_CXX_SOURCES:.cpp=.o)))
+	CXX = $(call cxx_compiler,$(CC))
+	LD = $(call cxx_linker,$(CC))
 endif
 
 #----------------------------------------------------------------------
 # Check if we have a precompiled header
 #----------------------------------------------------------------------
 ifneq "$(strip $(PCH_CXX_SOURCE))" ""
-    PCH_OUTPUT = $(PCH_CXX_SOURCE:.h=.h.pch)
-    PCHFLAGS = -include $(PCH_CXX_SOURCE)
+	PCH_OUTPUT = $(PCH_CXX_SOURCE:.h=.h.pch)
+	PCHFLAGS = -include $(PCH_CXX_SOURCE)
 endif
 
 #----------------------------------------------------------------------
@@ -472,21 +571,21 @@ ifneq "$(strip $(CXX_SOURCES) $(OBJCXX_SOURCES))" ""
 ifneq "$(filter g++,$(CXX))" ""
 	CXXVERSION = $(shell $(CXX) -dumpversion | cut -b 1-3)
 	ifeq "$(CXXVERSION)" "4.6"
-                # GCC 4.6 cannot handle -std=c++11, so replace it with -std=c++0x
-                # instead. FIXME: remove once GCC version is upgraded.
+		# GCC 4.6 cannot handle -std=c++11, so replace it with -std=c++0x
+		# instead. FIXME: remove once GCC version is upgraded.
 		override CXXFLAGS := $(subst -std=c++11,-std=c++0x,$(CXXFLAGS))
 	endif
 endif
 endif
 
 ifeq ($(findstring clang, $(CXX)), clang)
-  CXXFLAGS += --driver-mode=g++
+	CXXFLAGS += --driver-mode=g++
 endif
 
 ifneq "$(CXX)" ""
-  ifeq ($(findstring clang, $(LD)), clang)
-    LDFLAGS += --driver-mode=g++
-  endif
+	ifeq ($(findstring clang, $(LD)), clang)
+		LDFLAGS += --driver-mode=g++
+	endif
 endif
 
 #----------------------------------------------------------------------
@@ -502,12 +601,18 @@ ifneq "$(DYLIB_NAME)" ""
 ifeq "$(DYLIB_ONLY)" ""
 $(EXE) : $(OBJECTS) $(ARCHIVE_NAME) $(DYLIB_FILENAME)
 	$(LD) $(OBJECTS) $(ARCHIVE_NAME) -L. -l$(DYLIB_NAME) $(LDFLAGS) -o "$(EXE)"
+ifneq "$(CODESIGN)" ""
+	$(CODESIGN) -s - "$(EXE)"
+endif
 else
 EXE = $(DYLIB_FILENAME)
 endif
 else
 $(EXE) : $(OBJECTS) $(ARCHIVE_NAME)
 	$(LD) $(OBJECTS) $(LDFLAGS) $(ARCHIVE_NAME) -o "$(EXE)"
+ifneq "$(CODESIGN)" ""
+	$(CODESIGN) -s - "$(EXE)"
+endif
 endif
 
 #----------------------------------------------------------------------
@@ -551,7 +656,26 @@ endif
 
 $(DYLIB_FILENAME) : $(DYLIB_OBJECTS)
 ifeq "$(OS)" "Darwin"
-	$(LD) $(DYLIB_OBJECTS) $(LDFLAGS) -install_name "$(DYLIB_EXECUTABLE_PATH)/$(DYLIB_FILENAME)" -dynamiclib -o "$(DYLIB_FILENAME)"
+ifneq "$(FRAMEWORK)" ""
+	mkdir -p $(FRAMEWORK).framework/Versions/A/Headers
+	mkdir -p $(FRAMEWORK).framework/Versions/A/Modules
+	mkdir -p $(FRAMEWORK).framework/Versions/A/Resources
+ifneq "$(FRAMEWORK_MODULES)" ""
+	cp -r $(FRAMEWORK_MODULES) $(FRAMEWORK).framework/Versions/A/Modules
+endif
+ifneq "$(FRAMEWORK_HEADERS)" ""
+	cp -r $(FRAMEWORK_HEADERS) $(FRAMEWORK).framework/Versions/A/Headers
+endif
+	(cd $(FRAMEWORK).framework/Versions; ln -sf A Current)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Headers Headers)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Modules Modules)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/Resources Resources)
+	(cd $(FRAMEWORK).framework/; ln -sf Versions/A/$(FRAMEWORK) $(FRAMEWORK))
+endif
+	$(LD) $(DYLIB_OBJECTS) $(LDFLAGS) -install_name "$(DYLIB_INSTALL_NAME)" -dynamiclib -o "$(DYLIB_FILENAME)"
+ifneq "$(CODESIGN)" ""
+	$(CODESIGN) -s - "$(DYLIB_FILENAME)"
+endif
 ifneq "$(MAKE_DSYM)" "NO"
 ifneq "$(DS)" ""
 	"$(DS)" $(DSFLAGS) "$(DYLIB_FILENAME)"
@@ -594,14 +718,6 @@ endif
 # the compiler -MM option. The -M option will list all system headers,
 # and the -MM option will list all non-system dependencies.
 #----------------------------------------------------------------------
-ifeq "$(HOST_OS)" "Windows_NT"
-	JOIN_CMD = &
-	QUOTE = "
-else
-	JOIN_CMD = ;
-	QUOTE = '
-endif
-
 %.d: %.c
 	@rm -f $@ $(JOIN_CMD) \
 	$(CC) -M $(CFLAGS) $< > $@.tmp && \
@@ -644,26 +760,10 @@ endif
 dsym:	$(DSYM)
 all:	$(EXE) $(DSYM)
 clean::
-	$(RM) -rf $(OBJECTS) $(PREREQS) $(PREREQS:.d=.d.tmp) $(DWOS) $(ARCHIVE_NAME) $(ARCHIVE_OBJECTS) $(CLANG_MODULE_CACHE_DIR)
-ifneq "$(DYLIB_NAME)" ""
-	$(RM) -r $(DYLIB_FILENAME).dSYM
-	$(RM) $(DYLIB_OBJECTS) $(DYLIB_PREREQS) $(DYLIB_PREREQS:.d=.d.tmp) $(DYLIB_DWOS) $(DYLIB_FILENAME) $(DYLIB_FILENAME).debug
-endif
-ifneq "$(PCH_OUTPUT)" ""
-	$(RM) $(PCH_OUTPUT)
-endif
-ifneq "$(DSYM)" ""
-	$(RM) -r "$(DSYM)"
-endif
-ifeq "$(OS)" "Windows_NT"
-# http://llvm.org/pr24589
-	IF EXIST "$(EXE)" del "$(EXE)"
-	$(RM) $(wildcard *.manifest *.pdb *.ilk)
-ifneq "$(DYLIB_NAME)" ""
-	$(RM) $(DYLIB_NAME).lib $(DYLIB_NAME).exp
-endif
+ifeq "$(findstring lldb-test-build.noindex, $(BUILDDIR))" ""
+	$(error Trying to invoke the clean rule, but not using the default build tree layout)
 else
-	$(RM) "$(EXE)"
+	$(RM) -r $(wildcard $(BUILDDIR)/*)
 endif
 
 #----------------------------------------------------------------------

@@ -1,9 +1,8 @@
 //===-------- IncludeInserter.cpp - clang-tidy ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -43,7 +42,7 @@ IncludeInserter::IncludeInserter(const SourceManager &SourceMgr,
 IncludeInserter::~IncludeInserter() {}
 
 std::unique_ptr<PPCallbacks> IncludeInserter::CreatePPCallbacks() {
-  return llvm::make_unique<IncludeInserterCallback>(this);
+  return std::make_unique<IncludeInserterCallback>(this);
 }
 
 llvm::Optional<FixItHint>
@@ -59,7 +58,7 @@ IncludeInserter::CreateIncludeInsertion(FileID FileID, StringRef Header,
     // file.
     IncludeSorterByFile.insert(std::make_pair(
         FileID,
-        llvm::make_unique<IncludeSorter>(
+        std::make_unique<IncludeSorter>(
             &SourceMgr, &LangOpts, FileID,
             SourceMgr.getFilename(SourceMgr.getLocForStartOfFile(FileID)),
             Style)));
@@ -73,7 +72,7 @@ void IncludeInserter::AddInclude(StringRef FileName, bool IsAngled,
   FileID FileID = SourceMgr.getFileID(HashLocation);
   if (IncludeSorterByFile.find(FileID) == IncludeSorterByFile.end()) {
     IncludeSorterByFile.insert(std::make_pair(
-        FileID, llvm::make_unique<IncludeSorter>(
+        FileID, std::make_unique<IncludeSorter>(
                     &SourceMgr, &LangOpts, FileID,
                     SourceMgr.getFilename(HashLocation), Style)));
   }

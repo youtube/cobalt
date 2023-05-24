@@ -15,8 +15,7 @@ RUN: llvm-ar --format=gnu rc %t.a 0123456789abcde 0123456789abcdef foo/012345678
 RUN: cat %t.a | FileCheck -strict-whitespace %s
 
 CHECK:      !<arch>
-CHECK-NEXT: //                                              36        `
-CHECK-NEXT: 0123456789abcdef/
+CHECK-NEXT: //                                              18        `
 CHECK-NEXT: 0123456789abcdef/
 CHECK-NEXT: 0123456789abcde/0           0     0     644     4         `
 CHECK-NEXT: bar.
@@ -24,7 +23,7 @@ CHECK-SAME: /0              0           0     0     644     4         `
 CHECK-NEXT: zed.
 CHECK-SAME: 0123456789abcde/0           0     0     644     4         `
 CHECK-NEXT: bar2
-CHECK-SAME: /18             0           0     0     644     4         `
+CHECK-SAME: /0              0           0     0     644     4         `
 CHECK-NEXT: zed2
 
 RUN: rm -f %t.a
@@ -38,7 +37,7 @@ BSD-SAME: #1/16           0           0     0     644     20        `
 BSD-NEXT: 0123456789abcdefzed.
 
 RUN: rm -f %t.a
-RUN: llvm-ar --format=darwin rc %t.a 0123456789abcde 0123456789abcdef
+RUN: llvm-ar --format=darwin rcS %t.a 0123456789abcde 0123456789abcdef
 RUN: cat %t.a | FileCheck -strict-whitespace --check-prefix=DARWIN %s
 
 DARWIN:      !<arch>
@@ -77,7 +76,7 @@ THIN-PATH-NEXT: /41             0           0     0     644     4         `
 THIN-PATH-NEXT: /65             0           0     0     644     4         `
 
 RUN: not llvm-ar --format=bsd rcT bad.a 0123456789abcde 0123456789abcdef 2>&1 | FileCheck --check-prefix=BSD-THIN %s
-BSD-THIN: Only the gnu format has a thin mode.
+BSD-THIN: error: only the gnu format has a thin mode
 
 If an archive has an object with no symbols, the linker and some other
 tools on some versions of Solaris will abort operations if there is no

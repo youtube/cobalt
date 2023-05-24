@@ -1,5 +1,5 @@
-; RUN: not llc -march=amdgcn -mtriple=amdgcn---amdgiz -tailcallopt < %s 2>&1 | FileCheck -check-prefix=GCN %s
-; RUN: not llc -march=r600 -mtriple=r600---amdgiz -mcpu=cypress -tailcallopt < %s 2>&1 | FileCheck -check-prefix=R600 %s
+; RUN: not llc -march=amdgcn -mtriple=amdgcn-- -tailcallopt < %s 2>&1 | FileCheck -check-prefix=GCN %s
+; RUN: not llc -march=r600 -mtriple=r600-- -mcpu=cypress -tailcallopt < %s 2>&1 | FileCheck -check-prefix=R600 %s
 
 declare i32 @external_function(i32) nounwind
 
@@ -53,7 +53,7 @@ define void @test_call_varargs() {
 
 declare i32 @extern_variadic(...)
 
-; GCN: in function test_tail_call_bitcast_extern_variadic{{.*}}: unsupported indirect call to function extern_variadic
+; GCN: in function test_tail_call_bitcast_extern_variadic{{.*}}: unsupported call to variadic function extern_variadic
 ; R600: in function test_tail_call_bitcast_extern_variadic{{.*}}: unsupported call to function extern_variadic
 define i32 @test_tail_call_bitcast_extern_variadic(<4 x float> %arg0, <4 x float> %arg1, i32 %arg2) {
   %add = fadd <4 x float> %arg0, %arg1
@@ -73,4 +73,14 @@ define void @test_indirect_call(void()* %fptr) {
 define amdgpu_ps i32 @test_call_from_shader() {
   %call = call i32 @defined_function(i32 0)
   ret i32 %call
+}
+
+; FIXME: Bad error message
+; GCN: error: <unknown>:0:0: in function test_call_absolute void (): unsupported indirect call to function <unknown>
+; R600: error: <unknown>:0:0: in function test_call_absolute void (): unsupported call to function <unknown>
+define amdgpu_kernel void @test_call_absolute() #0 {
+  %val = call i32 inttoptr (i64 1234 to i32(i32)*) (i32 1)
+  %op = add i32 %val, 1
+  store volatile i32 %op, i32 addrspace(1)* undef
+  ret void
 }

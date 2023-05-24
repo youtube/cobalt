@@ -1,7 +1,8 @@
 // RUN: not llvm-mc -arch=amdgcn -show-encoding %s | FileCheck --check-prefix=GCN --check-prefix=SICI %s
 // RUN: not llvm-mc -arch=amdgcn -mcpu=tahiti -show-encoding %s | FileCheck --check-prefix=GCN --check-prefix=SICI %s
-// RUN: not llvm-mc -arch=amdgcn -mcpu=tahiti -show-encoding %s 2>&1 | FileCheck --check-prefix=NOSICI %s
-// RUN: llvm-mc -arch=amdgcn -mcpu=fiji -show-encoding %s 2>&1 | FileCheck --check-prefix=GCN --check-prefix=VI %s
+// RUN: not llvm-mc -arch=amdgcn -mcpu=tahiti -show-encoding %s 2>&1 | FileCheck --check-prefix=NOSICI --check-prefix=NOSICIVI %s
+// RUN: not llvm-mc -arch=amdgcn -mcpu=fiji -show-encoding %s 2>&1 | FileCheck --check-prefix=GCN --check-prefix=VI %s
+// RUN: not llvm-mc -arch=amdgcn -mcpu=gfx1010 -show-encoding %s 2>&1 | FileCheck --check-prefix=GCN --check-prefix=GFX10 %s
 
 s_mov_b32 [ttmp5], [ttmp3]
 // SICI: s_mov_b32 ttmp5, ttmp3          ; encoding: [0x73,0x03,0xf5,0xbe]
@@ -110,3 +111,19 @@ flat_load_dwordx4 v[8/2+4:11/2+6], v[2:3]
 
 flat_load_dwordx4   [v[8/2+4],v9,v[10],v[11/2+6]], v[2:3]
 // VI:   flat_load_dwordx4 v[8:11], v[2:3] ; encoding: [0x00,0x00,0x5c,0xdc,0x02,0x00,0x00,0x08]
+
+v_mul_f32 v0, null, v2
+// NOSICIVI: error:
+// GFX10: v_mul_f32_e32 v0, null, v2      ; encoding: [0x7d,0x04,0x00,0x10]
+
+v_mul_f64 v[0:1], null, null
+// NOSICIVI: error:
+// GFX10: v_mul_f64 v[0:1], null, null    ; encoding: [0x00,0x00,0x65,0xd5,0x7d,0xfa,0x00,0x00]
+
+s_add_u32 null, null, null
+// NOSICIVI: error:
+// GFX10: s_add_u32 null, null, null      ; encoding: [0x7d,0x7d,0x7d,0x80]
+
+s_not_b64 s[2:3], null
+// NOSICIVI: error:
+// GFX10: s_not_b64 s[2:3], null          ; encoding: [0x7d,0x08,0x82,0xbe]

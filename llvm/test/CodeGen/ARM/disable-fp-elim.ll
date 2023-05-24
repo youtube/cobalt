@@ -1,10 +1,10 @@
 ; RUN: llc < %s -mtriple armv7-none-linux-gnueabi -O1 | FileCheck %s --check-prefix=DISABLE-FP-ELIM
-; RUN: llc < %s -mtriple armv7-none-linux-gnueabi -disable-fp-elim -O1 | FileCheck %s --check-prefix=DISABLE-FP-ELIM
-; RUN: llc < %s -mtriple armv7-none-linux-gnueabi -disable-fp-elim=false -O1 | FileCheck %s --check-prefix=ENABLE-FP-ELIM
-; RUN: llc < %s -mtriple armv7-none-linux-gnueabi -disable-fp-elim=false -O0 | FileCheck %s --check-prefix=DISABLE-FP-ELIM
+; RUN: llc < %s -mtriple armv7-none-linux-gnueabi -frame-pointer=all -O1 | FileCheck %s --check-prefix=DISABLE-FP-ELIM
+; RUN: llc < %s -mtriple armv7-none-linux-gnueabi -frame-pointer=none -O1 | FileCheck %s --check-prefix=ENABLE-FP-ELIM
+; RUN: llc < %s -mtriple armv7-none-linux-gnueabi -frame-pointer=none -O0 | FileCheck %s --check-prefix=DISABLE-FP-ELIM
 
-; Check that command line option "-disable-fp-elim" overrides function attribute
-; "no-frame-pointer-elim". Also, check frame pointer elimination is disabled
+; Check that command line option "-frame-pointer=all" overrides function attribute
+; "frame-pointer"="all". Also, check frame pointer elimination is disabled
 ; when fast-isel is used.
 
 ; ENABLE-FP-ELIM-NOT: .setfp
@@ -22,4 +22,4 @@ entry:
 
 declare i32 @foo2(i32)
 
-attributes #0 = { nounwind "no-frame-pointer-elim"="true" }
+attributes #0 = { nounwind "frame-pointer"="all" }

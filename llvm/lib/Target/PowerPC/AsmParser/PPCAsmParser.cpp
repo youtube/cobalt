@@ -1,15 +1,15 @@
 //===-- PPCAsmParser.cpp - Parse PowerPC asm to MCInst instructions -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/PPCMCExpr.h"
 #include "MCTargetDesc/PPCMCTargetDesc.h"
 #include "PPCTargetStreamer.h"
+#include "TargetInfo/PowerPCTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Twine.h"
@@ -21,7 +21,6 @@
 #include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
-#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbolELF.h"
@@ -31,169 +30,7 @@
 
 using namespace llvm;
 
-static const MCPhysReg RRegs[32] = {
-  PPC::R0,  PPC::R1,  PPC::R2,  PPC::R3,
-  PPC::R4,  PPC::R5,  PPC::R6,  PPC::R7,
-  PPC::R8,  PPC::R9,  PPC::R10, PPC::R11,
-  PPC::R12, PPC::R13, PPC::R14, PPC::R15,
-  PPC::R16, PPC::R17, PPC::R18, PPC::R19,
-  PPC::R20, PPC::R21, PPC::R22, PPC::R23,
-  PPC::R24, PPC::R25, PPC::R26, PPC::R27,
-  PPC::R28, PPC::R29, PPC::R30, PPC::R31
-};
-static const MCPhysReg RRegsNoR0[32] = {
-  PPC::ZERO,
-            PPC::R1,  PPC::R2,  PPC::R3,
-  PPC::R4,  PPC::R5,  PPC::R6,  PPC::R7,
-  PPC::R8,  PPC::R9,  PPC::R10, PPC::R11,
-  PPC::R12, PPC::R13, PPC::R14, PPC::R15,
-  PPC::R16, PPC::R17, PPC::R18, PPC::R19,
-  PPC::R20, PPC::R21, PPC::R22, PPC::R23,
-  PPC::R24, PPC::R25, PPC::R26, PPC::R27,
-  PPC::R28, PPC::R29, PPC::R30, PPC::R31
-};
-static const MCPhysReg XRegs[32] = {
-  PPC::X0,  PPC::X1,  PPC::X2,  PPC::X3,
-  PPC::X4,  PPC::X5,  PPC::X6,  PPC::X7,
-  PPC::X8,  PPC::X9,  PPC::X10, PPC::X11,
-  PPC::X12, PPC::X13, PPC::X14, PPC::X15,
-  PPC::X16, PPC::X17, PPC::X18, PPC::X19,
-  PPC::X20, PPC::X21, PPC::X22, PPC::X23,
-  PPC::X24, PPC::X25, PPC::X26, PPC::X27,
-  PPC::X28, PPC::X29, PPC::X30, PPC::X31
-};
-static const MCPhysReg XRegsNoX0[32] = {
-  PPC::ZERO8,
-            PPC::X1,  PPC::X2,  PPC::X3,
-  PPC::X4,  PPC::X5,  PPC::X6,  PPC::X7,
-  PPC::X8,  PPC::X9,  PPC::X10, PPC::X11,
-  PPC::X12, PPC::X13, PPC::X14, PPC::X15,
-  PPC::X16, PPC::X17, PPC::X18, PPC::X19,
-  PPC::X20, PPC::X21, PPC::X22, PPC::X23,
-  PPC::X24, PPC::X25, PPC::X26, PPC::X27,
-  PPC::X28, PPC::X29, PPC::X30, PPC::X31
-};
-static const MCPhysReg FRegs[32] = {
-  PPC::F0,  PPC::F1,  PPC::F2,  PPC::F3,
-  PPC::F4,  PPC::F5,  PPC::F6,  PPC::F7,
-  PPC::F8,  PPC::F9,  PPC::F10, PPC::F11,
-  PPC::F12, PPC::F13, PPC::F14, PPC::F15,
-  PPC::F16, PPC::F17, PPC::F18, PPC::F19,
-  PPC::F20, PPC::F21, PPC::F22, PPC::F23,
-  PPC::F24, PPC::F25, PPC::F26, PPC::F27,
-  PPC::F28, PPC::F29, PPC::F30, PPC::F31
-};
-static const MCPhysReg SPERegs[32] = {
-  PPC::S0,  PPC::S1,  PPC::S2,  PPC::S3,
-  PPC::S4,  PPC::S5,  PPC::S6,  PPC::S7,
-  PPC::S8,  PPC::S9,  PPC::S10, PPC::S11,
-  PPC::S12, PPC::S13, PPC::S14, PPC::S15,
-  PPC::S16, PPC::S17, PPC::S18, PPC::S19,
-  PPC::S20, PPC::S21, PPC::S22, PPC::S23,
-  PPC::S24, PPC::S25, PPC::S26, PPC::S27,
-  PPC::S28, PPC::S29, PPC::S30, PPC::S31
-};
-static const MCPhysReg VFRegs[32] = {
-  PPC::VF0,  PPC::VF1,  PPC::VF2,  PPC::VF3,
-  PPC::VF4,  PPC::VF5,  PPC::VF6,  PPC::VF7,
-  PPC::VF8,  PPC::VF9,  PPC::VF10, PPC::VF11,
-  PPC::VF12, PPC::VF13, PPC::VF14, PPC::VF15,
-  PPC::VF16, PPC::VF17, PPC::VF18, PPC::VF19,
-  PPC::VF20, PPC::VF21, PPC::VF22, PPC::VF23,
-  PPC::VF24, PPC::VF25, PPC::VF26, PPC::VF27,
-  PPC::VF28, PPC::VF29, PPC::VF30, PPC::VF31
-};
-static const MCPhysReg VRegs[32] = {
-  PPC::V0,  PPC::V1,  PPC::V2,  PPC::V3,
-  PPC::V4,  PPC::V5,  PPC::V6,  PPC::V7,
-  PPC::V8,  PPC::V9,  PPC::V10, PPC::V11,
-  PPC::V12, PPC::V13, PPC::V14, PPC::V15,
-  PPC::V16, PPC::V17, PPC::V18, PPC::V19,
-  PPC::V20, PPC::V21, PPC::V22, PPC::V23,
-  PPC::V24, PPC::V25, PPC::V26, PPC::V27,
-  PPC::V28, PPC::V29, PPC::V30, PPC::V31
-};
-static const MCPhysReg VSRegs[64] = {
-  PPC::VSL0,  PPC::VSL1,  PPC::VSL2,  PPC::VSL3,
-  PPC::VSL4,  PPC::VSL5,  PPC::VSL6,  PPC::VSL7,
-  PPC::VSL8,  PPC::VSL9,  PPC::VSL10, PPC::VSL11,
-  PPC::VSL12, PPC::VSL13, PPC::VSL14, PPC::VSL15,
-  PPC::VSL16, PPC::VSL17, PPC::VSL18, PPC::VSL19,
-  PPC::VSL20, PPC::VSL21, PPC::VSL22, PPC::VSL23,
-  PPC::VSL24, PPC::VSL25, PPC::VSL26, PPC::VSL27,
-  PPC::VSL28, PPC::VSL29, PPC::VSL30, PPC::VSL31,
-
-  PPC::V0,  PPC::V1,  PPC::V2,  PPC::V3,
-  PPC::V4,  PPC::V5,  PPC::V6,  PPC::V7,
-  PPC::V8,  PPC::V9,  PPC::V10, PPC::V11,
-  PPC::V12, PPC::V13, PPC::V14, PPC::V15,
-  PPC::V16, PPC::V17, PPC::V18, PPC::V19,
-  PPC::V20, PPC::V21, PPC::V22, PPC::V23,
-  PPC::V24, PPC::V25, PPC::V26, PPC::V27,
-  PPC::V28, PPC::V29, PPC::V30, PPC::V31
-};
-static const MCPhysReg VSFRegs[64] = {
-  PPC::F0,  PPC::F1,  PPC::F2,  PPC::F3,
-  PPC::F4,  PPC::F5,  PPC::F6,  PPC::F7,
-  PPC::F8,  PPC::F9,  PPC::F10, PPC::F11,
-  PPC::F12, PPC::F13, PPC::F14, PPC::F15,
-  PPC::F16, PPC::F17, PPC::F18, PPC::F19,
-  PPC::F20, PPC::F21, PPC::F22, PPC::F23,
-  PPC::F24, PPC::F25, PPC::F26, PPC::F27,
-  PPC::F28, PPC::F29, PPC::F30, PPC::F31,
-
-  PPC::VF0,  PPC::VF1,  PPC::VF2,  PPC::VF3,
-  PPC::VF4,  PPC::VF5,  PPC::VF6,  PPC::VF7,
-  PPC::VF8,  PPC::VF9,  PPC::VF10, PPC::VF11,
-  PPC::VF12, PPC::VF13, PPC::VF14, PPC::VF15,
-  PPC::VF16, PPC::VF17, PPC::VF18, PPC::VF19,
-  PPC::VF20, PPC::VF21, PPC::VF22, PPC::VF23,
-  PPC::VF24, PPC::VF25, PPC::VF26, PPC::VF27,
-  PPC::VF28, PPC::VF29, PPC::VF30, PPC::VF31
-};
-static const MCPhysReg VSSRegs[64] = {
-  PPC::F0,  PPC::F1,  PPC::F2,  PPC::F3,
-  PPC::F4,  PPC::F5,  PPC::F6,  PPC::F7,
-  PPC::F8,  PPC::F9,  PPC::F10, PPC::F11,
-  PPC::F12, PPC::F13, PPC::F14, PPC::F15,
-  PPC::F16, PPC::F17, PPC::F18, PPC::F19,
-  PPC::F20, PPC::F21, PPC::F22, PPC::F23,
-  PPC::F24, PPC::F25, PPC::F26, PPC::F27,
-  PPC::F28, PPC::F29, PPC::F30, PPC::F31,
-
-  PPC::VF0,  PPC::VF1,  PPC::VF2,  PPC::VF3,
-  PPC::VF4,  PPC::VF5,  PPC::VF6,  PPC::VF7,
-  PPC::VF8,  PPC::VF9,  PPC::VF10, PPC::VF11,
-  PPC::VF12, PPC::VF13, PPC::VF14, PPC::VF15,
-  PPC::VF16, PPC::VF17, PPC::VF18, PPC::VF19,
-  PPC::VF20, PPC::VF21, PPC::VF22, PPC::VF23,
-  PPC::VF24, PPC::VF25, PPC::VF26, PPC::VF27,
-  PPC::VF28, PPC::VF29, PPC::VF30, PPC::VF31
-};
-static unsigned QFRegs[32] = {
-  PPC::QF0,  PPC::QF1,  PPC::QF2,  PPC::QF3,
-  PPC::QF4,  PPC::QF5,  PPC::QF6,  PPC::QF7,
-  PPC::QF8,  PPC::QF9,  PPC::QF10, PPC::QF11,
-  PPC::QF12, PPC::QF13, PPC::QF14, PPC::QF15,
-  PPC::QF16, PPC::QF17, PPC::QF18, PPC::QF19,
-  PPC::QF20, PPC::QF21, PPC::QF22, PPC::QF23,
-  PPC::QF24, PPC::QF25, PPC::QF26, PPC::QF27,
-  PPC::QF28, PPC::QF29, PPC::QF30, PPC::QF31
-};
-static const MCPhysReg CRBITRegs[32] = {
-  PPC::CR0LT, PPC::CR0GT, PPC::CR0EQ, PPC::CR0UN,
-  PPC::CR1LT, PPC::CR1GT, PPC::CR1EQ, PPC::CR1UN,
-  PPC::CR2LT, PPC::CR2GT, PPC::CR2EQ, PPC::CR2UN,
-  PPC::CR3LT, PPC::CR3GT, PPC::CR3EQ, PPC::CR3UN,
-  PPC::CR4LT, PPC::CR4GT, PPC::CR4EQ, PPC::CR4UN,
-  PPC::CR5LT, PPC::CR5GT, PPC::CR5EQ, PPC::CR5UN,
-  PPC::CR6LT, PPC::CR6GT, PPC::CR6EQ, PPC::CR6UN,
-  PPC::CR7LT, PPC::CR7GT, PPC::CR7EQ, PPC::CR7UN
-};
-static const MCPhysReg CRRegs[8] = {
-  PPC::CR0, PPC::CR1, PPC::CR2, PPC::CR3,
-  PPC::CR4, PPC::CR5, PPC::CR6, PPC::CR7
-};
+DEFINE_PPC_REGCLASSES;
 
 // Evaluate an expression containing condition register
 // or condition register field symbols.  Returns positive
@@ -310,8 +147,7 @@ public:
     : MCTargetAsmParser(Options, STI, MII) {
     // Check for 64-bit vs. 32-bit pointer mode.
     const Triple &TheTriple = STI.getTargetTriple();
-    IsPPC64 = (TheTriple.getArch() == Triple::ppc64 ||
-               TheTriple.getArch() == Triple::ppc64le);
+    IsPPC64 = TheTriple.isPPC64();
     IsDarwin = TheTriple.isMacOSX();
     // Initialize the set of available features.
     setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
@@ -743,7 +579,7 @@ public:
 
   static std::unique_ptr<PPCOperand> CreateToken(StringRef Str, SMLoc S,
                                                  bool IsPPC64) {
-    auto Op = make_unique<PPCOperand>(Token);
+    auto Op = std::make_unique<PPCOperand>(Token);
     Op->Tok.Data = Str.data();
     Op->Tok.Length = Str.size();
     Op->StartLoc = S;
@@ -772,7 +608,7 @@ public:
 
   static std::unique_ptr<PPCOperand> CreateImm(int64_t Val, SMLoc S, SMLoc E,
                                                bool IsPPC64) {
-    auto Op = make_unique<PPCOperand>(Immediate);
+    auto Op = std::make_unique<PPCOperand>(Immediate);
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -782,7 +618,7 @@ public:
 
   static std::unique_ptr<PPCOperand> CreateExpr(const MCExpr *Val, SMLoc S,
                                                 SMLoc E, bool IsPPC64) {
-    auto Op = make_unique<PPCOperand>(Expression);
+    auto Op = std::make_unique<PPCOperand>(Expression);
     Op->Expr.Val = Val;
     Op->Expr.CRVal = EvaluateCRExpr(Val);
     Op->StartLoc = S;
@@ -793,7 +629,7 @@ public:
 
   static std::unique_ptr<PPCOperand>
   CreateTLSReg(const MCSymbolRefExpr *Sym, SMLoc S, SMLoc E, bool IsPPC64) {
-    auto Op = make_unique<PPCOperand>(TLSRegister);
+    auto Op = std::make_unique<PPCOperand>(TLSRegister);
     Op->TLSReg.Sym = Sym;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -803,7 +639,7 @@ public:
 
   static std::unique_ptr<PPCOperand>
   CreateContextImm(int64_t Val, SMLoc S, SMLoc E, bool IsPPC64) {
-    auto Op = make_unique<PPCOperand>(ContextImmediate);
+    auto Op = std::make_unique<PPCOperand>(ContextImmediate);
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -964,9 +800,9 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     Inst = TmpInst;
     break;
   }
-  case PPC::SUBICo: {
+  case PPC::SUBIC_rec: {
     MCInst TmpInst;
-    TmpInst.setOpcode(PPC::ADDICo);
+    TmpInst.setOpcode(PPC::ADDIC_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     addNegOperand(TmpInst, Inst.getOperand(2), getContext());
@@ -974,11 +810,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::EXTLWI:
-  case PPC::EXTLWIo: {
+  case PPC::EXTLWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
     int64_t B = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::EXTLWI? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::EXTLWI ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(B));
@@ -988,11 +824,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::EXTRWI:
-  case PPC::EXTRWIo: {
+  case PPC::EXTRWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
     int64_t B = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::EXTRWI? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::EXTRWI ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(B + N));
@@ -1002,11 +838,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::INSLWI:
-  case PPC::INSLWIo: {
+  case PPC::INSLWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
     int64_t B = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::INSLWI? PPC::RLWIMI : PPC::RLWIMIo);
+    TmpInst.setOpcode(Opcode == PPC::INSLWI ? PPC::RLWIMI : PPC::RLWIMI_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
@@ -1017,11 +853,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::INSRWI:
-  case PPC::INSRWIo: {
+  case PPC::INSRWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
     int64_t B = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::INSRWI? PPC::RLWIMI : PPC::RLWIMIo);
+    TmpInst.setOpcode(Opcode == PPC::INSRWI ? PPC::RLWIMI : PPC::RLWIMI_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
@@ -1032,10 +868,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::ROTRWI:
-  case PPC::ROTRWIo: {
+  case PPC::ROTRWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::ROTRWI? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::ROTRWI ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(32 - N));
@@ -1045,10 +881,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::SLWI:
-  case PPC::SLWIo: {
+  case PPC::SLWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::SLWI? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::SLWI ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(N));
@@ -1058,10 +894,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::SRWI:
-  case PPC::SRWIo: {
+  case PPC::SRWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::SRWI? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::SRWI ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(32 - N));
@@ -1071,10 +907,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::CLRRWI:
-  case PPC::CLRRWIo: {
+  case PPC::CLRRWI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::CLRRWI? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::CLRRWI ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(0));
@@ -1084,11 +920,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::CLRLSLWI:
-  case PPC::CLRLSLWIo: {
+  case PPC::CLRLSLWI_rec: {
     MCInst TmpInst;
     int64_t B = Inst.getOperand(2).getImm();
     int64_t N = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::CLRLSLWI? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::CLRLSLWI ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(N));
@@ -1098,11 +934,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::EXTLDI:
-  case PPC::EXTLDIo: {
+  case PPC::EXTLDI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
     int64_t B = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::EXTLDI? PPC::RLDICR : PPC::RLDICRo);
+    TmpInst.setOpcode(Opcode == PPC::EXTLDI ? PPC::RLDICR : PPC::RLDICR_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(B));
@@ -1111,11 +947,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::EXTRDI:
-  case PPC::EXTRDIo: {
+  case PPC::EXTRDI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
     int64_t B = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::EXTRDI? PPC::RLDICL : PPC::RLDICLo);
+    TmpInst.setOpcode(Opcode == PPC::EXTRDI ? PPC::RLDICL : PPC::RLDICL_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(B + N));
@@ -1124,11 +960,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::INSRDI:
-  case PPC::INSRDIo: {
+  case PPC::INSRDI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
     int64_t B = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::INSRDI? PPC::RLDIMI : PPC::RLDIMIo);
+    TmpInst.setOpcode(Opcode == PPC::INSRDI ? PPC::RLDIMI : PPC::RLDIMI_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
@@ -1138,10 +974,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::ROTRDI:
-  case PPC::ROTRDIo: {
+  case PPC::ROTRDI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::ROTRDI? PPC::RLDICL : PPC::RLDICLo);
+    TmpInst.setOpcode(Opcode == PPC::ROTRDI ? PPC::RLDICL : PPC::RLDICL_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(64 - N));
@@ -1150,10 +986,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::SLDI:
-  case PPC::SLDIo: {
+  case PPC::SLDI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::SLDI? PPC::RLDICR : PPC::RLDICRo);
+    TmpInst.setOpcode(Opcode == PPC::SLDI ? PPC::RLDICR : PPC::RLDICR_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(N));
@@ -1171,10 +1007,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::SRDI:
-  case PPC::SRDIo: {
+  case PPC::SRDI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::SRDI? PPC::RLDICL : PPC::RLDICLo);
+    TmpInst.setOpcode(Opcode == PPC::SRDI ? PPC::RLDICL : PPC::RLDICL_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(64 - N));
@@ -1183,10 +1019,10 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::CLRRDI:
-  case PPC::CLRRDIo: {
+  case PPC::CLRRDI_rec: {
     MCInst TmpInst;
     int64_t N = Inst.getOperand(2).getImm();
-    TmpInst.setOpcode(Opcode == PPC::CLRRDI? PPC::RLDICR : PPC::RLDICRo);
+    TmpInst.setOpcode(Opcode == PPC::CLRRDI ? PPC::RLDICR : PPC::RLDICR_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(0));
@@ -1195,11 +1031,11 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::CLRLSLDI:
-  case PPC::CLRLSLDIo: {
+  case PPC::CLRLSLDI_rec: {
     MCInst TmpInst;
     int64_t B = Inst.getOperand(2).getImm();
     int64_t N = Inst.getOperand(3).getImm();
-    TmpInst.setOpcode(Opcode == PPC::CLRLSLDI? PPC::RLDIC : PPC::RLDICo);
+    TmpInst.setOpcode(Opcode == PPC::CLRLSLDI ? PPC::RLDIC : PPC::RLDIC_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(N));
@@ -1208,14 +1044,14 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::RLWINMbm:
-  case PPC::RLWINMobm: {
+  case PPC::RLWINMbm_rec: {
     unsigned MB, ME;
     int64_t BM = Inst.getOperand(3).getImm();
     if (!isRunOfOnes(BM, MB, ME))
       break;
 
     MCInst TmpInst;
-    TmpInst.setOpcode(Opcode == PPC::RLWINMbm ? PPC::RLWINM : PPC::RLWINMo);
+    TmpInst.setOpcode(Opcode == PPC::RLWINMbm ? PPC::RLWINM : PPC::RLWINM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(Inst.getOperand(2));
@@ -1225,14 +1061,14 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::RLWIMIbm:
-  case PPC::RLWIMIobm: {
+  case PPC::RLWIMIbm_rec: {
     unsigned MB, ME;
     int64_t BM = Inst.getOperand(3).getImm();
     if (!isRunOfOnes(BM, MB, ME))
       break;
 
     MCInst TmpInst;
-    TmpInst.setOpcode(Opcode == PPC::RLWIMIbm ? PPC::RLWIMI : PPC::RLWIMIo);
+    TmpInst.setOpcode(Opcode == PPC::RLWIMIbm ? PPC::RLWIMI : PPC::RLWIMI_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(0)); // The tied operand.
     TmpInst.addOperand(Inst.getOperand(1));
@@ -1243,14 +1079,14 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
     break;
   }
   case PPC::RLWNMbm:
-  case PPC::RLWNMobm: {
+  case PPC::RLWNMbm_rec: {
     unsigned MB, ME;
     int64_t BM = Inst.getOperand(3).getImm();
     if (!isRunOfOnes(BM, MB, ME))
       break;
 
     MCInst TmpInst;
-    TmpInst.setOpcode(Opcode == PPC::RLWNMbm ? PPC::RLWNM : PPC::RLWNMo);
+    TmpInst.setOpcode(Opcode == PPC::RLWNMbm ? PPC::RLWNM : PPC::RLWNM_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(Inst.getOperand(2));
@@ -1280,8 +1116,8 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
   case PPC::CP_PASTEx :
   case PPC::CP_PASTE_LAST: {
     MCInst TmpInst;
-    TmpInst.setOpcode(Opcode == PPC::CP_PASTEx ?
-                      PPC::CP_PASTE : PPC::CP_PASTEo);
+    TmpInst.setOpcode(Opcode == PPC::CP_PASTEx ? PPC::CP_PASTE
+                                               : PPC::CP_PASTE_rec);
     TmpInst.addOperand(Inst.getOperand(0));
     TmpInst.addOperand(Inst.getOperand(1));
     TmpInst.addOperand(MCOperand::createImm(Opcode == PPC::CP_PASTEx ? 0 : 1));
@@ -1292,7 +1128,7 @@ void PPCAsmParser::ProcessInstruction(MCInst &Inst,
   }
 }
 
-static std::string PPCMnemonicSpellCheck(StringRef S, uint64_t FBS,
+static std::string PPCMnemonicSpellCheck(StringRef S, const FeatureBitset &FBS,
                                          unsigned VariantID = 0);
 
 bool PPCAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
@@ -1311,7 +1147,7 @@ bool PPCAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
   case Match_MissingFeature:
     return Error(IDLoc, "instruction use requires an option to be enabled");
   case Match_MnemonicFail: {
-    uint64_t FBS = ComputeAvailableFeatures(getSTI().getFeatureBits());
+    FeatureBitset FBS = ComputeAvailableFeatures(getSTI().getFeatureBits());
     std::string Suggestion = PPCMnemonicSpellCheck(
         ((PPCOperand &)*Operands[0]).getToken(), FBS);
     return Error(IDLoc, "invalid instruction" + Suggestion,
@@ -1950,7 +1786,7 @@ bool PPCAsmParser::ParseDirectiveLocalEntry(SMLoc L) {
 
 
 /// Force static initialization.
-extern "C" void LLVMInitializePowerPCAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializePowerPCAsmParser() {
   RegisterMCAsmParser<PPCAsmParser> A(getThePPC32Target());
   RegisterMCAsmParser<PPCAsmParser> B(getThePPC64Target());
   RegisterMCAsmParser<PPCAsmParser> C(getThePPC64LETarget());

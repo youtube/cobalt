@@ -401,13 +401,12 @@ namespace dr136 { // dr136: 3.4
   extern "C" void k(int, int, int, int); // expected-note {{previous declaration is here}}
   namespace NSA {
   struct A {
-    friend void dr136::k(int, int, int, int = 0); // expected-error {{friend declaration specifying a default argument must be the only declaration}} \
-                                                  // expected-note {{previous declaration is here}}
+    friend void dr136::k(int, int, int, int = 0); // expected-error {{friend declaration specifying a default argument must be the only declaration}}
   };
   }
   namespace NSB {
   struct A {
-    friend void dr136::k(int, int, int = 0, int); // expected-error {{friend declaration specifying a default argument must be the only declaration}}
+    friend void dr136::k(int, int, int = 0, int); // expected-error {{missing default argument on parameter}}
   };
   }
   struct B {
@@ -601,7 +600,7 @@ namespace dr151 { // dr151: yes
 namespace dr152 { // dr152: yes
   struct A {
     A(); // expected-note 0-2{{not viable}}
-    explicit A(const A&);
+    explicit A(const A&); // expected-note 1-2{{not a candidate}}
   };
   A a1 = A();
 #if __cplusplus <= 201402L

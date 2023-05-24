@@ -1,13 +1,11 @@
 //===-- AdbClient.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// Other libraries and framework includes
 #include "AdbClient.h"
 
 #include "llvm/ADT/STLExtras.h"
@@ -139,7 +137,12 @@ const std::string &AdbClient::GetDeviceID() const { return m_device_id; }
 Status AdbClient::Connect() {
   Status error;
   m_conn.reset(new ConnectionFileDescriptor);
-  m_conn->Connect("connect://localhost:5037", &error);
+  std::string port = "5037";
+  if (const char *env_port = std::getenv("ANDROID_ADB_SERVER_PORT")) {
+    port = env_port;
+  }
+  std::string uri = "connect://localhost:" + port;
+  m_conn->Connect(uri.c_str(), &error);
 
   return error;
 }
@@ -162,7 +165,7 @@ Status AdbClient::GetDevices(DeviceIDList &device_list) {
   llvm::SmallVector<llvm::StringRef, 4> devices;
   response.split(devices, "\n", -1, false);
 
-  for (const auto device : devices)
+  for (const auto &device : devices)
     device_list.push_back(device.split('\t').first);
 
   // Force disconnect since ADB closes connection after host:devices response
@@ -407,7 +410,7 @@ Status AdbClient::ShellToFile(const char *command, milliseconds timeout,
 
   const auto output_filename = output_file_spec.GetPath();
   std::error_code EC;
-  llvm::raw_fd_ostream dst(output_filename, EC, llvm::sys::fs::F_None);
+  llvm::raw_fd_ostream dst(output_filename, EC, llvm::sys::fs::OF_None);
   if (EC)
     return Status("Unable to open local file %s", output_filename.c_str());
 
@@ -434,7 +437,7 @@ Status AdbClient::SyncService::internalPullFile(const FileSpec &remote_file,
   llvm::FileRemover local_file_remover(local_file_path);
 
   std::error_code EC;
-  llvm::raw_fd_ostream dst(local_file_path, EC, llvm::sys::fs::F_None);
+  llvm::raw_fd_ostream dst(local_file_path, EC, llvm::sys::fs::OF_None);
   if (EC)
     return Status("Unable to open local file %s", local_file_path.c_str());
 
@@ -484,7 +487,7 @@ Status AdbClient::SyncService::internalPushFile(const FileSpec &local_file,
       return Status("Failed to send file chunk: %s", error.AsCString());
   }
   error = SendSyncRequest(
-      kDONE, llvm::sys::toTimeT(FileSystem::GetModificationTime(local_file)),
+      kDONE, llvm::sys::toTimeT(FileSystem::Instance().GetModificationTime(local_file)),
       nullptr);
   if (error.Fail())
     return error;
@@ -592,7 +595,7 @@ Status AdbClient::SyncService::SendSyncRequest(const char *request_id,
   const DataBufferSP data_sp(new DataBufferHeap(kSyncPacketLen, 0));
   DataEncoder encoder(data_sp, eByteOrderLittle, sizeof(void *));
   auto offset = encoder.PutData(0, request_id, strlen(request_id));
-  encoder.PutU32(offset, data_len);
+  encoder.PutUnsigned(offset, 4, data_len);
 
   Status error;
   ConnectionStatus status;

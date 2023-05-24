@@ -1,9 +1,8 @@
 //===-- llvm-rc.cpp - Compile .rc scripts into .res -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,6 +30,7 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <algorithm>
 #include <system_error>
 
 using namespace llvm;
@@ -85,18 +85,23 @@ int main(int Argc, const char **Argv) {
 
   RcOptTable T;
   unsigned MAI, MAC;
-  ArrayRef<const char *> ArgsArr = makeArrayRef(Argv + 1, Argc - 1);
+  const char **DashDash = std::find_if(
+      Argv + 1, Argv + Argc, [](StringRef Str) { return Str == "--"; });
+  ArrayRef<const char *> ArgsArr = makeArrayRef(Argv + 1, DashDash);
+
   opt::InputArgList InputArgs = T.ParseArgs(ArgsArr, MAI, MAC);
 
   // The tool prints nothing when invoked with no command-line arguments.
   if (InputArgs.hasArg(OPT_HELP)) {
-    T.PrintHelp(outs(), "rc", "Resource Converter", false);
+    T.PrintHelp(outs(), "rc [options] file...", "Resource Converter", false);
     return 0;
   }
 
   const bool BeVerbose = InputArgs.hasArg(OPT_VERBOSE);
 
   std::vector<std::string> InArgsInfo = InputArgs.getAllArgValues(OPT_INPUT);
+  if (DashDash != Argv + Argc)
+    InArgsInfo.insert(InArgsInfo.end(), DashDash + 1, Argv + Argc);
   if (InArgsInfo.size() != 1) {
     fatalError("Exactly one input file should be provided.");
   }
@@ -171,12 +176,12 @@ int main(int Argc, const char **Argv) {
           "No more than one output file should be provided (using /FO flag).");
 
     std::error_code EC;
-    auto FOut = llvm::make_unique<raw_fd_ostream>(
+    auto FOut = std::make_unique<raw_fd_ostream>(
         OutArgsInfo[0], EC, sys::fs::FA_Read | sys::fs::FA_Write);
     if (EC)
       fatalError("Error opening output file '" + OutArgsInfo[0] +
                  "': " + EC.message());
-    Visitor = llvm::make_unique<ResourceFileWriter>(Params, std::move(FOut));
+    Visitor = std::make_unique<ResourceFileWriter>(Params, std::move(FOut));
     Visitor->AppendNull = InputArgs.hasArg(OPT_ADD_NULL);
 
     ExitOnErr(NullResource().visit(Visitor.get()));

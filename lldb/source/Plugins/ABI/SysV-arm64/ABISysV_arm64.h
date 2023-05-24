@@ -1,19 +1,14 @@
 //===-- ABISysV_arm64.h ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_ABISysV_arm64_h_
 #define liblldb_ABISysV_arm64_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/ABI.h"
 #include "lldb/lldb-private.h"
 
@@ -75,9 +70,7 @@ public:
 
   bool GetPointerReturnRegister(const char *&name) override;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
 
   static void Initialize();
 
@@ -87,9 +80,7 @@ public:
 
   static lldb_private::ConstString GetPluginNameStatic();
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
 
   lldb_private::ConstString GetPluginName() override;
 
@@ -101,7 +92,9 @@ protected:
                            lldb_private::CompilerType &ast_type) const override;
 
 private:
-  ABISysV_arm64(lldb::ProcessSP process_sp) : lldb_private::ABI(process_sp) {
+  ABISysV_arm64(lldb::ProcessSP process_sp,
+                std::unique_ptr<llvm::MCRegisterInfo> info_up)
+      : lldb_private::ABI(std::move(process_sp), std::move(info_up)) {
     // Call CreateInstance instead.
   }
 };

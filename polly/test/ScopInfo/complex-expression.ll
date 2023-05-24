@@ -129,14 +129,14 @@ cleanup:                                          ; preds = %for.body7.preheader
   ret i32 %retval.0
 }
 
-attributes #0 = { norecurse nounwind "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="arm7tdmi" "target-features"="+strict-align" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { norecurse nounwind "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="arm7tdmi" "target-features"="+strict-align" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.module.flags = !{!0, !1}
 !llvm.ident = !{!2}
 
 !0 = !{i32 1, !"wchar_size", i32 4}
 !1 = !{i32 1, !"min_enum_size", i32 4}
-!2 = !{!"clang version 3.9.0 (http://llvm.org/git/clang.git 24028ac5d033be4c1e87ce65affb4ea61deb1897) (http://llvm.org/git/llvm.git b88337289681d6ede5bba5da77007c83509e54ae)"}
+!2 = !{!"clang version 3.9.0"}
 !3 = !{!4, !4, i64 0}
 !4 = !{!"int", !5, i64 0}
 !5 = !{!"omnipotent char", !6, i64 0}

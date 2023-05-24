@@ -1,9 +1,8 @@
 //===--- ASTCommon.cpp - Common stuff for ASTReader/ASTWriter----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -213,6 +212,11 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
     ID = PREDEF_TYPE_##Id##_ID; \
     break;
 #include "clang/Basic/OpenCLImageTypes.def"
+#define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
+  case BuiltinType::Id: \
+    ID = PREDEF_TYPE_##Id##_ID; \
+    break;
+#include "clang/Basic/OpenCLExtensionTypes.def"
   case BuiltinType::OCLSampler:
     ID = PREDEF_TYPE_SAMPLER_ID;
     break;
@@ -228,6 +232,11 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::OCLReserveID:
     ID = PREDEF_TYPE_RESERVE_ID_ID;
     break;
+#define SVE_TYPE(Name, Id, SingletonId) \
+  case BuiltinType::Id: \
+    ID = PREDEF_TYPE_##Id##_ID; \
+    break;
+#include "clang/Basic/AArch64SVEACLETypes.def"
   case BuiltinType::BuiltinFn:
     ID = PREDEF_TYPE_BUILTIN_FN;
     break;
@@ -383,11 +392,16 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::ClassScopeFunctionSpecialization:
   case Decl::Import:
   case Decl::OMPThreadPrivate:
+  case Decl::OMPAllocate:
+  case Decl::OMPRequires:
   case Decl::OMPCapturedExpr:
   case Decl::OMPDeclareReduction:
+  case Decl::OMPDeclareMapper:
   case Decl::BuiltinTemplate:
   case Decl::Decomposition:
   case Decl::Binding:
+  case Decl::Concept:
+  case Decl::LifetimeExtendedTemporary:
     return false;
 
   // These indirectly derive from Redeclarable<T> but are not actually

@@ -2,12 +2,8 @@
 Test type lookup command.
 """
 
-from __future__ import print_function
 
 
-import datetime
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

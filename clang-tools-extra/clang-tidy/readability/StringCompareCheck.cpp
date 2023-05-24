@@ -1,9 +1,8 @@
-//===--- MiscStringCompare.cpp - clang-tidy--------------------------------===//
+//===-- StringCompareCheck.cpp - clang-tidy--------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -51,7 +50,7 @@ void StringCompareCheck::registerMatchers(MatchFinder *Finder) {
 
 void StringCompareCheck::check(const MatchFinder::MatchResult &Result) {
   if (const auto *Matched = Result.Nodes.getNodeAs<Stmt>("match1")) {
-    diag(Matched->getLocStart(), CompareMessage);
+    diag(Matched->getBeginLoc(), CompareMessage);
     return;
   }
 
@@ -63,10 +62,10 @@ void StringCompareCheck::check(const MatchFinder::MatchResult &Result) {
       const auto *Str2 = Result.Nodes.getNodeAs<Stmt>("str2");
       const auto *Compare = Result.Nodes.getNodeAs<Stmt>("compare");
 
-      auto Diag = diag(Matched->getLocStart(), CompareMessage);
+      auto Diag = diag(Matched->getBeginLoc(), CompareMessage);
 
       if (Str1->isArrow())
-        Diag << FixItHint::CreateInsertion(Str1->getLocStart(), "*");
+        Diag << FixItHint::CreateInsertion(Str1->getBeginLoc(), "*");
 
       Diag << tooling::fixit::createReplacement(*Zero, *Str2, Ctx)
            << tooling::fixit::createReplacement(*Compare, *Str1->getBase(),

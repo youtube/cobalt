@@ -1,9 +1,8 @@
 //===- MCAssembler.h - Object File Generation -------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,6 +22,7 @@
 #include "llvm/MC/MCFragment.h"
 #include "llvm/MC/MCLinkerOptimizationHint.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/VersionTuple.h"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -94,6 +94,8 @@ public:
     unsigned Major;
     unsigned Minor;
     unsigned Update;
+    /// An optional version of the SDK that was used to build the source.
+    VersionTuple SDKVersion;
   };
 
 private:
@@ -189,11 +191,8 @@ private:
   bool layoutSectionOnce(MCAsmLayout &Layout, MCSection &Sec);
 
   bool relaxInstruction(MCAsmLayout &Layout, MCRelaxableFragment &IF);
-
-  bool relaxPaddingFragment(MCAsmLayout &Layout, MCPaddingFragment &PF);
-
   bool relaxLEB(MCAsmLayout &Layout, MCLEBFragment &IF);
-
+  bool relaxBoundaryAlign(MCAsmLayout &Layout, MCBoundaryAlignFragment &BF);
   bool relaxDwarfLineAddr(MCAsmLayout &Layout, MCDwarfLineAddrFragment &DF);
   bool relaxDwarfCallFrameFragment(MCAsmLayout &Layout,
                                    MCDwarfCallFrameFragment &DF);
@@ -255,20 +254,24 @@ public:
   /// MachO deployment target version information.
   const VersionInfoType &getVersionInfo() const { return VersionInfo; }
   void setVersionMin(MCVersionMinType Type, unsigned Major, unsigned Minor,
-                     unsigned Update) {
+                     unsigned Update,
+                     VersionTuple SDKVersion = VersionTuple()) {
     VersionInfo.EmitBuildVersion = false;
     VersionInfo.TypeOrPlatform.Type = Type;
     VersionInfo.Major = Major;
     VersionInfo.Minor = Minor;
     VersionInfo.Update = Update;
+    VersionInfo.SDKVersion = SDKVersion;
   }
   void setBuildVersion(MachO::PlatformType Platform, unsigned Major,
-                       unsigned Minor, unsigned Update) {
+                       unsigned Minor, unsigned Update,
+                       VersionTuple SDKVersion = VersionTuple()) {
     VersionInfo.EmitBuildVersion = true;
     VersionInfo.TypeOrPlatform.Platform = Platform;
     VersionInfo.Major = Major;
     VersionInfo.Minor = Minor;
     VersionInfo.Update = Update;
+    VersionInfo.SDKVersion = SDKVersion;
   }
 
   /// Reuse an assembler instance

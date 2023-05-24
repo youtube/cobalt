@@ -48,17 +48,15 @@ int main() {
   // make sure initial data pointers are null
   // CHECK-NOT: 0: new_task_data initially not null
 
-  // CHECK: {{^}}[[MASTER_ID:[0-9]+]]: ompt_event_task_create
-  // CHECK-SAME: parent_task_id={{[0-9]+}}, parent_task_frame.exit=[[NULL]]
-  // CHECK-SAME: parent_task_frame.reenter=[[NULL]]
-  // CHECK-SAME: new_task_id={{[0-9]+}}, codeptr_ra=[[NULL]]
-  // CHECK-SAME: task_type=ompt_task_initial=1, has_dependences=no
+  // CHECK: {{^}}[[MASTER_ID:[0-9]+]]: ompt_event_initial_task_begin: parallel_id={{[0-9]+}}
+  // CHECK-SAME: task_id={{[0-9]+}}, actual_parallelism=1, index=1, flags=1 
+
   // CHECK: {{^}}[[MASTER_ID]]: __builtin_frame_address(0)
   // CHECK-SAME: =[[MAIN_REENTER:0x[0-f]+]]
   // CHECK: {{^}}[[MASTER_ID]]: ompt_event_parallel_begin
   // CHECK-SAME: parent_task_id=[[PARENT_TASK_ID:[0-9]+]]
   // CHECK-SAME: parent_task_frame.exit=[[NULL]]
-  // CHECK-SAME: parent_task_frame.reenter=[[MAIN_REENTER]]
+  // CHECK-SAME: parent_task_frame.reenter=0x{{[0-f]+}}
   // CHECK-SAME: parallel_id=[[PARALLEL_ID:[0-9]+]], requested_team_size=2
   // CHECK-SAME: codeptr_ra=0x{{[0-f]+}}, invoker={{[0-9]+}}
 
@@ -76,13 +74,13 @@ int main() {
   // CHECK: {{^}}[[MASTER_ID]]: task level 1
   // CHECK-SAME: parallel_id=[[IMPLICIT_PARALLEL_ID:[0-9]+]]
   // CHECK-SAME: task_id=[[PARENT_TASK_ID]],
-  // CHECK-SAME: exit_frame=[[NULL]], reenter_frame=[[MAIN_REENTER]]
+  // CHECK-SAME: exit_frame=[[NULL]], reenter_frame=0x{{[0-f]+}}
 
   // CHECK: {{^}}[[MASTER_ID]]: __builtin_frame_address(0)=[[REENTER:0x[0-f]+]]
   // CHECK: {{^}}[[MASTER_ID]]: ompt_event_task_create
   // CHECK-SAME: parent_task_id=[[IMPLICIT_TASK_ID]]
   // CHECK-SAME: parent_task_frame.exit=[[EXIT]]
-  // CHECK-SAME: parent_task_frame.reenter=[[REENTER]]
+  // CHECK-SAME: parent_task_frame.reenter=0x{{[0-f]+}}
   // CHECK-SAME: new_task_id=[[TASK_ID:[0-9]+]]
   // CHECK-SAME: codeptr_ra=[[RETURN_ADDRESS:0x[0-f]+]]{{[0-f][0-f]}}
 
@@ -96,12 +94,12 @@ int main() {
 
   // CHECK: {{^}}[[MASTER_ID]]: task level 1
   // CHECK-SAME: parallel_id=[[PARALLEL_ID]], task_id=[[IMPLICIT_TASK_ID]]
-  // CHECK-SAME: exit_frame=[[EXIT]], reenter_frame=[[REENTER]]
+  // CHECK-SAME: exit_frame=[[EXIT]], reenter_frame=0x{{[0-f]+}}
 
   // CHECK: {{^}}[[MASTER_ID]]: task level 2
   // CHECK-SAME: parallel_id=[[IMPLICIT_PARALLEL_ID]]
   // CHECK-SAME: task_id=[[PARENT_TASK_ID]]
-  // CHECK-SAME: exit_frame=[[NULL]], reenter_frame=[[MAIN_REENTER]]
+  // CHECK-SAME: exit_frame=[[NULL]], reenter_frame=0x{{[0-f]+}}
 
   // CHECK: {{^}}[[MASTER_ID]]: ompt_event_task_schedule
   // CHECK-SAME: first_task_id=[[TASK_ID]], second_task_id=[[IMPLICIT_TASK_ID]]
@@ -135,7 +133,7 @@ int main() {
   // CHECK: {{^}}[[THREAD_ID]]: task level 1
   // CHECK-SAME: parallel_id=[[IMPLICIT_PARALLEL_ID]]
   // CHECK-SAME: task_id=[[PARENT_TASK_ID]]
-  // CHECK-SAME: exit_frame=[[NULL]], reenter_frame=[[MAIN_REENTER]]
+  // CHECK-SAME: exit_frame=[[NULL]], reenter_frame=0x{{[0-f]+}}
 
   // CHECK: {{^}}[[THREAD_ID]]: __builtin_frame_address(0)={{0x[0-f]+}}
   // CHECK: {{^}}[[THREAD_ID]]: ompt_event_barrier_begin

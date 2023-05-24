@@ -1,9 +1,8 @@
 //===-- main.c --------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include <stdio.h>
@@ -16,6 +15,14 @@ public:
         TASK_TYPE_1,
         TASK_TYPE_2
     } type;
+    // This struct is anonymous b/c it does not have a name
+    // and it is not unnamed class.
+    // Anonymous classes are a GNU extension.
+    struct {
+      int y;
+    };
+    // This struct is an unnamed class see [class.pre]p1
+    // http://eel.is/c++draft/class#pre-1.sentence-6
     struct {
       int x;
     } my_type_is_nameless;

@@ -1,9 +1,8 @@
 //===- DeclObjC.cpp - ObjC Declaration AST Node Implementation ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -64,6 +63,13 @@ void ObjCProtocolList::set(ObjCProtocolDecl* const* InList, unsigned Elts,
 //===----------------------------------------------------------------------===//
 // ObjCInterfaceDecl
 //===----------------------------------------------------------------------===//
+
+ObjCContainerDecl::ObjCContainerDecl(Kind DK, DeclContext *DC,
+                                     IdentifierInfo *Id, SourceLocation nameLoc,
+                                     SourceLocation atStartLoc)
+    : NamedDecl(DK, DC, nameLoc, Id), DeclContext(DK) {
+  setAtStartLoc(atStartLoc);
+}
 
 void ObjCContainerDecl::anchor() {}
 
@@ -350,7 +356,7 @@ ObjCInterfaceDecl *ObjCInterfaceDecl::getSuperClass() const {
 
 SourceLocation ObjCInterfaceDecl::getSuperClassLoc() const {
   if (TypeSourceInfo *superTInfo = getSuperClassTInfo())
-    return superTInfo->getTypeLoc().getLocStart();
+    return superTInfo->getTypeLoc().getBeginLoc();
 
   return SourceLocation();
 }
@@ -769,16 +775,47 @@ ObjCMethodDecl *ObjCInterfaceDecl::lookupPrivateMethod(
 // ObjCMethodDecl
 //===----------------------------------------------------------------------===//
 
+ObjCMethodDecl::ObjCMethodDecl(
+    SourceLocation beginLoc, SourceLocation endLoc, Selector SelInfo,
+    QualType T, TypeSourceInfo *ReturnTInfo, DeclContext *contextDecl,
+    bool isInstance, bool isVariadic, bool isPropertyAccessor,
+    bool isSynthesizedAccessorStub, bool isImplicitlyDeclared, bool isDefined,
+    ImplementationControl impControl, bool HasRelatedResultType)
+    : NamedDecl(ObjCMethod, contextDecl, beginLoc, SelInfo),
+      DeclContext(ObjCMethod), MethodDeclType(T), ReturnTInfo(ReturnTInfo),
+      DeclEndLoc(endLoc) {
+
+  // Initialized the bits stored in DeclContext.
+  ObjCMethodDeclBits.Family =
+      static_cast<ObjCMethodFamily>(InvalidObjCMethodFamily);
+  setInstanceMethod(isInstance);
+  setVariadic(isVariadic);
+  setPropertyAccessor(isPropertyAccessor);
+  setSynthesizedAccessorStub(isSynthesizedAccessorStub);
+  setDefined(isDefined);
+  setIsRedeclaration(false);
+  setHasRedeclaration(false);
+  setDeclImplementation(impControl);
+  setObjCDeclQualifier(OBJC_TQ_None);
+  setRelatedResultType(HasRelatedResultType);
+  setSelLocsKind(SelLoc_StandardNoSpace);
+  setOverriding(false);
+  setHasSkippedBody(false);
+
+  setImplicit(isImplicitlyDeclared);
+}
+
 ObjCMethodDecl *ObjCMethodDecl::Create(
     ASTContext &C, SourceLocation beginLoc, SourceLocation endLoc,
     Selector SelInfo, QualType T, TypeSourceInfo *ReturnTInfo,
     DeclContext *contextDecl, bool isInstance, bool isVariadic,
-    bool isPropertyAccessor, bool isImplicitlyDeclared, bool isDefined,
-    ImplementationControl impControl, bool HasRelatedResultType) {
+    bool isPropertyAccessor, bool isSynthesizedAccessorStub,
+    bool isImplicitlyDeclared, bool isDefined, ImplementationControl impControl,
+    bool HasRelatedResultType) {
   return new (C, contextDecl) ObjCMethodDecl(
       beginLoc, endLoc, SelInfo, T, ReturnTInfo, contextDecl, isInstance,
-      isVariadic, isPropertyAccessor, isImplicitlyDeclared, isDefined,
-      impControl, HasRelatedResultType);
+      isVariadic, isPropertyAccessor, isSynthesizedAccessorStub,
+      isImplicitlyDeclared, isDefined, impControl, HasRelatedResultType);
 }
 
 ObjCMethodDecl *ObjCMethodDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
@@ -786,9 +823,21 @@ ObjCMethodDecl *ObjCMethodDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
                                     Selector(), QualType(), nullptr, nullptr);
 }
 
+bool ObjCMethodDecl::isDirectMethod() const {
+  return hasAttr<ObjCDirectAttr>();
+}
+
 bool ObjCMethodDecl::isThisDeclarationADesignatedInitializer() const {
   return getMethodFamily() == OMF_init &&
       hasAttr<ObjCDesignatedInitializerAttr>();
+}
+
+bool ObjCMethodDecl::definedInNSObject(const ASTContext &Ctx) const {
+  if (const auto *PD = dyn_cast<const ObjCProtocolDecl>(getDeclContext()))
+    return PD->getIdentifier() == Ctx.getNSObjectName();
+  if (const auto *ID = dyn_cast<const ObjCInterfaceDecl>(getDeclContext()))
+    return ID->getIdentifier() == Ctx.getNSObjectName();
+  return false;
 }
 
 bool ObjCMethodDecl::isDesignatedInitializerForTheInterface(
@@ -810,8 +859,8 @@ Stmt *ObjCMethodDecl::getBody() const {
 void ObjCMethodDecl::setAsRedeclaration(const ObjCMethodDecl *PrevMethod) {
   assert(PrevMethod);
   getASTContext().setObjCMethodRedeclaration(PrevMethod, this);
-  IsRedeclaration = true;
-  PrevMethod->HasRedeclaration = true;
+  setIsRedeclaration(true);
+  PrevMethod->setHasRedeclaration(true);
 }
 
 void ObjCMethodDecl::setParamsAndSelLocs(ASTContext &C,
@@ -846,9 +895,9 @@ void ObjCMethodDecl::setMethodParams(ASTContext &C,
   if (isImplicit())
     return setParamsAndSelLocs(C, Params, llvm::None);
 
-  SelLocsKind = hasStandardSelectorLocs(getSelector(), SelLocs, Params,
-                                        DeclEndLoc);
-  if (SelLocsKind != SelLoc_NonStandard)
+  setSelLocsKind(hasStandardSelectorLocs(getSelector(), SelLocs, Params,
+                                        DeclEndLoc));
+  if (getSelLocsKind() != SelLoc_NonStandard)
     return setParamsAndSelLocs(C, Params, llvm::None);
 
   setParamsAndSelLocs(C, Params, SelLocs);
@@ -860,7 +909,7 @@ void ObjCMethodDecl::setMethodParams(ASTContext &C,
 ObjCMethodDecl *ObjCMethodDecl::getNextRedeclarationImpl() {
   ASTContext &Ctx = getASTContext();
   ObjCMethodDecl *Redecl = nullptr;
-  if (HasRedeclaration)
+  if (hasRedeclaration())
     Redecl = const_cast<ObjCMethodDecl*>(Ctx.getObjCMethodRedeclaration(this));
   if (Redecl)
     return Redecl;
@@ -907,24 +956,32 @@ ObjCMethodDecl *ObjCMethodDecl::getNextRedeclarationImpl() {
 
 ObjCMethodDecl *ObjCMethodDecl::getCanonicalDecl() {
   auto *CtxD = cast<Decl>(getDeclContext());
+  const auto &Sel = getSelector();
 
   if (auto *ImplD = dyn_cast<ObjCImplementationDecl>(CtxD)) {
-    if (ObjCInterfaceDecl *IFD = ImplD->getClassInterface())
-      if (ObjCMethodDecl *MD = IFD->getMethod(getSelector(),
-                                              isInstanceMethod()))
+    if (ObjCInterfaceDecl *IFD = ImplD->getClassInterface()) {
+      // When the container is the ObjCImplementationDecl (the primary
+      // @implementation), then the canonical Decl is either in
+      // the class Interface, or in any of its extension.
+      //
+      // So when we don't find it in the ObjCInterfaceDecl,
+      // sift through extensions too.
+      if (ObjCMethodDecl *MD = IFD->getMethod(Sel, isInstanceMethod()))
         return MD;
+      for (auto *Ext : IFD->known_extensions())
+        if (ObjCMethodDecl *MD = Ext->getMethod(Sel, isInstanceMethod()))
+          return MD;
+    }
   } else if (auto *CImplD = dyn_cast<ObjCCategoryImplDecl>(CtxD)) {
     if (ObjCCategoryDecl *CatD = CImplD->getCategoryDecl())
-      if (ObjCMethodDecl *MD = CatD->getMethod(getSelector(),
-                                               isInstanceMethod()))
+      if (ObjCMethodDecl *MD = CatD->getMethod(Sel, isInstanceMethod()))
         return MD;
   }
 
   if (isRedeclaration()) {
     // It is possible that we have not done deserializing the ObjCMethod yet.
     ObjCMethodDecl *MD =
-        cast<ObjCContainerDecl>(CtxD)->getMethod(getSelector(),
-                                                 isInstanceMethod());
+        cast<ObjCContainerDecl>(CtxD)->getMethod(Sel, isInstanceMethod());
     return MD ? MD : this;
   }
 
@@ -933,12 +990,12 @@ ObjCMethodDecl *ObjCMethodDecl::getCanonicalDecl() {
 
 SourceLocation ObjCMethodDecl::getEndLoc() const {
   if (Stmt *Body = getBody())
-    return Body->getLocEnd();
+    return Body->getEndLoc();
   return DeclEndLoc;
 }
 
 ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
-  auto family = static_cast<ObjCMethodFamily>(Family);
+  auto family = static_cast<ObjCMethodFamily>(ObjCMethodDeclBits.Family);
   if (family != static_cast<unsigned>(InvalidObjCMethodFamily))
     return family;
 
@@ -954,7 +1011,7 @@ ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
     case ObjCMethodFamilyAttr::OMF_mutableCopy: family = OMF_mutableCopy; break;
     case ObjCMethodFamilyAttr::OMF_new: family = OMF_new; break;
     }
-    Family = static_cast<unsigned>(family);
+    ObjCMethodDeclBits.Family = family;
     return family;
   }
 
@@ -1025,14 +1082,14 @@ ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
   }
 
   // Cache the result.
-  Family = static_cast<unsigned>(family);
+  ObjCMethodDeclBits.Family = family;
   return family;
 }
 
 QualType ObjCMethodDecl::getSelfType(ASTContext &Context,
                                      const ObjCInterfaceDecl *OID,
                                      bool &selfIsPseudoStrong,
-                                     bool &selfIsConsumed) {
+                                     bool &selfIsConsumed) const {
   QualType selfTy;
   selfIsPseudoStrong = false;
   selfIsConsumed = false;
@@ -1261,6 +1318,11 @@ ObjCMethodDecl::findPropertyDecl(bool CheckOverrides) const {
 
   if (isPropertyAccessor()) {
     const auto *Container = cast<ObjCContainerDecl>(getParent());
+    // For accessor stubs, go back to the interface.
+    if (auto *ImplDecl = dyn_cast<ObjCImplDecl>(Container))
+      if (isSynthesizedAccessorStub())
+        Container = ImplDecl->getClassInterface();
+
     bool IsGetter = (NumArgs == 0);
     bool IsInstance = isInstanceMethod();
 
@@ -1311,6 +1373,15 @@ ObjCMethodDecl::findPropertyDecl(bool CheckOverrides) const {
         if (const auto *Found = findMatchingProperty(Ext))
           return Found;
       }
+    }
+
+    assert(isSynthesizedAccessorStub() && "expected an accessor stub");
+    for (const auto *Cat : ClassDecl->known_categories()) {
+      if (Cat == Container)
+        continue;
+
+      if (const auto *Found = findMatchingProperty(Cat))
+        return Found;
     }
 
     llvm_unreachable("Marked as a property accessor but no property found!");
@@ -1596,7 +1667,7 @@ ObjCIvarDecl *ObjCInterfaceDecl::all_declared_ivar_begin() {
 
       if (!layout.empty()) {
         // Order synthesized ivars by their size.
-        std::stable_sort(layout.begin(), layout.end());
+        llvm::stable_sort(layout);
         unsigned Ix = 0, EIx = layout.size();
         if (!data().IvarList) {
           data().IvarList = layout[0].Ivar; Ix++;

@@ -1,9 +1,9 @@
 /*===-- clang-c/Index.h - Indexing Public C Interface -------------*- C -*-===*\
 |*                                                                            *|
-|*                     The LLVM Compiler Infrastructure                       *|
-|*                                                                            *|
-|* This file is distributed under the University of Illinois Open Source      *|
-|* License. See LICENSE.TXT for details.                                      *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
 |*                                                                            *|
 |*===----------------------------------------------------------------------===*|
 |*                                                                            *|
@@ -18,10 +18,11 @@
 
 #include <time.h>
 
-#include "clang-c/Platform.h"
+#include "clang-c/BuildSystem.h"
 #include "clang-c/CXErrorCode.h"
 #include "clang-c/CXString.h"
-#include "clang-c/BuildSystem.h"
+#include "clang-c/ExternC.h"
+#include "clang-c/Platform.h"
 
 /**
  * The version constants for the libclang API.
@@ -32,7 +33,7 @@
  * compatible, thus CINDEX_VERSION_MAJOR is expected to remain stable.
  */
 #define CINDEX_VERSION_MAJOR 0
-#define CINDEX_VERSION_MINOR 49
+#define CINDEX_VERSION_MINOR 59
 
 #define CINDEX_VERSION_ENCODE(major, minor) ( \
       ((major) * 10000)                       \
@@ -51,9 +52,7 @@
     CINDEX_VERSION_MAJOR,                               \
     CINDEX_VERSION_MINOR)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+LLVM_CLANG_C_EXTERN_C_BEGIN
 
 /** \defgroup CINDEX libclang: C Interface to Clang
  *
@@ -178,7 +177,6 @@ typedef struct CXVersion {
  * A negative value indicates that the cursor is not a function declaration.
  */
 enum CXCursor_ExceptionSpecificationKind {
-
   /**
    * The cursor has no exception specification.
    */
@@ -222,7 +220,12 @@ enum CXCursor_ExceptionSpecificationKind {
   /**
    * The exception specification has not been parsed yet.
    */
-  CXCursor_ExceptionSpecificationKind_Unparsed
+  CXCursor_ExceptionSpecificationKind_Unparsed,
+
+  /**
+   * The cursor has a __declspec(nothrow) exception specification.
+   */
+  CXCursor_ExceptionSpecificationKind_NoThrow
 };
 
 /**
@@ -1332,7 +1335,32 @@ enum CXTranslationUnit_Flags {
    *
    * The function bodies of the main file are not skipped.
    */
-  CXTranslationUnit_LimitSkipFunctionBodiesToPreamble = 0x800
+  CXTranslationUnit_LimitSkipFunctionBodiesToPreamble = 0x800,
+
+  /**
+   * Used to indicate that attributed types should be included in CXType.
+   */
+  CXTranslationUnit_IncludeAttributedTypes = 0x1000,
+
+  /**
+   * Used to indicate that implicit attributes should be visited.
+   */
+  CXTranslationUnit_VisitImplicitAttributes = 0x2000,
+
+  /**
+   * Used to indicate that non-errors from included files should be ignored.
+   *
+   * If set, clang_getDiagnosticSetFromTU() will not report e.g. warnings from
+   * included files anymore. This speeds up clang_getDiagnosticSetFromTU() for
+   * the case where these warnings are not of interest, as for an IDE for
+   * example, which typically shows only the diagnostics in the main file.
+   */
+  CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles = 0x4000,
+
+  /**
+   * Tells the preprocessor not to skip excluded conditional blocks.
+   */
+  CXTranslationUnit_RetainExcludedConditionalBlocks = 0x8000
 };
 
 /**
@@ -2522,7 +2550,31 @@ enum CXCursorKind {
    */
   CXCursor_OMPTargetTeamsDistributeSimdDirective = 279,
 
-  CXCursor_LastStmt = CXCursor_OMPTargetTeamsDistributeSimdDirective,
+  /** C++2a std::bit_cast expression.
+   */
+  CXCursor_BuiltinBitCastExpr = 280,
+
+  /** OpenMP master taskloop directive.
+   */
+  CXCursor_OMPMasterTaskLoopDirective = 281,
+
+  /** OpenMP parallel master taskloop directive.
+   */
+  CXCursor_OMPParallelMasterTaskLoopDirective = 282,
+
+  /** OpenMP master taskloop simd directive.
+   */
+  CXCursor_OMPMasterTaskLoopSimdDirective      = 283,
+
+  /** OpenMP parallel master taskloop simd directive.
+   */
+  CXCursor_OMPParallelMasterTaskLoopSimdDirective      = 284,
+
+  /** OpenMP parallel master directive.
+   */
+  CXCursor_OMPParallelMasterDirective      = 285,
+
+  CXCursor_LastStmt = CXCursor_OMPParallelMasterDirective,
 
   /**
    * Cursor that represents the translation unit itself.
@@ -2559,7 +2611,29 @@ enum CXCursorKind {
   CXCursor_VisibilityAttr                = 417,
   CXCursor_DLLExport                     = 418,
   CXCursor_DLLImport                     = 419,
-  CXCursor_LastAttr                      = CXCursor_DLLImport,
+  CXCursor_NSReturnsRetained             = 420,
+  CXCursor_NSReturnsNotRetained          = 421,
+  CXCursor_NSReturnsAutoreleased         = 422,
+  CXCursor_NSConsumesSelf                = 423,
+  CXCursor_NSConsumed                    = 424,
+  CXCursor_ObjCException                 = 425,
+  CXCursor_ObjCNSObject                  = 426,
+  CXCursor_ObjCIndependentClass          = 427,
+  CXCursor_ObjCPreciseLifetime           = 428,
+  CXCursor_ObjCReturnsInnerPointer       = 429,
+  CXCursor_ObjCRequiresSuper             = 430,
+  CXCursor_ObjCRootClass                 = 431,
+  CXCursor_ObjCSubclassingRestricted     = 432,
+  CXCursor_ObjCExplicitProtocolImpl      = 433,
+  CXCursor_ObjCDesignatedInitializer     = 434,
+  CXCursor_ObjCRuntimeVisible            = 435,
+  CXCursor_ObjCBoxable                   = 436,
+  CXCursor_FlagEnum                      = 437,
+  CXCursor_ConvergentAttr                = 438,
+  CXCursor_WarnUnusedAttr                = 439,
+  CXCursor_WarnUnusedResultAttr          = 440,
+  CXCursor_AlignedAttr                   = 441,
+  CXCursor_LastAttr                      = CXCursor_AlignedAttr,
 
   /* Preprocessing */
   CXCursor_PreprocessingDirective        = 500,
@@ -3266,7 +3340,27 @@ enum CXTypeKind {
   CXType_OCLSampler = 157,
   CXType_OCLEvent = 158,
   CXType_OCLQueue = 159,
-  CXType_OCLReserveID = 160
+  CXType_OCLReserveID = 160,
+
+  CXType_ObjCObject = 161,
+  CXType_ObjCTypeParam = 162,
+  CXType_Attributed = 163,
+
+  CXType_OCLIntelSubgroupAVCMcePayload = 164,
+  CXType_OCLIntelSubgroupAVCImePayload = 165,
+  CXType_OCLIntelSubgroupAVCRefPayload = 166,
+  CXType_OCLIntelSubgroupAVCSicPayload = 167,
+  CXType_OCLIntelSubgroupAVCMceResult = 168,
+  CXType_OCLIntelSubgroupAVCImeResult = 169,
+  CXType_OCLIntelSubgroupAVCRefResult = 170,
+  CXType_OCLIntelSubgroupAVCSicResult = 171,
+  CXType_OCLIntelSubgroupAVCImeResultSingleRefStreamout = 172,
+  CXType_OCLIntelSubgroupAVCImeResultDualRefStreamout = 173,
+  CXType_OCLIntelSubgroupAVCImeSingleRefStreamin = 174,
+
+  CXType_OCLIntelSubgroupAVCImeDualRefStreamin = 175,
+
+  CXType_ExtVector = 176
 };
 
 /**
@@ -3291,6 +3385,7 @@ enum CXCallingConv {
   CXCallingConv_Swift = 13,
   CXCallingConv_PreserveMost = 14,
   CXCallingConv_PreserveAll = 15,
+  CXCallingConv_AArch64VectorCall = 16,
 
   CXCallingConv_Invalid = 100,
   CXCallingConv_Unexposed = 200
@@ -3628,6 +3723,43 @@ CINDEX_LINKAGE int clang_getNumArgTypes(CXType T);
 CINDEX_LINKAGE CXType clang_getArgType(CXType T, unsigned i);
 
 /**
+ * Retrieves the base type of the ObjCObjectType.
+ *
+ * If the type is not an ObjC object, an invalid type is returned.
+ */
+CINDEX_LINKAGE CXType clang_Type_getObjCObjectBaseType(CXType T);
+
+/**
+ * Retrieve the number of protocol references associated with an ObjC object/id.
+ *
+ * If the type is not an ObjC object, 0 is returned.
+ */
+CINDEX_LINKAGE unsigned clang_Type_getNumObjCProtocolRefs(CXType T);
+
+/**
+ * Retrieve the decl for a protocol reference for an ObjC object/id.
+ *
+ * If the type is not an ObjC object or there are not enough protocol
+ * references, an invalid cursor is returned.
+ */
+CINDEX_LINKAGE CXCursor clang_Type_getObjCProtocolDecl(CXType T, unsigned i);
+
+/**
+ * Retreive the number of type arguments associated with an ObjC object.
+ *
+ * If the type is not an ObjC object, 0 is returned.
+ */
+CINDEX_LINKAGE unsigned clang_Type_getNumObjCTypeArgs(CXType T);
+
+/**
+ * Retrieve a type argument associated with an ObjC object.
+ *
+ * If the type is not an ObjC or the index is not valid,
+ * an invalid type is returned.
+ */
+CINDEX_LINKAGE CXType clang_Type_getObjCTypeArg(CXType T, unsigned i);
+
+/**
  * Return 1 if the CXType is a variadic function type, and 0 otherwise.
  */
 CINDEX_LINKAGE unsigned clang_isFunctionTypeVariadic(CXType T);
@@ -3700,6 +3832,33 @@ CINDEX_LINKAGE CXType clang_Type_getNamedType(CXType T);
  */
 CINDEX_LINKAGE unsigned clang_Type_isTransparentTagTypedef(CXType T);
 
+enum CXTypeNullabilityKind {
+  /**
+   * Values of this type can never be null.
+   */
+  CXTypeNullability_NonNull = 0,
+  /**
+   * Values of this type can be null.
+   */
+  CXTypeNullability_Nullable = 1,
+  /**
+   * Whether values of this type can be null is (explicitly)
+   * unspecified. This captures a (fairly rare) case where we
+   * can't conclude anything about the nullability of the type even
+   * though it has been considered.
+   */
+  CXTypeNullability_Unspecified = 2,
+  /**
+   * Nullability is not applicable to this type.
+   */
+  CXTypeNullability_Invalid = 3
+};
+
+/**
+ * Retrieve the nullability kind of a pointer type.
+ */
+CINDEX_LINKAGE enum CXTypeNullabilityKind clang_Type_getNullability(CXType T);
+
 /**
  * List the possible error codes for \c clang_Type_getSizeOf,
  *   \c clang_Type_getAlignOf, \c clang_Type_getOffsetOf and
@@ -3728,7 +3887,11 @@ enum CXTypeLayoutError {
   /**
    * The Field name is not valid for this record.
    */
-  CXTypeLayoutError_InvalidFieldName = -5
+  CXTypeLayoutError_InvalidFieldName = -5,
+  /**
+   * The type is undeduced.
+   */
+  CXTypeLayoutError_Undeduced = -6
 };
 
 /**
@@ -3779,6 +3942,13 @@ CINDEX_LINKAGE long long clang_Type_getSizeOf(CXType T);
 CINDEX_LINKAGE long long clang_Type_getOffsetOf(CXType T, const char *S);
 
 /**
+ * Return the type that was modified by this attributed type.
+ *
+ * If the type is not an attributed type, an invalid type is returned.
+ */
+CINDEX_LINKAGE CXType clang_Type_getModifiedType(CXType T);
+
+/**
  * Return the offset of the field represented by the Cursor.
  *
  * If the cursor is not a field declaration, -1 is returned.
@@ -3794,10 +3964,22 @@ CINDEX_LINKAGE long long clang_Type_getOffsetOf(CXType T, const char *S);
 CINDEX_LINKAGE long long clang_Cursor_getOffsetOfField(CXCursor C);
 
 /**
+ * Determine whether the given cursor represents an anonymous
+ * tag or namespace
+ */
+CINDEX_LINKAGE unsigned clang_Cursor_isAnonymous(CXCursor C);
+
+/**
  * Determine whether the given cursor represents an anonymous record
  * declaration.
  */
-CINDEX_LINKAGE unsigned clang_Cursor_isAnonymous(CXCursor C);
+CINDEX_LINKAGE unsigned clang_Cursor_isAnonymousRecordDecl(CXCursor C);
+
+/**
+ * Determine whether the given cursor represents an inline namespace
+ * declaration.
+ */
+CINDEX_LINKAGE unsigned clang_Cursor_isInlineNamespace(CXCursor C);
 
 enum CXRefQualifierKind {
   /** No ref-qualifier was provided. */
@@ -4346,6 +4528,18 @@ typedef enum {
  */
 CINDEX_LINKAGE unsigned clang_Cursor_getObjCPropertyAttributes(CXCursor C,
                                                              unsigned reserved);
+
+/**
+ * Given a cursor that represents a property declaration, return the
+ * name of the method that implements the getter.
+ */
+CINDEX_LINKAGE CXString clang_Cursor_getObjCPropertyGetterName(CXCursor C);
+
+/**
+ * Given a cursor that represents a property declaration, return the
+ * name of the method that implements the setter, if any.
+ */
+CINDEX_LINKAGE CXString clang_Cursor_getObjCPropertySetterName(CXCursor C);
 
 /**
  * 'Qualifiers' written next to the return and parameter types in
@@ -5492,9 +5686,14 @@ enum CXCompletionContext {
   CXCompletionContext_NaturalLanguage = 1 << 21,
 
   /**
+   * #include file completions should be included in the results.
+   */
+  CXCompletionContext_IncludedFile = 1 << 22,
+
+  /**
    * The current context is unknown, so set all contexts.
    */
-  CXCompletionContext_Unknown = ((1 << 22) - 1)
+  CXCompletionContext_Unknown = ((1 << 23) - 1)
 };
 
 /**
@@ -6578,7 +6777,6 @@ CINDEX_LINKAGE unsigned clang_Type_visitFields(CXType T,
  * @}
  */
 
-#ifdef __cplusplus
-}
-#endif
+LLVM_CLANG_C_EXTERN_C_END
+
 #endif

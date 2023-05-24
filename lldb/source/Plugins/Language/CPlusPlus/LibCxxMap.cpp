@@ -1,16 +1,11 @@
 //===-- LibCxxMap.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "LibCxx.h"
 
 #include "lldb/Core/ValueObject.h"
@@ -98,6 +93,8 @@ public:
       : m_entry(rhs.m_entry), m_max_depth(rhs.m_max_depth), m_error(false) {}
   MapIterator(ValueObject *entry, size_t depth = 0)
       : m_entry(entry), m_max_depth(depth), m_error(false) {}
+
+  MapIterator &operator=(const MapIterator &) = default;
 
   ValueObjectSP value() { return m_entry.GetEntry(); }
 
@@ -189,7 +186,7 @@ public:
 
   bool MightHaveChildren() override;
 
-  size_t GetIndexOfChildWithName(const ConstString &name) override;
+  size_t GetIndexOfChildWithName(ConstString name) override;
 
 private:
   bool GetDataType();
@@ -457,7 +454,7 @@ bool lldb_private::formatters::LibcxxStdMapSyntheticFrontEnd::
 }
 
 size_t lldb_private::formatters::LibcxxStdMapSyntheticFrontEnd::
-    GetIndexOfChildWithName(const ConstString &name) {
+    GetIndexOfChildWithName(ConstString name) {
   return ExtractIndexFromString(name.GetCString());
 }
 

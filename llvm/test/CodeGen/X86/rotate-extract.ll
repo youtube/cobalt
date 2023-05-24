@@ -156,7 +156,7 @@ define i64 @no_extract_shl(i64 %i) nounwind {
 ; X64-NEXT:    shlq $5, %rax
 ; X64-NEXT:    shlq $10, %rdi
 ; X64-NEXT:    shrq $57, %rax
-; X64-NEXT:    leaq (%rax,%rdi), %rax
+; X64-NEXT:    addq %rdi, %rax
 ; X64-NEXT:    retq
   %lhs_mul = shl i64 %i, 5
   %rhs_mul = shl i64 %i, 10
@@ -184,7 +184,7 @@ define i32 @no_extract_shrl(i32 %i) nounwind {
 ; X64-NEXT:    andl $-8, %eax
 ; X64-NEXT:    shll $25, %eax
 ; X64-NEXT:    shrl $9, %edi
-; X64-NEXT:    leal (%rdi,%rax), %eax
+; X64-NEXT:    addl %edi, %eax
 ; X64-NEXT:    retq
   %lhs_div = lshr i32 %i, 3
   %rhs_div = lshr i32 %i, 9
@@ -264,4 +264,63 @@ define i8 @no_extract_udiv(i8 %i) nounwind {
   %lhs_shift = shl i8 %lhs_div,4
   %out = or i8 %lhs_shift, %rhs_div
   ret i8 %out
+}
+
+; DAGCombiner transforms shl X, 1 into add X, X.
+define i32 @extract_add_1(i32 %i) nounwind {
+; X86-LABEL: extract_add_1:
+; X86:       # %bb.0:
+; X86-NEXT:    movl {{[0-9]+}}(%esp), %eax
+; X86-NEXT:    roll %eax
+; X86-NEXT:    retl
+;
+; X64-LABEL: extract_add_1:
+; X64:       # %bb.0:
+; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    roll %eax
+; X64-NEXT:    retq
+  %ii = add i32 %i, %i
+  %rhs = lshr i32 %i, 31
+  %out = or i32 %ii, %rhs
+  ret i32 %out
+}
+
+define i32 @extract_add_1_comut(i32 %i) nounwind {
+; X86-LABEL: extract_add_1_comut:
+; X86:       # %bb.0:
+; X86-NEXT:    movl {{[0-9]+}}(%esp), %eax
+; X86-NEXT:    roll %eax
+; X86-NEXT:    retl
+;
+; X64-LABEL: extract_add_1_comut:
+; X64:       # %bb.0:
+; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    roll %eax
+; X64-NEXT:    retq
+  %ii = add i32 %i, %i
+  %lhs = lshr i32 %i, 31
+  %out = or i32 %lhs, %ii
+  ret i32 %out
+}
+
+define i32 @no_extract_add_1(i32 %i) nounwind {
+; X86-LABEL: no_extract_add_1:
+; X86:       # %bb.0:
+; X86-NEXT:    movl {{[0-9]+}}(%esp), %ecx
+; X86-NEXT:    leal (%ecx,%ecx), %eax
+; X86-NEXT:    shrl $27, %ecx
+; X86-NEXT:    orl %ecx, %eax
+; X86-NEXT:    retl
+;
+; X64-LABEL: no_extract_add_1:
+; X64:       # %bb.0:
+; X64-NEXT:    # kill: def $edi killed $edi def $rdi
+; X64-NEXT:    leal (%rdi,%rdi), %eax
+; X64-NEXT:    shrl $27, %edi
+; X64-NEXT:    orl %edi, %eax
+; X64-NEXT:    retq
+  %ii = add i32 %i, %i
+  %rhs = lshr i32 %i, 27
+  %out = or i32 %ii, %rhs
+  ret i32 %out
 }

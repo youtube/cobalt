@@ -1,9 +1,8 @@
 //===- Lexer.h - C Language Family Lexer ------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -139,7 +138,7 @@ public:
   /// with the specified preprocessor managing the lexing process.  This lexer
   /// assumes that the associated file buffer and Preprocessor objects will
   /// outlive it, so it doesn't take ownership of either of them.
-  Lexer(FileID FID, const llvm::MemoryBuffer *InputBuffer, Preprocessor &PP);
+  Lexer(FileID FID, const llvm::MemoryBuffer *InputFile, Preprocessor &PP);
 
   /// Lexer constructor - Create a new raw lexer object.  This object is only
   /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
@@ -150,7 +149,7 @@ public:
   /// Lexer constructor - Create a new raw lexer object.  This object is only
   /// suitable for calls to 'LexFromRawLexer'.  This lexer assumes that the
   /// text range will outlive it, so it doesn't take ownership of it.
-  Lexer(FileID FID, const llvm::MemoryBuffer *InputBuffer,
+  Lexer(FileID FID, const llvm::MemoryBuffer *FromFile,
         const SourceManager &SM, const LangOptions &LangOpts);
 
   Lexer(const Lexer &) = delete;
@@ -266,6 +265,21 @@ public:
   /// Return the current location in the buffer.
   const char *getBufferLocation() const { return BufferPtr; }
 
+  /// Returns the current lexing offset.
+  unsigned getCurrentBufferOffset() {
+    assert(BufferPtr >= BufferStart && "Invalid buffer state");
+    return BufferPtr - BufferStart;
+  }
+
+  /// Skip over \p NumBytes bytes.
+  ///
+  /// If the skip is successful, the next token will be lexed from the new
+  /// offset. The lexer also assumes that we skipped to the start of the line.
+  ///
+  /// \returns true if the skip failed (new offset would have been past the
+  /// end of the buffer), false otherwise.
+  bool skipOver(unsigned NumBytes);
+
   /// Stringify - Convert the specified string into a C string by i) escaping
   /// '\\' and " characters and ii) replacing newline character(s) with "\\n".
   /// If Charify is true, this escapes the ' character instead of ".
@@ -310,8 +324,8 @@ public:
   /// location.
   static StringRef getSpelling(SourceLocation loc,
                                SmallVectorImpl<char> &buffer,
-                               const SourceManager &SourceMgr,
-                               const LangOptions &LangOpts,
+                               const SourceManager &SM,
+                               const LangOptions &options,
                                bool *invalid = nullptr);
 
   /// MeasureTokenLength - Relex the token at the specified location and return
@@ -339,7 +353,7 @@ public:
   /// Get the physical length (including trigraphs and escaped newlines) of the
   /// first \p Characters characters of the token starting at TokStart.
   static unsigned getTokenPrefixLength(SourceLocation TokStart,
-                                       unsigned Characters,
+                                       unsigned CharNo,
                                        const SourceManager &SM,
                                        const LangOptions &LangOpts);
 
@@ -383,7 +397,7 @@ public:
     SourceLocation End = getLocForEndOfToken(Range.getEnd(), 0, SM, LangOpts);
     return End.isInvalid() ? CharSourceRange()
                            : CharSourceRange::getCharRange(
-                                 Range.getBegin(), End.getLocWithOffset(-1));
+                                 Range.getBegin(), End);
   }
   static CharSourceRange getAsCharRange(CharSourceRange Range,
                                         const SourceManager &SM,
@@ -711,20 +725,22 @@ private:
 
   bool isHexaLiteral(const char *Start, const LangOptions &LangOpts);
 
+  void codeCompleteIncludedFile(const char *PathStart,
+                                const char *CompletionPoint, bool IsAngled);
 
   /// Read a universal character name.
   ///
-  /// \param CurPtr The position in the source buffer after the initial '\'.
-  ///               If the UCN is syntactically well-formed (but not necessarily
-  ///               valid), this parameter will be updated to point to the
-  ///               character after the UCN.
+  /// \param StartPtr The position in the source buffer after the initial '\'.
+  ///                 If the UCN is syntactically well-formed (but not 
+  ///                 necessarily valid), this parameter will be updated to
+  ///                 point to the character after the UCN.
   /// \param SlashLoc The position in the source buffer of the '\'.
-  /// \param Tok The token being formed. Pass \c nullptr to suppress diagnostics
-  ///            and handle token formation in the caller.
+  /// \param Result   The token being formed. Pass \c nullptr to suppress
+  ///                 diagnostics and handle token formation in the caller.
   ///
   /// \return The Unicode codepoint specified by the UCN, or 0 if the UCN is
   ///         invalid.
-  uint32_t tryReadUCN(const char *&CurPtr, const char *SlashLoc, Token *Tok);
+  uint32_t tryReadUCN(const char *&StartPtr, const char *SlashLoc, Token *Result);
 
   /// Try to consume a UCN as part of an identifier at the current
   /// location.

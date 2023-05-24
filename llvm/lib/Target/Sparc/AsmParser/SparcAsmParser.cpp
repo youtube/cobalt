@@ -1,14 +1,14 @@
 //===-- SparcAsmParser.cpp - Parse Sparc assembly to MCInst instructions --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/SparcMCExpr.h"
 #include "MCTargetDesc/SparcMCTargetDesc.h"
+#include "TargetInfo/SparcTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -77,6 +77,8 @@ class SparcAsmParser : public MCTargetAsmParser {
 
   // Custom parse functions for Sparc specific operands.
   OperandMatchResultTy parseMEMOperand(OperandVector &Operands);
+
+  OperandMatchResultTy parseMembarTag(OperandVector &Operands);
 
   OperandMatchResultTy parseOperand(OperandVector &Operands, StringRef Name);
 
@@ -256,6 +258,7 @@ public:
   bool isMem() const override { return isMEMrr() || isMEMri(); }
   bool isMEMrr() const { return Kind == k_MemoryReg; }
   bool isMEMri() const { return Kind == k_MemoryImm; }
+  bool isMembarTag() const { return Kind == k_Immediate; }
 
   bool isIntReg() const {
     return (Kind == k_Register && Reg.Kind == rk_IntReg);
@@ -366,8 +369,14 @@ public:
     addExpr(Inst, Expr);
   }
 
+  void addMembarTagOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    const MCExpr *Expr = getImm();
+    addExpr(Inst, Expr);
+  }
+
   static std::unique_ptr<SparcOperand> CreateToken(StringRef Str, SMLoc S) {
-    auto Op = make_unique<SparcOperand>(k_Token);
+    auto Op = std::make_unique<SparcOperand>(k_Token);
     Op->Tok.Data = Str.data();
     Op->Tok.Length = Str.size();
     Op->StartLoc = S;
@@ -377,7 +386,7 @@ public:
 
   static std::unique_ptr<SparcOperand> CreateReg(unsigned RegNum, unsigned Kind,
                                                  SMLoc S, SMLoc E) {
-    auto Op = make_unique<SparcOperand>(k_Register);
+    auto Op = std::make_unique<SparcOperand>(k_Register);
     Op->Reg.RegNum = RegNum;
     Op->Reg.Kind   = (SparcOperand::RegisterKind)Kind;
     Op->StartLoc = S;
@@ -387,7 +396,7 @@ public:
 
   static std::unique_ptr<SparcOperand> CreateImm(const MCExpr *Val, SMLoc S,
                                                  SMLoc E) {
-    auto Op = make_unique<SparcOperand>(k_Immediate);
+    auto Op = std::make_unique<SparcOperand>(k_Immediate);
     Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
@@ -472,7 +481,7 @@ public:
 
   static std::unique_ptr<SparcOperand>
   CreateMEMr(unsigned Base, SMLoc S, SMLoc E) {
-    auto Op = make_unique<SparcOperand>(k_MemoryReg);
+    auto Op = std::make_unique<SparcOperand>(k_MemoryReg);
     Op->Mem.Base = Base;
     Op->Mem.OffsetReg = Sparc::G0;  // always 0
     Op->Mem.Off = nullptr;
@@ -637,7 +646,8 @@ bool SparcAsmParser::ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
   return Error(StartLoc, "invalid register name");
 }
 
-static void applyMnemonicAliases(StringRef &Mnemonic, uint64_t Features,
+static void applyMnemonicAliases(StringRef &Mnemonic,
+                                 const FeatureBitset &Features,
                                  unsigned VariantID);
 
 bool SparcAsmParser::ParseInstruction(ParseInstructionInfo &Info,
@@ -739,6 +749,52 @@ SparcAsmParser::parseMEMOperand(OperandVector &Operands) {
       Offset->isImm() ? SparcOperand::MorphToMEMri(BaseReg, std::move(Offset))
                       : SparcOperand::MorphToMEMrr(BaseReg, std::move(Offset)));
 
+  return MatchOperand_Success;
+}
+
+OperandMatchResultTy SparcAsmParser::parseMembarTag(OperandVector &Operands) {
+  SMLoc S = Parser.getTok().getLoc();
+  const MCExpr *EVal;
+  int64_t ImmVal = 0;
+
+  std::unique_ptr<SparcOperand> Mask;
+  if (parseSparcAsmOperand(Mask) == MatchOperand_Success) {
+    if (!Mask->isImm() || !Mask->getImm()->evaluateAsAbsolute(ImmVal) ||
+        ImmVal < 0 || ImmVal > 127) {
+      Error(S, "invalid membar mask number");
+      return MatchOperand_ParseFail;
+    }
+  }
+
+  while (getLexer().getKind() == AsmToken::Hash) {
+    SMLoc TagStart = getLexer().getLoc();
+    Parser.Lex(); // Eat the '#'.
+    unsigned MaskVal = StringSwitch<unsigned>(Parser.getTok().getString())
+      .Case("LoadLoad", 0x1)
+      .Case("StoreLoad", 0x2)
+      .Case("LoadStore", 0x4)
+      .Case("StoreStore", 0x8)
+      .Case("Lookaside", 0x10)
+      .Case("MemIssue", 0x20)
+      .Case("Sync", 0x40)
+      .Default(0);
+
+    Parser.Lex(); // Eat the identifier token.
+
+    if (!MaskVal) {
+      Error(TagStart, "unknown membar tag");
+      return MatchOperand_ParseFail;
+    }
+
+    ImmVal |= MaskVal;
+
+    if (getLexer().getKind() == AsmToken::Pipe)
+      Parser.Lex(); // Eat the '|'.
+  }
+
+  EVal = MCConstantExpr::create(ImmVal, getContext());
+  SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
+  Operands.push_back(SparcOperand::CreateImm(EVal, S, E));
   return MatchOperand_Success;
 }
 
@@ -1252,7 +1308,7 @@ bool SparcAsmParser::matchSparcAsmModifiers(const MCExpr *&EVal,
   return true;
 }
 
-extern "C" void LLVMInitializeSparcAsmParser() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSparcAsmParser() {
   RegisterMCAsmParser<SparcAsmParser> A(getTheSparcTarget());
   RegisterMCAsmParser<SparcAsmParser> B(getTheSparcV9Target());
   RegisterMCAsmParser<SparcAsmParser> C(getTheSparcelTarget());

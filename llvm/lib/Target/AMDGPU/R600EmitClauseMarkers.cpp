@@ -1,9 +1,8 @@
 //===-- R600EmitClauseMarkers.cpp - Emit CF_ALU ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -226,11 +225,11 @@ private:
         // occur in the same basic block as its definition, because
         // it is illegal for the scheduler to schedule them in
         // different blocks.
-        if (UseI->readsRegister(MOI->getReg()))
+        if (UseI->readsRegister(MOI->getReg(), &TRI))
           LastUseCount = AluInstCount;
 
         // Exit early if the current use kills the register
-        if (UseI != Def && UseI->killsRegister(MOI->getReg()))
+        if (UseI != Def && UseI->killsRegister(MOI->getReg(), &TRI))
           break;
       }
       if (LastUseCount)

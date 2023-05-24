@@ -1,9 +1,8 @@
 //===-- Constants.cpp - Implement Constant nodes --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,6 +22,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -31,6 +31,7 @@
 #include <algorithm>
 
 using namespace llvm;
+using namespace PatternMatch;
 
 //===----------------------------------------------------------------------===//
 //                              Constant Class
@@ -149,6 +150,30 @@ bool Constant::isOneValue() const {
   return false;
 }
 
+bool Constant::isNotOneValue() const {
+  // Check for 1 integers
+  if (const ConstantInt *CI = dyn_cast<ConstantInt>(this))
+    return !CI->isOneValue();
+
+  // Check for FP which are bitcasted from 1 integers
+  if (const ConstantFP *CFP = dyn_cast<ConstantFP>(this))
+    return !CFP->getValueAPF().bitcastToAPInt().isOneValue();
+
+  // Check that vectors don't contain 1
+  if (this->getType()->isVectorTy()) {
+    unsigned NumElts = this->getType()->getVectorNumElements();
+    for (unsigned i = 0; i != NumElts; ++i) {
+      Constant *Elt = this->getAggregateElement(i);
+      if (!Elt || !Elt->isNotOneValue())
+        return false;
+    }
+    return true;
+  }
+
+  // It *may* contain 1, we can't tell.
+  return false;
+}
+
 bool Constant::isMinSignedValue() const {
   // Check for INT_MIN integers
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(this))
@@ -184,18 +209,15 @@ bool Constant::isNotMinSignedValue() const {
   if (const ConstantFP *CFP = dyn_cast<ConstantFP>(this))
     return !CFP->getValueAPF().bitcastToAPInt().isMinSignedValue();
 
-  // Check for constant vectors which are splats of INT_MIN values.
-  if (const ConstantVector *CV = dyn_cast<ConstantVector>(this))
-    if (Constant *Splat = CV->getSplatValue())
-      return Splat->isNotMinSignedValue();
-
-  // Check for constant vectors which are splats of INT_MIN values.
-  if (const ConstantDataVector *CV = dyn_cast<ConstantDataVector>(this)) {
-    if (CV->isSplat()) {
-      if (CV->getElementType()->isFloatingPointTy())
-        return !CV->getElementAsAPFloat(0).bitcastToAPInt().isMinSignedValue();
-      return !CV->getElementAsAPInt(0).isMinSignedValue();
+  // Check that vectors don't contain INT_MIN
+  if (this->getType()->isVectorTy()) {
+    unsigned NumElts = this->getType()->getVectorNumElements();
+    for (unsigned i = 0; i != NumElts; ++i) {
+      Constant *Elt = this->getAggregateElement(i);
+      if (!Elt || !Elt->isNotMinSignedValue())
+        return false;
     }
+    return true;
   }
 
   // It *may* contain INT_MIN, we can't tell.
@@ -254,11 +276,39 @@ bool Constant::isNaN() const {
   return true;
 }
 
+bool Constant::isElementWiseEqual(Value *Y) const {
+  // Are they fully identical?
+  if (this == Y)
+    return true;
+
+  // The input value must be a vector constant with the same type.
+  Type *Ty = getType();
+  if (!isa<Constant>(Y) || !Ty->isVectorTy() || Ty != Y->getType())
+    return false;
+
+  // They may still be identical element-wise (if they have `undef`s).
+  // FIXME: This crashes on FP vector constants.
+  return match(ConstantExpr::getICmp(ICmpInst::Predicate::ICMP_EQ,
+                                     const_cast<Constant *>(this),
+                                     cast<Constant>(Y)),
+               m_One());
+}
+
 bool Constant::containsUndefElement() const {
   if (!getType()->isVectorTy())
     return false;
   for (unsigned i = 0, e = getType()->getVectorNumElements(); i != e; ++i)
     if (isa<UndefValue>(getAggregateElement(i)))
+      return true;
+
+  return false;
+}
+
+bool Constant::containsConstantExpression() const {
+  if (!getType()->isVectorTy())
+    return false;
+  for (unsigned i = 0, e = getType()->getVectorNumElements(); i != e; ++i)
+    if (isa<ConstantExpr>(getAggregateElement(i)))
       return true;
 
   return false;
@@ -353,8 +403,12 @@ Constant *Constant::getAggregateElement(unsigned Elt) const {
 
 Constant *Constant::getAggregateElement(Constant *Elt) const {
   assert(isa<IntegerType>(Elt->getType()) && "Index must be an integer");
-  if (ConstantInt *CI = dyn_cast<ConstantInt>(Elt))
+  if (ConstantInt *CI = dyn_cast<ConstantInt>(Elt)) {
+    // Check if the constant fits into an uint64_t.
+    if (CI->getValue().getActiveBits() > 64)
+      return nullptr;
     return getAggregateElement(CI->getZExtValue());
+  }
   return nullptr;
 }
 
@@ -492,22 +546,32 @@ bool Constant::needsRelocation() const {
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(this))
     return BA->getFunction()->needsRelocation();
 
-  // While raw uses of blockaddress need to be relocated, differences between
-  // two of them don't when they are for labels in the same function.  This is a
-  // common idiom when creating a table for the indirect goto extension, so we
-  // handle it efficiently here.
-  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this))
+  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(this)) {
     if (CE->getOpcode() == Instruction::Sub) {
       ConstantExpr *LHS = dyn_cast<ConstantExpr>(CE->getOperand(0));
       ConstantExpr *RHS = dyn_cast<ConstantExpr>(CE->getOperand(1));
       if (LHS && RHS && LHS->getOpcode() == Instruction::PtrToInt &&
-          RHS->getOpcode() == Instruction::PtrToInt &&
-          isa<BlockAddress>(LHS->getOperand(0)) &&
-          isa<BlockAddress>(RHS->getOperand(0)) &&
-          cast<BlockAddress>(LHS->getOperand(0))->getFunction() ==
-              cast<BlockAddress>(RHS->getOperand(0))->getFunction())
-        return false;
+          RHS->getOpcode() == Instruction::PtrToInt) {
+        Constant *LHSOp0 = LHS->getOperand(0);
+        Constant *RHSOp0 = RHS->getOperand(0);
+
+        // While raw uses of blockaddress need to be relocated, differences
+        // between two of them don't when they are for labels in the same
+        // function.  This is a common idiom when creating a table for the
+        // indirect goto extension, so we handle it efficiently here.
+        if (isa<BlockAddress>(LHSOp0) && isa<BlockAddress>(RHSOp0) &&
+            cast<BlockAddress>(LHSOp0)->getFunction() ==
+                cast<BlockAddress>(RHSOp0)->getFunction())
+          return false;
+
+        // Relative pointers do not need to be dynamically relocated.
+        if (auto *LHSGV = dyn_cast<GlobalValue>(LHSOp0->stripPointerCasts()))
+          if (auto *RHSGV = dyn_cast<GlobalValue>(RHSOp0->stripPointerCasts()))
+            if (LHSGV->isDSOLocal() && RHSGV->isDSOLocal())
+              return false;
+      }
     }
+  }
 
   bool Result = false;
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
@@ -553,16 +617,35 @@ void Constant::removeDeadConstantUsers() const {
     }
 
     // If the constant was dead, then the iterator is invalidated.
-    if (LastNonDeadUser == E) {
+    if (LastNonDeadUser == E)
       I = user_begin();
-      if (I == E) break;
-    } else {
-      I = LastNonDeadUser;
-      ++I;
-    }
+    else
+      I = std::next(LastNonDeadUser);
   }
 }
 
+Constant *Constant::replaceUndefsWith(Constant *C, Constant *Replacement) {
+  assert(C && Replacement && "Expected non-nullptr constant arguments");
+  Type *Ty = C->getType();
+  if (match(C, m_Undef())) {
+    assert(Ty == Replacement->getType() && "Expected matching types");
+    return Replacement;
+  }
+
+  // Don't know how to deal with this constant.
+  if (!Ty->isVectorTy())
+    return C;
+
+  unsigned NumElts = Ty->getVectorNumElements();
+  SmallVector<Constant *, 32> NewC(NumElts);
+  for (unsigned i = 0; i != NumElts; ++i) {
+    Constant *EltC = C->getAggregateElement(i);
+    assert((!EltC || EltC->getType() == Replacement->getType()) &&
+           "Expected matching types");
+    NewC[i] = EltC && match(EltC, m_Undef()) ? Replacement : EltC;
+  }
+  return ConstantVector::get(NewC);
+}
 
 
 //===----------------------------------------------------------------------===//
@@ -722,14 +805,36 @@ Constant *ConstantFP::get(Type *Ty, StringRef Str) {
   return C;
 }
 
-Constant *ConstantFP::getNaN(Type *Ty, bool Negative, unsigned Type) {
+Constant *ConstantFP::getNaN(Type *Ty, bool Negative, uint64_t Payload) {
   const fltSemantics &Semantics = *TypeToFloatSemantics(Ty->getScalarType());
-  APFloat NaN = APFloat::getNaN(Semantics, Negative, Type);
+  APFloat NaN = APFloat::getNaN(Semantics, Negative, Payload);
   Constant *C = get(Ty->getContext(), NaN);
 
   if (VectorType *VTy = dyn_cast<VectorType>(Ty))
     return ConstantVector::getSplat(VTy->getNumElements(), C);
 
+  return C;
+}
+
+Constant *ConstantFP::getQNaN(Type *Ty, bool Negative, APInt *Payload) {
+  const fltSemantics &Semantics = *TypeToFloatSemantics(Ty->getScalarType());
+  APFloat NaN = APFloat::getQNaN(Semantics, Negative, Payload);
+  Constant *C = get(Ty->getContext(), NaN);
+  
+  if (VectorType *VTy = dyn_cast<VectorType>(Ty))
+    return ConstantVector::getSplat(VTy->getNumElements(), C);
+  
+  return C;
+}
+
+Constant *ConstantFP::getSNaN(Type *Ty, bool Negative, APInt *Payload) {
+  const fltSemantics &Semantics = *TypeToFloatSemantics(Ty->getScalarType());
+  APFloat NaN = APFloat::getSNaN(Semantics, Negative, Payload);
+  Constant *C = get(Ty->getContext(), NaN);
+  
+  if (VectorType *VTy = dyn_cast<VectorType>(Ty))
+    return ConstantVector::getSplat(VTy->getNumElements(), C);
+  
   return C;
 }
 
@@ -940,7 +1045,7 @@ ConstantAggregate::ConstantAggregate(CompositeType *T, ValueTy VT,
                                      ArrayRef<Constant *> V)
     : Constant(T, VT, OperandTraits<ConstantAggregate>::op_end(this) - V.size(),
                V.size()) {
-  std::copy(V.begin(), V.end(), op_begin());
+  llvm::copy(V, op_begin());
 
   // Check that types match, unless this is an opaque struct.
   if (auto *ST = dyn_cast<StructType>(T))
@@ -1342,24 +1447,41 @@ void ConstantVector::destroyConstantImpl() {
   getType()->getContext().pImpl->VectorConstants.remove(this);
 }
 
-Constant *Constant::getSplatValue() const {
+Constant *Constant::getSplatValue(bool AllowUndefs) const {
   assert(this->getType()->isVectorTy() && "Only valid for vectors!");
   if (isa<ConstantAggregateZero>(this))
     return getNullValue(this->getType()->getVectorElementType());
   if (const ConstantDataVector *CV = dyn_cast<ConstantDataVector>(this))
     return CV->getSplatValue();
   if (const ConstantVector *CV = dyn_cast<ConstantVector>(this))
-    return CV->getSplatValue();
+    return CV->getSplatValue(AllowUndefs);
   return nullptr;
 }
 
-Constant *ConstantVector::getSplatValue() const {
+Constant *ConstantVector::getSplatValue(bool AllowUndefs) const {
   // Check out first element.
   Constant *Elt = getOperand(0);
   // Then make sure all remaining elements point to the same value.
-  for (unsigned I = 1, E = getNumOperands(); I < E; ++I)
-    if (getOperand(I) != Elt)
+  for (unsigned I = 1, E = getNumOperands(); I < E; ++I) {
+    Constant *OpC = getOperand(I);
+    if (OpC == Elt)
+      continue;
+
+    // Strict mode: any mismatch is not a splat.
+    if (!AllowUndefs)
       return nullptr;
+
+    // Allow undefs mode: ignore undefined elements.
+    if (isa<UndefValue>(OpC))
+      continue;
+
+    // If we do not have a defined element yet, use the current operand.
+    if (isa<UndefValue>(Elt))
+      Elt = OpC;
+
+    if (OpC != Elt)
+      return nullptr;
+  }
   return Elt;
 }
 
@@ -1780,6 +1902,37 @@ Constant *ConstantExpr::getAddrSpaceCast(Constant *C, Type *DstTy,
   return getFoldedCast(Instruction::AddrSpaceCast, C, DstTy, OnlyIfReduced);
 }
 
+Constant *ConstantExpr::get(unsigned Opcode, Constant *C, unsigned Flags, 
+                            Type *OnlyIfReducedTy) {
+  // Check the operands for consistency first.
+  assert(Instruction::isUnaryOp(Opcode) &&
+         "Invalid opcode in unary constant expression");
+
+#ifndef NDEBUG
+  switch (Opcode) {
+  case Instruction::FNeg:
+    assert(C->getType()->isFPOrFPVectorTy() &&
+           "Tried to create a floating-point operation on a "
+           "non-floating-point type!");
+    break;
+  default:
+    break;
+  }
+#endif
+
+  if (Constant *FC = ConstantFoldUnaryInstruction(Opcode, C))
+    return FC;
+
+  if (OnlyIfReducedTy == C->getType())
+    return nullptr;
+
+  Constant *ArgVec[] = { C };
+  ConstantExprKeyType Key(Opcode, ArgVec, 0, Flags);
+
+  LLVMContextImpl *pImpl = C->getContext().pImpl;
+  return pImpl->ExprConstants.getOrCreate(C->getType(), Key);
+}
+
 Constant *ConstantExpr::get(unsigned Opcode, Constant *C1, Constant *C2,
                             unsigned Flags, Type *OnlyIfReducedTy) {
   // Check the operands for consistency first.
@@ -1793,51 +1946,31 @@ Constant *ConstantExpr::get(unsigned Opcode, Constant *C1, Constant *C2,
   case Instruction::Add:
   case Instruction::Sub:
   case Instruction::Mul:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
+  case Instruction::UDiv:
+  case Instruction::SDiv:
+  case Instruction::URem:
+  case Instruction::SRem:
     assert(C1->getType()->isIntOrIntVectorTy() &&
            "Tried to create an integer operation on a non-integer type!");
     break;
   case Instruction::FAdd:
   case Instruction::FSub:
   case Instruction::FMul:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
+  case Instruction::FDiv:
+  case Instruction::FRem:
     assert(C1->getType()->isFPOrFPVectorTy() &&
            "Tried to create a floating-point operation on a "
            "non-floating-point type!");
     break;
-  case Instruction::UDiv:
-  case Instruction::SDiv:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert(C1->getType()->isIntOrIntVectorTy() &&
-           "Tried to create an arithmetic operation on a non-arithmetic type!");
-    break;
-  case Instruction::FDiv:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert(C1->getType()->isFPOrFPVectorTy() &&
-           "Tried to create an arithmetic operation on a non-arithmetic type!");
-    break;
-  case Instruction::URem:
-  case Instruction::SRem:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert(C1->getType()->isIntOrIntVectorTy() &&
-           "Tried to create an arithmetic operation on a non-arithmetic type!");
-    break;
-  case Instruction::FRem:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
-    assert(C1->getType()->isFPOrFPVectorTy() &&
-           "Tried to create an arithmetic operation on a non-arithmetic type!");
-    break;
   case Instruction::And:
   case Instruction::Or:
   case Instruction::Xor:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
     assert(C1->getType()->isIntOrIntVectorTy() &&
            "Tried to create a logical operation on a non-integral type!");
     break;
   case Instruction::Shl:
   case Instruction::LShr:
   case Instruction::AShr:
-    assert(C1->getType() == C2->getType() && "Op types should be identical!");
     assert(C1->getType()->isIntOrIntVectorTy() &&
            "Tried to create a shift operation on a non-integer type!");
     break;
@@ -1847,7 +1980,7 @@ Constant *ConstantExpr::get(unsigned Opcode, Constant *C1, Constant *C2,
 #endif
 
   if (Constant *FC = ConstantFoldBinaryInstruction(Opcode, C1, C2))
-    return FC;          // Fold a few common cases.
+    return FC;
 
   if (OnlyIfReducedTy == C1->getType())
     return nullptr;
@@ -1946,9 +2079,8 @@ Constant *ConstantExpr::getGetElementPtr(Type *Ty, Constant *C,
   if (!Ty)
     Ty = cast<PointerType>(C->getType()->getScalarType())->getElementType();
   else
-    assert(
-        Ty ==
-        cast<PointerType>(C->getType()->getScalarType())->getContainedType(0u));
+    assert(Ty ==
+           cast<PointerType>(C->getType()->getScalarType())->getElementType());
 
   if (Constant *FC =
           ConstantFoldGetElementPtr(Ty, C, InBounds, InRangeIndex, Idxs))
@@ -2101,7 +2233,7 @@ Constant *ConstantExpr::getShuffleVector(Constant *V1, Constant *V2,
   if (Constant *FC = ConstantFoldShuffleVectorInstruction(V1, V2, Mask))
     return FC;          // Fold a few common cases.
 
-  unsigned NElts = Mask->getType()->getVectorNumElements();
+  ElementCount NElts = Mask->getType()->getVectorElementCount();
   Type *EltTy = V1->getType()->getVectorElementType();
   Type *ShufTy = VectorType::get(EltTy, NElts);
 
@@ -2174,7 +2306,7 @@ Constant *ConstantExpr::getNeg(Constant *C, bool HasNUW, bool HasNSW) {
 Constant *ConstantExpr::getFNeg(Constant *C) {
   assert(C->getType()->isFPOrFPVectorTy() &&
          "Cannot FNEG a non-floating-point value!");
-  return getFSub(ConstantFP::getZeroValueForNegation(C->getType()), C);
+  return get(Instruction::FNeg, C);
 }
 
 Constant *ConstantExpr::getNot(Constant *C) {
@@ -2515,7 +2647,7 @@ Constant *ConstantDataArray::getFP(LLVMContext &Context,
 Constant *ConstantDataArray::getString(LLVMContext &Context,
                                        StringRef Str, bool AddNull) {
   if (!AddNull) {
-    const uint8_t *Data = reinterpret_cast<const uint8_t *>(Str.data());
+    const uint8_t *Data = Str.bytes_begin();
     return get(Context, makeArrayRef(Data, Str.size()));
   }
 
@@ -2918,7 +3050,7 @@ Value *ConstantExpr::handleOperandChangeImpl(Value *From, Value *ToV) {
       NewOps, this, From, To, NumUpdated, OperandNo);
 }
 
-Instruction *ConstantExpr::getAsInstruction() {
+Instruction *ConstantExpr::getAsInstruction() const {
   SmallVector<Value *, 4> ValueOperands(op_begin(), op_end());
   ArrayRef<Value*> Ops(ValueOperands);
 
@@ -2963,7 +3095,8 @@ Instruction *ConstantExpr::getAsInstruction() {
   case Instruction::FCmp:
     return CmpInst::Create((Instruction::OtherOps)getOpcode(),
                            (CmpInst::Predicate)getPredicate(), Ops[0], Ops[1]);
-
+  case Instruction::FNeg:
+    return UnaryOperator::Create((Instruction::UnaryOps)getOpcode(), Ops[0]);
   default:
     assert(getNumOperands() == 2 && "Must be binary operator?");
     BinaryOperator *BO =

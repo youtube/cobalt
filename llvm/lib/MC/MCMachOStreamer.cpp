@@ -1,9 +1,8 @@
 //===- MCMachOStreamer.cpp - MachO Streamer -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -89,10 +88,10 @@ public:
   void EmitAssemblerFlag(MCAssemblerFlag Flag) override;
   void EmitLinkerOptions(ArrayRef<std::string> Options) override;
   void EmitDataRegion(MCDataRegionType Kind) override;
-  void EmitVersionMin(MCVersionMinType Kind, unsigned Major,
-                      unsigned Minor, unsigned Update) override;
-  void EmitBuildVersion(unsigned Platform, unsigned Major,
-                        unsigned Minor, unsigned Update) override;
+  void EmitVersionMin(MCVersionMinType Kind, unsigned Major, unsigned Minor,
+                      unsigned Update, VersionTuple SDKVersion) override;
+  void EmitBuildVersion(unsigned Platform, unsigned Major, unsigned Minor,
+                        unsigned Update, VersionTuple SDKVersion) override;
   void EmitThumbFunc(MCSymbol *Func) override;
   bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) override;
   void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) override;
@@ -270,14 +269,16 @@ void MCMachOStreamer::EmitDataRegion(MCDataRegionType Kind) {
 }
 
 void MCMachOStreamer::EmitVersionMin(MCVersionMinType Kind, unsigned Major,
-                                     unsigned Minor, unsigned Update) {
-  getAssembler().setVersionMin(Kind, Major, Minor, Update);
+                                     unsigned Minor, unsigned Update,
+                                     VersionTuple SDKVersion) {
+  getAssembler().setVersionMin(Kind, Major, Minor, Update, SDKVersion);
 }
 
 void MCMachOStreamer::EmitBuildVersion(unsigned Platform, unsigned Major,
-                                       unsigned Minor, unsigned Update) {
+                                       unsigned Minor, unsigned Update,
+                                       VersionTuple SDKVersion) {
   getAssembler().setBuildVersion((MachO::PlatformType)Platform, Major, Minor,
-                                 Update);
+                                 Update, SDKVersion);
 }
 
 void MCMachOStreamer::EmitThumbFunc(MCSymbol *Symbol) {
@@ -329,6 +330,7 @@ bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Sym,
   case MCSA_Protected:
   case MCSA_Weak:
   case MCSA_Local:
+  case MCSA_LGlobal:
     return false;
 
   case MCSA_Global:
@@ -384,6 +386,10 @@ bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Sym,
   case MCSA_WeakDefAutoPrivate:
     Symbol->setWeakDefinition();
     Symbol->setWeakReference();
+    break;
+
+  case MCSA_Cold:
+    Symbol->setCold();
     break;
   }
 
@@ -507,7 +513,7 @@ MCStreamer *llvm::createMachOStreamer(MCContext &Context,
       new MCMachOStreamer(Context, std::move(MAB), std::move(OW), std::move(CE),
                           DWARFMustBeAtTheEnd, LabelSections);
   const Triple &Target = Context.getObjectFileInfo()->getTargetTriple();
-  S->EmitVersionForTarget(Target);
+  S->EmitVersionForTarget(Target, Context.getObjectFileInfo()->getSDKVersion());
   if (RelaxAll)
     S->getAssembler().setRelaxAll(true);
   return S;

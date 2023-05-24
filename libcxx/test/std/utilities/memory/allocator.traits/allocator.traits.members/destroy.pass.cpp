@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -55,7 +54,7 @@ struct A0
 
 int A0::count = 0;
 
-int main()
+int main(int, char**)
 {
     {
         A0::count = 0;
@@ -73,7 +72,7 @@ int main()
       std::aligned_storage<sizeof(VT)>::type store;
       std::allocator_traits<Alloc>::destroy(a, (VT*)&store);
     }
-#if TEST_STD_VER >= 11
+#if defined(_LIBCPP_VERSION) || TEST_STD_VER >= 11
     {
         A0::count = 0;
         b_destroy = 0;
@@ -87,4 +86,6 @@ int main()
         assert(b_destroy == 1);
     }
 #endif
+
+  return 0;
 }

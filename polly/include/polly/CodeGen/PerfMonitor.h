@@ -1,9 +1,8 @@
 //===--- PerfMonitor.h --- Monitor time spent in scops --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,13 +10,6 @@
 #define PERF_MONITOR_H
 
 #include "polly/CodeGen/IRBuilder.h"
-
-namespace llvm {
-class Function;
-class Module;
-class Value;
-class Instruction;
-} // namespace llvm
 
 namespace polly {
 
@@ -71,11 +63,6 @@ private:
   /// The value of the cycle counter at the beginning of the last scop.
   llvm::Value *CyclesInScopStartPtr;
 
-  /// A memory location which serves as argument of the RDTSCP function.
-  ///
-  /// The value written to this location is currently not used.
-  llvm::Value *RDTSCPWriteLocation;
-
   /// A global variable, that keeps track if the performance monitor
   /// initialization has already been run.
   llvm::Value *AlreadyInitializedPtr;
@@ -106,7 +93,7 @@ private:
   /// this scop runs.
   void addScopCounter();
 
-  /// Get a reference to the intrinsic "i64 @llvm.x86.rdtscp(i8*)".
+  /// Get a reference to the intrinsic "{ i64, i32 } @llvm.x86.rdtscp()".
   ///
   /// The rdtscp function returns the current value of the processor's
   /// time-stamp counter as well as the current CPU identifier. On modern x86

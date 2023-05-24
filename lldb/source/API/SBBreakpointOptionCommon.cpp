@@ -1,16 +1,11 @@
-//===-- SBBreakpointName.cpp ----------------------------------------*- C++ -*-===//
+//===-- SBBreakpointOptionCommon.cpp --------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/API/SBBreakpointName.h"
 #include "lldb/API/SBBreakpointLocation.h"
 #include "lldb/API/SBDebugger.h"
@@ -46,7 +41,7 @@ using namespace lldb_private;
 SBBreakpointCallbackBaton::SBBreakpointCallbackBaton(SBBreakpointHitCallback 
                                                          callback,
                                                      void *baton)
-      : TypedBaton(llvm::make_unique<CallbackData>()) {
+      : TypedBaton(std::make_unique<CallbackData>()) {
     getItem()->callback = callback;
     getItem()->callback_baton = baton;
   }

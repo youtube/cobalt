@@ -1,9 +1,8 @@
 //===- Consumed.cpp -------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -64,7 +63,7 @@ static SourceLocation getFirstStmtLoc(const CFGBlock *Block) {
   // is not empty.
   for (const auto &B : *Block)
     if (Optional<CFGStmt> CS = B.getAs<CFGStmt>())
-      return CS->getStmt()->getLocStart();
+      return CS->getStmt()->getBeginLoc();
 
   // Block is empty.
   // If we have one successor, return the first statement in that block
@@ -77,13 +76,13 @@ static SourceLocation getFirstStmtLoc(const CFGBlock *Block) {
 static SourceLocation getLastStmtLoc(const CFGBlock *Block) {
   // Find the source location of the last statement in the block, if the block
   // is not empty.
-  if (const Stmt *StmtNode = Block->getTerminator()) {
-    return StmtNode->getLocStart();
+  if (const Stmt *StmtNode = Block->getTerminatorStmt()) {
+    return StmtNode->getBeginLoc();
   } else {
     for (CFGBlock::const_reverse_iterator BI = Block->rbegin(),
          BE = Block->rend(); BI != BE; ++BI) {
       if (Optional<CFGStmt> CS = BI->getAs<CFGStmt>())
-        return CS->getStmt()->getLocStart();
+        return CS->getStmt()->getBeginLoc();
     }
   }
 
@@ -463,7 +462,6 @@ class ConsumedStmtVisitor : public ConstStmtVisitor<ConsumedStmtVisitor> {
   using InfoEntry = MapType::iterator;
   using ConstInfoEntry = MapType::const_iterator;
 
-  AnalysisDeclContext &AC;
   ConsumedAnalyzer &Analyzer;
   ConsumedStateMap *StateMap;
   MapType PropagationMap;
@@ -515,9 +513,8 @@ public:
   void VisitUnaryOperator(const UnaryOperator *UOp);
   void VisitVarDecl(const VarDecl *Var);
 
-  ConsumedStmtVisitor(AnalysisDeclContext &AC, ConsumedAnalyzer &Analyzer,
-                      ConsumedStateMap *StateMap)
-      : AC(AC), Analyzer(Analyzer), StateMap(StateMap) {}
+  ConsumedStmtVisitor(ConsumedAnalyzer &Analyzer, ConsumedStateMap *StateMap)
+      : Analyzer(Analyzer), StateMap(StateMap) {}
 
   PropagationInfo getInfo(const Expr *StmtNode) const {
     ConstInfoEntry Entry = findInfo(StmtNode);
@@ -647,10 +644,10 @@ bool ConsumedStmtVisitor::handleCall(const CallExpr *Call, const Expr *ObjArg,
       continue;
 
     // Adjust state on the caller side.
-    if (isRValueRef(ParamType))
-      setStateForVarOrTmp(StateMap, PInfo, consumed::CS_Consumed);
-    else if (ReturnTypestateAttr *RT = Param->getAttr<ReturnTypestateAttr>())
+    if (ReturnTypestateAttr *RT = Param->getAttr<ReturnTypestateAttr>())
       setStateForVarOrTmp(StateMap, PInfo, mapReturnTypestateAttrState(RT));
+    else if (isRValueRef(ParamType) || isConsumableType(ParamType))
+      setStateForVarOrTmp(StateMap, PInfo, consumed::CS_Consumed);
     else if (isPointerOrRef(ParamType) &&
              (!ParamType->getPointeeType().isConstQualified() ||
               isSetOnReadPtrType(ParamType)))
@@ -774,8 +771,7 @@ void ConsumedStmtVisitor::VisitCXXBindTemporaryExpr(
 void ConsumedStmtVisitor::VisitCXXConstructExpr(const CXXConstructExpr *Call) {
   CXXConstructorDecl *Constructor = Call->getConstructor();
 
-  ASTContext &CurrContext = AC.getASTContext();
-  QualType ThisType = Constructor->getThisType(CurrContext)->getPointeeType();
+  QualType ThisType = Constructor->getThisType()->getPointeeType();
 
   if (!isConsumableType(ThisType))
     return;
@@ -793,7 +789,7 @@ void ConsumedStmtVisitor::VisitCXXConstructExpr(const CXXConstructExpr *Call) {
   } else if (Constructor->isCopyConstructor()) {
     // Copy state from arg.  If setStateOnRead then set arg to CS_Unknown.
     ConsumedState NS =
-      isSetOnReadPtrType(Constructor->getThisType(CurrContext)) ?
+      isSetOnReadPtrType(Constructor->getThisType()) ?
       CS_Unknown : CS_None;
     copyInfo(Call->getArg(0), Call, NS);
   } else {
@@ -851,7 +847,7 @@ void ConsumedStmtVisitor::VisitDeclStmt(const DeclStmt *DeclS) {
 
 void ConsumedStmtVisitor::VisitMaterializeTemporaryExpr(
   const MaterializeTemporaryExpr *Temp) {
-  forwardInfo(Temp->GetTemporaryExpr(), Temp);
+  forwardInfo(Temp->getSubExpr(), Temp);
 }
 
 void ConsumedStmtVisitor::VisitMemberExpr(const MemberExpr *MExpr) {
@@ -893,7 +889,7 @@ void ConsumedStmtVisitor::VisitReturnStmt(const ReturnStmt *Ret) {
     }
   }
 
-  StateMap->checkParamsForReturnTypestate(Ret->getLocStart(),
+  StateMap->checkParamsForReturnTypestate(Ret->getBeginLoc(),
                                           Analyzer.WarningsHandler);
 }
 
@@ -1030,7 +1026,7 @@ void ConsumedBlockInfo::addInfo(
   } else if (OwnedStateMap)
     Entry = std::move(OwnedStateMap);
   else
-    Entry = llvm::make_unique<ConsumedStateMap>(*StateMap);
+    Entry = std::make_unique<ConsumedStateMap>(*StateMap);
 }
 
 void ConsumedBlockInfo::addInfo(const CFGBlock *Block,
@@ -1062,7 +1058,7 @@ ConsumedBlockInfo::getInfo(const CFGBlock *Block) {
   assert(Block && "Block pointer must not be NULL");
 
   auto &Entry = StateMapsArray[Block->getBlockID()];
-  return isBackEdgeTarget(Block) ? llvm::make_unique<ConsumedStateMap>(*Entry)
+  return isBackEdgeTarget(Block) ? std::make_unique<ConsumedStateMap>(*Entry)
                                  : std::move(Entry);
 }
 
@@ -1203,8 +1199,7 @@ void ConsumedAnalyzer::determineExpectedReturnState(AnalysisDeclContext &AC,
                                                     const FunctionDecl *D) {
   QualType ReturnType;
   if (const auto *Constructor = dyn_cast<CXXConstructorDecl>(D)) {
-    ASTContext &CurrContext = AC.getASTContext();
-    ReturnType = Constructor->getThisType(CurrContext)->getPointeeType();
+    ReturnType = Constructor->getThisType()->getPointeeType();
   } else
     ReturnType = D->getCallResultType();
 
@@ -1322,8 +1317,8 @@ void ConsumedAnalyzer::run(AnalysisDeclContext &AC) {
 
   BlockInfo = ConsumedBlockInfo(CFGraph->getNumBlockIDs(), SortedGraph);
 
-  CurrStates = llvm::make_unique<ConsumedStateMap>();
-  ConsumedStmtVisitor Visitor(AC, *this, CurrStates.get());
+  CurrStates = std::make_unique<ConsumedStateMap>();
+  ConsumedStmtVisitor Visitor(*this, CurrStates.get());
 
   // Add all trackable parameters to the state map.
   for (const auto *PI : D->parameters())
@@ -1363,7 +1358,7 @@ void ConsumedAnalyzer::run(AnalysisDeclContext &AC) {
 
       case CFGElement::AutomaticObjectDtor: {
         const CFGAutomaticObjDtor &DTor = B.castAs<CFGAutomaticObjDtor>();
-        SourceLocation Loc = DTor.getTriggerStmt()->getLocEnd();
+        SourceLocation Loc = DTor.getTriggerStmt()->getEndLoc();
         const VarDecl *Var = DTor.getVarDecl();
 
         Visitor.checkCallability(PropagationInfo(Var),

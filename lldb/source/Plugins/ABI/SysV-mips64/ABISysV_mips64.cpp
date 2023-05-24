@@ -1,24 +1,18 @@
 //===-- ABISysV_mips64.cpp --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "ABISysV_mips64.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 
-// Project includes
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectMemory.h"
@@ -32,6 +26,7 @@
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
 
 using namespace lldb;
@@ -554,20 +549,13 @@ ABISysV_mips64::GetRegisterInfoArray(uint32_t &count) {
 
 size_t ABISysV_mips64::GetRedZoneSize() const { return 0; }
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 
 ABISP
 ABISysV_mips64::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
-  static ABISP g_abi_sp;
-  const llvm::Triple::ArchType arch_type = arch.GetTriple().getArch();
-  if ((arch_type == llvm::Triple::mips64) ||
-      (arch_type == llvm::Triple::mips64el)) {
-    if (!g_abi_sp)
-      g_abi_sp.reset(new ABISysV_mips64(process_sp));
-    return g_abi_sp;
-  }
+  if (arch.GetTriple().isMIPS64())
+    return ABISP(
+        new ABISysV_mips64(std::move(process_sp), MakeMCRegisterInfo(arch)));
   return ABISP();
 }
 
@@ -602,18 +590,16 @@ bool ABISysV_mips64::PrepareTrivialCall(Thread &thread, addr_t sp,
   for (size_t i = 0; i < args.size(); ++i) {
     reg_info = reg_ctx->GetRegisterInfo(eRegisterKindGeneric,
                                         LLDB_REGNUM_GENERIC_ARG1 + i);
-    if (log)
-      log->Printf("About to write arg%zd (0x%" PRIx64 ") into %s", i + 1,
-                  args[i], reg_info->name);
+    LLDB_LOGF(log, "About to write arg%zd (0x%" PRIx64 ") into %s", i + 1,
+              args[i], reg_info->name);
     if (!reg_ctx->WriteRegisterFromUnsigned(reg_info, args[i]))
       return false;
   }
 
   // First, align the SP
 
-  if (log)
-    log->Printf("16-byte aligning SP: 0x%" PRIx64 " to 0x%" PRIx64,
-                (uint64_t)sp, (uint64_t)(sp & ~0xfull));
+  LLDB_LOGF(log, "16-byte aligning SP: 0x%" PRIx64 " to 0x%" PRIx64,
+            (uint64_t)sp, (uint64_t)(sp & ~0xfull));
 
   sp &= ~(0xfull); // 16-byte alignment
 
@@ -627,8 +613,7 @@ bool ABISysV_mips64::PrepareTrivialCall(Thread &thread, addr_t sp,
   const RegisterInfo *r25_info = reg_ctx->GetRegisterInfoByName("r25", 0);
   const RegisterInfo *r0_info = reg_ctx->GetRegisterInfoByName("zero", 0);
 
-  if (log)
-    log->Printf("Writing R0: 0x%" PRIx64, (uint64_t)0);
+  LLDB_LOGF(log, "Writing R0: 0x%" PRIx64, (uint64_t)0);
 
   /* Write r0 with 0, in case we are stopped in syscall,
    * such setting prevents automatic decrement of the PC.
@@ -637,29 +622,25 @@ bool ABISysV_mips64::PrepareTrivialCall(Thread &thread, addr_t sp,
   if (!reg_ctx->WriteRegisterFromUnsigned(r0_info, (uint64_t)0))
     return false;
 
-  if (log)
-    log->Printf("Writing SP: 0x%" PRIx64, (uint64_t)sp);
+  LLDB_LOGF(log, "Writing SP: 0x%" PRIx64, (uint64_t)sp);
 
   // Set "sp" to the requested value
   if (!reg_ctx->WriteRegisterFromUnsigned(sp_reg_info, sp))
     return false;
 
-  if (log)
-    log->Printf("Writing RA: 0x%" PRIx64, (uint64_t)return_addr);
+  LLDB_LOGF(log, "Writing RA: 0x%" PRIx64, (uint64_t)return_addr);
 
   // Set "ra" to the return address
   if (!reg_ctx->WriteRegisterFromUnsigned(ra_reg_info, return_addr))
     return false;
 
-  if (log)
-    log->Printf("Writing PC: 0x%" PRIx64, (uint64_t)func_addr);
+  LLDB_LOGF(log, "Writing PC: 0x%" PRIx64, (uint64_t)func_addr);
 
   // Set pc to the address of the called function.
   if (!reg_ctx->WriteRegisterFromUnsigned(pc_reg_info, func_addr))
     return false;
 
-  if (log)
-    log->Printf("Writing r25: 0x%" PRIx64, (uint64_t)func_addr);
+  LLDB_LOGF(log, "Writing r25: 0x%" PRIx64, (uint64_t)func_addr);
 
   // All callers of position independent functions must place the address of
   // the called function in t9 (r25)
@@ -769,7 +750,10 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
   Target *target = exe_ctx.GetTargetPtr();
   const ArchSpec target_arch = target->GetArchitecture();
   ByteOrder target_byte_order = target_arch.GetByteOrder();
-  const size_t byte_size = return_compiler_type.GetByteSize(nullptr);
+  llvm::Optional<uint64_t> byte_size =
+      return_compiler_type.GetByteSize(nullptr);
+  if (!byte_size)
+    return return_valobj_sp;
   const uint32_t type_flags = return_compiler_type.GetTypeInfo(nullptr);
   uint32_t fp_flag =
       target_arch.GetFlags() & lldb_private::ArchSpec::eMIPS_ABI_FP_mask;
@@ -788,7 +772,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
       uint64_t raw_value = reg_ctx->ReadRegisterAsUnsigned(r2_info, 0);
 
       const bool is_signed = (type_flags & eTypeIsSigned) != 0;
-      switch (byte_size) {
+      switch (*byte_size) {
       default:
         break;
 
@@ -829,7 +813,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
         // Don't handle complex yet.
       } else if (IsSoftFloat(fp_flag)) {
         uint64_t raw_value = reg_ctx->ReadRegisterAsUnsigned(r2_info, 0);
-        switch (byte_size) {
+        switch (*byte_size) {
         case 4:
           value.GetScalar() = *((float *)(&raw_value));
           success = true;
@@ -854,7 +838,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
         }
 
       } else {
-        if (byte_size <= sizeof(long double)) {
+        if (*byte_size <= sizeof(long double)) {
           const RegisterInfo *f0_info = reg_ctx->GetRegisterInfoByName("f0", 0);
 
           RegisterValue f0_value;
@@ -865,13 +849,13 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
           f0_value.GetData(f0_data);
 
           lldb::offset_t offset = 0;
-          if (byte_size == sizeof(float)) {
+          if (*byte_size == sizeof(float)) {
             value.GetScalar() = (float)f0_data.GetFloat(&offset);
             success = true;
-          } else if (byte_size == sizeof(double)) {
+          } else if (*byte_size == sizeof(double)) {
             value.GetScalar() = (double)f0_data.GetDouble(&offset);
             success = true;
-          } else if (byte_size == sizeof(long double)) {
+          } else if (*byte_size == sizeof(long double)) {
             const RegisterInfo *f2_info =
                 reg_ctx->GetRegisterInfoByName("f2", 0);
             RegisterValue f2_value;
@@ -886,21 +870,21 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
             if (target_byte_order == eByteOrderLittle) {
               copy_from_extractor = &f0_data;
               copy_from_extractor->CopyByteOrderedData(
-                  0, 8, data_sp->GetBytes(), byte_size - 8, target_byte_order);
+                  0, 8, data_sp->GetBytes(), *byte_size - 8, target_byte_order);
               f2_value.GetData(f2_data);
               copy_from_extractor = &f2_data;
               copy_from_extractor->CopyByteOrderedData(
-                  0, 8, data_sp->GetBytes() + 8, byte_size - 8,
+                  0, 8, data_sp->GetBytes() + 8, *byte_size - 8,
                   target_byte_order);
             } else {
               copy_from_extractor = &f0_data;
               copy_from_extractor->CopyByteOrderedData(
-                  0, 8, data_sp->GetBytes() + 8, byte_size - 8,
+                  0, 8, data_sp->GetBytes() + 8, *byte_size - 8,
                   target_byte_order);
               f2_value.GetData(f2_data);
               copy_from_extractor = &f2_data;
               copy_from_extractor->CopyByteOrderedData(
-                  0, 8, data_sp->GetBytes(), byte_size - 8, target_byte_order);
+                  0, 8, data_sp->GetBytes(), *byte_size - 8, target_byte_order);
             }
 
             return_valobj_sp = ValueObjectConstResult::Create(
@@ -917,7 +901,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
   } else if (type_flags & eTypeIsStructUnion || type_flags & eTypeIsClass ||
              type_flags & eTypeIsVector) {
     // Any structure of up to 16 bytes in size is returned in the registers.
-    if (byte_size <= 16) {
+    if (*byte_size <= 16) {
       DataBufferSP data_sp(new DataBufferHeap(16, 0));
       DataExtractor return_ext(data_sp, target_byte_order,
                                target->GetArchitecture().GetAddressByteSize());
@@ -927,15 +911,15 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
       uint32_t integer_bytes = 0;
 
       // True if return values are in FP return registers.
-      bool use_fp_regs = 0;
+      bool use_fp_regs = false;
       // True if we found any non floating point field in structure.
-      bool found_non_fp_field = 0;
+      bool found_non_fp_field = false;
       // True if return values are in r2 register.
-      bool use_r2 = 0;
+      bool use_r2 = false;
       // True if return values are in r3 register.
-      bool use_r3 = 0;
+      bool use_r3 = false;
       // True if the result is copied into our data buffer
-      bool sucess = 0;
+      bool sucess = false;
       std::string name;
       bool is_complex;
       uint32_t count;
@@ -953,9 +937,9 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
                                                    nullptr, nullptr);
 
           if (field_compiler_type.IsFloatingPointType(count, is_complex))
-            use_fp_regs = 1;
+            use_fp_regs = true;
           else
-            found_non_fp_field = 1;
+            found_non_fp_field = true;
         }
 
         if (use_fp_regs && !found_non_fp_field) {
@@ -975,8 +959,10 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
             CompilerType field_compiler_type =
                 return_compiler_type.GetFieldAtIndex(
                     idx, name, &field_bit_offset, nullptr, nullptr);
-            const size_t field_byte_width =
+            llvm::Optional<uint64_t> field_byte_width =
                 field_compiler_type.GetByteSize(nullptr);
+            if (!field_byte_width)
+              return return_valobj_sp;
 
             DataExtractor *copy_from_extractor = nullptr;
             uint64_t return_value[2];
@@ -984,7 +970,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
 
             if (idx == 0) {
               // This case is for long double type.
-              if (field_byte_width == 16) {
+              if (*field_byte_width == 16) {
 
                 // If structure contains long double type, then it is returned
                 // in fp0/fp1 registers.
@@ -1002,7 +988,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
                   return_value[0] = f1_data.GetU64(&offset);
                 }
 
-                f0_data.SetData(return_value, field_byte_width,
+                f0_data.SetData(return_value, *field_byte_width,
                                 target_byte_order);
               }
               copy_from_extractor = &f0_data; // This is in f0, copy from
@@ -1016,13 +1002,13 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
 
             // Sanity check to avoid crash
             if (!copy_from_extractor ||
-                field_byte_width > copy_from_extractor->GetByteSize())
+                *field_byte_width > copy_from_extractor->GetByteSize())
               return return_valobj_sp;
 
             // copy the register contents into our data buffer
             copy_from_extractor->CopyByteOrderedData(
-                0, field_byte_width,
-                data_sp->GetBytes() + (field_bit_offset / 8), field_byte_width,
+                0, *field_byte_width,
+                data_sp->GetBytes() + (field_bit_offset / 8), *field_byte_width,
                 target_byte_order);
           }
 
@@ -1045,12 +1031,12 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
 
         CompilerType field_compiler_type = return_compiler_type.GetFieldAtIndex(
             idx, name, &field_bit_offset, nullptr, nullptr);
-        const size_t field_byte_width =
+        llvm::Optional<uint64_t> field_byte_width =
             field_compiler_type.GetByteSize(nullptr);
 
         // if we don't know the size of the field (e.g. invalid type), just
         // bail out
-        if (field_byte_width == 0)
+        if (!field_byte_width || *field_byte_width == 0)
           break;
 
         uint32_t field_byte_offset = field_bit_offset / 8;
@@ -1062,25 +1048,25 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
 
           if (integer_bytes < 8) {
             // We have not yet consumed r2 completely.
-            if (integer_bytes + field_byte_width + padding <= 8) {
+            if (integer_bytes + *field_byte_width + padding <= 8) {
               // This field fits in r2, copy its value from r2 to our result
               // structure
-              integer_bytes = integer_bytes + field_byte_width +
+              integer_bytes = integer_bytes + *field_byte_width +
                               padding; // Increase the consumed bytes.
-              use_r2 = 1;
+              use_r2 = true;
             } else {
               // There isn't enough space left in r2 for this field, so this
               // will be in r3.
-              integer_bytes = integer_bytes + field_byte_width +
+              integer_bytes = integer_bytes + *field_byte_width +
                               padding; // Increase the consumed bytes.
-              use_r3 = 1;
+              use_r3 = true;
             }
           }
           // We already have consumed at-least 8 bytes that means r2 is done,
           // and this field will be in r3. Check if this field can fit in r3.
-          else if (integer_bytes + field_byte_width + padding <= 16) {
-            integer_bytes = integer_bytes + field_byte_width + padding;
-            use_r3 = 1;
+          else if (integer_bytes + *field_byte_width + padding <= 16) {
+            integer_bytes = integer_bytes + *field_byte_width + padding;
+            use_r3 = true;
           } else {
             // There isn't any space left for this field, this should not
             // happen as we have already checked the overall size is not
@@ -1092,11 +1078,11 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
       }
       // Vector types up to 16 bytes are returned in GP return registers
       if (type_flags & eTypeIsVector) {
-        if (byte_size <= 8)
-          use_r2 = 1;
+        if (*byte_size <= 8)
+          use_r2 = true;
         else {
-          use_r2 = 1;
-          use_r3 = 1;
+          use_r2 = true;
+          use_r3 = true;
         }
       }
 
@@ -1108,7 +1094,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
             error);
         if (bytes_copied != r2_info->byte_size)
           return return_valobj_sp;
-        sucess = 1;
+        sucess = true;
       }
       if (use_r3) {
         reg_ctx->ReadRegister(r3_info, r3_value);
@@ -1118,7 +1104,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
 
         if (bytes_copied != r3_info->byte_size)
           return return_valobj_sp;
-        sucess = 1;
+        sucess = true;
       }
       if (sucess) {
         // The result is in our data buffer.  Create a variable object out of
@@ -1176,6 +1162,7 @@ bool ABISysV_mips64::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("mips64 default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   return true;
 }
 
@@ -1216,9 +1203,7 @@ lldb_private::ConstString ABISysV_mips64::GetPluginNameStatic() {
   return g_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 
 lldb_private::ConstString ABISysV_mips64::GetPluginName() {
   return GetPluginNameStatic();

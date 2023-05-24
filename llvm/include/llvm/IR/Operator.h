@@ -1,9 +1,8 @@
 //===-- llvm/Operator.h - Operator utility subclass -------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -67,6 +66,7 @@ public:
 class OverflowingBinaryOperator : public Operator {
 public:
   enum {
+    AnyWrap        = 0,
     NoUnsignedWrap = (1 << 0),
     NoSignedWrap   = (1 << 1)
   };
@@ -187,6 +187,12 @@ public:
   };
 
   FastMathFlags() = default;
+
+  static FastMathFlags getFast() {
+    FastMathFlags FMF;
+    FMF.setFast();
+    return FMF;
+  }
 
   bool any() const { return Flags != 0; }
   bool none() const { return Flags == 0; }
@@ -364,19 +370,40 @@ public:
   /// precision.
   float getFPAccuracy() const;
 
-  static bool classof(const Instruction *I) {
-    return I->getType()->isFPOrFPVectorTy() ||
-      I->getOpcode() == Instruction::FCmp;
-  }
-
-  static bool classof(const ConstantExpr *CE) {
-    return CE->getType()->isFPOrFPVectorTy() ||
-           CE->getOpcode() == Instruction::FCmp;
-  }
-
   static bool classof(const Value *V) {
-    return (isa<Instruction>(V) && classof(cast<Instruction>(V))) ||
-           (isa<ConstantExpr>(V) && classof(cast<ConstantExpr>(V)));
+    unsigned Opcode;
+    if (auto *I = dyn_cast<Instruction>(V))
+      Opcode = I->getOpcode();
+    else if (auto *CE = dyn_cast<ConstantExpr>(V))
+      Opcode = CE->getOpcode();
+    else
+      return false;
+
+    switch (Opcode) {
+    case Instruction::FNeg:
+    case Instruction::FAdd:
+    case Instruction::FSub:
+    case Instruction::FMul:
+    case Instruction::FDiv:
+    case Instruction::FRem:
+    // FIXME: To clean up and correct the semantics of fast-math-flags, FCmp
+    //        should not be treated as a math op, but the other opcodes should.
+    //        This would make things consistent with Select/PHI (FP value type
+    //        determines whether they are math ops and, therefore, capable of
+    //        having fast-math-flags).
+    case Instruction::FCmp:
+      return true;
+    case Instruction::PHI:
+    case Instruction::Select:
+    case Instruction::Call: {
+      Type *Ty = V->getType();
+      while (ArrayType *ArrTy = dyn_cast<ArrayType>(Ty))
+        Ty = ArrTy->getElementType();
+      return Ty->isFPOrFPVectorTy();
+    }
+    default:
+      return false;
+    }
   }
 };
 

@@ -1,9 +1,8 @@
 //===-- JSONExporter.cpp  - Export Scops as JSON  -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -19,18 +18,14 @@
 #include "polly/ScopPass.h"
 #include "polly/Support/ScopLocation.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/RegionInfo.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/raw_ostream.h"
-#include "isl/constraint.h"
 #include "isl/map.h"
-#include "isl/printer.h"
 #include "isl/set.h"
-#include "isl/union_map.h"
 #include <memory>
 #include <string>
 #include <system_error>
@@ -183,7 +178,7 @@ static void exportScop(Scop &S) {
 
   // Write to file.
   std::error_code EC;
-  ToolOutputFile F(FileName, EC, llvm::sys::fs::F_Text);
+  ToolOutputFile F(FileName, EC, llvm::sys::fs::OF_Text);
 
   std::string FunctionName = S.getFunction().getName();
   errs() << "Writing JScop '" << S.getNameStr() << "' in function '"
@@ -288,9 +283,6 @@ static bool importSchedule(Scop &S, const json::Object &JScop,
     // Check if key 'schedule' is present.
     if (!statements[Index].getAsObject()->get("schedule")) {
       errs() << "Statement " << Index << " has no 'schedule' key.\n";
-      for (auto Element : NewSchedule) {
-        isl_map_free(Element.second);
-      }
       return false;
     }
     Optional<StringRef> Schedule =
@@ -304,9 +296,6 @@ static bool importSchedule(Scop &S, const json::Object &JScop,
     if (!Map) {
       errs() << "The schedule was not parsed successfully (index = " << Index
              << ").\n";
-      for (auto Element : NewSchedule) {
-        isl_map_free(Element.second);
-      }
       return false;
     }
 
@@ -321,23 +310,21 @@ static bool importSchedule(Scop &S, const json::Object &JScop,
       Map = isl_map_set_dim_id(Map, isl_dim_param, i, Id);
     }
     isl_space_free(Space);
-    NewSchedule[&Stmt] = Map;
+    NewSchedule[&Stmt] = isl::manage(Map);
     Index++;
   }
 
   // Check whether the new schedule is valid or not.
-  if (!D.isValidSchedule(S, &NewSchedule)) {
+  if (!D.isValidSchedule(S, NewSchedule)) {
     errs() << "JScop file contains a schedule that changes the "
            << "dependences. Use -disable-polly-legality to continue anyways\n";
-    for (auto Element : NewSchedule)
-      isl_map_free(Element.second);
     return false;
   }
 
   auto ScheduleMap = isl::union_map::empty(S.getParamSpace());
   for (ScopStmt &Stmt : S) {
     if (NewSchedule.find(&Stmt) != NewSchedule.end())
-      ScheduleMap = ScheduleMap.add_map(isl::manage(NewSchedule[&Stmt]));
+      ScheduleMap = ScheduleMap.add_map(NewSchedule[&Stmt]);
     else
       ScheduleMap = ScheduleMap.add_map(Stmt.getSchedule());
   }
@@ -723,9 +710,10 @@ static bool importScop(Scop &S, const Dependences &D, const DataLayout &DL,
   Expected<json::Value> ParseResult =
       json::parse(result.get().get()->getBuffer());
 
-  if (!ParseResult) {
-    ParseResult.takeError();
+  if (Error E = ParseResult.takeError()) {
     errs() << "JSCoP file could not be parsed\n";
+    errs() << E << "\n";
+    consumeError(std::move(E));
     return false;
   }
   json::Object &jscop = *ParseResult.get().getAsObject();

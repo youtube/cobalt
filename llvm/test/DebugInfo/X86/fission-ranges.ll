@@ -5,19 +5,37 @@
 ; RUN: llc -dwarf-version=5 -O0 %s -mtriple=x86_64-unknown-linux-gnu -filetype=obj -o %t
 ; RUN: llvm-dwarfdump -v %t | FileCheck --check-prefix=V5RNGLISTS %s
 
+; RUN: llc -O0 %s -mtriple=x86_64-unknown-linux-gnu -stop-after=livedebugvalues -o -| FileCheck --check-prefix=CHECK-MIR %s
+
+; LiveDebugValues should produce DBG_VALUEs for variable "b" in successive
+; blocks once we recognize that it is spilled.
+; CHECK-MIR: ![[BDIVAR:[0-9]+]] = !DILocalVariable(name: "b"
+; CHECK-MIR: DBG_VALUE $rsp, 0, ![[BDIVAR]], !DIExpression(DW_OP_constu, 32, DW_OP_minus)
+; CHECK-MIR-LABEL: bb.6.for.inc13:
+; CHECK-MIR: DBG_VALUE $rsp, 0, ![[BDIVAR]], !DIExpression(DW_OP_constu, 32, DW_OP_minus)
+; CHECK-MIR-LABEL: bb.7.for.inc16:
+; CHECK-MIR: DBG_VALUE $rsp, 0, ![[BDIVAR]], !DIExpression(DW_OP_constu, 32, DW_OP_minus)
+
+
 ; CHECK: .debug_info contents:
 ; CHECK: DW_TAG_compile_unit
 ; CHECK-NEXT: DW_AT_stmt_list
-; CHECK-NEXT: DW_AT_GNU_dwo_name
 ; CHECK-NEXT: DW_AT_comp_dir
+; CHECK-NEXT: DW_AT_GNU_dwo_name
 ; CHECK-NEXT: DW_AT_GNU_dwo_id
+; CHECK-NEXT: DW_AT_GNU_ranges_base
+; CHECK-NEXT: DW_AT_low_pc
+; CHECK-NEXT: DW_AT_high_pc
 ; CHECK-NEXT: DW_AT_GNU_addr_base [DW_FORM_sec_offset]                   (0x00000000)
 
 ; CHECK: .debug_info.dwo contents:
-; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[A:0x[0-9a-z]*]]
-; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[E:0x[0-9a-z]*]]
-; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[B:0x[0-9a-z]*]]
-; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[D:0x[0-9a-z]*]]
+; CHECK:      DW_TAG_formal_parameter
+; CHECK-NEXT:   DW_AT_const_value [DW_FORM_sdata] (1)
+; CHECK-NEXT:   DW_AT_name {{.*}} "p")
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[A:0x[0-9a-z]*]]:
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[E:0x[0-9a-z]*]]:
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[B:0x[0-9a-z]*]]:
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[D:0x[0-9a-z]*]]:
 ; CHECK: DW_AT_ranges [DW_FORM_sec_offset]   (0x00000000
 ; CHECK-NOT: .debug_loc contents:
 ; CHECK-NOT: Beginning address offset
@@ -27,23 +45,31 @@
 ; if they've changed due to a bugfix, change in register allocation, etc.
 
 ; CHECK:      [[A]]:
-; CHECK-NEXT:   Addr idx 2 (w/ length 169): DW_OP_consts +0, DW_OP_stack_value
-; CHECK-NEXT:   Addr idx 3 (w/ length 25): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000002, 0x0000000f): DW_OP_consts +0, DW_OP_stack_value
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000003, 0x0000000f): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000004, 0x00000012): DW_OP_breg7 RSP-8
+; CHECK-NEXT:   DW_LLE_end_of_list   ()
 ; CHECK:      [[E]]:
-; CHECK-NEXT:   Addr idx 4 (w/ length 19): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000005, 0x00000009): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000006, 0x00000062): DW_OP_breg7 RSP-44
+; CHECK-NEXT:   DW_LLE_end_of_list   ()
 ; CHECK:      [[B]]:
-; CHECK-NEXT:   Addr idx 5 (w/ length 17): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000007, 0x0000000f): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000008, 0x00000042): DW_OP_breg7 RSP-32
+; CHECK-NEXT:   DW_LLE_end_of_list   ()
 ; CHECK:      [[D]]:
-; CHECK-NEXT:   Addr idx 6 (w/ length 17): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x00000009, 0x0000000f): DW_OP_reg0 RAX
+; CHECK-NEXT:   DW_LLE_startx_length (0x0000000a, 0x0000002a): DW_OP_breg7 RSP-20
+; CHECK-NEXT:   DW_LLE_end_of_list   ()
 
 ; Make sure we don't produce any relocations in any .dwo section (though in particular, debug_info.dwo)
 ; HDR-NOT: .rela.{{.*}}.dwo
 
 ; Make sure we have enough stuff in the debug_addr to cover the address indexes
-; (6 is the last index in debug_loc.dwo, making 7 entries of 8 bytes each, 7 * 8
-; == 56 base 10 == 38 base 16)
+; (10 is the last index in debug_loc.dwo, making 11 entries of 8 bytes each,
+; 11 * 8 == 88 base 10 == 58 base 16)
 
-; HDR: .debug_addr 00000038
+; HDR: .debug_addr 00000058
 ; HDR-NOT: .rela.{{.*}}.dwo
 
 ; Check for the existence of a DWARF v5-style range list table in the .debug_rnglists
@@ -55,11 +81,14 @@
 ; V5RNGLISTS-NOT:  DW_TAG
 ; V5RNGLISTS:      DW_AT_rnglists_base [DW_FORM_sec_offset]  (0x0000000c)
 ; V5RNGLISTS:      .debug_rnglists contents:
-; V5RNGLISTS-NEXT: 0x00000000: range list header: length = 0x00000014, version = 0x0005,
-; V5RNGLISTS-SAME: addr_size = 0x08, seg_size = 0x00, offset_entry_count = 0x00000000
+; V5RNGLISTS-NEXT: 0x00000000: range list header: length = 0x00000019, version = 0x0005,
+; V5RNGLISTS-SAME: addr_size = 0x08, seg_size = 0x00, offset_entry_count = 0x00000001
+; V5RNGLISTS-NEXT: offsets: [
+; V5RNGLISTS-NEXT: => 0x00000010
+; V5RNGLISTS-NEXT: ]
 ; V5RNGLISTS-NEXT: ranges:
-; V5RNGLISTS-NEXT: 0x0000000c: [DW_RLE_offset_pair]:
-; V5RNGLISTS-NEXT: 0x0000000f: [DW_RLE_offset_pair]:
+; V5RNGLISTS-NEXT: 0x00000010: [DW_RLE_offset_pair]:
+; V5RNGLISTS-NEXT: 0x00000013: [DW_RLE_offset_pair]:
 ; V5RNGLISTS:      0x{{[0-9a-f]+}}: [DW_RLE_end_of_list]
 
 ; From the code:
@@ -128,19 +157,19 @@ for.body9:                                        ; preds = %for.body9, %for.con
   tail call void @llvm.dbg.value(metadata i32* @c, metadata !19, metadata !DIExpression()), !dbg !40
   %and = and i32 %and2, 1, !dbg !32
   %inc = add i32 %e.01, 1, !dbg !39
-  tail call void @llvm.dbg.value(metadata i32 %inc, metadata !18, metadata !DIExpression()), !dbg !39
+  tail call void @llvm.dbg.value(metadata i32 %inc, metadata !18, metadata !DIExpression()), !dbg !42
   %exitcond = icmp eq i32 %inc, 30, !dbg !39
   br i1 %exitcond, label %for.inc10, label %for.body9, !dbg !39
 
 for.inc10:                                        ; preds = %for.body9
   %inc11 = add nsw i32 %b.03, 1, !dbg !38
-  tail call void @llvm.dbg.value(metadata i32 %inc11, metadata !15, metadata !DIExpression()), !dbg !38
+  tail call void @llvm.dbg.value(metadata i32 %inc11, metadata !15, metadata !DIExpression()), !dbg !42
   %exitcond11 = icmp eq i32 %inc11, 30, !dbg !38
   br i1 %exitcond11, label %for.inc13, label %for.cond7.preheader, !dbg !38
 
 for.inc13:                                        ; preds = %for.inc10
   %inc14 = add i32 %d.06, 1, !dbg !37
-  tail call void @llvm.dbg.value(metadata i32 %inc14, metadata !16, metadata !DIExpression()), !dbg !37
+  tail call void @llvm.dbg.value(metadata i32 %inc14, metadata !16, metadata !DIExpression()), !dbg !42
   %exitcond12 = icmp eq i32 %inc14, 30, !dbg !37
   br i1 %exitcond12, label %for.inc16, label %for.cond4.preheader, !dbg !37
 
@@ -158,7 +187,7 @@ for.end18:                                        ; preds = %for.inc16
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

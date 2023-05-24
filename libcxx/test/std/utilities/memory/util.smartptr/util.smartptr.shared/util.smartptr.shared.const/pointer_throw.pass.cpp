@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,7 +19,9 @@
 #include <cstdlib>
 #include <cassert>
 
-#include "count_new.hpp"
+#include "count_new.h"
+
+#include "test_macros.h"
 
 struct A
 {
@@ -34,7 +35,7 @@ struct A
 int A::count = 0;
 
 
-int main()
+int main(int, char**)
 {
     A* ptr = new A;
     assert(A::count == 1);
@@ -49,4 +50,6 @@ int main()
         assert(A::count == 0);
     }
     assert(globalMemCounter.checkOutstandingNewEq(0));
+
+  return 0;
 }

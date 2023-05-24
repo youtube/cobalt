@@ -1,18 +1,13 @@
 //===-- OptionGroupOutputFile.cpp -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/OptionGroupOutputFile.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Host/OptionParser.h"
 
 using namespace lldb;
@@ -25,12 +20,12 @@ OptionGroupOutputFile::~OptionGroupOutputFile() {}
 
 static const uint32_t SHORT_OPTION_APND = 0x61706e64; // 'apnd'
 
-static OptionDefinition g_option_table[] = {
+static constexpr OptionDefinition g_option_table[] = {
     {LLDB_OPT_SET_1, false, "outfile", 'o', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeFilename,
+     nullptr, {}, 0, eArgTypeFilename,
      "Specify a path for capturing command output."},
     {LLDB_OPT_SET_1, false, "append-outfile", SHORT_OPTION_APND,
-     OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone,
+     OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone,
      "Append to the file specified with '--outfile <path>'."},
 };
 
@@ -55,8 +50,7 @@ OptionGroupOutputFile::SetOptionValue(uint32_t option_idx,
     break;
 
   default:
-    error.SetErrorStringWithFormat("unrecognized option '%c'", short_option);
-    break;
+    llvm_unreachable("Unimplemented option");
   }
 
   return error;

@@ -1,9 +1,10 @@
-add_llvm_library(LLVMLTO
+add_llvm_component_library(LLVMLTO
   Caching.cpp
   LTO.cpp
   LTOBackend.cpp
   LTOModule.cpp
   LTOCodeGenerator.cpp
+  SummaryBasedOptimizations.cpp
   UpdateCompilerUsed.cpp
   ThinLTOCodeGenerator.cpp
 

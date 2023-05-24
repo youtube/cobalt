@@ -1,9 +1,8 @@
 //===--- FasterStringFindCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -90,13 +89,14 @@ void FasterStringFindCheck::check(const MatchFinder::MatchResult &Result) {
   if (!Replacement)
     return;
 
-  diag(Literal->getLocStart(), "%0 called with a string literal consisting of "
+  diag(Literal->getBeginLoc(), "%0 called with a string literal consisting of "
                                "a single character; consider using the more "
                                "effective overload accepting a character")
-      << FindFunc << FixItHint::CreateReplacement(
-                         CharSourceRange::getTokenRange(Literal->getLocStart(),
-                                                        Literal->getLocEnd()),
-                         *Replacement);
+      << FindFunc
+      << FixItHint::CreateReplacement(
+             CharSourceRange::getTokenRange(Literal->getBeginLoc(),
+                                            Literal->getEndLoc()),
+             *Replacement);
 }
 
 } // namespace performance

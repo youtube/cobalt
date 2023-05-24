@@ -2,12 +2,8 @@
 Make sure we can find the binary inside an app bundle.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
@@ -26,10 +22,6 @@ class FindAppInMacOSAppBundle(TestBase):
         self.build()
         self.main_source_file = lldb.SBFileSpec("main.c")
         self.find_app_in_bundle_test()
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     def find_app_in_bundle_test(self):
         """This reads in the .app, makes sure we get the right binary and can run it."""

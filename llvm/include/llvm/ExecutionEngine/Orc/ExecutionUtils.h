@@ -1,9 +1,8 @@
 //===- ExecutionUtils.h - Utilities for executing code in Orc ---*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -20,8 +19,8 @@
 #include "llvm/ExecutionEngine/Orc/Core.h"
 #include "llvm/ExecutionEngine/Orc/OrcError.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
+#include "llvm/Object/Archive.h"
 #include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Target/TargetOptions.h"
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -39,44 +38,18 @@ class Value;
 
 namespace orc {
 
-/// A utility class for building TargetMachines for JITs.
-class JITTargetMachineBuilder {
-public:
-  JITTargetMachineBuilder(Triple TT);
-  static Expected<JITTargetMachineBuilder> detectHost();
-  Expected<std::unique_ptr<TargetMachine>> createTargetMachine();
+class ObjectLayer;
 
-  JITTargetMachineBuilder &setArch(std::string Arch) {
-    this->Arch = std::move(Arch);
-    return *this;
-  }
-  JITTargetMachineBuilder &setCPU(std::string CPU) {
-    this->CPU = std::move(CPU);
-    return *this;
-  }
-  JITTargetMachineBuilder &setRelocationModel(Optional<Reloc::Model> RM) {
-    this->RM = std::move(RM);
-    return *this;
-  }
-  JITTargetMachineBuilder &setCodeModel(Optional<CodeModel::Model> CM) {
-    this->CM = std::move(CM);
-    return *this;
-  }
-  JITTargetMachineBuilder &
-  addFeatures(const std::vector<std::string> &FeatureVec);
-  SubtargetFeatures &getFeatures() { return Features; }
-  TargetOptions &getOptions() { return Options; }
-
-private:
-  Triple TT;
-  std::string Arch;
-  std::string CPU;
-  SubtargetFeatures Features;
-  TargetOptions Options;
-  Optional<Reloc::Model> RM;
-  Optional<CodeModel::Model> CM;
-  CodeGenOpt::Level OptLevel = CodeGenOpt::Default;
-};
+/// Run a main function, returning the result.
+///
+/// If the optional ProgramName argument is given then it will be inserted
+/// before the strings in Args as the first argument to the called function.
+///
+/// It is legal to have an empty argument list and no program name, however
+/// many main functions will expect a name argument at least, and will fail
+/// if none is provided.
+int runAsMain(int (*Main)(int, char *[]), ArrayRef<std::string> Args,
+              Optional<StringRef> ProgramName = None);
 
 /// This iterator provides a convenient way to iterate over the elements
 ///        of an llvm.global_ctors/llvm.global_dtors instance.
@@ -134,11 +107,18 @@ iterator_range<CtorDtorIterator> getDestructors(const Module &M);
 /// Convenience class for recording constructor/destructor names for
 ///        later execution.
 template <typename JITLayerT>
-class CtorDtorRunner {
+class LegacyCtorDtorRunner {
 public:
   /// Construct a CtorDtorRunner for the given range using the given
   ///        name mangling function.
-  CtorDtorRunner(std::vector<std::string> CtorDtorNames, VModuleKey K)
+  LLVM_ATTRIBUTE_DEPRECATED(
+      LegacyCtorDtorRunner(std::vector<std::string> CtorDtorNames,
+                           VModuleKey K),
+      "ORCv1 utilities (utilities with the 'Legacy' prefix) are deprecated. "
+      "Please use the ORCv2 CtorDtorRunner utility instead");
+
+  LegacyCtorDtorRunner(ORCv1DeprecationAcknowledgement,
+                       std::vector<std::string> CtorDtorNames, VModuleKey K)
       : CtorDtorNames(std::move(CtorDtorNames)), K(K) {}
 
   /// Run the recorded constructors/destructors through the given JIT
@@ -169,9 +149,14 @@ private:
   orc::VModuleKey K;
 };
 
-class CtorDtorRunner2 {
+template <typename JITLayerT>
+LegacyCtorDtorRunner<JITLayerT>::LegacyCtorDtorRunner(
+    std::vector<std::string> CtorDtorNames, VModuleKey K)
+    : CtorDtorNames(std::move(CtorDtorNames)), K(K) {}
+
+class CtorDtorRunner {
 public:
-  CtorDtorRunner2(VSO &V) : V(V) {}
+  CtorDtorRunner(JITDylib &JD) : JD(JD) {}
   void add(iterator_range<CtorDtorIterator> CtorDtors);
   Error run();
 
@@ -179,7 +164,7 @@ private:
   using CtorDtorList = std::vector<SymbolStringPtr>;
   using CtorDtorPriorityMap = std::map<unsigned, CtorDtorList>;
 
-  VSO &V;
+  JITDylib &JD;
   CtorDtorPriorityMap CtorDtorsByPriority;
 };
 
@@ -217,11 +202,18 @@ protected:
                                void *DSOHandle);
 };
 
-class LocalCXXRuntimeOverrides : public LocalCXXRuntimeOverridesBase {
+class LegacyLocalCXXRuntimeOverrides : public LocalCXXRuntimeOverridesBase {
 public:
   /// Create a runtime-overrides class.
   template <typename MangleFtorT>
-  LocalCXXRuntimeOverrides(const MangleFtorT &Mangle) {
+  LLVM_ATTRIBUTE_DEPRECATED(
+      LegacyLocalCXXRuntimeOverrides(const MangleFtorT &Mangle),
+      "ORCv1 utilities (utilities with the 'Legacy' prefix) are deprecated. "
+      "Please use the ORCv2 LocalCXXRuntimeOverrides utility instead");
+
+  template <typename MangleFtorT>
+  LegacyLocalCXXRuntimeOverrides(ORCv1DeprecationAcknowledgement,
+                                 const MangleFtorT &Mangle) {
     addOverride(Mangle("__dso_handle"), toTargetAddress(&DSOHandleOverride));
     addOverride(Mangle("__cxa_atexit"), toTargetAddress(&CXAAtExitOverride));
   }
@@ -242,27 +234,93 @@ private:
   StringMap<JITTargetAddress> CXXRuntimeOverrides;
 };
 
-class LocalCXXRuntimeOverrides2 : public LocalCXXRuntimeOverridesBase {
+template <typename MangleFtorT>
+LegacyLocalCXXRuntimeOverrides::LegacyLocalCXXRuntimeOverrides(
+    const MangleFtorT &Mangle) {
+  addOverride(Mangle("__dso_handle"), toTargetAddress(&DSOHandleOverride));
+  addOverride(Mangle("__cxa_atexit"), toTargetAddress(&CXAAtExitOverride));
+}
+
+class LocalCXXRuntimeOverrides : public LocalCXXRuntimeOverridesBase {
 public:
-  Error enable(VSO &V, MangleAndInterner &Mangler);
+  Error enable(JITDylib &JD, MangleAndInterner &Mangler);
 };
 
 /// A utility class to expose symbols found via dlsym to the JIT.
 ///
-/// If an instance of this class is attached to a VSO as a fallback definition
-/// generator, then any symbol found in the given DynamicLibrary that passes
-/// the 'Allow' predicate will be added to the VSO.
-class DynamicLibraryFallbackGenerator {
+/// If an instance of this class is attached to a JITDylib as a fallback
+/// definition generator, then any symbol found in the given DynamicLibrary that
+/// passes the 'Allow' predicate will be added to the JITDylib.
+class DynamicLibrarySearchGenerator : public JITDylib::DefinitionGenerator {
 public:
-  using SymbolPredicate = std::function<bool(SymbolStringPtr)>;
-  DynamicLibraryFallbackGenerator(sys::DynamicLibrary Dylib,
-                                  const DataLayout &DL, SymbolPredicate Allow);
-  SymbolNameSet operator()(VSO &V, const SymbolNameSet &Names);
+  using SymbolPredicate = std::function<bool(const SymbolStringPtr &)>;
+
+  /// Create a DynamicLibrarySearchGenerator that searches for symbols in the
+  /// given sys::DynamicLibrary.
+  ///
+  /// If the Allow predicate is given then only symbols matching the predicate
+  /// will be searched for. If the predicate is not given then all symbols will
+  /// be searched for.
+  DynamicLibrarySearchGenerator(sys::DynamicLibrary Dylib, char GlobalPrefix,
+                                SymbolPredicate Allow = SymbolPredicate());
+
+  /// Permanently loads the library at the given path and, on success, returns
+  /// a DynamicLibrarySearchGenerator that will search it for symbol definitions
+  /// in the library. On failure returns the reason the library failed to load.
+  static Expected<std::unique_ptr<DynamicLibrarySearchGenerator>>
+  Load(const char *FileName, char GlobalPrefix,
+       SymbolPredicate Allow = SymbolPredicate());
+
+  /// Creates a DynamicLibrarySearchGenerator that searches for symbols in
+  /// the current process.
+  static Expected<std::unique_ptr<DynamicLibrarySearchGenerator>>
+  GetForCurrentProcess(char GlobalPrefix,
+                       SymbolPredicate Allow = SymbolPredicate()) {
+    return Load(nullptr, GlobalPrefix, std::move(Allow));
+  }
+
+  Error tryToGenerate(LookupKind K, JITDylib &JD,
+                      JITDylibLookupFlags JDLookupFlags,
+                      const SymbolLookupSet &Symbols) override;
 
 private:
   sys::DynamicLibrary Dylib;
   SymbolPredicate Allow;
   char GlobalPrefix;
+};
+
+/// A utility class to expose symbols from a static library.
+///
+/// If an instance of this class is attached to a JITDylib as a fallback
+/// definition generator, then any symbol found in the archive will result in
+/// the containing object being added to the JITDylib.
+class StaticLibraryDefinitionGenerator : public JITDylib::DefinitionGenerator {
+public:
+  /// Try to create a StaticLibraryDefinitionGenerator from the given path.
+  ///
+  /// This call will succeed if the file at the given path is a static library
+  /// is a valid archive, otherwise it will return an error.
+  static Expected<std::unique_ptr<StaticLibraryDefinitionGenerator>>
+  Load(ObjectLayer &L, const char *FileName);
+
+  /// Try to create a StaticLibrarySearchGenerator from the given memory buffer.
+  /// This call will succeed if the buffer contains a valid archive, otherwise
+  /// it will return an error.
+  static Expected<std::unique_ptr<StaticLibraryDefinitionGenerator>>
+  Create(ObjectLayer &L, std::unique_ptr<MemoryBuffer> ArchiveBuffer);
+
+  Error tryToGenerate(LookupKind K, JITDylib &JD,
+                      JITDylibLookupFlags JDLookupFlags,
+                      const SymbolLookupSet &Symbols) override;
+
+private:
+  StaticLibraryDefinitionGenerator(ObjectLayer &L,
+                                   std::unique_ptr<MemoryBuffer> ArchiveBuffer,
+                                   Error &Err);
+
+  ObjectLayer &L;
+  std::unique_ptr<MemoryBuffer> ArchiveBuffer;
+  std::unique_ptr<object::Archive> Archive;
 };
 
 } // end namespace orc

@@ -1,7 +1,5 @@
 """ Testing debugging of a binary with "mixed" dwarf (with/without fission). """
-import os
 import lldb
-import sys
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
@@ -9,9 +7,6 @@ from lldbsuite.test import lldbutil
 
 class TestMixedDwarfBinary(TestBase):
     mydir = TestBase.compute_mydir(__file__)
-
-    def setUp(self):
-        TestBase.setUp(self)
 
     @no_debug_info_test  # Prevent the genaration of the dwarf version of this test
     @add_test_categories(["dwo"])

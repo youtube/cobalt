@@ -1,9 +1,8 @@
 //===- FunctionComparator.h - Function Comparator -------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -114,6 +113,19 @@ int FunctionComparator::cmpAttrs(const AttributeList L,
     for (; LI != LE && RI != RE; ++LI, ++RI) {
       Attribute LA = *LI;
       Attribute RA = *RI;
+      if (LA.isTypeAttribute() && RA.isTypeAttribute()) {
+        if (LA.getKindAsEnum() != RA.getKindAsEnum())
+          return cmpNumbers(LA.getKindAsEnum(), RA.getKindAsEnum());
+
+        Type *TyL = LA.getValueAsType();
+        Type *TyR = RA.getValueAsType();
+        if (TyL && TyR)
+          return cmpTypes(TyL, TyR);
+
+        // Two pointers, at least one null, so the comparison result is
+        // independent of the value of a real pointer.
+        return cmpNumbers((uint64_t)TyL, (uint64_t)TyR);
+      }
       if (LA < RA)
         return -1;
       if (RA < LA)
@@ -410,8 +422,6 @@ int FunctionComparator::cmpTypes(Type *TyL, Type *TyR) const {
   switch (TyL->getTypeID()) {
   default:
     llvm_unreachable("Unknown type!");
-    // Fall through in Release mode.
-    LLVM_FALLTHROUGH;
   case Type::IntegerTyID:
     return cmpNumbers(cast<IntegerType>(TyL)->getBitWidth(),
                       cast<IntegerType>(TyR)->getBitWidth());
@@ -559,31 +569,20 @@ int FunctionComparator::cmpOperations(const Instruction *L,
   }
   if (const CmpInst *CI = dyn_cast<CmpInst>(L))
     return cmpNumbers(CI->getPredicate(), cast<CmpInst>(R)->getPredicate());
-  if (const CallInst *CI = dyn_cast<CallInst>(L)) {
-    if (int Res = cmpNumbers(CI->getCallingConv(),
-                             cast<CallInst>(R)->getCallingConv()))
+  if (auto CSL = CallSite(const_cast<Instruction *>(L))) {
+    auto CSR = CallSite(const_cast<Instruction *>(R));
+    if (int Res = cmpNumbers(CSL.getCallingConv(), CSR.getCallingConv()))
       return Res;
-    if (int Res =
-            cmpAttrs(CI->getAttributes(), cast<CallInst>(R)->getAttributes()))
+    if (int Res = cmpAttrs(CSL.getAttributes(), CSR.getAttributes()))
       return Res;
-    if (int Res = cmpOperandBundlesSchema(CI, R))
+    if (int Res = cmpOperandBundlesSchema(L, R))
       return Res;
-    return cmpRangeMetadata(
-        CI->getMetadata(LLVMContext::MD_range),
-        cast<CallInst>(R)->getMetadata(LLVMContext::MD_range));
-  }
-  if (const InvokeInst *II = dyn_cast<InvokeInst>(L)) {
-    if (int Res = cmpNumbers(II->getCallingConv(),
-                             cast<InvokeInst>(R)->getCallingConv()))
-      return Res;
-    if (int Res =
-            cmpAttrs(II->getAttributes(), cast<InvokeInst>(R)->getAttributes()))
-      return Res;
-    if (int Res = cmpOperandBundlesSchema(II, R))
-      return Res;
-    return cmpRangeMetadata(
-        II->getMetadata(LLVMContext::MD_range),
-        cast<InvokeInst>(R)->getMetadata(LLVMContext::MD_range));
+    if (const CallInst *CI = dyn_cast<CallInst>(L))
+      if (int Res = cmpNumbers(CI->getTailCallKind(),
+                               cast<CallInst>(R)->getTailCallKind()))
+        return Res;
+    return cmpRangeMetadata(L->getMetadata(LLVMContext::MD_range),
+                            R->getMetadata(LLVMContext::MD_range));
   }
   if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(L)) {
     ArrayRef<unsigned> LIndices = IVI->getIndices();
@@ -867,8 +866,8 @@ int FunctionComparator::compare() {
     if (int Res = cmpBasicBlocks(BBL, BBR))
       return Res;
 
-    const TerminatorInst *TermL = BBL->getTerminator();
-    const TerminatorInst *TermR = BBR->getTerminator();
+    const Instruction *TermL = BBL->getTerminator();
+    const Instruction *TermR = BBR->getTerminator();
 
     assert(TermL->getNumSuccessors() == TermR->getNumSuccessors());
     for (unsigned i = 0, e = TermL->getNumSuccessors(); i != e; ++i) {
@@ -938,7 +937,7 @@ FunctionComparator::FunctionHash FunctionComparator::functionHash(Function &F) {
     for (auto &Inst : *BB) {
       H.add(Inst.getOpcode());
     }
-    const TerminatorInst *Term = BB->getTerminator();
+    const Instruction *Term = BB->getTerminator();
     for (unsigned i = 0, e = Term->getNumSuccessors(); i != e; ++i) {
       if (!VisitedBBs.insert(Term->getSuccessor(i)).second)
         continue;

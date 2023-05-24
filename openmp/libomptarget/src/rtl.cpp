@@ -1,9 +1,8 @@
 //===----------- rtl.cpp - Target independent OpenMP target RTL -----------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -46,9 +45,8 @@ void RTLsTy::LoadRTLs() {
 #endif // OMPTARGET_DEBUG
 
   // Parse environment variable OMP_TARGET_OFFLOAD (if set)
-  char *envStr = getenv("OMP_TARGET_OFFLOAD");
-  if (envStr && !strcmp(envStr, "DISABLED")) {
-    DP("Target offloading disabled by environment\n");
+  TargetOffloadPolicy = (kmp_target_offload_kind_t) __kmpc_get_target_offload();
+  if (TargetOffloadPolicy == tgt_disabled) {
     return;
   }
 
@@ -108,6 +106,10 @@ void RTLsTy::LoadRTLs() {
     if (!(*((void**) &R.run_team_region) = dlsym(
               dynlib_handle, "__tgt_rtl_run_target_team_region")))
       continue;
+
+    // Optional functions
+    *((void**) &R.init_requires) = dlsym(
+        dynlib_handle, "__tgt_rtl_init_requires");
 
     // No devices are supported by this RTL?
     if (!(R.NumberOfDevices = R.number_of_devices())) {
@@ -188,10 +190,52 @@ static void RegisterGlobalCtorsDtorsForImage(__tgt_bin_desc *desc,
   }
 }
 
+void RTLsTy::RegisterRequires(int64_t flags) {
+  // TODO: add more elaborate check.
+  // Minimal check: only set requires flags if previous value
+  // is undefined. This ensures that only the first call to this
+  // function will set the requires flags. All subsequent calls
+  // will be checked for compatibility.
+  assert(flags != OMP_REQ_UNDEFINED &&
+         "illegal undefined flag for requires directive!");
+  if (RequiresFlags == OMP_REQ_UNDEFINED) {
+    RequiresFlags = flags;
+    return;
+  }
+
+  // If multiple compilation units are present enforce
+  // consistency across all of them for require clauses:
+  //  - reverse_offload
+  //  - unified_address
+  //  - unified_shared_memory
+  if ((RequiresFlags & OMP_REQ_REVERSE_OFFLOAD) !=
+      (flags & OMP_REQ_REVERSE_OFFLOAD)) {
+    FATAL_MESSAGE0(1,
+        "'#pragma omp requires reverse_offload' not used consistently!");
+  }
+  if ((RequiresFlags & OMP_REQ_UNIFIED_ADDRESS) !=
+          (flags & OMP_REQ_UNIFIED_ADDRESS)) {
+    FATAL_MESSAGE0(1,
+        "'#pragma omp requires unified_address' not used consistently!");
+  }
+  if ((RequiresFlags & OMP_REQ_UNIFIED_SHARED_MEMORY) !=
+          (flags & OMP_REQ_UNIFIED_SHARED_MEMORY)) {
+    FATAL_MESSAGE0(1,
+        "'#pragma omp requires unified_shared_memory' not used consistently!");
+  }
+
+  // TODO: insert any other missing checks
+
+  DP("New requires flags %ld compatible with existing %ld!\n",
+     flags, RequiresFlags);
+}
+
 void RTLsTy::RegisterLib(__tgt_bin_desc *desc) {
   // Attempt to load all plugins available in the system.
   std::call_once(initFlag, &RTLsTy::LoadRTLs, this);
 
+  if (desc->HostEntriesBegin == desc->HostEntriesEnd)
+    return;
   RTLsMtx.lock();
   // Register the images with the RTLs that understand them, if any.
   for (int32_t i = 0; i < desc->NumDeviceImages; ++i) {
@@ -216,7 +260,6 @@ void RTLsTy::RegisterLib(__tgt_bin_desc *desc) {
       if (!R.isUsed) {
         // Initialize the device information for the RTL we are about to use.
         DeviceTy device(&R);
-
         size_t start = Devices.size();
         Devices.resize(start + R.NumberOfDevices, device);
         for (int32_t device_id = 0; device_id < R.NumberOfDevices;
@@ -225,9 +268,6 @@ void RTLsTy::RegisterLib(__tgt_bin_desc *desc) {
           Devices[start + device_id].DeviceID = start + device_id;
           // RTL local device ID
           Devices[start + device_id].RTLDeviceID = device_id;
-
-          // Save pointer to device in RTL in case we want to unregister the RTL
-          R.Devices.push_back(&Devices[start + device_id]);
         }
 
         // Initialize the index of this RTL and save it in the used RTLs.
@@ -282,6 +322,8 @@ void RTLsTy::RegisterLib(__tgt_bin_desc *desc) {
 void RTLsTy::UnregisterLib(__tgt_bin_desc *desc) {
   DP("Unloading target library!\n");
 
+  if (desc->HostEntriesBegin == desc->HostEntriesEnd)
+    return;
   RTLsMtx.lock();
   // Find which RTL understands each image, if any.
   for (int32_t i = 0; i < desc->NumDeviceImages; ++i) {

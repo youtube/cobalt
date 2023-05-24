@@ -317,7 +317,10 @@ namespace dr635 { // dr635: yes
 namespace dr637 { // dr637: yes
   void f(int i) {
     i = ++i + 1;
-    i = i++ + 1; // expected-warning {{unsequenced}}
+    i = i++ + 1;
+#if __cplusplus < 201703L
+    // expected-warning@-2 {{unsequenced}}
+#endif
   }
 }
 
@@ -479,12 +482,21 @@ namespace dr647 { // dr647: yes
   // This is partially superseded by dr1358.
   struct A {
     constexpr virtual void f() const;
-    constexpr virtual void g() const {} // expected-error {{virtual function cannot be constexpr}}
+    constexpr virtual void g() const {}
+#if __cplusplus <= 201703L
+    // expected-error@-2 {{virtual function cannot be constexpr}}
+#endif
   };
 
-  struct X { virtual void f() const; }; // expected-note {{overridden}}
+  struct X { virtual void f() const; };
+#if __cplusplus <= 201703L
+  // expected-note@-2 {{overridden}}
+#endif
   struct B : X {
-    constexpr void f() const {} // expected-error {{virtual function cannot be constexpr}}
+    constexpr void f() const {}
+#if __cplusplus <= 201703L
+    // expected-error@-2 {{virtual function cannot be constexpr}}
+#endif
   };
 
   struct NonLiteral { NonLiteral() {} }; // expected-note {{not an aggregate and has no constexpr constructors}}
@@ -492,7 +504,13 @@ namespace dr647 { // dr647: yes
   struct C {
     constexpr C(NonLiteral);
     constexpr C(NonLiteral, int) {} // expected-error {{not a literal type}}
-    constexpr C() try {} catch (...) {} // expected-error {{function try block}}
+    constexpr C() try {} catch (...) {}
+#if __cplusplus <= 201703L
+    // expected-error@-2 {{function try block in constexpr constructor is a C++2a extension}}
+#endif
+#if __cplusplus < 201402L
+    // expected-error@-5 {{use of this statement in a constexpr constructor is a C++14 extension}}
+#endif
   };
 
   struct D {
@@ -757,8 +775,8 @@ namespace dr666 { // dr666: yes
 #if __cplusplus >= 201103L
 namespace dr667 { // dr667: yes
   struct A {
-    A() = default;
-    int &r;
+    A() = default; // expected-warning {{explicitly defaulted default constructor is implicitly deleted}}
+    int &r; // expected-note {{because field 'r' of reference type 'int &' would not be initialized}}
   };
   static_assert(!__is_trivially_constructible(A), "");
 
@@ -833,7 +851,7 @@ namespace dr673 { // dr673: yes
   F *f; // expected-error {{unknown type name}}
 }
 
-namespace dr674 { // dr674: no
+namespace dr674 { // dr674: 8
   template<typename T> int f(T);
 
   int g(int);
@@ -843,22 +861,50 @@ namespace dr674 { // dr674: no
   template<typename T> int h(T);
 
   class X {
-    // FIXME: This should deduce dr674::f<int>.
-    friend int dr674::f(int); // expected-error {{does not match any}}
+    friend int dr674::f(int);
     friend int dr674::g(int);
     friend int dr674::h<>(int);
-    int n;
+    int n; // expected-note 2{{private}}
   };
 
   template<typename T> int f(T) { return X().n; }
   int g(int) { return X().n; }
-  template<typename T> int g(T) { return X().n; }
-  int h(int) { return X().n; }
+  template<typename T> int g(T) { return X().n; } // expected-error {{private}}
+  int h(int) { return X().n; } // expected-error {{private}}
   template<typename T> int h(T) { return X().n; }
 
   template int f(int);
-  template int g(int);
+  template int g(int); // expected-note {{in instantiation of}}
   template int h(int);
+
+
+  struct Y {
+    template<typename T> int f(T);
+
+    int g(int);
+    template<typename T> int g(T);
+
+    int h(int);
+    template<typename T> int h(T);
+  };
+
+  class Z {
+    friend int Y::f(int);
+    friend int Y::g(int);
+    friend int Y::h<>(int);
+    int n; // expected-note 2{{private}}
+  };
+
+  template<typename T> int Y::f(T) { return Z().n; }
+  int Y::g(int) { return Z().n; }
+  template<typename T> int Y::g(T) { return Z().n; } // expected-error {{private}}
+  int Y::h(int) { return Z().n; } // expected-error {{private}}
+  template<typename T> int Y::h(T) { return Z().n; }
+
+  // FIXME: Should the <> be required here?
+  template int Y::f<>(int);
+  template int Y::g<>(int); // expected-note {{in instantiation of}}
+  template int Y::h<>(int);
 }
 
 namespace dr675 { // dr675: dup 739
@@ -944,14 +990,19 @@ namespace dr684 { // dr684: sup 1454
 }
 #endif
 
-#if __cplusplus >= 201103L
 namespace dr685 { // dr685: yes
   enum E : long { e };
+#if __cplusplus < 201103L
+    // expected-error@-2 {{enumeration types with a fixed underlying type are a C++11 extension}}
+#endif
   void f(int);
   int f(long);
   int a = f(e);
 
   enum G : short { g };
+#if __cplusplus < 201103L
+    // expected-error@-2 {{enumeration types with a fixed underlying type are a C++11 extension}}
+#endif
   int h(short);
   void h(long);
   int b = h(g);
@@ -964,11 +1015,11 @@ namespace dr685 { // dr685: yes
   void j(long); // expected-note {{candidate}}
   int d = j(g); // expected-error {{ambiguous}}
 
-  int k(short); // expected-note {{candidate}}
-  void k(int); // expected-note {{candidate}}
-  int x = k(g); // expected-error {{ambiguous}}
+  // Valid per dr1601
+  int k(short);
+  void k(int);
+  int x = k(g);
 }
-#endif
 
 namespace dr686 { // dr686: yes
   void f() {
@@ -1014,10 +1065,13 @@ namespace dr686 { // dr686: yes
   template<struct R {} *> struct Y; // expected-error {{cannot be defined in a type specifier}}
 }
 
-namespace dr687 { // dr687 still open
+namespace dr687 { // dr687 (9 c++20, but the issue is still considered open)
   template<typename T> void f(T a) {
-    // FIXME: This is valid in C++20.
-    g<int>(a); // expected-error {{undeclared}} expected-error {{'('}}
+    // This is valid in C++20.
+    g<int>(a);
+#if __cplusplus <= 201703L
+    // expected-error@-2 {{C++2a extension}}
+#endif
 
     // This is not.
     template g<int>(a); // expected-error {{expected expression}}
@@ -1084,5 +1138,22 @@ namespace dr692 { // dr692: no
     template<class T, class... U> void f(T*, U...){} // expected-note {{candidate}} expected-error 0-1{{C++11}}
     template<class T> void f(T){} // expected-note {{candidate}}
     template void f(int*); // expected-error {{ambiguous}}
+  }
+}
+
+namespace dr696 { // dr696: yes
+  void f(const int*);
+  void g() {
+    const int N = 10; // expected-note 1+{{here}}
+    struct A {
+      void h() {
+        int arr[N]; (void)arr;
+        f(&N); // expected-error {{declared in enclosing}}
+      }
+    };
+#if __cplusplus >= 201103L
+    (void) [] { int arr[N]; (void)arr; };
+    (void) [] { f(&N); }; // expected-error {{cannot be implicitly captured}} expected-note {{here}}
+#endif
   }
 }

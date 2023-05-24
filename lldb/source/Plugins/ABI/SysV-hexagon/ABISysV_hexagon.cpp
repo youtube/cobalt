@@ -1,24 +1,18 @@
 //===-- ABISysV_hexagon.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "ABISysV_hexagon.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/DerivedTypes.h"
 
-// Project includes
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectMemory.h"
@@ -32,6 +26,7 @@
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
 
 using namespace lldb;
@@ -1014,17 +1009,13 @@ ABISysV_hexagon::GetRegisterInfoArray(uint32_t &count) {
 */
 size_t ABISysV_hexagon::GetRedZoneSize() const { return 0; }
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 
 ABISP
 ABISysV_hexagon::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
-  static ABISP g_abi_sp;
   if (arch.GetTriple().getArch() == llvm::Triple::hexagon) {
-    if (!g_abi_sp)
-      g_abi_sp.reset(new ABISysV_hexagon(process_sp));
-    return g_abi_sp;
+    return ABISP(
+        new ABISysV_hexagon(std::move(process_sp), MakeMCRegisterInfo(arch)));
   }
   return ABISP();
 }
@@ -1111,7 +1102,7 @@ bool ABISysV_hexagon::PrepareTrivialCall(
     sp -= argSize;
 
     // write this argument onto the stack of the host process
-    proc->WriteMemory(sp, arg.data_ap.get(), arg.size, error);
+    proc->WriteMemory(sp, arg.data_up.get(), arg.size, error);
     if (error.Fail())
       return false;
 
@@ -1257,6 +1248,7 @@ bool ABISysV_hexagon::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("hexagon default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   return true;
 }
 
@@ -1302,9 +1294,7 @@ lldb_private::ConstString ABISysV_hexagon::GetPluginNameStatic() {
   return g_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 
 lldb_private::ConstString ABISysV_hexagon::GetPluginName() {
   return GetPluginNameStatic();

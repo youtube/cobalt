@@ -1,10 +1,7 @@
-from __future__ import print_function
 
 
 import unittest2
-import os.path
 import re
-import sys
 
 from lldbgdbserverutils import *
 

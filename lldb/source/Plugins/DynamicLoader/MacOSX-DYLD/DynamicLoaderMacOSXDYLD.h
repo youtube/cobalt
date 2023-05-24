@@ -1,14 +1,13 @@
 //===-- DynamicLoaderMacOSXDYLD.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 // This is the DynamicLoader plugin for Darwin (macOS / iPhoneOS / tvOS /
-// watchOS)
+// watchOS / BridgeOS)
 // platforms earlier than 2016, where lldb would read the "dyld_all_image_infos"
 // dyld internal structure to understand where things were loaded and the
 // solib loaded/unloaded notification function we put a breakpoint on gives us
@@ -21,17 +20,13 @@
 #ifndef liblldb_DynamicLoaderMacOSXDYLD_h_
 #define liblldb_DynamicLoaderMacOSXDYLD_h_
 
-// C Includes
-// C++ Includes
 #include <mutex>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
+#include "lldb/Host/SafeMachO.h"
 #include "lldb/Target/DynamicLoader.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/FileSpec.h"
-#include "lldb/Utility/SafeMachO.h"
 #include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/UUID.h"
 
@@ -41,11 +36,9 @@ class DynamicLoaderMacOSXDYLD : public lldb_private::DynamicLoaderDarwin {
 public:
   DynamicLoaderMacOSXDYLD(lldb_private::Process *process);
 
-  virtual ~DynamicLoaderMacOSXDYLD() override;
+  ~DynamicLoaderMacOSXDYLD() override;
 
-  //------------------------------------------------------------------
   // Static Functions
-  //------------------------------------------------------------------
   static void Initialize();
 
   static void Terminate();
@@ -57,12 +50,10 @@ public:
   static lldb_private::DynamicLoader *
   CreateInstance(lldb_private::Process *process, bool force);
 
-  //------------------------------------------------------------------
   /// Called after attaching a process.
   ///
   /// Allow DynamicLoader plug-ins to execute some code after
   /// attaching to a process.
-  //------------------------------------------------------------------
   bool ProcessDidExec() override;
 
   lldb_private::Status CanLoadImage() override;
@@ -72,9 +63,7 @@ public:
       lldb_private::LazyBool &using_shared_cache,
       lldb_private::LazyBool &private_shared_cache) override;
 
-  //------------------------------------------------------------------
   // PluginInterface protocol
-  //------------------------------------------------------------------
   lldb_private::ConstString GetPluginName() override;
 
   uint32_t GetPluginVersion() override;
@@ -132,7 +121,7 @@ protected:
       dyldImageLoadAddress = LLDB_INVALID_ADDRESS;
     }
 
-    bool IsValid() const { return version >= 1 || version <= 6; }
+    bool IsValid() const { return version >= 1 && version <= 6; }
   };
 
   static lldb::ByteOrder GetByteOrderFromMagic(uint32_t magic);

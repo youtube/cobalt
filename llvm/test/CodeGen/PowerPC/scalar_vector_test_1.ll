@@ -7,6 +7,7 @@
 ; RUN: llc -mcpu=pwr8 -verify-machineinstrs -ppc-vsr-nums-as-vr -ppc-asm-full-reg-names \
 ; RUN:    -mtriple=powerpc64-unknown-linux-gnu < %s | FileCheck %s --check-prefix=P8BE
 
+
 ; Function Attrs: norecurse nounwind readonly
 define <2 x i64> @s2v_test1(i64* nocapture readonly %int64, <2 x i64> %vec) {
 ; P9LE-LABEL: s2v_test1:
@@ -163,16 +164,14 @@ define <2 x double> @s2v_test_f2(double* nocapture readonly %f64, <2 x double> %
 
 ; P8LE-LABEL: s2v_test_f2:
 ; P8LE:       # %bb.0: # %entry
-; P8LE-NEXT:    addi r3, r3, 8
-; P8LE-NEXT:    lfdx f0, 0, r3
+; P8LE-NEXT:    lfd f0, 8(r3)
 ; P8LE-NEXT:    xxspltd vs0, vs0, 0
 ; P8LE-NEXT:    xxpermdi v2, v2, vs0, 1
 ; P8LE-NEXT:    blr
 
 ; P8BE-LABEL: s2v_test_f2:
 ; P8BE:       # %bb.0: # %entry
-; P8BE-NEXT:    addi r3, r3, 8
-; P8BE-NEXT:    lfdx f0, 0, r3
+; P8BE-NEXT:    lfd f0, 8(r3)
 ; P8BE-NEXT:    xxpermdi v2, vs0, v2, 1
 ; P8BE-NEXT:    blr
 entry:
@@ -238,16 +237,14 @@ define <2 x double> @s2v_test_f4(double* nocapture readonly %f64, <2 x double> %
 
 ; P8LE-LABEL: s2v_test_f4:
 ; P8LE:       # %bb.0: # %entry
-; P8LE-NEXT:    addi r3, r3, 8
-; P8LE-NEXT:    lfdx f0, 0, r3
+; P8LE-NEXT:    lfd f0, 8(r3)
 ; P8LE-NEXT:    xxspltd vs0, vs0, 0
 ; P8LE-NEXT:    xxpermdi v2, v2, vs0, 1
 ; P8LE-NEXT:    blr
 
 ; P8BE-LABEL: s2v_test_f4:
 ; P8BE:       # %bb.0: # %entry
-; P8BE-NEXT:    addi r3, r3, 8
-; P8BE-NEXT:    lfdx f0, 0, r3
+; P8BE-NEXT:    lfd f0, 8(r3)
 ; P8BE-NEXT:    xxpermdi v2, vs0, v2, 1
 ; P8BE-NEXT:    blr
 entry:

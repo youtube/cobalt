@@ -1,9 +1,8 @@
 //===- Diagnostic.h - C Language Family Diagnostic Handling -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,6 +25,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Error.h"
 #include <cassert>
 #include <cstdint>
 #include <limits>
@@ -177,6 +177,12 @@ public:
     /// IdentifierInfo
     ak_identifierinfo,
 
+    /// address space
+    ak_addrspace,
+
+    /// Qualifiers
+    ak_qual,
+
     /// QualType
     ak_qualtype,
 
@@ -207,8 +213,8 @@ private:
   // Used by __extension__
   unsigned char AllExtensionsSilenced = 0;
 
-  // Suppress diagnostics after a fatal error?
-  bool SuppressAfterFatalError = true;
+  // Treat fatal errors like errors.
+  bool FatalsAsError = false;
 
   // Suppress all diagnostics.
   bool SuppressAllDiagnostics = false;
@@ -470,6 +476,9 @@ private:
   /// Second string argument for the delayed diagnostic.
   std::string DelayedDiagArg2;
 
+  /// Third string argument for the delayed diagnostic.
+  std::string DelayedDiagArg3;
+
   /// Optional flag value.
   ///
   /// Some flags accept values, for instance: -Wframe-larger-than=<value> and
@@ -486,10 +495,8 @@ public:
   DiagnosticsEngine &operator=(const DiagnosticsEngine &) = delete;
   ~DiagnosticsEngine();
 
-  LLVM_DUMP_METHOD void dump() const { DiagStatesByLoc.dump(*SourceMgr); }
-  LLVM_DUMP_METHOD void dump(StringRef DiagName) const {
-    DiagStatesByLoc.dump(*SourceMgr, DiagName);
-  }
+  LLVM_DUMP_METHOD void dump() const;
+  LLVM_DUMP_METHOD void dump(StringRef DiagName) const;
 
   const IntrusiveRefCntPtr<DiagnosticIDs> &getDiagnosticIDs() const {
     return Diags;
@@ -614,9 +621,11 @@ public:
   void setErrorsAsFatal(bool Val) { GetCurDiagState()->ErrorsAsFatal = Val; }
   bool getErrorsAsFatal() const { return GetCurDiagState()->ErrorsAsFatal; }
 
-  /// When set to true (the default), suppress further diagnostics after
-  /// a fatal error.
-  void setSuppressAfterFatalError(bool Val) { SuppressAfterFatalError = Val; }
+  /// \brief When set to true, any fatal error reported is made an error.
+  ///
+  /// This setting takes precedence over the setErrorsAsFatal setting above.
+  void setFatalsAsError(bool Val) { FatalsAsError = Val; }
+  bool getFatalsAsError() const { return FatalsAsError; }
 
   /// When set to true mask warnings that come from system headers.
   void setSuppressSystemWarnings(bool Val) {
@@ -629,24 +638,22 @@ public:
   /// Suppress all diagnostics, to silence the front end when we
   /// know that we don't want any more diagnostics to be passed along to the
   /// client
-  void setSuppressAllDiagnostics(bool Val = true) {
-    SuppressAllDiagnostics = Val;
-  }
+  void setSuppressAllDiagnostics(bool Val) { SuppressAllDiagnostics = Val; }
   bool getSuppressAllDiagnostics() const { return SuppressAllDiagnostics; }
 
   /// Set type eliding, to skip outputting same types occurring in
   /// template types.
-  void setElideType(bool Val = true) { ElideType = Val; }
+  void setElideType(bool Val) { ElideType = Val; }
   bool getElideType() { return ElideType; }
 
   /// Set tree printing, to outputting the template difference in a
   /// tree format.
-  void setPrintTemplateTree(bool Val = false) { PrintTemplateTree = Val; }
+  void setPrintTemplateTree(bool Val) { PrintTemplateTree = Val; }
   bool getPrintTemplateTree() { return PrintTemplateTree; }
 
   /// Set color printing, so the type diffing will inject color markers
   /// into the output.
-  void setShowColors(bool Val = false) { ShowColors = Val; }
+  void setShowColors(bool Val) { ShowColors = Val; }
   bool getShowColors() { return ShowColors; }
 
   /// Specify which overload candidates to show when overload resolution
@@ -664,7 +671,7 @@ public:
   /// the middle of another diagnostic.
   ///
   /// This can be used by clients who suppress diagnostics themselves.
-  void setLastDiagnosticIgnored(bool Ignored = true) {
+  void setLastDiagnosticIgnored(bool Ignored) {
     if (LastDiagLevel == DiagnosticIDs::Fatal)
       FatalErrorOccurred = true;
     LastDiagLevel = Ignored ? DiagnosticIDs::Ignored : DiagnosticIDs::Warning;
@@ -873,8 +880,12 @@ public:
   /// \param Arg2 A string argument that will be provided to the
   /// diagnostic. A copy of this string will be stored in the
   /// DiagnosticsEngine object itself.
+  ///
+  /// \param Arg3 A string argument that will be provided to the
+  /// diagnostic. A copy of this string will be stored in the
+  /// DiagnosticsEngine object itself.
   void SetDelayedDiagnostic(unsigned DiagID, StringRef Arg1 = "",
-                            StringRef Arg2 = "");
+                            StringRef Arg2 = "", StringRef Arg3 = "");
 
   /// Clear out the current diagnostic.
   void Clear() { CurDiagID = std::numeric_limits<unsigned>::max(); }
@@ -1124,11 +1135,6 @@ public:
     Emit();
   }
 
-  /// Retrieve an empty diagnostic builder.
-  static DiagnosticBuilder getEmpty() {
-    return {};
-  }
-
   /// Forces the diagnostic to be emitted.
   const DiagnosticBuilder &setForceEmit() const {
     IsForceEmit = true;
@@ -1299,6 +1305,12 @@ inline DiagnosticBuilder DiagnosticsEngine::Report(SourceLocation Loc,
   CurDiagID = DiagID;
   FlagValue.clear();
   return DiagnosticBuilder(this);
+}
+
+inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
+                                           llvm::Error &&E) {
+  DB.AddString(toString(std::move(E)));
+  return DB;
 }
 
 inline DiagnosticBuilder DiagnosticsEngine::Report(unsigned DiagID) {

@@ -125,7 +125,7 @@ struct S5 {
 
 // CHECK-DAG:  [[GS1:@.+]] = internal global [[S1]] zeroinitializer
 // CHECK-DAG:  [[GS1]].cache. = common global i8** null
-// CHECK-DAG:  [[DEFAULT_LOC:@.+]] = private unnamed_addr constant [[IDENT]] { i32 0, i32 2, i32 0, i32 0, i8* getelementptr inbounds ([{{[0-9]+}} x i8], [{{[0-9]+}} x i8]* {{@.+}}, i32 0, i32 0) }
+// CHECK-DAG:  [[DEFAULT_LOC:@.+]] = private unnamed_addr global [[IDENT]] { i32 0, i32 2, i32 0, i32 0, i8* getelementptr inbounds ([{{[0-9]+}} x i8], [{{[0-9]+}} x i8]* {{@.+}}, i32 0, i32 0) }
 // CHECK-DAG:  [[GS2:@.+]] = internal global [[S2]] zeroinitializer
 // CHECK-DAG:  [[ARR_X:@.+]] = global [2 x [3 x [[S1]]]] zeroinitializer
 // CHECK-DAG:  [[ARR_X]].cache. = common global i8** null
@@ -154,10 +154,10 @@ struct S5 {
 // CHECK-DEBUG-DAG: [[ST_INT_ST:@.+]] = linkonce_odr global i32 23
 // CHECK-DEBUG-DAG: [[ST_FLOAT_ST:@.+]] = linkonce_odr global float 2.300000e+01
 // CHECK-DEBUG-DAG: [[ST_S4_ST:@.+]] = linkonce_odr global %struct.S4 zeroinitializer
-// CHECK-DEBUG-DAG: [[LOC1:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;;201;9;;\00"
-// CHECK-DEBUG-DAG: [[LOC2:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;;256;9;;\00"
+// CHECK-DEBUG-DAG: [[LOC1:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;;201;1;;\00"
+// CHECK-DEBUG-DAG: [[LOC2:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;;256;1;;\00"
 // CHECK-DEBUG-DAG: [[LOC3:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;;343;19;;\00"
-// CHECK-DEBUG-DAG: [[LOC4:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;main;380;9;;\00"
+// CHECK-DEBUG-DAG: [[LOC4:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;main;380;1;;\00"
 // CHECK-DEBUG-DAG: [[LOC5:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;main;397;9;;\00"
 // CHECK-DEBUG-DAG: [[LOC6:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;main;419;10;;\00"
 // CHECK-DEBUG-DAG: [[LOC7:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;main;442;10;;\00"
@@ -173,7 +173,7 @@ struct S5 {
 // CHECK-DEBUG-DAG: [[LOC17:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;foobar;801;10;;\00"
 // CHECK-DEBUG-DAG: [[LOC18:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;foobar;824;27;;\00"
 // CHECK-DEBUG-DAG: [[LOC19:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;foobar;847;10;;\00"
-// CHECK-DEBUG-DAG: [[LOC20:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;;315;9;;\00"
+// CHECK-DEBUG-DAG: [[LOC20:@.*]] = private unnamed_addr constant [{{[0-9]+}} x i8] c";{{.*}}threadprivate_codegen.cpp;;315;1;;\00"
 // CHECK-TLS-DAG:  [[GS1:@.+]] = internal thread_local global [[S1]] zeroinitializer
 // CHECK-TLS-DAG:  [[GS2:@.+]] = internal global [[S2]] zeroinitializer
 // CHECK-TLS-DAG:  [[ARR_X:@.+]] = thread_local global [2 x [3 x [[S1]]]] zeroinitializer
@@ -202,7 +202,7 @@ static S1 gs1(5);
 #pragma omp threadprivate(gs1)
 // CHECK:      define {{.*}} [[S1_CTOR:@.*]]([[S1]]* {{.*}},
 // CHECK:      define {{.*}} [[S1_DTOR:@.*]]([[S1]]* {{.*}})
-// CHECK:      define internal {{.*}}i8* [[GS1_CTOR:@\.__kmpc_global_ctor_\..*]](i8*)
+// CHECK:      define internal {{.*}}i8* [[GS1_CTOR:@\.__kmpc_global_ctor_\..*]](i8* %0)
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S1]]*
@@ -210,7 +210,7 @@ static S1 gs1(5);
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      ret i8* [[ARG]]
 // CHECK-NEXT: }
-// CHECK:      define internal {{.*}}void [[GS1_DTOR:@\.__kmpc_global_dtor_\..*]](i8*)
+// CHECK:      define internal {{.*}}void [[GS1_DTOR:@\.__kmpc_global_dtor_\..*]](i8* %0)
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S1]]*
@@ -226,7 +226,7 @@ static S1 gs1(5);
 // CHECK-DEBUG:      store i8* getelementptr inbounds ([{{.*}} x i8], [{{.*}} x i8]* [[LOC1]], i{{.*}} 0, i{{.*}} 0), i8** [[KMPC_LOC_ADDR_PSOURCE]]
 // CHECK-DEBUG:      @__kmpc_global_thread_num
 // CHECK-DEBUG:      call {{.*}}void @__kmpc_threadprivate_register([[IDENT]]* [[KMPC_LOC_ADDR]], i8* bitcast ([[S1]]* [[GS1]] to i8*), i8* (i8*)* [[GS1_CTOR:@\.__kmpc_global_ctor_\..*]], i8* (i8*, i8*)* null, void (i8*)* [[GS1_DTOR:@\.__kmpc_global_dtor_\..*]])
-// CHECK-DEBUG:      define internal {{.*}}i8* [[GS1_CTOR]](i8*)
+// CHECK-DEBUG:      define internal {{.*}}i8* [[GS1_CTOR]](i8* %0)
 // CHECK-DEBUG:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK-DEBUG:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK-DEBUG:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S1]]*
@@ -235,7 +235,7 @@ static S1 gs1(5);
 // CHECK-DEBUG:      ret i8* [[ARG]]
 // CHECK-DEBUG-NEXT: }
 // CHECK-DEBUG:      define {{.*}} [[S1_CTOR]]([[S1]]* {{.*}},
-// CHECK-DEBUG:      define internal {{.*}}void [[GS1_DTOR]](i8*)
+// CHECK-DEBUG:      define internal {{.*}}void [[GS1_DTOR]](i8* %0)
 // CHECK-DEBUG:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK-DEBUG:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK-DEBUG:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S1]]*
@@ -254,7 +254,7 @@ static S2 gs2(27);
 // CHECK-DEBUG-NOT:  call {{.*}} [[S2_CTOR]]([[S2]]*
 S1 arr_x[2][3] = { { 1, 2, 3 }, { 4, 5, 6 } };
 #pragma omp threadprivate(arr_x)
-// CHECK:      define internal {{.*}}i8* [[ARR_X_CTOR:@\.__kmpc_global_ctor_\..*]](i8*)
+// CHECK:      define internal {{.*}}i8* [[ARR_X_CTOR:@\.__kmpc_global_ctor_\..*]](i8* %0)
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      [[RES:%.*]] = bitcast i8* [[ARG]] to [2 x [3 x [[S1]]]]*
@@ -275,7 +275,7 @@ S1 arr_x[2][3] = { { 1, 2, 3 }, { 4, 5, 6 } };
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      ret i8* [[ARG]]
 // CHECK:      }
-// CHECK:      define internal {{.*}}void [[ARR_X_DTOR:@\.__kmpc_global_dtor_\..*]](i8*)
+// CHECK:      define internal {{.*}}void [[ARR_X_DTOR:@\.__kmpc_global_dtor_\..*]](i8* %0)
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      [[ARR_BEGIN:%.*]] = bitcast i8* [[ARG]] to [[S1]]*
@@ -299,9 +299,9 @@ S1 arr_x[2][3] = { { 1, 2, 3 }, { 4, 5, 6 } };
 // CHECK-DEBUG:      store i8* getelementptr inbounds ([{{.*}} x i8], [{{.*}} x i8]* [[LOC2]], i{{.*}} 0, i{{.*}} 0), i8** [[KMPC_LOC_ADDR_PSOURCE]]
 // CHECK-DEBUG:      @__kmpc_global_thread_num
 // CHECK-DEBUG:      call {{.*}}void @__kmpc_threadprivate_register([[IDENT]]* [[KMPC_LOC_ADDR]], i8* bitcast ([2 x [3 x [[S1]]]]* [[ARR_X]] to i8*), i8* (i8*)* [[ARR_X_CTOR:@\.__kmpc_global_ctor_\..*]], i8* (i8*, i8*)* null, void (i8*)* [[ARR_X_DTOR:@\.__kmpc_global_dtor_\..*]])
-// CHECK-DEBUG:      define internal {{.*}}i8* [[ARR_X_CTOR]](i8*)
+// CHECK-DEBUG:      define internal {{.*}}i8* [[ARR_X_CTOR]](i8* %0)
 // CHECK-DEBUG:      }
-// CHECK-DEBUG:      define internal {{.*}}void [[ARR_X_DTOR]](i8*)
+// CHECK-DEBUG:      define internal {{.*}}void [[ARR_X_DTOR]](i8* %0)
 // CHECK-DEBUG:      }
 extern S5 gs3;
 #pragma omp threadprivate(gs3)
@@ -581,7 +581,7 @@ int main() {
 }
 // CHECK: }
 
-// CHECK:      define internal {{.*}}i8* [[SM_CTOR]](i8*)
+// CHECK:      define internal {{.*}}i8* [[SM_CTOR]](i8* %0)
 // CHECK:      [[THREAD_NUM:%.+]] = call {{.*}}i32 @__kmpc_global_thread_num([[IDENT]]* [[DEFAULT_LOC]])
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
@@ -595,7 +595,7 @@ int main() {
 // CHECK-NEXT: ret i8* [[ARG]]
 // CHECK-NEXT: }
 // CHECK:      define {{.*}} [[SMAIN_CTOR]]([[SMAIN]]* {{.*}},
-// CHECK:      define internal {{.*}}void [[SM_DTOR]](i8*)
+// CHECK:      define internal {{.*}}void [[SM_DTOR]](i8* %0)
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[SMAIN]]*
@@ -603,7 +603,7 @@ int main() {
 // CHECK-NEXT: ret void
 // CHECK-NEXT: }
 // CHECK:      define {{.*}} [[SMAIN_DTOR]]([[SMAIN]]* {{.*}})
-// CHECK-DEBUG:      define internal {{.*}}i8* [[SM_CTOR]](i8*)
+// CHECK-DEBUG:      define internal {{.*}}i8* [[SM_CTOR]](i8* %0)
 // CHECK-DEBUG:      [[KMPC_LOC_ADDR:%.*]] = alloca [[IDENT]]
 // CHECK-DEBUG:      [[KMPC_LOC_ADDR_PSOURCE:%.*]] = getelementptr inbounds [[IDENT]], [[IDENT]]* [[KMPC_LOC_ADDR]], i{{.*}} 0, i{{.*}} 4
 // CHECK-DEBUG-NEXT: store i8* getelementptr inbounds ([{{.*}} x i8], [{{.*}} x i8]* [[LOC3]], i{{.*}} 0, i{{.*}} 0), i8** [[KMPC_LOC_ADDR_PSOURCE]]
@@ -622,7 +622,7 @@ int main() {
 // CHECK-DEBUG-NEXT: ret i8* [[ARG]]
 // CHECK-DEBUG-NEXT: }
 // CHECK-DEBUG:      define {{.*}} [[SMAIN_CTOR]]([[SMAIN]]* {{.*}},
-// CHECK-DEBUG:      define internal {{.*}} [[SM_DTOR:@.+]](i8*)
+// CHECK-DEBUG:      define internal {{.*}} [[SM_DTOR:@.+]](i8* %0)
 // CHECK-DEBUG:      call {{.*}} [[SMAIN_DTOR:@.+]]([[SMAIN]]*
 // CHECK-DEBUG:      }
 // CHECK-DEBUG:      define {{.*}} [[SMAIN_DTOR]]([[SMAIN]]* {{.*}})
@@ -648,15 +648,15 @@ int main() {
 // CHECK-TLS:   call void [[ARR_X_TLS_INIT]]
 // CHECK-TLS:   ret [2 x [3 x [[S1]]]]* [[ARR_X]]
 // CHECK-TLS: }
-// CHECK-TLS: define {{.*}} i32* [[ST_INT_ST_TLS_INITD]] {{#[0-9]+}} {
+// CHECK-TLS: define {{.*}} i32* [[ST_INT_ST_TLS_INITD]] {{#[0-9]+}} comdat {
 // CHECK-TLS-NOT:   call
 // CHECK-TLS:   ret i32* [[ST_INT_ST]]
 // CHECK-TLS: }
-// CHECK-TLS: define {{.*}} float* [[ST_FLOAT_ST_TLS_INITD]] {{#[0-9]+}} {
+// CHECK-TLS: define {{.*}} float* [[ST_FLOAT_ST_TLS_INITD]] {{#[0-9]+}} comdat {
 // CHECK-TLS-NOT:   call
 // CHECK-TLS:   ret float* [[ST_FLOAT_ST]]
 // CHECK-TLS: }
-// CHECK-TLS: define {{.*}} [[S4]]* [[ST_S4_ST_TLS_INITD]] {{#[0-9]+}} {
+// CHECK-TLS: define {{.*}} [[S4]]* [[ST_S4_ST_TLS_INITD]] {{#[0-9]+}} comdat {
 // CHECK-TLS:   call void [[ST_S4_ST_TLS_INIT]]
 // CHECK-TLS:   ret [[S4]]* [[ST_S4_ST]]
 // CHECK-TLS: }
@@ -856,7 +856,7 @@ int foobar() {
 #endif
 
 // CHECK:      call {{.*}}void @__kmpc_threadprivate_register([[IDENT]]* [[DEFAULT_LOC]], i8* bitcast ([[S4]]* [[ST_S4_ST]] to i8*), i8* (i8*)* [[ST_S4_ST_CTOR:@\.__kmpc_global_ctor_\..+]], i8* (i8*, i8*)* null, void (i8*)* [[ST_S4_ST_DTOR:@\.__kmpc_global_dtor_\..+]])
-// CHECK:      define internal {{.*}}i8* [[ST_S4_ST_CTOR]](i8*)
+// CHECK:      define internal {{.*}}i8* [[ST_S4_ST_CTOR]](i8* %0)
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S4]]*
@@ -865,7 +865,7 @@ int foobar() {
 // CHECK-NEXT: ret i8* [[ARG]]
 // CHECK-NEXT: }
 // CHECK:      define {{.*}} [[S4_CTOR]]([[S4]]* {{.*}},
-// CHECK:      define internal {{.*}}void [[ST_S4_ST_DTOR]](i8*)
+// CHECK:      define internal {{.*}}void [[ST_S4_ST_DTOR]](i8* %0)
 // CHECK:      store i8* %0, i8** [[ARG_ADDR:%.*]],
 // CHECK:      [[ARG:%.+]] = load i8*, i8** [[ARG_ADDR]]
 // CHECK:      [[RES:%.*]] = bitcast i8* [[ARG]] to [[S4]]*
@@ -878,10 +878,10 @@ int foobar() {
 // CHECK-DEBUG-NEXT: store i8* getelementptr inbounds ([{{.*}} x i8], [{{.*}} x i8]* [[LOC20]], i{{.*}} 0, i{{.*}} 0), i8** [[KMPC_LOC_ADDR_PSOURCE]]
 // CHECK-DEBUG:      @__kmpc_global_thread_num
 // CHECK-DEBUG:      call {{.*}}void @__kmpc_threadprivate_register([[IDENT]]* [[KMPC_LOC_ADDR]], i8* bitcast ([[S4]]* [[ST_S4_ST]] to i8*), i8* (i8*)* [[ST_S4_ST_CTOR:@\.__kmpc_global_ctor_\..+]], i8* (i8*, i8*)* null, void (i8*)* [[ST_S4_ST_DTOR:@\.__kmpc_global_dtor_\..+]])
-// CHECK-DEBUG:      define internal {{.*}}i8* [[ST_S4_ST_CTOR]](i8*)
+// CHECK-DEBUG:      define internal {{.*}}i8* [[ST_S4_ST_CTOR]](i8* %0)
 // CHECK-DEBUG:      }
 // CHECK-DEBUG:      define {{.*}} [[S4_CTOR:@.*]]([[S4]]* {{.*}},
-// CHECK-DEBUG:      define internal {{.*}}void [[ST_S4_ST_DTOR]](i8*)
+// CHECK-DEBUG:      define internal {{.*}}void [[ST_S4_ST_DTOR]](i8* %0)
 // CHECK-DEBUG:      }
 // CHECK-DEBUG:      define {{.*}} [[S4_DTOR:@.*]]([[S4]]* {{.*}})
 
@@ -926,7 +926,7 @@ int foobar() {
 // CHECK-TLS: invoke void [[GS1_CTOR1]]([[S1]]* getelementptr inbounds ([2 x [3 x [[S1]]]], [2 x [3 x [[S1]]]]* [[ARR_X]], i{{.*}} 0, i{{.*}} 1, i{{.*}} 1), i{{.*}} 5)
 // CHECK-TLS: invoke void [[GS1_CTOR1]]([[S1]]* getelementptr inbounds ([2 x [3 x [[S1]]]], [2 x [3 x [[S1]]]]* [[ARR_X]], i{{.*}} 0, i{{.*}} 1, i{{.*}} 2), i{{.*}} 6)
 // CHECK-TLS: call i32 @__cxa_thread_atexit(void (i8*)* [[ARR_X_CXX_DTOR:@[^,]+]]
-// CHECK-TLS: define internal void [[ARR_X_CXX_DTOR]](i8*)
+// CHECK-TLS: define internal void [[ARR_X_CXX_DTOR]](i8* %0)
 // CHECK-TLS: void [[GS1_DTOR1]]([[S1]]* {{.*}})
 
 // CHECK-TLS: define {{.*}}void [[SM_CTOR2]]([[SMAIN]]* {{.*}}, i32 {{.*}})

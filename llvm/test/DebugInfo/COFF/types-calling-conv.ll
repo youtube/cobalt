@@ -1,4 +1,5 @@
-; RUN: llc < %s -filetype=obj -o - | llvm-readobj - -codeview | FileCheck %s
+; RUN: llc < %s -filetype=obj -o - | llvm-readobj - --codeview | FileCheck %s
+; RUN: llc < %s -o - | llvm-mc -filetype=obj --triple=i386-windows | llvm-readobj - --codeview | FileCheck %s
 
 ; C++ source to regenerate:
 ; $ cat t.cpp
@@ -30,11 +31,10 @@
 ; CHECK:   Pointer (0x1001) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: A (0x1000)
-; CHECK:     PointerAttributes: 0x800A
 ; CHECK:     PtrType: Near32 (0xA)
 ; CHECK:     PtrMode: Pointer (0x0)
 ; CHECK:     IsFlat: 0
-; CHECK:     IsConst: 0
+; CHECK:     IsConst: 1
 ; CHECK:     IsVolatile: 0
 ; CHECK:     IsUnaligned: 0
 ; CHECK:     SizeOf: 4
@@ -49,7 +49,7 @@
 ; CHECK:     TypeLeafKind: LF_MFUNCTION (0x1009)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     ClassType: A (0x1000)
-; CHECK:     ThisType: A* (0x1001)
+; CHECK:     ThisType: A* const (0x1001)
 ; CHECK:     CallingConvention: ThisCall (0xB)
 ; CHECK:     FunctionOptions [ (0x0)
 ; CHECK:     ]
@@ -93,7 +93,19 @@
 ; CHECK:     FunctionType: void A::() (0x1003)
 ; CHECK:     Name: A::thiscallcc
 ; CHECK:   }
-; CHECK:   Procedure (0x1009) {
+; CHECK:   Pointer (0x1009) {
+; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
+; CHECK:     PointeeType: A (0x1000)
+; CHECK:     PtrType: Near32 (0xA)
+; CHECK:     PtrMode: Pointer (0x0)
+; CHECK:     IsFlat: 0
+; CHECK:     IsConst: 0
+; CHECK:     IsVolatile: 0
+; CHECK:     IsUnaligned: 0
+; CHECK:     IsRestrict: 0
+; CHECK:     SizeOf: 4
+; CHECK:   }
+; CHECK:   Procedure (0x100A) {
 ; CHECK:     TypeLeafKind: LF_PROCEDURE (0x1008)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     CallingConvention: NearC (0x0)
@@ -102,13 +114,13 @@
 ; CHECK:     NumParameters: 0
 ; CHECK:     ArgListType: () (0x1002)
 ; CHECK:   }
-; CHECK:   FuncId (0x100A) {
+; CHECK:   FuncId (0x100B) {
 ; CHECK:     TypeLeafKind: LF_FUNC_ID (0x1601)
 ; CHECK:     ParentScope: 0x0
-; CHECK:     FunctionType: void () (0x1009)
+; CHECK:     FunctionType: void () (0x100A)
 ; CHECK:     Name: cdeclcc
 ; CHECK:   }
-; CHECK:   Procedure (0x100B) {
+; CHECK:   Procedure (0x100C) {
 ; CHECK:     TypeLeafKind: LF_PROCEDURE (0x1008)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     CallingConvention: NearFast (0x4)
@@ -117,13 +129,13 @@
 ; CHECK:     NumParameters: 0
 ; CHECK:     ArgListType: () (0x1002)
 ; CHECK:   }
-; CHECK:   FuncId (0x100C) {
+; CHECK:   FuncId (0x100D) {
 ; CHECK:     TypeLeafKind: LF_FUNC_ID (0x1601)
 ; CHECK:     ParentScope: 0x0
-; CHECK:     FunctionType: void () (0x100B)
+; CHECK:     FunctionType: void () (0x100C)
 ; CHECK:     Name: fastcallcc
 ; CHECK:   }
-; CHECK:   Procedure (0x100D) {
+; CHECK:   Procedure (0x100E) {
 ; CHECK:     TypeLeafKind: LF_PROCEDURE (0x1008)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     CallingConvention: NearStdCall (0x7)
@@ -132,13 +144,13 @@
 ; CHECK:     NumParameters: 0
 ; CHECK:     ArgListType: () (0x1002)
 ; CHECK:   }
-; CHECK:   FuncId (0x100E) {
+; CHECK:   FuncId (0x100F) {
 ; CHECK:     TypeLeafKind: LF_FUNC_ID (0x1601)
 ; CHECK:     ParentScope: 0x0
-; CHECK:     FunctionType: void () (0x100D)
+; CHECK:     FunctionType: void () (0x100E)
 ; CHECK:     Name: stdcallcc
 ; CHECK:   }
-; CHECK:   Procedure (0x100F) {
+; CHECK:   Procedure (0x1010) {
 ; CHECK:     TypeLeafKind: LF_PROCEDURE (0x1008)
 ; CHECK:     ReturnType: void (0x3)
 ; CHECK:     CallingConvention: NearVector (0x18)
@@ -147,10 +159,10 @@
 ; CHECK:     NumParameters: 0
 ; CHECK:     ArgListType: () (0x1002)
 ; CHECK:   }
-; CHECK:   FuncId (0x1010) {
+; CHECK:   FuncId (0x1011) {
 ; CHECK:     TypeLeafKind: LF_FUNC_ID (0x1601)
 ; CHECK:     ParentScope: 0x0
-; CHECK:     FunctionType: void () (0x100F)
+; CHECK:     FunctionType: void () (0x1010)
 ; CHECK:     Name: vectorcallcc
 ; CHECK:   }
 ; CHECK: ]
@@ -196,8 +208,8 @@ entry:
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, metadata, metadata) #2
 
-attributes #0 = { nounwind readnone "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { norecurse nounwind readnone "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind readnone "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #1 = { norecurse nounwind readnone "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="pentium4" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

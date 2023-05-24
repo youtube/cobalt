@@ -1,4 +1,4 @@
-// RUN: %libomp-compile -lpthread && %libomp-run
+// RUN: %libomp-compile-and-run
 // The runtime currently does not get dependency information from GCC.
 // UNSUPPORTED: gcc
 

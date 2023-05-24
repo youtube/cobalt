@@ -1,12 +1,12 @@
 // REQUIRES: x86
 // RUN: llvm-mc -filetype=obj -triple=i686-unknown-linux %s -o %t.o
 // RUN: llvm-mc -filetype=obj -triple=i686-unknown-linux %p/Inputs/shared.s -o %t2.o
-// RUN: ld.lld --hash-style=sysv -shared %t2.o -o %t2.so
-// RUN: llvm-readobj -s %t2.so | FileCheck --check-prefix=SO %s
+// RUN: ld.lld --hash-style=sysv -shared %t2.o -soname=t2.so -o %t2.so
+// RUN: llvm-readobj -S %t2.so | FileCheck --check-prefix=SO %s
 // RUN: ld.lld --hash-style=sysv -dynamic-linker /lib64/ld-linux-x86-64.so.2 -rpath foo -rpath bar --export-dynamic %t.o %t2.so -o %t
-// RUN: llvm-readobj --program-headers --dynamic-table -t -s -dyn-symbols -section-data -hash-table %t | FileCheck %s
+// RUN: llvm-readobj --program-headers --dynamic-table --symbols -S --dyn-syms --section-data --hash-table %t | FileCheck %s
 // RUN: ld.lld --hash-style=sysv %t.o %t2.so %t2.so -o %t2
-// RUN: llvm-readobj -dyn-symbols %t2 | FileCheck --check-prefix=DONT_EXPORT %s
+// RUN: llvm-readobj --dyn-syms %t2 | FileCheck --check-prefix=DONT_EXPORT %s
 
 // Make sure .symtab is properly aligned.
 // SO:      Name: .symtab
@@ -14,7 +14,7 @@
 // SO-NEXT: Flags [
 // SO-NEXT: ]
 // SO-NEXT: Address:
-// SO-NEXT: Offset: 0x1038
+// SO-NEXT: Offset: 0x1D0
 // SO-NEXT: Size:
 // SO-NEXT: Link:
 // SO-NEXT: Info:
@@ -46,7 +46,7 @@
 // CHECK-NEXT:     SHF_ALLOC
 // CHECK-NEXT:   ]
 // CHECK-NEXT:   Address: [[DYNSYMADDR:.*]]
-// CHECK-NEXT:   Offset: 0x150
+// CHECK-NEXT:   Offset: 0x170
 // CHECK-NEXT:   Size:
 // CHECK-NEXT:   Link: [[DYNSTR:.*]]
 // CHECK-NEXT:   Info: 1
@@ -141,7 +141,7 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: _DYNAMIC
-// CHECK-NEXT:     Value: 0x12000
+// CHECK-NEXT:     Value: 0x402210
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
 // CHECK-NEXT:     Type: None
@@ -152,7 +152,7 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: _start
-// CHECK-NEXT:     Value: 0x11000
+// CHECK-NEXT:     Value: 0x401208
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global
 // CHECK-NEXT:     Type: None
@@ -181,7 +181,7 @@
 
 // CHECK:      DynamicSymbols [
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: @
+// CHECK-NEXT:     Name:
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
@@ -190,8 +190,8 @@
 // CHECK-NEXT:     Section: Undefined
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: _start@
-// CHECK-NEXT:     Value: 0x11000
+// CHECK-NEXT:     Name: _start
+// CHECK-NEXT:     Value: 0x401208
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global
 // CHECK-NEXT:     Type: Non
@@ -199,7 +199,7 @@
 // CHECK-NEXT:     Section: .text
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: bar@
+// CHECK-NEXT:     Name: bar
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global
@@ -208,7 +208,7 @@
 // CHECK-NEXT:     Section: Undefined
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: zed@
+// CHECK-NEXT:     Name: zed
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global
@@ -220,7 +220,7 @@
 
 // DONT_EXPORT:      DynamicSymbols [
 // DONT_EXPORT-NEXT:   Symbol {
-// DONT_EXPORT-NEXT:     Name: @
+// DONT_EXPORT-NEXT:     Name:
 // DONT_EXPORT-NEXT:     Value: 0x0
 // DONT_EXPORT-NEXT:     Size: 0
 // DONT_EXPORT-NEXT:     Binding: Local (0x0)
@@ -229,7 +229,7 @@
 // DONT_EXPORT-NEXT:     Section: Undefined (0x0)
 // DONT_EXPORT-NEXT:   }
 // DONT_EXPORT-NEXT:   Symbol {
-// DONT_EXPORT-NEXT:     Name: bar@
+// DONT_EXPORT-NEXT:     Name: bar
 // DONT_EXPORT-NEXT:     Value: 0x0
 // DONT_EXPORT-NEXT:     Size: 0
 // DONT_EXPORT-NEXT:     Binding: Global
@@ -238,7 +238,7 @@
 // DONT_EXPORT-NEXT:     Section: Undefined
 // DONT_EXPORT-NEXT:   }
 // DONT_EXPORT-NEXT:   Symbol {
-// DONT_EXPORT-NEXT:     Name: zed@
+// DONT_EXPORT-NEXT:     Name: zed
 // DONT_EXPORT-NEXT:     Value: 0x0
 // DONT_EXPORT-NEXT:     Size: 0
 // DONT_EXPORT-NEXT:     Binding: Global
@@ -250,7 +250,7 @@
 
 // CHECK:      DynamicSection [
 // CHECK-NEXT:   Tag        Type                 Name/Value
-// CHECK-NEXT:   0x0000001D RUNPATH              foo:bar
+// CHECK-NEXT:   0x0000001D RUNPATH              Library runpath: [foo:bar]
 // CHECK-NEXT:   0x00000001 NEEDED               Shared library: [{{.*}}2.so]
 // CHECK-NEXT:   0x00000015 DEBUG                0x0
 // CHECK-NEXT:   0x00000011 REL                  [[RELADDR]]

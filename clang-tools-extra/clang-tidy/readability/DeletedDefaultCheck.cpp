@@ -1,9 +1,8 @@
 //===--- DeletedDefaultCheck.cpp - clang-tidy------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -41,7 +40,7 @@ void DeletedDefaultCheck::check(const MatchFinder::MatchResult &Result) {
                             "either be removed or explicitly deleted";
   if (const auto *Constructor =
           Result.Nodes.getNodeAs<CXXConstructorDecl>("constructor")) {
-    auto Diag = diag(Constructor->getLocStart(), Message);
+    auto Diag = diag(Constructor->getBeginLoc(), Message);
     if (Constructor->isDefaultConstructor()) {
       Diag << "default constructor"
            << "a non-static data member or a base class is lacking a default "
@@ -56,7 +55,7 @@ void DeletedDefaultCheck::check(const MatchFinder::MatchResult &Result) {
     }
   } else if (const auto *Assignment =
                  Result.Nodes.getNodeAs<CXXMethodDecl>("method-decl")) {
-    diag(Assignment->getLocStart(), Message)
+    diag(Assignment->getBeginLoc(), Message)
         << (Assignment->isCopyAssignmentOperator() ? "copy assignment operator"
                                                    : "move assignment operator")
         << "a base class or a non-static data member is not assignable, e.g. "

@@ -10,13 +10,19 @@ from lldbsuite.test import lldbutil
 class TestStatsAPI(TestBase):
     mydir = TestBase.compute_mydir(__file__)
 
-    def setUp(self):
-        TestBase.setUp(self)
-
     def test_stats_api(self):
         self.build()
         exe = self.getBuildArtifact("a.out")
         target = self.dbg.CreateTarget(exe)
+
+        # Test enabling/disabling stats
+        self.assertFalse(target.GetCollectingStats())
+        target.SetCollectingStats(True)
+        self.assertTrue(target.GetCollectingStats())
+        target.SetCollectingStats(False)
+        self.assertFalse(target.GetCollectingStats())
+
+        # Test the function to get the statistics in JSON'ish.
         stats = target.GetStatistics()
         stream = lldb.SBStream()
         res = stats.GetAsJSON(stream)

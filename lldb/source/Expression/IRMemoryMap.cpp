@@ -1,14 +1,12 @@
 //===-- IRMemoryMap.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Expression/IRMemoryMap.h"
-#include "lldb/Core/Scalar.h"
 #include "lldb/Target/MemoryRegionInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
@@ -16,6 +14,7 @@
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/LLDBAssert.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/Status.h"
 
 using namespace lldb_private;
@@ -264,7 +263,7 @@ ExecutionContextScope *IRMemoryMap::GetBestExecutionContextScope() const {
   if (target_sp)
     return target_sp.get();
 
-  return NULL;
+  return nullptr;
 }
 
 IRMemoryMap::Allocation::Allocation(lldb::addr_t process_alloc,
@@ -272,20 +271,16 @@ IRMemoryMap::Allocation::Allocation(lldb::addr_t process_alloc,
                                     uint32_t permissions, uint8_t alignment,
                                     AllocationPolicy policy)
     : m_process_alloc(process_alloc), m_process_start(process_start),
-      m_size(size), m_permissions(permissions), m_alignment(alignment),
-      m_policy(policy), m_leak(false) {
+      m_size(size), m_policy(policy), m_leak(false), m_permissions(permissions),
+      m_alignment(alignment) {
   switch (policy) {
   default:
-    assert(0 && "We cannot reach this!");
+    llvm_unreachable("Invalid AllocationPolicy");
   case eAllocationPolicyHostOnly:
-    m_data.SetByteSize(size);
-    memset(m_data.GetBytes(), 0, size);
-    break;
-  case eAllocationPolicyProcessOnly:
-    break;
   case eAllocationPolicyMirror:
     m_data.SetByteSize(size);
-    memset(m_data.GetBytes(), 0, size);
+    break;
+  case eAllocationPolicyProcessOnly:
     break;
   }
 }
@@ -332,12 +327,12 @@ lldb::addr_t IRMemoryMap::Malloc(size_t size, uint8_t alignment,
     break;
   case eAllocationPolicyMirror:
     process_sp = m_process_wp.lock();
-    if (log)
-      log->Printf("IRMemoryMap::%s process_sp=0x%" PRIx64
-                  ", process_sp->CanJIT()=%s, process_sp->IsAlive()=%s",
-                  __FUNCTION__, (lldb::addr_t)process_sp.get(),
-                  process_sp && process_sp->CanJIT() ? "true" : "false",
-                  process_sp && process_sp->IsAlive() ? "true" : "false");
+    LLDB_LOGF(log,
+              "IRMemoryMap::%s process_sp=0x%" PRIxPTR
+              ", process_sp->CanJIT()=%s, process_sp->IsAlive()=%s",
+              __FUNCTION__, reinterpret_cast<uintptr_t>(process_sp.get()),
+              process_sp && process_sp->CanJIT() ? "true" : "false",
+              process_sp && process_sp->IsAlive() ? "true" : "false");
     if (process_sp && process_sp->CanJIT() && process_sp->IsAlive()) {
       if (!zero_memory)
         allocation_address =
@@ -349,10 +344,10 @@ lldb::addr_t IRMemoryMap::Malloc(size_t size, uint8_t alignment,
       if (!error.Success())
         return LLDB_INVALID_ADDRESS;
     } else {
-      if (log)
-        log->Printf("IRMemoryMap::%s switching to eAllocationPolicyHostOnly "
-                    "due to failed condition (see previous expr log message)",
-                    __FUNCTION__);
+      LLDB_LOGF(log,
+                "IRMemoryMap::%s switching to eAllocationPolicyHostOnly "
+                "due to failed condition (see previous expr log message)",
+                __FUNCTION__);
       policy = eAllocationPolicyHostOnly;
       allocation_address = FindSpace(allocation_size);
       if (allocation_address == LLDB_INVALID_ADDRESS) {
@@ -393,9 +388,10 @@ lldb::addr_t IRMemoryMap::Malloc(size_t size, uint8_t alignment,
   lldb::addr_t mask = alignment - 1;
   aligned_address = (allocation_address + mask) & (~mask);
 
-  m_allocations[aligned_address] =
-      Allocation(allocation_address, aligned_address, allocation_size,
-                 permissions, alignment, policy);
+  m_allocations.emplace(
+      std::piecewise_construct, std::forward_as_tuple(aligned_address),
+      std::forward_as_tuple(allocation_address, aligned_address,
+                            allocation_size, permissions, alignment, policy));
 
   if (zero_memory) {
     Status write_error;
@@ -421,10 +417,11 @@ lldb::addr_t IRMemoryMap::Malloc(size_t size, uint8_t alignment,
       break;
     }
 
-    log->Printf("IRMemoryMap::Malloc (%" PRIu64 ", 0x%" PRIx64 ", 0x%" PRIx64
-                ", %s) -> 0x%" PRIx64,
-                (uint64_t)allocation_size, (uint64_t)alignment,
-                (uint64_t)permissions, policy_string, aligned_address);
+    LLDB_LOGF(log,
+              "IRMemoryMap::Malloc (%" PRIu64 ", 0x%" PRIx64 ", 0x%" PRIx64
+              ", %s) -> 0x%" PRIx64,
+              (uint64_t)allocation_size, (uint64_t)alignment,
+              (uint64_t)permissions, policy_string, aligned_address);
   }
 
   return aligned_address;
@@ -481,10 +478,11 @@ void IRMemoryMap::Free(lldb::addr_t process_address, Status &error) {
 
   if (lldb_private::Log *log =
           lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS)) {
-    log->Printf("IRMemoryMap::Free (0x%" PRIx64 ") freed [0x%" PRIx64
-                "..0x%" PRIx64 ")",
-                (uint64_t)process_address, iter->second.m_process_start,
-                iter->second.m_process_start + iter->second.m_size);
+    LLDB_LOGF(log,
+              "IRMemoryMap::Free (0x%" PRIx64 ") freed [0x%" PRIx64
+              "..0x%" PRIx64 ")",
+              (uint64_t)process_address, iter->second.m_process_start,
+              iter->second.m_process_start + iter->second.m_size);
   }
 
   m_allocations.erase(iter);
@@ -578,12 +576,13 @@ void IRMemoryMap::WriteMemory(lldb::addr_t process_address,
 
   if (lldb_private::Log *log =
           lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS)) {
-    log->Printf("IRMemoryMap::WriteMemory (0x%" PRIx64 ", 0x%" PRIx64
-                ", 0x%" PRId64 ") went to [0x%" PRIx64 "..0x%" PRIx64 ")",
-                (uint64_t)process_address, (uint64_t)bytes, (uint64_t)size,
-                (uint64_t)allocation.m_process_start,
-                (uint64_t)allocation.m_process_start +
-                    (uint64_t)allocation.m_size);
+    LLDB_LOGF(log,
+              "IRMemoryMap::WriteMemory (0x%" PRIx64 ", 0x%" PRIxPTR
+              ", 0x%" PRId64 ") went to [0x%" PRIx64 "..0x%" PRIx64 ")",
+              (uint64_t)process_address, reinterpret_cast<uintptr_t>(bytes), (uint64_t)size,
+              (uint64_t)allocation.m_process_start,
+              (uint64_t)allocation.m_process_start +
+                  (uint64_t)allocation.m_size);
   }
 }
 
@@ -708,12 +707,13 @@ void IRMemoryMap::ReadMemory(uint8_t *bytes, lldb::addr_t process_address,
 
   if (lldb_private::Log *log =
           lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS)) {
-    log->Printf("IRMemoryMap::ReadMemory (0x%" PRIx64 ", 0x%" PRIx64
-                ", 0x%" PRId64 ") came from [0x%" PRIx64 "..0x%" PRIx64 ")",
-                (uint64_t)process_address, (uint64_t)bytes, (uint64_t)size,
-                (uint64_t)allocation.m_process_start,
-                (uint64_t)allocation.m_process_start +
-                    (uint64_t)allocation.m_size);
+    LLDB_LOGF(log,
+              "IRMemoryMap::ReadMemory (0x%" PRIx64 ", 0x%" PRIxPTR
+              ", 0x%" PRId64 ") came from [0x%" PRIx64 "..0x%" PRIx64 ")",
+              (uint64_t)process_address, reinterpret_cast<uintptr_t>(bytes), (uint64_t)size,
+              (uint64_t)allocation.m_process_start,
+              (uint64_t)allocation.m_process_start +
+                  (uint64_t)allocation.m_size);
   }
 }
 

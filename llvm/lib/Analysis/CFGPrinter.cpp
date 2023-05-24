@@ -1,15 +1,15 @@
 //===- CFGPrinter.cpp - DOT printer for the control flow graph ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines a '-dot-cfg' analysis pass, which emits the
-// cfg.<fnname>.dot file for each function in the program, with a graph of the
-// CFG for that function.
+// This file defines a `-dot-cfg` analysis pass, which emits the
+// `<prefix>.<fnname>.dot` file for each function in the program, with a graph
+// of the CFG for that function. The default value for `<prefix>` is `cfg` but
+// can be customized as needed.
 //
 // The other main feature of this file is that it implements the
 // Function::viewCFG method, which is useful for debugging passes which operate
@@ -18,7 +18,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CFGPrinter.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 using namespace llvm;
 
@@ -26,6 +28,10 @@ static cl::opt<std::string> CFGFuncName(
     "cfg-func-name", cl::Hidden,
     cl::desc("The name of a function (or its substring)"
              " whose CFG is viewed/printed."));
+
+static cl::opt<std::string> CFGDotFilenamePrefix(
+    "cfg-dot-filename-prefix", cl::Hidden,
+    cl::desc("The prefix used for the CFG dot file names."));
 
 namespace {
   struct CFGViewerLegacyPass : public FunctionPass {
@@ -90,11 +96,12 @@ PreservedAnalyses CFGOnlyViewerPass::run(Function &F,
 static void writeCFGToDotFile(Function &F, bool CFGOnly = false) {
   if (!CFGFuncName.empty() && !F.getName().contains(CFGFuncName))
      return;
-  std::string Filename = ("cfg." + F.getName() + ".dot").str();
+  std::string Filename =
+      (CFGDotFilenamePrefix + "." + F.getName() + ".dot").str();
   errs() << "Writing '" << Filename << "'...";
 
   std::error_code EC;
-  raw_fd_ostream File(Filename, EC, sys::fs::F_Text);
+  raw_fd_ostream File(Filename, EC, sys::fs::OF_Text);
 
   if (!EC)
     WriteGraph(File, (const Function*)&F, CFGOnly);

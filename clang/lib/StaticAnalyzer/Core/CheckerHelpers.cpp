@@ -1,9 +1,8 @@
 //===---- CheckerHelpers.cpp - Helper functions for checkers ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,10 +20,10 @@ namespace ento {
 
 // Recursively find any substatements containing macros
 bool containsMacro(const Stmt *S) {
-  if (S->getLocStart().isMacroID())
+  if (S->getBeginLoc().isMacroID())
     return true;
 
-  if (S->getLocEnd().isMacroID())
+  if (S->getEndLoc().isMacroID())
     return true;
 
   for (const Stmt *Child : S->children())
@@ -92,7 +91,7 @@ parseAssignment(const Stmt *S) {
   } else if (auto PD = dyn_cast_or_null<DeclStmt>(S)) {
     // Initialization
     assert(PD->isSingleDecl() && "We process decls one by one");
-    VD = dyn_cast_or_null<VarDecl>(PD->getSingleDecl());
+    VD = cast<VarDecl>(PD->getSingleDecl());
     RHS = VD->getAnyInitializer();
   }
 
@@ -103,9 +102,9 @@ Nullability getNullabilityAnnotation(QualType Type) {
   const auto *AttrType = Type->getAs<AttributedType>();
   if (!AttrType)
     return Nullability::Unspecified;
-  if (AttrType->getAttrKind() == AttributedType::attr_nullable)
+  if (AttrType->getAttrKind() == attr::TypeNullable)
     return Nullability::Nullable;
-  else if (AttrType->getAttrKind() == AttributedType::attr_nonnull)
+  else if (AttrType->getAttrKind() == attr::TypeNonNull)
     return Nullability::Nonnull;
   return Nullability::Unspecified;
 }

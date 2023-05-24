@@ -92,7 +92,7 @@ main_body:
 ;CHECK-NEXT: ; %main_body
 ;CHECK-NEXT: s_mov_b64 [[ORIG:s\[[0-9]+:[0-9]+\]]], exec
 ;CHECK-NEXT: s_wqm_b64 exec, exec
-;CHECK: v_mul_lo_i32 [[MUL:v[0-9]+]], v0, v1
+;CHECK: v_mul_lo_u32 [[MUL:v[0-9]+]], v0, v1
 ;CHECK: s_and_b64 exec, exec, [[ORIG]]
 ;CHECK: store
 ;CHECK: s_wqm_b64 exec, exec
@@ -117,6 +117,9 @@ main_body:
 ;CHECK: buffer_load_dword
 ;CHECK: buffer_load_dword
 ;CHECK: v_add_f32_e32
+; WQM was inserting an unecessary v_mov to self after the v_add. Make sure this
+; does not happen - the v_add should write the return reg directly.
+;CHECK-NOT: v_mov_b32_e32
 define amdgpu_ps float @test5(i32 inreg %idx0, i32 inreg %idx1) {
 main_body:
   %src0 = call float @llvm.amdgcn.buffer.load.f32(<4 x i32> undef, i32 %idx0, i32 0, i1 0, i1 0)
@@ -260,8 +263,9 @@ main_body:
 }
 
 ; Check that WWM is turned on correctly across basic block boundaries.
+; if..then..endif version
 ;
-;CHECK-LABEL: {{^}}test_wwm6:
+;CHECK-LABEL: {{^}}test_wwm6_then:
 ;CHECK: s_or_saveexec_b64 [[ORIG:s\[[0-9]+:[0-9]+\]]], -1
 ;SI-CHECK: buffer_load_dword
 ;VI-CHECK: flat_load_dword
@@ -272,7 +276,7 @@ main_body:
 ;VI-CHECK: flat_load_dword
 ;CHECK: v_add_f32_e32
 ;CHECK: s_mov_b64 exec, [[ORIG2]]
-define amdgpu_ps float @test_wwm6() {
+define amdgpu_ps float @test_wwm6_then() {
 main_body:
   %src0 = load volatile float, float addrspace(1)* undef
   ; use mbcnt to make sure the branch is divergent
@@ -290,6 +294,40 @@ if:
 endif:
   %out.1 = phi float [ %out.0, %if ], [ 0.0, %main_body ]
   ret float %out.1
+}
+
+; Check that WWM is turned on correctly across basic block boundaries.
+; loop version
+;
+;CHECK-LABEL: {{^}}test_wwm6_loop:
+;CHECK: s_or_saveexec_b64 [[ORIG:s\[[0-9]+:[0-9]+\]]], -1
+;SI-CHECK: buffer_load_dword
+;VI-CHECK: flat_load_dword
+;CHECK: s_mov_b64 exec, [[ORIG]]
+;CHECK: %loop
+;CHECK: s_or_saveexec_b64 [[ORIG2:s\[[0-9]+:[0-9]+\]]], -1
+;SI-CHECK: buffer_load_dword
+;VI-CHECK: flat_load_dword
+;CHECK: s_mov_b64 exec, [[ORIG2]]
+define amdgpu_ps float @test_wwm6_loop() {
+main_body:
+  %src0 = load volatile float, float addrspace(1)* undef
+  ; use mbcnt to make sure the branch is divergent
+  %lo = call i32 @llvm.amdgcn.mbcnt.lo(i32 -1, i32 0)
+  %hi = call i32 @llvm.amdgcn.mbcnt.hi(i32 -1, i32 %lo)
+  br label %loop
+
+loop:
+  %counter = phi i32 [ %lo, %main_body ], [ %counter.1, %loop ]
+  %src1 = load volatile float, float addrspace(1)* undef
+  %out = fadd float %src0, %src1
+  %out.0 = call float @llvm.amdgcn.wwm.f32(float %out)
+  %counter.1 = sub i32 %counter, 1
+  %cc = icmp ne i32 %counter.1, 0
+  br i1 %cc, label %loop, label %endloop
+
+endloop:
+  ret float %out.0
 }
 
 ; Check that @llvm.amdgcn.set.inactive disables WWM.
@@ -387,8 +425,8 @@ END:
 ;CHECK-NEXT: s_and_b64 exec, exec, [[ORIG]]
 ;CHECK-NEXT: s_and_b64 [[SAVED]], exec, [[SAVED]]
 ;CHECK-NEXT: s_xor_b64 exec, exec, [[SAVED]]
-;CHECK-NEXT: mask branch [[END_BB:BB[0-9]+_[0-9]+]]
-;CHECK-NEXT: BB{{[0-9]+_[0-9]+}}: ; %ELSE
+;CHECK-NEXT: s_cbranch_execz [[END_BB:BB[0-9]+_[0-9]+]]
+;CHECK-NEXT: ; %bb.{{[0-9]+}}: ; %ELSE
 ;CHECK: store_dword
 ;CHECK: [[END_BB]]: ; %END
 ;CHECK: s_or_b64 exec, exec,
@@ -551,7 +589,8 @@ main_body:
   %data.0 = extractelement <2 x float> %data, i32 0
   call void @llvm.amdgcn.buffer.store.f32(float %data.0, <4 x i32> undef, i32 %idx.0, i32 0, i1 0, i1 0)
 
-  call void @llvm.AMDGPU.kill(float %z)
+  %z.cmp = fcmp olt float %z, 0.0
+  call void @llvm.amdgcn.kill(i1 %z.cmp)
 
   %idx.1 = extractelement <2 x i32> %idx, i32 1
   %data.1 = extractelement <2 x float> %data, i32 1
@@ -584,7 +623,8 @@ main_body:
 
   call void @llvm.amdgcn.buffer.store.f32(float %data, <4 x i32> undef, i32 0, i32 0, i1 0, i1 0)
 
-  call void @llvm.AMDGPU.kill(float %z)
+  %z.cmp = fcmp olt float %z, 0.0
+  call void @llvm.amdgcn.kill(i1 %z.cmp)
 
   ret <4 x float> %dtex
 }
@@ -610,14 +650,17 @@ main_body:
 ; CHECK: image_store
 ; CHECK: s_wqm_b64 exec, exec
 ; CHECK-DAG: v_mov_b32_e32 [[CTR:v[0-9]+]], 0
-; CHECK-DAG: v_mov_b32_e32 [[SEVEN:v[0-9]+]], 0x40e00000
+; CHECK-DAG: s_mov_b32 [[SEVEN:s[0-9]+]], 0x40e00000
 
-; CHECK: [[LOOPHDR:BB[0-9]+_[0-9]+]]: ; %body
+; CHECK: [[LOOPHDR:BB[0-9]+_[0-9]+]]: ; %loop
+; CHECK: v_cmp_lt_f32_e32 vcc, [[SEVEN]], [[CTR]]
+; CHECK: s_cbranch_vccnz
+
+; CHECK: ; %body
 ; CHECK: v_add_f32_e32 [[CTR]], 2.0, [[CTR]]
-; CHECK: v_cmp_gt_f32_e32 vcc, [[CTR]], [[SEVEN]]
-; CHECK: s_cbranch_vccz [[LOOPHDR]]
-; CHECK: ; %break
+; CHECK: s_branch [[LOOPHDR]]
 
+; CHECK: ; %break
 ; CHECK: ; return
 define amdgpu_ps <4 x float> @test_loop_vcc(<4 x float> %in) nounwind {
 entry:
@@ -791,7 +834,7 @@ declare <4 x float> @llvm.amdgcn.image.load.1d.v4f32.i32(i32, i32, <8 x i32>, i3
 declare float @llvm.amdgcn.buffer.load.f32(<4 x i32>, i32, i32, i1, i1) #3
 declare <4 x float> @llvm.amdgcn.image.sample.1d.v4f32.f32(i32, float, <8 x i32>, <4 x i32>, i1, i32, i32) #3
 declare <4 x float> @llvm.amdgcn.image.sample.2d.v4f32.f32(i32, float, float, <8 x i32>, <4 x i32>, i1, i32, i32) #3
-declare void @llvm.AMDGPU.kill(float) #1
+declare void @llvm.amdgcn.kill(i1) #1
 declare float @llvm.amdgcn.wqm.f32(float) #3
 declare i32 @llvm.amdgcn.wqm.i32(i32) #3
 declare float @llvm.amdgcn.wwm.f32(float) #3

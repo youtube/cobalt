@@ -1,9 +1,8 @@
 //===-- RegisterContextPOSIX_arm64.cpp --------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -11,14 +10,14 @@
 #include <errno.h>
 #include <stdint.h>
 
-#include "lldb/Core/RegisterValue.h"
-#include "lldb/Core/Scalar.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Endian.h"
+#include "lldb/Utility/RegisterValue.h"
+#include "lldb/Utility/Scalar.h"
 #include "llvm/Support/Compiler.h"
 
 #include "RegisterContextPOSIX_arm64.h"
@@ -106,10 +105,11 @@ RegisterContextPOSIX_arm64::RegisterContextPOSIX_arm64(
     lldb_private::Thread &thread, uint32_t concrete_frame_idx,
     lldb_private::RegisterInfoInterface *register_info)
     : lldb_private::RegisterContext(thread, concrete_frame_idx) {
-  m_register_info_ap.reset(register_info);
+  m_register_info_up.reset(register_info);
 
   switch (register_info->m_target_arch.GetMachine()) {
   case llvm::Triple::aarch64:
+  case llvm::Triple::aarch64_32:
     m_reg_info.num_registers = k_num_registers_arm64;
     m_reg_info.num_gpr_registers = k_num_gpr_registers_arm64;
     m_reg_info.num_fpr_registers = k_num_fpr_registers_arm64;
@@ -151,7 +151,7 @@ size_t RegisterContextPOSIX_arm64::GetRegisterCount() {
 }
 
 size_t RegisterContextPOSIX_arm64::GetGPRSize() {
-  return m_register_info_ap->GetGPRSize();
+  return m_register_info_up->GetGPRSize();
 }
 
 const lldb_private::RegisterInfo *
@@ -159,7 +159,7 @@ RegisterContextPOSIX_arm64::GetRegisterInfo() {
   // Commonly, this method is overridden and g_register_infos is copied and
   // specialized. So, use GetRegisterInfo() rather than g_register_infos in
   // this scope.
-  return m_register_info_ap->GetRegisterInfo();
+  return m_register_info_up->GetRegisterInfo();
 }
 
 const lldb_private::RegisterInfo *
@@ -167,7 +167,7 @@ RegisterContextPOSIX_arm64::GetRegisterInfoAtIndex(size_t reg) {
   if (reg < m_reg_info.num_registers)
     return &GetRegisterInfo()[reg];
   else
-    return NULL;
+    return nullptr;
 }
 
 size_t RegisterContextPOSIX_arm64::GetRegisterSetCount() {
@@ -183,15 +183,16 @@ size_t RegisterContextPOSIX_arm64::GetRegisterSetCount() {
 const lldb_private::RegisterSet *
 RegisterContextPOSIX_arm64::GetRegisterSet(size_t set) {
   if (IsRegisterSetAvailable(set)) {
-    switch (m_register_info_ap->m_target_arch.GetMachine()) {
+    switch (m_register_info_up->m_target_arch.GetMachine()) {
     case llvm::Triple::aarch64:
+    case llvm::Triple::aarch64_32:
       return &g_reg_sets_arm64[set];
     default:
       assert(false && "Unhandled target architecture.");
-      return NULL;
+      return nullptr;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 const char *RegisterContextPOSIX_arm64::GetRegisterName(unsigned reg) {

@@ -1,9 +1,8 @@
 //===- HeaderSearch.h - Resolve Header File Locations -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,6 +16,7 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/DirectoryLookup.h"
+#include "clang/Lex/HeaderMap.h"
 #include "clang/Lex/ModuleMap.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -38,7 +38,6 @@ class DirectoryEntry;
 class ExternalPreprocessorSource;
 class FileEntry;
 class FileManager;
-class HeaderMap;
 class HeaderSearchOptions;
 class IdentifierInfo;
 class LangOptions;
@@ -55,7 +54,7 @@ struct HeaderFileInfo {
   /// True if this is a \#pragma once file.
   unsigned isPragmaOnce : 1;
 
-  /// DirInfo - Keep track of whether this is a system header, and if so,
+  /// Keep track of whether this is a system header, and if so,
   /// whether it is C++ clean or not.  This can be set by the include paths or
   /// by \#pragma gcc system_header.  This is an instance of
   /// SrcMgr::CharacteristicKind.
@@ -143,21 +142,21 @@ public:
   virtual HeaderFileInfo GetHeaderFileInfo(const FileEntry *FE) = 0;
 };
 
+/// This structure is used to record entries in our framework cache.
+struct FrameworkCacheEntry {
+  /// The directory entry which should be used for the cached framework.
+  const DirectoryEntry *Directory;
+
+  /// Whether this framework has been "user-specified" to be treated as if it
+  /// were a system framework (even if it was found outside a system framework
+  /// directory).
+  bool IsUserSpecifiedSystemFramework;
+};
+
 /// Encapsulates the information needed to find the file referenced
 /// by a \#include or \#include_next, (sub-)framework lookup, etc.
 class HeaderSearch {
   friend class DirectoryLookup;
-
-  /// This structure is used to record entries in our framework cache.
-  struct FrameworkCacheEntry {
-    /// The directory entry which should be used for the cached framework.
-    const DirectoryEntry *Directory;
-
-    /// Whether this framework has been "user-specified" to be treated as if it
-    /// were a system framework (even if it was found outside a system framework
-    /// directory).
-    bool IsUserSpecifiedSystemFramework;
-  };
 
   /// Header-search options used to initialize this header search.
   std::shared_ptr<HeaderSearchOptions> HSOpts;
@@ -219,16 +218,15 @@ class HeaderSearch {
   /// name like "Carbon" to the Carbon.framework directory.
   llvm::StringMap<FrameworkCacheEntry, llvm::BumpPtrAllocator> FrameworkMap;
 
-  /// IncludeAliases - maps include file names (including the quotes or
+  /// Maps include file names (including the quotes or
   /// angle brackets) to other include file names.  This is used to support the
   /// include_alias pragma for Microsoft compatibility.
   using IncludeAliasMap =
       llvm::StringMap<std::string, llvm::BumpPtrAllocator>;
   std::unique_ptr<IncludeAliasMap> IncludeAliases;
 
-  /// HeaderMaps - This is a mapping from FileEntry -> HeaderMap, uniquing
-  /// headermaps.  This vector owns the headermap.
-  std::vector<std::pair<const FileEntry *, const HeaderMap *>> HeaderMaps;
+  /// This is a mapping from FileEntry -> HeaderMap, uniquing headermaps.
+  std::vector<std::pair<const FileEntry *, std::unique_ptr<HeaderMap>>> HeaderMaps;
 
   /// The mapping between modules and headers.
   mutable ModuleMap ModMap;
@@ -252,19 +250,12 @@ class HeaderSearch {
   /// Entity used to look up stored header file information.
   ExternalHeaderFileInfoSource *ExternalSource = nullptr;
 
-  // Various statistics we track for performance analysis.
-  unsigned NumIncluded = 0;
-  unsigned NumMultiIncludeFileOptzn = 0;
-  unsigned NumFrameworkLookups = 0;
-  unsigned NumSubFrameworkLookups = 0;
-
 public:
   HeaderSearch(std::shared_ptr<HeaderSearchOptions> HSOpts,
                SourceManager &SourceMgr, DiagnosticsEngine &Diags,
                const LangOptions &LangOpts, const TargetInfo *Target);
   HeaderSearch(const HeaderSearch &) = delete;
   HeaderSearch &operator=(const HeaderSearch &) = delete;
-  ~HeaderSearch();
 
   /// Retrieve the header-search options with which this header search
   /// was initialized.
@@ -314,7 +305,7 @@ public:
     (*IncludeAliases)[Source] = Dest;
   }
 
-  /// MapHeaderToIncludeAlias - Maps one header file name to a different header
+  /// Maps one header file name to a different header
   /// file name, for use with the include_alias pragma.  Note that the source
   /// file name should include the angle brackets or quotes.  Returns StringRef
   /// as null if the header cannot be mapped.
@@ -393,13 +384,19 @@ public:
   ///
   /// \param IsMapped If non-null, and the search involved header maps, set to
   /// true.
-  const FileEntry *LookupFile(
+  ///
+  /// \param IsFrameworkFound If non-null, will be set to true if a framework is
+  /// found in any of searched SearchDirs. Will be set to false if a framework
+  /// is found only through header maps. Doesn't guarantee the requested file is
+  /// found.
+  Optional<FileEntryRef> LookupFile(
       StringRef Filename, SourceLocation IncludeLoc, bool isAngled,
       const DirectoryLookup *FromDir, const DirectoryLookup *&CurDir,
       ArrayRef<std::pair<const FileEntry *, const DirectoryEntry *>> Includers,
       SmallVectorImpl<char> *SearchPath, SmallVectorImpl<char> *RelativePath,
       Module *RequestingModule, ModuleMap::KnownHeader *SuggestedModule,
-      bool *IsMapped, bool SkipCache = false, bool BuildSystemModule = false);
+      bool *IsMapped, bool *IsFrameworkFound, bool SkipCache = false,
+      bool BuildSystemModule = false);
 
   /// Look up a subframework for the specified \#include file.
   ///
@@ -407,8 +404,8 @@ public:
   /// within ".../Carbon.framework/Headers/Carbon.h", check to see if
   /// HIToolbox is a subframework within Carbon.framework.  If so, return
   /// the FileEntry for the designated file, otherwise return null.
-  const FileEntry *LookupSubframeworkHeader(
-      StringRef Filename, const FileEntry *RelativeFileEnt,
+  Optional<FileEntryRef> LookupSubframeworkHeader(
+      StringRef Filename, const FileEntry *ContextFileEnt,
       SmallVectorImpl<char> *SearchPath, SmallVectorImpl<char> *RelativePath,
       Module *RequestingModule, ModuleMap::KnownHeader *SuggestedModule);
 
@@ -425,7 +422,7 @@ public:
   /// if we should include it.
   bool ShouldEnterIncludeFile(Preprocessor &PP, const FileEntry *File,
                               bool isImport, bool ModulesEnabled,
-                              Module *CorrespondingModule);
+                              Module *M);
 
   /// Return whether the specified file is a normal header,
   /// a system header, or a C++ friendly system header.
@@ -448,9 +445,9 @@ public:
   }
 
   /// Mark the specified file as part of a module.
-  void MarkFileModuleHeader(const FileEntry *File,
+  void MarkFileModuleHeader(const FileEntry *FE,
                             ModuleMap::ModuleHeaderRole Role,
-                            bool IsCompiledModuleHeader);
+                            bool isCompilingModuleHeader);
 
   /// Increment the count for the number of times the specified
   /// FileEntry has been entered.
@@ -479,7 +476,7 @@ public:
   /// This routine does not consider the effect of \#import
   bool isFileMultipleIncludeGuarded(const FileEntry *File);
 
-  /// CreateHeaderMap - This method returns a HeaderMap for the specified
+  /// This method returns a HeaderMap for the specified
   /// FileEntry, uniquing them through the 'HeaderMaps' datastructure.
   const HeaderMap *CreateHeaderMap(const FileEntry *FE);
 
@@ -540,8 +537,6 @@ public:
   /// \c nullptr if none is found.
   const FileEntry *lookupModuleMapFile(const DirectoryEntry *Dir,
                                        bool IsFramework);
-
-  void IncrementFrameworkLookupCount() { ++NumFrameworkLookups; }
 
   /// Determine whether there is a module map that may map the header
   /// with the given file name to a (sub)module.
@@ -641,12 +636,12 @@ private:
   /// \return \c true if the file can be used, \c false if we are not permitted to
   ///         find this file due to requirements from \p RequestingModule.
   bool findUsableModuleForFrameworkHeader(
-      const FileEntry *File, StringRef FrameworkDir, Module *RequestingModule,
+      const FileEntry *File, StringRef FrameworkName, Module *RequestingModule,
       ModuleMap::KnownHeader *SuggestedModule, bool IsSystemFramework);
 
   /// Look up the file with the specified name and determine its owning
   /// module.
-  const FileEntry *
+  Optional<FileEntryRef>
   getFileAndSuggestModule(StringRef FileName, SourceLocation IncludeLoc,
                           const DirectoryEntry *Dir, bool IsSystemHeaderDir,
                           Module *RequestingModule,
@@ -704,21 +699,31 @@ public:
   /// Retrieve a uniqued framework name.
   StringRef getUniqueFrameworkName(StringRef Framework);
 
-  /// Suggest a path by which the specified file could be found, for
-  /// use in diagnostics to suggest a #include.
+  /// Suggest a path by which the specified file could be found, for use in
+  /// diagnostics to suggest a #include. Returned path will only contain forward
+  /// slashes as separators. MainFile is the absolute path of the file that we
+  /// are generating the diagnostics for. It will try to shorten the path using
+  /// MainFile location, if none of the include search directories were prefix
+  /// of File.
   ///
   /// \param IsSystem If non-null, filled in to indicate whether the suggested
   ///        path is relative to a system header directory.
   std::string suggestPathToFileForDiagnostics(const FileEntry *File,
+                                              llvm::StringRef MainFile,
                                               bool *IsSystem = nullptr);
 
-  /// Suggest a path by which the specified file could be found, for
-  /// use in diagnostics to suggest a #include.
+  /// Suggest a path by which the specified file could be found, for use in
+  /// diagnostics to suggest a #include. Returned path will only contain forward
+  /// slashes as separators. MainFile is the absolute path of the file that we
+  /// are generating the diagnostics for. It will try to shorten the path using
+  /// MainFile location, if none of the include search directories were prefix
+  /// of File.
   ///
   /// \param WorkingDir If non-empty, this will be prepended to search directory
   /// paths that are relative.
   std::string suggestPathToFileForDiagnostics(llvm::StringRef File,
                                               llvm::StringRef WorkingDir,
+                                              llvm::StringRef MainFile,
                                               bool *IsSystem = nullptr);
 
   void PrintStats();

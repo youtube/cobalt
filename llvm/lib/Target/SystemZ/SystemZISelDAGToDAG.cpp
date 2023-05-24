@@ -1,9 +1,8 @@
 //===-- SystemZISelDAGToDAG.cpp - A dag to dag inst selector for SystemZ --===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -12,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "SystemZTargetMachine.h"
+#include "SystemZISelLowering.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/Support/Debug.h"
@@ -71,19 +71,19 @@ struct SystemZAddressingMode {
   // True if the address can (and must) include ADJDYNALLOC.
   bool isDynAlloc() { return Form == FormBDXDynAlloc; }
 
-  void dump() {
+  void dump(const llvm::SelectionDAG *DAG) {
     errs() << "SystemZAddressingMode " << this << '\n';
 
     errs() << " Base ";
     if (Base.getNode())
-      Base.getNode()->dump();
+      Base.getNode()->dump(DAG);
     else
       errs() << "null\n";
 
     if (hasIndexField()) {
       errs() << " Index ";
       if (Index.getNode())
-        Index.getNode()->dump();
+        Index.getNode()->dump(DAG);
       else
         errs() << "null\n";
     }
@@ -304,6 +304,9 @@ class SystemZDAGToDAGISel : public SelectionDAGISel {
   void splitLargeImmediate(unsigned Opcode, SDNode *Node, SDValue Op0,
                            uint64_t UpperVal, uint64_t LowerVal);
 
+  void loadVectorConstant(const SystemZVectorConstantInfo &VCI,
+                          SDNode *Node);
+
   // Try to use gather instruction Opcode to implement vector insertion N.
   bool tryGather(SDNode *N, unsigned Opcode);
 
@@ -343,6 +346,14 @@ public:
       : SelectionDAGISel(TM, OptLevel) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override {
+    const Function &F = MF.getFunction();
+    if (F.getFnAttribute("fentry-call").getValueAsString() != "true") {
+      if (F.hasFnAttribute("mnop-mcount"))
+        report_fatal_error("mnop-mcount only supported with fentry-call");
+      if (F.hasFnAttribute("mrecord-mcount"))
+        report_fatal_error("mrecord-mcount only supported with fentry-call");
+    }
+
     Subtarget = &MF.getSubtarget<SystemZSubtarget>();
     return SelectionDAGISel::runOnMachineFunction(MF);
   }
@@ -589,7 +600,7 @@ bool SystemZDAGToDAGISel::selectAddress(SDValue Addr,
   if (AM.isDynAlloc() && !AM.IncludesDynAlloc)
     return false;
 
-  LLVM_DEBUG(AM.dump());
+  LLVM_DEBUG(AM.dump(CurDAG));
   return true;
 }
 
@@ -728,8 +739,7 @@ bool SystemZDAGToDAGISel::detectOrAndInsertion(SDValue &Op,
   // The inner check covers all cases but is more expensive.
   uint64_t Used = allOnes(Op.getValueSizeInBits());
   if (Used != (AndMask | InsertMask)) {
-    KnownBits Known;
-    CurDAG->computeKnownBits(Op.getOperand(0), Known);
+    KnownBits Known = CurDAG->computeKnownBits(Op.getOperand(0));
     if (Used != (AndMask | InsertMask | Known.Zero.getZExtValue()))
       return false;
   }
@@ -787,8 +797,7 @@ bool SystemZDAGToDAGISel::expandRxSBG(RxSBGOperands &RxSBG) const {
       // If some bits of Input are already known zeros, those bits will have
       // been removed from the mask.  See if adding them back in makes the
       // mask suitable.
-      KnownBits Known;
-      CurDAG->computeKnownBits(Input, Known);
+      KnownBits Known = CurDAG->computeKnownBits(Input);
       Mask |= Known.Zero.getZExtValue();
       if (!refineRxSBGMask(RxSBG, Mask))
         return false;
@@ -811,8 +820,7 @@ bool SystemZDAGToDAGISel::expandRxSBG(RxSBGOperands &RxSBG) const {
       // If some bits of Input are already known ones, those bits will have
       // been removed from the mask.  See if adding them back in makes the
       // mask suitable.
-      KnownBits Known;
-      CurDAG->computeKnownBits(Input, Known);
+      KnownBits Known = CurDAG->computeKnownBits(Input);
       Mask &= ~Known.One.getZExtValue();
       if (!refineRxSBGMask(RxSBG, Mask))
         return false;
@@ -1135,6 +1143,35 @@ void SystemZDAGToDAGISel::splitLargeImmediate(unsigned Opcode, SDNode *Node,
   SelectCode(Or.getNode());
 }
 
+void SystemZDAGToDAGISel::loadVectorConstant(
+    const SystemZVectorConstantInfo &VCI, SDNode *Node) {
+  assert((VCI.Opcode == SystemZISD::BYTE_MASK ||
+          VCI.Opcode == SystemZISD::REPLICATE ||
+          VCI.Opcode == SystemZISD::ROTATE_MASK) &&
+         "Bad opcode!");
+  assert(VCI.VecVT.getSizeInBits() == 128 && "Expected a vector type");
+  EVT VT = Node->getValueType(0);
+  SDLoc DL(Node);
+  SmallVector<SDValue, 2> Ops;
+  for (unsigned OpVal : VCI.OpVals)
+    Ops.push_back(CurDAG->getTargetConstant(OpVal, DL, MVT::i32));
+  SDValue Op = CurDAG->getNode(VCI.Opcode, DL, VCI.VecVT, Ops);
+
+  if (VCI.VecVT == VT.getSimpleVT())
+    ReplaceNode(Node, Op.getNode());
+  else if (VT.getSizeInBits() == 128) {
+    SDValue BitCast = CurDAG->getNode(ISD::BITCAST, DL, VT, Op);
+    ReplaceNode(Node, BitCast.getNode());
+    SelectCode(BitCast.getNode());
+  } else { // float or double
+    unsigned SubRegIdx =
+        (VT.getSizeInBits() == 32 ? SystemZ::subreg_h32 : SystemZ::subreg_h64);
+    ReplaceNode(
+        Node, CurDAG->getTargetExtractSubreg(SubRegIdx, DL, VT, Op).getNode());
+  }
+  SelectCode(Op.getNode());
+}
+
 bool SystemZDAGToDAGISel::tryGather(SDNode *N, unsigned Opcode) {
   SDValue ElemV = N->getOperand(2);
   auto *ElemN = dyn_cast<ConstantSDNode>(ElemV);
@@ -1147,7 +1184,7 @@ bool SystemZDAGToDAGISel::tryGather(SDNode *N, unsigned Opcode) {
     return false;
 
   auto *Load = dyn_cast<LoadSDNode>(N->getOperand(1));
-  if (!Load || !Load->hasOneUse())
+  if (!Load || !Load->hasNUsesOfValue(1, 0))
     return false;
   if (Load->getMemoryVT().getSizeInBits() !=
       Load->getValueType(0).getSizeInBits())
@@ -1246,6 +1283,9 @@ static bool isFusableLoadOpStorePattern(StoreSDNode *StoreNode,
     InputChain = LoadNode->getChain();
   } else if (Chain.getOpcode() == ISD::TokenFactor) {
     SmallVector<SDValue, 4> ChainOps;
+    SmallVector<const SDNode *, 4> LoopWorklist;
+    SmallPtrSet<const SDNode *, 16> Visited;
+    const unsigned int Max = 1024;
     for (unsigned i = 0, e = Chain.getNumOperands(); i != e; ++i) {
       SDValue Op = Chain.getOperand(i);
       if (Op == Load.getValue(1)) {
@@ -1254,28 +1294,26 @@ static bool isFusableLoadOpStorePattern(StoreSDNode *StoreNode,
         ChainOps.push_back(Load.getOperand(0));
         continue;
       }
-
-      // Make sure using Op as part of the chain would not cause a cycle here.
-      // In theory, we could check whether the chain node is a predecessor of
-      // the load. But that can be very expensive. Instead visit the uses and
-      // make sure they all have smaller node id than the load.
-      int LoadId = LoadNode->getNodeId();
-      for (SDNode::use_iterator UI = Op.getNode()->use_begin(),
-             UE = UI->use_end(); UI != UE; ++UI) {
-        if (UI.getUse().getResNo() != 0)
-          continue;
-        if (UI->getNodeId() > LoadId)
-          return false;
-      }
-
+      LoopWorklist.push_back(Op.getNode());
       ChainOps.push_back(Op);
     }
 
-    if (ChainCheck)
+    if (ChainCheck) {
+      // Add the other operand of StoredVal to worklist.
+      for (SDValue Op : StoredVal->ops())
+        if (Op.getNode() != LoadNode)
+          LoopWorklist.push_back(Op.getNode());
+
+      // Check if Load is reachable from any of the nodes in the worklist.
+      if (SDNode::hasPredecessorHelper(Load.getNode(), Visited, LoopWorklist, Max,
+                                       true))
+        return false;
+
       // Make a new TokenFactor with all the other input chains except
       // for the load.
       InputChain = CurDAG->getNode(ISD::TokenFactor, SDLoc(Chain),
                                    MVT::Other, ChainOps);
+    }
   }
   if (!ChainCheck)
     return false;
@@ -1308,7 +1346,7 @@ bool SystemZDAGToDAGISel::tryFoldLoadStoreIntoMemOperand(SDNode *Node) {
     return false;
   case SystemZISD::SSUBO:
     NegateOperand = true;
-    /* fall through */
+    LLVM_FALLTHROUGH;
   case SystemZISD::SADDO:
     if (MemVT == MVT::i32)
       NewOpc = SystemZ::ASI;
@@ -1319,7 +1357,7 @@ bool SystemZDAGToDAGISel::tryFoldLoadStoreIntoMemOperand(SDNode *Node) {
     break;
   case SystemZISD::USUBO:
     NegateOperand = true;
-    /* fall through */
+    LLVM_FALLTHROUGH;
   case SystemZISD::UADDO:
     if (MemVT == MVT::i32)
       NewOpc = SystemZ::ALSI;
@@ -1354,11 +1392,8 @@ bool SystemZDAGToDAGISel::tryFoldLoadStoreIntoMemOperand(SDNode *Node) {
   SDValue Ops[] = { Base, Disp, Operand, InputChain };
   MachineSDNode *Result =
     CurDAG->getMachineNode(NewOpc, DL, MVT::i32, MVT::Other, Ops);
-
-  MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(2);
-  MemOp[0] = StoreNode->getMemOperand();
-  MemOp[1] = LoadNode->getMemOperand();
-  Result->setMemRefs(MemOp, MemOp + 2);
+  CurDAG->setNodeMemRefs(
+      Result, {StoreNode->getMemOperand(), LoadNode->getMemOperand()});
 
   ReplaceUses(SDValue(StoreNode, 0), SDValue(Result, 1));
   ReplaceUses(SDValue(StoredVal.getNode(), 1), SDValue(Result, 0));
@@ -1453,6 +1488,24 @@ void SystemZDAGToDAGISel::Select(SDNode *Node) {
         Node->getOperand(0).getOpcode() != ISD::Constant)
       if (auto *Op1 = dyn_cast<ConstantSDNode>(Node->getOperand(1))) {
         uint64_t Val = Op1->getZExtValue();
+        // Don't split the operation if we can match one of the combined
+        // logical operations provided by miscellaneous-extensions-3.
+        if (Subtarget->hasMiscellaneousExtensions3()) {
+          unsigned ChildOpcode = Node->getOperand(0).getOpcode();
+          // Check whether this expression matches NAND/NOR/NXOR.
+          if (Val == (uint64_t)-1 && Opcode == ISD::XOR)
+            if (ChildOpcode == ISD::AND || ChildOpcode == ISD::OR ||
+                ChildOpcode == ISD::XOR)
+              break;
+          // Check whether this expression matches OR-with-complement
+          // (or matches an alternate pattern for NXOR).
+          if (ChildOpcode == ISD::XOR) {
+            auto Op0 = Node->getOperand(0);
+            if (auto *Op0Op1 = dyn_cast<ConstantSDNode>(Op0->getOperand(1)))
+              if (Op0Op1->getZExtValue() == (uint64_t)-1)
+                break;
+          }
+        }
         if (!SystemZ::isImmLF(Val) && !SystemZ::isImmHF(Val)) {
           splitLargeImmediate(Opcode, Node, Node->getOperand(0),
                               Val - uint32_t(Val), uint32_t(Val));
@@ -1506,8 +1559,8 @@ void SystemZDAGToDAGISel::Select(SDNode *Node) {
       uint64_t ConstCCMask =
         cast<ConstantSDNode>(CCMask.getNode())->getZExtValue();
       // Invert the condition.
-      CCMask = CurDAG->getConstant(ConstCCValid ^ ConstCCMask, SDLoc(Node),
-                                   CCMask.getValueType());
+      CCMask = CurDAG->getTargetConstant(ConstCCValid ^ ConstCCMask,
+                                         SDLoc(Node), CCMask.getValueType());
       SDValue Op4 = Node->getOperand(4);
       SDNode *UpdatedNode =
         CurDAG->UpdateNodeOperands(Node, Op1, Op0, CCValid, CCMask, Op4);
@@ -1531,6 +1584,27 @@ void SystemZDAGToDAGISel::Select(SDNode *Node) {
         return;
     }
     break;
+  }
+
+  case ISD::BUILD_VECTOR: {
+    auto *BVN = cast<BuildVectorSDNode>(Node);
+    SystemZVectorConstantInfo VCI(BVN);
+    if (VCI.isVectorConstantLegal(*Subtarget)) {
+      loadVectorConstant(VCI, Node);
+      return;
+    }
+    break;
+  }
+
+  case ISD::ConstantFP: {
+    APFloat Imm = cast<ConstantFPSDNode>(Node)->getValueAPF();
+    if (Imm.isZero() || Imm.isNegZero())
+      break;
+    SystemZVectorConstantInfo VCI(Imm);
+    bool Success = VCI.isVectorConstantLegal(*Subtarget); (void)Success;
+    assert(Success && "Expected legal FP immediate");
+    loadVectorConstant(VCI, Node);
+    return;
   }
 
   case ISD::STORE: {

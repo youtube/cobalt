@@ -1,22 +1,21 @@
 //===-- StringList.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Utility/StringList.h"
 
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/Stream.h" // for Stream
+#include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
-#include "llvm/ADT/ArrayRef.h" // for ArrayRef, makeArrayRef
+#include "llvm/ADT/ArrayRef.h"
 
-#include <algorithm> // for min
-#include <stdint.h>  // for SIZE_MAX, uint32_t
-#include <string.h>  // for size_t, strcspn, NULL
+#include <algorithm>
+#include <stdint.h>
+#include <string.h>
 
 using namespace lldb_private;
 
@@ -62,10 +61,8 @@ void StringList::AppendList(const char **strv, int strc) {
 }
 
 void StringList::AppendList(StringList strings) {
-  size_t len = strings.GetSize();
-
-  for (size_t i = 0; i < len; ++i)
-    m_strings.push_back(strings.GetStringAtIndex(i));
+  m_strings.reserve(m_strings.size() + strings.GetSize());
+  m_strings.insert(m_strings.end(), strings.begin(), strings.end());
 }
 
 size_t StringList::GetSize() const { return m_strings.size(); }
@@ -83,7 +80,7 @@ size_t StringList::GetMaxStringLength() const {
 const char *StringList::GetStringAtIndex(size_t idx) const {
   if (idx < m_strings.size())
     return m_strings[idx].c_str();
-  return NULL;
+  return nullptr;
 }
 
 void StringList::Join(const char *separator, Stream &strm) {
@@ -101,10 +98,9 @@ void StringList::Join(const char *separator, Stream &strm) {
 
 void StringList::Clear() { m_strings.clear(); }
 
-void StringList::LongestCommonPrefix(std::string &common_prefix) {
-  common_prefix.clear();
+std::string StringList::LongestCommonPrefix() {
   if (m_strings.empty())
-    return;
+    return {};
 
   auto args = llvm::makeArrayRef(m_strings);
   llvm::StringRef prefix = args.front();
@@ -116,7 +112,7 @@ void StringList::LongestCommonPrefix(std::string &common_prefix) {
     }
     prefix = prefix.take_front(count);
   }
-  common_prefix = prefix;
+  return prefix.str();
 }
 
 void StringList::InsertStringAtIndex(size_t idx, const char *str) {
@@ -225,29 +221,6 @@ StringList &StringList::operator=(const std::vector<std::string> &rhs) {
   m_strings.assign(rhs.begin(), rhs.end());
 
   return *this;
-}
-
-size_t StringList::AutoComplete(llvm::StringRef s, StringList &matches,
-                                size_t &exact_idx) const {
-  matches.Clear();
-  exact_idx = SIZE_MAX;
-  if (s.empty()) {
-    // No string, so it matches everything
-    matches = *this;
-    return matches.GetSize();
-  }
-
-  const size_t s_len = s.size();
-  const size_t num_strings = m_strings.size();
-
-  for (size_t i = 0; i < num_strings; ++i) {
-    if (m_strings[i].find(s) == 0) {
-      if (exact_idx == SIZE_MAX && m_strings[i].size() == s_len)
-        exact_idx = matches.GetSize();
-      matches.AppendString(m_strings[i]);
-    }
-  }
-  return matches.GetSize();
 }
 
 void StringList::LogDump(Log *log, const char *name) {

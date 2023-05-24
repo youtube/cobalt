@@ -409,7 +409,7 @@ define i32 @test32(i32 %X) {
 
 define <2 x i32> @test32vec(<2 x i32> %X) {
 ; CHECK-LABEL: @test32vec(
-; CHECK-NEXT:    [[MUL:%.*]] = shl nsw <2 x i32> [[X:%.*]], <i32 31, i32 31>
+; CHECK-NEXT:    [[MUL:%.*]] = shl <2 x i32> [[X:%.*]], <i32 31, i32 31>
 ; CHECK-NEXT:    ret <2 x i32> [[MUL]]
 ;
   %mul = mul nsw <2 x i32> %X, <i32 -2147483648, i32 -2147483648>
@@ -441,4 +441,169 @@ define i128 @test34(i128 %X) {
 ;
   %mul = mul nsw i128 %X, 2
   ret i128 %mul
+}
+
+define i32 @test_mul_canonicalize_op0(i32 %x, i32 %y) {
+; CHECK-LABEL: @test_mul_canonicalize_op0(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub i32 0, [[TMP1]]
+; CHECK-NEXT:    ret i32 [[MUL]]
+;
+  %neg = sub i32 0, %x
+  %mul = mul i32 %neg, %y
+  ret i32 %mul
+}
+
+define i32 @test_mul_canonicalize_op1(i32 %x, i32 %z) {
+; CHECK-LABEL: @test_mul_canonicalize_op1(
+; CHECK-NEXT:    [[Y:%.*]] = mul i32 [[Z:%.*]], 3
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[Y]], [[X:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub i32 0, [[TMP1]]
+; CHECK-NEXT:    ret i32 [[MUL]]
+;
+  %y = mul i32 %z, 3
+  %neg = sub i32 0, %x
+  %mul = mul i32 %y, %neg
+  ret i32 %mul
+}
+
+define i32 @test_mul_canonicalize_nsw(i32 %x, i32 %y) {
+; CHECK-LABEL: @test_mul_canonicalize_nsw(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub i32 0, [[TMP1]]
+; CHECK-NEXT:    ret i32 [[MUL]]
+;
+  %neg = sub nsw i32 0, %x
+  %mul = mul nsw i32 %neg, %y
+  ret i32 %mul
+}
+
+define <2 x i32> @test_mul_canonicalize_vec(<2 x i32> %x, <2 x i32> %y) {
+; CHECK-LABEL: @test_mul_canonicalize_vec(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul <2 x i32> [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub <2 x i32> zeroinitializer, [[TMP1]]
+; CHECK-NEXT:    ret <2 x i32> [[MUL]]
+;
+  %neg = sub <2 x i32> <i32 0, i32 0>, %x
+  %mul = mul <2 x i32> %neg, %y
+  ret <2 x i32> %mul
+}
+
+define i32 @test_mul_canonicalize_multiple_uses(i32 %x, i32 %y) {
+; CHECK-LABEL: @test_mul_canonicalize_multiple_uses(
+; CHECK-NEXT:    [[NEG:%.*]] = sub i32 0, [[X:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = mul i32 [[NEG]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL2:%.*]] = mul i32 [[MUL]], [[NEG]]
+; CHECK-NEXT:    ret i32 [[MUL2]]
+;
+  %neg = sub i32 0, %x
+  %mul = mul i32 %neg, %y
+  %mul2 = mul i32 %mul, %neg
+  ret i32 %mul2
+}
+
+@X = global i32 5
+
+define i64 @test_mul_canonicalize_neg_is_not_undone(i64 %L1) {
+; Check we do not undo the canonicalization of 0 - (X * Y), if Y is a constant
+; expr.
+; CHECK-LABEL: @test_mul_canonicalize_neg_is_not_undone(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i64 [[L1:%.*]], ptrtoint (i32* @X to i64)
+; CHECK-NEXT:    [[B4:%.*]] = sub i64 0, [[TMP1]]
+; CHECK-NEXT:    ret i64 [[B4]]
+;
+  %v1 = ptrtoint i32* @X to i64
+  %B8 = sub i64 0, %v1
+  %B4 = mul i64 %B8, %L1
+  ret i64 %B4
+}
+
+define i32 @negate_if_true(i32 %x, i1 %cond) {
+; CHECK-LABEL: @negate_if_true(
+; CHECK-NEXT:    [[TMP1:%.*]] = sub i32 0, [[X:%.*]]
+; CHECK-NEXT:    [[TMP2:%.*]] = select i1 [[COND:%.*]], i32 [[TMP1]], i32 [[X]]
+; CHECK-NEXT:    ret i32 [[TMP2]]
+;
+  %sel = select i1 %cond, i32 -1, i32 1
+  %r = mul i32 %sel, %x
+  ret i32 %r
+}
+
+define i32 @negate_if_false(i32 %x, i1 %cond) {
+; CHECK-LABEL: @negate_if_false(
+; CHECK-NEXT:    [[TMP1:%.*]] = sub i32 0, [[X:%.*]]
+; CHECK-NEXT:    [[TMP2:%.*]] = select i1 [[COND:%.*]], i32 [[X]], i32 [[TMP1]]
+; CHECK-NEXT:    ret i32 [[TMP2]]
+;
+  %sel = select i1 %cond, i32 1, i32 -1
+  %r = mul i32 %sel, %x
+  ret i32 %r
+}
+
+define <2 x i8> @negate_if_true_commute(<2 x i8> %px, i1 %cond) {
+; CHECK-LABEL: @negate_if_true_commute(
+; CHECK-NEXT:    [[X:%.*]] = sdiv <2 x i8> <i8 42, i8 42>, [[PX:%.*]]
+; CHECK-NEXT:    [[TMP1:%.*]] = sub nsw <2 x i8> zeroinitializer, [[X]]
+; CHECK-NEXT:    [[TMP2:%.*]] = select i1 [[COND:%.*]], <2 x i8> [[TMP1]], <2 x i8> [[X]]
+; CHECK-NEXT:    ret <2 x i8> [[TMP2]]
+;
+  %x = sdiv <2 x i8> <i8 42, i8 42>, %px  ; thwart complexity-based canonicalization
+  %sel = select i1 %cond, <2 x i8> <i8 -1, i8 -1>, <2 x i8> <i8 1, i8 1>
+  %r = mul <2 x i8> %x, %sel
+  ret <2 x i8> %r
+}
+
+define <2 x i8> @negate_if_false_commute(<2 x i8> %px, <2 x i1> %cond) {
+; CHECK-LABEL: @negate_if_false_commute(
+; CHECK-NEXT:    [[X:%.*]] = sdiv <2 x i8> <i8 42, i8 5>, [[PX:%.*]]
+; CHECK-NEXT:    [[TMP1:%.*]] = sub <2 x i8> zeroinitializer, [[X]]
+; CHECK-NEXT:    [[TMP2:%.*]] = select <2 x i1> [[COND:%.*]], <2 x i8> [[X]], <2 x i8> [[TMP1]]
+; CHECK-NEXT:    ret <2 x i8> [[TMP2]]
+;
+  %x = sdiv <2 x i8> <i8 42, i8 5>, %px  ; thwart complexity-based canonicalization
+  %sel = select <2 x i1> %cond, <2 x i8> <i8 1, i8 undef>, <2 x i8> <i8 -1, i8 -1>
+  %r = mul <2 x i8> %x, %sel
+  ret <2 x i8> %r
+}
+
+; Negative test
+
+define i32 @negate_if_true_extra_use(i32 %x, i1 %cond) {
+; CHECK-LABEL: @negate_if_true_extra_use(
+; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[COND:%.*]], i32 -1, i32 1
+; CHECK-NEXT:    call void @use32(i32 [[SEL]])
+; CHECK-NEXT:    [[R:%.*]] = mul i32 [[SEL]], [[X:%.*]]
+; CHECK-NEXT:    ret i32 [[R]]
+;
+  %sel = select i1 %cond, i32 -1, i32 1
+  call void @use32(i32 %sel)
+  %r = mul i32 %sel, %x
+  ret i32 %r
+}
+
+; Negative test
+
+define <2 x i8> @negate_if_true_wrong_constant(<2 x i8> %px, i1 %cond) {
+; CHECK-LABEL: @negate_if_true_wrong_constant(
+; CHECK-NEXT:    [[X:%.*]] = sdiv <2 x i8> <i8 42, i8 42>, [[PX:%.*]]
+; CHECK-NEXT:    [[SEL:%.*]] = select i1 [[COND:%.*]], <2 x i8> <i8 -1, i8 0>, <2 x i8> <i8 1, i8 1>
+; CHECK-NEXT:    [[R:%.*]] = mul <2 x i8> [[X]], [[SEL]]
+; CHECK-NEXT:    ret <2 x i8> [[R]]
+;
+  %x = sdiv <2 x i8> <i8 42, i8 42>, %px  ; thwart complexity-based canonicalization
+  %sel = select i1 %cond, <2 x i8> <i8 -1, i8 0>, <2 x i8> <i8 1, i8 1>
+  %r = mul <2 x i8> %x, %sel
+  ret <2 x i8> %r
+}
+
+; (C ? (X /exact Y) : 1) * Y -> C ? X : Y
+define i32 @mul_div_select(i32 %x, i32 %y, i1 %c) {
+; CHECK-LABEL: @mul_div_select(
+; CHECK-NEXT:    [[MUL:%.*]] = select i1 [[C:%.*]], i32 [[X:%.*]], i32 [[Y:%.*]]
+; CHECK-NEXT:    ret i32 [[MUL]]
+;
+  %div = udiv exact i32 %x, %y
+  %sel = select i1 %c, i32 %div, i32 1
+  %mul = mul i32 %sel, %y
+  ret i32 %mul
 }

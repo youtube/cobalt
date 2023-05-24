@@ -1,13 +1,9 @@
 """
 Test some lldb command abbreviations.
 """
-from __future__ import print_function
 
 
 import lldb
-import os
-import time
-import lldbsuite.support.seven as seven
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil

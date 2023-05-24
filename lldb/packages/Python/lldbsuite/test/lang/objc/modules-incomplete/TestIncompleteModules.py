@@ -1,11 +1,8 @@
 """Test that DWARF types are trusted over module types"""
 
-from __future__ import print_function
 
 
 import unittest2
-import platform
-from distutils.version import StrictVersion
 
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

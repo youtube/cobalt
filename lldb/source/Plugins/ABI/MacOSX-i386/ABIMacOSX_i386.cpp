@@ -1,27 +1,20 @@
 //===-- ABIMacOSX_i386.cpp --------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "ABIMacOSX_i386.h"
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 
-// Project includes
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
-#include "lldb/Core/Scalar.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Symbol/UnwindPlan.h"
 #include "lldb/Target/Process.h"
@@ -29,6 +22,8 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
+#include "lldb/Utility/RegisterValue.h"
+#include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/Status.h"
 
 using namespace lldb;
@@ -708,19 +703,15 @@ ABIMacOSX_i386::GetRegisterInfoArray(uint32_t &count) {
 
 size_t ABIMacOSX_i386::GetRedZoneSize() const { return 0; }
 
-//------------------------------------------------------------------
 // Static Functions
-//------------------------------------------------------------------
 
 ABISP
 ABIMacOSX_i386::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch) {
-  static ABISP g_abi_sp;
   if ((arch.GetTriple().getArch() == llvm::Triple::x86) &&
       (arch.GetTriple().isMacOSX() || arch.GetTriple().isiOS() ||
        arch.GetTriple().isWatchOS())) {
-    if (!g_abi_sp)
-      g_abi_sp.reset(new ABIMacOSX_i386(process_sp));
-    return g_abi_sp;
+    return ABISP(
+        new ABIMacOSX_i386(std::move(process_sp), MakeMCRegisterInfo(arch)));
   }
   return ABISP();
 }
@@ -831,18 +822,15 @@ bool ABIMacOSX_i386::GetArgumentValues(Thread &thread,
     // We currently only support extracting values with Clang QualTypes. Do we
     // care about others?
     CompilerType compiler_type(value->GetCompilerType());
-    if (compiler_type) {
+    llvm::Optional<uint64_t> bit_size = compiler_type.GetBitSize(&thread);
+    if (bit_size) {
       bool is_signed;
-
-      if (compiler_type.IsIntegerOrEnumerationType(is_signed)) {
-        ReadIntegerArgument(value->GetScalar(),
-                            compiler_type.GetBitSize(&thread), is_signed,
+      if (compiler_type.IsIntegerOrEnumerationType(is_signed))
+        ReadIntegerArgument(value->GetScalar(), *bit_size, is_signed,
                             thread.GetProcess().get(), current_stack_argument);
-      } else if (compiler_type.IsPointerType()) {
-        ReadIntegerArgument(value->GetScalar(),
-                            compiler_type.GetBitSize(&thread), false,
+      else if (compiler_type.IsPointerType())
+        ReadIntegerArgument(value->GetScalar(), *bit_size, false,
                             thread.GetProcess().get(), current_stack_argument);
-      }
     }
   }
 
@@ -943,14 +931,15 @@ ABIMacOSX_i386::GetReturnValueObjectImpl(Thread &thread,
   bool is_signed;
 
   if (compiler_type.IsIntegerOrEnumerationType(is_signed)) {
-    size_t bit_width = compiler_type.GetBitSize(&thread);
-
+    llvm::Optional<uint64_t> bit_width = compiler_type.GetBitSize(&thread);
+    if (!bit_width)
+      return return_valobj_sp;
     unsigned eax_id =
         reg_ctx->GetRegisterInfoByName("eax", 0)->kinds[eRegisterKindLLDB];
     unsigned edx_id =
         reg_ctx->GetRegisterInfoByName("edx", 0)->kinds[eRegisterKindLLDB];
 
-    switch (bit_width) {
+    switch (*bit_width) {
     default:
     case 128:
       // Scalar can't hold 128-bit literals, so we don't handle this
@@ -1067,6 +1056,7 @@ bool ABIMacOSX_i386::CreateDefaultUnwindPlan(UnwindPlan &unwind_plan) {
   unwind_plan.SetSourceName("i386 default unwind plan");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   return true;
 }
 
@@ -1133,9 +1123,7 @@ lldb_private::ConstString ABIMacOSX_i386::GetPluginNameStatic() {
   return g_short_name;
 }
 
-//------------------------------------------------------------------
 // PluginInterface protocol
-//------------------------------------------------------------------
 
 lldb_private::ConstString ABIMacOSX_i386::GetPluginName() {
   return GetPluginNameStatic();

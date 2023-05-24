@@ -2,11 +2,8 @@
 Test SBProcess APIs, including ReadMemory(), WriteMemory(), and others.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -16,6 +13,7 @@ from lldbsuite.test.lldbutil import get_stopped_thread, state_type_to_str
 
 class SignalsAPITestCase(TestBase):
     mydir = TestBase.compute_mydir(__file__)
+    NO_DEBUG_INFO_TESTCASE = True
 
     @add_test_categories(['pyapi'])
     @skipIfWindows  # Windows doesn't have signals

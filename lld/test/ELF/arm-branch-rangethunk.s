@@ -1,10 +1,10 @@
 // REQUIRES: arm
-// RUN: llvm-mc -filetype=obj -triple=armv7a-none-linux-gnueabi %s -o %t
-// RUN: llvm-mc -filetype=obj -triple=armv7a-none-linux-gnueabi %S/Inputs/far-arm-abs.s -o %tfar
-// RUN: ld.lld  %t %tfar -o %t2 2>&1
+// RUN: llvm-mc -arm-add-build-attributes -filetype=obj -triple=armv7a-none-linux-gnueabi %s -o %t
+// RUN: llvm-mc -arm-add-build-attributes -filetype=obj -triple=armv7a-none-linux-gnueabi %S/Inputs/far-arm-abs.s -o %tfar
+// RUN: ld.lld  %t %tfar -o %t2
 // RUN: llvm-objdump -d -triple=armv7a-none-linux-gnueabi %t2 | FileCheck --check-prefix=SHORT %s
-// RUN: llvm-mc -filetype=obj -triple=armv7a-none-linux-gnueabi %S/Inputs/far-long-arm-abs.s -o %tfarlong
-// RUN: ld.lld  %t %tfarlong -o %t3 2>&1
+// RUN: llvm-mc -arm-add-build-attributes -filetype=obj -triple=armv7a-none-linux-gnueabi %S/Inputs/far-long-arm-abs.s -o %tfarlong
+// RUN: ld.lld  %t %tfarlong -o %t3
 // RUN: llvm-objdump -d -triple=armv7a-none-linux-gnueabi %t3 | FileCheck --check-prefix=LONG %s
  .syntax unified
  .section .text, "ax",%progbits
@@ -19,6 +19,7 @@ _start:
  beq too_far3
 
 // SHORT: Disassembly of section .text:
+// SHORT-EMPTY:
 // SHORT-NEXT: _start:
 // SHORT-NEXT:    20000:       01 00 00 eb     bl      #4 <__ARMv7ABSLongThunk_too_far1>
 // SHORT-NEXT:    20004:       01 00 00 ea     b       #4 <__ARMv7ABSLongThunk_too_far2>
@@ -31,6 +32,7 @@ _start:
 // SHORT-NEXT:    20014:       fd ff 7f ea     b       #33554420 <__ARMv7ABSLongThunk_too_far3+0x1fffffc>
 
 // LONG: Disassembly of section .text:
+// LONG-EMPTY:
 // LONG-NEXT: _start:
 // LONG-NEXT:    20000:       01 00 00 eb     bl      #4 <__ARMv7ABSLongThunk_too_far1>
 // LONG-NEXT:    20004:       03 00 00 ea     b       #12 <__ARMv7ABSLongThunk_too_far2>

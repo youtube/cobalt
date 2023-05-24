@@ -1,9 +1,8 @@
 //===--- StaticAccessedThroughInstanceCheck.cpp - clang-tidy---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -51,7 +50,7 @@ void StaticAccessedThroughInstanceCheck::check(
   const auto *MemberExpression =
       Result.Nodes.getNodeAs<MemberExpr>("memberExpression");
 
-  if (MemberExpression->getLocStart().isMacroID())
+  if (MemberExpression->getBeginLoc().isMacroID())
     return;
 
   const Expr *BaseExpr = MemberExpression->getBase();
@@ -68,10 +67,11 @@ void StaticAccessedThroughInstanceCheck::check(
   const ASTContext *AstContext = Result.Context;
   PrintingPolicy PrintingPolicyWithSupressedTag(AstContext->getLangOpts());
   PrintingPolicyWithSupressedTag.SuppressTagKeyword = true;
+  PrintingPolicyWithSupressedTag.SuppressUnwrittenScope = true;
   std::string BaseTypeName =
       BaseType.getAsString(PrintingPolicyWithSupressedTag);
 
-  SourceLocation MemberExprStartLoc = MemberExpression->getLocStart();
+  SourceLocation MemberExprStartLoc = MemberExpression->getBeginLoc();
   auto Diag =
       diag(MemberExprStartLoc, "static member accessed through instance");
 

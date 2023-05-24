@@ -4,8 +4,6 @@ from __future__ import print_function
 
 
 import os
-import sys
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -15,10 +13,7 @@ from lldbsuite.test import lldbutil
 class ProcessIOTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
+    NO_DEBUG_INFO_TESTCASE = True
 
     def setup_test(self):
         # Get the full path to our executable to be debugged.
@@ -38,6 +33,7 @@ class ProcessIOTestCase(TestBase):
     @skipIfWindows  # stdio manipulation unsupported on Windows
     @add_test_categories(['pyapi'])
     @expectedFlakeyLinux(bugnumber="llvm.org/pr26437")
+    @skipIfDarwinEmbedded # I/O redirection like this is not supported on remote iOS devices yet <rdar://problem/54581135>
     def test_stdin_by_api(self):
         """Exercise SBProcess.PutSTDIN()."""
         self.setup_test()

@@ -1,5 +1,5 @@
 // Check that when we link a bitcode module into a file using
-// -mlink-cuda-bitcode, we apply the same attributes to the functions in that
+// -mlink-builtin-bitcode, we apply the same attributes to the functions in that
 // bitcode module as we apply to functions we generate.
 //
 // In particular, we check that ftz and unsafe-math are propagated into the
@@ -11,20 +11,20 @@
 
 // Build the bitcode library.  This is not built in CUDA mode, otherwise it
 // might have incompatible attributes.  This mirrors how libdevice is built.
-// RUN: %clang_cc1 -x c++ -emit-llvm-bc -ftrapping-math -DLIB \
+// RUN: %clang_cc1 -x c++ -fconvergent-functions -emit-llvm-bc -ftrapping-math -DLIB \
 // RUN:   %s -o %t.bc -triple nvptx-unknown-unknown
 
-// RUN: %clang_cc1 -x cuda %s -emit-llvm -mlink-cuda-bitcode %t.bc -o - \
+// RUN: %clang_cc1 -x cuda %s -emit-llvm -mlink-builtin-bitcode %t.bc -o - \
 // RUN:   -fno-trapping-math -fcuda-is-device -triple nvptx-unknown-unknown \
 // RUN: | FileCheck %s --check-prefix=CHECK --check-prefix=NOFTZ --check-prefix=NOFAST
 
-// RUN: %clang_cc1 -x cuda %s -emit-llvm -mlink-cuda-bitcode %t.bc \
+// RUN: %clang_cc1 -x cuda %s -emit-llvm -mlink-builtin-bitcode %t.bc \
 // RUN:   -fno-trapping-math -fcuda-flush-denormals-to-zero -o - \
 // RUN:   -fcuda-is-device -triple nvptx-unknown-unknown \
 // RUN: | FileCheck %s --check-prefix=CHECK --check-prefix=FTZ \
 // RUN:   --check-prefix=NOFAST
 
-// RUN: %clang_cc1 -x cuda %s -emit-llvm -mlink-cuda-bitcode %t.bc \
+// RUN: %clang_cc1 -x cuda %s -emit-llvm -mlink-builtin-bitcode %t.bc \
 // RUN:   -fno-trapping-math -fcuda-flush-denormals-to-zero -o - \
 // RUN:   -fcuda-is-device -menable-unsafe-fp-math -triple nvptx-unknown-unknown \
 // RUN: | FileCheck %s --check-prefix=CHECK --check-prefix=FAST
@@ -53,7 +53,8 @@ __global__ void kernel() { lib_fn(); }
 
 // Check the attribute list.
 // CHECK: attributes [[attr]] = {
-// CHECK: "no-trapping-math"="true"
+// CHECK-SAME: convergent
+// CHECK-SAME: "no-trapping-math"="true"
 
 // FTZ-SAME: "nvptx-f32ftz"="true"
 // NOFTZ-NOT: "nvptx-f32ftz"="true"

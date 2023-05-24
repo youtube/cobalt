@@ -1,30 +1,23 @@
 //===-- Unwind.h ------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_Unwind_h_
 #define liblldb_Unwind_h_
 
-// C Includes
-// C++ Includes
 #include <mutex>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/lldb-private.h"
 
 namespace lldb_private {
 
 class Unwind {
 protected:
-  //------------------------------------------------------------------
   // Classes that inherit from Unwind can see and modify these
-  //------------------------------------------------------------------
   Unwind(Thread &thread) : m_thread(thread), m_unwind_mutex() {}
 
 public:
@@ -44,9 +37,10 @@ public:
     lldb::addr_t cfa;
     lldb::addr_t pc;
     uint32_t idx;
+    bool behaves_like_zeroth_frame = (end_idx == 0);
 
     for (idx = 0; idx < end_idx; idx++) {
-      if (!DoGetFrameInfoAtIndex(idx, cfa, pc)) {
+      if (!DoGetFrameInfoAtIndex(idx, cfa, pc, behaves_like_zeroth_frame)) {
         break;
       }
     }
@@ -54,9 +48,9 @@ public:
   }
 
   bool GetFrameInfoAtIndex(uint32_t frame_idx, lldb::addr_t &cfa,
-                           lldb::addr_t &pc) {
+                           lldb::addr_t &pc, bool &behaves_like_zeroth_frame) {
     std::lock_guard<std::recursive_mutex> guard(m_unwind_mutex);
-    return DoGetFrameInfoAtIndex(frame_idx, cfa, pc);
+    return DoGetFrameInfoAtIndex(frame_idx, cfa, pc, behaves_like_zeroth_frame);
   }
 
   lldb::RegisterContextSP CreateRegisterContextForFrame(StackFrame *frame) {
@@ -67,15 +61,14 @@ public:
   Thread &GetThread() { return m_thread; }
 
 protected:
-  //------------------------------------------------------------------
   // Classes that inherit from Unwind can see and modify these
-  //------------------------------------------------------------------
   virtual void DoClear() = 0;
 
   virtual uint32_t DoGetFrameCount() = 0;
 
   virtual bool DoGetFrameInfoAtIndex(uint32_t frame_idx, lldb::addr_t &cfa,
-                                     lldb::addr_t &pc) = 0;
+                                     lldb::addr_t &pc,
+                                     bool &behaves_like_zeroth_frame) = 0;
 
   virtual lldb::RegisterContextSP
   DoCreateRegisterContextForFrame(StackFrame *frame) = 0;

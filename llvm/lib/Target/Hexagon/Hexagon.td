@@ -1,9 +1,8 @@
 //===-- Hexagon.td - Describe the Hexagon Target Machine --*- tablegen -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -25,6 +24,9 @@ include "llvm/Target/Target.td"
 include "HexagonDepArch.td"
 
 // Hexagon ISA Extensions
+def ExtensionZReg: SubtargetFeature<"zreg", "UseZRegOps", "true",
+      "Hexagon ZReg extension instructions">;
+
 def ExtensionHVX: SubtargetFeature<"hvx", "HexagonHVXVersion",
       "Hexagon::ArchEnum::V60", "Hexagon HVX instructions">;
 def ExtensionHVXV60: SubtargetFeature<"hvxv60", "HexagonHVXVersion",
@@ -32,10 +34,14 @@ def ExtensionHVXV60: SubtargetFeature<"hvxv60", "HexagonHVXVersion",
       [ExtensionHVX]>;
 def ExtensionHVXV62: SubtargetFeature<"hvxv62", "HexagonHVXVersion",
       "Hexagon::ArchEnum::V62", "Hexagon HVX instructions",
-      [ExtensionHVX,ExtensionHVXV60]>;
+      [ExtensionHVX, ExtensionHVXV60]>;
 def ExtensionHVXV65: SubtargetFeature<"hvxv65", "HexagonHVXVersion",
       "Hexagon::ArchEnum::V65", "Hexagon HVX instructions",
-      [ExtensionHVX,ExtensionHVXV60, ExtensionHVXV62]>;
+      [ExtensionHVX, ExtensionHVXV60, ExtensionHVXV62]>;
+def ExtensionHVXV66: SubtargetFeature<"hvxv66", "HexagonHVXVersion",
+      "Hexagon::ArchEnum::V66", "Hexagon HVX instructions",
+      [ExtensionHVX, ExtensionHVXV60, ExtensionHVXV62, ExtensionHVXV65,
+       ExtensionZReg]>;
 
 def ExtensionHVX64B: SubtargetFeature<"hvx-length64b", "UseHVX64BOps",
       "true", "Hexagon HVX 64B instructions", [ExtensionHVX]>;
@@ -60,6 +66,9 @@ def FeatureDuplex: SubtargetFeature<"duplex", "EnableDuplex", "true",
       "Enable generation of duplex instruction">;
 def FeatureReservedR19: SubtargetFeature<"reserved-r19", "ReservedR19",
       "true", "Reserve register R19">;
+def FeatureNoreturnStackElim: SubtargetFeature<"noreturn-stack-elim",
+      "NoreturnStackElim", "true",
+      "Eliminate stack allocation in a noreturn function when possible">;
 
 //===----------------------------------------------------------------------===//
 // Hexagon Instruction Predicate Definitions.
@@ -78,6 +87,10 @@ def UseHVXV62          : Predicate<"HST->useHVXOps()">,
                          AssemblerPredicate<"ExtensionHVXV62">;
 def UseHVXV65          : Predicate<"HST->useHVXOps()">,
                          AssemblerPredicate<"ExtensionHVXV65">;
+def UseHVXV66          : Predicate<"HST->useHVXOps()">,
+                         AssemblerPredicate<"ExtensionHVXV66">;
+def UseZReg            : Predicate<"HST->useZRegOps()">,
+                         AssemblerPredicate<"ExtensionZReg">;
 
 def Hvx64:  HwMode<"+hvx-length64b">;
 def Hvx128: HwMode<"+hvx-length128b">;
@@ -309,8 +322,6 @@ include "HexagonPatternsHVX.td"
 include "HexagonPatternsV65.td"
 include "HexagonDepMappings.td"
 include "HexagonIntrinsics.td"
-include "HexagonMapAsm2IntrinV62.gen.td"
-include "HexagonMapAsm2IntrinV65.gen.td"
 
 def HexagonInstrInfo : InstrInfo;
 
@@ -323,31 +334,31 @@ class Proc<string Name, SchedMachineModel Model,
  : ProcessorModel<Name, Model, Features>;
 
 def : Proc<"generic", HexagonModelV60,
-           [ArchV4, ArchV5, ArchV55, ArchV60,
+           [ArchV5, ArchV55, ArchV60,
             FeatureDuplex, FeatureMemops, FeatureNVJ, FeatureNVS,
             FeaturePackets, FeatureSmallData]>;
-def : Proc<"hexagonv4",  HexagonModelV4,
-           [ArchV4,
-            FeatureDuplex, FeatureMemops, FeatureNVJ, FeatureNVS,
-            FeaturePackets, FeatureSmallData]>;
-def : Proc<"hexagonv5",  HexagonModelV4,
-           [ArchV4, ArchV5,
+def : Proc<"hexagonv5",  HexagonModelV5,
+           [ArchV5,
             FeatureDuplex, FeatureMemops, FeatureNVJ, FeatureNVS,
             FeaturePackets, FeatureSmallData]>;
 def : Proc<"hexagonv55", HexagonModelV55,
-           [ArchV4, ArchV5, ArchV55,
+           [ArchV5, ArchV55,
             FeatureDuplex, FeatureMemops, FeatureNVJ, FeatureNVS,
             FeaturePackets, FeatureSmallData]>;
 def : Proc<"hexagonv60", HexagonModelV60,
-           [ArchV4, ArchV5, ArchV55, ArchV60,
+           [ArchV5, ArchV55, ArchV60,
             FeatureDuplex, FeatureMemops, FeatureNVJ, FeatureNVS,
             FeaturePackets, FeatureSmallData]>;
 def : Proc<"hexagonv62", HexagonModelV62,
-           [ArchV4, ArchV5, ArchV55, ArchV60, ArchV62,
+           [ArchV5, ArchV55, ArchV60, ArchV62,
             FeatureDuplex, FeatureMemops, FeatureNVJ, FeatureNVS,
             FeaturePackets, FeatureSmallData]>;
 def : Proc<"hexagonv65", HexagonModelV65,
-           [ArchV4, ArchV5, ArchV55, ArchV60, ArchV62, ArchV65,
+           [ArchV5, ArchV55, ArchV60, ArchV62, ArchV65,
+            FeatureDuplex, FeatureMemNoShuf, FeatureMemops, FeatureNVJ,
+            FeatureNVS, FeaturePackets, FeatureSmallData]>;
+def : Proc<"hexagonv66", HexagonModelV66,
+           [ArchV5, ArchV55, ArchV60, ArchV62, ArchV65, ArchV66,
             FeatureDuplex, FeatureMemNoShuf, FeatureMemops, FeatureNVJ,
             FeatureNVS, FeaturePackets, FeatureSmallData]>;
 

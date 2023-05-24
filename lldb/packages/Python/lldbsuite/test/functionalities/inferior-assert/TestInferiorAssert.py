@@ -3,8 +3,6 @@
 from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test import lldbutil
 from lldbsuite.test import lldbplatformutil
@@ -24,6 +22,7 @@ class AssertingInferiorTestCase(TestBase):
         archs=["arm"],
         bugnumber="llvm.org/pr25338")
     @expectedFailureAll(bugnumber="llvm.org/pr26592", triple='^mips')
+    @expectedFailureNetBSD
     def test_inferior_asserting(self):
         """Test that lldb reliably catches the inferior asserting (command)."""
         self.build()
@@ -50,8 +49,10 @@ class AssertingInferiorTestCase(TestBase):
         archs=[
             "aarch64",
             "arm"],
+        triple=no_match(".*-android"),
         bugnumber="llvm.org/pr25338")
     @expectedFailureAll(bugnumber="llvm.org/pr26592", triple='^mips')
+    @expectedFailureNetBSD
     def test_inferior_asserting_disassemble(self):
         """Test that lldb reliably disassembles frames after asserting (command)."""
         self.build()
@@ -71,11 +72,11 @@ class AssertingInferiorTestCase(TestBase):
         bugnumber="llvm.org/pr21793: need to implement support for detecting assertion / abort on Windows")
     @expectedFailureAll(
         oslist=["linux"],
-        archs=[
-            "aarch64",
-            "arm"],
+        archs=["arm"],
+        triple=no_match(".*-android"),
         bugnumber="llvm.org/pr25338")
     @expectedFailureAll(bugnumber="llvm.org/pr26592", triple='^mips')
+    @expectedFailureNetBSD
     def test_inferior_asserting_expr(self):
         """Test that the lldb expression interpreter can read from the inferior after asserting (command)."""
         self.build()
@@ -86,11 +87,11 @@ class AssertingInferiorTestCase(TestBase):
         bugnumber="llvm.org/pr21793: need to implement support for detecting assertion / abort on Windows")
     @expectedFailureAll(
         oslist=["linux"],
-        archs=[
-            "aarch64",
-            "arm"],
+        archs=["arm"],
+        triple=no_match(".*-android"),
         bugnumber="llvm.org/pr25338")
     @expectedFailureAll(bugnumber="llvm.org/pr26592", triple='^mips')
+    @expectedFailureNetBSD
     def test_inferior_asserting_step(self):
         """Test that lldb functions correctly after stepping through a call to assert()."""
         self.build()

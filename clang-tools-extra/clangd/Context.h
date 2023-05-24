@@ -1,9 +1,8 @@
 //===--- Context.h - Mechanism for passing implicit data --------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -84,7 +83,7 @@ private:
 public:
   /// Same as Context::empty(), please use Context::empty() instead.
   /// Constructor is defined to workaround a bug in MSVC's version of STL.
-  /// (arguments of std::future<> must be default-construcitble in MSVC).
+  /// (arguments of std::future<> must be default-constructible in MSVC).
   Context() = default;
 
   /// Copy operations for this class are deleted, use an explicit clone() method
@@ -123,7 +122,7 @@ public:
                  typename std::decay<Type>::type Value) const & {
     return Context(std::make_shared<Data>(Data{
         /*Parent=*/DataPtr, &Key,
-        llvm::make_unique<TypedAnyStorage<typename std::decay<Type>::type>>(
+        std::make_unique<TypedAnyStorage<typename std::decay<Type>::type>>(
             std::move(Value))}));
   }
 
@@ -133,7 +132,7 @@ public:
          typename std::decay<Type>::type Value) && /* takes ownership */ {
     return Context(std::make_shared<Data>(Data{
         /*Parent=*/std::move(DataPtr), &Key,
-        llvm::make_unique<TypedAnyStorage<typename std::decay<Type>::type>>(
+        std::make_unique<TypedAnyStorage<typename std::decay<Type>::type>>(
             std::move(Value))}));
   }
 

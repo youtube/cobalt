@@ -1,9 +1,8 @@
 //===- lib/MC/MCWasmStreamer.cpp - Wasm Object Output ---------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -35,15 +34,15 @@
 
 using namespace llvm;
 
-MCWasmStreamer::~MCWasmStreamer() {}
+MCWasmStreamer::~MCWasmStreamer() = default; // anchor.
 
 void MCWasmStreamer::mergeFragment(MCDataFragment *DF, MCDataFragment *EF) {
   flushPendingLabels(DF, DF->getContents().size());
 
-  for (unsigned i = 0, e = EF->getFixups().size(); i != e; ++i) {
-    EF->getFixups()[i].setOffset(EF->getFixups()[i].getOffset() +
+  for (unsigned I = 0, E = EF->getFixups().size(); I != E; ++I) {
+    EF->getFixups()[I].setOffset(EF->getFixups()[I].getOffset() +
                                  DF->getContents().size());
-    DF->getFixups().push_back(EF->getFixups()[i]);
+    DF->getFixups().push_back(EF->getFixups()[I]);
   }
   if (DF->getSubtargetInfo() == nullptr && EF->getSubtargetInfo())
     DF->setHasInstructions(*EF->getSubtargetInfo());
@@ -61,7 +60,7 @@ void MCWasmStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
 void MCWasmStreamer::ChangeSection(MCSection *Section,
                                    const MCExpr *Subsection) {
   MCAssembler &Asm = getAssembler();
-  auto *SectionWasm = static_cast<const MCSectionWasm *>(Section);
+  auto *SectionWasm = cast<MCSectionWasm>(Section);
   const MCSymbol *Grp = SectionWasm->getGroup();
   if (Grp)
     Asm.registerSymbol(*Grp);
@@ -119,7 +118,11 @@ bool MCWasmStreamer::EmitSymbolAttribute(MCSymbol *S, MCSymbolAttr Attribute) {
     break;
 
   case MCSA_ELF_TypeObject:
-    Symbol->setType(wasm::WASM_SYMBOL_TYPE_DATA);
+  case MCSA_Cold:
+    break;
+
+  case MCSA_NoDeadStrip:
+    Symbol->setNoStrip();
     break;
 
   default:
@@ -180,9 +183,9 @@ void MCWasmStreamer::EmitInstToData(const MCInst &Inst,
   MCDataFragment *DF = getOrCreateDataFragment();
 
   // Add the fixups and data.
-  for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
-    Fixups[i].setOffset(Fixups[i].getOffset() + DF->getContents().size());
-    DF->getFixups().push_back(Fixups[i]);
+  for (unsigned I = 0, E = Fixups.size(); I != E; ++I) {
+    Fixups[I].setOffset(Fixups[I].getOffset() + DF->getContents().size());
+    DF->getFixups().push_back(Fixups[I]);
   }
   DF->setHasInstructions(STI);
   DF->getContents().append(Code.begin(), Code.end());

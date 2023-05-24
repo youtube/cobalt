@@ -189,6 +189,8 @@
 
   define void @dummy0() { ret void }
   define void @dummy1() { ret void }
+  define void @dummy2() { ret void }
+  define void @dummy3() { ret void }
 ...
 ---
 name:            test
@@ -334,10 +336,10 @@ body: |
   bb.0.entry:
     liveins: $xmm0
   ; CHECK: name: constant_pool_psv
-  ; CHECK:      $xmm0 = ADDSDrm killed $xmm0, $rip, 1, $noreg, %const.0, $noreg :: (load 8 from constant-pool)
-  ; CHECK-NEXT: $xmm0 = ADDSDrm killed $xmm0, $rip, 1, $noreg, %const.0, $noreg :: (load 8 from constant-pool + 8)
-    $xmm0 = ADDSDrm killed $xmm0, $rip, 1, _, %const.0, _ :: (load 8 from constant-pool)
-    $xmm0 = ADDSDrm killed $xmm0, $rip, 1, _, %const.0, _ :: (load 8 from constant-pool + 8)
+  ; CHECK:      $xmm0 = ADDSDrm killed $xmm0, $rip, 1, $noreg, %const.0, $noreg, implicit $mxcsr :: (load 8 from constant-pool)
+  ; CHECK-NEXT: $xmm0 = ADDSDrm killed $xmm0, $rip, 1, $noreg, %const.0, $noreg, implicit $mxcsr :: (load 8 from constant-pool + 8)
+    $xmm0 = ADDSDrm killed $xmm0, $rip, 1, _, %const.0, _, implicit $mxcsr :: (load 8 from constant-pool)
+    $xmm0 = ADDSDrm killed $xmm0, $rip, 1, _, %const.0, _, implicit $mxcsr :: (load 8 from constant-pool + 8)
     RETQ $xmm0
 ...
 ---
@@ -355,10 +357,10 @@ body: |
   bb.0.entry:
     $rsp = frame-setup SUB64ri8 $rsp, 24, implicit-def dead $eflags
     CFI_INSTRUCTION def_cfa_offset 32
-    LD_F80m $rsp, 1, $noreg, 32, $noreg, implicit-def dead $fpsw
+    LD_F80m $rsp, 1, $noreg, 32, $noreg, implicit-def dead $fpsw, implicit $fpcw
   ; CHECK: name: stack_psv
-  ; CHECK: ST_FP80m $rsp, 1, $noreg, 0, $noreg, implicit-def dead $fpsw :: (store 10 into stack, align 16)
-    ST_FP80m $rsp, 1, _, 0, _, implicit-def dead $fpsw :: (store 10 into stack, align 16)
+  ; CHECK: ST_FP80m $rsp, 1, $noreg, 0, $noreg, implicit-def dead $fpsw, implicit $fpcw :: (store 10 into stack, align 16)
+    ST_FP80m $rsp, 1, _, 0, _, implicit-def dead $fpsw, implicit $fpcw :: (store 10 into stack, align 16)
     CALL64pcrel32 &cosl, csr_64, implicit $rsp, implicit-def $rsp, implicit-def $fp0
     $rsp = ADD64ri8 $rsp, 24, implicit-def dead $eflags
     RETQ
@@ -407,7 +409,7 @@ body: |
 
     $eax = MOV32rr $edi, implicit-def $rax
     CMP32ri8 killed $edi, 3, implicit-def $eflags
-    JA_1 %bb.2.def, implicit killed $eflags
+    JCC_1 %bb.2.def, 7, implicit killed $eflags
 
   bb.1.entry:
     successors: %bb.3.lbl1, %bb.4.lbl2, %bb.5.lbl3, %bb.6.lbl4
@@ -463,11 +465,11 @@ body: |
   bb.0.entry:
     liveins: $rdi, $rsi
   ; CHECK-LABEL: name: aa_scope
-  ; CHECK: $xmm0 = MOVSSrm $rsi, 1, $noreg, 0, $noreg :: (load 4 from %ir.c, !alias.scope !9)
-    $xmm0 = MOVSSrm $rsi, 1, _, 0, _ :: (load 4 from %ir.c, !alias.scope !9)
+  ; CHECK: $xmm0 = MOVSSrm_alt $rsi, 1, $noreg, 0, $noreg :: (load 4 from %ir.c, !alias.scope !9)
+    $xmm0 = MOVSSrm_alt $rsi, 1, _, 0, _ :: (load 4 from %ir.c, !alias.scope !9)
   ; CHECK-NEXT: MOVSSmr $rdi, 1, $noreg, 20, $noreg, killed $xmm0 :: (store 4 into %ir.arrayidx.i, !noalias !9)
     MOVSSmr $rdi, 1, _, 20, _, killed $xmm0 :: (store 4 into %ir.arrayidx.i, !noalias !9)
-    $xmm0 = MOVSSrm killed $rsi, 1, _, 0, _ :: (load 4 from %ir.c)
+    $xmm0 = MOVSSrm_alt killed $rsi, 1, _, 0, _ :: (load 4 from %ir.c)
     MOVSSmr killed $rdi, 1, _, 28, _, killed $xmm0 :: (store 4 into %ir.arrayidx)
     RETQ
 ...
@@ -532,5 +534,30 @@ body: |
   bb.0:
     $rax = MOV64rm $rsp, 1, _, 0, _ :: (load 8 from %stack.0)
     RETQ $rax
-
+...
+---
+# Test parsing of unknown size in machine memory operands without alignment.
+# CHECK-LABEL: name: dummy2
+# CHECK: $rax = MOV64rm $rsp, 1, $noreg, 0, $noreg :: (load unknown-size from %stack.0, align 1)
+name: dummy2
+tracksRegLiveness: true
+stack:
+  - { id: 0, size: 4, alignment: 4 }
+body: |
+  bb.0:
+    $rax = MOV64rm $rsp, 1, _, 0, _ :: (load unknown-size from %stack.0)
+    RETQ $rax
+...
+---
+# Test parsing of unknown size in machine memory operands with alignment.
+# CHECK-LABEL: name: dummy3
+# CHECK: $rax = MOV64rm $rsp, 1, $noreg, 0, $noreg :: (load unknown-size from %stack.0, align 4)
+name: dummy3
+tracksRegLiveness: true
+stack:
+  - { id: 0, size: 4, alignment: 4 }
+body: |
+  bb.0:
+    $rax = MOV64rm $rsp, 1, _, 0, _ :: (load unknown-size from %stack.0, align 4)
+    RETQ $rax
 ...

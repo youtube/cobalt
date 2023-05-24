@@ -1,9 +1,8 @@
 //===--- StringFindStartswithCheck.cc - clang-tidy---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -71,7 +70,7 @@ void StringFindStartswithCheck::check(const MatchFinder::MatchResult &Result) {
                              ->getImplicitObjectArgument();
   assert(Haystack != nullptr);
 
-  if (ComparisonExpr->getLocStart().isMacroID())
+  if (ComparisonExpr->getBeginLoc().isMacroID())
     return;
 
   // Get the source code blocks (as characters) for both the string object
@@ -94,7 +93,7 @@ void StringFindStartswithCheck::check(const MatchFinder::MatchResult &Result) {
 
   // Create the warning message and a FixIt hint replacing the original expr.
   auto Diagnostic =
-      diag(ComparisonExpr->getLocStart(),
+      diag(ComparisonExpr->getBeginLoc(),
            (StringRef("use ") + StartswithStr + " instead of find() " +
             ComparisonExpr->getOpcodeStr() + " 0")
                .str());
@@ -107,7 +106,7 @@ void StringFindStartswithCheck::check(const MatchFinder::MatchResult &Result) {
   // Create a preprocessor #include FixIt hint (CreateIncludeInsertion checks
   // whether this already exists).
   auto IncludeHint = IncludeInserter->CreateIncludeInsertion(
-      Source.getFileID(ComparisonExpr->getLocStart()), AbseilStringsMatchHeader,
+      Source.getFileID(ComparisonExpr->getBeginLoc()), AbseilStringsMatchHeader,
       false);
   if (IncludeHint) {
     Diagnostic << *IncludeHint;
@@ -115,11 +114,10 @@ void StringFindStartswithCheck::check(const MatchFinder::MatchResult &Result) {
 }
 
 void StringFindStartswithCheck::registerPPCallbacks(
-    CompilerInstance &Compiler) {
-  IncludeInserter = llvm::make_unique<clang::tidy::utils::IncludeInserter>(
-      Compiler.getSourceManager(), Compiler.getLangOpts(), IncludeStyle);
-  Compiler.getPreprocessor().addPPCallbacks(
-      IncludeInserter->CreatePPCallbacks());
+    const SourceManager &SM, Preprocessor *PP, Preprocessor *ModuleExpanderPP) {
+  IncludeInserter = std::make_unique<utils::IncludeInserter>(SM, getLangOpts(),
+                                                              IncludeStyle);
+  PP->addPPCallbacks(IncludeInserter->CreatePPCallbacks());
 }
 
 void StringFindStartswithCheck::storeOptions(

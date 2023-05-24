@@ -62,20 +62,27 @@ set(PROFILE_SOURCES
   InstrProfilingPlatformFuchsia.c
   InstrProfilingPlatformLinux.c
   InstrProfilingPlatformOther.c
-  InstrProfilingRuntime.cc
-  InstrProfilingUtil.c)
+  InstrProfilingPlatformWindows.c
+  InstrProfilingRuntime.cpp
+  InstrProfilingUtil.c
+  )
 
 set(PROFILE_HEADERS
-  InstrProfData.inc
   InstrProfiling.h
   InstrProfilingInternal.h
   InstrProfilingPort.h
   InstrProfilingUtil.h
-  WindowsMMap.h)
+  WindowsMMap.h
+  )
 
 if(WIN32)
-    list(APPEND PROFILE_SOURCES WindowsMMap.c)
+  list(APPEND PROFILE_SOURCES
+    WindowsMMap.c
+    )
 endif()
+
+include_directories(..)
+include_directories(../../include)
 
 if(FUCHSIA OR UNIX)
  set(EXTRA_FLAGS

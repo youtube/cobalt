@@ -2,7 +2,7 @@
 # RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %s -o %t
 
 # RUN: ld.lld -z max-page-size=0x4000 %t -o %t2
-# RUN: llvm-readobj -program-headers %t2 | FileCheck %s
+# RUN: llvm-readobj -l %t2 | FileCheck %s
 
 # CHECK:      ProgramHeaders [
 # CHECK:        ProgramHeader {
@@ -19,9 +19,9 @@
 # CHECK-NEXT:   }
 # CHECK-NEXT:   ProgramHeader {
 # CHECK-NEXT:     Type: PT_LOAD
-# CHECK-NEXT:     Offset: 0x4000
-# CHECK-NEXT:     VirtualAddress: 0x204000
-# CHECK-NEXT:     PhysicalAddress: 0x204000
+# CHECK-NEXT:     Offset: 0x158
+# CHECK-NEXT:     VirtualAddress: 0x204158
+# CHECK-NEXT:     PhysicalAddress: 0x204158
 # CHECK-NEXT:     FileSize: 1
 # CHECK-NEXT:     MemSize: 1
 # CHECK-NEXT:     Flags [
@@ -32,9 +32,9 @@
 # CHECK-NEXT:   }
 # CHECK-NEXT:   ProgramHeader {
 # CHECK-NEXT:     Type: PT_LOAD
-# CHECK-NEXT:     Offset: 0x8000
-# CHECK-NEXT:     VirtualAddress: 0x208000
-# CHECK-NEXT:     PhysicalAddress: 0x208000
+# CHECK-NEXT:     Offset: 0x159
+# CHECK-NEXT:     VirtualAddress: 0x208159
+# CHECK-NEXT:     PhysicalAddress: 0x208159
 # CHECK-NEXT:     FileSize: 8
 # CHECK-NEXT:     MemSize: 8
 # CHECK-NEXT:     Flags [

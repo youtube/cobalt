@@ -1,9 +1,8 @@
 //===--- UnconventionalAssignOperatorCheck.cpp - clang-tidy -----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -72,7 +71,7 @@ void UnconventionalAssignOperatorCheck::registerMatchers(
 void UnconventionalAssignOperatorCheck::check(
     const MatchFinder::MatchResult &Result) {
   if (const auto *RetStmt = Result.Nodes.getNodeAs<ReturnStmt>("returnStmt")) {
-    diag(RetStmt->getLocStart(), "operator=() should always return '*this'");
+    diag(RetStmt->getBeginLoc(), "operator=() should always return '*this'");
   } else {
     static const char *const Messages[][2] = {
         {"ReturnType", "operator=() should return '%0&'"},
@@ -82,7 +81,7 @@ void UnconventionalAssignOperatorCheck::check(
     const auto *Method = Result.Nodes.getNodeAs<CXXMethodDecl>("method");
     for (const auto &Message : Messages) {
       if (Result.Nodes.getNodeAs<Decl>(Message[0]))
-        diag(Method->getLocStart(), Message[1])
+        diag(Method->getBeginLoc(), Message[1])
             << Method->getParent()->getName()
             << (Method->isConst() ? "const" : "virtual");
     }

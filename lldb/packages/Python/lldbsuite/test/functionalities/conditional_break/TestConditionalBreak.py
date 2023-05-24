@@ -5,9 +5,6 @@ Test conditionally break on a function and inspect its variables.
 from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -34,9 +31,6 @@ class ConditionalBreakTestCase(TestBase):
         self.build()
         self.simulate_conditional_break_by_user()
 
-    @expectedFailureAll(
-        oslist=["windows"],
-        bugnumber="llvm.org/pr26265: args in frames other than #0 are not evaluated correctly")
     def do_conditional_break(self):
         """Exercise some thread and frame APIs to break if c() is called by a()."""
         exe = self.getBuildArtifact("a.out")

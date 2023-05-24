@@ -1,9 +1,8 @@
 //===-- ArmUnwindInfo.cpp ---------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -66,7 +65,7 @@ ArmUnwindInfo::ArmUnwindInfo(ObjectFile &objfile, SectionSP &arm_exidx,
 
   // Sort the entries in the exidx section. The entries should be sorted inside
   // the section but some old compiler isn't sorted them.
-  std::sort(m_exidx_entries.begin(), m_exidx_entries.end());
+  llvm::sort(m_exidx_entries.begin(), m_exidx_entries.end());
 }
 
 ArmUnwindInfo::~ArmUnwindInfo() {}
@@ -305,7 +304,7 @@ bool ArmUnwindInfo::GetUnwindPlan(Target &target, const Address &addr,
       // 11001yyy
       // Spare (yyy != 000, 001)
       return false;
-    } else if ((byte1 & 0xf8) == 0xc0) {
+    } else if ((byte1 & 0xf8) == 0xd0) {
       // 11010nnn
       // Pop VFP double-precision registers D[8]-D[8+nnn] saved (as if) by
       // FSTMFDD (see remark d)
@@ -345,6 +344,7 @@ bool ArmUnwindInfo::GetUnwindPlan(Target &target, const Address &addr,
   unwind_plan.SetSourceName("ARM.exidx unwind info");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolYes);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolNo);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   unwind_plan.SetRegisterKind(eRegisterKindDWARF);
 
   return true;

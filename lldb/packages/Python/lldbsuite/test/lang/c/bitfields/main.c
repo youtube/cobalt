@@ -1,13 +1,13 @@
 //===-- main.c --------------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 int main (int argc, char const *argv[])
 {
@@ -63,6 +63,20 @@ int main (int argc, char const *argv[])
     more_bits.c = 1;
     more_bits.d = 0;
 
+    struct EvenMoreBits
+    {
+        uint8_t b1  : 1, b2  : 1, b3  : 1, b4  : 1, b5  : 1, b6  : 1,
+                b7  : 1, b8  : 1, b9  : 1, b10 : 1, b11 : 1, b12 : 1,
+                b13 : 1, b14 : 1, b15 : 1, b16 : 1, b17 : 1;
+    };
+
+    struct EvenMoreBits even_more_bits;
+    memset(&even_more_bits, 0, sizeof(even_more_bits));
+    even_more_bits.b1 = 1;
+    even_more_bits.b5 = 1;
+    even_more_bits.b7 = 1;
+    even_more_bits.b13 = 1;
+
 #pragma pack(1)
     struct PackedBits
     {
@@ -76,6 +90,14 @@ int main (int argc, char const *argv[])
     packed.b = 10;
     packed.c = 0x7112233;
 
+    struct LargePackedBits {
+        uint64_t a: 36;
+        uint64_t b: 36;
+    } __attribute__((packed));
+
+    struct LargePackedBits large_packed =
+      (struct LargePackedBits){ 0xcbbbbaaaa, 0xdffffeeee };
+    
     return 0;               //// Set break point at this line.
 
 }

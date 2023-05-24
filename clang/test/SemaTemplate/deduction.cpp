@@ -365,7 +365,7 @@ namespace deduction_after_explicit_pack {
   int test(ExtraArgs..., unsigned vla_size, const char *input);
   int n = test(0, "");
 
-  template <typename... T> void i(T..., int, T..., ...); // expected-note 5{{deduced conflicting}}
+  template <typename... T> void i(T..., int, T..., ...); // expected-note 5{{deduced packs of different lengths}}
   void j() {
     i(0);
     i(0, 1); // expected-error {{no match}}
@@ -381,7 +381,7 @@ namespace deduction_after_explicit_pack {
   // parameter against the first argument, then passing the first argument
   // through the first parameter.
   template<typename... T> struct X { X(int); operator int(); };
-  template<typename... T> void p(T..., X<T...>, ...); // expected-note {{deduced conflicting}}
+  template<typename... T> void p(T..., X<T...>, ...); // expected-note {{deduced packs of different lengths for parameter 'T' (<> vs. <int>)}}
   void q() { p(X<int>(0), 0); } // expected-error {{no match}}
 
   struct A {
@@ -538,4 +538,11 @@ namespace dependent_list_deduction {
     // We deduce V$1 = (size_t)3, which in C++1z also deduces T$1 = size_t.
 #endif
   }
+}
+
+namespace designators {
+  template<typename T, int N> constexpr int f(T (&&)[N]) { return N; } // expected-note 2{{couldn't infer template argument 'T'}}
+  static_assert(f({1, 2, [20] = 3}) == 3, ""); // expected-error {{no matching function}} expected-warning 2{{C99}} expected-note {{}}
+
+  static_assert(f({.a = 1, .b = 2}) == 3, ""); // expected-error {{no matching function}}
 }

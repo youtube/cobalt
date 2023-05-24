@@ -1,9 +1,8 @@
 //===--  BitcodeWriter.h - ClangDoc Bitcode Writer --------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,7 +20,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Bitcode/BitstreamWriter.h"
+#include "llvm/Bitstream/BitstreamWriter.h"
 #include <initializer_list>
 #include <vector>
 
@@ -31,7 +30,7 @@ namespace doc {
 // Current version number of clang-doc bitcode.
 // Should be bumped when removing or changing BlockIds, RecordIds, or
 // BitCodeConstants, though they can be added without breaking it.
-static const unsigned VersionNumber = 2;
+static const unsigned VersionNumber = 3;
 
 struct BitCodeConstants {
   static constexpr unsigned RecordSize = 32U;
@@ -41,11 +40,11 @@ struct BitCodeConstants {
   static constexpr unsigned IntSize = 16U;
   static constexpr unsigned StringLengthSize = 16U;
   static constexpr unsigned FilenameLengthSize = 16U;
-  static constexpr unsigned LineNumberSize = 16U;
+  static constexpr unsigned LineNumberSize = 32U;
   static constexpr unsigned ReferenceTypeSize = 8U;
   static constexpr unsigned USRLengthSize = 6U;
   static constexpr unsigned USRBitLengthSize = 8U;
-  static constexpr char Signature[4] = {'D', 'O', 'C', 'S'};
+  static constexpr unsigned char Signature[4] = {'D', 'O', 'C', 'S'};
   static constexpr int USRHashSize = 20;
 };
 
@@ -59,6 +58,7 @@ enum BlockId {
   BI_FIELD_TYPE_BLOCK_ID,
   BI_MEMBER_TYPE_BLOCK_ID,
   BI_RECORD_BLOCK_ID,
+  BI_BASE_RECORD_BLOCK_ID,
   BI_FUNCTION_BLOCK_ID,
   BI_COMMENT_BLOCK_ID,
   BI_REFERENCE_BLOCK_ID,
@@ -68,11 +68,10 @@ enum BlockId {
 
 // New Ids need to be added to the enum here, and to the relevant IdNameMap and
 // initialization list in the implementation file.
-#define INFORECORDS(X) X##_USR, X##_NAME
-
 enum RecordId {
   VERSION = 1,
-  INFORECORDS(FUNCTION),
+  FUNCTION_USR,
+  FUNCTION_NAME,
   FUNCTION_DEFLOCATION,
   FUNCTION_LOCATION,
   FUNCTION_ACCESS,
@@ -91,19 +90,34 @@ enum RecordId {
   FIELD_TYPE_NAME,
   MEMBER_TYPE_NAME,
   MEMBER_TYPE_ACCESS,
-  INFORECORDS(NAMESPACE),
-  INFORECORDS(ENUM),
+  NAMESPACE_USR,
+  NAMESPACE_NAME,
+  NAMESPACE_PATH,
+  ENUM_USR,
+  ENUM_NAME,
   ENUM_DEFLOCATION,
   ENUM_LOCATION,
   ENUM_MEMBER,
   ENUM_SCOPED,
-  INFORECORDS(RECORD),
+  RECORD_USR,
+  RECORD_NAME,
+  RECORD_PATH,
   RECORD_DEFLOCATION,
   RECORD_LOCATION,
   RECORD_TAG_TYPE,
+  RECORD_IS_TYPE_DEF,
+  BASE_RECORD_USR,
+  BASE_RECORD_NAME,
+  BASE_RECORD_PATH,
+  BASE_RECORD_TAG_TYPE,
+  BASE_RECORD_IS_VIRTUAL,
+  BASE_RECORD_ACCESS,
+  BASE_RECORD_IS_PARENT,
   REFERENCE_USR,
   REFERENCE_NAME,
   REFERENCE_TYPE,
+  REFERENCE_PATH,
+  REFERENCE_IS_IN_GLOBAL_NAMESPACE,
   REFERENCE_FIELD,
   RI_LAST,
   RI_FIRST = VERSION
@@ -112,10 +126,16 @@ enum RecordId {
 static constexpr unsigned BlockIdCount = BI_LAST - BI_FIRST;
 static constexpr unsigned RecordIdCount = RI_LAST - RI_FIRST;
 
-#undef INFORECORDS
-
 // Identifiers for differentiating between subblocks
-enum class FieldId { F_default, F_namespace, F_parent, F_vparent, F_type };
+enum class FieldId {
+  F_default,
+  F_namespace,
+  F_parent,
+  F_vparent,
+  F_type,
+  F_child_namespace,
+  F_child_record
+};
 
 class ClangDocBitcodeWriter {
 public:
@@ -131,6 +151,7 @@ public:
   // Block emission of different info types.
   void emitBlock(const NamespaceInfo &I);
   void emitBlock(const RecordInfo &I);
+  void emitBlock(const BaseRecordInfo &I);
   void emitBlock(const FunctionInfo &I);
   void emitBlock(const EnumInfo &I);
   void emitBlock(const TypeInfo &B);

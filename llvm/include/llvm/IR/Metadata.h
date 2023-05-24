@@ -1,9 +1,8 @@
 //===- llvm/IR/Metadata.h - Metadata definitions ----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,6 +22,7 @@
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/iterator_range.h"
@@ -66,8 +66,10 @@ protected:
   enum StorageType { Uniqued, Distinct, Temporary };
 
   /// Storage flag for non-uniqued, otherwise unowned, metadata.
-  unsigned char Storage;
+  unsigned char Storage : 7;
   // TODO: expose remaining bits to subclasses.
+
+  unsigned char ImplicitCode : 1;
 
   unsigned short SubclassData16 = 0;
   unsigned SubclassData32 = 0;
@@ -80,7 +82,7 @@ public:
 
 protected:
   Metadata(unsigned ID, StorageType Storage)
-      : SubclassID(ID), Storage(Storage) {
+      : SubclassID(ID), Storage(Storage), ImplicitCode(false) {
     static_assert(sizeof(*this) == 8, "Metadata fields poorly packed");
   }
 
@@ -600,7 +602,7 @@ dyn_extract_or_null(Y &&MD) {
 /// These are used to efficiently contain a byte sequence for metadata.
 /// MDString is always unnamed.
 class MDString : public Metadata {
-  friend class StringMapEntry<MDString>;
+  friend class StringMapEntryStorage<MDString>;
 
   StringMapEntry<MDString> *Entry = nullptr;
 
@@ -640,26 +642,32 @@ public:
 /// A collection of metadata nodes that might be associated with a
 /// memory access used by the alias-analysis infrastructure.
 struct AAMDNodes {
-  explicit AAMDNodes(MDNode *T = nullptr, MDNode *S = nullptr,
-                     MDNode *N = nullptr)
-      : TBAA(T), Scope(S), NoAlias(N) {}
+  explicit AAMDNodes() = default;
+  explicit AAMDNodes(MDNode *T, MDNode *TS, MDNode *S, MDNode *N)
+      : TBAA(T), TBAAStruct(TS), Scope(S), NoAlias(N) {}
 
   bool operator==(const AAMDNodes &A) const {
-    return TBAA == A.TBAA && Scope == A.Scope && NoAlias == A.NoAlias;
+    return TBAA == A.TBAA && TBAAStruct == A.TBAAStruct && Scope == A.Scope &&
+           NoAlias == A.NoAlias;
   }
 
   bool operator!=(const AAMDNodes &A) const { return !(*this == A); }
 
-  explicit operator bool() const { return TBAA || Scope || NoAlias; }
+  explicit operator bool() const {
+    return TBAA || TBAAStruct || Scope || NoAlias;
+  }
 
   /// The tag for type-based alias analysis.
-  MDNode *TBAA;
+  MDNode *TBAA = nullptr;
+
+  /// The tag for type-based alias analysis (tbaa struct).
+  MDNode *TBAAStruct = nullptr;
 
   /// The tag for alias scope specification (used with noalias).
-  MDNode *Scope;
+  MDNode *Scope = nullptr;
 
   /// The tag specifying the noalias scope.
-  MDNode *NoAlias;
+  MDNode *NoAlias = nullptr;
 
   /// Given two sets of AAMDNodes that apply to the same pointer,
   /// give the best AAMDNodes that are compatible with both (i.e. a set of
@@ -669,6 +677,7 @@ struct AAMDNodes {
   AAMDNodes intersect(const AAMDNodes &Other) {
     AAMDNodes Result;
     Result.TBAA = Other.TBAA == TBAA ? TBAA : nullptr;
+    Result.TBAAStruct = Other.TBAAStruct == TBAAStruct ? TBAAStruct : nullptr;
     Result.Scope = Other.Scope == Scope ? Scope : nullptr;
     Result.NoAlias = Other.NoAlias == NoAlias ? NoAlias : nullptr;
     return Result;
@@ -680,16 +689,17 @@ template<>
 struct DenseMapInfo<AAMDNodes> {
   static inline AAMDNodes getEmptyKey() {
     return AAMDNodes(DenseMapInfo<MDNode *>::getEmptyKey(),
-                     nullptr, nullptr);
+                     nullptr, nullptr, nullptr);
   }
 
   static inline AAMDNodes getTombstoneKey() {
     return AAMDNodes(DenseMapInfo<MDNode *>::getTombstoneKey(),
-                     nullptr, nullptr);
+                     nullptr, nullptr, nullptr);
   }
 
   static unsigned getHashValue(const AAMDNodes &Val) {
     return DenseMapInfo<MDNode *>::getHashValue(Val.TBAA) ^
+           DenseMapInfo<MDNode *>::getHashValue(Val.TBAAStruct) ^
            DenseMapInfo<MDNode *>::getHashValue(Val.Scope) ^
            DenseMapInfo<MDNode *>::getHashValue(Val.NoAlias);
   }
@@ -805,7 +815,7 @@ public:
   /// Ensure that this has RAUW support, and then return it.
   ReplaceableMetadataImpl *getOrCreateReplaceableUses() {
     if (!hasReplaceableUses())
-      makeReplaceable(llvm::make_unique<ReplaceableMetadataImpl>(getContext()));
+      makeReplaceable(std::make_unique<ReplaceableMetadataImpl>(getContext()));
     return getReplaceableUses();
   }
 
@@ -1316,10 +1326,11 @@ public:
 //===----------------------------------------------------------------------===//
 /// A tuple of MDNodes.
 ///
-/// Despite its name, a NamedMDNode isn't itself an MDNode. NamedMDNodes belong
-/// to modules, have names, and contain lists of MDNodes.
+/// Despite its name, a NamedMDNode isn't itself an MDNode.
 ///
-/// TODO: Inherit from Metadata.
+/// NamedMDNodes are named module-level entities that contain lists of MDNodes.
+///
+/// It is illegal for a NamedMDNode to appear as an operand of an MDNode.
 class NamedMDNode : public ilist_node<NamedMDNode> {
   friend class LLVMContextImpl;
   friend class Module;
@@ -1419,6 +1430,9 @@ public:
     return make_range(op_begin(), op_end());
   }
 };
+
+// Create wrappers for C Binding types (see CBindingWrapping.h).
+DEFINE_ISA_CONVERSION_FUNCTIONS(NamedMDNode, LLVMNamedMDNodeRef)
 
 } // end namespace llvm
 

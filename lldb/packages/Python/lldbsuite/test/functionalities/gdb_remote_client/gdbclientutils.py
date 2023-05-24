@@ -1,9 +1,11 @@
 import os
 import os.path
-import subprocess
 import threading
 import socket
 import lldb
+import binascii
+import traceback
+from lldbsuite.support import seven
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbtest_config
 
@@ -102,15 +104,20 @@ class MockGDBServerResponder:
             return self.interrupt()
         if packet == "c":
             return self.cont()
-        if packet == "g":
+        if packet.startswith("vCont;c"):
+            return self.vCont(packet)
+        if packet[0] == "g":
             return self.readRegisters()
         if packet[0] == "G":
-            return self.writeRegisters(packet[1:])
+            # Gxxxxxxxxxxx
+            # Gxxxxxxxxxxx;thread:1234;
+            return self.writeRegisters(packet[1:].split(';')[0])
         if packet[0] == "p":
-            return self.readRegister(int(packet[1:], 16))
+            regnum = packet[1:].split(';')[0]
+            return self.readRegister(int(regnum, 16))
         if packet[0] == "P":
             register, value = packet[1:].split("=")
-            return self.readRegister(int(register, 16), value)
+            return self.writeRegister(int(register, 16), value)
         if packet[0] == "m":
             addr, length = [int(x, 16) for x in packet[1:].split(',')]
             return self.readMemory(addr, length)
@@ -124,11 +131,15 @@ class MockGDBServerResponder:
             return self.qSupported(packet[11:].split(";"))
         if packet == "qfThreadInfo":
             return self.qfThreadInfo()
+        if packet == "qsThreadInfo":
+            return self.qsThreadInfo()
         if packet == "qC":
             return self.qC()
         if packet == "QEnableErrorStrings":
             return self.QEnableErrorStrings()
         if packet == "?":
+            return self.haltReason()
+        if packet == "s":
             return self.haltReason()
         if packet[0] == "H":
             return self.selectThread(packet[1], int(packet[2:], 16))
@@ -144,12 +155,50 @@ class MockGDBServerResponder:
             return self.vAttach(int(pid, 16))
         if packet[0] == "Z":
             return self.setBreakpoint(packet)
+        if packet.startswith("qThreadStopInfo"):
+            threadnum = int (packet[15:], 16)
+            return self.threadStopInfo(threadnum)
+        if packet == "QThreadSuffixSupported":
+            return self.QThreadSuffixSupported()
+        if packet == "QListThreadsInStopReply":
+            return self.QListThreadsInStopReply()
+        if packet.startswith("qMemoryRegionInfo:"):
+            return self.qMemoryRegionInfo()
+        if packet == "qQueryGDBServer":
+            return self.qQueryGDBServer()
+        if packet == "qHostInfo":
+            return self.qHostInfo()
+        if packet == "qGetWorkingDir":
+            return self.qGetWorkingDir()
+        if packet == "qsProcessInfo":
+            return self.qsProcessInfo()
+        if packet.startswith("qfProcessInfo"):
+            return self.qfProcessInfo(packet)
+
         return self.other(packet)
+
+    def qsProcessInfo(self):
+        return "E04"
+
+    def qfProcessInfo(self, packet):
+        return "E04"
+
+    def qGetWorkingDir(self):
+        return "2f"
+
+    def qHostInfo(self):
+        return "ptrsize:8;endian:little;"
+
+    def qQueryGDBServer(self):
+        return "E04"
 
     def interrupt(self):
         raise self.UnexpectedPacketException()
 
     def cont(self):
+        raise self.UnexpectedPacketException()
+
+    def vCont(self, packet):
         raise self.UnexpectedPacketException()
 
     def readRegisters(self):
@@ -179,6 +228,9 @@ class MockGDBServerResponder:
     def qfThreadInfo(self):
         return "l"
 
+    def qsThreadInfo(self):
+        return "l"
+
     def qC(self):
         return "QC0"
 
@@ -204,8 +256,20 @@ class MockGDBServerResponder:
     def setBreakpoint(self, packet):
         raise self.UnexpectedPacketException()
 
+    def threadStopInfo(self, threadnum):
+        return ""
+
     def other(self, packet):
         # empty string means unsupported
+        return ""
+
+    def QThreadSuffixSupported(self):
+        return ""
+
+    def QListThreadsInStopReply(self):
+        return ""
+
+    def qMemoryRegionInfo(self):
         return ""
 
     """
@@ -246,7 +310,7 @@ class MockGDBServer:
         addr = ("127.0.0.1", self.port)
         self._socket.bind(addr)
         self.port = self._socket.getsockname()[1]
-        self._socket.listen(0)
+        self._socket.listen(1)
         self._thread = threading.Thread(target=self._run)
         self._thread.start()
 
@@ -261,7 +325,7 @@ class MockGDBServer:
         try:
             # accept() is stubborn and won't fail even when the socket is
             # shutdown, so we'll use a timeout
-            self._socket.settimeout(2.0)
+            self._socket.settimeout(20.0)
             client, client_addr = self._socket.accept()
             self._client = client
             # The connected client inherits its timeout from self._socket,
@@ -275,15 +339,13 @@ class MockGDBServer:
         data = None
         while True:
             try:
-                data = self._client.recv(4096)
+                data = seven.bitcast_to_string(self._client.recv(4096))
                 if data is None or len(data) == 0:
                     break
-                # In Python 2, sockets return byte strings. In Python 3, sockets return bytes.
-                # If we got bytes (and not a byte string), decode them to a string for later handling.
-                if isinstance(data, bytes) and not isinstance(data, str):
-                    data = data.decode()
                 self._receive(data)
             except Exception as e:
+                print("An exception happened when receiving the response from the gdb server. Closing the client...")
+                traceback.print_exc()
                 self._client.close()
                 break
 
@@ -376,7 +438,7 @@ class MockGDBServer:
         # We'll handle the ack stuff here since it's not something any of the
         # tests will be concerned about, and it'll get turned off quickly anyway.
         if self._shouldSendAck:
-            self._client.sendall('+'.encode())
+            self._client.sendall(seven.bitcast_to_bytes('+'))
         if packet == "QStartNoAckMode":
             self._shouldSendAck = False
             response = "OK"
@@ -386,18 +448,13 @@ class MockGDBServer:
         # Handle packet framing since we don't want to bother tests with it.
         if response is not None:
             framed = frame_packet(response)
-            # In Python 2, sockets send byte strings. In Python 3, sockets send bytes.
-            # If we got a string (and not a byte string), encode it before sending.
-            if isinstance(framed, str) and not isinstance(framed, bytes):
-                framed = framed.encode()
-            self._client.sendall(framed)
+            self._client.sendall(seven.bitcast_to_bytes(framed))
 
     PACKET_ACK = object()
     PACKET_INTERRUPT = object()
 
     class InvalidPacketException(Exception):
         pass
-
 
 class GDBRemoteTestBase(TestBase):
     """
@@ -474,4 +531,4 @@ class GDBRemoteTestBase(TestBase):
             j += 1
         if i < len(packets):
             self.fail(u"Did not receive: %s\nLast 10 packets:\n\t%s" %
-                    (packets[i], u'\n\t'.join(log[-10:])))
+                    (packets[i], u'\n\t'.join(log)))

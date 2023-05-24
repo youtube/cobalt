@@ -1,9 +1,8 @@
 //===- ASTStructuralEquivalence.h -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -15,10 +14,11 @@
 #ifndef LLVM_CLANG_AST_ASTSTRUCTURALEQUIVALENCE_H
 #define LLVM_CLANG_AST_ASTSTRUCTURALEQUIVALENCE_H
 
+#include "clang/AST/DeclBase.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Optional.h"
-#include <deque>
+#include <queue>
 #include <utility>
 
 namespace clang {
@@ -42,14 +42,13 @@ struct StructuralEquivalenceContext {
   /// AST contexts for which we are checking structural equivalence.
   ASTContext &FromCtx, &ToCtx;
 
-  /// The set of "tentative" equivalences between two canonical
-  /// declarations, mapping from a declaration in the first context to the
-  /// declaration in the second context that we believe to be equivalent.
-  llvm::DenseMap<Decl *, Decl *> TentativeEquivalences;
+  // Queue of from-to Decl pairs that are to be checked to determine the final
+  // result of equivalence of a starting Decl pair.
+  std::queue<std::pair<Decl *, Decl *>> DeclsToCheck;
 
-  /// Queue of declarations in the first context whose equivalence
-  /// with a declaration in the second context still needs to be verified.
-  std::deque<Decl *> DeclsToCheck;
+  // Set of from-to Decl pairs that are already visited during the check
+  // (are in or were once in \c DeclsToCheck) of a starting Decl pair.
+  llvm::DenseSet<std::pair<Decl *, Decl *>> VisitedDecls;
 
   /// Declaration (from, to) pairs that are known not to be equivalent
   /// (which we have already complained about).
@@ -88,14 +87,14 @@ struct StructuralEquivalenceContext {
   /// Implementation functions (all static functions in
   /// ASTStructuralEquivalence.cpp) must never call this function because that
   /// will wreak havoc the internal state (\c DeclsToCheck and
-  /// \c TentativeEquivalences members) and can cause faulty equivalent results.
+  /// \c VisitedDecls members) and can cause faulty equivalent results.
   bool IsEquivalent(Decl *D1, Decl *D2);
 
   /// Determine whether the two types are structurally equivalent.
   /// Implementation functions (all static functions in
   /// ASTStructuralEquivalence.cpp) must never call this function because that
   /// will wreak havoc the internal state (\c DeclsToCheck and
-  /// \c TentativeEquivalences members) and can cause faulty equivalent results.
+  /// \c VisitedDecls members) and can cause faulty equivalent results.
   bool IsEquivalent(QualType T1, QualType T2);
 
   /// Find the index of the given anonymous struct/union within its
@@ -111,11 +110,26 @@ struct StructuralEquivalenceContext {
   static llvm::Optional<unsigned>
   findUntaggedStructOrUnionIndex(RecordDecl *Anon);
 
+  // If ErrorOnTagTypeMismatch is set, return the the error, otherwise get the
+  // relevant warning for the input error diagnostic.
+  unsigned getApplicableDiagnostic(unsigned ErrorDiagnostic);
+
 private:
   /// Finish checking all of the structural equivalences.
   ///
-  /// \returns true if an error occurred, false otherwise.
+  /// \returns true if the equivalence check failed (non-equivalence detected),
+  /// false if equivalence was detected.
   bool Finish();
+
+  /// Check for common properties at Finish.
+  /// \returns true if D1 and D2 may be equivalent,
+  /// false if they are for sure not.
+  bool CheckCommonEquivalence(Decl *D1, Decl *D2);
+
+  /// Check for class dependent properties at Finish.
+  /// \returns true if D1 and D2 may be equivalent,
+  /// false if they are for sure not.
+  bool CheckKindSpecificEquivalence(Decl *D1, Decl *D2);
 };
 
 } // namespace clang

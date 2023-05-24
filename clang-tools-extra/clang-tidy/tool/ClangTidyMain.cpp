@@ -1,9 +1,8 @@
 //===--- tools/extra/clang-tidy/ClangTidyMain.cpp - Clang tidy tool -------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -16,8 +15,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "../ClangTidy.h"
+#include "../ClangTidyForceLinker.h"
+#include "../GlobList.h"
 #include "clang/Tooling/CommonOptionsParser.h"
+#include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 
 using namespace clang::ast_matchers;
@@ -83,8 +86,8 @@ headers to output diagnostics from. Diagnostics
 from the main file of each translation unit are
 always displayed.
 Can be used together with -line-filter.
-This option overrides the 'HeaderFilter' option
-in .clang-tidy file, if any.
+This option overrides the 'HeaderFilterRegex'
+option in .clang-tidy file, if any.
 )"),
                                          cl::init(""),
                                          cl::cat(ClangTidyCategory));
@@ -288,7 +291,7 @@ static std::unique_ptr<ClangTidyOptionsProvider> createOptionsProvider(
   if (!Config.empty()) {
     if (llvm::ErrorOr<ClangTidyOptions> ParsedConfig =
             parseConfiguration(Config)) {
-      return llvm::make_unique<ConfigOptionsProvider>(
+      return std::make_unique<ConfigOptionsProvider>(
           GlobalOptions,
           ClangTidyOptions::getDefaults().mergeWith(DefaultOptions),
           *ParsedConfig, OverrideOptions);
@@ -298,16 +301,15 @@ static std::unique_ptr<ClangTidyOptionsProvider> createOptionsProvider(
       return nullptr;
     }
   }
-  return llvm::make_unique<FileOptionsProvider>(GlobalOptions, DefaultOptions,
+  return std::make_unique<FileOptionsProvider>(GlobalOptions, DefaultOptions,
                                                 OverrideOptions, std::move(FS));
 }
 
 llvm::IntrusiveRefCntPtr<vfs::FileSystem>
-getVfsOverlayFromFile(const std::string &OverlayFile) {
-  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> OverlayFS(
-      new vfs::OverlayFileSystem(vfs::getRealFileSystem()));
+getVfsFromFile(const std::string &OverlayFile,
+               llvm::IntrusiveRefCntPtr<vfs::FileSystem> BaseFS) {
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> Buffer =
-      OverlayFS->getBufferForFile(OverlayFile);
+      BaseFS->getBufferForFile(OverlayFile);
   if (!Buffer) {
     llvm::errs() << "Can't load virtual filesystem overlay file '"
                  << OverlayFile << "': " << Buffer.getError().message()
@@ -322,18 +324,23 @@ getVfsOverlayFromFile(const std::string &OverlayFile) {
                  << OverlayFile << "'.\n";
     return nullptr;
   }
-  OverlayFS->pushOverlay(FS);
-  return OverlayFS;
+  return FS;
 }
 
 static int clangTidyMain(int argc, const char **argv) {
+  llvm::InitLLVM X(argc, argv);
   CommonOptionsParser OptionsParser(argc, argv, ClangTidyCategory,
                                     cl::ZeroOrMore);
-  llvm::IntrusiveRefCntPtr<vfs::FileSystem> BaseFS(
-      VfsOverlay.empty() ? vfs::getRealFileSystem()
-                         : getVfsOverlayFromFile(VfsOverlay));
-  if (!BaseFS)
-    return 1;
+  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> BaseFS(
+      new vfs::OverlayFileSystem(vfs::getRealFileSystem()));
+
+  if (!VfsOverlay.empty()) {
+    IntrusiveRefCntPtr<vfs::FileSystem> VfsFromFile =
+        getVfsFromFile(VfsOverlay, BaseFS);
+    if (!VfsFromFile)
+      return 1;
+    BaseFS->pushOverlay(VfsFromFile);
+  }
 
   auto OwningOptionsProvider = createOptionsProvider(BaseFS);
   auto *OptionsProvider = OwningOptionsProvider.get();
@@ -421,9 +428,9 @@ static int clangTidyMain(int argc, const char **argv) {
 
   ClangTidyContext Context(std::move(OwningOptionsProvider),
                            AllowEnablingAnalyzerAlphaCheckers);
-  runClangTidy(Context, OptionsParser.getCompilations(), PathList, BaseFS,
-               EnableCheckProfile, ProfilePrefix);
-  ArrayRef<ClangTidyError> Errors = Context.getErrors();
+  std::vector<ClangTidyError> Errors =
+      runClangTidy(Context, OptionsParser.getCompilations(), PathList, BaseFS,
+                   EnableCheckProfile, ProfilePrefix);
   bool FoundErrors = llvm::find_if(Errors, [](const ClangTidyError &E) {
                        return E.DiagLevel == ClangTidyError::Error;
                      }) != Errors.end();
@@ -433,12 +440,12 @@ static int clangTidyMain(int argc, const char **argv) {
   unsigned WErrorCount = 0;
 
   // -fix-errors implies -fix.
-  handleErrors(Context, (FixErrors || Fix) && !DisableFixes, WErrorCount,
+  handleErrors(Errors, Context, (FixErrors || Fix) && !DisableFixes, WErrorCount,
                BaseFS);
 
   if (!ExportFixes.empty() && !Errors.empty()) {
     std::error_code EC;
-    llvm::raw_fd_ostream OS(ExportFixes, EC, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream OS(ExportFixes, EC, llvm::sys::fs::OF_None);
     if (EC) {
       llvm::errs() << "Error opening output file: " << EC.message() << '\n';
       return 1;
@@ -478,96 +485,6 @@ static int clangTidyMain(int argc, const char **argv) {
 
   return 0;
 }
-
-// This anchor is used to force the linker to link the CERTModule.
-extern volatile int CERTModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED CERTModuleAnchorDestination =
-    CERTModuleAnchorSource;
-
-// This anchor is used to force the linker to link the AbseilModule.
-extern volatile int AbseilModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED AbseilModuleAnchorDestination =
-    AbseilModuleAnchorSource;
-
-// This anchor is used to force the linker to link the BoostModule.
-extern volatile int BoostModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED BoostModuleAnchorDestination =
-    BoostModuleAnchorSource;
-
-// This anchor is used to force the linker to link the BugproneModule.
-extern volatile int BugproneModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED BugproneModuleAnchorDestination =
-    BugproneModuleAnchorSource;
-
-// This anchor is used to force the linker to link the LLVMModule.
-extern volatile int LLVMModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED LLVMModuleAnchorDestination =
-    LLVMModuleAnchorSource;
-
-// This anchor is used to force the linker to link the CppCoreGuidelinesModule.
-extern volatile int CppCoreGuidelinesModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED CppCoreGuidelinesModuleAnchorDestination =
-    CppCoreGuidelinesModuleAnchorSource;
-
-// This anchor is used to force the linker to link the FuchsiaModule.
-extern volatile int FuchsiaModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED FuchsiaModuleAnchorDestination =
-    FuchsiaModuleAnchorSource;
-
-// This anchor is used to force the linker to link the GoogleModule.
-extern volatile int GoogleModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED GoogleModuleAnchorDestination =
-    GoogleModuleAnchorSource;
-
-// This anchor is used to force the linker to link the AndroidModule.
-extern volatile int AndroidModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED AndroidModuleAnchorDestination =
-    AndroidModuleAnchorSource;
-
-// This anchor is used to force the linker to link the MiscModule.
-extern volatile int MiscModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED MiscModuleAnchorDestination =
-    MiscModuleAnchorSource;
-
-// This anchor is used to force the linker to link the ModernizeModule.
-extern volatile int ModernizeModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED ModernizeModuleAnchorDestination =
-    ModernizeModuleAnchorSource;
-
-// This anchor is used to force the linker to link the MPIModule.
-extern volatile int MPIModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED MPIModuleAnchorDestination =
-    MPIModuleAnchorSource;
-
-// This anchor is used to force the linker to link the PerformanceModule.
-extern volatile int PerformanceModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED PerformanceModuleAnchorDestination =
-    PerformanceModuleAnchorSource;
-
-// This anchor is used to force the linker to link the PortabilityModule.
-extern volatile int PortabilityModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED PortabilityModuleAnchorDestination =
-    PortabilityModuleAnchorSource;
-
-// This anchor is used to force the linker to link the ReadabilityModule.
-extern volatile int ReadabilityModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED ReadabilityModuleAnchorDestination =
-    ReadabilityModuleAnchorSource;
-
-// This anchor is used to force the linker to link the ObjCModule.
-extern volatile int ObjCModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED ObjCModuleAnchorDestination =
-    ObjCModuleAnchorSource;
-
-// This anchor is used to force the linker to link the HICPPModule.
-extern volatile int HICPPModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED HICPPModuleAnchorDestination =
-    HICPPModuleAnchorSource;
-
-// This anchor is used to force the linker to link the ZirconModule.
-extern volatile int ZirconModuleAnchorSource;
-static int LLVM_ATTRIBUTE_UNUSED ZirconModuleAnchorDestination =
-    ZirconModuleAnchorSource;
 
 } // namespace tidy
 } // namespace clang

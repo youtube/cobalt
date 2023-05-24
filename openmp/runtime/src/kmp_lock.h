@@ -4,10 +4,9 @@
 
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.txt for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -463,7 +462,7 @@ struct kmp_base_drdpa_lock {
   // written by the acquiring thread) than it does in the simple ticket locks
   // (where it is written by the releasing thread).
   //
-  // Since now_serving is only read an written in the critical section,
+  // Since now_serving is only read and written in the critical section,
   // it is non-volatile, but it needs to exist on a separate cache line,
   // as it is invalidated at every lock acquire.
   //
@@ -649,25 +648,15 @@ extern int (*__kmp_acquire_user_lock_with_checks_)(kmp_user_lock_p lck,
       }                                                                        \
     }                                                                          \
     if (lck->tas.lk.poll != 0 ||                                               \
-        !__kmp_compare_and_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) {        \
+        !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) {     \
       kmp_uint32 spins;                                                        \
       KMP_FSYNC_PREPARE(lck);                                                  \
       KMP_INIT_YIELD(spins);                                                   \
-      if (TCR_4(__kmp_nth) >                                                   \
-          (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {               \
-        KMP_YIELD(TRUE);                                                       \
-      } else {                                                                 \
-        KMP_YIELD_SPIN(spins);                                                 \
-      }                                                                        \
-      while (lck->tas.lk.poll != 0 ||                                          \
-             !__kmp_compare_and_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) {   \
-        if (TCR_4(__kmp_nth) >                                                 \
-            (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {             \
-          KMP_YIELD(TRUE);                                                     \
-        } else {                                                               \
-          KMP_YIELD_SPIN(spins);                                               \
-        }                                                                      \
-      }                                                                        \
+      do {                                                                     \
+        KMP_YIELD_OVERSUB_ELSE_SPIN(spins);                                    \
+      } while (                                                                \
+          lck->tas.lk.poll != 0 ||                                             \
+          !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));    \
     }                                                                          \
     KMP_FSYNC_ACQUIRED(lck);                                                   \
   } else {                                                                     \
@@ -702,7 +691,7 @@ static inline int __kmp_test_user_lock_with_checks(kmp_user_lock_p lck,
       }
     }
     return ((lck->tas.lk.poll == 0) &&
-            __kmp_compare_and_store_acq(&lck->tas.lk.poll, 0, gtid + 1));
+            __kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));
   } else {
     KMP_DEBUG_ASSERT(__kmp_test_user_lock_with_checks_ != NULL);
     return (*__kmp_test_user_lock_with_checks_)(lck, gtid);
@@ -767,25 +756,15 @@ extern int (*__kmp_acquire_nested_user_lock_with_checks_)(kmp_user_lock_p lck,
       *depth = KMP_LOCK_ACQUIRED_NEXT;                                         \
     } else {                                                                   \
       if ((lck->tas.lk.poll != 0) ||                                           \
-          !__kmp_compare_and_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) {      \
+          !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) {   \
         kmp_uint32 spins;                                                      \
         KMP_FSYNC_PREPARE(lck);                                                \
         KMP_INIT_YIELD(spins);                                                 \
-        if (TCR_4(__kmp_nth) >                                                 \
-            (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {             \
-          KMP_YIELD(TRUE);                                                     \
-        } else {                                                               \
-          KMP_YIELD_SPIN(spins);                                               \
-        }                                                                      \
-        while ((lck->tas.lk.poll != 0) ||                                      \
-               !__kmp_compare_and_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) { \
-          if (TCR_4(__kmp_nth) >                                               \
-              (__kmp_avail_proc ? __kmp_avail_proc : __kmp_xproc)) {           \
-            KMP_YIELD(TRUE);                                                   \
-          } else {                                                             \
-            KMP_YIELD_SPIN(spins);                                             \
-          }                                                                    \
-        }                                                                      \
+        do {                                                                   \
+          KMP_YIELD_OVERSUB_ELSE_SPIN(spins);                                  \
+        } while (                                                              \
+            (lck->tas.lk.poll != 0) ||                                         \
+            !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));  \
       }                                                                        \
       lck->tas.lk.depth_locked = 1;                                            \
       *depth = KMP_LOCK_ACQUIRED_FIRST;                                        \
@@ -826,7 +805,7 @@ static inline int __kmp_test_nested_user_lock_with_checks(kmp_user_lock_p lck,
       return ++lck->tas.lk.depth_locked; /* same owner, depth increased */
     }
     retval = ((lck->tas.lk.poll == 0) &&
-              __kmp_compare_and_store_acq(&lck->tas.lk.poll, 0, gtid + 1));
+              __kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));
     if (retval) {
       KMP_MB();
       lck->tas.lk.depth_locked = 1;
@@ -1143,18 +1122,18 @@ typedef struct {
 // Function tables for direct locks. Set/unset/test differentiate functions
 // with/without consistency checking.
 extern void (*__kmp_direct_init[])(kmp_dyna_lock_t *, kmp_dyna_lockseq_t);
-extern void (*__kmp_direct_destroy[])(kmp_dyna_lock_t *);
-extern int (*(*__kmp_direct_set))(kmp_dyna_lock_t *, kmp_int32);
-extern int (*(*__kmp_direct_unset))(kmp_dyna_lock_t *, kmp_int32);
-extern int (*(*__kmp_direct_test))(kmp_dyna_lock_t *, kmp_int32);
+extern void (**__kmp_direct_destroy)(kmp_dyna_lock_t *);
+extern int (**__kmp_direct_set)(kmp_dyna_lock_t *, kmp_int32);
+extern int (**__kmp_direct_unset)(kmp_dyna_lock_t *, kmp_int32);
+extern int (**__kmp_direct_test)(kmp_dyna_lock_t *, kmp_int32);
 
 // Function tables for indirect locks. Set/unset/test differentiate functions
 // with/withuot consistency checking.
 extern void (*__kmp_indirect_init[])(kmp_user_lock_p);
-extern void (*__kmp_indirect_destroy[])(kmp_user_lock_p);
-extern int (*(*__kmp_indirect_set))(kmp_user_lock_p, kmp_int32);
-extern int (*(*__kmp_indirect_unset))(kmp_user_lock_p, kmp_int32);
-extern int (*(*__kmp_indirect_test))(kmp_user_lock_p, kmp_int32);
+extern void (**__kmp_indirect_destroy)(kmp_user_lock_p);
+extern int (**__kmp_indirect_set)(kmp_user_lock_p, kmp_int32);
+extern int (**__kmp_indirect_unset)(kmp_user_lock_p, kmp_int32);
+extern int (**__kmp_indirect_test)(kmp_user_lock_p, kmp_int32);
 
 // Extracts direct lock tag from a user lock pointer
 #define KMP_EXTRACT_D_TAG(l)                                                   \

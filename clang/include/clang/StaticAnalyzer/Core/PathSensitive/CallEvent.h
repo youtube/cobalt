@@ -1,9 +1,8 @@
 //===- CallEvent.h - Wrapper for all function and method calls --*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -72,33 +71,7 @@ enum CallEventKind {
 };
 
 class CallEvent;
-
-/// This class represents a description of a function call using the number of
-/// arguments and the name of the function.
-class CallDescription {
-  friend CallEvent;
-
-  mutable IdentifierInfo *II = nullptr;
-  mutable bool IsLookupDone = false;
-  StringRef FuncName;
-  unsigned RequiredArgs;
-
-public:
-  const static unsigned NoArgRequirement = std::numeric_limits<unsigned>::max();
-
-  /// Constructs a CallDescription object.
-  ///
-  /// @param FuncName The name of the function that will be matched.
-  ///
-  /// @param RequiredArgs The number of arguments that is expected to match a
-  /// call. Omit this parameter to match every occurrence of call with a given
-  /// name regardless the number of arguments.
-  CallDescription(StringRef FuncName, unsigned RequiredArgs = NoArgRequirement)
-      : FuncName(FuncName), RequiredArgs(RequiredArgs) {}
-
-  /// Get the name of the function that this object matches.
-  StringRef getFunctionName() const { return FuncName; }
-};
+class CallDescription;
 
 template<typename T = CallEvent>
 class CallEventRef : public IntrusiveRefCntPtr<const T> {
@@ -374,7 +347,7 @@ public:
   ProgramStateRef invalidateRegions(unsigned BlockCount,
                                     ProgramStateRef Orig = nullptr) const;
 
-  using FrameBindingTy = std::pair<Loc, SVal>;
+  using FrameBindingTy = std::pair<SVal, SVal>;
   using BindingsTy = SmallVectorImpl<FrameBindingTy>;
 
   /// Populates the given SmallVector with the bindings in the callee's stack
@@ -413,11 +386,12 @@ public:
   /// during analysis if the call is inlined, but it may still be useful
   /// in intermediate calculations even if the call isn't inlined.
   /// May fail; returns null on failure.
-  const StackFrameContext *getCalleeStackFrame() const;
+  const StackFrameContext *getCalleeStackFrame(unsigned BlockCount) const;
 
   /// Returns memory location for a parameter variable within the callee stack
   /// frame. May fail; returns null on failure.
-  const VarRegion *getParameterLocation(unsigned Index) const;
+  const VarRegion *getParameterLocation(unsigned Index,
+                                        unsigned BlockCount) const;
 
   /// Returns true if on the current path, the argument was constructed by
   /// calling a C++ constructor over it. This is an internal detail of the
@@ -428,21 +402,23 @@ public:
   bool isArgumentConstructedDirectly(unsigned Index) const {
     // This assumes that the object was not yet removed from the state.
     return ExprEngine::getObjectUnderConstruction(
-        getState(), {getOriginExpr(), Index}, getCalleeStackFrame()).hasValue();
+        getState(), {getOriginExpr(), Index}, getLocationContext()).hasValue();
   }
 
   /// Some calls have parameter numbering mismatched from argument numbering.
   /// This function converts an argument index to the corresponding
   /// parameter index. Returns None is the argument doesn't correspond
   /// to any parameter variable.
-  Optional<unsigned> getAdjustedParameterIndex(unsigned ArgumentIndex) const {
-    if (dyn_cast_or_null<CXXOperatorCallExpr>(getOriginExpr()) &&
-        dyn_cast_or_null<CXXMethodDecl>(getDecl())) {
-      // For member operator calls argument 0 on the expression corresponds
-      // to implicit this-parameter on the declaration.
-      return (ArgumentIndex > 0) ? Optional<unsigned>(ArgumentIndex - 1) : None;
-    }
-    return ArgumentIndex;
+  virtual Optional<unsigned>
+  getAdjustedParameterIndex(unsigned ASTArgumentIndex) const {
+    return ASTArgumentIndex;
+  }
+
+  /// Some call event sub-classes conveniently adjust mismatching AST indices
+  /// to match parameter indices. This function converts an argument index
+  /// as understood by CallEvent to the argument index as understood by the AST.
+  virtual unsigned getASTArgumentIndex(unsigned CallArgumentIndex) const {
+    return CallArgumentIndex;
   }
 
   // Iterator access to formal parameters and their types.
@@ -769,6 +745,20 @@ public:
   static bool classof(const CallEvent *CA) {
     return CA->getKind() == CE_CXXMemberOperator;
   }
+
+  Optional<unsigned>
+  getAdjustedParameterIndex(unsigned ASTArgumentIndex) const override {
+    // For member operator calls argument 0 on the expression corresponds
+    // to implicit this-parameter on the declaration.
+    return (ASTArgumentIndex > 0) ? Optional<unsigned>(ASTArgumentIndex - 1)
+                                  : None;
+  }
+
+  unsigned getASTArgumentIndex(unsigned CallArgumentIndex) const override {
+    // For member operator calls argument 0 on the expression corresponds
+    // to implicit this-parameter on the declaration.
+    return CallArgumentIndex + 1;
+  }
 };
 
 /// Represents an implicit call to a C++ destructor.
@@ -793,7 +783,7 @@ protected:
                     ProgramStateRef St, const LocationContext *LCtx)
       : CXXInstanceCall(DD, St, LCtx) {
     Data = DtorDataTy(Target, IsBaseDestructor).getOpaqueValue();
-    Location = Trigger->getLocEnd();
+    Location = Trigger->getEndLoc();
   }
 
   CXXDestructorCall(const CXXDestructorCall &Other) = default;
@@ -899,15 +889,30 @@ public:
     return getOriginExpr()->getOperatorNew();
   }
 
+  /// Number of non-placement arguments to the call. It is equal to 2 for
+  /// C++17 aligned operator new() calls that have alignment implicitly
+  /// passed as the second argument, and to 1 for other operator new() calls.
+  unsigned getNumImplicitArgs() const {
+    return getOriginExpr()->passAlignment() ? 2 : 1;
+  }
+
   unsigned getNumArgs() const override {
-    return getOriginExpr()->getNumPlacementArgs() + 1;
+    return getOriginExpr()->getNumPlacementArgs() + getNumImplicitArgs();
   }
 
   const Expr *getArgExpr(unsigned Index) const override {
     // The first argument of an allocator call is the size of the allocation.
-    if (Index == 0)
+    if (Index < getNumImplicitArgs())
       return nullptr;
-    return getOriginExpr()->getPlacementArg(Index - 1);
+    return getOriginExpr()->getPlacementArg(Index - getNumImplicitArgs());
+  }
+
+  /// Number of placement arguments to the operator new() call. For example,
+  /// standard std::nothrow operator new and standard placement new both have
+  /// 1 implicit argument (size) and 1 placement argument, while regular
+  /// operator new() has 1 implicit argument and 0 placement arguments.
+  const Expr *getPlacementArgExpr(unsigned Index) const {
+    return getOriginExpr()->getPlacementArg(Index);
   }
 
   Kind getKind() const override { return CE_CXXAllocator; }
@@ -1040,6 +1045,99 @@ public:
   }
 };
 
+enum CallDescriptionFlags : int {
+  /// Describes a C standard function that is sometimes implemented as a macro
+  /// that expands to a compiler builtin with some __builtin prefix.
+  /// The builtin may as well have a few extra arguments on top of the requested
+  /// number of arguments.
+  CDF_MaybeBuiltin = 1 << 0,
+};
+
+/// This class represents a description of a function call using the number of
+/// arguments and the name of the function.
+class CallDescription {
+  friend CallEvent;
+
+  mutable IdentifierInfo *II = nullptr;
+  mutable bool IsLookupDone = false;
+  // The list of the qualified names used to identify the specified CallEvent,
+  // e.g. "{a, b}" represent the qualified names, like "a::b".
+  std::vector<const char *> QualifiedName;
+  Optional<unsigned> RequiredArgs;
+  Optional<size_t> RequiredParams;
+  int Flags;
+
+  // A constructor helper.
+  static Optional<size_t> readRequiredParams(Optional<unsigned> RequiredArgs,
+                                             Optional<size_t> RequiredParams) {
+    if (RequiredParams)
+      return RequiredParams;
+    if (RequiredArgs)
+      return static_cast<size_t>(*RequiredArgs);
+    return None;
+  }
+
+public:
+  /// Constructs a CallDescription object.
+  ///
+  /// @param QualifiedName The list of the name qualifiers of the function that
+  /// will be matched. The user is allowed to skip any of the qualifiers.
+  /// For example, {"std", "basic_string", "c_str"} would match both
+  /// std::basic_string<...>::c_str() and std::__1::basic_string<...>::c_str().
+  ///
+  /// @param RequiredArgs The number of arguments that is expected to match a
+  /// call. Omit this parameter to match every occurrence of call with a given
+  /// name regardless the number of arguments.
+  CallDescription(int Flags, ArrayRef<const char *> QualifiedName,
+                  Optional<unsigned> RequiredArgs = None,
+                  Optional<size_t> RequiredParams = None)
+      : QualifiedName(QualifiedName), RequiredArgs(RequiredArgs),
+        RequiredParams(readRequiredParams(RequiredArgs, RequiredParams)),
+        Flags(Flags) {}
+
+  /// Construct a CallDescription with default flags.
+  CallDescription(ArrayRef<const char *> QualifiedName,
+                  Optional<unsigned> RequiredArgs = None,
+                  Optional<size_t> RequiredParams = None)
+      : CallDescription(0, QualifiedName, RequiredArgs, RequiredParams) {}
+
+  /// Get the name of the function that this object matches.
+  StringRef getFunctionName() const { return QualifiedName.back(); }
+};
+
+/// An immutable map from CallDescriptions to arbitrary data. Provides a unified
+/// way for checkers to react on function calls.
+template <typename T> class CallDescriptionMap {
+  // Some call descriptions aren't easily hashable (eg., the ones with qualified
+  // names in which some sections are omitted), so let's put them
+  // in a simple vector and use linear lookup.
+  // TODO: Implement an actual map for fast lookup for "hashable" call
+  // descriptions (eg., the ones for C functions that just match the name).
+  std::vector<std::pair<CallDescription, T>> LinearMap;
+
+public:
+  CallDescriptionMap(
+      std::initializer_list<std::pair<CallDescription, T>> &&List)
+      : LinearMap(List) {}
+
+  ~CallDescriptionMap() = default;
+
+  // These maps are usually stored once per checker, so let's make sure
+  // we don't do redundant copies.
+  CallDescriptionMap(const CallDescriptionMap &) = delete;
+  CallDescriptionMap &operator=(const CallDescription &) = delete;
+
+  const T *lookup(const CallEvent &Call) const {
+    // Slow path: linear lookup.
+    // TODO: Implement some sort of fast path.
+    for (const std::pair<CallDescription, T> &I : LinearMap)
+      if (Call.isCalled(I.first))
+        return &I.second;
+
+    return nullptr;
+  }
+};
+
 /// Manages the lifetime of CallEvent objects.
 ///
 /// CallEventManager provides a way to create arbitrary CallEvents "on the
@@ -1101,8 +1199,15 @@ class CallEventManager {
 public:
   CallEventManager(llvm::BumpPtrAllocator &alloc) : Alloc(alloc) {}
 
+  /// Gets an outside caller given a callee context.
   CallEventRef<>
   getCaller(const StackFrameContext *CalleeCtx, ProgramStateRef State);
+
+  /// Gets a call event for a function call, Objective-C method call,
+  /// or a 'new' call.
+  CallEventRef<>
+  getCall(const Stmt *S, ProgramStateRef State,
+          const LocationContext *LC);
 
   CallEventRef<>
   getSimpleCall(const CallExpr *E, ProgramStateRef State,

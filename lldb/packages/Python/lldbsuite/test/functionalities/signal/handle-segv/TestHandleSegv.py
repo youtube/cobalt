@@ -1,10 +1,7 @@
 """Test that we can debug inferiors that handle SIGSEGV by themselves"""
 
-from __future__ import print_function
 
 
-import os
-import re
 
 import lldb
 from lldbsuite.test.decorators import *
@@ -18,6 +15,7 @@ class HandleSegvTestCase(TestBase):
 
     @skipIfWindows  # signals do not exist on Windows
     @skipIfDarwin
+    @expectedFailureNetBSD
     def test_inferior_handle_sigsegv(self):
         self.build()
         exe = self.getBuildArtifact("a.out")

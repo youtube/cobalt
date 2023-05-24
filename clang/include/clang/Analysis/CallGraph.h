@@ -1,9 +1,8 @@
 //===- CallGraph.h - AST-based Call graph -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -131,6 +130,8 @@ public:
   bool TraverseStmt(Stmt *S) { return true; }
 
   bool shouldWalkTypesOfTypeLocs() const { return false; }
+  bool shouldVisitTemplateInstantiations() const { return true; }
+  bool shouldVisitImplicitCode() const { return true; }
 
 private:
   /// Add the given declaration to the call graph.

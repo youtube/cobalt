@@ -1,18 +1,13 @@
 //===-- CommandObjectQuit.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "CommandObjectQuit.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Target/Process.h"
@@ -21,9 +16,7 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//-------------------------------------------------------------------------
 // CommandObjectQuit
-//-------------------------------------------------------------------------
 
 CommandObjectQuit::CommandObjectQuit(CommandInterpreter &interpreter)
     : CommandObjectParsed(interpreter, "quit", "Quit the LLDB debugger.",
@@ -35,7 +28,7 @@ CommandObjectQuit::~CommandObjectQuit() {}
 // if all alive processes will be detached when you quit and false if at least
 // one process will be killed instead
 bool CommandObjectQuit::ShouldAskForConfirmation(bool &is_a_detach) {
-  if (m_interpreter.GetPromptOnQuit() == false)
+  if (!m_interpreter.GetPromptOnQuit())
     return false;
   bool should_prompt = false;
   is_a_detach = true;
@@ -55,7 +48,7 @@ bool CommandObjectQuit::ShouldAskForConfirmation(bool &is_a_detach) {
       if (process_sp && process_sp->IsValid() && process_sp->IsAlive() &&
           process_sp->WarnBeforeDetach()) {
         should_prompt = true;
-        if (process_sp->GetShouldDetach() == false) {
+        if (!process_sp->GetShouldDetach()) {
           // if we need to kill at least one process, just say so and return
           is_a_detach = false;
           return should_prompt;
@@ -77,13 +70,6 @@ bool CommandObjectQuit::DoExecute(Args &command, CommandReturnObject &result) {
       result.SetStatus(eReturnStatusFailed);
       return false;
     }
-  }
-
-  if (command.GetArgumentCount() > 1) {
-    result.AppendError("Too many arguments for 'quit'. Only an optional exit "
-                       "code is allowed");
-    result.SetStatus(eReturnStatusFailed);
-    return false;
   }
 
   if (command.GetArgumentCount() > 1) {

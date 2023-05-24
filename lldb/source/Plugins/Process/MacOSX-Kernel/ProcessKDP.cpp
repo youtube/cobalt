@@ -1,29 +1,23 @@
 //===-- ProcessKDP.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
 #include <errno.h>
 #include <stdlib.h>
 
-// C++ Includes
+#include <memory>
 #include <mutex>
 
-// Other libraries and framework includes
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/State.h"
-#include "lldb/Utility/UUID.h"
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/Host.h"
-#include "lldb/Host/Symbols.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Host/common/TCPSocket.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -33,17 +27,20 @@
 #include "lldb/Interpreter/OptionGroupString.h"
 #include "lldb/Interpreter/OptionGroupUInt64.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
+#include "lldb/Symbol/LocateSymbolFile.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/StringExtractor.h"
+#include "lldb/Utility/UUID.h"
 
 #include "llvm/Support/Threading.h"
 
 #define USEC_PER_SEC 1000000
 
-// Project includes
 #include "Plugins/DynamicLoader/Darwin-Kernel/DynamicLoaderDarwinKernel.h"
 #include "Plugins/DynamicLoader/Static/DynamicLoaderStatic.h"
 #include "ProcessKDP.h"
@@ -55,12 +52,13 @@ using namespace lldb_private;
 
 namespace {
 
-static PropertyDefinition g_properties[] = {
-    {"packet-timeout", OptionValue::eTypeUInt64, true, 5, NULL, NULL,
-     "Specify the default packet timeout in seconds."},
-    {NULL, OptionValue::eTypeInvalid, false, 0, NULL, NULL, NULL}};
+#define LLDB_PROPERTIES_processkdp
+#include "ProcessKDPProperties.inc"
 
-enum { ePropertyPacketTimeout };
+enum {
+#define LLDB_PROPERTIES_processkdp
+#include "ProcessKDPPropertiesEnum.inc"
+};
 
 class PluginProperties : public Properties {
 public:
@@ -69,16 +67,16 @@ public:
   }
 
   PluginProperties() : Properties() {
-    m_collection_sp.reset(new OptionValueProperties(GetSettingName()));
-    m_collection_sp->Initialize(g_properties);
+    m_collection_sp = std::make_shared<OptionValueProperties>(GetSettingName());
+    m_collection_sp->Initialize(g_processkdp_properties);
   }
 
   virtual ~PluginProperties() {}
 
   uint64_t GetPacketTimeout() {
-    const uint32_t idx = ePropertyPacketTimeout;
+    const uint32_t idx = ePropertyKDPPacketTimeout;
     return m_collection_sp->GetPropertyAtIndexAsUInt64(
-        NULL, idx, g_properties[idx].default_uint_value);
+        NULL, idx, g_processkdp_properties[idx].default_uint_value);
   }
 };
 
@@ -87,7 +85,7 @@ typedef std::shared_ptr<PluginProperties> ProcessKDPPropertiesSP;
 static const ProcessKDPPropertiesSP &GetGlobalPluginProperties() {
   static ProcessKDPPropertiesSP g_settings_sp;
   if (!g_settings_sp)
-    g_settings_sp.reset(new PluginProperties());
+    g_settings_sp = std::make_shared<PluginProperties>();
   return g_settings_sp;
 }
 
@@ -114,7 +112,7 @@ lldb::ProcessSP ProcessKDP::CreateInstance(TargetSP target_sp,
                                            const FileSpec *crash_file_path) {
   lldb::ProcessSP process_sp;
   if (crash_file_path == NULL)
-    process_sp.reset(new ProcessKDP(target_sp, listener_sp));
+    process_sp = std::make_shared<ProcessKDP>(target_sp, listener_sp);
   return process_sp;
 }
 
@@ -148,9 +146,7 @@ bool ProcessKDP::CanDebug(TargetSP target_sp, bool plugin_specified_by_name) {
   return false;
 }
 
-//----------------------------------------------------------------------
 // ProcessKDP constructor
-//----------------------------------------------------------------------
 ProcessKDP::ProcessKDP(TargetSP target_sp, ListenerSP listener_sp)
     : Process(target_sp, listener_sp),
       m_comm("lldb.process.kdp-remote.communication"),
@@ -167,9 +163,7 @@ ProcessKDP::ProcessKDP(TargetSP target_sp, ListenerSP listener_sp)
     m_comm.SetPacketTimeout(std::chrono::seconds(timeout_seconds));
 }
 
-//----------------------------------------------------------------------
 // Destructor
-//----------------------------------------------------------------------
 ProcessKDP::~ProcessKDP() {
   Clear();
   // We need to call finalize on the process before destroying ourselves to
@@ -179,9 +173,7 @@ ProcessKDP::~ProcessKDP() {
   Finalize();
 }
 
-//----------------------------------------------------------------------
 // PluginInterface
-//----------------------------------------------------------------------
 lldb_private::ConstString ProcessKDP::GetPluginName() {
   return GetPluginNameStatic();
 }
@@ -236,27 +228,27 @@ Status ProcessKDP::DoConnectRemote(Stream *strm, llvm::StringRef remote_url) {
     return error;
   }
 
-  std::unique_ptr<ConnectionFileDescriptor> conn_ap(
+  std::unique_ptr<ConnectionFileDescriptor> conn_up(
       new ConnectionFileDescriptor());
-  if (conn_ap.get()) {
+  if (conn_up) {
     // Only try once for now.
     // TODO: check if we should be retrying?
     const uint32_t max_retry_count = 1;
     for (uint32_t retry_count = 0; retry_count < max_retry_count;
          ++retry_count) {
-      if (conn_ap->Connect(remote_url, &error) == eConnectionStatusSuccess)
+      if (conn_up->Connect(remote_url, &error) == eConnectionStatusSuccess)
         break;
       usleep(100000);
     }
   }
 
-  if (conn_ap->IsConnected()) {
+  if (conn_up->IsConnected()) {
     const TCPSocket &socket =
-        static_cast<const TCPSocket &>(*conn_ap->GetReadObject());
+        static_cast<const TCPSocket &>(*conn_up->GetReadObject());
     const uint16_t reply_port = socket.GetLocalPortNumber();
 
     if (reply_port != 0) {
-      m_comm.SetConnection(conn_ap.release());
+      m_comm.SetConnection(conn_up.release());
 
       if (m_comm.SendRequestReattach(reply_port)) {
         if (m_comm.SendRequestConnect(reply_port, reply_port,
@@ -296,12 +288,16 @@ Status ProcessKDP::DoConnectRemote(Stream *strm, llvm::StringRef remote_url) {
               module_spec.GetArchitecture() = target.GetArchitecture();
 
               // Lookup UUID locally, before attempting dsymForUUID like action
+              FileSpecList search_paths =
+                  Target::GetDefaultDebugFileSearchPaths();
               module_spec.GetSymbolFileSpec() =
-                  Symbols::LocateExecutableSymbolFile(module_spec);
+                  Symbols::LocateExecutableSymbolFile(module_spec,
+                                                      search_paths);
               if (module_spec.GetSymbolFileSpec()) {
                 ModuleSpec executable_module_spec =
                     Symbols::LocateExecutableObjectFile(module_spec);
-                if (executable_module_spec.GetFileSpec().Exists()) {
+                if (FileSystem::Instance().Exists(
+                        executable_module_spec.GetFileSpec())) {
                   module_spec.GetFileSpec() =
                       executable_module_spec.GetFileSpec();
                 }
@@ -310,7 +306,7 @@ Status ProcessKDP::DoConnectRemote(Stream *strm, llvm::StringRef remote_url) {
                   !module_spec.GetSymbolFileSpec())
                 Symbols::DownloadObjectAndSymbolFile(module_spec, true);
 
-              if (module_spec.GetFileSpec().Exists()) {
+              if (FileSystem::Instance().Exists(module_spec.GetFileSpec())) {
                 ModuleSP module_sp(new Module(module_spec));
                 if (module_sp.get() && module_sp->GetObjectFile()) {
                   // Get the current target executable
@@ -319,7 +315,7 @@ Status ProcessKDP::DoConnectRemote(Stream *strm, llvm::StringRef remote_url) {
                   // Make sure you don't already have the right module loaded
                   // and they will be uniqued
                   if (exe_module_sp.get() != module_sp.get())
-                    target.SetExecutableModule(module_sp, false);
+                    target.SetExecutableModule(module_sp, eLoadDependentsNo);
                 }
               }
             }
@@ -370,9 +366,7 @@ Status ProcessKDP::DoConnectRemote(Stream *strm, llvm::StringRef remote_url) {
   return error;
 }
 
-//----------------------------------------------------------------------
 // Process Control
-//----------------------------------------------------------------------
 Status ProcessKDP::DoLaunch(Module *exe_module,
                             ProcessLaunchInfo &launch_info) {
   Status error;
@@ -402,8 +396,7 @@ void ProcessKDP::DidAttach(ArchSpec &process_arch) {
   Process::DidAttach(process_arch);
 
   Log *log(ProcessKDPLog::GetLogIfAllCategoriesSet(KDP_LOG_PROCESS));
-  if (log)
-    log->Printf("ProcessKDP::DidAttach()");
+  LLDB_LOGF(log, "ProcessKDP::DidAttach()");
   if (GetID() != LLDB_INVALID_PROCESS_ID) {
     GetHostArchitecture(process_arch);
   }
@@ -412,11 +405,11 @@ void ProcessKDP::DidAttach(ArchSpec &process_arch) {
 addr_t ProcessKDP::GetImageInfoAddress() { return m_kernel_load_addr; }
 
 lldb_private::DynamicLoader *ProcessKDP::GetDynamicLoader() {
-  if (m_dyld_ap.get() == NULL)
-    m_dyld_ap.reset(DynamicLoader::FindPlugin(
+  if (m_dyld_up.get() == NULL)
+    m_dyld_up.reset(DynamicLoader::FindPlugin(
         this,
         m_dyld_plugin_name.IsEmpty() ? NULL : m_dyld_plugin_name.GetCString()));
-  return m_dyld_ap.get();
+  return m_dyld_up.get();
 }
 
 Status ProcessKDP::WillResume() { return Status(); }
@@ -437,15 +430,13 @@ Status ProcessKDP::DoResume() {
     const StateType thread_resume_state =
         kernel_thread_sp->GetTemporaryResumeState();
 
-    if (log)
-      log->Printf("ProcessKDP::DoResume() thread_resume_state = %s",
-                  StateAsCString(thread_resume_state));
+    LLDB_LOGF(log, "ProcessKDP::DoResume() thread_resume_state = %s",
+              StateAsCString(thread_resume_state));
     switch (thread_resume_state) {
     case eStateSuspended:
       // Nothing to do here when a thread will stay suspended we just leave the
       // CPU mask bit set to zero for the thread
-      if (log)
-        log->Printf("ProcessKDP::DoResume() = suspended???");
+      LLDB_LOGF(log, "ProcessKDP::DoResume() = suspended???");
       break;
 
     case eStateStepping: {
@@ -453,9 +444,9 @@ Status ProcessKDP::DoResume() {
           kernel_thread_sp->GetRegisterContext());
 
       if (reg_ctx_sp) {
-        if (log)
-          log->Printf(
-              "ProcessKDP::DoResume () reg_ctx_sp->HardwareSingleStep (true);");
+        LLDB_LOGF(
+            log,
+            "ProcessKDP::DoResume () reg_ctx_sp->HardwareSingleStep (true);");
         reg_ctx_sp->HardwareSingleStep(true);
         resume = true;
       } else {
@@ -470,9 +461,8 @@ Status ProcessKDP::DoResume() {
           kernel_thread_sp->GetRegisterContext());
 
       if (reg_ctx_sp) {
-        if (log)
-          log->Printf("ProcessKDP::DoResume () reg_ctx_sp->HardwareSingleStep "
-                      "(false);");
+        LLDB_LOGF(log, "ProcessKDP::DoResume () reg_ctx_sp->HardwareSingleStep "
+                       "(false);");
         reg_ctx_sp->HardwareSingleStep(false);
         resume = true;
       } else {
@@ -489,8 +479,7 @@ Status ProcessKDP::DoResume() {
   }
 
   if (resume) {
-    if (log)
-      log->Printf("ProcessKDP::DoResume () sending resume");
+    LLDB_LOGF(log, "ProcessKDP::DoResume () sending resume");
 
     if (m_comm.SendRequestResume()) {
       m_async_broadcaster.BroadcastEvent(eBroadcastBitAsyncContinue);
@@ -510,7 +499,7 @@ lldb::ThreadSP ProcessKDP::GetKernelThread() {
 
   ThreadSP thread_sp(m_kernel_thread_wp.lock());
   if (!thread_sp) {
-    thread_sp.reset(new ThreadKDP(*this, g_kernel_tid));
+    thread_sp = std::make_shared<ThreadKDP>(*this, g_kernel_tid);
     m_kernel_thread_wp = thread_sp;
   }
   return thread_sp;
@@ -558,8 +547,7 @@ Status ProcessKDP::DoHalt(bool &caused_stop) {
 Status ProcessKDP::DoDetach(bool keep_stopped) {
   Status error;
   Log *log(ProcessKDPLog::GetLogIfAllCategoriesSet(KDP_LOG_PROCESS));
-  if (log)
-    log->Printf("ProcessKDP::DoDetach(keep_stopped = %i)", keep_stopped);
+  LLDB_LOGF(log, "ProcessKDP::DoDetach(keep_stopped = %i)", keep_stopped);
 
   if (m_comm.IsRunning()) {
     // We are running and we can't interrupt a running kernel, so we need to
@@ -596,17 +584,13 @@ Status ProcessKDP::DoDestroy() {
   return DoDetach(keep_stopped);
 }
 
-//------------------------------------------------------------------
 // Process Queries
-//------------------------------------------------------------------
 
 bool ProcessKDP::IsAlive() {
   return m_comm.IsConnected() && Process::IsAlive();
 }
 
-//------------------------------------------------------------------
 // Process Memory
-//------------------------------------------------------------------
 size_t ProcessKDP::DoReadMemory(addr_t addr, void *buf, size_t size,
                                 Status &error) {
   uint8_t *data_buffer = (uint8_t *)buf;
@@ -746,22 +730,27 @@ void ProcessKDP::DebuggerInitialize(lldb_private::Debugger &debugger) {
 bool ProcessKDP::StartAsyncThread() {
   Log *log(ProcessKDPLog::GetLogIfAllCategoriesSet(KDP_LOG_PROCESS));
 
-  if (log)
-    log->Printf("ProcessKDP::StartAsyncThread ()");
+  LLDB_LOGF(log, "ProcessKDP::StartAsyncThread ()");
 
   if (m_async_thread.IsJoinable())
     return true;
 
-  m_async_thread = ThreadLauncher::LaunchThread(
-      "<lldb.process.kdp-remote.async>", ProcessKDP::AsyncThread, this, NULL);
+  llvm::Expected<HostThread> async_thread = ThreadLauncher::LaunchThread(
+      "<lldb.process.kdp-remote.async>", ProcessKDP::AsyncThread, this);
+  if (!async_thread) {
+    LLDB_LOG(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_HOST),
+             "failed to launch host thread: {}",
+             llvm::toString(async_thread.takeError()));
+    return false;
+  }
+  m_async_thread = *async_thread;
   return m_async_thread.IsJoinable();
 }
 
 void ProcessKDP::StopAsyncThread() {
   Log *log(ProcessKDPLog::GetLogIfAllCategoriesSet(KDP_LOG_PROCESS));
 
-  if (log)
-    log->Printf("ProcessKDP::StopAsyncThread ()");
+  LLDB_LOGF(log, "ProcessKDP::StopAsyncThread ()");
 
   m_async_broadcaster.BroadcastEvent(eBroadcastBitAsyncThreadShouldExit);
 
@@ -776,10 +765,10 @@ void *ProcessKDP::AsyncThread(void *arg) {
   const lldb::pid_t pid = process->GetID();
 
   Log *log(ProcessKDPLog::GetLogIfAllCategoriesSet(KDP_LOG_PROCESS));
-  if (log)
-    log->Printf("ProcessKDP::AsyncThread (arg = %p, pid = %" PRIu64
-                ") thread starting...",
-                arg, pid);
+  LLDB_LOGF(log,
+            "ProcessKDP::AsyncThread (arg = %p, pid = %" PRIu64
+            ") thread starting...",
+            arg, pid);
 
   ListenerSP listener_sp(Listener::MakeListener("ProcessKDP::AsyncThread"));
   EventSP event_sp;
@@ -791,16 +780,16 @@ void *ProcessKDP::AsyncThread(void *arg) {
       desired_event_mask) {
     bool done = false;
     while (!done) {
-      if (log)
-        log->Printf("ProcessKDP::AsyncThread (pid = %" PRIu64
-                    ") listener.WaitForEvent (NULL, event_sp)...",
-                    pid);
+      LLDB_LOGF(log,
+                "ProcessKDP::AsyncThread (pid = %" PRIu64
+                ") listener.WaitForEvent (NULL, event_sp)...",
+                pid);
       if (listener_sp->GetEvent(event_sp, llvm::None)) {
         uint32_t event_type = event_sp->GetType();
-        if (log)
-          log->Printf("ProcessKDP::AsyncThread (pid = %" PRIu64
-                      ") Got an event of type: %d...",
-                      pid, event_type);
+        LLDB_LOGF(log,
+                  "ProcessKDP::AsyncThread (pid = %" PRIu64
+                  ") Got an event of type: %d...",
+                  pid, event_type);
 
         // When we are running, poll for 1 second to try and get an exception
         // to indicate the process has stopped. If we don't get one, check to
@@ -839,38 +828,38 @@ void *ProcessKDP::AsyncThread(void *arg) {
           } break;
 
           case eBroadcastBitAsyncThreadShouldExit:
-            if (log)
-              log->Printf("ProcessKDP::AsyncThread (pid = %" PRIu64
-                          ") got eBroadcastBitAsyncThreadShouldExit...",
-                          pid);
+            LLDB_LOGF(log,
+                      "ProcessKDP::AsyncThread (pid = %" PRIu64
+                      ") got eBroadcastBitAsyncThreadShouldExit...",
+                      pid);
             done = true;
             is_running = false;
             break;
 
           default:
-            if (log)
-              log->Printf("ProcessKDP::AsyncThread (pid = %" PRIu64
-                          ") got unknown event 0x%8.8x",
-                          pid, event_type);
+            LLDB_LOGF(log,
+                      "ProcessKDP::AsyncThread (pid = %" PRIu64
+                      ") got unknown event 0x%8.8x",
+                      pid, event_type);
             done = true;
             is_running = false;
             break;
           }
         } while (is_running);
       } else {
-        if (log)
-          log->Printf("ProcessKDP::AsyncThread (pid = %" PRIu64
-                      ") listener.WaitForEvent (NULL, event_sp) => false",
-                      pid);
+        LLDB_LOGF(log,
+                  "ProcessKDP::AsyncThread (pid = %" PRIu64
+                  ") listener.WaitForEvent (NULL, event_sp) => false",
+                  pid);
         done = true;
       }
     }
   }
 
-  if (log)
-    log->Printf("ProcessKDP::AsyncThread (arg = %p, pid = %" PRIu64
-                ") thread exiting...",
-                arg, pid);
+  LLDB_LOGF(log,
+            "ProcessKDP::AsyncThread (arg = %p, pid = %" PRIu64
+            ") thread exiting...",
+            arg, pid);
 
   process->m_async_thread.Reset();
   return NULL;
@@ -1035,7 +1024,7 @@ public:
 
 CommandObject *ProcessKDP::GetPluginCommandObject() {
   if (!m_command_sp)
-    m_command_sp.reset(new CommandObjectMultiwordProcessKDP(
-        GetTarget().GetDebugger().GetCommandInterpreter()));
+    m_command_sp = std::make_shared<CommandObjectMultiwordProcessKDP>(
+        GetTarget().GetDebugger().GetCommandInterpreter());
   return m_command_sp.get();
 }

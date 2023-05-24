@@ -24,12 +24,8 @@ entry:
 ; ARMT2: movwgt [[R]], #123
 
 ; THUMB1-LABEL: t1:
-; THUMB1: mov     r1, r0
-; THUMB1: movs    r2, #255
-; THUMB1: adds    r2, #102
-; THUMB1: movs    r0, #123
-; THUMB1: cmp     r1, #1
-; THUMB1: bgt
+; THUMB1: cmp     r0, #1
+; THUMB1: bgt     .LBB0_2
 
 ; THUMB2-LABEL: t1:
 ; THUMB2: movw [[R:r[0-1]]], #357
@@ -75,8 +71,7 @@ entry:
 ; ARMT2: lsr r0, r0, #5
 
 ; THUMB1-LABEL: t3:
-; THUMB1: movs r1, #0
-; THUMB1: subs r1, r1, r0
+; THUMB1: rsbs r1, r0, #0
 ; THUMB1: adcs r0, r1
 
 ; THUMB2-LABEL: t3:
@@ -120,8 +115,7 @@ entry:
 
 ; THUMB1-LABEL: t5:
 ; THUMB1-NOT: bne
-; THUMB1: movs r0, #0
-; THUMB1: subs r0, r0, r1
+; THUMB1: rsbs r0, r1, #0
 ; THUMB1: adcs r0, r1
 
 ; THUMB2-LABEL: t5:
@@ -143,8 +137,8 @@ entry:
 ; ARM: movne r0, #1
 
 ; THUMB1-LABEL: t6:
-; THUMB1: cmp r{{[0-9]+}}, #0
-; THUMB1: bne
+; THUMB1: subs r1, r0, #1
+; THUMB1: sbcs r0, r1
 
 ; THUMB2-LABEL: t6:
 ; THUMB2-NOT: mov
@@ -200,8 +194,7 @@ entry:
 ; THUMB1: bl t7
 ; THUMB1: mov r1, r0
 ; THUMB1: subs r2, r4, #5
-; THUMB1: movs r0, #0
-; THUMB1: subs r0, r0, r2
+; THUMB1: rsbs r0, r2, #0
 ; THUMB1: adcs r0, r2
 
 ; THUMB2-LABEL: t8:
@@ -306,8 +299,7 @@ entry:
 ; ARMT2: lsr r0, r0, #5
 
 ; THUMB1-LABEL: t10:
-; THUMB1: movs r0, #0
-; THUMB1: subs r0, r0, r1
+; THUMB1: rsbs r0, r1, #0
 ; THUMB1: adcs r0, r1
 
 ; THUMB2-LABEL: t10:
@@ -357,4 +349,48 @@ entry:
 ; V8MBASE-LABEL: t11:
 ; V8MBASE-NOT: movs r0, #0
 ; V8MBASE: movw	r0, #40960
+}
+
+define i32 @t12(i32 %a) nounwind {
+entry:
+; ARM-LABEL: t12:
+; ARM-NOT: mov
+; ARM: cmp r0, #0
+; ARM: movne r0, #1
+
+; THUMB1-LABEL: t12:
+; THUMB1: subs r1, r0, #1
+; THUMB1: sbcs r0, r1
+; THUMB1: lsls r0, r0, #1
+
+; THUMB2-LABEL: t12:
+; THUMB2-NOT: mov
+; THUMB2: cmp r0, #0
+; THUMB2: it ne
+; THUMB2: movne r0, #1
+  %tobool = icmp ne i32 %a, 0
+  %lnot.ext = select i1 %tobool, i32 2, i32 0
+  ret i32 %lnot.ext
+}
+
+define i32 @t13(i32 %a) nounwind {
+entry:
+; ARM-LABEL: t13:
+; ARM-NOT: mov
+; ARM: cmp r0, #0
+; ARM: movne r0, #3
+
+; THUMB1-LABEL: t13:
+; THUMB1: cmp r0, #0
+; THUMB1: beq
+; THUMB1: movs r0, #3
+
+; THUMB2-LABEL: t13:
+; THUMB2-NOT: mov
+; THUMB2: cmp r0, #0
+; THUMB2: it ne
+; THUMB2: movne r0, #3
+  %tobool = icmp ne i32 %a, 0
+  %lnot.ext = select i1 %tobool, i32 3, i32 0
+  ret i32 %lnot.ext
 }

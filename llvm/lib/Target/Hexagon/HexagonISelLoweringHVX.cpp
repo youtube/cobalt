@@ -1,9 +1,8 @@
 //===-- HexagonISelLoweringHVX.cpp --- Lowering HVX operations ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -194,6 +193,15 @@ HexagonTargetLowering::initializeHVXLowering() {
     setOperationAction(ISD::OR,                 BoolV, Legal);
     setOperationAction(ISD::XOR,                BoolV, Legal);
   }
+
+  if (Use64b)
+    for (MVT T: {MVT::v32i8, MVT::v32i16, MVT::v16i8, MVT::v16i16, MVT::v16i32})
+      setOperationAction(ISD::SIGN_EXTEND_INREG, T, Legal);
+  else
+    for (MVT T: {MVT::v64i8, MVT::v64i16, MVT::v32i8, MVT::v32i16, MVT::v32i32})
+      setOperationAction(ISD::SIGN_EXTEND_INREG, T, Legal);
+
+  setTargetDAGCombine(ISD::VSELECT);
 }
 
 SDValue
@@ -398,6 +406,76 @@ HexagonTargetLowering::buildHvxVectorReg(ArrayRef<SDValue> Values,
     SDValue CP = LowerConstantPool(DAG.getConstantPool(CV, VecTy, Align), DAG);
     return DAG.getLoad(VecTy, dl, DAG.getEntryNode(), CP,
                        MachinePointerInfo::getConstantPool(MF), Align);
+  }
+
+  // A special case is a situation where the vector is built entirely from
+  // elements extracted from another vector. This could be done via a shuffle
+  // more efficiently, but typically, the size of the source vector will not
+  // match the size of the vector being built (which precludes the use of a
+  // shuffle directly).
+  // This only handles a single source vector, and the vector being built
+  // should be of a sub-vector type of the source vector type.
+  auto IsBuildFromExtracts = [this,&Values] (SDValue &SrcVec,
+                                             SmallVectorImpl<int> &SrcIdx) {
+    SDValue Vec;
+    for (SDValue V : Values) {
+      if (isUndef(V)) {
+        SrcIdx.push_back(-1);
+        continue;
+      }
+      if (V.getOpcode() != ISD::EXTRACT_VECTOR_ELT)
+        return false;
+      // All extracts should come from the same vector.
+      SDValue T = V.getOperand(0);
+      if (Vec.getNode() != nullptr && T.getNode() != Vec.getNode())
+        return false;
+      Vec = T;
+      ConstantSDNode *C = dyn_cast<ConstantSDNode>(V.getOperand(1));
+      if (C == nullptr)
+        return false;
+      int I = C->getSExtValue();
+      assert(I >= 0 && "Negative element index");
+      SrcIdx.push_back(I);
+    }
+    SrcVec = Vec;
+    return true;
+  };
+
+  SmallVector<int,128> ExtIdx;
+  SDValue ExtVec;
+  if (IsBuildFromExtracts(ExtVec, ExtIdx)) {
+    MVT ExtTy = ty(ExtVec);
+    unsigned ExtLen = ExtTy.getVectorNumElements();
+    if (ExtLen == VecLen || ExtLen == 2*VecLen) {
+      // Construct a new shuffle mask that will produce a vector with the same
+      // number of elements as the input vector, and such that the vector we
+      // want will be the initial subvector of it.
+      SmallVector<int,128> Mask;
+      BitVector Used(ExtLen);
+
+      for (int M : ExtIdx) {
+        Mask.push_back(M);
+        if (M >= 0)
+          Used.set(M);
+      }
+      // Fill the rest of the mask with the unused elements of ExtVec in hopes
+      // that it will result in a permutation of ExtVec's elements. It's still
+      // fine if it doesn't (e.g. if undefs are present, or elements are
+      // repeated), but permutations can always be done efficiently via vdelta
+      // and vrdelta.
+      for (unsigned I = 0; I != ExtLen; ++I) {
+        if (Mask.size() == ExtLen)
+          break;
+        if (!Used.test(I))
+          Mask.push_back(I);
+      }
+
+      SDValue S = DAG.getVectorShuffle(ExtTy, dl, ExtVec,
+                                       DAG.getUNDEF(ExtTy), Mask);
+      if (ExtLen == VecLen)
+        return S;
+      return DAG.getTargetExtractSubreg(Hexagon::vsub_lo, dl, VecTy, S);
+    }
   }
 
   // Construct two halves in parallel, then or them together.
@@ -1356,7 +1434,8 @@ SDValue
 HexagonTargetLowering::LowerHvxExtend(SDValue Op, SelectionDAG &DAG) const {
   // Sign- and zero-extends are legal.
   assert(Op.getOpcode() == ISD::ANY_EXTEND_VECTOR_INREG);
-  return DAG.getZeroExtendVectorInReg(Op.getOperand(0), SDLoc(Op), ty(Op));
+  return DAG.getNode(ISD::ZERO_EXTEND_VECTOR_INREG, SDLoc(Op), ty(Op),
+                     Op.getOperand(0));
 }
 
 SDValue
@@ -1471,6 +1550,8 @@ HexagonTargetLowering::LowerHvxOperation(SDValue Op, SelectionDAG &DAG) const {
       case ISD::SRL:
       case ISD::SETCC:
       case ISD::VSELECT:
+      case ISD::SIGN_EXTEND:
+      case ISD::ZERO_EXTEND:
       case ISD::SIGN_EXTEND_INREG:
         return SplitHvxPairOp(Op, DAG);
     }
@@ -1506,6 +1587,28 @@ HexagonTargetLowering::LowerHvxOperation(SDValue Op, SelectionDAG &DAG) const {
   Op.dumpr(&DAG);
 #endif
   llvm_unreachable("Unhandled HVX operation");
+}
+
+SDValue
+HexagonTargetLowering::PerformHvxDAGCombine(SDNode *N, DAGCombinerInfo &DCI)
+      const {
+  const SDLoc &dl(N);
+  SDValue Op(N, 0);
+
+  unsigned Opc = Op.getOpcode();
+  if (Opc == ISD::VSELECT) {
+    // (vselect (xor x, qtrue), v0, v1) -> (vselect x, v1, v0)
+    SDValue Cond = Op.getOperand(0);
+    if (Cond->getOpcode() == ISD::XOR) {
+      SDValue C0 = Cond.getOperand(0), C1 = Cond.getOperand(1);
+      if (C1->getOpcode() == HexagonISD::QTRUE) {
+        SDValue VSel = DCI.DAG.getNode(ISD::VSELECT, dl, ty(Op), C0,
+                                       Op.getOperand(2), Op.getOperand(1));
+        return VSel;
+      }
+    }
+  }
+  return SDValue();
 }
 
 bool

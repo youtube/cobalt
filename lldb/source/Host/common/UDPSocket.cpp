@@ -1,9 +1,8 @@
 //===-- UDPSocket.cpp -------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,7 +11,7 @@
 #include "lldb/Host/Config.h"
 #include "lldb/Utility/Log.h"
 
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #endif
@@ -59,8 +58,7 @@ Status UDPSocket::Connect(llvm::StringRef name, bool child_processes_inherit,
   std::unique_ptr<UDPSocket> final_socket;
 
   Log *log(lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_CONNECTION));
-  if (log)
-    log->Printf("UDPSocket::%s (host/port = %s)", __FUNCTION__, name.data());
+  LLDB_LOGF(log, "UDPSocket::%s (host/port = %s)", __FUNCTION__, name.data());
 
   Status error;
   std::string host_str;
@@ -82,7 +80,7 @@ Status UDPSocket::Connect(llvm::StringRef name, bool child_processes_inherit,
                           &service_info_list);
   if (err != 0) {
     error.SetErrorStringWithFormat(
-#if defined(_MSC_VER) && defined(UNICODE)
+#if defined(_WIN32) && defined(UNICODE)
         "getaddrinfo(%s, %s, &hints, &info) returned error %i (%S)",
 #else
         "getaddrinfo(%s, %s, &hints, &info) returned error %i (%s)",
@@ -134,4 +132,12 @@ Status UDPSocket::Connect(llvm::StringRef name, bool child_processes_inherit,
   socket = final_socket.release();
   error.Clear();
   return error;
+}
+
+std::string UDPSocket::GetRemoteConnectionURI() const {
+  if (m_socket != kInvalidSocketValue) {
+    return llvm::formatv("udp://[{0}]:{1}", m_sockaddr.GetIPAddress(),
+                         m_sockaddr.GetPort());
+  }
+  return "";
 }

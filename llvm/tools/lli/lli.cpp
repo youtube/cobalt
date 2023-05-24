@@ -1,9 +1,8 @@
 //===- lli.cpp - LLVM Interpreter / Dynamic compiler ----------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,6 +25,7 @@
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
+#include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/ExecutionEngine/Orc/OrcRemoteTargetClient.h"
 #include "llvm/ExecutionEngine/OrcMCJITReplacement.h"
@@ -34,7 +34,6 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
-#include "llvm/IR/TypeBuilder.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Object/Archive.h"
@@ -84,18 +83,37 @@ namespace {
                                  cl::desc("Force interpretation: disable JIT"),
                                  cl::init(false));
 
-  cl::opt<JITKind> UseJITKind("jit-kind",
-                              cl::desc("Choose underlying JIT kind."),
-                              cl::init(JITKind::MCJIT),
-                              cl::values(
-                                clEnumValN(JITKind::MCJIT, "mcjit",
-                                           "MCJIT"),
-                                clEnumValN(JITKind::OrcMCJITReplacement,
-                                           "orc-mcjit",
-                                           "Orc-based MCJIT replacement"),
-                                clEnumValN(JITKind::OrcLazy,
-                                           "orc-lazy",
-                                           "Orc-based lazy JIT.")));
+  cl::opt<JITKind> UseJITKind(
+      "jit-kind", cl::desc("Choose underlying JIT kind."),
+      cl::init(JITKind::MCJIT),
+      cl::values(clEnumValN(JITKind::MCJIT, "mcjit", "MCJIT"),
+                 clEnumValN(JITKind::OrcMCJITReplacement, "orc-mcjit",
+                            "Orc-based MCJIT replacement "
+                            "(deprecated)"),
+                 clEnumValN(JITKind::OrcLazy, "orc-lazy",
+                            "Orc-based lazy JIT.")));
+
+  cl::opt<unsigned>
+  LazyJITCompileThreads("compile-threads",
+                        cl::desc("Choose the number of compile threads "
+                                 "(jit-kind=orc-lazy only)"),
+                        cl::init(0));
+
+  cl::list<std::string>
+  ThreadEntryPoints("thread-entry",
+                    cl::desc("calls the given entry-point on a new thread "
+                             "(jit-kind=orc-lazy only)"));
+
+  cl::opt<bool> PerModuleLazy(
+      "per-module-lazy",
+      cl::desc("Performs lazy compilation on whole module boundaries "
+               "rather than individual functions"),
+      cl::init(false));
+
+  cl::list<std::string>
+      JITDylibs("jd",
+                cl::desc("Specifies the JITDylib to be used for any subsequent "
+                         "-extra-module arguments."));
 
   // The MCJIT supports building for a target address space separate from
   // the JIT compilation process. Use a forked process and a copying
@@ -151,7 +169,7 @@ namespace {
 
   cl::opt<bool>
   EnableCacheManager("enable-cache-manager",
-        cl::desc("Use cache manager to save/load mdoules"),
+        cl::desc("Use cache manager to save/load modules"),
         cl::init(false));
 
   cl::opt<std::string>
@@ -233,7 +251,7 @@ public:
       sys::fs::create_directories(Twine(dir));
     }
     std::error_code EC;
-    raw_fd_ostream outfile(CacheName, EC, sys::fs::F_None);
+    raw_fd_ostream outfile(CacheName, EC, sys::fs::OF_None);
     outfile.write(Obj.getBufferStart(), Obj.getBufferSize());
     outfile.close();
   }
@@ -290,27 +308,22 @@ static void addCygMingExtraModule(ExecutionEngine &EE, LLVMContext &Context,
   Triple TargetTriple(TargetTripleStr);
 
   // Create a new module.
-  std::unique_ptr<Module> M = make_unique<Module>("CygMingHelper", Context);
+  std::unique_ptr<Module> M = std::make_unique<Module>("CygMingHelper", Context);
   M->setTargetTriple(TargetTripleStr);
 
   // Create an empty function named "__main".
-  Function *Result;
-  if (TargetTriple.isArch64Bit()) {
-    Result = Function::Create(
-      TypeBuilder<int64_t(void), false>::get(Context),
-      GlobalValue::ExternalLinkage, "__main", M.get());
-  } else {
-    Result = Function::Create(
-      TypeBuilder<int32_t(void), false>::get(Context),
-      GlobalValue::ExternalLinkage, "__main", M.get());
-  }
+  Type *ReturnTy;
+  if (TargetTriple.isArch64Bit())
+    ReturnTy = Type::getInt64Ty(Context);
+  else
+    ReturnTy = Type::getInt32Ty(Context);
+  Function *Result =
+      Function::Create(FunctionType::get(ReturnTy, {}, false),
+                       GlobalValue::ExternalLinkage, "__main", M.get());
+
   BasicBlock *BB = BasicBlock::Create(Context, "__main", Result);
   Builder.SetInsertPoint(BB);
-  Value *ReturnVal;
-  if (TargetTriple.isArch64Bit())
-    ReturnVal = ConstantInt::get(Context, APInt(64, 0));
-  else
-    ReturnVal = ConstantInt::get(Context, APInt(32, 0));
+  Value *ReturnVal = ConstantInt::get(ReturnTy, 0);
   Builder.CreateRet(ReturnVal);
 
   // Add this new module to the ExecutionEngine.
@@ -337,8 +350,8 @@ static void reportError(SMDiagnostic Err, const char *ProgName) {
   exit(1);
 }
 
-int runOrcLazyJIT(LLVMContext &Ctx, std::vector<std::unique_ptr<Module>> Ms,
-                  const std::vector<std::string> &Args);
+int runOrcLazyJIT(const char *ProgName);
+void disallowOrcOptions();
 
 //===----------------------------------------------------------------------===//
 // main Driver function
@@ -362,6 +375,11 @@ int main(int argc, char **argv, char * const *envp) {
   if (DisableCoreFiles)
     sys::Process::PreventCoreFiles();
 
+  if (UseJITKind == JITKind::OrcLazy)
+    return runOrcLazyJIT(argv[0]);
+  else
+    disallowOrcOptions();
+
   LLVMContext Context;
 
   // Load the bitcode...
@@ -370,21 +388,6 @@ int main(int argc, char **argv, char * const *envp) {
   Module *Mod = Owner.get();
   if (!Mod)
     reportError(Err, argv[0]);
-
-  if (UseJITKind == JITKind::OrcLazy) {
-    std::vector<std::unique_ptr<Module>> Ms;
-    Ms.push_back(std::move(Owner));
-    for (auto &ExtraMod : ExtraModules) {
-      Ms.push_back(parseIRFile(ExtraMod, Err, Context));
-      if (!Ms.back())
-        reportError(Err, argv[0]);
-    }
-    std::vector<std::string> Args;
-    Args.push_back(InputFile);
-    for (auto &Arg : InputArgv)
-      Args.push_back(Arg);
-    return runOrcLazyJIT(Context, std::move(Ms), Args);
-  }
 
   if (EnableCacheManager) {
     std::string CacheName("file:");
@@ -413,7 +416,8 @@ int main(int argc, char **argv, char * const *envp) {
   builder.setEngineKind(ForceInterpreter
                         ? EngineKind::Interpreter
                         : EngineKind::JIT);
-  builder.setUseOrcMCJITReplacement(UseJITKind == JITKind::OrcMCJITReplacement);
+  builder.setUseOrcMCJITReplacement(AcknowledgeORCv1Deprecation,
+                                    UseJITKind == JITKind::OrcMCJITReplacement);
 
   // If we are supposed to override the target triple, do so now.
   if (!TargetTriple.empty())
@@ -498,7 +502,7 @@ int main(int argc, char **argv, char * const *envp) {
     if (!ArOrErr) {
       std::string Buf;
       raw_string_ostream OS(Buf);
-      logAllUnhandledErrors(ArOrErr.takeError(), OS, "");
+      logAllUnhandledErrors(ArOrErr.takeError(), OS);
       OS.flush();
       errs() << Buf;
       exit(1);
@@ -589,8 +593,8 @@ int main(int argc, char **argv, char * const *envp) {
   if (!RemoteMCJIT) {
     // If the program doesn't explicitly call exit, we will need the Exit
     // function later on to make an explicit call, so get the function now.
-    Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
-                                                      Type::getInt32Ty(Context));
+    FunctionCallee Exit = Mod->getOrInsertFunction(
+        "exit", Type::getVoidTy(Context), Type::getInt32Ty(Context));
 
     // Run static constructors.
     if (!ForceInterpreter) {
@@ -614,19 +618,21 @@ int main(int argc, char **argv, char * const *envp) {
 
     // If the program didn't call exit explicitly, we should call it now.
     // This ensures that any atexit handlers get called correctly.
-    if (Function *ExitF = dyn_cast<Function>(Exit)) {
-      std::vector<GenericValue> Args;
-      GenericValue ResultGV;
-      ResultGV.IntVal = APInt(32, Result);
-      Args.push_back(ResultGV);
-      EE->runFunction(ExitF, Args);
-      WithColor::error(errs(), argv[0]) << "exit(" << Result << ") returned!\n";
-      abort();
-    } else {
-      WithColor::error(errs(), argv[0])
-          << "exit defined with wrong prototype!\n";
-      abort();
+    if (Function *ExitF =
+            dyn_cast<Function>(Exit.getCallee()->stripPointerCasts())) {
+      if (ExitF->getFunctionType() == Exit.getFunctionType()) {
+        std::vector<GenericValue> Args;
+        GenericValue ResultGV;
+        ResultGV.IntVal = APInt(32, Result);
+        Args.push_back(ResultGV);
+        EE->runFunction(ExitF, Args);
+        WithColor::error(errs(), argv[0])
+            << "exit(" << Result << ") returned!\n";
+        abort();
+      }
     }
+    WithColor::error(errs(), argv[0]) << "exit defined with wrong prototype!\n";
+    abort();
   } else {
     // else == "if (RemoteMCJIT)"
 
@@ -657,6 +663,7 @@ int main(int argc, char **argv, char * const *envp) {
     // Forward MCJIT's symbol resolution calls to the remote.
     static_cast<ForwardingMemoryManager *>(RTDyldMM)->setResolver(
         orc::createLambdaResolver(
+            AcknowledgeORCv1Deprecation,
             [](const std::string &Name) { return nullptr; },
             [&](const std::string &Name) {
               if (auto Addr = ExitOnErr(R->getSymbolAddress(Name)))
@@ -688,16 +695,16 @@ int main(int argc, char **argv, char * const *envp) {
   return Result;
 }
 
-static orc::IRTransformLayer2::TransformFunction createDebugDumper() {
+static std::function<void(Module &)> createDebugDumper() {
   switch (OrcDumpKind) {
   case DumpKind::NoDump:
-    return [](std::unique_ptr<Module> M) { return M; };
+    return [](Module &M) {};
 
   case DumpKind::DumpFuncsToStdOut:
-    return [](std::unique_ptr<Module> M) {
+    return [](Module &M) {
       printf("[ ");
 
-      for (const auto &F : *M) {
+      for (const auto &F : M) {
         if (F.isDeclaration())
           continue;
 
@@ -709,55 +716,52 @@ static orc::IRTransformLayer2::TransformFunction createDebugDumper() {
       }
 
       printf("]\n");
-      return M;
     };
 
   case DumpKind::DumpModsToStdOut:
-    return [](std::unique_ptr<Module> M) {
-      outs() << "----- Module Start -----\n"
-             << *M << "----- Module End -----\n";
-
-      return M;
+    return [](Module &M) {
+      outs() << "----- Module Start -----\n" << M << "----- Module End -----\n";
     };
 
   case DumpKind::DumpModsToDisk:
-    return [](std::unique_ptr<Module> M) {
+    return [](Module &M) {
       std::error_code EC;
-      raw_fd_ostream Out(M->getModuleIdentifier() + ".ll", EC, sys::fs::F_Text);
+      raw_fd_ostream Out(M.getModuleIdentifier() + ".ll", EC, sys::fs::OF_Text);
       if (EC) {
-        errs() << "Couldn't open " << M->getModuleIdentifier()
+        errs() << "Couldn't open " << M.getModuleIdentifier()
                << " for dumping.\nError:" << EC.message() << "\n";
         exit(1);
       }
-      Out << *M;
-      return M;
+      Out << M;
     };
   }
   llvm_unreachable("Unknown DumpKind");
 }
 
-int runOrcLazyJIT(LLVMContext &Ctx, std::vector<std::unique_ptr<Module>> Ms,
-                  const std::vector<std::string> &Args) {
-  // Bail out early if no modules loaded.
-  if (Ms.empty())
-    return 0;
+static void exitOnLazyCallThroughFailure() { exit(1); }
 
-  // Add lli's symbols into the JIT's search space.
-  std::string ErrMsg;
-  sys::DynamicLibrary LibLLI =
-      sys::DynamicLibrary::getPermanentLibrary(nullptr, &ErrMsg);
-  if (!LibLLI.isValid()) {
-    errs() << "Error loading lli symbols: " << ErrMsg << ".\n";
-    return 1;
-  }
+int runOrcLazyJIT(const char *ProgName) {
+  // Start setting up the JIT environment.
 
-  const auto &TT = Ms.front()->getTargetTriple();
-  orc::JITTargetMachineBuilder TMD =
+  // Parse the main module.
+  orc::ThreadSafeContext TSCtx(std::make_unique<LLVMContext>());
+  SMDiagnostic Err;
+  auto MainModule = parseIRFile(InputFile, Err, *TSCtx.getContext());
+  if (!MainModule)
+    reportError(Err, ProgName);
+
+  const auto &TT = MainModule->getTargetTriple();
+  orc::LLLazyJITBuilder Builder;
+
+  Builder.setJITTargetMachineBuilder(
       TT.empty() ? ExitOnErr(orc::JITTargetMachineBuilder::detectHost())
-                 : orc::JITTargetMachineBuilder(Triple(TT));
+                 : orc::JITTargetMachineBuilder(Triple(TT)));
 
-  TMD.setArch(MArch)
-      .setCPU(getCPUStr())
+  if (!MArch.empty())
+    Builder.getJITTargetMachineBuilder()->getTargetTriple().setArchName(MArch);
+
+  Builder.getJITTargetMachineBuilder()
+      ->setCPU(getCPUStr())
       .addFeatures(getFeatureList())
       .setRelocationModel(RelocModel.getNumOccurrences()
                               ? Optional<Reloc::Model>(RelocModel)
@@ -765,51 +769,140 @@ int runOrcLazyJIT(LLVMContext &Ctx, std::vector<std::unique_ptr<Module>> Ms,
       .setCodeModel(CMModel.getNumOccurrences()
                         ? Optional<CodeModel::Model>(CMModel)
                         : None);
-  auto TM = ExitOnErr(TMD.createTargetMachine());
-  auto DL = TM->createDataLayout();
-  auto ES = llvm::make_unique<orc::ExecutionSession>();
-  auto J =
-      ExitOnErr(orc::LLLazyJIT::Create(std::move(ES), std::move(TM), DL, Ctx));
+
+  Builder.setLazyCompileFailureAddr(
+      pointerToJITTargetAddress(exitOnLazyCallThroughFailure));
+  Builder.setNumCompileThreads(LazyJITCompileThreads);
+
+  auto J = ExitOnErr(Builder.create());
+
+  if (PerModuleLazy)
+    J->setPartitionFunction(orc::CompileOnDemandLayer::compileWholeModule);
 
   auto Dump = createDebugDumper();
 
-  J->setLazyCompileTransform(
-    [&](std::unique_ptr<Module> M) {
-      if (verifyModule(*M, &dbgs())) {
-        dbgs() << "Bad module: " << *M << "\n";
+  J->setLazyCompileTransform([&](orc::ThreadSafeModule TSM,
+                                 const orc::MaterializationResponsibility &R) {
+    TSM.withModuleDo([&](Module &M) {
+      if (verifyModule(M, &dbgs())) {
+        dbgs() << "Bad module: " << &M << "\n";
         exit(1);
       }
-      return Dump(std::move(M));
+      Dump(M);
     });
-  J->getMainVSO().setFallbackDefinitionGenerator(
-      orc::DynamicLibraryFallbackGenerator(
-          std::move(LibLLI), DL, [](orc::SymbolStringPtr) { return true; }));
+    return TSM;
+  });
 
-  orc::MangleAndInterner Mangle(J->getExecutionSession(), DL);
-  orc::LocalCXXRuntimeOverrides2 CXXRuntimeOverrides;
-  ExitOnErr(CXXRuntimeOverrides.enable(J->getMainVSO(), Mangle));
+  orc::MangleAndInterner Mangle(J->getExecutionSession(), J->getDataLayout());
+  J->getMainJITDylib().addGenerator(
+      ExitOnErr(orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
+          J->getDataLayout().getGlobalPrefix(),
+          [MainName = Mangle("main")](const orc::SymbolStringPtr &Name) {
+            return Name != MainName;
+          })));
 
-  for (auto &M : Ms) {
-    orc::makeAllSymbolsExternallyAccessible(*M);
-    ExitOnErr(J->addLazyIRModule(std::move(M)));
+  orc::LocalCXXRuntimeOverrides CXXRuntimeOverrides;
+  ExitOnErr(CXXRuntimeOverrides.enable(J->getMainJITDylib(), Mangle));
+
+  // Add the main module.
+  ExitOnErr(
+      J->addLazyIRModule(orc::ThreadSafeModule(std::move(MainModule), TSCtx)));
+
+  // Create JITDylibs and add any extra modules.
+  {
+    // Create JITDylibs, keep a map from argument index to dylib. We will use
+    // -extra-module argument indexes to determine what dylib to use for each
+    // -extra-module.
+    std::map<unsigned, orc::JITDylib *> IdxToDylib;
+    IdxToDylib[0] = &J->getMainJITDylib();
+    for (auto JDItr = JITDylibs.begin(), JDEnd = JITDylibs.end();
+         JDItr != JDEnd; ++JDItr) {
+      orc::JITDylib *JD = J->getJITDylibByName(*JDItr);
+      if (!JD)
+        JD = &J->createJITDylib(*JDItr);
+      IdxToDylib[JITDylibs.getPosition(JDItr - JITDylibs.begin())] = JD;
+    }
+
+    for (auto EMItr = ExtraModules.begin(), EMEnd = ExtraModules.end();
+         EMItr != EMEnd; ++EMItr) {
+      auto M = parseIRFile(*EMItr, Err, *TSCtx.getContext());
+      if (!M)
+        reportError(Err, ProgName);
+
+      auto EMIdx = ExtraModules.getPosition(EMItr - ExtraModules.begin());
+      assert(EMIdx != 0 && "ExtraModule should have index > 0");
+      auto JDItr = std::prev(IdxToDylib.lower_bound(EMIdx));
+      auto &JD = *JDItr->second;
+      ExitOnErr(
+          J->addLazyIRModule(JD, orc::ThreadSafeModule(std::move(M), TSCtx)));
+    }
+
+    for (auto EAItr = ExtraArchives.begin(), EAEnd = ExtraArchives.end();
+         EAItr != EAEnd; ++EAItr) {
+      auto EAIdx = ExtraArchives.getPosition(EAItr - ExtraArchives.begin());
+      assert(EAIdx != 0 && "ExtraArchive should have index > 0");
+      auto JDItr = std::prev(IdxToDylib.lower_bound(EAIdx));
+      auto &JD = *JDItr->second;
+      JD.addGenerator(ExitOnErr(orc::StaticLibraryDefinitionGenerator::Load(
+          J->getObjLinkingLayer(), EAItr->c_str())));
+    }
   }
 
+  // Add the objects.
+  for (auto &ObjPath : ExtraObjects) {
+    auto Obj = ExitOnErr(errorOrToExpected(MemoryBuffer::getFile(ObjPath)));
+    ExitOnErr(J->addObjectFile(std::move(Obj)));
+  }
+
+  // Run any static constructors.
   ExitOnErr(J->runConstructors());
 
+  // Run any -thread-entry points.
+  std::vector<std::thread> AltEntryThreads;
+  for (auto &ThreadEntryPoint : ThreadEntryPoints) {
+    auto EntryPointSym = ExitOnErr(J->lookup(ThreadEntryPoint));
+    typedef void (*EntryPointPtr)();
+    auto EntryPoint =
+      reinterpret_cast<EntryPointPtr>(static_cast<uintptr_t>(EntryPointSym.getAddress()));
+    AltEntryThreads.push_back(std::thread([EntryPoint]() { EntryPoint(); }));
+  }
+
+  // Run main.
   auto MainSym = ExitOnErr(J->lookup("main"));
-  typedef int (*MainFnPtr)(int, const char *[]);
-  std::vector<const char *> ArgV;
-  for (auto &Arg : Args)
-    ArgV.push_back(Arg.c_str());
-  auto Main =
-      reinterpret_cast<MainFnPtr>(static_cast<uintptr_t>(MainSym.getAddress()));
-  auto Result = Main(ArgV.size(), (const char **)ArgV.data());
 
+  typedef int (*MainFnPtr)(int, char *[]);
+  auto Result = orc::runAsMain(
+      jitTargetAddressToFunction<MainFnPtr>(MainSym.getAddress()), InputArgv,
+      StringRef(InputFile));
+
+  // Wait for -entry-point threads.
+  for (auto &AltEntryThread : AltEntryThreads)
+    AltEntryThread.join();
+
+  // Run destructors.
   ExitOnErr(J->runDestructors());
-
   CXXRuntimeOverrides.runDestructors();
 
   return Result;
+}
+
+void disallowOrcOptions() {
+  // Make sure nobody used an orc-lazy specific option accidentally.
+
+  if (LazyJITCompileThreads != 0) {
+    errs() << "-compile-threads requires -jit-kind=orc-lazy\n";
+    exit(1);
+  }
+
+  if (!ThreadEntryPoints.empty()) {
+    errs() << "-thread-entry requires -jit-kind=orc-lazy\n";
+    exit(1);
+  }
+
+  if (PerModuleLazy) {
+    errs() << "-per-module-lazy requires -jit-kind=orc-lazy\n";
+    exit(1);
+  }
 }
 
 std::unique_ptr<FDRawChannel> launchRemote() {
@@ -862,6 +955,6 @@ std::unique_ptr<FDRawChannel> launchRemote() {
   close(PipeFD[1][1]);
 
   // Return an RPC channel connected to our end of the pipes.
-  return llvm::make_unique<FDRawChannel>(PipeFD[1][0], PipeFD[0][1]);
+  return std::make_unique<FDRawChannel>(PipeFD[1][0], PipeFD[0][1]);
 #endif
 }

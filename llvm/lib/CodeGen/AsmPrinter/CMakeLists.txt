@@ -1,11 +1,11 @@
-add_llvm_library(LLVMAsmPrinter
+add_llvm_component_library(LLVMAsmPrinter
   AccelTable.cpp
   AddressPool.cpp
   ARMException.cpp
   AsmPrinter.cpp
   AsmPrinterDwarf.cpp
   AsmPrinterInlineAsm.cpp
-  DbgValueHistoryCalculator.cpp
+  DbgEntityHistoryCalculator.cpp
   DebugHandlerBase.cpp
   DebugLocStream.cpp
   DIE.cpp
@@ -23,6 +23,7 @@ add_llvm_library(LLVMAsmPrinter
   WinCFGuard.cpp
   WinException.cpp
   CodeViewDebug.cpp
+  WasmException.cpp
 
   DEPENDS
   intrinsics_gen

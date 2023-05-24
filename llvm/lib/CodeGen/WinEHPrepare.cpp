@@ -1,9 +1,8 @@
 //===-- WinEHPrepare - Prepare exception handling for code generation ---===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -21,17 +20,19 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/EHPersonalities.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/WinEHFuncInfo.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 
 using namespace llvm;
@@ -218,7 +219,7 @@ static void calculateStateNumbersForInvokes(const Function *Fn,
 // to. If the unwind edge came from an invoke, return null.
 static const BasicBlock *getEHPadFromPredecessor(const BasicBlock *BB,
                                                  Value *ParentPad) {
-  const TerminatorInst *TI = BB->getTerminator();
+  const Instruction *TI = BB->getTerminator();
   if (isa<InvokeInst>(TI))
     return nullptr;
   if (auto *CatchSwitch = dyn_cast<CatchSwitchInst>(TI)) {
@@ -977,7 +978,7 @@ void WinEHPrepare::removeImplausibleInstructions(Function &F) {
         break;
       }
 
-      TerminatorInst *TI = BB->getTerminator();
+      Instruction *TI = BB->getTerminator();
       // CatchPadInst and CleanupPadInst can't transfer control to a ReturnInst.
       bool IsUnreachableRet = isa<ReturnInst>(TI) && FuncletPad;
       // The token consumed by a CatchReturnInst must match the funclet token.
@@ -1074,13 +1075,14 @@ AllocaInst *WinEHPrepare::insertPHILoads(PHINode *PN, Function &F) {
   AllocaInst *SpillSlot = nullptr;
   Instruction *EHPad = PHIBlock->getFirstNonPHI();
 
-  if (!isa<TerminatorInst>(EHPad)) {
+  if (!EHPad->isTerminator()) {
     // If the EHPad isn't a terminator, then we can insert a load in this block
     // that will dominate all uses.
     SpillSlot = new AllocaInst(PN->getType(), DL->getAllocaAddrSpace(), nullptr,
                                Twine(PN->getName(), ".wineh.spillslot"),
                                &F.getEntryBlock().front());
-    Value *V = new LoadInst(SpillSlot, Twine(PN->getName(), ".wineh.reload"),
+    Value *V = new LoadInst(PN->getType(), SpillSlot,
+                            Twine(PN->getName(), ".wineh.reload"),
                             &*PHIBlock->getFirstInsertionPt());
     PN->replaceAllUsesWith(V);
     return SpillSlot;
@@ -1148,8 +1150,7 @@ void WinEHPrepare::insertPHIStore(
     BasicBlock *PredBlock, Value *PredVal, AllocaInst *SpillSlot,
     SmallVectorImpl<std::pair<BasicBlock *, Value *>> &Worklist) {
 
-  if (PredBlock->isEHPad() &&
-      isa<TerminatorInst>(PredBlock->getFirstNonPHI())) {
+  if (PredBlock->isEHPad() && PredBlock->getFirstNonPHI()->isTerminator()) {
     // Pred is unsplittable, so we need to queue it on the worklist.
     Worklist.push_back({PredBlock, PredVal});
     return;
@@ -1223,14 +1224,16 @@ void WinEHPrepare::replaceUseWithLoad(Value *V, Use &U, AllocaInst *&SpillSlot,
     Value *&Load = Loads[IncomingBlock];
     // Insert the load into the predecessor block
     if (!Load)
-      Load = new LoadInst(SpillSlot, Twine(V->getName(), ".wineh.reload"),
-                          /*Volatile=*/false, IncomingBlock->getTerminator());
+      Load = new LoadInst(V->getType(), SpillSlot,
+                          Twine(V->getName(), ".wineh.reload"),
+                          /*isVolatile=*/false, IncomingBlock->getTerminator());
 
     U.set(Load);
   } else {
     // Reload right before the old use.
-    auto *Load = new LoadInst(SpillSlot, Twine(V->getName(), ".wineh.reload"),
-                              /*Volatile=*/false, UsingInst);
+    auto *Load = new LoadInst(V->getType(), SpillSlot,
+                              Twine(V->getName(), ".wineh.reload"),
+                              /*isVolatile=*/false, UsingInst);
     U.set(Load);
   }
 }

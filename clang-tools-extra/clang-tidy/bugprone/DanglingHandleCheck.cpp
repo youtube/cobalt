@@ -1,9 +1,8 @@
 //===--- DanglingHandleCheck.cpp - clang-tidy------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -164,9 +163,8 @@ void DanglingHandleCheck::registerMatchersForReturn(MatchFinder *Finder) {
 
   // Return a temporary.
   Finder->addMatcher(
-      returnStmt(
-          has(ignoringParenImpCasts(exprWithCleanups(has(ignoringParenImpCasts(
-              handleFrom(IsAHandle, handleFromTemporaryValue(IsAHandle))))))))
+      returnStmt(has(exprWithCleanups(has(ignoringParenImpCasts(handleFrom(
+                     IsAHandle, handleFromTemporaryValue(IsAHandle)))))))
           .bind("bad_stmt"),
       this);
 }
@@ -178,7 +176,7 @@ void DanglingHandleCheck::registerMatchers(MatchFinder *Finder) {
 
 void DanglingHandleCheck::check(const MatchFinder::MatchResult &Result) {
   auto *Handle = Result.Nodes.getNodeAs<CXXRecordDecl>("handle");
-  diag(Result.Nodes.getNodeAs<Stmt>("bad_stmt")->getLocStart(),
+  diag(Result.Nodes.getNodeAs<Stmt>("bad_stmt")->getBeginLoc(),
        "%0 outlives its value")
       << Handle->getQualifiedNameAsString();
 }

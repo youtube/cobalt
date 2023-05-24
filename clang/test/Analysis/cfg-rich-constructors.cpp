@@ -412,7 +412,6 @@ public:
   ~D();
 };
 
-// FIXME: There should be no temporary destructor in C++17.
 // CHECK:  return_stmt_with_dtor::D returnTemporary()
 // CXX11-ELIDE:          1: return_stmt_with_dtor::D() (CXXConstructExpr, [B1.2], [B1.4], [B1.5], class return_stmt_with_dtor::D)
 // CXX11-NOELIDE:          1: return_stmt_with_dtor::D() (CXXConstructExpr, [B1.2], [B1.4], class return_stmt_with_dtor::D)
@@ -422,15 +421,13 @@ public:
 // CXX11-NEXT:     5: [B1.4] (CXXConstructExpr, [B1.7], class return_stmt_with_dtor::D)
 // CXX11-NEXT:     6: ~return_stmt_with_dtor::D() (Temporary object destructor)
 // CXX11-NEXT:     7: return [B1.5];
-// CXX17:          1: return_stmt_with_dtor::D() (CXXConstructExpr, [B1.4], [B1.2], class return_stmt_w
+// CXX17:          1: return_stmt_with_dtor::D() (CXXConstructExpr, [B1.3], [B1.2], class return_stmt_w
 // CXX17-NEXT:     2: [B1.1] (BindTemporary)
-// CXX17-NEXT:     3: ~return_stmt_with_dtor::D() (Temporary object destructor)
-// CXX17-NEXT:     4: return [B1.2];
+// CXX17-NEXT:     3: return [B1.2];
 D returnTemporary() {
   return D();
 }
 
-// FIXME: There should be no temporary destructor in C++17.
 // CHECK: void returnByValueIntoVariable()
 // CHECK:          1: returnTemporary
 // CHECK-NEXT:     2: [B1.1] (ImplicitCastExpr, FunctionToPointerDecay, class return_stmt_with_dtor::D (*)(void))
@@ -442,12 +439,10 @@ D returnTemporary() {
 // CXX11-NEXT:     7: [B1.6] (CXXConstructExpr, [B1.8], class return_stmt_with_dtor::D)
 // CXX11-NEXT:     8: return_stmt_with_dtor::D d = returnTemporary();
 // CXX11-NEXT:     9: ~return_stmt_with_dtor::D() (Temporary object destructor)
-// CXX11-NEXT:    10: [B1.8].~D() (Implicit destructor)
+// CXX11-NEXT:    10: [B1.8].~return_stmt_with_dtor::D() (Implicit destructor)
 // CXX17-NEXT:     3: [B1.2]() (CXXRecordTypedCall, [B1.5], [B1.4])
 // CXX17-NEXT:     4: [B1.3] (BindTemporary)
 // CXX17-NEXT:     5: return_stmt_with_dtor::D d = returnTemporary();
-// CXX17-NEXT:     6: ~return_stmt_with_dtor::D() (Temporary object destructor)
-// CXX17-NEXT:     7: [B1.5].~D() (Implicit destructor)
 void returnByValueIntoVariable() {
   D d = returnTemporary();
 }
@@ -459,7 +454,7 @@ namespace temporary_object_expr_without_dtors {
 // TODO: Should provide construction context for the constructor,
 // even if there is no specific trigger statement here.
 // CHECK: void simpleTemporary()
-// CHECK           1: C() (CXXConstructExpr, class C)
+// CHECK:          1: C() (CXXConstructExpr, class C)
 void simpleTemporary() {
   C();
 }
@@ -602,7 +597,7 @@ void temporaryInCondition() {
 // CHECK-NEXT:     3: [B1.2] (BindTemporary)
 // CHECK-NEXT:     4: [B1.3]
 // CHECK-NEXT:     5: const temporary_object_expr_with_dtors::D &d(0);
-// CHECK-NEXT:     6: [B1.5].~D() (Implicit destructor)
+// CHECK-NEXT:     6: [B1.5].~temporary_object_expr_with_dtors::D() (Implicit destructor)
 void referenceVariableWithConstructor() {
   const D &d(0);
 }
@@ -613,14 +608,14 @@ void referenceVariableWithConstructor() {
 // CHECK-NEXT:     3: [B1.2] (ImplicitCastExpr, NoOp, const class temporary_object_expr_with_dtors::D)
 // CHECK-NEXT:     4: [B1.3]
 // CHECK-NEXT:     5: const temporary_object_expr_with_dtors::D &d = temporary_object_expr_with_dtors::D();
-// CHECK-NEXT:     6: [B1.5].~D() (Implicit destructor)
+// CHECK-NEXT:     6: [B1.5].~temporary_object_expr_with_dtors::D() (Implicit destructor)
 void referenceVariableWithInitializer() {
   const D &d = D();
 }
 
 // CHECK: void referenceVariableWithTernaryOperator(bool coin)
 // CXX11:        [B1]
-// CXX11-NEXT:     1: [B4.4].~D() (Implicit destructor)
+// CXX11-NEXT:     1: [B4.4].~temporary_object_expr_with_dtors::D() (Implicit destructor)
 // CXX11:        [B2]
 // CXX11-NEXT:     1: ~temporary_object_expr_with_dtors::D() (Temporary object destructor)
 // CXX11:        [B3]
@@ -660,7 +655,7 @@ void referenceVariableWithInitializer() {
 // CXX17-NEXT:     2: [B1.1] (ImplicitCastExpr, NoOp, const class temporary_object_expr_with_dtors::D)
 // CXX17-NEXT:     3: [B1.2]
 // CXX17-NEXT:     4: const temporary_object_expr_with_dtors::D &d = coin ? D::get() : temporary_object_expr_with_dtors::D(0);
-// CXX17-NEXT:     5: [B1.4].~D() (Implicit destructor)
+// CXX17-NEXT:     5: [B1.4].~temporary_object_expr_with_dtors::D() (Implicit destructor)
 // CXX17:        [B2]
 // CXX17-NEXT:     1: D::get
 // CXX17-NEXT:     2: [B2.1] (ImplicitCastExpr, FunctionToPointerDecay, class temporary_object_expr_with_dtors::D (*)(void))
@@ -686,7 +681,7 @@ void referenceVariableWithTernaryOperator(bool coin) {
 // CHECK-NEXT:     4: temporary_object_expr_with_dtors::D([B1.3]) (CXXFunctionalCastExpr, ConstructorCon
 // CHECK-NEXT:     5: [B1.4]
 // CHECK-NEXT:     6: temporary_object_expr_with_dtors::D &&d = temporary_object_expr_with_dtors::D(1);
-// CHECK-NEXT:     7: [B1.6].~D() (Implicit destructor)
+// CHECK-NEXT:     7: [B1.6].~temporary_object_expr_with_dtors::D() (Implicit destructor)
 void referenceWithFunctionalCast() {
   D &&d = D(1);
 }
@@ -743,13 +738,13 @@ public:
 // CXX11-NEXT:     9: [B1.8] (CXXConstructExpr, [B1.10], class implicit_constructor_conversion::B)
 // CXX11-NEXT:    10: implicit_constructor_conversion::B b = implicit_constructor_conversion::A();
 // CXX11-NEXT:    11: ~implicit_constructor_conversion::B() (Temporary object destructor)
-// CXX11-NEXT:    12: [B1.10].~B() (Implicit destructor)
+// CXX11-NEXT:    12: [B1.10].~implicit_constructor_conversion::B() (Implicit destructor)
 // CXX17-NEXT:     2: [B1.1] (ImplicitCastExpr, NoOp, const class implicit_constructor_conversion::A)
 // CXX17-NEXT:     3: [B1.2]
 // CXX17-NEXT:     4: [B1.3] (CXXConstructExpr, [B1.6], class implicit_constructor_conversion::B)
 // CXX17-NEXT:     5: [B1.4] (ImplicitCastExpr, ConstructorConversion, class implicit_constructor_conversion::B)
 // CXX17-NEXT:     6: implicit_constructor_conversion::B b = implicit_constructor_conversion::A();
-// CXX17-NEXT:     7: [B1.6].~B() (Implicit destructor)
+// CXX17-NEXT:     7: [B1.6].~implicit_constructor_conversion::B() (Implicit destructor)
 void implicitConstructionConversionFromTemporary() {
   B b = A();
 }
@@ -769,11 +764,11 @@ void implicitConstructionConversionFromTemporary() {
 // CXX11-NEXT:    11: [B1.10] (CXXConstructExpr, [B1.12], class implicit_constructor_conversion::B)
 // CXX11-NEXT:    12: implicit_constructor_conversion::B b = get();
 // CXX11-NEXT:    13: ~implicit_constructor_conversion::B() (Temporary object destructor)
-// CXX11-NEXT:    14: [B1.12].~B() (Implicit destructor)
+// CXX11-NEXT:    14: [B1.12].~implicit_constructor_conversion::B() (Implicit destructor)
 // CXX17-NEXT:     6: [B1.5] (CXXConstructExpr, [B1.8], class implicit_constructor_conversion::B)
 // CXX17-NEXT:     7: [B1.6] (ImplicitCastExpr, ConstructorConversion, class implicit_constructor_conversion::B)
 // CXX17-NEXT:     8: implicit_constructor_conversion::B b = get();
-// CXX17-NEXT:     9: [B1.8].~B() (Implicit destructor)
+// CXX17-NEXT:     9: [B1.8].~implicit_constructor_conversion::B() (Implicit destructor)
 void implicitConstructionConversionFromFunctionValue() {
   B b = get();
 }
@@ -787,7 +782,7 @@ void implicitConstructionConversionFromFunctionValue() {
 // CHECK-NEXT:     6: [B1.5] (ImplicitCastExpr, NoOp, const class implicit_constructor_conversion::B)
 // CHECK-NEXT:     7: [B1.6]
 // CHECK-NEXT:     8: const implicit_constructor_conversion::B &b = implicit_constructor_conversion::A();
-// CHECK-NEXT:     9: [B1.8].~B() (Implicit destructor)
+// CHECK-NEXT:     9: [B1.8].~implicit_constructor_conversion::B() (Implicit destructor)
 void implicitConstructionConversionFromTemporaryWithLifetimeExtension() {
   const B &b = A();
 }
@@ -803,7 +798,7 @@ void implicitConstructionConversionFromTemporaryWithLifetimeExtension() {
 // CHECK-NEXT:     8: [B1.7] (ImplicitCastExpr, NoOp, const class implicit_constructor_conversion::B)
 // CHECK-NEXT:     9: [B1.8]
 // CHECK-NEXT:    10: const implicit_constructor_conversion::B &b = get();
-// CHECK-NEXT:    11: [B1.10].~B() (Implicit destructor)
+// CHECK-NEXT:    11: [B1.10].~implicit_constructor_conversion::B() (Implicit destructor)
 void implicitConstructionConversionFromFunctionValueWithLifetimeExtension() {
   const B &b = get(); // no-crash
 }
@@ -820,6 +815,7 @@ public:
 class E {
 public:
   E(D d);
+  E(D d1, D d2);
 };
 
 void useC(C c);
@@ -939,6 +935,38 @@ void passArgumentWithDestructorByReference() {
 void passArgumentIntoAnotherConstructor() {
   E e = E(D());
 }
+
+
+// CHECK: void passTwoArgumentsIntoAnotherConstructor()
+// CXX11-ELIDE:          1: argument_constructors::D() (CXXConstructExpr, [B1.2], [B1.4], [B1.5], class argument_constructors::D)
+// CXX11-NOELIDE:          1: argument_constructors::D() (CXXConstructExpr, [B1.2], [B1.4], class argument_constructors::D)
+// CXX11-NEXT:     2: [B1.1] (BindTemporary)
+// CXX11-NEXT:     3: [B1.2] (ImplicitCastExpr, NoOp, const class argument_constructors::D)
+// CXX11-NEXT:     4: [B1.3]
+// CXX11-NEXT:     5: [B1.4] (CXXConstructExpr, [B1.6], [B1.13]+0, class argument_constructors::D)
+// CXX11-NEXT:     6: [B1.5] (BindTemporary)
+// CXX11-ELIDE-NEXT:     7: argument_constructors::D() (CXXConstructExpr, [B1.8], [B1.10], [B1.11], class argument_constructors::D)
+// CXX11-NOELIDE-NEXT:     7: argument_constructors::D() (CXXConstructExpr, [B1.8], [B1.10], class argument_constructors::D)
+// CXX11-NEXT:     8: [B1.7] (BindTemporary)
+// CXX11-NEXT:     9: [B1.8] (ImplicitCastExpr, NoOp, const class argument_constructors::D)
+// CXX11-NEXT:    10: [B1.9]
+// CXX11-NEXT:    11: [B1.10] (CXXConstructExpr, [B1.12], [B1.13]+1, class argument_constructors::D)
+// CXX11-NEXT:    12: [B1.11] (BindTemporary)
+// CXX11-NEXT:    13: argument_constructors::E([B1.6], [B1.12]) (CXXConstructExpr, class argument_constructors::E)
+// CXX11-NEXT:    14: ~argument_constructors::D() (Temporary object destructor)
+// CXX11-NEXT:    15: ~argument_constructors::D() (Temporary object destructor)
+// CXX11-NEXT:    16: ~argument_constructors::D() (Temporary object destructor)
+// CXX11-NEXT:    17: ~argument_constructors::D() (Temporary object destructor)
+// CXX17:          1: argument_constructors::D() (CXXConstructExpr, [B1.2], [B1.5]+0, class argument_constructors::D)
+// CXX17-NEXT:     2: [B1.1] (BindTemporary)
+// CXX17-NEXT:     3: argument_constructors::D() (CXXConstructExpr, [B1.4], [B1.5]+1, class argument_constructors::D)
+// CXX17-NEXT:     4: [B1.3] (BindTemporary)
+// CXX17-NEXT:     5: argument_constructors::E([B1.2], [B1.4]) (CXXConstructExpr, class argument_constructors::E)
+// CXX17-NEXT:     6: ~argument_constructors::D() (Temporary object destructor)
+// CXX17-NEXT:     7: ~argument_constructors::D() (Temporary object destructor)
+void passTwoArgumentsIntoAnotherConstructor() {
+  E(D(), D());
+}
 } // end namespace argument_constructors
 
 namespace copy_elision_with_extra_arguments {
@@ -963,3 +991,70 @@ void testCopyElisionWhenCopyConstructorHasExtraArguments() {
   C c = C();
 }
 } // namespace copy_elision_with_extra_arguments
+
+
+namespace operators {
+class C {
+public:
+  C(int);
+  C &operator+(C Other);
+};
+
+// FIXME: Find construction context for the this-argument of the operator.
+// CHECK: void testOperators()
+// CHECK:        [B1]
+// CHECK-NEXT:     1: operator+
+// CHECK-NEXT:     2: [B1.1] (ImplicitCastExpr, FunctionToPointerDecay, class operators::C &(*)(class o
+// CHECK-NEXT:     3: 1
+// CHECK-NEXT:     4: [B1.3] (CXXConstructExpr, [B1.6], class operators::C)
+// CHECK-NEXT:     5: operators::C([B1.4]) (CXXFunctionalCastExpr, ConstructorConversion, class operato
+// CHECK-NEXT:     6: [B1.5]
+// CHECK-NEXT:     7: 2
+// CXX11-ELIDE-NEXT:     8: [B1.7] (CXXConstructExpr, [B1.10], [B1.11], class operators::C)
+// CXX11-NOELIDE-NEXT:     8: [B1.7] (CXXConstructExpr, [B1.10], class operators::C)
+// CXX11-NEXT:     9: operators::C([B1.8]) (CXXFunctionalCastExpr, ConstructorConversion, class operato
+// CXX11-NEXT:    10: [B1.9]
+// CXX11-NEXT:    11: [B1.10] (CXXConstructExpr, [B1.12]+1, class operators::C)
+// CXX11-NEXT:    12: [B1.6] + [B1.11] (OperatorCall)
+// CXX17-NEXT:     8: [B1.7] (CXXConstructExpr, [B1.10]+1, class operators::C)
+// CXX17-NEXT:     9: operators::C([B1.8]) (CXXFunctionalCastExpr, ConstructorConversion, class operato
+// CXX17-NEXT:    10: [B1.6] + [B1.9] (OperatorCall)
+void testOperators() {
+  C(1) + C(2);
+}
+} // namespace operators
+
+namespace variadic_function_arguments {
+class C {
+ public:
+  C(int);
+};
+
+int variadic(...);
+
+// This code is quite exotic, so let's not test the CFG for it,
+// but only make sure we don't crash.
+void testCrashOnVariadicArgument() {
+  C c(variadic(0 ? c : 0)); // no-crash
+}
+} // namespace variadic_function_arguments
+
+// CHECK: void testTransparentInitListExprs()
+// CHECK:        [B1]
+// CHECK-NEXT:     1: getC
+// CHECK-NEXT:     2: [B1.1] (ImplicitCastExpr, FunctionToPointerDecay, class transparent_init_list_exprs::C (*)(void))
+// CXX11-ELIDE-NEXT:     3: [B1.2]() (CXXRecordTypedCall, [B1.4], [B1.5])
+// CXX11-NOELIDE-NEXT:     3: [B1.2]() (CXXRecordTypedCall, [B1.4])
+// CXX11-NEXT:     4: [B1.3]
+// CXX11-NEXT:     5: {[B1.4]} (CXXConstructExpr, [B1.6], class transparent_init_list_exprs::C)
+// CXX11-NEXT:     6: transparent_init_list_exprs::C c{getC()};
+// CXX17-NEXT:     3: [B1.2]() (CXXRecordTypedCall, [B1.5])
+// CXX17-NEXT:     4: {[B1.3]}
+// CXX17-NEXT:     5: transparent_init_list_exprs::C c{getC()};
+namespace transparent_init_list_exprs {
+class C {};
+C getC();
+void testTransparentInitListExprs() {
+  C c{getC()};
+}
+} // namespace transparent_init_list_exprs

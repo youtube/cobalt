@@ -1,9 +1,8 @@
 //===- RISCVInstrInfoC.td - Compressed RISCV instructions -*- tblgen-*-----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -60,6 +59,11 @@ def simm6nonzero : Operand<XLenVT>,
       return (Imm != 0) && isInt<6>(Imm);
     return MCOp.isBareSymbolRef();
   }];
+}
+
+def immzero : Operand<XLenVT>,
+              ImmLeaf<XLenVT, [{return (Imm == 0);}]> {
+  let ParserMatchClass = ImmZeroAsmOperand;
 }
 
 def CLUIImmAsmOperand : AsmOperandClass {
@@ -133,7 +137,8 @@ def uimm8_lsb000 : Operand<XLenVT>,
 }
 
 // A 9-bit signed immediate where the least significant bit is zero.
-def simm9_lsb0 : Operand<OtherVT> {
+def simm9_lsb0 : Operand<OtherVT>,
+                 ImmLeaf<XLenVT, [{return isShiftedInt<8, 1>(Imm);}]> {
   let ParserMatchClass = SImmAsmOperand<9, "Lsb0">;
   let EncoderMethod = "getImmOpValueAsr1";
   let DecoderMethod = "decodeSImmOperandAndLsl1<9>";
@@ -167,7 +172,7 @@ def uimm10_lsb00nonzero : Operand<XLenVT>,
                           [{return isShiftedUInt<8, 2>(Imm) && (Imm != 0);}]> {
   let ParserMatchClass = UImmAsmOperand<10, "Lsb00NonZero">;
   let EncoderMethod = "getImmOpValue";
-  let DecoderMethod = "decodeUImmOperand<10>";
+  let DecoderMethod = "decodeUImmNonZeroOperand<10>";
   let MCOperandPredicate = [{
     int64_t Imm;
     if (!MCOp.evaluateAsConstantImm(Imm))
@@ -182,17 +187,18 @@ def simm10_lsb0000nonzero : Operand<XLenVT>,
                             [{return (Imm != 0) && isShiftedInt<6, 4>(Imm);}]> {
   let ParserMatchClass = SImmAsmOperand<10, "Lsb0000NonZero">;
   let EncoderMethod = "getImmOpValue";
-  let DecoderMethod = "decodeSImmOperand<10>";
+  let DecoderMethod = "decodeSImmNonZeroOperand<10>";
   let MCOperandPredicate = [{
     int64_t Imm;
     if (!MCOp.evaluateAsConstantImm(Imm))
       return false;
-    return isShiftedInt<6, 4>(Imm);
+    return isShiftedInt<6, 4>(Imm) && (Imm != 0);
   }];
 }
 
 // A 12-bit signed immediate where the least significant bit is zero.
-def simm12_lsb0 : Operand<XLenVT> {
+def simm12_lsb0 : Operand<XLenVT>,
+                  ImmLeaf<XLenVT, [{return isShiftedInt<11, 1>(Imm);}]> {
   let ParserMatchClass = SImmAsmOperand<12, "Lsb0">;
   let EncoderMethod = "getImmOpValueAsr1";
   let DecoderMethod = "decodeSImmOperandAndLsl1<12>";
@@ -258,16 +264,13 @@ class Shift_right<bits<2> funct2, string OpcodeStr, RegisterClass cls,
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class CS_ALU<bits<2> funct2, string OpcodeStr, RegisterClass cls,
-             bit RV64only>
-    : RVInst16CS<0b100, 0b01, (outs cls:$rd_wb), (ins cls:$rd, cls:$rs2),
+class CS_ALU<bits<6> funct6, bits<2> funct2, string OpcodeStr,
+             RegisterClass cls>
+    : RVInst16CA<funct6, funct2, 0b01, (outs cls:$rd_wb), (ins cls:$rd, cls:$rs2),
                  OpcodeStr, "$rd, $rs2"> {
   bits<3> rd;
   let Constraints = "$rd = $rd_wb";
-  let Inst{12} = RV64only;
-  let Inst{11-10} = 0b11;
   let Inst{9-7} = rd;
-  let Inst{6-5} = funct2;
 }
 
 //===----------------------------------------------------------------------===//
@@ -348,7 +351,10 @@ def C_SD : CStore_rri<0b111, "c.sd", GPRC, uimm8_lsb000> {
 }
 
 let rd = 0, imm = 0, hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-def C_NOP : RVInst16CI<0b000, 0b01, (outs), (ins), "c.nop", "">;
+def C_NOP : RVInst16CI<0b000, 0b01, (outs), (ins), "c.nop", "">
+{
+  let Inst{6-2} = 0;
+}
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
 def C_ADDI : RVInst16CI<0b000, 0b01, (outs GPRNoX0:$rd_wb),
@@ -356,6 +362,15 @@ def C_ADDI : RVInst16CI<0b000, 0b01, (outs GPRNoX0:$rd_wb),
                         "c.addi", "$rd, $imm"> {
   let Constraints = "$rd = $rd_wb";
   let Inst{6-2} = imm{4-0};
+}
+
+let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
+def C_ADDI_NOP : RVInst16CI<0b000, 0b01, (outs GPRX0:$rd_wb),
+                            (ins GPRX0:$rd, immzero:$imm),
+                            "c.addi", "$rd, $imm"> {
+  let Constraints = "$rd = $rd_wb";
+  let Inst{6-2} = 0;
+  let isAsmParserOnly = 1;
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0, isCall = 1,
@@ -411,14 +426,14 @@ def C_ANDI : RVInst16CB<0b100, 0b01, (outs GPRC:$rs1_wb), (ins GPRC:$rs1, simm6:
   let Inst{6-2} = imm{4-0};
 }
 
-def C_SUB  : CS_ALU<0b00, "c.sub", GPRC, 0>;
-def C_XOR  : CS_ALU<0b01, "c.xor", GPRC, 0>;
-def C_OR   : CS_ALU<0b10, "c.or" , GPRC, 0>;
-def C_AND  : CS_ALU<0b11, "c.and", GPRC, 0>;
+def C_SUB  : CS_ALU<0b100011, 0b00, "c.sub", GPRC>;
+def C_XOR  : CS_ALU<0b100011, 0b01, "c.xor", GPRC>;
+def C_OR   : CS_ALU<0b100011, 0b10, "c.or" , GPRC>;
+def C_AND  : CS_ALU<0b100011, 0b11, "c.and", GPRC>;
 
 let Predicates = [HasStdExtC, IsRV64] in {
-def C_SUBW : CS_ALU<0b00, "c.subw", GPRC, 1>;
-def C_ADDW : CS_ALU<0b01, "c.addw", GPRC, 1>;
+def C_SUBW : CS_ALU<0b100111, 0b00, "c.subw", GPRC>;
+def C_ADDW : CS_ALU<0b100111, 0b01, "c.addw", GPRC>;
 }
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
@@ -478,7 +493,7 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
 def C_MV : RVInst16CR<0b1000, 0b10, (outs GPRNoX0:$rs1), (ins GPRNoX0:$rs2),
                       "c.mv", "$rs1, $rs2">;
 
-let rs1 = 0, rs2 = 0, hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
+let rs1 = 0, rs2 = 0, hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
 def C_EBREAK : RVInst16CR<0b1001, 0b10, (outs), (ins), "c.ebreak", "">;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0,
@@ -517,7 +532,163 @@ def C_SDSP : CStackStore<0b111, "c.sdsp", GPR, uimm9_lsb000> {
   let Inst{9-7}   = imm{8-6};
 }
 
+// The all zeros pattern isn't a valid RISC-V instruction. It's used by GNU
+// binutils as 16-bit instruction known to be unimplemented (i.e., trapping).
+let hasSideEffects = 1, mayLoad = 0, mayStore = 0 in
+def C_UNIMP : RVInst16<(outs), (ins), "c.unimp", "", [], InstFormatOther> {
+  let Inst{15-0} = 0;
+}
+
 } // Predicates = [HasStdExtC]
+
+//===----------------------------------------------------------------------===//
+// HINT Instructions
+//===----------------------------------------------------------------------===//
+
+let Predicates = [HasStdExtC, HasRVCHints], hasSideEffects = 0, mayLoad = 0,
+    mayStore = 0 in
+{
+
+let rd = 0 in
+def C_NOP_HINT : RVInst16CI<0b000, 0b01, (outs), (ins simm6nonzero:$imm),
+                            "c.nop", "$imm"> {
+  let Inst{6-2} = imm{4-0};
+  let DecoderMethod = "decodeRVCInstrSImm";
+}
+
+// Just a different syntax for the c.nop hint: c.addi x0, simm6 vs c.nop simm6.
+def C_ADDI_HINT_X0 : RVInst16CI<0b000, 0b01, (outs GPRX0:$rd_wb),
+                                (ins GPRX0:$rd, simm6nonzero:$imm),
+                                "c.addi", "$rd, $imm"> {
+  let Constraints = "$rd = $rd_wb";
+  let Inst{6-2} = imm{4-0};
+  let isAsmParserOnly = 1;
+}
+
+def C_ADDI_HINT_IMM_ZERO : RVInst16CI<0b000, 0b01, (outs GPRNoX0:$rd_wb),
+                                      (ins GPRNoX0:$rd, immzero:$imm),
+                                      "c.addi", "$rd, $imm"> {
+  let Constraints = "$rd = $rd_wb";
+  let Inst{6-2} = 0;
+  let isAsmParserOnly = 1;
+}
+
+def C_LI_HINT : RVInst16CI<0b010, 0b01, (outs GPRX0:$rd), (ins simm6:$imm),
+                           "c.li", "$rd, $imm"> {
+  let Inst{6-2} = imm{4-0};
+  let Inst{11-7} = 0;
+  let DecoderMethod = "decodeRVCInstrRdSImm";
+}
+
+def C_LUI_HINT : RVInst16CI<0b011, 0b01, (outs GPRX0:$rd),
+                            (ins c_lui_imm:$imm),
+                            "c.lui", "$rd, $imm"> {
+  let Inst{6-2} = imm{4-0};
+  let Inst{11-7} = 0;
+  let DecoderMethod = "decodeRVCInstrRdSImm";
+}
+
+def C_MV_HINT : RVInst16CR<0b1000, 0b10, (outs GPRX0:$rs1), (ins GPRNoX0:$rs2),
+                           "c.mv", "$rs1, $rs2">
+{
+  let Inst{11-7} = 0;
+  let DecoderMethod = "decodeRVCInstrRdRs2";
+}
+
+def C_ADD_HINT : RVInst16CR<0b1001, 0b10, (outs GPRX0:$rs1_wb),
+                            (ins GPRX0:$rs1, GPRNoX0:$rs2),
+                            "c.add", "$rs1, $rs2"> {
+  let Constraints = "$rs1 = $rs1_wb";
+  let Inst{11-7} = 0;
+  let DecoderMethod = "decodeRVCInstrRdRs1Rs2";
+}
+
+def C_SLLI_HINT : RVInst16CI<0b000, 0b10, (outs GPRX0:$rd_wb),
+                             (ins GPRX0:$rd, uimmlog2xlennonzero:$imm),
+                             "c.slli" ,"$rd, $imm"> {
+  let Constraints = "$rd = $rd_wb";
+  let Inst{6-2} = imm{4-0};
+  let Inst{11-7} = 0;
+  let DecoderMethod = "decodeRVCInstrRdRs1UImm";
+}
+
+def C_SLLI64_HINT : RVInst16CI<0b000, 0b10, (outs GPR:$rd_wb), (ins GPR:$rd),
+                               "c.slli64" ,"$rd"> {
+  let Constraints = "$rd = $rd_wb";
+  let Inst{6-2} = 0;
+  let Inst{12} = 0;
+}
+
+def C_SRLI64_HINT : RVInst16CI<0b100, 0b01, (outs GPRC:$rd_wb),
+                               (ins GPRC:$rd),
+                               "c.srli64", "$rd"> {
+  let Constraints = "$rd = $rd_wb";
+  let Inst{6-2} = 0;
+  let Inst{11-10} = 0;
+  let Inst{12} = 0;
+}
+
+def C_SRAI64_HINT : RVInst16CI<0b100, 0b01, (outs GPRC:$rd_wb),
+                               (ins GPRC:$rd),
+                               "c.srai64", "$rd"> {
+  let Constraints = "$rd = $rd_wb";
+  let Inst{6-2} = 0;
+  let Inst{11-10} = 1;
+  let Inst{12} = 0;
+}
+
+} // Predicates = [HasStdExtC, HasRVCHints], hasSideEffects = 0, mayLoad = 0,
+  // mayStore = 0
+
+//===----------------------------------------------------------------------===//
+// Assembler Pseudo Instructions
+//===----------------------------------------------------------------------===//
+
+let EmitPriority = 0 in {
+let Predicates = [HasStdExtC, HasStdExtD] in
+def : InstAlias<"c.fld $rd, (${rs1})", (C_FLD FPR64C:$rd, GPRC:$rs1, 0)>;
+
+def : InstAlias<"c.lw $rd, (${rs1})", (C_LW GPRC:$rd, GPRC:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, HasStdExtF, IsRV32] in
+def : InstAlias<"c.flw $rd, (${rs1})", (C_FLW FPR32C:$rd, GPRC:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, IsRV64] in
+def : InstAlias<"c.ld $rd, (${rs1})", (C_LD GPRC:$rd, GPRC:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, HasStdExtD] in
+def : InstAlias<"c.fsd $rs2, (${rs1})", (C_FSD FPR64C:$rs2, GPRC:$rs1, 0)>;
+
+def : InstAlias<"c.sw $rs2, (${rs1})", (C_SW GPRC:$rs2, GPRC:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, HasStdExtF, IsRV32] in
+def : InstAlias<"c.fsw $rs2, (${rs1})", (C_FSW FPR32C:$rs2, GPRC:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, IsRV64] in
+def : InstAlias<"c.sd $rs2, (${rs1})", (C_SD GPRC:$rs2, GPRC:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, HasStdExtD] in
+def : InstAlias<"c.fldsp $rd, (${rs1})", (C_FLDSP FPR64C:$rd, SP:$rs1, 0)>;
+
+def : InstAlias<"c.lwsp $rd, (${rs1})", (C_LWSP GPRC:$rd, SP:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, HasStdExtF, IsRV32] in
+def : InstAlias<"c.flwsp $rd, (${rs1})", (C_FLWSP FPR32C:$rd, SP:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, IsRV64] in
+def : InstAlias<"c.ldsp $rd, (${rs1})", (C_LDSP GPRC:$rd, SP:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, HasStdExtD] in
+def : InstAlias<"c.fsdsp $rs2, (${rs1})", (C_FSDSP FPR64C:$rs2, SP:$rs1, 0)>;
+
+def : InstAlias<"c.swsp $rs2, (${rs1})", (C_SWSP GPRC:$rs2, SP:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, HasStdExtF, IsRV32] in
+def : InstAlias<"c.fswsp $rs2, (${rs1})", (C_FSWSP FPR32C:$rs2, SP:$rs1, 0)>;
+
+let Predicates = [HasStdExtC, IsRV64] in
+def : InstAlias<"c.sdsp $rs2, (${rs1})", (C_SDSP GPRC:$rs2, SP:$rs1, 0)>;
+}
 
 //===----------------------------------------------------------------------===//
 // Compress Instruction tablegen backend.
@@ -625,6 +796,8 @@ def : CompressPat<(AND GPRC:$rs1, GPRC:$rs2, GPRC:$rs1),
 } //  Predicates = [HasStdExtC]
 
 let Predicates = [HasStdExtC, IsRV64] in {
+def : CompressPat<(ADDIW GPRNoX0:$rd, X0, simm6:$imm),
+                  (C_LI GPRNoX0:$rd, simm6:$imm)>;
 def : CompressPat<(SUBW GPRC:$rs1, GPRC:$rs1, GPRC:$rs2),
                   (C_SUBW GPRC:$rs1, GPRC:$rs2)>;
 def : CompressPat<(ADDW GPRC:$rs1, GPRC:$rs1, GPRC:$rs2),
@@ -678,6 +851,7 @@ def : CompressPat<(ADD GPRNoX0:$rs1, GPRNoX0:$rs2, X0),
 def : CompressPat<(ADDI GPRNoX0:$rs1, GPRNoX0:$rs2, 0),
                   (C_MV GPRNoX0:$rs1, GPRNoX0:$rs2)>;
 def : CompressPat<(EBREAK), (C_EBREAK)>;
+def : CompressPat<(UNIMP), (C_UNIMP)>;
 def : CompressPat<(JALR X1, GPRNoX0:$rs1, 0),
                   (C_JALR GPRNoX0:$rs1)>;
 def : CompressPat<(ADD GPRNoX0:$rs1, GPRNoX0:$rs1, GPRNoX0:$rs2),

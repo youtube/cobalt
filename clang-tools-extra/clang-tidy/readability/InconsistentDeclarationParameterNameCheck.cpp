@@ -1,9 +1,8 @@
 //===--- InconsistentDeclarationParameterNameCheck.cpp - clang-tidy-------===//
 //
-//           The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -74,7 +73,7 @@ bool checkIfFixItHintIsApplicable(
   if (!ParameterSourceDeclaration->isThisDeclarationADefinition())
     return false;
 
-  // Assumption: if parameter is not referenced in function defintion body, it
+  // Assumption: if parameter is not referenced in function definition body, it
   // may indicate that it's outdated, so don't touch it.
   if (!SourceParam->isReferenced())
     return false;
@@ -324,7 +323,7 @@ void InconsistentDeclarationParameterNameCheck::check(
     return;
   }
 
-  SourceLocation StartLoc = OriginalDeclaration->getLocStart();
+  SourceLocation StartLoc = OriginalDeclaration->getBeginLoc();
   if (StartLoc.isMacroID() && IgnoreMacros) {
     markRedeclarationsAsVisited(OriginalDeclaration);
     return;

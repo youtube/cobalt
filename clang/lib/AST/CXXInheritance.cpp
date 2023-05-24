@@ -1,9 +1,8 @@
 //===- CXXInheritance.cpp - C++ Inheritance -------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -45,7 +44,7 @@ void CXXBasePaths::ComputeDeclsFound() {
     Decls.insert(Path->Decls.front());
 
   NumDeclsFound = Decls.size();
-  DeclsFound = llvm::make_unique<NamedDecl *[]>(NumDeclsFound);
+  DeclsFound = std::make_unique<NamedDecl *[]>(NumDeclsFound);
   std::copy(Decls.begin(), Decls.end(), DeclsFound.get());
 }
 
@@ -103,7 +102,6 @@ bool CXXRecordDecl::isDerivedFrom(const CXXRecordDecl *Base,
   Paths.setOrigin(const_cast<CXXRecordDecl*>(this));
 
   const CXXRecordDecl *BaseDecl = Base->getCanonicalDecl();
-  // FIXME: Capturing 'this' is a workaround for name lookup bugs in GCC 4.7.
   return lookupInBases(
       [BaseDecl](const CXXBaseSpecifier *Specifier, CXXBasePath &Path) {
         return FindBaseClass(Specifier, Path, BaseDecl);
@@ -124,7 +122,6 @@ bool CXXRecordDecl::isVirtuallyDerivedFrom(const CXXRecordDecl *Base) const {
   Paths.setOrigin(const_cast<CXXRecordDecl*>(this));
 
   const CXXRecordDecl *BaseDecl = Base->getCanonicalDecl();
-  // FIXME: Capturing 'this' is a workaround for name lookup bugs in GCC 4.7.
   return lookupInBases(
       [BaseDecl](const CXXBaseSpecifier *Specifier, CXXBasePath &Path) {
         return FindVirtualBaseClass(Specifier, Path, BaseDecl);
@@ -489,6 +486,21 @@ bool CXXRecordDecl::FindOMPReductionMember(const CXXBaseSpecifier *Specifier,
   return false;
 }
 
+bool CXXRecordDecl::FindOMPMapperMember(const CXXBaseSpecifier *Specifier,
+                                        CXXBasePath &Path,
+                                        DeclarationName Name) {
+  RecordDecl *BaseRecord =
+      Specifier->getType()->castAs<RecordType>()->getDecl();
+
+  for (Path.Decls = BaseRecord->lookup(Name); !Path.Decls.empty();
+       Path.Decls = Path.Decls.slice(1)) {
+    if (Path.Decls.front()->isInIdentifierNamespace(IDNS_OMPMapper))
+      return true;
+  }
+
+  return false;
+}
+
 bool CXXRecordDecl::
 FindNestedNameSpecifierMember(const CXXBaseSpecifier *Specifier,
                               CXXBasePath &Path,
@@ -542,8 +554,7 @@ void OverridingMethods::add(unsigned OverriddenSubobject,
                             UniqueVirtualMethod Overriding) {
   SmallVectorImpl<UniqueVirtualMethod> &SubobjectOverrides
     = Overrides[OverriddenSubobject];
-  if (std::find(SubobjectOverrides.begin(), SubobjectOverrides.end(),
-                Overriding) == SubobjectOverrides.end())
+  if (llvm::find(SubobjectOverrides, Overriding) == SubobjectOverrides.end())
     SubobjectOverrides.push_back(Overriding);
 }
 

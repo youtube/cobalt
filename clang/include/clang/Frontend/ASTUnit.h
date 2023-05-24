@@ -1,9 +1,8 @@
 //===- ASTUnit.h - ASTUnit utility ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -51,6 +50,11 @@ namespace llvm {
 
 class MemoryBuffer;
 
+namespace vfs {
+
+class FileSystem;
+
+} // namespace vfs
 } // namespace llvm
 
 namespace clang {
@@ -67,7 +71,7 @@ class FileManager;
 class FrontendAction;
 class HeaderSearch;
 class InputKind;
-class MemoryBufferCache;
+class InMemoryModuleCache;
 class PCHContainerOperations;
 class PCHContainerReader;
 class Preprocessor;
@@ -75,14 +79,11 @@ class PreprocessorOptions;
 class Sema;
 class TargetInfo;
 
-namespace vfs {
-
-class FileSystem;
-
-} // namespace vfs
-
 /// \brief Enumerates the available scopes for skipping function bodies.
 enum class SkipFunctionBodiesScope { None, Preamble, PreambleAndMainFile };
+
+/// \brief Enumerates the available kinds for capturing diagnostics.
+enum class CaptureDiagsKind { None, All, AllWithoutNonErrorsFromIncludes };
 
 /// Utility class for loading a ASTContext from an AST file.
 class ASTUnit {
@@ -109,7 +110,7 @@ private:
   IntrusiveRefCntPtr<DiagnosticsEngine>   Diagnostics;
   IntrusiveRefCntPtr<FileManager>         FileMgr;
   IntrusiveRefCntPtr<SourceManager>       SourceMgr;
-  IntrusiveRefCntPtr<MemoryBufferCache>   PCMCache;
+  IntrusiveRefCntPtr<InMemoryModuleCache> ModuleCache;
   std::unique_ptr<HeaderSearch>           HeaderInfo;
   IntrusiveRefCntPtr<TargetInfo>          Target;
   std::shared_ptr<Preprocessor>           PP;
@@ -146,7 +147,7 @@ private:
   bool OnlyLocalDecls = false;
 
   /// Whether to capture any diagnostics produced.
-  bool CaptureDiagnostics = false;
+  CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None;
 
   /// Track whether the main file was loaded from an AST or not.
   bool MainFileIsAST;
@@ -207,7 +208,10 @@ private:
   /// we'll attempt to rebuild the precompiled header. This way, if
   /// building the precompiled preamble fails, we won't try again for
   /// some number of calls.
-  unsigned PreambleRebuildCounter = 0;
+  unsigned PreambleRebuildCountdown = 0;
+
+  /// Counter indicating how often the preamble was build in total.
+  unsigned PreambleCounter = 0;
 
   /// Cache pairs "filename - source location"
   ///
@@ -249,7 +253,7 @@ private:
   bool UserFilesAreVolatile : 1;
 
   static void ConfigureDiags(IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
-                             ASTUnit &AST, bool CaptureDiagnostics);
+                             ASTUnit &AST, CaptureDiagsKind CaptureDiagnostics);
 
   void TranslateStoredDiagnostics(FileManager &FileMgr,
                                   SourceManager &SrcMan,
@@ -311,7 +315,7 @@ public:
 
   CodeCompletionTUInfo &getCodeCompletionTUInfo() {
     if (!CCTUInfo)
-      CCTUInfo = llvm::make_unique<CodeCompletionTUInfo>(
+      CCTUInfo = std::make_unique<CodeCompletionTUInfo>(
           std::make_shared<GlobalCodeCompletionAllocator>());
     return *CCTUInfo;
   }
@@ -365,12 +369,12 @@ private:
 
   bool Parse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
              std::unique_ptr<llvm::MemoryBuffer> OverrideMainBuffer,
-             IntrusiveRefCntPtr<vfs::FileSystem> VFS);
+             IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS);
 
   std::unique_ptr<llvm::MemoryBuffer> getMainBufferWithPrecompiledPreamble(
       std::shared_ptr<PCHContainerOperations> PCHContainerOps,
       CompilerInvocation &PreambleInvocationIn,
-      IntrusiveRefCntPtr<vfs::FileSystem> VFS, bool AllowRebuild = true,
+      IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS, bool AllowRebuild = true,
       unsigned MaxLines = 0);
   void RealizeTopLevelDeclsFromPreamble();
 
@@ -386,7 +390,7 @@ private:
   /// just about any usage.
   /// Becomes a noop in release mode; only useful for debug mode checking.
   class ConcurrencyState {
-    void *Mutex; // a llvm::sys::MutexImpl in debug;
+    void *Mutex; // a std::recursive_mutex in debug;
 
   public:
     ConcurrencyState();
@@ -576,6 +580,8 @@ public:
                        mapLocationToPreamble(R.getEnd()));
   }
 
+  unsigned getPreambleCounterForTests() const { return PreambleCounter; }
+
   // Retrieve the diagnostics associated with this AST
   using stored_diag_iterator = StoredDiagnostic *;
   using stored_diag_const_iterator = const StoredDiagnostic *;
@@ -658,8 +664,8 @@ public:
   /// Create a ASTUnit. Gets ownership of the passed CompilerInvocation.
   static std::unique_ptr<ASTUnit>
   create(std::shared_ptr<CompilerInvocation> CI,
-         IntrusiveRefCntPtr<DiagnosticsEngine> Diags, bool CaptureDiagnostics,
-         bool UserFilesAreVolatile);
+         IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
+         CaptureDiagsKind CaptureDiagnostics, bool UserFilesAreVolatile);
 
   enum WhatToLoad {
     /// Load options and the preprocessor state.
@@ -687,7 +693,8 @@ public:
       WhatToLoad ToLoad, IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
       const FileSystemOptions &FileSystemOpts, bool UseDebugInfo = false,
       bool OnlyLocalDecls = false, ArrayRef<RemappedFile> RemappedFiles = None,
-      bool CaptureDiagnostics = false, bool AllowPCHWithCompilerErrors = false,
+      CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
+      bool AllowPCHWithCompilerErrors = false,
       bool UserFilesAreVolatile = false);
 
 private:
@@ -698,17 +705,17 @@ private:
   /// of this translation unit should be precompiled, to improve the performance
   /// of reparsing. Set to zero to disable preambles.
   ///
-  /// \param VFS - A vfs::FileSystem to be used for all file accesses. Note that
-  /// preamble is saved to a temporary directory on a RealFileSystem, so in order
-  /// for it to be loaded correctly, VFS should have access to it(i.e., be an
-  /// overlay over RealFileSystem).
+  /// \param VFS - A llvm::vfs::FileSystem to be used for all file accesses.
+  /// Note that preamble is saved to a temporary directory on a RealFileSystem,
+  /// so in order for it to be loaded correctly, VFS should have access to
+  /// it(i.e., be an overlay over RealFileSystem).
   ///
   /// \returns \c true if a catastrophic failure occurred (which means that the
   /// \c ASTUnit itself is invalid), or \c false otherwise.
   bool LoadFromCompilerInvocation(
       std::shared_ptr<PCHContainerOperations> PCHContainerOps,
       unsigned PrecompilePreambleAfterNParses,
-      IntrusiveRefCntPtr<vfs::FileSystem> VFS);
+      IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS);
 
 public:
   /// Create an ASTUnit from a source file, via a CompilerInvocation
@@ -745,7 +752,8 @@ public:
       IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
       FrontendAction *Action = nullptr, ASTUnit *Unit = nullptr,
       bool Persistent = true, StringRef ResourceFilesPath = StringRef(),
-      bool OnlyLocalDecls = false, bool CaptureDiagnostics = false,
+      bool OnlyLocalDecls = false,
+      CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
       unsigned PrecompilePreambleAfterNParses = 0,
       bool CacheCodeCompletionResults = false,
       bool IncludeBriefCommentsInCodeCompletion = false,
@@ -770,7 +778,8 @@ public:
       std::shared_ptr<CompilerInvocation> CI,
       std::shared_ptr<PCHContainerOperations> PCHContainerOps,
       IntrusiveRefCntPtr<DiagnosticsEngine> Diags, FileManager *FileMgr,
-      bool OnlyLocalDecls = false, bool CaptureDiagnostics = false,
+      bool OnlyLocalDecls = false,
+      CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
       unsigned PrecompilePreambleAfterNParses = 0,
       TranslationUnitKind TUKind = TU_Complete,
       bool CacheCodeCompletionResults = false,
@@ -798,10 +807,11 @@ public:
   /// (e.g. because the PCH could not be loaded), this accepts the ASTUnit
   /// mainly to allow the caller to see the diagnostics.
   ///
-  /// \param VFS - A vfs::FileSystem to be used for all file accesses. Note that
-  /// preamble is saved to a temporary directory on a RealFileSystem, so in order
-  /// for it to be loaded correctly, VFS should have access to it(i.e., be an
-  /// overlay over RealFileSystem). RealFileSystem will be used if \p VFS is nullptr.
+  /// \param VFS - A llvm::vfs::FileSystem to be used for all file accesses.
+  /// Note that preamble is saved to a temporary directory on a RealFileSystem,
+  /// so in order for it to be loaded correctly, VFS should have access to
+  /// it(i.e., be an overlay over RealFileSystem). RealFileSystem will be used
+  /// if \p VFS is nullptr.
   ///
   // FIXME: Move OnlyLocalDecls, UseBumpAllocator to setters on the ASTUnit, we
   // shouldn't need to specify them at construction time.
@@ -809,7 +819,8 @@ public:
       const char **ArgBegin, const char **ArgEnd,
       std::shared_ptr<PCHContainerOperations> PCHContainerOps,
       IntrusiveRefCntPtr<DiagnosticsEngine> Diags, StringRef ResourceFilesPath,
-      bool OnlyLocalDecls = false, bool CaptureDiagnostics = false,
+      bool OnlyLocalDecls = false,
+      CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
       ArrayRef<RemappedFile> RemappedFiles = None,
       bool RemappedFilesKeepOriginalName = true,
       unsigned PrecompilePreambleAfterNParses = 0,
@@ -821,24 +832,25 @@ public:
           SkipFunctionBodiesScope::None,
       bool SingleFileParse = false, bool UserFilesAreVolatile = false,
       bool ForSerialization = false,
+      bool RetainExcludedConditionalBlocks = false,
       llvm::Optional<StringRef> ModuleFormat = llvm::None,
       std::unique_ptr<ASTUnit> *ErrAST = nullptr,
-      IntrusiveRefCntPtr<vfs::FileSystem> VFS = nullptr);
+      IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr);
 
   /// Reparse the source files using the same command-line options that
   /// were originally used to produce this translation unit.
   ///
-  /// \param VFS - A vfs::FileSystem to be used for all file accesses. Note that
-  /// preamble is saved to a temporary directory on a RealFileSystem, so in order
-  /// for it to be loaded correctly, VFS should give an access to this(i.e. be an
-  /// overlay over RealFileSystem). FileMgr->getVirtualFileSystem() will be used if
-  /// \p VFS is nullptr.
+  /// \param VFS - A llvm::vfs::FileSystem to be used for all file accesses.
+  /// Note that preamble is saved to a temporary directory on a RealFileSystem,
+  /// so in order for it to be loaded correctly, VFS should give an access to
+  /// this(i.e. be an overlay over RealFileSystem).
+  /// FileMgr->getVirtualFileSystem() will be used if \p VFS is nullptr.
   ///
   /// \returns True if a failure occurred that causes the ASTUnit not to
   /// contain any translation-unit information, false otherwise.
   bool Reparse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
                ArrayRef<RemappedFile> RemappedFiles = None,
-               IntrusiveRefCntPtr<vfs::FileSystem> VFS = nullptr);
+               IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS = nullptr);
 
   /// Free data that will be re-generated on the next parse.
   ///

@@ -1,26 +1,31 @@
 //===-- SymbolFileDWARFDwoDwp.h ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef SymbolFileDWARFDwoDwp_SymbolFileDWARFDwoDwp_h_
 #define SymbolFileDWARFDwoDwp_SymbolFileDWARFDwoDwp_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "SymbolFileDWARFDwo.h"
 #include "SymbolFileDWARFDwp.h"
 
 class SymbolFileDWARFDwoDwp : public SymbolFileDWARFDwo {
+  /// LLVM RTTI support.
+  static char ID;
+
 public:
+  /// LLVM RTTI support.
+  /// \{
+  bool isA(const void *ClassID) const override {
+    return ClassID == &ID || SymbolFileDWARFDwo::isA(ClassID);
+  }
+  static bool classof(const SymbolFile *obj) { return obj->isA(&ID); }
+  /// \}
   SymbolFileDWARFDwoDwp(SymbolFileDWARFDwp *dwp_symfile,
-                        lldb::ObjectFileSP objfile, DWARFUnit *dwarf_cu,
+                        lldb::ObjectFileSP objfile, DWARFCompileUnit &dwarf_cu,
                         uint64_t dwo_id);
 
 protected:

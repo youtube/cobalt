@@ -1,18 +1,13 @@
 //===-- UniqueDWARFASTType.cpp ----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "UniqueDWARFASTType.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Symbol/Declaration.h"
 
 bool UniqueDWARFASTTypeList::Find(const DWARFDIE &die,
@@ -44,12 +39,12 @@ bool UniqueDWARFASTTypeList::Find(const DWARFDIE &die,
               case DW_TAG_namespace: {
                 const char *parent_arg_die_name = parent_arg_die.GetName();
                 if (parent_arg_die_name ==
-                    NULL) // Anonymous (i.e. no-name) struct
+                    nullptr) // Anonymous (i.e. no-name) struct
                 {
                   match = false;
                 } else {
                   const char *parent_pos_die_name = parent_pos_die.GetName();
-                  if (parent_pos_die_name == NULL ||
+                  if (parent_pos_die_name == nullptr ||
                       ((parent_arg_die_name != parent_pos_die_name) &&
                        strcmp(parent_arg_die_name, parent_pos_die_name)))
                     match = false;
@@ -59,6 +54,8 @@ bool UniqueDWARFASTTypeList::Find(const DWARFDIE &die,
               case DW_TAG_compile_unit:
               case DW_TAG_partial_unit:
                 done = true;
+                break;
+              default:
                 break;
               }
             }

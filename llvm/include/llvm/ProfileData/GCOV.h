@@ -1,9 +1,8 @@
 //===- GCOV.h - LLVM coverage tool ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -24,9 +23,11 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -43,9 +44,10 @@ enum GCOVVersion { V402, V404, V704 };
 
 /// A struct for passing gcov options between functions.
 struct Options {
-  Options(bool A, bool B, bool C, bool F, bool P, bool U, bool L, bool N)
+  Options(bool A, bool B, bool C, bool F, bool P, bool U, bool L, bool N, bool X)
       : AllBlocks(A), BranchInfo(B), BranchCount(C), FuncCoverage(F),
-        PreservePaths(P), UncondBranch(U), LongFileNames(L), NoOutput(N) {}
+        PreservePaths(P), UncondBranch(U), LongFileNames(L), NoOutput(N),
+        HashFilenames(X) {}
 
   bool AllBlocks;
   bool BranchInfo;
@@ -55,6 +57,7 @@ struct Options {
   bool UncondBranch;
   bool LongFileNames;
   bool NoOutput;
+  bool HashFilenames;
 };
 
 } // end namespace GCOV
@@ -266,13 +269,14 @@ struct GCOVEdge {
   GCOVBlock &Src;
   GCOVBlock &Dst;
   uint64_t Count = 0;
+  uint64_t CyclesCount = 0;
 };
 
 /// GCOVFunction - Collects function information.
 class GCOVFunction {
 public:
-  using BlockIterator = pointee_iterator<SmallVectorImpl<
-      std::unique_ptr<GCOVBlock>>::const_iterator>;
+  using BlockIterator = pointee_iterator<
+      SmallVectorImpl<std::unique_ptr<GCOVBlock>>::const_iterator>;
 
   GCOVFunction(GCOVFile &P) : Parent(P) {}
 
@@ -314,14 +318,11 @@ class GCOVBlock {
     uint64_t Count = 0;
   };
 
-  struct SortDstEdgesFunctor {
-    bool operator()(const GCOVEdge *E1, const GCOVEdge *E2) {
-      return E1->Dst.Number < E2->Dst.Number;
-    }
-  };
-
 public:
   using EdgeIterator = SmallVectorImpl<GCOVEdge *>::const_iterator;
+  using BlockVector = SmallVector<const GCOVBlock *, 4>;
+  using BlockVectorLists = SmallVector<BlockVector, 4>;
+  using Edges = SmallVector<GCOVEdge *, 4>;
 
   GCOVBlock(GCOVFunction &P, uint32_t N) : Parent(P), Number(N) {}
   ~GCOVBlock();
@@ -364,6 +365,16 @@ public:
   void print(raw_ostream &OS) const;
   void dump() const;
   void collectLineCounts(FileInfo &FI);
+
+  static uint64_t getCycleCount(const Edges &Path);
+  static void unblock(const GCOVBlock *U, BlockVector &Blocked,
+                      BlockVectorLists &BlockLists);
+  static bool lookForCircuit(const GCOVBlock *V, const GCOVBlock *Start,
+                             Edges &Path, BlockVector &Blocked,
+                             BlockVectorLists &BlockLists,
+                             const BlockVector &Blocks, uint64_t &Count);
+  static void getCyclesCount(const BlockVector &Blocks, uint64_t &Count);
+  static uint64_t getLineCount(const BlockVector &Blocks);
 
 private:
   GCOVFunction &Parent;

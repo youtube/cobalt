@@ -1,9 +1,8 @@
 //===- Diagnostic.cpp - C Language Family Diagnostic Handling -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -89,6 +88,14 @@ DiagnosticsEngine::~DiagnosticsEngine() {
   setClient(nullptr);
 }
 
+void DiagnosticsEngine::dump() const {
+  DiagStatesByLoc.dump(*SourceMgr);
+}
+
+void DiagnosticsEngine::dump(StringRef DiagName) const {
+  DiagStatesByLoc.dump(*SourceMgr, DiagName);
+}
+
 void DiagnosticsEngine::setClient(DiagnosticConsumer *client,
                                   bool ShouldOwnClient) {
   Owner.reset(ShouldOwnClient ? client : nullptr);
@@ -138,19 +145,20 @@ void DiagnosticsEngine::Reset() {
 }
 
 void DiagnosticsEngine::SetDelayedDiagnostic(unsigned DiagID, StringRef Arg1,
-                                             StringRef Arg2) {
+                                             StringRef Arg2, StringRef Arg3) {
   if (DelayedDiagID)
     return;
 
   DelayedDiagID = DiagID;
   DelayedDiagArg1 = Arg1.str();
   DelayedDiagArg2 = Arg2.str();
+  DelayedDiagArg3 = Arg3.str();
 }
 
 void DiagnosticsEngine::ReportDelayed() {
   unsigned ID = DelayedDiagID;
   DelayedDiagID = 0;
-  Report(ID) << DelayedDiagArg1 << DelayedDiagArg2;
+  Report(ID) << DelayedDiagArg1 << DelayedDiagArg2 << DelayedDiagArg3;
 }
 
 void DiagnosticsEngine::DiagStateMap::appendFirst(DiagState *State) {
@@ -198,10 +206,9 @@ DiagnosticsEngine::DiagStateMap::lookup(SourceManager &SrcMgr,
 
 DiagnosticsEngine::DiagState *
 DiagnosticsEngine::DiagStateMap::File::lookup(unsigned Offset) const {
-  auto OnePastIt = std::upper_bound(
-      StateTransitions.begin(), StateTransitions.end(), Offset,
-      [](unsigned Offset, const DiagStatePoint &P) {
-        return Offset < P.Offset;
+  auto OnePastIt =
+      llvm::partition_point(StateTransitions, [=](const DiagStatePoint &P) {
+        return P.Offset <= Offset;
       });
   assert(OnePastIt != StateTransitions.begin() && "missing initial state");
   return OnePastIt[-1].State;
@@ -239,7 +246,7 @@ DiagnosticsEngine::DiagStateMap::getFile(SourceManager &SrcMgr,
 void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
                                            StringRef DiagName) const {
   llvm::errs() << "diagnostic state at ";
-  CurDiagStateLoc.dump(SrcMgr);
+  CurDiagStateLoc.print(llvm::errs(), SrcMgr);
   llvm::errs() << ": " << CurDiagState << "\n";
 
   for (auto &F : Files) {
@@ -261,7 +268,7 @@ void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
                      << Decomp.first.getHashValue() << "> ";
         SrcMgr.getLocForStartOfFile(Decomp.first)
               .getLocWithOffset(Decomp.second)
-              .dump(SrcMgr);
+              .print(llvm::errs(), SrcMgr);
       }
       if (File.HasLocalTransitions)
         llvm::errs() << " has_local_transitions";
@@ -281,7 +288,7 @@ void DiagnosticsEngine::DiagStateMap::dump(SourceManager &SrcMgr,
         llvm::errs() << "  ";
         SrcMgr.getLocForStartOfFile(ID)
               .getLocWithOffset(Transition.Offset)
-              .dump(SrcMgr);
+              .print(llvm::errs(), SrcMgr);
         llvm::errs() << ": state " << Transition.State << ":\n";
       };
 
@@ -975,6 +982,8 @@ FormatDiagnostic(const char *DiagStr, const char *DiagEnd,
       llvm::raw_svector_ostream(OutStr) << '\'' << II->getName() << '\'';
       break;
     }
+    case DiagnosticsEngine::ak_addrspace:
+    case DiagnosticsEngine::ak_qual:
     case DiagnosticsEngine::ak_qualtype:
     case DiagnosticsEngine::ak_declarationname:
     case DiagnosticsEngine::ak_nameddecl:

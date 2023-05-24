@@ -1,11 +1,11 @@
 // REQUIRES: arm
-// RUN: llvm-mc -filetype=obj -triple=thumbv7a-none-linux-gnueabi %s -o %t
+// RUN: llvm-mc -arm-add-build-attributes -filetype=obj -triple=thumbv7a-none-linux-gnueabi %s -o %t
 // RUN: echo "SECTIONS { \
 // RUN:       .text 0x100000 : { *(.text) } \
 // RUN:       .textl : { *(.text_l0*) *(.text_l1*) *(.text_l2*) *(.text_l3*) } \
 // RUN:       .texth : { *(.text_h0*) *(.text_h1*) *(.text_h2*) *(.text_h3*) } \
 // RUN:       }" > %t.script
-// RUN: ld.lld --script %t.script %t -o %t2 2>&1
+// RUN: ld.lld --script %t.script %t -o %t2
 // The output file is large, most of it zeroes. We dissassemble only the
 // parts we need to speed up the test and avoid a large output file
 // RUN: llvm-objdump -d %t2 -start-address=1048576 -stop-address=1048594 -triple=thumbv7a-linux-gnueabihf | FileCheck --check-prefix=CHECK1 %s
@@ -21,7 +21,8 @@
 // per OutputSection basis
  .syntax unified
 
-// Define a function that we can match with .text_l* aligned on a megabyte      // boundary
+// Define a function that we can match with .text_l* aligned on a megabyte
+// boundary
  .macro FUNCTIONL suff
  .section .text_l\suff\(), "ax", %progbits
  .thumb
@@ -52,6 +53,7 @@ _start:
  // Expect a range extension thunk in .text OutputSection
  bl tfunch31
 // CHECK1: Disassembly of section .text:
+// CHECK1-EMPTY:
 // CHECK1-NEXT: _start:
 // CHECK1-NEXT:   100000:       ff f0 fe ff     bl      #1048572
 // CHECK1-NEXT:   100004:       00 f0 00 f8     bl      #0
@@ -65,6 +67,7 @@ _start:
  // We can reuse existing thunk in .text
  bl tfunch31
 // CHECK2: Disassembly of section .textl:
+// CHECK2-EMPTY:
 // CHECK2-NEXT: tfuncl00:
 // CHECK2-NEXT:   200000:	70 47 	bx	lr
 // CHECK2-NEXT:   200002:	ff f0 ff df 	bl	#9437182
@@ -121,6 +124,7 @@ _start:
  // Shouldn't need a thunk
         bl tfuncl31
 // CHECK5:  Disassembly of section .texth:
+// CHECK5-EMPTY:
 // CHECK5-NEXT: tfunch00:
 // CHECK5-NEXT:  2200000:       70 47   bx      lr
 // CHECK5-NEXT:  2200002:       00 f7 05 f8     bl      #-1048566

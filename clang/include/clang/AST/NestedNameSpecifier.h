@@ -1,9 +1,8 @@
 //===- NestedNameSpecifier.h - C++ nested name specifiers -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -212,9 +211,12 @@ public:
   /// parameter pack (for C++11 variadic templates).
   bool containsUnexpandedParameterPack() const;
 
-  /// Print this nested name specifier to the given output
-  /// stream.
-  void print(raw_ostream &OS, const PrintingPolicy &Policy) const;
+  /// Print this nested name specifier to the given output stream. If
+  /// `ResolveTemplateArguments` is true, we'll print actual types, e.g.
+  /// `ns::SomeTemplate<int, MyClass>` instead of
+  /// `ns::SomeTemplate<Container::value_type, T>`.
+  void print(raw_ostream &OS, const PrintingPolicy &Policy,
+             bool ResolveTemplateArguments = false) const;
 
   void Profile(llvm::FoldingSetNodeID &ID) const {
     ID.AddPointer(Prefix.getOpaqueValue());
@@ -225,6 +227,8 @@ public:
   /// in debugging.
   void dump(const LangOptions &LO) const;
   void dump() const;
+  void dump(llvm::raw_ostream &OS) const;
+  void dump(llvm::raw_ostream &OS, const LangOptions &LO) const;
 };
 
 /// A C++ nested-name-specifier augmented with source location

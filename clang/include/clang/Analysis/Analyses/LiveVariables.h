@@ -1,9 +1,8 @@
 //===- LiveVariables.h - Live Variable Analysis for Source CFGs -*- C++ --*-//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -88,9 +87,13 @@ public:
   ///  before the given block-level expression (see runOnAllBlocks).
   bool isLive(const Stmt *Loc, const Stmt *StmtVal);
 
-  /// Print to stderr the liveness information associated with
+  /// Print to stderr the variable liveness information associated with
   /// each basic block.
-  void dumpBlockLiveness(const SourceManager& M);
+  void dumpBlockLiveness(const SourceManager &M);
+
+  /// Print to stderr the statement liveness information associated with
+  /// each basic block.
+  void dumpStmtLiveness(const SourceManager &M);
 
   void runOnAllBlocks(Observer &obs);
 

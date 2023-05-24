@@ -1,9 +1,8 @@
 //===- AArch64TargetStreamer.cpp - AArch64TargetStreamer class ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,6 +12,8 @@
 
 #include "AArch64TargetStreamer.h"
 #include "llvm/MC/ConstantPools.h"
+#include "llvm/MC/MCSection.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -52,3 +53,17 @@ void AArch64TargetStreamer::emitInst(uint32_t Inst) {
 
   getStreamer().EmitBytes(StringRef(Buffer, 4));
 }
+
+namespace llvm {
+
+MCTargetStreamer *
+createAArch64ObjectTargetStreamer(MCStreamer &S, const MCSubtargetInfo &STI) {
+  const Triple &TT = STI.getTargetTriple();
+  if (TT.isOSBinFormatELF())
+    return new AArch64TargetELFStreamer(S);
+  if (TT.isOSBinFormatCOFF())
+    return new AArch64TargetWinCOFFStreamer(S);
+  return nullptr;
+}
+
+} // end namespace llvm

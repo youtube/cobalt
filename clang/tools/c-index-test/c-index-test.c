@@ -84,6 +84,12 @@ static unsigned getDefaultParsingOptions() {
     options |= CXTranslationUnit_KeepGoing;
   if (getenv("CINDEXTEST_LIMIT_SKIP_FUNCTION_BODIES_TO_PREAMBLE"))
     options |= CXTranslationUnit_LimitSkipFunctionBodiesToPreamble;
+  if (getenv("CINDEXTEST_INCLUDE_ATTRIBUTED_TYPES"))
+    options |= CXTranslationUnit_IncludeAttributedTypes;
+  if (getenv("CINDEXTEST_VISIT_IMPLICIT_ATTRIBUTES"))
+    options |= CXTranslationUnit_VisitImplicitAttributes;
+  if (getenv("CINDEXTEST_IGNORE_NONERRORS_FROM_INCLUDED_FILES"))
+    options |= CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles;
 
   return options;
 }
@@ -490,6 +496,9 @@ static void DumpCXCommentInternal(struct CommentASTDumpingContext *Ctx,
       break;
     case CXCommentInlineCommandRenderKind_Emphasized:
       printf(" RenderEmphasized");
+      break;
+    case CXCommentInlineCommandRenderKind_Anchor:
+      printf(" RenderAnchor");
       break;
     }
     for (i = 0, e = clang_InlineCommandComment_getNumArgs(Comment);
@@ -1047,7 +1056,8 @@ static void PrintCursor(CXCursor Cursor, const char *CommentSchemaFile) {
     if (Cursor.kind == CXCursor_InclusionDirective) {
       CXFile File = clang_getIncludedFile(Cursor);
       CXString Included = clang_getFileName(File);
-      printf(" (%s)", clang_getCString(Included));
+      const char *IncludedString = clang_getCString(Included);
+      printf(" (%s)", IncludedString ? IncludedString : "(null)");
       clang_disposeString(Included);
       
       if (clang_isFileMultipleIncludeGuarded(TU, File))
@@ -1097,6 +1107,34 @@ static void PrintCursor(CXCursor Cursor, const char *CommentSchemaFile) {
         PRINT_PROP_ATTR(class);
         printf("]");
       }
+    }
+
+    if (Cursor.kind == CXCursor_ObjCPropertyDecl) {
+      CXString Name = clang_Cursor_getObjCPropertyGetterName(Cursor);
+      CXString Spelling = clang_getCursorSpelling(Cursor);
+      const char *CName = clang_getCString(Name);
+      const char *CSpelling = clang_getCString(Spelling);
+      if (CName && strcmp(CName, CSpelling)) {
+        printf(" (getter=%s)", CName);
+      }
+      clang_disposeString(Spelling);
+      clang_disposeString(Name);
+    }
+
+    if (Cursor.kind == CXCursor_ObjCPropertyDecl) {
+      CXString Name = clang_Cursor_getObjCPropertySetterName(Cursor);
+      CXString Spelling = clang_getCursorSpelling(Cursor);
+      const char *CName = clang_getCString(Name);
+      const char *CSpelling = clang_getCString(Spelling);
+      char *DefaultSetter = malloc(strlen(CSpelling) + 5);
+      sprintf(DefaultSetter, "set%s:", CSpelling);
+      DefaultSetter[3] &= ~(1 << 5); /* Make uppercase */
+      if (CName && strcmp(CName, DefaultSetter)) {
+        printf(" (setter=%s)", CName);
+      }
+      free(DefaultSetter);
+      clang_disposeString(Spelling);
+      clang_disposeString(Name);
     }
 
     {
@@ -1496,13 +1534,31 @@ static void PrintTypeTemplateArgs(CXType T, const char *Format) {
   }
 }
 
+static void PrintNullabilityKind(CXType T, const char *Format) {
+  enum CXTypeNullabilityKind N = clang_Type_getNullability(T);
+
+  const char *nullability = 0;
+  switch (N) {
+    case CXTypeNullability_NonNull: nullability = "nonnull"; break;
+    case CXTypeNullability_Nullable: nullability = "nullable"; break;
+    case CXTypeNullability_Unspecified: nullability = "unspecified"; break;
+    case CXTypeNullability_Invalid: break;
+  }
+
+  if (nullability) {
+    printf(Format, nullability);
+  }
+}
+
 static enum CXChildVisitResult PrintType(CXCursor cursor, CXCursor p,
                                          CXClientData d) {
   if (!clang_isInvalid(clang_getCursorKind(cursor))) {
     CXType T = clang_getCursorType(cursor);
+    CXType PT = clang_getPointeeType(T);
     enum CXRefQualifierKind RQ = clang_Type_getCXXRefQualifier(T);
     PrintCursor(cursor, NULL);
     PrintTypeAndTypeKind(T, " [type=%s] [typekind=%s]");
+    PrintNullabilityKind(T, " [nullability=%s]");
     if (clang_isConstQualifiedType(T))
       printf(" const");
     if (clang_isVolatileQualifiedType(T))
@@ -1523,12 +1579,20 @@ static enum CXChildVisitResult PrintType(CXCursor cursor, CXCursor p,
         PrintTypeTemplateArgs(CT, " [canonicaltemplateargs/%d=");
       }
     }
+    /* Print the modified type if it exists. */
+    {
+      CXType MT = clang_Type_getModifiedType(T);
+      if (MT.kind != CXType_Invalid) {
+        PrintTypeAndTypeKind(MT, " [modifiedtype=%s] [modifiedtypekind=%s]");
+      }
+    }
     /* Print the return type if it exists. */
     {
       CXType RT = clang_getCursorResultType(cursor);
       if (RT.kind != CXType_Invalid) {
         PrintTypeAndTypeKind(RT, " [resulttype=%s] [resulttypekind=%s]");
       }
+      PrintNullabilityKind(RT, " [resultnullability=%s]");
     }
     /* Print the argument types if they exist. */
     {
@@ -1540,6 +1604,42 @@ static enum CXChildVisitResult PrintType(CXCursor cursor, CXCursor p,
           CXType T = clang_getCursorType(clang_Cursor_getArgument(cursor, i));
           if (T.kind != CXType_Invalid) {
             PrintTypeAndTypeKind(T, " [%s] [%s]");
+            PrintNullabilityKind(T, " [%s]");
+          }
+        }
+        printf("]");
+      }
+    }
+    /* Print ObjC base types, type arguments, and protocol list if available. */
+    {
+      CXType BT = clang_Type_getObjCObjectBaseType(PT);
+      if (BT.kind != CXType_Invalid) {
+        PrintTypeAndTypeKind(BT, " [basetype=%s] [basekind=%s]");
+      }
+    }
+    {
+      unsigned NumTypeArgs = clang_Type_getNumObjCTypeArgs(PT);
+      if (NumTypeArgs > 0) {
+        unsigned i;
+        printf(" [typeargs=");
+        for (i = 0; i < NumTypeArgs; ++i) {
+          CXType TA = clang_Type_getObjCTypeArg(PT, i);
+          if (TA.kind != CXType_Invalid) {
+            PrintTypeAndTypeKind(TA, " [%s] [%s]");
+          }
+        }
+        printf("]");
+      }
+    }
+    {
+      unsigned NumProtocols = clang_Type_getNumObjCProtocolRefs(PT);
+      if (NumProtocols > 0) {
+        unsigned i;
+        printf(" [protocols=");
+        for (i = 0; i < NumProtocols; ++i) {
+          CXCursor P = clang_Type_getObjCProtocolDecl(PT, i);
+          if (!clang_isInvalid(clang_getCursorKind(P))) {
+            PrintCursor(P, NULL);
           }
         }
         printf("]");
@@ -1549,7 +1649,6 @@ static enum CXChildVisitResult PrintType(CXCursor cursor, CXCursor p,
     printf(" [isPOD=%d]", clang_isPODType(T));
     /* Print the pointee type. */
     {
-      CXType PT = clang_getPointeeType(T);
       if (PT.kind != CXType_Invalid) {
         PrintTypeAndTypeKind(PT, " [pointeetype=%s] [pointeekind=%s]");
       }
@@ -1561,19 +1660,61 @@ static enum CXChildVisitResult PrintType(CXCursor cursor, CXCursor p,
         if (numFields != 0) {
           printf(" [nbFields=%d]", numFields);
         }
-        /* Print if it is an anonymous record. */
-        {
-          unsigned isAnon = clang_Cursor_isAnonymous(cursor);
-          if (isAnon != 0) {
-            printf(" [isAnon=%d]", isAnon);
-          }
-        }
       }
+    }
+
+    /* Print if it is an anonymous record or namespace. */
+    {
+      unsigned isAnon = clang_Cursor_isAnonymous(cursor);
+      if (isAnon != 0) {
+        printf(" [isAnon=%d]", isAnon);
+      }
+    }
+
+    /* Print if it is an anonymous record decl */
+    {
+      unsigned isAnonRecDecl = clang_Cursor_isAnonymousRecordDecl(cursor);
+      printf(" [isAnonRecDecl=%d]", isAnonRecDecl);
+    }
+
+    /* Print if it is an inline namespace decl */
+    {
+      unsigned isInlineNamespace = clang_Cursor_isInlineNamespace(cursor);
+      if (isInlineNamespace != 0)
+        printf(" [isInlineNamespace=%d]", isInlineNamespace);
     }
 
     printf("\n");
   }
   return CXChildVisit_Recurse;
+}
+
+static void PrintSingleTypeSize(CXType T, const char *TypeKindFormat,
+                                const char *SizeFormat,
+                                const char *AlignFormat) {
+  PrintTypeAndTypeKind(T, TypeKindFormat);
+  /* Print the type sizeof if applicable. */
+  {
+    long long Size = clang_Type_getSizeOf(T);
+    if (Size >= 0 || Size < -1 ) {
+      printf(SizeFormat, Size);
+    }
+  }
+  /* Print the type alignof if applicable. */
+  {
+    long long Align = clang_Type_getAlignOf(T);
+    if (Align >= 0 || Align < -1) {
+      printf(AlignFormat, Align);
+    }
+  }
+
+  /* Print the return type if it exists. */
+  {
+    CXType RT = clang_getResultType(T);
+    if (RT.kind != CXType_Invalid)
+      PrintSingleTypeSize(RT, " [resulttype=%s] [resulttypekind=%s]",
+                              " [resultsizeof=%lld]", " [resultalignof=%lld]");
+  }
 }
 
 static enum CXChildVisitResult PrintTypeSize(CXCursor cursor, CXCursor p,
@@ -1584,21 +1725,8 @@ static enum CXChildVisitResult PrintTypeSize(CXCursor cursor, CXCursor p,
     return CXChildVisit_Recurse;
   T = clang_getCursorType(cursor);
   PrintCursor(cursor, NULL);
-  PrintTypeAndTypeKind(T, " [type=%s] [typekind=%s]");
-  /* Print the type sizeof if applicable. */
-  {
-    long long Size = clang_Type_getSizeOf(T);
-    if (Size >= 0 || Size < -1 ) {
-      printf(" [sizeof=%lld]", Size);
-    }
-  }
-  /* Print the type alignof if applicable. */
-  {
-    long long Align = clang_Type_getAlignOf(T);
-    if (Align >= 0 || Align < -1) {
-      printf(" [alignof=%lld]", Align);
-    }
-  }
+  PrintSingleTypeSize(T, " [type=%s] [typekind=%s]", " [sizeof=%lld]",
+                      " [alignof=%lld]");
   /* Print the record field offset if applicable. */
   {
     CXString FieldSpelling = clang_getCursorSpelling(cursor);
@@ -1636,7 +1764,9 @@ static enum CXChildVisitResult PrintTypeSize(CXCursor cursor, CXCursor p,
     if (IsBitfield)
       printf(" [BitFieldSize=%d]", clang_getFieldDeclBitWidth(cursor));
   }
+
   printf("\n");
+
   return CXChildVisit_Recurse;
 }
 
@@ -1717,6 +1847,23 @@ static enum CXChildVisitResult PrintTypeDeclaration(CXCursor cursor, CXCursor p,
   }
 
   return CXChildVisit_Recurse;
+}
+
+/******************************************************************************/
+/* Declaration attributes testing                                             */
+/******************************************************************************/
+
+static enum CXChildVisitResult PrintDeclAttributes(CXCursor cursor, CXCursor p,
+                                                   CXClientData d) {
+  if (clang_isDeclaration(cursor.kind)) {
+    printf("\n");
+    PrintCursor(cursor, NULL);
+    return CXChildVisit_Recurse;
+  } else if (clang_isAttribute(cursor.kind)) {
+    printf(" ");
+    PrintCursor(cursor, NULL);
+  }
+  return CXChildVisit_Continue;
 }
 
 /******************************************************************************/
@@ -2024,6 +2171,34 @@ static int perform_single_file_parse(const char *filename) {
                                     /*unsaved_files=*/NULL,
                                     /*num_unsaved_files=*/0,
                                     CXTranslationUnit_SingleFileParse, &TU);
+  if (Err != CXError_Success) {
+    fprintf(stderr, "Unable to load translation unit!\n");
+    describeLibclangFailure(Err);
+    clang_disposeIndex(Idx);
+    return 1;
+  }
+
+  result = perform_test_load(Idx, TU, /*filter=*/"all", /*prefix=*/NULL, FilteredPrintingVisitor, /*PostVisit=*/NULL,
+                             /*CommentSchemaFile=*/NULL);
+  clang_disposeIndex(Idx);
+  return result;
+}
+
+static int perform_file_retain_excluded_cb(const char *filename) {
+  CXIndex Idx;
+  CXTranslationUnit TU;
+  enum CXErrorCode Err;
+  int result;
+
+  Idx = clang_createIndex(/* excludeDeclsFromPCH */1,
+                          /* displayDiagnostics=*/1);
+
+  Err = clang_parseTranslationUnit2(Idx, filename,
+                                    /*command_line_args=*/NULL,
+                                    /*num_command_line_args=*/0,
+                                    /*unsaved_files=*/NULL,
+                                    /*num_unsaved_files=*/0,
+                                    CXTranslationUnit_RetainExcludedConditionalBlocks, &TU);
   if (Err != CXError_Success) {
     fprintf(stderr, "Unable to load translation unit!\n");
     describeLibclangFailure(Err);
@@ -4501,18 +4676,19 @@ static void printDiagnosticSet(CXDiagnosticSet Diags, unsigned indent) {
     CXFile File;
     CXString FileName, DiagSpelling, DiagOption, DiagCat;
     unsigned line, column, offset;
-    const char *DiagOptionStr = 0, *DiagCatStr = 0;
+    const char *FileNameStr = 0, *DiagOptionStr = 0, *DiagCatStr = 0;
     
     D = clang_getDiagnosticInSet(Diags, i);
     DiagLoc = clang_getDiagnosticLocation(D);
     clang_getExpansionLocation(DiagLoc, &File, &line, &column, &offset);
     FileName = clang_getFileName(File);
+    FileNameStr = clang_getCString(FileName);
     DiagSpelling = clang_getDiagnosticSpelling(D);
-    
+
     printIndent(indent);
     
     fprintf(stderr, "%s:%d:%d: %s: %s",
-            clang_getCString(FileName),
+            FileNameStr ? FileNameStr : "(null)",
             line,
             column,
             getSeverityString(clang_getDiagnosticSeverity(D)),
@@ -4704,6 +4880,8 @@ int cindextest_main(int argc, const char **argv) {
   }
   else if (argc >= 3 && strcmp(argv[1], "-single-file-parse") == 0)
     return perform_single_file_parse(argv[2]);
+  else if (argc >= 3 && strcmp(argv[1], "-retain-excluded-conditional-blocks") == 0)
+    return perform_file_retain_excluded_cb(argv[2]);
   else if (argc >= 4 && strcmp(argv[1], "-test-file-scan") == 0)
     return perform_file_scan(argv[2], argv[3],
                              argc >= 5 ? argv[4] : 0);
@@ -4730,6 +4908,9 @@ int cindextest_main(int argc, const char **argv) {
   else if (argc > 2 && strcmp(argv[1], "-test-print-type-declaration") == 0)
     return perform_test_load_source(argc - 2, argv + 2, "all",
                                     PrintTypeDeclaration, 0);
+  else if (argc > 2 && strcmp(argv[1], "-test-print-decl-attributes") == 0)
+    return perform_test_load_source(argc - 2, argv + 2, "all",
+                                    PrintDeclAttributes, 0);
   else if (argc > 2 && strcmp(argv[1], "-test-print-bitwidth") == 0)
     return perform_test_load_source(argc - 2, argv + 2, "all",
                                     PrintBitWidth, 0);

@@ -1,9 +1,8 @@
 //===- DWARFDie.h -----------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,6 +18,7 @@
 #include "llvm/DebugInfo/DWARF/DWARFAddressRange.h"
 #include "llvm/DebugInfo/DWARF/DWARFAttribute.h"
 #include "llvm/DebugInfo/DWARF/DWARFDebugInfoEntry.h"
+#include "llvm/DebugInfo/DWARF/DWARFDebugLoc.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -64,7 +64,7 @@ public:
   /// Get the absolute offset into the debug info or types section.
   ///
   /// \returns the DIE offset or -1U if invalid.
-  uint32_t getOffset() const {
+  uint64_t getOffset() const {
     assert(isValid() && "must check validity prior to calling");
     return Die->getOffset();
   }
@@ -180,6 +180,7 @@ public:
   /// \returns a valid DWARFDie instance if the attribute exists, or an invalid
   /// DWARFDie object if it doesn't.
   DWARFDie getAttributeValueAsReferencedDie(dwarf::Attribute Attr) const;
+  DWARFDie getAttributeValueAsReferencedDie(const DWARFFormValue &V) const;
 
   /// Extract the range base attribute from this DIE as absolute section offset.
   ///
@@ -188,6 +189,7 @@ public:
   ///
   /// \returns anm optional absolute section offset value for the attribute.
   Optional<uint64_t> getRangesBaseAttribute() const;
+  Optional<uint64_t> getLocBaseAttribute() const;
 
   /// Get the DW_AT_high_pc attribute value as an address.
   ///
@@ -229,6 +231,9 @@ public:
   void collectChildrenAddressRanges(DWARFAddressRangesVector &Ranges) const;
 
   bool addressRangeContainsAddress(const uint64_t Address) const;
+
+  Expected<DWARFLocationExpressionsVector>
+  getLocations(dwarf::Attribute Attr) const;
 
   /// If a DIE represents a subprogram (or inlined subroutine), returns its
   /// mangled name (or short name, if mangled is missing). This name may be
@@ -402,6 +407,10 @@ public:
       : Die(It.Die), AtEnd(!It.Die.getPreviousSibling()) {
     if (!AtEnd)
       Die = Die.getPreviousSibling();
+  }
+
+  llvm::DWARFDie::iterator base() const {
+    return llvm::DWARFDie::iterator(AtEnd ? Die : Die.getSibling());
   }
 
   reverse_iterator<llvm::DWARFDie::iterator> &operator++() {

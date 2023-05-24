@@ -1,9 +1,8 @@
 //===--- TransGCAttrs.cpp - Transformations to ARC mode --------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -69,6 +68,9 @@ public:
         if (handleAttr(Attr, D))
           break;
         TL = Attr.getModifiedLoc();
+      } else if (MacroQualifiedTypeLoc MDTL =
+                     TL.getAs<MacroQualifiedTypeLoc>()) {
+        TL = MDTL.getInnerLoc();
       } else if (ArrayTypeLoc Arr = TL.getAs<ArrayTypeLoc>()) {
         TL = Arr.getElementLoc();
       } else if (PointerTypeLoc PT = TL.getAs<PointerTypeLoc>()) {
@@ -81,10 +83,11 @@ public:
   }
 
   bool handleAttr(AttributedTypeLoc TL, Decl *D = nullptr) {
-    if (TL.getAttrKind() != AttributedType::attr_objc_ownership)
+    auto *OwnershipAttr = TL.getAttrAs<ObjCOwnershipAttr>();
+    if (!OwnershipAttr)
       return false;
 
-    SourceLocation Loc = TL.getAttrNameLoc();
+    SourceLocation Loc = OwnershipAttr->getLocation();
     unsigned RawLoc = Loc.getRawEncoding();
     if (MigrateCtx.AttrSet.count(RawLoc))
       return true;
@@ -93,13 +96,7 @@ public:
     SourceManager &SM = Ctx.getSourceManager();
     if (Loc.isMacroID())
       Loc = SM.getImmediateExpansionRange(Loc).getBegin();
-    SmallString<32> Buf;
-    bool Invalid = false;
-    StringRef Spell = Lexer::getSpelling(
-                                  SM.getSpellingLoc(TL.getAttrEnumOperandLoc()),
-                                  Buf, SM, Ctx.getLangOpts(), &Invalid);
-    if (Invalid)
-      return false;
+    StringRef Spell = OwnershipAttr->getKind()->getName();
     MigrationContext::GCAttrOccurrence::AttrKind Kind;
     if (Spell == "strong")
       Kind = MigrationContext::GCAttrOccurrence::Strong;
@@ -272,7 +269,7 @@ static void checkAllAtProps(MigrationContext &MigrateCtx,
     StringRef toAttr = "strong";
     if (hasWeak) {
       if (canApplyWeak(MigrateCtx.Pass.Ctx, IndProps.front()->getType(),
-                       /*AllowOnUnkwownClass=*/true))
+                       /*AllowOnUnknownClass=*/true))
         toAttr = "weak";
       else
         toAttr = "unsafe_unretained";
@@ -284,7 +281,7 @@ static void checkAllAtProps(MigrationContext &MigrateCtx,
   }
 
   for (unsigned i = 0, e = ATLs.size(); i != e; ++i) {
-    SourceLocation Loc = ATLs[i].first.getAttrNameLoc();
+    SourceLocation Loc = ATLs[i].first.getAttr()->getLocation();
     if (Loc.isMacroID())
       Loc = MigrateCtx.Pass.Ctx.getSourceManager()
                 .getImmediateExpansionRange(Loc)
@@ -340,7 +337,7 @@ void MigrationContext::dumpGCAttrs() {
     llvm::errs() << "KIND: "
         << (Attr.Kind == GCAttrOccurrence::Strong ? "strong" : "weak");
     llvm::errs() << "\nLOC: ";
-    Attr.Loc.dump(Pass.Ctx.getSourceManager());
+    Attr.Loc.print(llvm::errs(), Pass.Ctx.getSourceManager());
     llvm::errs() << "\nTYPE: ";
     Attr.ModifiedType.dump();
     if (Attr.Dcl) {

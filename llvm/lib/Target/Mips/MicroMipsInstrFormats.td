@@ -1,9 +1,8 @@
 //===-- MicroMipsInstrFormats.td - microMIPS Inst Formats -*- tablegen -*--===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -931,6 +930,17 @@ class SDBBP_FM_MM : MMArch {
   let Inst{25-16} = code_;
   let Inst{15-6}  = 0x36d;
   let Inst{5-0}   = 0x3c;
+}
+
+class SIGRIE_FM_MM : MMArch {
+  bits<16> code_;
+
+  bits<32> Inst;
+
+  let Inst{31-26} = 0x0;
+  let Inst{25-22} = 0x0;
+  let Inst{21-6} = code_;
+  let Inst{5-0} = 0b111111;
 }
 
 class RDHWR_FM_MM : MMArch {

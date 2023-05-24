@@ -1,9 +1,8 @@
 //===-- LLParser.h - Parser Class -------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -202,8 +201,9 @@ namespace llvm {
     /// GetGlobalVal - Get a value with the specified name or ID, creating a
     /// forward reference record if needed.  This can return null if the value
     /// exists but does not have the right type.
-    GlobalValue *GetGlobalVal(const std::string &Name, Type *Ty, LocTy Loc);
-    GlobalValue *GetGlobalVal(unsigned ID, Type *Ty, LocTy Loc);
+    GlobalValue *GetGlobalVal(const std::string &N, Type *Ty, LocTy Loc,
+                              bool IsCall);
+    GlobalValue *GetGlobalVal(unsigned ID, Type *Ty, LocTy Loc, bool IsCall);
 
     /// Get a Comdat with the specified name, creating a forward reference
     /// record if needed.
@@ -267,7 +267,11 @@ namespace llvm {
     bool ParseTLSModel(GlobalVariable::ThreadLocalMode &TLM);
     bool ParseOptionalThreadLocal(GlobalVariable::ThreadLocalMode &TLM);
     bool ParseOptionalUnnamedAddr(GlobalVariable::UnnamedAddr &UnnamedAddr);
-    bool ParseOptionalAddrSpace(unsigned &AddrSpace);
+    bool ParseOptionalAddrSpace(unsigned &AddrSpace, unsigned DefaultAS = 0);
+    bool ParseOptionalProgramAddrSpace(unsigned &AddrSpace) {
+      return ParseOptionalAddrSpace(
+          AddrSpace, M->getDataLayout().getProgramAddressSpace());
+    };
     bool ParseOptionalParamAttrs(AttrBuilder &B);
     bool ParseOptionalReturnAttrs(AttrBuilder &B);
     bool ParseOptionalLinkage(unsigned &Res, bool &HasLinkage,
@@ -277,14 +281,14 @@ namespace llvm {
     void ParseOptionalVisibility(unsigned &Res);
     void ParseOptionalDLLStorageClass(unsigned &Res);
     bool ParseOptionalCallingConv(unsigned &CC);
-    bool ParseOptionalAlignment(unsigned &Alignment);
+    bool ParseOptionalAlignment(MaybeAlign &Alignment);
     bool ParseOptionalDerefAttrBytes(lltok::Kind AttrKind, uint64_t &Bytes);
     bool ParseScopeAndOrdering(bool isAtomic, SyncScope::ID &SSID,
                                AtomicOrdering &Ordering);
     bool ParseScope(SyncScope::ID &SSID);
     bool ParseOrdering(AtomicOrdering &Ordering);
     bool ParseOptionalStackAlignment(unsigned &Alignment);
-    bool ParseOptionalCommaAlign(unsigned &Alignment, bool &AteExtraComma);
+    bool ParseOptionalCommaAlign(MaybeAlign &Alignment, bool &AteExtraComma);
     bool ParseOptionalCommaAddrSpace(unsigned &AddrSpace, LocTy &Loc,
                                      bool &AteExtraComma);
     bool ParseOptionalCommaInAlloca(bool &IsInAlloca);
@@ -335,6 +339,7 @@ namespace llvm {
     bool ParseFnAttributeValuePairs(AttrBuilder &B,
                                     std::vector<unsigned> &FwdRefAttrGrps,
                                     bool inAttrGrp, LocTy &BuiltinLoc);
+    bool ParseByValWithOptionalType(Type *&Result);
 
     // Module Summary Index Parsing.
     bool SkipModuleSummaryEntry();
@@ -347,6 +352,7 @@ namespace llvm {
     bool ParseVariableSummary(std::string Name, GlobalValue::GUID, unsigned ID);
     bool ParseAliasSummary(std::string Name, GlobalValue::GUID, unsigned ID);
     bool ParseGVFlags(GlobalValueSummary::GVFlags &GVFlags);
+    bool ParseGVarFlags(GlobalVarSummary::GVarFlags &GVarFlags);
     bool ParseOptionalFFlags(FunctionSummary::FFlags &FFlags);
     bool ParseOptionalCalls(std::vector<FunctionSummary::EdgeTy> &Calls);
     bool ParseHotness(CalleeInfo::HotnessType &Hotness);
@@ -363,9 +369,11 @@ namespace llvm {
                          IdToIndexMapType &IdToIndexMap, unsigned Index);
     bool ParseVFuncId(FunctionSummary::VFuncId &VFuncId,
                       IdToIndexMapType &IdToIndexMap, unsigned Index);
+    bool ParseOptionalVTableFuncs(VTableFuncList &VTableFuncs);
     bool ParseOptionalRefs(std::vector<ValueInfo> &Refs);
     bool ParseTypeIdEntry(unsigned ID);
     bool ParseTypeIdSummary(TypeIdSummary &TIS);
+    bool ParseTypeIdCompatibleVtableEntry(unsigned ID);
     bool ParseTypeTestResolution(TypeTestResolution &TTRes);
     bool ParseOptionalWpdResolutions(
         std::map<uint64_t, WholeProgramDevirtResolution> &WPDResMap);
@@ -440,13 +448,16 @@ namespace llvm {
       /// DefineBB - Define the specified basic block, which is either named or
       /// unnamed.  If there is an error, this returns null otherwise it returns
       /// the block being defined.
-      BasicBlock *DefineBB(const std::string &Name, LocTy Loc);
+      BasicBlock *DefineBB(const std::string &Name, int NameID, LocTy Loc);
 
       bool resolveForwardRefBlockAddresses();
     };
 
     bool ConvertValIDToValue(Type *Ty, ValID &ID, Value *&V,
                              PerFunctionState *PFS, bool IsCall);
+
+    Value *checkValidVariableType(LocTy Loc, const Twine &Name, Type *Ty,
+                                  Value *Val, bool IsCall);
 
     bool parseConstantValue(Type *Ty, Constant *&C);
     bool ParseValue(Type *Ty, Value *&V, PerFunctionState *PFS);
@@ -562,9 +573,12 @@ namespace llvm {
     bool ParseCatchSwitch(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseCatchPad(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseCleanupPad(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseCallBr(Instruction *&Inst, PerFunctionState &PFS);
 
+    bool ParseUnaryOp(Instruction *&Inst, PerFunctionState &PFS, unsigned Opc,
+                      bool IsFP);
     bool ParseArithmetic(Instruction *&Inst, PerFunctionState &PFS, unsigned Opc,
-                         unsigned OperandType);
+                         bool IsFP);
     bool ParseLogical(Instruction *&Inst, PerFunctionState &PFS, unsigned Opc);
     bool ParseCompare(Instruction *&Inst, PerFunctionState &PFS, unsigned Opc);
     bool ParseCast(Instruction *&Inst, PerFunctionState &PFS, unsigned Opc);
@@ -586,6 +600,7 @@ namespace llvm {
     int ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS);
     int ParseExtractValue(Instruction *&Inst, PerFunctionState &PFS);
     int ParseInsertValue(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseFreeze(Instruction *&I, PerFunctionState &PFS);
 
     // Use-list order directives.
     bool ParseUseListOrder(PerFunctionState *PFS = nullptr);

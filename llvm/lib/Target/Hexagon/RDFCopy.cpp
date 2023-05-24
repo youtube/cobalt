@@ -1,9 +1,8 @@
 //===- RDFCopy.cpp --------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -46,8 +45,8 @@ bool CopyPropagation::interpretAsCopy(const MachineInstr *MI, EqualityMap &EM) {
       const MachineOperand &Src = MI->getOperand(1);
       RegisterRef DstR = DFG.makeRegRef(Dst.getReg(), Dst.getSubReg());
       RegisterRef SrcR = DFG.makeRegRef(Src.getReg(), Src.getSubReg());
-      assert(TargetRegisterInfo::isPhysicalRegister(DstR.Reg));
-      assert(TargetRegisterInfo::isPhysicalRegister(SrcR.Reg));
+      assert(Register::isPhysicalRegister(DstR.Reg));
+      assert(Register::isPhysicalRegister(SrcR.Reg));
       const TargetRegisterInfo &TRI = DFG.getTRI();
       if (TRI.getMinimalPhysRegClass(DstR.Reg) !=
           TRI.getMinimalPhysRegClass(SrcR.Reg))

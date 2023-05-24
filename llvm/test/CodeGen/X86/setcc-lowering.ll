@@ -24,8 +24,7 @@ define <8 x i16> @pr25080(<8 x i32> %a) {
 ; KNL-32-LABEL: pr25080:
 ; KNL-32:       # %bb.0: # %entry
 ; KNL-32-NEXT:    # kill: def $ymm0 killed $ymm0 def $zmm0
-; KNL-32-NEXT:    vpbroadcastd {{.*#+}} ymm1 = [8388607,8388607,8388607,8388607,8388607,8388607,8388607,8388607]
-; KNL-32-NEXT:    vptestnmd %zmm1, %zmm0, %k0
+; KNL-32-NEXT:    vptestnmd {{\.LCPI.*}}{1to16}, %zmm0, %k0
 ; KNL-32-NEXT:    movb $15, %al
 ; KNL-32-NEXT:    kmovw %eax, %k1
 ; KNL-32-NEXT:    korw %k1, %k0, %k1
@@ -45,19 +44,17 @@ define void @pr26232(i64 %a, <16 x i1> %b) {
 ; AVX-LABEL: pr26232:
 ; AVX:       # %bb.0: # %allocas
 ; AVX-NEXT:    vpxor %xmm1, %xmm1, %xmm1
-; AVX-NEXT:    vmovdqa {{.*#+}} xmm2 = [128,128,128,128,128,128,128,128,128,128,128,128,128,128,128,128]
 ; AVX-NEXT:    .p2align 4, 0x90
 ; AVX-NEXT:  .LBB1_1: # %for_loop599
 ; AVX-NEXT:    # =>This Inner Loop Header: Depth=1
 ; AVX-NEXT:    xorl %eax, %eax
 ; AVX-NEXT:    cmpq $65536, %rdi # imm = 0x10000
 ; AVX-NEXT:    setl %al
-; AVX-NEXT:    vmovd %eax, %xmm3
-; AVX-NEXT:    vpshufb %xmm1, %xmm3, %xmm3
-; AVX-NEXT:    vpand %xmm0, %xmm3, %xmm3
-; AVX-NEXT:    vpsllw $7, %xmm3, %xmm3
-; AVX-NEXT:    vpand %xmm2, %xmm3, %xmm3
-; AVX-NEXT:    vpmovmskb %xmm3, %eax
+; AVX-NEXT:    vmovd %eax, %xmm2
+; AVX-NEXT:    vpshufb %xmm1, %xmm2, %xmm2
+; AVX-NEXT:    vpand %xmm0, %xmm2, %xmm2
+; AVX-NEXT:    vpsllw $7, %xmm2, %xmm2
+; AVX-NEXT:    vpmovmskb %xmm2, %eax
 ; AVX-NEXT:    testw %ax, %ax
 ; AVX-NEXT:    jne .LBB1_1
 ; AVX-NEXT:  # %bb.2: # %for_exit600

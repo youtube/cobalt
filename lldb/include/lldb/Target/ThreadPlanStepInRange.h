@@ -1,19 +1,14 @@
 //===-- ThreadPlanStepInRange.h ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef liblldb_ThreadPlanStepInRange_h_
 #define liblldb_ThreadPlanStepInRange_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/AddressRange.h"
 #include "lldb/Target/StackID.h"
 #include "lldb/Target/Thread.h"
@@ -58,7 +53,7 @@ protected:
   static bool DefaultShouldStopHereCallback(ThreadPlan *current_plan,
                                             Flags &flags,
                                             lldb::FrameComparison operation,
-                                            void *baton);
+                                            Status &status, void *baton);
 
   bool DoWillResume(lldb::StateType resume_state, bool current_plan) override;
 
@@ -80,11 +75,11 @@ private:
   friend lldb::ThreadPlanSP Thread::QueueThreadPlanForStepOverRange(
       bool abort_other_plans, const AddressRange &range,
       const SymbolContext &addr_context, lldb::RunMode stop_others,
-      LazyBool avoid_code_without_debug_info);
+      Status &status, LazyBool avoid_code_without_debug_info);
   friend lldb::ThreadPlanSP Thread::QueueThreadPlanForStepInRange(
       bool abort_other_plans, const AddressRange &range,
       const SymbolContext &addr_context, const char *step_in_target,
-      lldb::RunMode stop_others,
+      lldb::RunMode stop_others, Status &status,
       LazyBool step_in_avoids_code_without_debug_info,
       LazyBool step_out_avoids_code_without_debug_info);
 
@@ -97,7 +92,7 @@ private:
                                          // for the ThreadPlanStepThrough.
   lldb::ThreadPlanSP m_sub_plan_sp;      // Keep track of the last plan we were
                                     // running.  If it fails, we should stop.
-  std::unique_ptr<RegularExpression> m_avoid_regexp_ap;
+  std::unique_ptr<RegularExpression> m_avoid_regexp_up;
   bool m_step_past_prologue; // FIXME: For now hard-coded to true, we could put
                              // a switch in for this if there's
                              // demand for that.

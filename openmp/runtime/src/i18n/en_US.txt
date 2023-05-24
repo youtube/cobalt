@@ -3,10 +3,9 @@
 #
 #//===----------------------------------------------------------------------===//
 #//
-#//                     The LLVM Compiler Infrastructure
-#//
-#// This file is dual licensed under the MIT and the University of Illinois Open
-#// Source Licenses. See LICENSE.txt for details.
+#// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+#// See https://llvm.org/LICENSE.txt for license information.
+#// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #//
 #//===----------------------------------------------------------------------===//
 #
@@ -294,7 +293,7 @@ AffUseGlobCpuid              "%1$s: Affinity capable, using global cpuid info"
 AffCapableUseFlat            "%1$s: Affinity capable, using default \"flat\" topology"
 AffNotCapableUseLocCpuid     "%1$s: Affinity not capable, using local cpuid info"
 AffNotCapableUseCpuinfo      "%1$s: Affinity not capable, using cpuinfo file"
-AffFlatTopology              "%1$s: Affinity not capable, assumming \"flat\" topology"
+AffFlatTopology              "%1$s: Affinity not capable, assuming \"flat\" topology"
 InitOSProcSetRespect         "%1$s: Initial OS proc set respected: %2$s"
 InitOSProcSetNotRespect      "%1$s: Initial OS proc set not respected: %2$s"
 AvailableOSProc              "%1$s: %2$d available OS procs"
@@ -333,6 +332,7 @@ TopologyExtraNode            "%1$s: %2$d packages x %3$d nodes/pkg x %4$d cores/
 TopologyExtraNoTi            "%1$s: %2$d packages x %3$d nodes/pkg x %4$d tiles/node x %5$d cores/tile x %6$d threads/core (%7$d total cores)"
 OmptOutdatedWorkshare        "OMPT: Cannot determine workshare type; using the default (loop) instead. "
                              "This issue is fixed in an up-to-date compiler."
+OmpNoAllocator               "Allocator %1$s is not available, will use default allocator."
 
 # --- OpenMP errors detected at runtime ---
 #
@@ -372,7 +372,7 @@ AffParseFilename             "%1$s: parsing %2$s."
 MsgExiting                   "%1$s - exiting."
 IncompatibleLibrary          "Incompatible %1$s library with version %2$s found."
 IttFunctionError             "ittnotify: Function %1$s failed:"
-IttUnknownError              "ittnofify: Error #%1$d."
+IttUnknownError              "ittnotify: Error #%1$d."
 EnvMiddleWarn                "%1$s must be set prior to first parallel region or certain API calls; ignored."
 CnsLockNotDestroyed          "Lock initialized at %1$s(%2$d) was not destroyed"
                                  # %1, %2, %3, %4 -- file, line, func, col
@@ -424,7 +424,8 @@ AffHWSubsetManyNodes         "KMP_HW_SUBSET ignored: too many NUMA Nodes request
 AffHWSubsetManyTiles         "KMP_HW_SUBSET ignored: too many L2 Caches requested."
 AffHWSubsetManyProcs         "KMP_HW_SUBSET ignored: too many Procs requested."
 HierSchedInvalid             "Hierarchy ignored: unsupported level: %1$s."
-
+AffFormatDefault             "OMP: pid %1$s tid %2$s thread %3$s bound to OS proc set {%4$s}"
+APIDeprecated                "%1$s routine deprecated, please use %2$s instead."
 
 # --------------------------------------------------------------------------------------------------
 -*- HINTS -*-
@@ -488,4 +489,3 @@ SystemLimitOnThreads         "System-related limit on the number of threads."
 # --------------------------------------------------------------------------------------------------
 # end of file #
 # --------------------------------------------------------------------------------------------------
-

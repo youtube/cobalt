@@ -89,7 +89,6 @@ llvm_config.use_default_substitutions()
 config.substitutions.append(('%llvmshlibdir', config.llvm_shlib_dir))
 config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 config.substitutions.append(('%exeext', config.llvm_exe_ext))
-config.substitutions.append(('%host_cc', config.host_cc))
 
 
 lli_args = []
@@ -98,15 +97,15 @@ lli_args = []
 # we don't support COFF in MCJIT well enough for the tests, force ELF format on
 # Windows.  FIXME: the process target triple should be used here, but this is
 # difficult to obtain on Windows.
-if re.search(r'cygwin|mingw32|windows-gnu|windows-msvc|win32', config.host_triple):
+if re.search(r'cygwin|windows-gnu|windows-msvc', config.host_triple):
     lli_args = ['-mtriple=' + config.host_triple + '-elf']
 
 llc_args = []
 
-# Similarly, have a macro to use llc with DWARF even when the host is win32.
-if re.search(r'win32', config.target_triple):
+# Similarly, have a macro to use llc with DWARF even when the host is Windows
+if re.search(r'windows-msvc', config.target_triple):
     llc_args = [' -mtriple=' +
-                config.target_triple.replace('-win32', '-mingw32')]
+                config.target_triple.replace('-msvc', '-gnu')]
 
 # Provide the path to asan runtime lib if available. On darwin, this lib needs
 # to be loaded via DYLD_INSERT_LIBRARIES before libLTO.dylib in case the files
@@ -125,6 +124,11 @@ if config.have_ocamlopt:
 
 opt_viewer_cmd = '%s %s/tools/opt-viewer/opt-viewer.py' % (sys.executable, config.llvm_src_root)
 
+llvm_locstats_tool = os.path.join(config.llvm_tools_dir, 'llvm-locstats')
+config.substitutions.append(
+    ('%llvm-locstats', "'%s' %s" % (config.python_executable, llvm_locstats_tool)))
+config.llvm_locstats_used = os.path.exists(llvm_locstats_tool)
+
 tools = [
     ToolSubst('%lli', FindTool('lli'), post='.', extra_args=lli_args),
     ToolSubst('%llc_dwarf', FindTool('llc'), extra_args=llc_args),
@@ -136,19 +140,22 @@ tools = [
     ToolSubst('%opt-viewer', opt_viewer_cmd),
     ToolSubst('%llvm-objcopy', FindTool('llvm-objcopy')),
     ToolSubst('%llvm-strip', FindTool('llvm-strip')),
+    ToolSubst('%llvm-install-name-tool', FindTool('llvm-install-name-tool')),
 ]
 
 # FIXME: Why do we have both `lli` and `%lli` that do slightly different things?
 tools.extend([
-    'dsymutil', 'lli', 'lli-child-target', 'llvm-ar', 'llvm-as', 'llvm-bcanalyzer',
-    'llvm-config', 'llvm-cov', 'llvm-cxxdump', 'llvm-cvtres', 'llvm-diff', 'llvm-dis',
-    'llvm-dwarfdump', 'llvm-extract', 'llvm-isel-fuzzer', 'llvm-opt-fuzzer', 'llvm-lib',
+    'dsymutil', 'lli', 'lli-child-target', 'llvm-ar', 'llvm-as',
+    'llvm-bcanalyzer', 'llvm-config', 'llvm-cov', 'llvm-cxxdump', 'llvm-cvtres',
+    'llvm-diff', 'llvm-dis', 'llvm-dwarfdump', 'llvm-exegesis', 'llvm-extract',
+    'llvm-isel-fuzzer', 'llvm-ifs', 'llvm-install-name-tool',
+    'llvm-jitlink', 'llvm-opt-fuzzer', 'llvm-lib',
     'llvm-link', 'llvm-lto', 'llvm-lto2', 'llvm-mc', 'llvm-mca',
     'llvm-modextract', 'llvm-nm', 'llvm-objcopy', 'llvm-objdump',
-    'llvm-pdbutil', 'llvm-profdata', 'llvm-ranlib', 'llvm-readobj',
-    'llvm-rtdyld', 'llvm-size', 'llvm-split', 'llvm-strings', 'llvm-strip', 'llvm-tblgen',
-    'llvm-undname', 'llvm-c-test', 'llvm-cxxfilt', 'llvm-xray', 'yaml2obj', 'obj2yaml',
-    'yaml-bench', 'verify-uselistorder',
+    'llvm-pdbutil', 'llvm-profdata', 'llvm-ranlib', 'llvm-rc', 'llvm-readelf',
+    'llvm-readobj', 'llvm-rtdyld', 'llvm-size', 'llvm-split', 'llvm-strings',
+    'llvm-strip', 'llvm-tblgen', 'llvm-undname', 'llvm-c-test', 'llvm-cxxfilt',
+    'llvm-xray', 'yaml2obj', 'obj2yaml', 'yaml-bench', 'verify-uselistorder',
     'bugpoint', 'llc', 'llvm-symbolizer', 'opt', 'sancov', 'sanstats'])
 
 # The following tools are optional
@@ -177,20 +184,30 @@ if (config.host_ldflags.find("-m32") < 0
     and any(config.llvm_host_triple.startswith(x) for x in known_arches)):
   config.available_features.add("llvm-64-bits")
 
-# Others/can-execute.txt
-if sys.platform not in ['win32']:
+config.available_features.add("host-byteorder-" + sys.byteorder + "-endian")
+
+if sys.platform in ['win32']:
+    # ExecutionEngine, no weak symbols in COFF.
+    config.available_features.add('uses_COFF')
+else:
+    # Others/can-execute.txt
     config.available_features.add('can-execute')
-    config.available_features.add('not_COFF')
 
 # Loadable module
-# FIXME: This should be supplied by Makefile or autoconf.
-if sys.platform in ['win32', 'cygwin']:
-    loadable_module = (config.enable_shared == 1)
-else:
-    loadable_module = True
+if config.has_plugins:
+    config.available_features.add('plugins')
 
-if loadable_module:
-    config.available_features.add('loadable_module')
+if config.build_examples:
+    config.available_features.add('examples')
+
+if config.linked_bye_extension:
+    config.substitutions.append(('%llvmcheckext', 'CHECK-EXT'))
+    config.substitutions.append(('%loadbye', ''))
+else:
+    config.substitutions.append(('%llvmcheckext', 'CHECK-NOEXT'))
+    config.substitutions.append(('%loadbye',
+                                 '-load={}/Bye{}'.format(config.llvm_shlib_dir,
+                                                                  config.llvm_shlib_ext)))
 
 # Static libraries are not built if BUILD_SHARED_LIBS is ON.
 if not config.build_shared_libs and not config.link_llvm_dylib:
@@ -225,6 +242,9 @@ def have_cxx_shared_library():
 
 if have_cxx_shared_library():
     config.available_features.add('cxx-shared-library')
+
+if config.libcxx_used:
+    config.available_features.add('libcxx-used')
 
 # Direct object generation
 if not 'hexagon' in config.target_triple:
@@ -278,7 +298,10 @@ if have_ld_plugin_support():
 
 
 def have_ld64_plugin_support():
-    if not config.llvm_tool_lto_build or config.ld64_executable == '':
+    if not os.path.exists(os.path.join(config.llvm_shlib_dir, 'libLTO' + config.llvm_shlib_ext)):
+        return False
+
+    if config.ld64_executable == '':
         return False
 
     ld_cmd = subprocess.Popen(
@@ -312,13 +335,16 @@ if 'darwin' == sys.platform:
     sysctl_cmd.wait()
 
 # .debug_frame is not emitted for targeting Windows x64.
-if not re.match(r'^x86_64.*-(mingw32|windows-gnu|win32)', config.target_triple):
+if not re.match(r'^x86_64.*-(windows-gnu|windows-msvc)', config.target_triple):
     config.available_features.add('debug_frame')
 
 if config.have_libxar:
     config.available_features.add('xar')
 
-if config.llvm_libxml2_enabled == '1':
+if config.enable_threads:
+    config.available_features.add('thread_support')
+
+if config.llvm_libxml2_enabled:
     config.available_features.add('libxml2')
 
 if config.have_opt_viewer_modules:

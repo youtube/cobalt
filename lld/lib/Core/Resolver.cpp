@@ -1,9 +1,8 @@
 //===- Core/Resolver.cpp - Resolves Atom References -----------------------===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -224,8 +223,8 @@ bool Resolver::resolveUndefines() {
     if (!file)
       return true;
     if (std::error_code ec = file->parse()) {
-      llvm::errs() << "Cannot open " + file->path()
-                   << ": " << ec.message() << "\n";
+      llvm::errs() << "Cannot open " + file->path() << ": " << ec.message()
+                   << "\n";
       return false;
     }
     DEBUG_WITH_TYPE("resolver",
@@ -425,9 +424,8 @@ bool Resolver::checkUndefines() {
     // Seems like this symbol is undefined. Warn that.
     foundUndefines = true;
     if (_ctx.printRemainingUndefines()) {
-      llvm::errs() << "Undefined symbol: " << undef->file().path()
-                   << ": " << _ctx.demangle(undef->name())
-                   << "\n";
+      llvm::errs() << "Undefined symbol: " << undef->file().path() << ": "
+                   << _ctx.demangle(undef->name()) << "\n";
     }
   }
   if (!foundUndefines)
@@ -437,7 +435,7 @@ bool Resolver::checkUndefines() {
   return true;
 }
 
-// remove from _atoms all coaleseced away atoms
+// Remove from _atoms all coalesced away atoms.
 void Resolver::removeCoalescedAwayAtoms() {
   DEBUG_WITH_TYPE("resolver",
                   llvm::dbgs() << "******** Removing coalesced away atoms:\n");

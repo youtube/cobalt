@@ -1,9 +1,8 @@
 //===------------- PPCExpandISEL.cpp - Expand ISEL instruction ------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -392,7 +391,7 @@ void PPCExpandISEL::reorganizeBlockLayout(BlockISELList &BIL,
     // liveness state at the end of MBB (liveOut of MBB) as the liveIn for
     // NewSuccessor. Otherwise, will cause cyclic dependence.
     LivePhysRegs LPR(*MF->getSubtarget<PPCSubtarget>().getRegisterInfo());
-    SmallVector<std::pair<unsigned, const MachineOperand *>, 2> Clobbers;
+    SmallVector<std::pair<MCPhysReg, const MachineOperand *>, 2> Clobbers;
     for (MachineInstr &MI : *MBB)
       LPR.stepForward(MI, Clobbers);
     for (auto &LI : LPR)

@@ -1,14 +1,14 @@
 //===- DbiStreamBuilder.cpp - PDB Dbi Stream Creation -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/DebugInfo/PDB/Native/GSIStreamBuilder.h"
 
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/DebugInfo/CodeView/RecordName.h"
 #include "llvm/DebugInfo/CodeView/SymbolDeserializer.h"
 #include "llvm/DebugInfo/CodeView/SymbolRecord.h"
@@ -20,6 +20,7 @@
 #include "llvm/DebugInfo/PDB/Native/Hash.h"
 #include "llvm/Support/BinaryItemStream.h"
 #include "llvm/Support/BinaryStreamWriter.h"
+#include "llvm/Support/xxhash.h"
 #include <algorithm>
 #include <vector>
 
@@ -29,8 +30,27 @@ using namespace llvm::pdb;
 using namespace llvm::codeview;
 
 struct llvm::pdb::GSIHashStreamBuilder {
+  struct SymbolDenseMapInfo {
+    static inline CVSymbol getEmptyKey() {
+      static CVSymbol Empty;
+      return Empty;
+    }
+    static inline CVSymbol getTombstoneKey() {
+      static CVSymbol Tombstone(
+          DenseMapInfo<ArrayRef<uint8_t>>::getTombstoneKey());
+      return Tombstone;
+    }
+    static unsigned getHashValue(const CVSymbol &Val) {
+      return xxHash64(Val.RecordData);
+    }
+    static bool isEqual(const CVSymbol &LHS, const CVSymbol &RHS) {
+      return LHS.RecordData == RHS.RecordData;
+    }
+  };
+
   std::vector<CVSymbol> Records;
   uint32_t StreamIndex;
+  llvm::DenseSet<CVSymbol, SymbolDenseMapInfo> SymbolHashes;
   std::vector<PSHashRecord> HashRecords;
   std::array<support::ulittle32_t, (IPHR_HASH + 32) / 32> HashBitmap;
   std::vector<support::ulittle32_t> HashBuckets;
@@ -42,10 +62,18 @@ struct llvm::pdb::GSIHashStreamBuilder {
 
   template <typename T> void addSymbol(const T &Symbol, MSFBuilder &Msf) {
     T Copy(Symbol);
-    Records.push_back(SymbolSerializer::writeOneSymbol(Copy, Msf.getAllocator(),
-                                                       CodeViewContainer::Pdb));
+    addSymbol(SymbolSerializer::writeOneSymbol(Copy, Msf.getAllocator(),
+                                               CodeViewContainer::Pdb));
   }
-  void addSymbol(const CVSymbol &Symbol) { Records.push_back(Symbol); }
+  void addSymbol(const CVSymbol &Symbol) {
+    if (Symbol.kind() == S_UDT || Symbol.kind() == S_CONSTANT) {
+      auto Iter = SymbolHashes.insert(Symbol);
+      if (!Iter.second)
+        return;
+    }
+
+    Records.push_back(Symbol);
+  }
 };
 
 uint32_t GSIHashStreamBuilder::calculateSerializedLength() const {
@@ -144,11 +172,10 @@ void GSIHashStreamBuilder::finalizeBuckets(uint32_t RecordZeroOffset) {
     // can properly early-out when it detects the record won't be found.  The
     // algorithm used here corredsponds to the function
     // caseInsensitiveComparePchPchCchCch in the reference implementation.
-    llvm::sort(Bucket.begin(), Bucket.end(),
-              [](const std::pair<StringRef, PSHashRecord> &Left,
-                 const std::pair<StringRef, PSHashRecord> &Right) {
-                return gsiRecordLess(Left.first, Right.first);
-              });
+    llvm::sort(Bucket, [](const std::pair<StringRef, PSHashRecord> &Left,
+                          const std::pair<StringRef, PSHashRecord> &Right) {
+      return gsiRecordLess(Left.first, Right.first);
+    });
 
     for (const auto &Entry : Bucket)
       HashRecords.push_back(Entry.second);
@@ -156,8 +183,8 @@ void GSIHashStreamBuilder::finalizeBuckets(uint32_t RecordZeroOffset) {
 }
 
 GSIStreamBuilder::GSIStreamBuilder(msf::MSFBuilder &Msf)
-    : Msf(Msf), PSH(llvm::make_unique<GSIHashStreamBuilder>()),
-      GSH(llvm::make_unique<GSIHashStreamBuilder>()) {}
+    : Msf(Msf), PSH(std::make_unique<GSIHashStreamBuilder>()),
+      GSH(std::make_unique<GSIHashStreamBuilder>()) {}
 
 GSIStreamBuilder::~GSIStreamBuilder() {}
 
@@ -235,8 +262,7 @@ static std::vector<ulittle32_t> computeAddrMap(ArrayRef<CVSymbol> Records) {
     SymOffsets.push_back(SymOffset);
     SymOffset += Sym.length();
   }
-  std::stable_sort(PublicsByAddr.begin(), PublicsByAddr.end(),
-                   comparePubSymByAddrAndName);
+  llvm::stable_sort(PublicsByAddr, comparePubSymByAddrAndName);
 
   // Fill in the symbol offsets in the appropriate order.
   std::vector<ulittle32_t> AddrMap;
@@ -273,10 +299,6 @@ void GSIStreamBuilder::addGlobalSymbol(const ConstantSym &Sym) {
   GSH->addSymbol(Sym, Msf);
 }
 
-void GSIStreamBuilder::addGlobalSymbol(const UDTSym &Sym) {
-  GSH->addSymbol(Sym, Msf);
-}
-
 void GSIStreamBuilder::addGlobalSymbol(const codeview::CVSymbol &Sym) {
   GSH->addSymbol(Sym);
 }
@@ -310,13 +332,14 @@ Error GSIStreamBuilder::commitPublicsHashStream(
   PublicsStreamHeader Header;
 
   // FIXME: Fill these in. They are for incremental linking.
+  Header.SymHash = PSH->calculateSerializedLength();
+  Header.AddrMap = PSH->Records.size() * 4;
   Header.NumThunks = 0;
   Header.SizeOfThunk = 0;
   Header.ISectThunkTable = 0;
+  memset(Header.Padding, 0, sizeof(Header.Padding));
   Header.OffThunkTable = 0;
   Header.NumSections = 0;
-  Header.SymHash = PSH->calculateSerializedLength();
-  Header.AddrMap = PSH->Records.size() * 4;
   if (auto EC = Writer.writeObject(Header))
     return EC;
 

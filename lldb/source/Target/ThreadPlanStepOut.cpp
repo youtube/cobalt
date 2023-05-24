@@ -1,16 +1,11 @@
 //===-- ThreadPlanStepOut.cpp -----------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/ThreadPlanStepOut.h"
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Core/Value.h"
@@ -28,14 +23,14 @@
 #include "lldb/Target/ThreadPlanStepThrough.h"
 #include "lldb/Utility/Log.h"
 
+#include <memory>
+
 using namespace lldb;
 using namespace lldb_private;
 
 uint32_t ThreadPlanStepOut::s_default_flag_values = 0;
 
-//----------------------------------------------------------------------
 // ThreadPlanStepOut: Step out of the current frame
-//----------------------------------------------------------------------
 ThreadPlanStepOut::ThreadPlanStepOut(
     Thread &thread, SymbolContext *context, bool first_insn, bool stop_others,
     Vote stop_vote, Vote run_vote, uint32_t frame_idx,
@@ -48,17 +43,35 @@ ThreadPlanStepOut::ThreadPlanStepOut(
       m_return_addr(LLDB_INVALID_ADDRESS), m_stop_others(stop_others),
       m_immediate_step_from_function(nullptr),
       m_calculate_return_value(gather_return_value) {
+  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
   SetFlagsToDefault();
   SetupAvoidNoDebug(step_out_avoids_code_without_debug_info);
 
   m_step_from_insn = m_thread.GetRegisterContext()->GetPC(0);
 
-  StackFrameSP return_frame_sp(m_thread.GetStackFrameAtIndex(frame_idx + 1));
+  uint32_t return_frame_index = frame_idx + 1;
+  StackFrameSP return_frame_sp(
+      m_thread.GetStackFrameAtIndex(return_frame_index));
   StackFrameSP immediate_return_from_sp(
       m_thread.GetStackFrameAtIndex(frame_idx));
 
   if (!return_frame_sp || !immediate_return_from_sp)
     return; // we can't do anything here.  ValidatePlan() will return false.
+
+  // While stepping out, behave as-if artificial frames are not present.
+  while (return_frame_sp->IsArtificial()) {
+    m_stepped_past_frames.push_back(return_frame_sp);
+
+    ++return_frame_index;
+    return_frame_sp = m_thread.GetStackFrameAtIndex(return_frame_index);
+
+    // We never expect to see an artificial frame without a regular ancestor.
+    // If this happens, log the issue and defensively refuse to step out.
+    if (!return_frame_sp) {
+      LLDB_LOG(log, "Can't step out of frame with artificial ancestors");
+      return;
+    }
+  }
 
   m_step_out_to_id = return_frame_sp->GetStackID();
   m_immediate_step_from_id = immediate_return_from_sp->GetStackID();
@@ -67,13 +80,13 @@ ThreadPlanStepOut::ThreadPlanStepOut(
   // have to be a little more careful.  It is non-trivial to determine the real
   // "return code address" for an inlined frame, so we have to work our way to
   // that frame and then step out.
-  if (immediate_return_from_sp && immediate_return_from_sp->IsInlined()) {
+  if (immediate_return_from_sp->IsInlined()) {
     if (frame_idx > 0) {
       // First queue a plan that gets us to this inlined frame, and when we get
       // there we'll queue a second plan that walks us out of this frame.
-      m_step_out_to_inline_plan_sp.reset(new ThreadPlanStepOut(
+      m_step_out_to_inline_plan_sp = std::make_shared<ThreadPlanStepOut>(
           m_thread, nullptr, false, stop_others, eVoteNoOpinion, eVoteNoOpinion,
-          frame_idx - 1, eLazyBoolNo, continue_to_next_branch));
+          frame_idx - 1, eLazyBoolNo, continue_to_next_branch);
       static_cast<ThreadPlanStepOut *>(m_step_out_to_inline_plan_sp.get())
           ->SetShouldStopHereCallbacks(nullptr, nullptr);
       m_step_out_to_inline_plan_sp->SetPrivate(true);
@@ -82,7 +95,7 @@ ThreadPlanStepOut::ThreadPlanStepOut(
       // just do that now.
       QueueInlinedStepPlan(false);
     }
-  } else if (return_frame_sp) {
+  } else {
     // Find the return address and set a breakpoint there:
     // FIXME - can we do this more securely if we know first_insn?
 
@@ -97,8 +110,9 @@ ThreadPlanStepOut::ThreadPlanStepOut(
       return_address_decr_pc.CalculateSymbolContext(
           &return_address_sc, lldb::eSymbolContextLineEntry);
       if (return_address_sc.line_entry.IsValid()) {
-        range =
-            return_address_sc.line_entry.GetSameLineContiguousAddressRange();
+        const bool include_inlined_functions = false;
+        range = return_address_sc.line_entry.GetSameLineContiguousAddressRange(
+            include_inlined_functions);
         if (range.GetByteSize() > 0) {
           return_address =
               m_thread.GetProcess()->AdvanceAddressToNextBranchInstruction(
@@ -112,10 +126,32 @@ ThreadPlanStepOut::ThreadPlanStepOut(
     if (m_return_addr == LLDB_INVALID_ADDRESS)
       return;
 
+    // Perform some additional validation on the return address.
+    uint32_t permissions = 0;
+    if (!m_thread.GetProcess()->GetLoadAddressPermissions(m_return_addr,
+                                                          permissions)) {
+      m_constructor_errors.Printf("Return address (0x%" PRIx64
+                                  ") permissions not found.",
+                                  m_return_addr);
+      LLDB_LOGF(log, "ThreadPlanStepOut(%p): %s", static_cast<void *>(this),
+                m_constructor_errors.GetData());
+      return;
+    } else if (!(permissions & ePermissionsExecutable)) {
+      m_constructor_errors.Printf("Return address (0x%" PRIx64
+                                  ") did not point to executable memory.",
+                                  m_return_addr);
+      LLDB_LOGF(log, "ThreadPlanStepOut(%p): %s", static_cast<void *>(this),
+                m_constructor_errors.GetData());
+      return;
+    }
+
     Breakpoint *return_bp = m_thread.CalculateTarget()
                                 ->CreateBreakpoint(m_return_addr, true, false)
                                 .get();
+
     if (return_bp != nullptr) {
+      if (return_bp->IsHardware() && !return_bp->HasResolvedLocations())
+        m_could_not_resolve_hw_bp = true;
       return_bp->SetThreadID(m_thread.GetID());
       m_return_bp_id = return_bp->GetID();
       return_bp->SetBreakpointKind("step-out");
@@ -198,19 +234,40 @@ void ThreadPlanStepOut::GetDescription(Stream *s,
         s->Printf(" using breakpoint site %d", m_return_bp_id);
     }
   }
+
+  s->Printf("\n");
+  for (StackFrameSP frame_sp : m_stepped_past_frames) {
+    s->Printf("Stepped out past: ");
+    frame_sp->DumpUsingSettingsFormat(s);
+  }
 }
 
 bool ThreadPlanStepOut::ValidatePlan(Stream *error) {
   if (m_step_out_to_inline_plan_sp)
     return m_step_out_to_inline_plan_sp->ValidatePlan(error);
-  else if (m_step_through_inline_plan_sp)
+
+  if (m_step_through_inline_plan_sp)
     return m_step_through_inline_plan_sp->ValidatePlan(error);
-  else if (m_return_bp_id == LLDB_INVALID_BREAK_ID) {
+
+  if (m_could_not_resolve_hw_bp) {
     if (error)
-      error->PutCString("Could not create return address breakpoint.");
+      error->PutCString(
+          "Could not create hardware breakpoint for thread plan.");
     return false;
-  } else
-    return true;
+  }
+
+  if (m_return_bp_id == LLDB_INVALID_BREAK_ID) {
+    if (error) {
+      error->PutCString("Could not create return address breakpoint.");
+      if (m_constructor_errors.GetSize() > 0) {
+        error->PutCString(" ");
+        error->PutCString(m_constructor_errors.GetString());
+      }
+    }
+    return false;
+  }
+
+  return true;
 }
 
 bool ThreadPlanStepOut::DoPlanExplainsStop(Event *event_ptr) {
@@ -257,7 +314,7 @@ bool ThreadPlanStepOut::DoPlanExplainsStop(Event *event_ptr) {
         }
 
         if (done) {
-          if (InvokeShouldStopHereCallback(eFrameCompareOlder)) {
+          if (InvokeShouldStopHereCallback(eFrameCompareOlder, m_status)) {
             CalculateReturnValue();
             SetPlanComplete();
           }
@@ -319,12 +376,12 @@ bool ThreadPlanStepOut::ShouldStop(Event *event_ptr) {
   // is consult the ShouldStopHere, and we are done.
 
   if (done) {
-    if (InvokeShouldStopHereCallback(eFrameCompareOlder)) {
+    if (InvokeShouldStopHereCallback(eFrameCompareOlder, m_status)) {
       CalculateReturnValue();
       SetPlanComplete();
     } else {
       m_step_out_further_plan_sp =
-          QueueStepOutFromHerePlan(m_flags, eFrameCompareOlder);
+          QueueStepOutFromHerePlan(m_flags, eFrameCompareOlder, m_status);
       done = false;
     }
   }
@@ -375,7 +432,7 @@ bool ThreadPlanStepOut::MischiefManaged() {
 
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
     if (log)
-      log->Printf("Completed step out plan.");
+      LLDB_LOGF(log, "Completed step out plan.");
     if (m_return_bp_id != LLDB_INVALID_BREAK_ID) {
       m_thread.CalculateTarget()->RemoveBreakpointByID(m_return_bp_id);
       m_return_bp_id = LLDB_INVALID_BREAK_ID;
@@ -400,7 +457,7 @@ bool ThreadPlanStepOut::QueueInlinedStepPlan(bool queue_now) {
   if (log) {
     StreamString s;
     immediate_return_from_sp->Dump(&s, true, false);
-    log->Printf("Queuing inlined frame to step past: %s.", s.GetData());
+    LLDB_LOGF(log, "Queuing inlined frame to step past: %s.", s.GetData());
   }
 
   Block *from_block = immediate_return_from_sp->GetFrameBlock();
@@ -417,8 +474,9 @@ bool ThreadPlanStepOut::QueueInlinedStepPlan(bool queue_now) {
             m_stop_others ? lldb::eOnlyThisThread : lldb::eAllThreads;
         const LazyBool avoid_no_debug = eLazyBoolNo;
 
-        m_step_through_inline_plan_sp.reset(new ThreadPlanStepOverRange(
-            m_thread, inline_range, inlined_sc, run_mode, avoid_no_debug));
+        m_step_through_inline_plan_sp =
+            std::make_shared<ThreadPlanStepOverRange>(
+                m_thread, inline_range, inlined_sc, run_mode, avoid_no_debug);
         ThreadPlanStepOverRange *step_through_inline_plan_ptr =
             static_cast<ThreadPlanStepOverRange *>(
                 m_step_through_inline_plan_sp.get());

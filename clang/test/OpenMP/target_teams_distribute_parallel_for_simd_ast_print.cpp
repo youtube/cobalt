@@ -1,10 +1,10 @@
-// RUN: %clang_cc1 -verify -fopenmp -ast-print %s -Wno-openmp-target | FileCheck %s
-// RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s -Wno-openmp-target
-// RUN: %clang_cc1 -fopenmp -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print -Wno-openmp-target | FileCheck %s
+// RUN: %clang_cc1 -verify -fopenmp -ast-print %s -Wno-openmp-mapping | FileCheck %s
+// RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -emit-pch -o %t %s -Wno-openmp-mapping
+// RUN: %clang_cc1 -fopenmp -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print -Wno-openmp-mapping | FileCheck %s
 
-// RUN: %clang_cc1 -verify -fopenmp-simd -ast-print %s -Wno-openmp-target | FileCheck %s
-// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -emit-pch -o %t %s -Wno-openmp-target
-// RUN: %clang_cc1 -fopenmp-simd -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print -Wno-openmp-target | FileCheck %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -ast-print %s -Wno-openmp-mapping | FileCheck %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -emit-pch -o %t %s -Wno-openmp-mapping
+// RUN: %clang_cc1 -fopenmp-simd -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-print -Wno-openmp-mapping | FileCheck %s
 // expected-no-diagnostics
 
 #ifndef HEADER
@@ -33,7 +33,7 @@ public:
   }
   S7 &operator=(S7 &s) {
     int k;
-#pragma omp target teams distribute parallel for simd private(a) private(this->a) linear(k)
+#pragma omp target teams distribute parallel for simd allocate(a) private(a) private(this->a) linear(k) allocate(k)
     for (k = 0; k < s.a.a; ++k)
       ++s.a.a;
 
@@ -58,7 +58,7 @@ public:
   }
 };
 // CHECK: #pragma omp target teams distribute parallel for simd private(this->a) private(this->a) private(T::a)
-// CHECK: #pragma omp target teams distribute parallel for simd private(this->a) private(this->a) linear(k)
+// CHECK: #pragma omp target teams distribute parallel for simd allocate(this->a) private(this->a) private(this->a) linear(k) allocate(k)
 // CHECK: #pragma omp target teams distribute parallel for simd default(none) private(b) firstprivate(argv) shared(d) reduction(+: c) reduction(max: e) num_teams(f) thread_limit(d)
 // CHECK: #pragma omp target teams distribute parallel for simd simdlen(slen1) safelen(slen2) aligned(arr: alen)
 

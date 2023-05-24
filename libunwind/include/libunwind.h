@@ -1,9 +1,8 @@
 //===---------------------------- libunwind.h -----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
 // Compatible with libunwind API documented at:
@@ -57,6 +56,9 @@ enum {
   UNW_EINVAL        = -6547, /* unsupported operation or bad value */
   UNW_EBADVERSION   = -6548, /* unwind info has unsupported version */
   UNW_ENOINFO       = -6549  /* no unwind info found */
+#if defined(_LIBUNWIND_TARGET_AARCH64) && !defined(_LIBUNWIND_IS_NATIVE_ONLY)
+  , UNW_ECROSSRASIGNING = -6550 /* cross unwind with return address signing */
+#endif
 };
 
 struct unw_context_t {
@@ -73,7 +75,7 @@ typedef struct unw_addr_space *unw_addr_space_t;
 
 typedef int unw_regnum_t;
 typedef uintptr_t unw_word_t;
-#if defined(__arm__)
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 typedef uint64_t unw_fpreg_t;
 #else
 typedef double unw_fpreg_t;
@@ -121,32 +123,6 @@ extern int unw_get_proc_name(unw_cursor_t *, char *, size_t, unw_word_t *) LIBUN
 //extern int       unw_get_save_loc(unw_cursor_t*, int, unw_save_loc_t*);
 
 extern unw_addr_space_t unw_local_addr_space;
-
-#ifdef UNW_REMOTE
-/*
- * Mac OS X "remote" API for unwinding other processes on same machine
- *
- */
-extern unw_addr_space_t unw_create_addr_space_for_task(task_t);
-extern void unw_destroy_addr_space(unw_addr_space_t);
-extern int unw_init_remote_thread(unw_cursor_t *, unw_addr_space_t, thread_t *);
-#endif /* UNW_REMOTE */
-
-/*
- * traditional libunwind "remote" API
- *   NOT IMPLEMENTED on Mac OS X
- *
- * extern int               unw_init_remote(unw_cursor_t*, unw_addr_space_t,
- *                                          thread_t*);
- * extern unw_accessors_t   unw_get_accessors(unw_addr_space_t);
- * extern unw_addr_space_t  unw_create_addr_space(unw_accessors_t, int);
- * extern void              unw_flush_cache(unw_addr_space_t, unw_word_t,
- *                                          unw_word_t);
- * extern int               unw_set_caching_policy(unw_addr_space_t,
- *                                                 unw_caching_policy_t);
- * extern void              _U_dyn_register(unw_dyn_info_t*);
- * extern void              _U_dyn_cancel(unw_dyn_info_t*);
- */
 
 #ifdef __cplusplus
 }
@@ -547,6 +523,8 @@ enum {
   UNW_ARM64_X31 = 31,
   UNW_ARM64_SP  = 31,
   // reserved block
+  UNW_ARM64_RA_SIGN_STATE = 34,
+  // reserved block
   UNW_ARM64_D0  = 64,
   UNW_ARM64_D1  = 65,
   UNW_ARM64_D2  = 66,
@@ -816,6 +794,113 @@ enum {
   UNW_MIPS_F31 = 63,
   UNW_MIPS_HI = 64,
   UNW_MIPS_LO = 65,
+};
+
+// SPARC registers
+enum {
+  UNW_SPARC_G0 = 0,
+  UNW_SPARC_G1 = 1,
+  UNW_SPARC_G2 = 2,
+  UNW_SPARC_G3 = 3,
+  UNW_SPARC_G4 = 4,
+  UNW_SPARC_G5 = 5,
+  UNW_SPARC_G6 = 6,
+  UNW_SPARC_G7 = 7,
+  UNW_SPARC_O0 = 8,
+  UNW_SPARC_O1 = 9,
+  UNW_SPARC_O2 = 10,
+  UNW_SPARC_O3 = 11,
+  UNW_SPARC_O4 = 12,
+  UNW_SPARC_O5 = 13,
+  UNW_SPARC_O6 = 14,
+  UNW_SPARC_O7 = 15,
+  UNW_SPARC_L0 = 16,
+  UNW_SPARC_L1 = 17,
+  UNW_SPARC_L2 = 18,
+  UNW_SPARC_L3 = 19,
+  UNW_SPARC_L4 = 20,
+  UNW_SPARC_L5 = 21,
+  UNW_SPARC_L6 = 22,
+  UNW_SPARC_L7 = 23,
+  UNW_SPARC_I0 = 24,
+  UNW_SPARC_I1 = 25,
+  UNW_SPARC_I2 = 26,
+  UNW_SPARC_I3 = 27,
+  UNW_SPARC_I4 = 28,
+  UNW_SPARC_I5 = 29,
+  UNW_SPARC_I6 = 30,
+  UNW_SPARC_I7 = 31,
+};
+
+// RISC-V registers. These match the DWARF register numbers defined by section
+// 4 of the RISC-V ELF psABI specification, which can be found at:
+//
+// https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md
+enum {
+  UNW_RISCV_X0  = 0,
+  UNW_RISCV_X1  = 1,
+  UNW_RISCV_X2  = 2,
+  UNW_RISCV_X3  = 3,
+  UNW_RISCV_X4  = 4,
+  UNW_RISCV_X5  = 5,
+  UNW_RISCV_X6  = 6,
+  UNW_RISCV_X7  = 7,
+  UNW_RISCV_X8  = 8,
+  UNW_RISCV_X9  = 9,
+  UNW_RISCV_X10 = 10,
+  UNW_RISCV_X11 = 11,
+  UNW_RISCV_X12 = 12,
+  UNW_RISCV_X13 = 13,
+  UNW_RISCV_X14 = 14,
+  UNW_RISCV_X15 = 15,
+  UNW_RISCV_X16 = 16,
+  UNW_RISCV_X17 = 17,
+  UNW_RISCV_X18 = 18,
+  UNW_RISCV_X19 = 19,
+  UNW_RISCV_X20 = 20,
+  UNW_RISCV_X21 = 21,
+  UNW_RISCV_X22 = 22,
+  UNW_RISCV_X23 = 23,
+  UNW_RISCV_X24 = 24,
+  UNW_RISCV_X25 = 25,
+  UNW_RISCV_X26 = 26,
+  UNW_RISCV_X27 = 27,
+  UNW_RISCV_X28 = 28,
+  UNW_RISCV_X29 = 29,
+  UNW_RISCV_X30 = 30,
+  UNW_RISCV_X31 = 31,
+  UNW_RISCV_F0  = 32,
+  UNW_RISCV_F1  = 33,
+  UNW_RISCV_F2  = 34,
+  UNW_RISCV_F3  = 35,
+  UNW_RISCV_F4  = 36,
+  UNW_RISCV_F5  = 37,
+  UNW_RISCV_F6  = 38,
+  UNW_RISCV_F7  = 39,
+  UNW_RISCV_F8  = 40,
+  UNW_RISCV_F9  = 41,
+  UNW_RISCV_F10 = 42,
+  UNW_RISCV_F11 = 43,
+  UNW_RISCV_F12 = 44,
+  UNW_RISCV_F13 = 45,
+  UNW_RISCV_F14 = 46,
+  UNW_RISCV_F15 = 47,
+  UNW_RISCV_F16 = 48,
+  UNW_RISCV_F17 = 49,
+  UNW_RISCV_F18 = 50,
+  UNW_RISCV_F19 = 51,
+  UNW_RISCV_F20 = 52,
+  UNW_RISCV_F21 = 53,
+  UNW_RISCV_F22 = 54,
+  UNW_RISCV_F23 = 55,
+  UNW_RISCV_F24 = 56,
+  UNW_RISCV_F25 = 57,
+  UNW_RISCV_F26 = 58,
+  UNW_RISCV_F27 = 59,
+  UNW_RISCV_F28 = 60,
+  UNW_RISCV_F29 = 61,
+  UNW_RISCV_F30 = 62,
+  UNW_RISCV_F31 = 63,
 };
 
 #endif

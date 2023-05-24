@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 
 import gdbremote_testcase
@@ -15,15 +14,23 @@ class TestAppleSimulatorOSType(gdbremote_testcase.GdbRemoteTestCaseBase):
 
     def check_simulator_ostype(self, sdk, platform, arch='x86_64'):
         sim_devices_str = subprocess.check_output(['xcrun', 'simctl', 'list',
-                                                   '-j', 'devices'])
+                                                   '-j', 'devices']).decode("utf-8")
         sim_devices = json.loads(sim_devices_str)['devices']
         # Find an available simulator for the requested platform
         deviceUDID = None
-        for (runtime,devices) in sim_devices.items():
+        for simulator in sim_devices:
+            if isinstance(simulator,dict):
+                runtime = simulator['name']
+                devices = simulator['devices']
+            else:
+                runtime = simulator
+                devices = sim_devices[simulator]
             if not platform in runtime.lower():
                 continue
             for device in devices:
-                if device['availability'] != '(available)':
+                if 'availability' in device and device['availability'] != '(available)':
+                    continue
+                if 'isAvailable' in device and device['isAvailable'] != True:
                     continue
                 deviceUDID = device['udid']
                 break
@@ -34,18 +41,18 @@ class TestAppleSimulatorOSType(gdbremote_testcase.GdbRemoteTestCaseBase):
         self.assertIsNotNone(deviceUDID)
         exe_name = 'test_simulator_platform_{}'.format(platform)
         sdkroot = subprocess.check_output(['xcrun', '--show-sdk-path', '--sdk',
-                                           sdk])
+                                           sdk]).decode("utf-8")
         self.build(dictionary={ 'EXE': exe_name, 'SDKROOT': sdkroot.strip(),
                                 'ARCH': arch })
         exe_path = self.getBuildArtifact(exe_name)
-        sim_launcher = subprocess.Popen(['xcrun', 'simctl', 'spawn',
+        sim_launcher = subprocess.Popen(['xcrun', 'simctl', 'spawn', '-s',
                                          deviceUDID, exe_path,
                                          'print-pid', 'sleep:10'],
                                         stderr=subprocess.PIPE)
         # Get the PID from the process output
         pid = None
         while not pid:
-            stderr = sim_launcher.stderr.readline()
+            stderr = sim_launcher.stderr.readline().decode("utf-8")
             if stderr == '':
                 continue
             m = re.match(r"PID: (.*)", stderr)
@@ -95,18 +102,21 @@ class TestAppleSimulatorOSType(gdbremote_testcase.GdbRemoteTestCaseBase):
 
     @apple_simulator_test('iphone')
     @debugserver_test
+    @skipIfRemote
     def test_simulator_ostype_ios(self):
         self.check_simulator_ostype(sdk='iphonesimulator',
                                     platform='ios')
 
     @apple_simulator_test('appletv')
     @debugserver_test
+    @skipIfRemote
     def test_simulator_ostype_tvos(self):
         self.check_simulator_ostype(sdk='appletvsimulator',
                                     platform='tvos')
 
     @apple_simulator_test('watch')
     @debugserver_test
+    @skipIfRemote
     def test_simulator_ostype_watchos(self):
         self.check_simulator_ostype(sdk='watchsimulator',
                                     platform='watchos', arch='i386')

@@ -2,11 +2,8 @@
 Test the AddressSanitizer runtime support for report breakpoint and data extraction.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import json
 import lldb
 from lldbsuite.test.decorators import *
@@ -18,11 +15,8 @@ class AsanTestReportDataCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
 
-    @expectedFailureAll(
-        oslist=["linux"],
-        bugnumber="non-core functionality, need to reenable and fix later (DES 2014.11.07)")
     @skipIfFreeBSD  # llvm.org/pr21136 runtimes not yet available by default
-    @skipIfRemote
+    @expectedFailureNetBSD
     @skipUnlessAddressSanitizer
     @skipIf(archs=['i386'], bugnumber="llvm.org/PR36710")
     def test(self):
@@ -37,12 +31,15 @@ class AsanTestReportDataCase(TestBase):
         self.line_free = line_number('main.c', '// free line')
         self.line_breakpoint = line_number('main.c', '// break line')
         self.line_crash = line_number('main.c', '// BOOM line')
+        self.col_crash = 16
 
     def asan_tests(self):
         exe = self.getBuildArtifact("a.out")
-        self.expect(
-            "file " + exe,
-            patterns=["Current executable set to .*a.out"])
+        target = self.dbg.CreateTarget(exe)
+        self.assertTrue(target, VALID_TARGET)
+
+        self.registerSanitizerLibrariesWithTarget(target)
+
         self.runCmd("run")
 
         stop_reason = self.dbg.GetSelectedTarget().process.GetSelectedThread().GetStopReason()
@@ -63,7 +60,7 @@ class AsanTestReportDataCase(TestBase):
             lldb.eStopReasonInstrumentation)
 
         self.expect("bt", "The backtrace should show the crashing line",
-                    substrs=['main.c:%d' % self.line_crash])
+                    substrs=['main.c:%d:%d' % (self.line_crash, self.col_crash)])
 
         self.expect(
             "thread info -s",

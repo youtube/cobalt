@@ -92,7 +92,7 @@
 ...
 ---
 name:            test_zext_i1toi8
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -126,7 +126,7 @@ body:             |
 ...
 ---
 name:            test_zext_i1toi16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -159,7 +159,7 @@ body:             |
 ...
 ---
 name:            test_zext_i1
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -193,7 +193,7 @@ body:             |
 ...
 ---
 name:            test_zext_i8toi16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -221,7 +221,7 @@ body:             |
 ...
 ---
 name:            test_zext_i8
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -249,7 +249,7 @@ body:             |
 ...
 ---
 name:            test_zext_i16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -277,7 +277,7 @@ body:             |
 ...
 ---
 name:            test_sext_i1toi8
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -288,12 +288,12 @@ body:             |
     liveins: $edi
 
     ; X32-LABEL: name: test_sext_i1toi8
-    ; X32: [[DEF:%[0-9]+]]:_(s8) = G_IMPLICIT_DEF
-    ; X32: $al = COPY [[DEF]](s8)
+    ; X32: [[C:%[0-9]+]]:_(s8) = G_CONSTANT i8 0
+    ; X32: $al = COPY [[C]](s8)
     ; X32: RET 0, implicit $al
     ; X64-LABEL: name: test_sext_i1toi8
-    ; X64: [[DEF:%[0-9]+]]:_(s8) = G_IMPLICIT_DEF
-    ; X64: $al = COPY [[DEF]](s8)
+    ; X64: [[C:%[0-9]+]]:_(s8) = G_CONSTANT i8 0
+    ; X64: $al = COPY [[C]](s8)
     ; X64: RET 0, implicit $al
     %0(s1) = G_IMPLICIT_DEF
     %1(s8) = G_SEXT %0(s1)
@@ -303,7 +303,7 @@ body:             |
 ...
 ---
 name:            test_sext_i1toi16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -314,12 +314,12 @@ body:             |
     liveins: $edi
 
     ; X32-LABEL: name: test_sext_i1toi16
-    ; X32: [[DEF:%[0-9]+]]:_(s16) = G_IMPLICIT_DEF
-    ; X32: $ax = COPY [[DEF]](s16)
+    ; X32: [[C:%[0-9]+]]:_(s16) = G_CONSTANT i16 0
+    ; X32: $ax = COPY [[C]](s16)
     ; X32: RET 0, implicit $ax
     ; X64-LABEL: name: test_sext_i1toi16
-    ; X64: [[DEF:%[0-9]+]]:_(s16) = G_IMPLICIT_DEF
-    ; X64: $ax = COPY [[DEF]](s16)
+    ; X64: [[C:%[0-9]+]]:_(s16) = G_CONSTANT i16 0
+    ; X64: $ax = COPY [[C]](s16)
     ; X64: RET 0, implicit $ax
     %0(s1) = G_IMPLICIT_DEF
     %1(s16) = G_SEXT %0(s1)
@@ -329,7 +329,7 @@ body:             |
 ...
 ---
 name:            test_sext_i1
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -341,12 +341,12 @@ body:             |
     liveins: $edi
 
     ; X32-LABEL: name: test_sext_i1
-    ; X32: [[DEF:%[0-9]+]]:_(s32) = G_IMPLICIT_DEF
-    ; X32: $eax = COPY [[DEF]](s32)
+    ; X32: [[C:%[0-9]+]]:_(s32) = G_CONSTANT i32 0
+    ; X32: $eax = COPY [[C]](s32)
     ; X32: RET 0, implicit $eax
     ; X64-LABEL: name: test_sext_i1
-    ; X64: [[DEF:%[0-9]+]]:_(s32) = G_IMPLICIT_DEF
-    ; X64: $eax = COPY [[DEF]](s32)
+    ; X64: [[C:%[0-9]+]]:_(s32) = G_CONSTANT i32 0
+    ; X64: $eax = COPY [[C]](s32)
     ; X64: RET 0, implicit $eax
     %0(s1) = G_IMPLICIT_DEF
     %2(s32) = G_SEXT %0(s1)
@@ -356,7 +356,7 @@ body:             |
 ...
 ---
 name:            test_sext_i8toi16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -384,7 +384,7 @@ body:             |
 ...
 ---
 name:            test_sext_i8
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -412,7 +412,7 @@ body:             |
 ...
 ---
 name:            test_sext_i16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -440,7 +440,7 @@ body:             |
 ...
 ---
 name:            test_anyext_i1toi8
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -470,7 +470,7 @@ body:             |
 ...
 ---
 name:            test_anyext_i1toi16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -500,7 +500,7 @@ body:             |
 ...
 ---
 name:            test_anyext_i1
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -530,7 +530,7 @@ body:             |
 ...
 ---
 name:            test_anyext_i8toi16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -558,7 +558,7 @@ body:             |
 ...
 ---
 name:            test_anyext_i8
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:
@@ -586,7 +586,7 @@ body:             |
 ...
 ---
 name:            test_anyext_i16
-alignment:       4
+alignment:       16
 legalized:       false
 regBankSelected: false
 registers:

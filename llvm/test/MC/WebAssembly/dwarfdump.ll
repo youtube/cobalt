@@ -31,14 +31,14 @@
 
 ; CHECK: 0x00000043:   DW_TAG_variable
 ; CHECK-NEXT:                DW_AT_name	("ptr2")
-; CHECK-NEXT:                DW_AT_type	(0x00000054 "subroutine *")
+; CHECK-NEXT:                DW_AT_type	(0x00000054 "void()*")
 ; CHECK-NEXT:                DW_AT_external	(true)
 ; CHECK-NEXT:                DW_AT_decl_file	("/usr/local/google/home/sbc/dev/wasm/simple{{[/\\]}}test.c")
 ; CHECK-NEXT:                DW_AT_decl_line	(5)
 ; CHECK-NEXT:                DW_AT_location	(DW_OP_addr 0x4)
 
 ; CHECK: 0x00000054:   DW_TAG_pointer_type
-; CHECK-NEXT:                DW_AT_type	(0x00000059 "subroutine ")
+; CHECK-NEXT:                DW_AT_type	(0x00000059 "void()")
 
 ; CHECK: 0x00000059:   DW_TAG_subroutine_type
 ; CHECK-NEXT:                DW_AT_prototyped	(true)
@@ -68,7 +68,7 @@ entry:
   ret void, !dbg !18
 }
 
-attributes #0 = { noinline nounwind optnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { noinline nounwind optnone "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!13, !14, !15}

@@ -1,16 +1,16 @@
 //===--- CodeCompletionStrings.h ---------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Functions for retrieving code completion information from
 // `CodeCompletionString`.
 //
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_CODECOMPLETIONSTRINGS_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_CODECOMPLETIONSTRINGS_H
 
@@ -32,28 +32,22 @@ std::string getDocComment(const ASTContext &Ctx,
                           const CodeCompletionResult &Result,
                           bool CommentsFromHeaders);
 
-/// Gets a minimally formatted documentation for parameter of \p Result,
-/// corresponding to argument number \p ArgIndex.
-/// This currently looks for comments attached to the parameter itself, and
-/// doesn't extract them from function documentation.
-/// Returns empty string when no comment is available.
-/// If \p CommentsFromHeaders parameter is set, only comments from the main
-/// file will be returned. It is used to workaround crashes when parsing
-/// comments in the stale headers, coming from completion preamble.
-std::string
-getParameterDocComment(const ASTContext &Ctx,
-                       const CodeCompleteConsumer::OverloadCandidate &Result,
-                       unsigned ArgIndex, bool CommentsFromHeaders);
+/// Similar to getDocComment, but returns the comment for a NamedDecl.
+std::string getDeclComment(const ASTContext &Ctx, const NamedDecl &D);
 
 /// Formats the signature for an item, as a display string and snippet.
 /// e.g. for const_reference std::vector<T>::at(size_type) const, this returns:
 ///   *Signature = "(size_type) const"
-///   *Snippet = "(${0:size_type})"
+///   *Snippet = "(${1:size_type})"
 /// If set, RequiredQualifiers is the text that must be typed before the name.
 /// e.g "Base::" when calling a base class member function that's hidden.
+///
+/// When \p CompletingPattern is true, the last placeholder will be of the form
+/// ${0:…}, indicating the cursor should stay there.
 void getSignature(const CodeCompletionString &CCS, std::string *Signature,
                   std::string *Snippet,
-                  std::string *RequiredQualifiers = nullptr);
+                  std::string *RequiredQualifiers = nullptr,
+                  bool CompletingPattern = false);
 
 /// Assembles formatted documentation for a completion result. This includes
 /// documentation comments and other relevant information like annotations.
@@ -70,4 +64,4 @@ std::string getReturnType(const CodeCompletionString &CCS);
 } // namespace clangd
 } // namespace clang
 
-#endif
+#endif // LLVM_CLANG_TOOLS_EXTRA_CLANGD_CODECOMPLETIONSTRINGS_H

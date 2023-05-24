@@ -1,9 +1,8 @@
 //===--- TokenKinds.h - Enum values for C Token Kinds -----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -39,8 +38,7 @@ enum PPKeywordKind {
 /// Provides a namespace for Objective-C keywords which start with
 /// an '@'.
 enum ObjCKeywordKind {
-#define OBJC1_AT_KEYWORD(X) objc_##X,
-#define OBJC2_AT_KEYWORD(X) objc_##X,
+#define OBJC_AT_KEYWORD(X) objc_##X,
 #include "clang/Basic/TokenKinds.def"
   NUM_OBJC_KEYWORDS
 };
@@ -88,17 +86,14 @@ inline bool isLiteral(TokenKind K) {
   return K == tok::numeric_constant || K == tok::char_constant ||
          K == tok::wide_char_constant || K == tok::utf8_char_constant ||
          K == tok::utf16_char_constant || K == tok::utf32_char_constant ||
-         isStringLiteral(K) || K == tok::angle_string_literal;
+         isStringLiteral(K) || K == tok::header_name;
 }
 
 /// Return true if this is any of tok::annot_* kinds.
-inline bool isAnnotation(TokenKind K) {
-#define ANNOTATION(NAME) \
-  if (K == tok::annot_##NAME) \
-    return true;
-#include "clang/Basic/TokenKinds.def"
-  return false;
-}
+bool isAnnotation(TokenKind K);
+
+/// Return true if this is an annotation token representing a pragma.
+bool isPragmaAnnotation(TokenKind K);
 
 }  // end namespace tok
 }  // end namespace clang

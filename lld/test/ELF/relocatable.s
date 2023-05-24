@@ -3,17 +3,18 @@
 # RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %p/Inputs/relocatable.s -o %t2.o
 # RUN: llvm-mc -filetype=obj -triple=x86_64-unknown-linux %p/Inputs/relocatable2.s -o %t3.o
 # RUN: ld.lld -r %t1.o %t2.o %t3.o -o %t
-# RUN: llvm-readobj -file-headers -sections -program-headers -symbols -r %t | FileCheck %s
+# RUN: llvm-readobj --file-headers --sections -l --symbols -r %t | FileCheck %s
+# RUN: llvm-objdump -section-headers %t | FileCheck -check-prefix=SECTION %s
 # RUN: llvm-objdump -s -d %t | FileCheck -check-prefix=CHECKTEXT %s
 
 ## Test --relocatable alias
 # RUN: ld.lld --relocatable %t1.o %t2.o %t3.o -o %t
-# RUN: llvm-readobj -file-headers -sections -program-headers -symbols -r %t | FileCheck %s
+# RUN: llvm-readobj --file-headers --sections -l --symbols -r %t | FileCheck %s
 # RUN: llvm-objdump -s -d %t | FileCheck -check-prefix=CHECKTEXT %s
 
 ## Verify that we can use our relocation output as input to produce executable
 # RUN: ld.lld -e main %t -o %texec
-# RUN: llvm-readobj -file-headers %texec | FileCheck -check-prefix=CHECKEXE %s
+# RUN: llvm-readobj --file-headers %texec | FileCheck -check-prefix=CHECKEXE %s
 
 # CHECK:       ElfHeader {
 # CHECK-NEXT:  Ident {
@@ -37,8 +38,8 @@
 # CHECK-NEXT:  ProgramHeaderEntrySize: 0
 # CHECK-NEXT:  ProgramHeaderCount: 0
 # CHECK-NEXT:  SectionHeaderEntrySize: 64
-# CHECK-NEXT:  SectionHeaderCount: 7
-# CHECK-NEXT:  StringTableSectionIndex: 5
+# CHECK-NEXT:  SectionHeaderCount: 8
+# CHECK-NEXT:  StringTableSectionIndex: 6
 # CHECK-NEXT:  }
 
 # CHECK:       Relocations [
@@ -51,7 +52,19 @@
 # CHECK-NEXT:    0x4E R_X86_64_32S yyy 0x0
 # CHECK-NEXT:  }
 
+# SECTION: Sections:
+# SECTION: Idx Name          Size     VMA              Type
+# SECTION:   0               00000000 0000000000000000
+# SECTION:   1 .text         00000056 0000000000000000 TEXT
+# SECTION:   2 .rela.text    00000090 0000000000000000
+# SECTION:   3 .bss          00000018 0000000000000000 BSS
+# SECTION:   4 .note.GNU-stack 00000000 0000000000000000
+# SECTION:   5 .symtab       00000168 0000000000000000
+# SECTION:   6 .shstrtab     00000041 0000000000000000
+# SECTION:   7 .strtab       0000002d 0000000000000000
+
 # CHECKTEXT:      Disassembly of section .text:
+# CHECKTEXT-EMPTY:
 # CHECKTEXT-NEXT: main:
 # CHECKTEXT-NEXT: 0: c7 04 25 00 00 00 00 05 00 00 00 movl $5, 0
 # CHECKTEXT-NEXT: b: c7 04 25 00 00 00 00 07 00 00 00 movl $7, 0
@@ -79,9 +92,9 @@
 # CHECKEXE-NEXT:    Type: Executable
 # CHECKEXE-NEXT:    Machine: EM_X86_64
 # CHECKEXE-NEXT:    Version: 1
-# CHECKEXE-NEXT:    Entry: 0x201000
+# CHECKEXE-NEXT:    Entry: 0x201160
 # CHECKEXE-NEXT:    ProgramHeaderOffset: 0x40
-# CHECKEXE-NEXT:    SectionHeaderOffset: 0x21A0
+# CHECKEXE-NEXT:    SectionHeaderOffset: 0x358
 # CHECKEXE-NEXT:    Flags [
 # CHECKEXE-NEXT:    ]
 # CHECKEXE-NEXT:    HeaderSize: 64

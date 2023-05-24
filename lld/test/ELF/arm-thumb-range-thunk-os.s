@@ -1,6 +1,6 @@
 // REQUIRES: arm
-// RUN: llvm-mc -filetype=obj -triple=thumbv7a-none-linux-gnueabi %s -o %t
-// RUN: ld.lld %t -o %t2 2>&1
+// RUN: llvm-mc  -arm-add-build-attributes -filetype=obj -triple=thumbv7a-none-linux-gnueabi %s -o %t
+// RUN: ld.lld %t -o %t2
 // The output file is large, most of it zeroes. We dissassemble only the
 // parts we need to speed up the test and avoid a large output file
 // RUN: llvm-objdump -d %t2 -start-address=1048576 -stop-address=1048588 -triple=thumbv7a-linux-gnueabihf | FileCheck -check-prefix=CHECK1 %s
@@ -43,6 +43,7 @@ _start:
 // the first of the pre-created ThunkSections.
  bl tfunc16
 // CHECK1: Disassembly of section .text:
+// CHECK1-EMPTY:
 // CHECK1-NEXT: _start:
 // CHECK1-NEXT:   100000:       ff f0 fe ff     bl      #1048572
 // CHECK1-NEXT:   100004:       ff f3 fc d7     bl      #16777208

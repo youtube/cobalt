@@ -14,7 +14,7 @@
 // CHECK-NEXT: movl $0x11010, %edx
 // CHECK-NEXT: movl $0x11000, %edx
 
-// RUN: llvm-readobj -t %t3 > %t4.dump
+// RUN: llvm-readobj --symbols %t3 > %t4.dump
 // RUN: FileCheck --check-prefix=SYM1 %s < %t4.dump
 // RUN: FileCheck --check-prefix=SYM2 %s < %t4.dump
 // RUN: FileCheck --check-prefix=SYM3 %s < %t4.dump
@@ -34,7 +34,7 @@
 // SYM2-NEXT:   STV_PROTECTED
 // SYM2-NEXT: ]
 // SYM3:      Name: __real_foo
-// SYM3-NEXT: Value: 0x11020
+// SYM3-NEXT: Value: 0x11000
 // SYM3-NEXT: Size:
 // SYM3-NEXT: Binding: Global
 // SYM3-NEXT: Type:    None

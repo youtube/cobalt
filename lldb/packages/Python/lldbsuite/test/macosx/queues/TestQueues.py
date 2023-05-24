@@ -5,7 +5,6 @@ from __future__ import print_function
 
 import unittest2
 import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -18,10 +17,16 @@ class TestQueues(TestBase):
 
     @skipUnlessDarwin
     @add_test_categories(['pyapi'])
-    def test_with_python_api(self):
+    def test_with_python_api_queues(self):
         """Test queues inspection SB APIs."""
         self.build()
         self.queues()
+
+    @skipUnlessDarwin
+    @add_test_categories(['pyapi'])
+    def test_with_python_api_queues_with_backtrace(self):
+        """Test queues inspection SB APIs."""
+        self.build()
         self.queues_with_libBacktraceRecording()
 
     def setUp(self):
@@ -50,7 +55,23 @@ class TestQueues(TestBase):
              expected_running,
              (queue.GetNumRunningItems())))
 
+    def describe_threads(self):
+        desc = []
+        for x in self.inferior_process:
+            id = x.GetIndexID()
+            reason_str = lldbutil.stop_reason_to_str(x.GetStopReason())
+
+            location = "\t".join([lldbutil.get_description(
+                x.GetFrameAtIndex(i)) for i in range(x.GetNumFrames())])
+            desc.append(
+                "thread %d: %s (queue id: %s) at\n\t%s" %
+                (id, reason_str, x.GetQueueID(), location))
+        print('\n'.join(desc))
+
     def check_number_of_threads_owned_by_queue(self, queue, number_threads):
+        if (queue.GetNumThreads() != number_threads):
+            self.describe_threads()
+
         self.assertTrue(
             queue.GetNumThreads() == number_threads,
             "queue %s should have %d thread executing, but has %d" %
@@ -113,11 +134,13 @@ class TestQueues(TestBase):
         break1 = target.BreakpointCreateByName("stopper", 'a.out')
         self.assertTrue(break1, VALID_BREAKPOINT)
         process = target.LaunchSimple(
-            None, None, self.get_process_working_directory())
+            [], None, self.get_process_working_directory())
         self.assertTrue(process, PROCESS_IS_VALID)
         threads = lldbutil.get_threads_stopped_at_breakpoint(process, break1)
         if len(threads) != 1:
             self.fail("Failed to stop at breakpoint 1.")
+
+        self.inferior_process = process
 
         queue_submittor_1 = lldb.SBQueue()
         queue_performer_1 = lldb.SBQueue()
@@ -244,6 +267,7 @@ class TestQueues(TestBase):
             stream.GetData() == "Background",
             "background QoS thread name is valid")
 
+    @skipIfDarwin # rdar://50379398
     def queues_with_libBacktraceRecording(self):
         """Test queues inspection SB APIs with libBacktraceRecording present."""
         exe = self.getBuildArtifact("a.out")
@@ -267,10 +291,14 @@ class TestQueues(TestBase):
         self.assertTrue(break1, VALID_BREAKPOINT)
 
         # Now launch the process, and do not stop at entry point.
+        libbtr_path = "/Applications/Xcode.app/Contents/Developer/usr/lib/libBacktraceRecording.dylib"
+        if self.getArchitecture() in ['arm', 'arm64', 'arm64e', 'arm64_32', 'armv7', 'armv7k']:
+            libbtr_path = "/Developer/usr/lib/libBacktraceRecording.dylib"
+
         process = target.LaunchSimple(
-            None,
+            [],
             [
-                'DYLD_INSERT_LIBRARIES=/Applications/Xcode.app/Contents/Developer/usr/lib/libBacktraceRecording.dylib',
+                'DYLD_INSERT_LIBRARIES=%s' % (libbtr_path),
                 'DYLD_LIBRARY_PATH=/usr/lib/system/introspection'],
             self.get_process_working_directory())
 
@@ -280,6 +308,8 @@ class TestQueues(TestBase):
         threads = lldbutil.get_threads_stopped_at_breakpoint(process, break1)
         if len(threads) != 1:
             self.fail("Failed to stop at breakpoint 1.")
+
+        self.inferior_process = process
 
         libbtr_module_filespec = lldb.SBFileSpec("libBacktraceRecording.dylib")
         libbtr_module = target.FindModule(libbtr_module_filespec)
@@ -297,6 +327,8 @@ class TestQueues(TestBase):
         queue_performer_3 = lldb.SBQueue()
         for idx in range(0, process.GetNumQueues()):
             q = process.GetQueueAtIndex(idx)
+            if "LLDB_COMMAND_TRACE" in os.environ:
+                print("Queue  with id %s has name %s" % (q.GetQueueID(), q.GetName()))
             if q.GetName() == "com.apple.work_submittor_1":
                 queue_submittor_1 = q
             if q.GetName() == "com.apple.work_performer_1":
@@ -305,6 +337,10 @@ class TestQueues(TestBase):
                 queue_performer_2 = q
             if q.GetName() == "com.apple.work_performer_3":
                 queue_performer_3 = q
+            if q.GetName() == "com.apple.main-thread":
+                if q.GetNumThreads() == 0:
+                    print("Cannot get thread <=> queue associations")
+                    return
 
         self.assertTrue(
             queue_submittor_1.IsValid() and queue_performer_1.IsValid() and queue_performer_2.IsValid() and queue_performer_3.IsValid(),

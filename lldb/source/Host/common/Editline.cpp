@@ -1,9 +1,8 @@
 //===-- Editline.cpp --------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,7 +12,9 @@
 
 #include "lldb/Host/ConnectionFileDescriptor.h"
 #include "lldb/Host/Editline.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Utility/CompletionRequest.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/LLDBAssert.h"
 #include "lldb/Utility/SelectHelper.h"
@@ -96,6 +97,33 @@ bool IsOnlySpaces(const EditLineStringType &content) {
   return true;
 }
 
+static int GetOperation(HistoryOperation op) {
+  // The naming used by editline for the history operations is counter
+  // intuitive to how it's used here.
+  //
+  //  - The H_PREV operation returns the previous element in the history, which
+  //    is newer than the current one.
+  //
+  //  - The H_NEXT operation returns the next element in the history, which is
+  //    older than the current one.
+  //
+  // The naming of the enum entries match the semantic meaning.
+  switch(op) {
+    case HistoryOperation::Oldest:
+      return H_FIRST;
+    case HistoryOperation::Older:
+      return H_NEXT;
+    case HistoryOperation::Current:
+      return H_CURR;
+    case HistoryOperation::Newer:
+      return H_PREV;
+    case HistoryOperation::Newest:
+      return H_LAST;
+  }
+  llvm_unreachable("Fully covered switch!");
+}
+
+
 EditLineStringType CombineLines(const std::vector<EditLineStringType> &lines) {
   EditLineStringStreamType combined_stream;
   for (EditLineStringType line : lines) {
@@ -163,7 +191,7 @@ private:
   // Use static GetHistory() function to get a EditlineHistorySP to one of
   // these objects
   EditlineHistory(const std::string &prefix, uint32_t size, bool unique_entries)
-      : m_history(NULL), m_event(), m_prefix(prefix), m_path() {
+      : m_history(nullptr), m_event(), m_prefix(prefix), m_path() {
     m_history = history_winit();
     history_w(m_history, &m_event, H_SETSIZE, size);
     if (unique_entries)
@@ -171,20 +199,28 @@ private:
   }
 
   const char *GetHistoryFilePath() {
+    // Compute the history path lazily.
     if (m_path.empty() && m_history && !m_prefix.empty()) {
-      FileSpec parent_path{"~/.lldb", true};
-      char history_path[PATH_MAX];
-      if (!llvm::sys::fs::create_directory(parent_path.GetPath())) {
-        snprintf(history_path, sizeof(history_path), "~/.lldb/%s-history",
-                 m_prefix.c_str());
-      } else {
-        snprintf(history_path, sizeof(history_path), "~/%s-widehistory",
-                 m_prefix.c_str());
+      llvm::SmallString<128> lldb_history_file;
+      llvm::sys::path::home_directory(lldb_history_file);
+      llvm::sys::path::append(lldb_history_file, ".lldb");
+
+      // LLDB stores its history in ~/.lldb/. If for some reason this directory
+      // isn't writable or cannot be created, history won't be available.
+      if (!llvm::sys::fs::create_directory(lldb_history_file)) {
+#if LLDB_EDITLINE_USE_WCHAR
+        std::string filename = m_prefix + "-widehistory";
+#else
+        std::string filename = m_prefix + "-history";
+#endif
+        llvm::sys::path::append(lldb_history_file, filename);
+        m_path = lldb_history_file.str();
       }
-      m_path = FileSpec(history_path, true).GetPath();
     }
+
     if (m_path.empty())
-      return NULL;
+      return nullptr;
+
     return m_path.c_str();
   }
 
@@ -194,7 +230,7 @@ public:
 
     if (m_history) {
       history_wend(m_history);
-      m_history = NULL;
+      m_history = nullptr;
     }
   }
 
@@ -216,7 +252,7 @@ public:
     return history_sp;
   }
 
-  bool IsValid() const { return m_history != NULL; }
+  bool IsValid() const { return m_history != nullptr; }
 
   HistoryW *GetHistoryPtr() { return m_history; }
 
@@ -257,9 +293,7 @@ protected:
 }
 }
 
-//------------------------------------------------------------------
 // Editline private methods
-//------------------------------------------------------------------
 
 void Editline::SetBaseLineNumber(int line_number) {
   std::stringstream line_number_stream;
@@ -416,7 +450,8 @@ StringList Editline::GetInputAsStringList(int line_count) {
   return lines;
 }
 
-unsigned char Editline::RecallHistory(bool earlier) {
+unsigned char Editline::RecallHistory(HistoryOperation op) {
+  assert(op == HistoryOperation::Older || op == HistoryOperation::Newer);
   if (!m_history_sp || !m_history_sp->IsValid())
     return CC_ERROR;
 
@@ -426,27 +461,38 @@ unsigned char Editline::RecallHistory(bool earlier) {
 
   // Treat moving from the "live" entry differently
   if (!m_in_history) {
-    if (earlier == false)
+    switch (op) {
+    case HistoryOperation::Newer:
       return CC_ERROR; // Can't go newer than the "live" entry
-    if (history_w(pHistory, &history_event, H_FIRST) == -1)
-      return CC_ERROR;
-
-    // Save any edits to the "live" entry in case we return by moving forward
-    // in history (it would be more bash-like to save over any current entry,
-    // but libedit doesn't offer the ability to add entries anywhere except the
-    // end.)
-    SaveEditedLine();
-    m_live_history_lines = m_input_lines;
-    m_in_history = true;
-  } else {
-    if (history_w(pHistory, &history_event, earlier ? H_NEXT : H_PREV) == -1) {
-      // Can't move earlier than the earliest entry
-      if (earlier)
+    case HistoryOperation::Older: {
+      if (history_w(pHistory, &history_event,
+                    GetOperation(HistoryOperation::Newest)) == -1)
         return CC_ERROR;
-
-      // ... but moving to newer than the newest yields the "live" entry
-      new_input_lines = m_live_history_lines;
-      m_in_history = false;
+      // Save any edits to the "live" entry in case we return by moving forward
+      // in history (it would be more bash-like to save over any current entry,
+      // but libedit doesn't offer the ability to add entries anywhere except
+      // the end.)
+      SaveEditedLine();
+      m_live_history_lines = m_input_lines;
+      m_in_history = true;
+    } break;
+    default:
+      llvm_unreachable("unsupported history direction");
+    }
+  } else {
+    if (history_w(pHistory, &history_event, GetOperation(op)) == -1) {
+      switch (op) {
+      case HistoryOperation::Older:
+        // Can't move earlier than the earliest entry.
+        return CC_ERROR;
+      case HistoryOperation::Newer:
+        // Moving to newer-than-the-newest entry yields the "live" entry.
+        new_input_lines = m_live_history_lines;
+        m_in_history = false;
+        break;
+      default:
+        llvm_unreachable("unsupported history direction");
+      }
     }
   }
 
@@ -461,8 +507,17 @@ unsigned char Editline::RecallHistory(bool earlier) {
 
   // Prepare to edit the last line when moving to previous entry, or the first
   // line when moving to next entry
-  SetCurrentLine(m_current_line_index =
-                     earlier ? (int)m_input_lines.size() - 1 : 0);
+  switch (op) {
+  case HistoryOperation::Older:
+    m_current_line_index = (int)m_input_lines.size() - 1;
+    break;
+  case HistoryOperation::Newer:
+    m_current_line_index = 0;
+    break;
+  default:
+    llvm_unreachable("unsupported history direction");
+  }
+  SetCurrentLine(m_current_line_index);
   MoveCursor(CursorLocation::BlockEnd, CursorLocation::EditingPrompt);
   return CC_NEWLINE;
 }
@@ -508,11 +563,13 @@ int Editline::GetCharacter(EditLineGetCharType *c) {
     // Read returns, immediately lock the mutex again and check if we were
     // interrupted.
     m_output_mutex.unlock();
-    int read_count = m_input_connection.Read(&ch, 1, llvm::None, status, NULL);
+    int read_count =
+        m_input_connection.Read(&ch, 1, llvm::None, status, nullptr);
     m_output_mutex.lock();
     if (m_editor_status == EditorStatus::Interrupted) {
       while (read_count > 0 && status == lldb::eConnectionStatusSuccess)
-        read_count = m_input_connection.Read(&ch, 1, llvm::None, status, NULL);
+        read_count =
+            m_input_connection.Read(&ch, 1, llvm::None, status, nullptr);
       lldbassert(status == lldb::eConnectionStatusInterrupted);
       return 0;
     }
@@ -526,7 +583,7 @@ int Editline::GetCharacter(EditLineGetCharType *c) {
         break;
 
       case lldb::eConnectionStatusInterrupted:
-        lldbassert(0 && "Interrupts should have been handled above.");
+        llvm_unreachable("Interrupts should have been handled above.");
 
       case lldb::eConnectionStatusError:        // Check GetError() for details
       case lldb::eConnectionStatusTimedOut:     // Request timed out
@@ -712,7 +769,7 @@ unsigned char Editline::PreviousLineCommand(int ch) {
   SaveEditedLine();
 
   if (m_current_line_index == 0) {
-    return RecallHistory(true);
+    return RecallHistory(HistoryOperation::Older);
   }
 
   // Start from a known location
@@ -738,7 +795,7 @@ unsigned char Editline::NextLineCommand(int ch) {
     // Don't add an extra line if the existing last line is blank, move through
     // history instead
     if (IsOnlySpaces()) {
-      return RecallHistory(false);
+      return RecallHistory(HistoryOperation::Newer);
     }
 
     // Determine indentation for the new line
@@ -770,13 +827,13 @@ unsigned char Editline::NextLineCommand(int ch) {
 unsigned char Editline::PreviousHistoryCommand(int ch) {
   SaveEditedLine();
 
-  return RecallHistory(true);
+  return RecallHistory(HistoryOperation::Older);
 }
 
 unsigned char Editline::NextHistoryCommand(int ch) {
   SaveEditedLine();
 
-  return RecallHistory(false);
+  return RecallHistory(HistoryOperation::Newer);
 }
 
 unsigned char Editline::FixIndentationCommand(int ch) {
@@ -853,81 +910,127 @@ unsigned char Editline::BufferEndCommand(int ch) {
   return CC_NEWLINE;
 }
 
+/// Prints completions and their descriptions to the given file. Only the
+/// completions in the interval [start, end) are printed.
+static void
+PrintCompletion(FILE *output_file,
+                llvm::ArrayRef<CompletionResult::Completion> results,
+                size_t max_len) {
+  for (const CompletionResult::Completion &c : results) {
+    fprintf(output_file, "\t%-*s", (int)max_len, c.GetCompletion().c_str());
+    if (!c.GetDescription().empty())
+      fprintf(output_file, " -- %s", c.GetDescription().c_str());
+    fprintf(output_file, "\n");
+  }
+}
+
+static void
+DisplayCompletions(::EditLine *editline, FILE *output_file,
+                   llvm::ArrayRef<CompletionResult::Completion> results) {
+  assert(!results.empty());
+
+  fprintf(output_file, "\n" ANSI_CLEAR_BELOW "Available completions:\n");
+  const size_t page_size = 40;
+  bool all = false;
+
+  auto longest =
+      std::max_element(results.begin(), results.end(), [](auto &c1, auto &c2) {
+        return c1.GetCompletion().size() < c2.GetCompletion().size();
+      });
+
+  const size_t max_len = longest->GetCompletion().size();
+
+  if (results.size() < page_size) {
+    PrintCompletion(output_file, results, max_len);
+    return;
+  }
+
+  size_t cur_pos = 0;
+  while (cur_pos < results.size()) {
+    size_t remaining = results.size() - cur_pos;
+    size_t next_size = all ? remaining : std::min(page_size, remaining);
+
+    PrintCompletion(output_file, results.slice(cur_pos, next_size), max_len);
+
+    cur_pos += next_size;
+
+    if (cur_pos >= results.size())
+      break;
+
+    fprintf(output_file, "More (Y/n/a): ");
+    char reply = 'n';
+    int got_char = el_getc(editline, &reply);
+    fprintf(output_file, "\n");
+    if (got_char == -1 || reply == 'n')
+      break;
+    if (reply == 'a')
+      all = true;
+  }
+}
+
 unsigned char Editline::TabCommand(int ch) {
   if (m_completion_callback == nullptr)
     return CC_ERROR;
 
   const LineInfo *line_info = el_line(m_editline);
+
+  llvm::StringRef line(line_info->buffer,
+                       line_info->lastchar - line_info->buffer);
+  unsigned cursor_index = line_info->cursor - line_info->buffer;
+  CompletionResult result;
+  CompletionRequest request(line, cursor_index, result);
+
+  m_completion_callback(request, m_completion_callback_baton);
+
+  llvm::ArrayRef<CompletionResult::Completion> results = result.GetResults();
+
   StringList completions;
-  int page_size = 40;
+  result.GetMatches(completions);
 
-  const int num_completions = m_completion_callback(
-      line_info->buffer, line_info->cursor, line_info->lastchar,
-      0,  // Don't skip any matches (start at match zero)
-      -1, // Get all the matches
-      completions, m_completion_callback_baton);
-
-  if (num_completions == 0)
+  if (results.size() == 0)
     return CC_ERROR;
-  //    if (num_completions == -1)
-  //    {
-  //        el_insertstr (m_editline, m_completion_key);
-  //        return CC_REDISPLAY;
-  //    }
-  //    else
-  if (num_completions == -2) {
-    // Replace the entire line with the first string...
-    el_deletestr(m_editline, line_info->cursor - line_info->buffer);
-    el_insertstr(m_editline, completions.GetStringAtIndex(0));
+
+  if (results.size() == 1) {
+    CompletionResult::Completion completion = results.front();
+    switch (completion.GetMode()) {
+    case CompletionMode::Normal: {
+      std::string to_add = completion.GetCompletion();
+      to_add = to_add.substr(request.GetCursorArgumentPrefix().size());
+      if (request.GetParsedArg().IsQuoted())
+        to_add.push_back(request.GetParsedArg().GetQuoteChar());
+      to_add.push_back(' ');
+      el_insertstr(m_editline, to_add.c_str());
+      break;
+    }
+    case CompletionMode::Partial: {
+      std::string to_add = completion.GetCompletion();
+      to_add = to_add.substr(request.GetCursorArgumentPrefix().size());
+      el_insertstr(m_editline, to_add.c_str());
+      break;
+    }
+    case CompletionMode::RewriteLine: {
+      el_deletestr(m_editline, line_info->cursor - line_info->buffer);
+      el_insertstr(m_editline, completion.GetCompletion().c_str());
+      break;
+    }
+    }
     return CC_REDISPLAY;
   }
 
   // If we get a longer match display that first.
-  const char *completion_str = completions.GetStringAtIndex(0);
-  if (completion_str != nullptr && *completion_str != '\0') {
-    el_insertstr(m_editline, completion_str);
+  std::string longest_prefix = completions.LongestCommonPrefix();
+  if (!longest_prefix.empty())
+    longest_prefix =
+        longest_prefix.substr(request.GetCursorArgumentPrefix().size());
+  if (!longest_prefix.empty()) {
+    el_insertstr(m_editline, longest_prefix.c_str());
     return CC_REDISPLAY;
   }
 
-  if (num_completions > 1) {
-    int num_elements = num_completions + 1;
-    fprintf(m_output_file, "\n" ANSI_CLEAR_BELOW "Available completions:");
-    if (num_completions < page_size) {
-      for (int i = 1; i < num_elements; i++) {
-        completion_str = completions.GetStringAtIndex(i);
-        fprintf(m_output_file, "\n\t%s", completion_str);
-      }
-      fprintf(m_output_file, "\n");
-    } else {
-      int cur_pos = 1;
-      char reply;
-      int got_char;
-      while (cur_pos < num_elements) {
-        int endpoint = cur_pos + page_size;
-        if (endpoint > num_elements)
-          endpoint = num_elements;
-        for (; cur_pos < endpoint; cur_pos++) {
-          completion_str = completions.GetStringAtIndex(cur_pos);
-          fprintf(m_output_file, "\n\t%s", completion_str);
-        }
+  DisplayCompletions(m_editline, m_output_file, results);
 
-        if (cur_pos >= num_elements) {
-          fprintf(m_output_file, "\n");
-          break;
-        }
-
-        fprintf(m_output_file, "\nMore (Y/n/a): ");
-        reply = 'n';
-        got_char = el_getc(m_editline, &reply);
-        if (got_char == -1 || reply == 'n')
-          break;
-        if (reply == 'a')
-          page_size = num_elements - cur_pos;
-      }
-    }
-    DisplayInput();
-    MoveCursor(CursorLocation::BlockEnd, CursorLocation::EditingCursor);
-  }
+  DisplayInput();
+  MoveCursor(CursorLocation::BlockEnd, CursorLocation::EditingCursor);
   return CC_REDISPLAY;
 }
 
@@ -949,7 +1052,9 @@ void Editline::ConfigureEditor(bool multiline) {
   TerminalSizeChanged();
 
   if (m_history_sp && m_history_sp->IsValid()) {
-    m_history_sp->Load();
+    if (!m_history_sp->Load()) {
+        fputs("Could not load history file\n.", m_output_file);
+    }
     el_wset(m_editline, EL_HIST, history, m_history_sp->GetHistoryPtr());
   }
   el_set(m_editline, EL_CLIENTDATA, this);
@@ -1048,9 +1153,18 @@ void Editline::ConfigureEditor(bool multiline) {
   el_set(m_editline, EL_BIND, "\t", "lldb-complete",
          NULL); // Bind TAB to auto complete
 
+  // Allow ctrl-left-arrow and ctrl-right-arrow for navigation, behave like
+  // bash in emacs mode.
+  el_set(m_editline, EL_BIND, ESCAPE "[1;5C", "em-next-word", NULL);
+  el_set(m_editline, EL_BIND, ESCAPE "[1;5D", "ed-prev-word", NULL);
+  el_set(m_editline, EL_BIND, ESCAPE "[5C", "em-next-word", NULL);
+  el_set(m_editline, EL_BIND, ESCAPE "[5D", "ed-prev-word", NULL);
+  el_set(m_editline, EL_BIND, ESCAPE ESCAPE "[C", "em-next-word", NULL);
+  el_set(m_editline, EL_BIND, ESCAPE ESCAPE "[D", "ed-prev-word", NULL);
+
   // Allow user-specific customization prior to registering bindings we
   // absolutely require
-  el_source(m_editline, NULL);
+  el_source(m_editline, nullptr);
 
   // Register an internal binding that external developers shouldn't use
   el_wset(m_editline, EL_ADDFN, EditLineConstString("lldb-revert-line"),
@@ -1117,9 +1231,7 @@ void Editline::ConfigureEditor(bool multiline) {
   }
 }
 
-//------------------------------------------------------------------
 // Editline public methods
-//------------------------------------------------------------------
 
 Editline *Editline::InstanceFor(EditLine *editline) {
   Editline *editor;
@@ -1194,9 +1306,13 @@ void Editline::TerminalSizeChanged() {
   if (m_editline != nullptr) {
     el_resize(m_editline);
     int columns;
-    // Despite the man page claiming non-zero indicates success, it's actually
-    // zero
-    if (el_get(m_editline, EL_GETTC, "co", &columns) == 0) {
+    // This function is documenting as taking (const char *, void *) for the
+    // vararg part, but in reality in was consuming arguments until the first
+    // null pointer. This was fixed in libedit in April 2019
+    // <http://mail-index.netbsd.org/source-changes/2019/04/26/msg105454.html>,
+    // but we're keeping the workaround until a version with that fix is more
+    // widely available.
+    if (el_get(m_editline, EL_GETTC, "co", &columns, nullptr) == 0) {
       m_terminal_width = columns;
       if (m_current_line_rows != -1) {
         const LineInfoW *info = el_wline(m_editline);
@@ -1368,7 +1484,7 @@ bool Editline::CompleteCharacter(char ch, EditLineGetCharType &out) {
     switch (cvt.in(state, input.begin(), input.end(), from_next, &out, &out + 1,
                    to_next)) {
     case std::codecvt_base::ok:
-      return out != WEOF;
+      return out != (int)WEOF;
 
     case std::codecvt_base::error:
     case std::codecvt_base::noconv:

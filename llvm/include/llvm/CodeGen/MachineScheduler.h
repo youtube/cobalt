@@ -1,9 +1,8 @@
 //===- MachineScheduler.h - MachineInstr Scheduling Pass --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -101,6 +100,7 @@ namespace llvm {
 
 extern cl::opt<bool> ForceTopDown;
 extern cl::opt<bool> ForceBottomUp;
+extern cl::opt<bool> VerifyScheduling;
 
 class LiveIntervals;
 class MachineDominatorTree;
@@ -132,17 +132,19 @@ struct MachineSchedContext {
 
 /// MachineSchedRegistry provides a selection of available machine instruction
 /// schedulers.
-class MachineSchedRegistry : public MachinePassRegistryNode {
+class MachineSchedRegistry
+    : public MachinePassRegistryNode<
+          ScheduleDAGInstrs *(*)(MachineSchedContext *)> {
 public:
   using ScheduleDAGCtor = ScheduleDAGInstrs *(*)(MachineSchedContext *);
 
   // RegisterPassParser requires a (misnamed) FunctionPassCtor type.
   using FunctionPassCtor = ScheduleDAGCtor;
 
-  static MachinePassRegistry Registry;
+  static MachinePassRegistry<ScheduleDAGCtor> Registry;
 
   MachineSchedRegistry(const char *N, const char *D, ScheduleDAGCtor C)
-    : MachinePassRegistryNode(N, D, (MachinePassCtor)C) {
+      : MachinePassRegistryNode(N, D, C) {
     Registry.Add(this);
   }
 
@@ -158,7 +160,7 @@ public:
     return (MachineSchedRegistry *)Registry.getList();
   }
 
-  static void setListener(MachinePassRegistryListener *L) {
+  static void setListener(MachinePassRegistryListener<FunctionPassCtor> *L) {
     Registry.setListener(L);
   }
 };
@@ -263,10 +265,6 @@ protected:
   LiveIntervals *LIS;
   std::unique_ptr<MachineSchedStrategy> SchedImpl;
 
-  /// Topo - A topological ordering for SUnits which permits fast IsReachable
-  /// and similar queries.
-  ScheduleDAGTopologicalSort Topo;
-
   /// Ordered list of DAG postprocessing steps.
   std::vector<std::unique_ptr<ScheduleDAGMutation>> Mutations;
 
@@ -290,7 +288,7 @@ public:
   ScheduleDAGMI(MachineSchedContext *C, std::unique_ptr<MachineSchedStrategy> S,
                 bool RemoveKillFlags)
       : ScheduleDAGInstrs(*C->MF, C->MLI, RemoveKillFlags), AA(C->AA),
-        LIS(C->LIS), SchedImpl(std::move(S)), Topo(SUnits, &ExitSU) {}
+        LIS(C->LIS), SchedImpl(std::move(S)) {}
 
   // Provide a vtable anchor
   ~ScheduleDAGMI() override;
@@ -317,17 +315,6 @@ public:
     if (Mutation)
       Mutations.push_back(std::move(Mutation));
   }
-
-  /// True if an edge can be added from PredSU to SuccSU without creating
-  /// a cycle.
-  bool canAddEdge(SUnit *SuccSU, SUnit *PredSU);
-
-  /// Add a DAG edge to the given SU with the given predecessor
-  /// dependence data.
-  ///
-  /// \returns true if the edge may be added without creating a cycle OR if an
-  /// equivalent edge already existed (false indicates failure).
-  bool addEdge(SUnit *SuccSU, const SDep &PredDep);
 
   MachineBasicBlock::iterator top() const { return CurrentTop; }
   MachineBasicBlock::iterator bottom() const { return CurrentBottom; }
@@ -466,6 +453,9 @@ public:
   PressureDiff &getPressureDiff(const SUnit *SU) {
     return SUPressureDiffs[SU->NodeNum];
   }
+  const PressureDiff &getPressureDiff(const SUnit *SU) const {
+    return SUPressureDiffs[SU->NodeNum];
+  }
 
   /// Compute a DFSResult after DAG building is complete, and before any
   /// queue comparisons.
@@ -490,6 +480,8 @@ public:
 
   /// Compute the cyclic critical path through the DAG.
   unsigned computeCyclicCriticalPath();
+
+  void dump() const override;
 
 protected:
   // Top-Level entry points for the schedule() driver...
@@ -675,6 +667,10 @@ private:
   // scheduled instruction.
   SmallVector<unsigned, 16> ReservedCycles;
 
+  // For each PIdx, stores first index into ReservedCycles that corresponds to
+  // it.
+  SmallVector<unsigned, 16> ReservedCyclesIndex;
+
 #ifndef NDEBUG
   // Remember the greatest possible stall as an upper bound on the number of
   // times we should retry the pending queue because of a hazard.
@@ -749,7 +745,11 @@ public:
   /// cycle.
   unsigned getLatencyStallCycles(SUnit *SU);
 
-  unsigned getNextResourceCycle(unsigned PIdx, unsigned Cycles);
+  unsigned getNextResourceCycleByInstance(unsigned InstanceIndex,
+                                          unsigned Cycles);
+
+  std::pair<unsigned, unsigned> getNextResourceCycle(unsigned PIdx,
+                                                     unsigned Cycles);
 
   bool checkHazard(SUnit *SU);
 
@@ -757,7 +757,16 @@ public:
 
   unsigned getOtherResourceCount(unsigned &OtherCritIdx);
 
-  void releaseNode(SUnit *SU, unsigned ReadyCycle);
+  /// Release SU to make it ready. If it's not in hazard, remove it from
+  /// pending queue (if already in) and push into available queue.
+  /// Otherwise, push the SU into pending queue.
+  ///
+  /// @param SU The unit to be released.
+  /// @param ReadyCycle Until which cycle the unit is ready.
+  /// @param InPQueue Whether SU is already in pending queue.
+  /// @param Idx Position offset in pending queue (if in it).
+  void releaseNode(SUnit *SU, unsigned ReadyCycle, bool InPQueue,
+                   unsigned Idx = 0);
 
   void bumpCycle(unsigned NextCycle);
 
@@ -787,7 +796,7 @@ public:
   /// Represent the type of SchedCandidate found within a single queue.
   /// pickNodeBidirectional depends on these listed by decreasing priority.
   enum CandReason : uint8_t {
-    NoCand, Only1, PhysRegCopy, RegExcess, RegCritical, Stall, Cluster, Weak,
+    NoCand, Only1, PhysReg, RegExcess, RegCritical, Stall, Cluster, Weak,
     RegMax, ResourceReduce, ResourceDemand, BotHeightReduce, BotPathReduce,
     TopDepthReduce, TopPathReduce, NextDefUse, NodeOrder};
 
@@ -895,6 +904,10 @@ protected:
 #ifndef NDEBUG
   void traceCandidate(const SchedCandidate &Cand);
 #endif
+
+private:
+  bool shouldReduceLatency(const CandPolicy &Policy, SchedBoundary &CurrZone,
+                           bool ComputeRemLatency, unsigned &RemLatency) const;
 };
 
 // Utility functions used by heuristics in tryCandidate().
@@ -917,7 +930,7 @@ bool tryPressure(const PressureChange &TryP,
                  const TargetRegisterInfo *TRI,
                  const MachineFunction &MF);
 unsigned getWeakLeft(const SUnit *SU, bool isTop);
-int biasPhysRegCopy(const SUnit *SU, bool isTop);
+int biasPhysReg(const SUnit *SU, bool isTop);
 
 /// GenericScheduler shrinks the unscheduled zone using heuristics to balance
 /// the schedule.
@@ -951,7 +964,7 @@ public:
     if (SU->isScheduled)
       return;
 
-    Top.releaseNode(SU, SU->TopReadyCycle);
+    Top.releaseNode(SU, SU->TopReadyCycle, false);
     TopCand.SU = nullptr;
   }
 
@@ -959,7 +972,7 @@ public:
     if (SU->isScheduled)
       return;
 
-    Bot.releaseNode(SU, SU->BotReadyCycle);
+    Bot.releaseNode(SU, SU->BotReadyCycle, false);
     BotCand.SU = nullptr;
   }
 
@@ -995,7 +1008,7 @@ protected:
                          const RegPressureTracker &RPTracker,
                          SchedCandidate &Candidate);
 
-  void reschedulePhysRegCopies(SUnit *SU, bool isTop);
+  void reschedulePhysReg(SUnit *SU, bool isTop);
 };
 
 /// PostGenericScheduler - Interface to the scheduling algorithm used by
@@ -1004,7 +1017,8 @@ protected:
 /// Callbacks from ScheduleDAGMI:
 ///   initPolicy -> initialize(DAG) -> registerRoots -> pickNode ...
 class PostGenericScheduler : public GenericSchedulerBase {
-  ScheduleDAGMI *DAG;
+protected:
+  ScheduleDAGMI *DAG = nullptr;
   SchedBoundary Top;
   SmallVector<SUnit*, 8> BotRoots;
 
@@ -1038,7 +1052,7 @@ public:
   void releaseTopNode(SUnit *SU) override {
     if (SU->isScheduled)
       return;
-    Top.releaseNode(SU, SU->TopReadyCycle);
+    Top.releaseNode(SU, SU->TopReadyCycle, false);
   }
 
   // Only called for roots.

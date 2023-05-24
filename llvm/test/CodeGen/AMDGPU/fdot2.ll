@@ -1,5 +1,7 @@
 ; RUN: llc -march=amdgcn -mcpu=gfx900 -enable-unsafe-fp-math -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GFX900
-; RUN: llc -march=amdgcn -mcpu=gfx906 -enable-unsafe-fp-math -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GFX906-UNSAFE
+; RUN: llc -march=amdgcn -mcpu=gfx906 -enable-unsafe-fp-math -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GCN-DL-UNSAFE,GFX906-DL-UNSAFE
+; RUN: llc -march=amdgcn -mcpu=gfx1011 -enable-unsafe-fp-math -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GCN-DL-UNSAFE,GFX10-DL-UNSAFE,GFX10-CONTRACT
+; RUN: llc -march=amdgcn -mcpu=gfx1012 -enable-unsafe-fp-math -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GCN-DL-UNSAFE,GFX10-DL-UNSAFE,GFX10-CONTRACT
 ; RUN: llc -march=amdgcn -mcpu=gfx906 -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GFX906
 ; RUN: llc -march=amdgcn -mcpu=gfx906 -mattr=-fp64-fp16-denormals,-fp32-denormals -fp-contract=fast -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GFX906-CONTRACT
 ; RUN: llc -march=amdgcn -mcpu=gfx906 -mattr=+fp64-fp16-denormals,+fp32-denormals -fp-contract=fast -verify-machineinstrs < %s | FileCheck %s  -check-prefixes=GCN,GFX906-DENORM-CONTRACT
@@ -8,16 +10,17 @@
 ; Tests to make sure fdot2 is not generated when vector elements of dot-product expressions
 ; are not converted from f16 to f32.
 ; GCN-LABEL: {{^}}dotproduct_f16
-; GFX900: v_fma_legacy_f16
-; GCN900: v_fma_legacy_f16
+; GFX900: v_fma_f16
+; GFX900: v_fma_f16
 
 ; GFX906: v_mul_f16_e32
 ; GFX906: v_mul_f16_e32
 
-; GFX906-UNSAFE:  v_fma_legacy_f16
+; GFX906-DL-UNSAFE:  v_fma_f16
+; GFX10-CONTRACT: v_fmac_f16
 
 ; GFX906-CONTRACT: v_mac_f16_e32
-; GFX906-DENORM-CONTRACT: v_fma_legacy_f16
+; GFX906-DENORM-CONTRACT: v_fma_f16
 define amdgpu_kernel void @dotproduct_f16(<2 x half> addrspace(1)* %src1,
                                           <2 x half> addrspace(1)* %src2,
                                           half addrspace(1)* nocapture %dst) {
@@ -45,12 +48,13 @@ entry:
 ; and the vectors are of type <2 x half>
 ; GCN-LABEL: {{^}}dotproduct_f16_f32
 ; GFX900: v_mad_mix_f32
-; GCN900: v_mad_mix_f32
+; GFX900: v_mad_mix_f32
 
 ; GFX906: v_mad_f32
 ; GFX906: v_mac_f32_e32
 
-; GFX906-UNSAFE: v_dot2_f32_f16
+; GFX906-DL-UNSAFE: v_dot2_f32_f16
+; GFX10-DL-UNSAFE: v_dot2c_f32_f16_e32
 
 ; GFX906-CONTRACT: v_dot2_f32_f16
 
@@ -85,12 +89,13 @@ entry:
 ; and the vectors are of type <2 x half>
 ; GCN-LABEL: {{^}}dotproduct_diffvecorder
 ; GFX900: v_mad_mix_f32
-; GCN900: v_mad_mix_f32
+; GFX900: v_mad_mix_f32
 
 ; GFX906: v_mad_f32
 ; GFX906: v_mac_f32_e32
 
-; GFX906-UNSAFE: v_dot2_f32_f16
+; GFX906-DL-UNSAFE: v_dot2_f32_f16
+; GFX10-DL-UNSAFE: v_dot2c_f32_f16_e32
 
 ; GFX906-CONTRACT: v_dot2_f32_f16
 ; GFX906-DENORM-CONTRACT: v_dot2_f32_f16
@@ -127,7 +132,7 @@ entry:
 ; GFX906: v_mad_f32
 ; GFX906: v_mac_f32_e32
 
-; GFX906-UNSAFE: v_fma_mix_f32
+; GCN-DL-UNSAFE: v_fma_mix_f32
 
 ; GFX906-CONTRACT: v_fma_mix_f32
 ; GFX906-DENORM-CONTRACT: v_fma_mix_f32
@@ -159,12 +164,12 @@ entry:
 
 ; GCN-LABEL: {{^}}NotAdotproduct
 ; GFX900: v_mad_mix_f32
-; GCN900: v_mad_mix_f32
+; GFX900: v_mad_mix_f32
 
 ; GFX906: v_mad_f32
 ; GFX906: v_mac_f32_e32
 
-; GFX906-UNSAFE: v_fma_mix_f32
+; GCN-DL-UNSAFE: v_fma_mix_f32
 
 ; GFX906-CONTRACT: v_fma_mix_f32
 ; GFX906-DENORM-CONTRACT: v_fma_mix_f32
@@ -196,12 +201,12 @@ entry:
 
 ; GCN-LABEL: {{^}}Diff_Idx_NotAdotproduct
 ; GFX900: v_mad_mix_f32
-; GCN900: v_mad_mix_f32
+; GFX900: v_mad_mix_f32
 
 ; GFX906: v_mad_f32
 ; GFX906: v_mac_f32_e32
 
-; GFX906-UNSAFE: v_fma_mix_f32
+; GCN-DL-UNSAFE: v_fma_mix_f32
 
 ; GFX906-CONTRACT: v_fma_mix_f32
 ; GFX906-DENORM-CONTRACT: v_fma_mix_f32

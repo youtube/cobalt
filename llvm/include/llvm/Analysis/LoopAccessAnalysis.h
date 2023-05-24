@@ -1,9 +1,8 @@
 //===- llvm/Analysis/LoopAccessAnalysis.h -----------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -97,6 +96,19 @@ public:
   /// Set of potential dependent memory accesses.
   typedef EquivalenceClasses<MemAccessInfo> DepCandidates;
 
+  /// Type to keep track of the status of the dependence check. The order of
+  /// the elements is important and has to be from most permissive to least
+  /// permissive.
+  enum class VectorizationSafetyStatus {
+    // Can vectorize safely without RT checks. All dependences are known to be
+    // safe.
+    Safe,
+    // Can possibly vectorize with RT checks to overcome unknown dependencies.
+    PossiblySafeWithRtChecks,
+    // Cannot vectorize due to known unsafe dependencies.
+    Unsafe,
+  };
+
   /// Dependece between memory access instructions.
   struct Dependence {
     /// The type of the dependence.
@@ -146,7 +158,7 @@ public:
     Instruction *getDestination(const LoopAccessInfo &LAI) const;
 
     /// Dependence types that don't prevent vectorization.
-    static bool isSafeForVectorization(DepType Type);
+    static VectorizationSafetyStatus isSafeForVectorization(DepType Type);
 
     /// Lexically forward dependence.
     bool isForward() const;
@@ -163,9 +175,9 @@ public:
   };
 
   MemoryDepChecker(PredicatedScalarEvolution &PSE, const Loop *L)
-      : PSE(PSE), InnermostLoop(L), AccessIdx(0), MaxSafeRegisterWidth(-1U),
-        ShouldRetryWithRuntimeCheck(false), SafeForVectorization(true),
-        RecordDependences(true) {}
+      : PSE(PSE), InnermostLoop(L), AccessIdx(0), MaxSafeDepDistBytes(0),
+        MaxSafeRegisterWidth(-1U), FoundNonConstantDistanceDependence(false),
+        Status(VectorizationSafetyStatus::Safe), RecordDependences(true) {}
 
   /// Register the location (instructions are given increasing numbers)
   /// of a write access.
@@ -193,7 +205,9 @@ public:
 
   /// No memory dependence was encountered that would inhibit
   /// vectorization.
-  bool isSafeForVectorization() const { return SafeForVectorization; }
+  bool isSafeForVectorization() const {
+    return Status == VectorizationSafetyStatus::Safe;
+  }
 
   /// The maximum number of bytes of a vector register we can vectorize
   /// the accesses safely with.
@@ -205,7 +219,10 @@ public:
 
   /// In same cases when the dependency check fails we can still
   /// vectorize the loop with a dynamic array access check.
-  bool shouldRetryWithRuntimeCheck() { return ShouldRetryWithRuntimeCheck; }
+  bool shouldRetryWithRuntimeCheck() const {
+    return FoundNonConstantDistanceDependence &&
+           Status == VectorizationSafetyStatus::PossiblySafeWithRtChecks;
+  }
 
   /// Returns the memory dependences.  If null is returned we exceeded
   /// the MaxDependences threshold and this information is not
@@ -267,11 +284,12 @@ private:
 
   /// If we see a non-constant dependence distance we can still try to
   /// vectorize this loop with runtime checks.
-  bool ShouldRetryWithRuntimeCheck;
+  bool FoundNonConstantDistanceDependence;
 
-  /// No memory dependence was encountered that would inhibit
-  /// vectorization.
-  bool SafeForVectorization;
+  /// Result of the dependence checks, indicating whether the checked
+  /// dependences are safe for vectorization, require RT checks or are known to
+  /// be unsafe.
+  VectorizationSafetyStatus Status;
 
   //// True if Dependences reflects the dependences in the
   //// loop.  If false we exceeded MaxDependences and
@@ -304,6 +322,11 @@ private:
   /// \return false if we shouldn't vectorize at all or avoid larger
   /// vectorization factors by limiting MaxSafeDepDistBytes.
   bool couldPreventStoreLoadForward(uint64_t Distance, uint64_t TypeByteSize);
+
+  /// Updates the current safety status with \p S. We can go from Safe to
+  /// either PossiblySafeWithRtChecks or Unsafe and from
+  /// PossiblySafeWithRtChecks to Unsafe.
+  void mergeInStatus(VectorizationSafetyStatus S);
 };
 
 /// Holds information about the memory runtime legality checks to verify
@@ -499,6 +522,11 @@ public:
   /// no memory dependence cycles.
   bool canVectorizeMemory() const { return CanVecMem; }
 
+  /// Return true if there is a convergent operation in the loop. There may
+  /// still be reported runtime pointer checks that would be required, but it is
+  /// not legal to insert them.
+  bool hasConvergentOp() const { return HasConvergentOp; }
+
   const RuntimePointerChecking *getRuntimePointerChecking() const {
     return PtrRtChecking.get();
   }
@@ -564,11 +592,10 @@ public:
   /// Print the information about the memory accesses in the loop.
   void print(raw_ostream &OS, unsigned Depth = 0) const;
 
-  /// Checks existence of store to invariant address inside loop.
-  /// If the loop has any store to invariant address, then it returns true,
-  /// else returns false.
-  bool hasStoreToLoopInvariantAddress() const {
-    return StoreToLoopInvariantAddress;
+  /// If the loop has memory dependence involving an invariant address, i.e. two
+  /// stores or a store and a load, then return true, else return false.
+  bool hasDependenceInvolvingLoopInvariantAddress() const {
+    return HasDependenceInvolvingLoopInvariantAddress;
   }
 
   /// Used to add runtime SCEV checks. Simplifies SCEV expressions and converts
@@ -620,10 +647,10 @@ private:
 
   /// Cache the result of analyzeLoop.
   bool CanVecMem;
+  bool HasConvergentOp;
 
-  /// Indicator for storing to uniform addresses.
-  /// If a loop has write to a loop invariant address then it should be true.
-  bool StoreToLoopInvariantAddress;
+  /// Indicator that there are non vectorizable stores to a uniform address.
+  bool HasDependenceInvolvingLoopInvariantAddress;
 
   /// The diagnostics report generated for the analysis.  E.g. why we
   /// couldn't analyze the loop.
@@ -697,9 +724,7 @@ class LoopAccessLegacyAnalysis : public FunctionPass {
 public:
   static char ID;
 
-  LoopAccessLegacyAnalysis() : FunctionPass(ID) {
-    initializeLoopAccessLegacyAnalysisPass(*PassRegistry::getPassRegistry());
-  }
+  LoopAccessLegacyAnalysis();
 
   bool runOnFunction(Function &F) override;
 
@@ -723,11 +748,11 @@ private:
   DenseMap<Loop *, std::unique_ptr<LoopAccessInfo>> LoopAccessInfoMap;
 
   // The used analysis passes.
-  ScalarEvolution *SE;
-  const TargetLibraryInfo *TLI;
-  AliasAnalysis *AA;
-  DominatorTree *DT;
-  LoopInfo *LI;
+  ScalarEvolution *SE = nullptr;
+  const TargetLibraryInfo *TLI = nullptr;
+  AliasAnalysis *AA = nullptr;
+  DominatorTree *DT = nullptr;
+  LoopInfo *LI = nullptr;
 };
 
 /// This analysis provides dependence information for the memory

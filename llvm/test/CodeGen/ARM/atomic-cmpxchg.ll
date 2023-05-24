@@ -24,8 +24,7 @@ entry:
 ; CHECK-THUMB: bl __sync_val_compare_and_swap_1
 ; CHECK-THUMB-NOT: mov [[R1:r[0-7]]], r0
 ; CHECK-THUMB: subs [[R1:r[0-7]]], r0, {{r[0-9]+}}
-; CHECK-THUMB: movs r0, #0
-; CHECK-THUMB: subs r0, r0, [[R1]]
+; CHECK-THUMB: rsbs r0, [[R1]], #0
 ; CHECK-THUMB: adcs r0, [[R1]]
 
 ; CHECK-ARMV6-LABEL: test_cmpxchg_res_i8:
@@ -47,23 +46,22 @@ entry:
 ; CHECK-THUMBV6-NEXT:  bl __sync_val_compare_and_swap_1
 ; CHECK-THUMBV6-NEXT:  uxtb r1, r4
 ; CHECK-THUMBV6-NEXT:  subs [[R1:r[0-7]]], r0, {{r[0-9]+}}
-; CHECK-THUMBV6-NEXT:  movs r0, #0
-; CHECK-THUMBV6-NEXT:  subs r0, r0, [[R1]]
+; CHECK-THUMBV6-NEXT:  rsbs r0, [[R1]], #0
 ; CHECK-THUMBV6-NEXT:  adcs r0, [[R1]]
 
 ; CHECK-ARMV7-LABEL: test_cmpxchg_res_i8:
 ; CHECK-ARMV7-NEXT: .fnstart
 ; CHECK-ARMV7-NEXT: uxtb [[DESIRED:r[0-9]+]], r1
-; CHECK-ARMV7-NEXT: b [[TRY:.LBB[0-9_]+]]
-; CHECK-ARMV7-NEXT: [[HEAD:.LBB[0-9_]+]]:
-; CHECK-ARMV7-NEXT: strexb [[SUCCESS:r[0-9]+]], r2, [r0]
+; CHECK-ARMV7-NEXT: [[TRY:.LBB[0-9_]+]]:
+; CHECK-ARMV7-NEXT: ldrexb [[SUCCESS:r[0-9]+]], [r0]
+; CHECK-ARMV7-NEXT: cmp [[SUCCESS]], r1
+; CHECK-ARMV7-NEXT: bne [[EXIT:.LBB[0-9_]+]]
+; CHECK-ARMV7-NEXT: strexb [[SUCCESS]], r2, [r0]
 ; CHECK-ARMV7-NEXT: cmp [[SUCCESS]], #0
 ; CHECK-ARMV7-NEXT: moveq r0, #1
 ; CHECK-ARMV7-NEXT: bxeq lr
-; CHECK-ARMV7-NEXT: [[TRY]]:
-; CHECK-ARMV7-NEXT: ldrexb [[SUCCESS]], [r0]
-; CHECK-ARMV7-NEXT: cmp [[SUCCESS]], r1
-; CHECK-ARMV7-NEXT: beq [[HEAD]]
+; CHECK-ARMV7-NEXT: b [[TRY]]
+; CHECK-ARMV7-NEXT: [[EXIT]]:
 ; CHECK-ARMV7-NEXT: mov r0, #0
 ; CHECK-ARMV7-NEXT: clrex
 ; CHECK-ARMV7-NEXT: bx lr
@@ -71,17 +69,17 @@ entry:
 ; CHECK-THUMBV7-LABEL: test_cmpxchg_res_i8:
 ; CHECK-THUMBV7-NEXT: .fnstart
 ; CHECK-THUMBV7-NEXT: uxtb [[DESIRED:r[0-9]+]], r1
-; CHECK-THUMBV7-NEXT: b [[TRYLD:.LBB[0-9_]+]]
-; CHECK-THUMBV7-NEXT: [[TRYST:.LBB[0-9_]+]]:
+; CHECK-THUMBV7-NEXT: [[TRYLD:.LBB[0-9_]+]]
+; CHECK-THUMBV7-NEXT: ldrexb [[LD:r[0-9]+]], [r0]
+; CHECK-THUMBV7-NEXT: cmp [[LD]], [[DESIRED]]
+; CHECK-THUMBV7-NEXT: bne [[EXIT:.LBB[0-9_]+]]
 ; CHECK-THUMBV7-NEXT: strexb [[SUCCESS:r[0-9]+]], r2, [r0]
 ; CHECK-THUMBV7-NEXT: cmp [[SUCCESS]], #0
 ; CHECK-THUMBV7-NEXT: itt eq
 ; CHECK-THUMBV7-NEXT: moveq r0, #1
 ; CHECK-THUMBV7-NEXT: bxeq lr
-; CHECK-THUMBV7-NEXT: [[TRYLD]]:
-; CHECK-THUMBV7-NEXT: ldrexb [[LD:r[0-9]+]], [r0]
-; CHECK-THUMBV7-NEXT: cmp [[LD]], [[DESIRED]]
-; CHECK-THUMBV7-NEXT: beq [[TRYST:.LBB[0-9_]+]]
+; CHECK-THUMBV7-NEXT: b [[TRYLD]]
+; CHECK-THUMBV7-NEXT: [[EXIT]]:
 ; CHECK-THUMBV7-NEXT: movs r0, #0
 ; CHECK-THUMBV7-NEXT: clrex
 ; CHECK-THUMBV7-NEXT: bx lr

@@ -8,6 +8,7 @@ endif()
 
 add_lld_library(lldCOFF
   Chunks.cpp
+  DebugTypes.cpp
   DLL.cpp
   Driver.cpp
   DriverUtils.cpp
@@ -27,13 +28,16 @@ add_lld_library(lldCOFF
   BinaryFormat
   Core
   DebugInfoCodeView
+  DebugInfoDWARF
   DebugInfoMSF
   DebugInfoPDB
+  Demangle
   LibDriver
   LTO
   MC
   Object
   Option
+  Passes
   Support
   WindowsManifest
 

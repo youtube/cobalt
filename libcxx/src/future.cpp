@@ -1,9 +1,8 @@
 //===------------------------- future.cpp ---------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -179,10 +178,7 @@ __assoc_sub_state::__execute()
 future<void>::future(__assoc_sub_state* __state)
     : __state_(__state)
 {
-    if (__state_->__has_future_attached())
-        __throw_future_error(future_errc::future_already_retrieved);
-    __state_->__add_shared();
-    __state_->__set_future_attached();
+    __state_->__attach_future();
 }
 
 future<void>::~future()

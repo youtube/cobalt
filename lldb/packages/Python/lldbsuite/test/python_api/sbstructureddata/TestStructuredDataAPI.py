@@ -2,11 +2,7 @@
 Test some SBStructuredData API.
 """
 
-from __future__ import print_function
 
-import os
-import re
-import time
 
 import lldb
 from lldbsuite.test.decorators import *
@@ -21,9 +17,6 @@ class TestStructuredDataAPI(TestBase):
 
     def test(self):
         self.structured_data_api_test()
-
-    def setUp(self):
-        TestBase.setUp(self)
 
     @add_test_categories(['pyapi'])
     def structured_data_api_test(self):

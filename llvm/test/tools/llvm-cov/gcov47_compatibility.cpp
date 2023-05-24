@@ -5,8 +5,8 @@
 // -coverage -Xclang -coverage-no-function-names-in-data
 // -Xclang -coverage-cfg-checksum -Xclang -coverage-version='407*'
 
-// We need shell for cd
-// REQUIRES: shell
+
+
 
 // RUN: rm -rf %t
 // RUN: mkdir %t
@@ -27,4 +27,4 @@ int main(int argc, const char *argv[]) { // GCOV: -:    [[@LINE]]:int main(
 }                                        // GCOV: -:    [[@LINE]]:}
 
 // llvm-cov doesn't work on big endian yet
-// XFAIL: powerpc-, powerpc64-, s390x, mips-, mips64-, sparc
+// XFAIL: host-byteorder-big-endian

@@ -14,8 +14,8 @@ define i64 @const_pow_2(i64 %x) {
 ;
 ; X64-LABEL: const_pow_2:
 ; X64:       # %bb.0:
-; X64-NEXT:    andl $31, %edi
 ; X64-NEXT:    movq %rdi, %rax
+; X64-NEXT:    andl $31, %eax
 ; X64-NEXT:    retq
   %urem = urem i64 %x, 32
   ret i64 %urem
@@ -35,8 +35,9 @@ define i25 @shift_left_pow_2(i25 %x, i25 %y) {
 ;
 ; X64-LABEL: shift_left_pow_2:
 ; X64:       # %bb.0:
-; X64-NEXT:    movl $1, %eax
 ; X64-NEXT:    movl %esi, %ecx
+; X64-NEXT:    movl $1, %eax
+; X64-NEXT:    # kill: def $cl killed $cl killed $ecx
 ; X64-NEXT:    shll %cl, %eax
 ; X64-NEXT:    addl $33554431, %eax # imm = 0x1FFFFFF
 ; X64-NEXT:    andl %edi, %eax
@@ -61,8 +62,9 @@ define i16 @shift_right_pow_2(i16 %x, i16 %y) {
 ;
 ; X64-LABEL: shift_right_pow_2:
 ; X64:       # %bb.0:
-; X64-NEXT:    movl $32768, %eax # imm = 0x8000
 ; X64-NEXT:    movl %esi, %ecx
+; X64-NEXT:    movl $32768, %eax # imm = 0x8000
+; X64-NEXT:    # kill: def $cl killed $cl killed $ecx
 ; X64-NEXT:    shrl %cl, %eax
 ; X64-NEXT:    decl %eax
 ; X64-NEXT:    andl %edi, %eax
@@ -81,7 +83,6 @@ define i8 @and_pow_2(i8 %x, i8 %y) {
 ; X86-NEXT:    movb {{[0-9]+}}(%esp), %cl
 ; X86-NEXT:    andb $4, %cl
 ; X86-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
-; X86-NEXT:    # kill: def $eax killed $eax def $ax
 ; X86-NEXT:    divb %cl
 ; X86-NEXT:    movzbl %ah, %eax
 ; X86-NEXT:    # kill: def $al killed $al killed $eax
@@ -91,7 +92,6 @@ define i8 @and_pow_2(i8 %x, i8 %y) {
 ; X64:       # %bb.0:
 ; X64-NEXT:    andb $4, %sil
 ; X64-NEXT:    movzbl %dil, %eax
-; X64-NEXT:    # kill: def $eax killed $eax def $ax
 ; X64-NEXT:    divb %sil
 ; X64-NEXT:    movzbl %ah, %eax
 ; X64-NEXT:    # kill: def $al killed $al killed $eax

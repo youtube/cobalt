@@ -1,9 +1,8 @@
 //===--- Headers.cpp - Include headers ---------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,6 +14,7 @@
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Lex/HeaderSearch.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Path.h"
 
 namespace clang {
@@ -34,13 +34,17 @@ public:
                           llvm::StringRef /*SearchPath*/,
                           llvm::StringRef /*RelativePath*/,
                           const Module * /*Imported*/,
-                          SrcMgr::CharacteristicKind /*FileType*/) override {
-    if (SM.isInMainFile(HashLoc))
-      Out->MainFileIncludes.push_back({
-          halfOpenToRange(SM, FilenameRange),
-          (IsAngled ? "<" + FileName + ">" : "\"" + FileName + "\"").str(),
-          File ? File->tryGetRealPathName() : "",
-      });
+                          SrcMgr::CharacteristicKind FileKind) override {
+    if (isInsideMainFile(HashLoc, SM)) {
+      Out->MainFileIncludes.emplace_back();
+      auto &Inc = Out->MainFileIncludes.back();
+      Inc.R = halfOpenToRange(SM, FilenameRange);
+      Inc.Written =
+          (IsAngled ? "<" + FileName + ">" : "\"" + FileName + "\"").str();
+      Inc.Resolved = File ? File->tryGetRealPathName() : "";
+      Inc.HashOffset = SM.getFileOffset(HashLoc);
+      Inc.FileKind = FileKind;
+    }
     if (File) {
       auto *IncludingFileEntry = SM.getFileEntryForID(SM.getFileID(HashLoc));
       if (!IncludingFileEntry) {
@@ -70,10 +74,45 @@ bool HeaderFile::valid() const {
          (!Verbatim && llvm::sys::path::is_absolute(File));
 }
 
+llvm::Expected<HeaderFile> toHeaderFile(llvm::StringRef Header,
+                                        llvm::StringRef HintPath) {
+  if (isLiteralInclude(Header))
+    return HeaderFile{Header.str(), /*Verbatim=*/true};
+  auto U = URI::parse(Header);
+  if (!U)
+    return U.takeError();
+
+  auto IncludePath = URI::includeSpelling(*U);
+  if (!IncludePath)
+    return IncludePath.takeError();
+  if (!IncludePath->empty())
+    return HeaderFile{std::move(*IncludePath), /*Verbatim=*/true};
+
+  auto Resolved = URI::resolve(*U, HintPath);
+  if (!Resolved)
+    return Resolved.takeError();
+  return HeaderFile{std::move(*Resolved), /*Verbatim=*/false};
+}
+
+llvm::SmallVector<llvm::StringRef, 1> getRankedIncludes(const Symbol &Sym) {
+  auto Includes = Sym.IncludeHeaders;
+  // Sort in descending order by reference count and header length.
+  llvm::sort(Includes, [](const Symbol::IncludeHeaderWithReferences &LHS,
+                          const Symbol::IncludeHeaderWithReferences &RHS) {
+    if (LHS.References == RHS.References)
+      return LHS.IncludeHeader.size() < RHS.IncludeHeader.size();
+    return LHS.References > RHS.References;
+  });
+  llvm::SmallVector<llvm::StringRef, 1> Headers;
+  for (const auto &Include : Includes)
+    Headers.push_back(Include.IncludeHeader);
+  return Headers;
+}
+
 std::unique_ptr<PPCallbacks>
 collectIncludeStructureCallback(const SourceManager &SM,
                                 IncludeStructure *Out) {
-  return llvm::make_unique<RecordHeaders>(SM, Out);
+  return std::make_unique<RecordHeaders>(SM, Out);
 }
 
 void IncludeStructure::recordInclude(llvm::StringRef IncludingName,
@@ -126,34 +165,50 @@ IncludeStructure::includeDepth(llvm::StringRef Root) const {
   return Result;
 }
 
+void IncludeInserter::addExisting(const Inclusion &Inc) {
+  IncludedHeaders.insert(Inc.Written);
+  if (!Inc.Resolved.empty())
+    IncludedHeaders.insert(Inc.Resolved);
+}
+
 /// FIXME(ioeric): we might not want to insert an absolute include path if the
 /// path is not shortened.
 bool IncludeInserter::shouldInsertInclude(
-    const HeaderFile &DeclaringHeader, const HeaderFile &InsertedHeader) const {
-  assert(DeclaringHeader.valid() && InsertedHeader.valid());
-  if (FileName == DeclaringHeader.File || FileName == InsertedHeader.File)
+    PathRef DeclaringHeader, const HeaderFile &InsertedHeader) const {
+  assert(InsertedHeader.valid());
+  if (!HeaderSearchInfo && !InsertedHeader.Verbatim)
     return false;
-  llvm::StringSet<> IncludedHeaders;
-  for (const auto &Inc : Inclusions) {
-    IncludedHeaders.insert(Inc.Written);
-    if (!Inc.Resolved.empty())
-      IncludedHeaders.insert(Inc.Resolved);
-  }
+  if (FileName == DeclaringHeader || FileName == InsertedHeader.File)
+    return false;
   auto Included = [&](llvm::StringRef Header) {
     return IncludedHeaders.find(Header) != IncludedHeaders.end();
   };
-  return !Included(DeclaringHeader.File) && !Included(InsertedHeader.File);
+  return !Included(DeclaringHeader) && !Included(InsertedHeader.File);
 }
 
-std::string
-IncludeInserter::calculateIncludePath(const HeaderFile &DeclaringHeader,
-                                      const HeaderFile &InsertedHeader) const {
-  assert(DeclaringHeader.valid() && InsertedHeader.valid());
+llvm::Optional<std::string>
+IncludeInserter::calculateIncludePath(const HeaderFile &InsertedHeader,
+                                      llvm::StringRef IncludingFile) const {
+  assert(InsertedHeader.valid());
   if (InsertedHeader.Verbatim)
     return InsertedHeader.File;
   bool IsSystem = false;
-  std::string Suggested = HeaderSearchInfo.suggestPathToFileForDiagnostics(
-      InsertedHeader.File, BuildDir, &IsSystem);
+  std::string Suggested;
+  if (HeaderSearchInfo) {
+    Suggested = HeaderSearchInfo->suggestPathToFileForDiagnostics(
+        InsertedHeader.File, BuildDir, IncludingFile, &IsSystem);
+  } else {
+    // Calculate include relative to including file only.
+    StringRef IncludingDir = llvm::sys::path::parent_path(IncludingFile);
+    SmallString<256> RelFile(InsertedHeader.File);
+    // Replacing with "" leaves "/RelFile" if IncludingDir doesn't end in "/".
+    llvm::sys::path::replace_path_prefix(RelFile, IncludingDir, "./");
+    Suggested = llvm::sys::path::convert_to_slash(
+        llvm::sys::path::remove_leading_dotslash(RelFile));
+  }
+  // FIXME: should we allow (some limited number of) "../header.h"?
+  if (llvm::sys::path::is_absolute(Suggested))
+    return None;
   if (IsSystem)
     Suggested = "<" + Suggested + ">";
   else
@@ -161,12 +216,19 @@ IncludeInserter::calculateIncludePath(const HeaderFile &DeclaringHeader,
   return Suggested;
 }
 
-Optional<TextEdit> IncludeInserter::insert(StringRef VerbatimHeader) const {
-  Optional<TextEdit> Edit = None;
+llvm::Optional<TextEdit>
+IncludeInserter::insert(llvm::StringRef VerbatimHeader) const {
+  llvm::Optional<TextEdit> Edit = None;
   if (auto Insertion = Inserter.insert(VerbatimHeader.trim("\"<>"),
                                        VerbatimHeader.startswith("<")))
     Edit = replacementToEdit(Code, *Insertion);
   return Edit;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, const Inclusion &Inc) {
+  return OS << Inc.Written << " = "
+            << (Inc.Resolved.empty() ? Inc.Resolved : "[unresolved]") << " at "
+            << Inc.R;
 }
 
 } // namespace clangd

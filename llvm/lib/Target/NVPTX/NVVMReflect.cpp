@@ -1,9 +1,8 @@
 //===- NVVMReflect.cpp - NVVM Emulate conditional compilation -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -28,6 +27,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
@@ -50,7 +50,9 @@ namespace {
 class NVVMReflect : public FunctionPass {
 public:
   static char ID;
-  NVVMReflect() : FunctionPass(ID) {
+  unsigned int SmVersion;
+  NVVMReflect() : NVVMReflect(0) {}
+  explicit NVVMReflect(unsigned int Sm) : FunctionPass(ID), SmVersion(Sm) {
     initializeNVVMReflectPass(*PassRegistry::getPassRegistry());
   }
 
@@ -58,7 +60,9 @@ public:
 };
 }
 
-FunctionPass *llvm::createNVVMReflectPass() { return new NVVMReflect(); }
+FunctionPass *llvm::createNVVMReflectPass(unsigned int SmVersion) {
+  return new NVVMReflect(SmVersion);
+}
 
 static cl::opt<bool>
 NVVMReflectEnabled("nvvm-reflect-enable", cl::init(true), cl::Hidden,
@@ -163,6 +167,8 @@ bool NVVMReflect::runOnFunction(Function &F) {
       if (auto *Flag = mdconst::extract_or_null<ConstantInt>(
               F.getParent()->getModuleFlag("nvvm-reflect-ftz")))
         ReflectVal = Flag->getSExtValue();
+    } else if (ReflectArg == "__CUDA_ARCH") {
+      ReflectVal = SmVersion * 10;
     }
     Call->replaceAllUsesWith(ConstantInt::get(Call->getType(), ReflectVal));
     ToRemove.push_back(Call);

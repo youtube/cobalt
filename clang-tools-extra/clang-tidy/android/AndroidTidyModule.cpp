@@ -1,9 +1,8 @@
 //===--- AndroidTidyModule.cpp - clang-tidy--------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -21,6 +20,8 @@
 #include "CloexecInotifyInitCheck.h"
 #include "CloexecMemfdCreateCheck.h"
 #include "CloexecOpenCheck.h"
+#include "CloexecPipeCheck.h"
+#include "CloexecPipe2Check.h"
 #include "CloexecSocketCheck.h"
 #include "ComparisonInTempFailureRetryCheck.h"
 
@@ -37,19 +38,21 @@ public:
     CheckFactories.registerCheck<CloexecAccept4Check>("android-cloexec-accept4");
     CheckFactories.registerCheck<CloexecAcceptCheck>("android-cloexec-accept");
     CheckFactories.registerCheck<CloexecCreatCheck>("android-cloexec-creat");
+    CheckFactories.registerCheck<CloexecDupCheck>("android-cloexec-dup");
     CheckFactories.registerCheck<CloexecEpollCreate1Check>(
         "android-cloexec-epoll-create1");
     CheckFactories.registerCheck<CloexecEpollCreateCheck>(
         "android-cloexec-epoll-create");
-    CheckFactories.registerCheck<CloexecDupCheck>("android-cloexec-dup");
     CheckFactories.registerCheck<CloexecFopenCheck>("android-cloexec-fopen");
-    CheckFactories.registerCheck<CloexecInotifyInitCheck>(
-        "android-cloexec-inotify-init");
     CheckFactories.registerCheck<CloexecInotifyInit1Check>(
         "android-cloexec-inotify-init1");
+    CheckFactories.registerCheck<CloexecInotifyInitCheck>(
+        "android-cloexec-inotify-init");
     CheckFactories.registerCheck<CloexecMemfdCreateCheck>(
         "android-cloexec-memfd-create");
     CheckFactories.registerCheck<CloexecOpenCheck>("android-cloexec-open");
+    CheckFactories.registerCheck<CloexecPipeCheck>("android-cloexec-pipe");
+    CheckFactories.registerCheck<CloexecPipe2Check>("android-cloexec-pipe2");
     CheckFactories.registerCheck<CloexecSocketCheck>("android-cloexec-socket");
     CheckFactories.registerCheck<ComparisonInTempFailureRetryCheck>(
         "android-comparison-in-temp-failure-retry");

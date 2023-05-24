@@ -1,9 +1,8 @@
 //===---------- UsingInserter.cpp - clang-tidy ----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -41,7 +40,7 @@ Optional<FixItHint> UsingInserter::createUsingDeclaration(
     return None;
 
   SourceLocation InsertLoc = Lexer::getLocForEndOfToken(
-      Function->getBody()->getLocStart(), 0, SourceMgr, Context.getLangOpts());
+      Function->getBody()->getBeginLoc(), 0, SourceMgr, Context.getLangOpts());
 
   // Only use using declarations in the main file, not in includes.
   if (SourceMgr.getFileID(InsertLoc) != SourceMgr.getMainFileID())

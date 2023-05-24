@@ -1,9 +1,8 @@
 //===--- RedundantControlFlowCheck.cpp - clang-tidy------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -81,7 +80,7 @@ void RedundantControlFlowCheck::issueDiagnostic(
   SourceLocation Start;
   if (Previous != Block->body_rend())
     Start = Lexer::findLocationAfterToken(
-        dyn_cast<Stmt>(*Previous)->getLocEnd(), tok::semi, SM, getLangOpts(),
+        dyn_cast<Stmt>(*Previous)->getEndLoc(), tok::semi, SM, getLangOpts(),
         /*SkipTrailingWhitespaceAndNewLine=*/true);
   if (!Start.isValid())
     Start = StmtRange.getBegin();

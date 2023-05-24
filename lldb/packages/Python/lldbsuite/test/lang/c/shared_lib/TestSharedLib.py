@@ -1,6 +1,5 @@
 """Test that types defined in shared libraries work correctly."""
 
-from __future__ import print_function
 
 
 import unittest2
@@ -35,12 +34,12 @@ class SharedLibTestCase(TestBase):
             "expression GetMeASubFoo(my_foo_ptr)",
             startstr="(sub_foo *) $")
 
-    @expectedFailureAll(oslist=["windows"])
+    @expectedFailureNetBSD
     def test_expr(self):
         """Test that types work when defined in a shared library and forward-declared in the main executable"""
         self.common_test_expr(True)
 
-    @expectedFailureAll(oslist=["windows"])
+    @expectedFailureNetBSD
     def test_expr_no_preload(self):
         """Test that types work when defined in a shared library and forward-declared in the main executable, but with preloading disabled"""
         self.common_test_expr(False)

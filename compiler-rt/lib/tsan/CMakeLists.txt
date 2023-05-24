@@ -26,49 +26,60 @@ append_list_if(COMPILER_RT_HAS_WGLOBAL_CONSTRUCTORS_FLAG -Wglobal-constructors
                TSAN_RTL_CFLAGS)
 
 set(TSAN_SOURCES
-  rtl/tsan_clock.cc
-  rtl/tsan_debugging.cc
-  rtl/tsan_external.cc
-  rtl/tsan_fd.cc
-  rtl/tsan_flags.cc
-  rtl/tsan_ignoreset.cc
-  rtl/tsan_interceptors.cc
-  rtl/tsan_interface.cc
-  rtl/tsan_interface_ann.cc
-  rtl/tsan_interface_atomic.cc
-  rtl/tsan_interface_java.cc
-  rtl/tsan_malloc_mac.cc
-  rtl/tsan_md5.cc
-  rtl/tsan_mman.cc
-  rtl/tsan_mutex.cc
-  rtl/tsan_mutexset.cc
-  rtl/tsan_preinit.cc
-  rtl/tsan_report.cc
-  rtl/tsan_rtl.cc
-  rtl/tsan_rtl_mutex.cc
-  rtl/tsan_rtl_proc.cc
-  rtl/tsan_rtl_report.cc
-  rtl/tsan_rtl_thread.cc
-  rtl/tsan_stack_trace.cc
-  rtl/tsan_stat.cc
-  rtl/tsan_suppressions.cc
-  rtl/tsan_symbolize.cc
-  rtl/tsan_sync.cc)
+  rtl/tsan_clock.cpp
+  rtl/tsan_debugging.cpp
+  rtl/tsan_external.cpp
+  rtl/tsan_fd.cpp
+  rtl/tsan_flags.cpp
+  rtl/tsan_ignoreset.cpp
+  rtl/tsan_interceptors_posix.cpp
+  rtl/tsan_interface.cpp
+  rtl/tsan_interface_ann.cpp
+  rtl/tsan_interface_atomic.cpp
+  rtl/tsan_interface_java.cpp
+  rtl/tsan_malloc_mac.cpp
+  rtl/tsan_md5.cpp
+  rtl/tsan_mman.cpp
+  rtl/tsan_mutex.cpp
+  rtl/tsan_mutexset.cpp
+  rtl/tsan_preinit.cpp
+  rtl/tsan_report.cpp
+  rtl/tsan_rtl.cpp
+  rtl/tsan_rtl_mutex.cpp
+  rtl/tsan_rtl_proc.cpp
+  rtl/tsan_rtl_report.cpp
+  rtl/tsan_rtl_thread.cpp
+  rtl/tsan_stack_trace.cpp
+  rtl/tsan_stat.cpp
+  rtl/tsan_suppressions.cpp
+  rtl/tsan_symbolize.cpp
+  rtl/tsan_sync.cpp
+  )
 
 set(TSAN_CXX_SOURCES
-  rtl/tsan_new_delete.cc)
+  rtl/tsan_new_delete.cpp
+  )
 
 if(APPLE)
   list(APPEND TSAN_SOURCES
-    rtl/tsan_interceptors_mac.cc
-    rtl/tsan_libdispatch_mac.cc
-    rtl/tsan_platform_mac.cc
-    rtl/tsan_platform_posix.cc)
+    rtl/tsan_interceptors_mac.cpp
+    rtl/tsan_interceptors_mach_vm.cpp
+    rtl/tsan_platform_mac.cpp
+    rtl/tsan_platform_posix.cpp
+    )
 elseif(UNIX)
   # Assume Linux
   list(APPEND TSAN_SOURCES
-    rtl/tsan_platform_linux.cc
-    rtl/tsan_platform_posix.cc)
+    rtl/tsan_platform_linux.cpp
+    rtl/tsan_platform_posix.cpp
+    )
+endif()
+
+if(COMPILER_RT_INTERCEPT_LIBDISPATCH)
+  list(APPEND TSAN_SOURCES
+    rtl/tsan_interceptors_libdispatch.cpp
+    )
+  list(APPEND TSAN_RTL_CFLAGS ${COMPILER_RT_LIBDISPATCH_CFLAGS})
 endif()
 
 set(TSAN_HEADERS
@@ -158,6 +169,15 @@ else()
         VERBATIM)
     elseif(arch STREQUAL "aarch64")
       add_asm_sources(TSAN_ASM_SOURCES rtl/tsan_rtl_aarch64.S)
+      # Sanity check for Go runtime.
+      set(BUILDGO_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/go/buildgo.sh)
+      add_custom_target(GotsanRuntimeCheck
+	COMMAND env "CC=${CMAKE_C_COMPILER} ${CMAKE_C_COMPILER_ARG1}"
+		IN_TMPDIR=1 SILENT=1 ${BUILDGO_SCRIPT}
+	DEPENDS clang_rt.tsan-${arch} ${BUILDGO_SCRIPT}
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/go
+	COMMENT "Checking TSan Go runtime..."
+	VERBATIM)
     elseif(arch MATCHES "powerpc64|powerpc64le")
       add_asm_sources(TSAN_ASM_SOURCES rtl/tsan_rtl_ppc64.S)
       # Sanity check for Go runtime.
@@ -211,11 +231,12 @@ else()
 endif()
 
 # Make sure that non-platform-specific files don't include any system headers.
-# FreeBSD does not install a number of Clang-provided headers for the compiler
-# in the base system due to incompatibilities between FreeBSD's and Clang's
-# versions. As a workaround do not use --sysroot=. on FreeBSD until this is
-# addressed.
-if(COMPILER_RT_HAS_SYSROOT_FLAG AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+# FreeBSD/NetBSD do not install a number of Clang-provided headers for the
+# compiler in the base system due to incompatibilities between FreeBSD/NetBSD's
+# and Clang's versions. As a workaround do not use --sysroot=. on FreeBSD/NetBSD
+# until this is addressed.
+if(COMPILER_RT_HAS_SYSROOT_FLAG AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD"
+   AND NOT CMAKE_SYSTEM_NAME MATCHES "NetBSD")
   file(GLOB _tsan_generic_sources rtl/tsan*)
   file(GLOB _tsan_platform_sources rtl/tsan*posix* rtl/tsan*mac*
                                    rtl/tsan*linux*)
@@ -226,6 +247,7 @@ endif()
 
 # Build libcxx instrumented with TSan.
 if(COMPILER_RT_LIBCXX_PATH AND
+   COMPILER_RT_LIBCXXABI_PATH AND
    COMPILER_RT_TEST_COMPILER_ID STREQUAL "Clang" AND
    NOT ANDROID)
   set(libcxx_tsan_deps)

@@ -1,9 +1,8 @@
 //===-- R600MachineScheduler.cpp - R600 Scheduler Interface -*- C++ -*-----===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -127,13 +126,13 @@ SUnit* R600SchedStrategy::pickNode(bool &IsTopNode) {
 
   LLVM_DEBUG(if (SU) {
     dbgs() << " ** Pick node **\n";
-    SU->dump(DAG);
+    DAG->dumpNode(*SU);
   } else {
     dbgs() << "NO NODE \n";
     for (unsigned i = 0; i < DAG->SUnits.size(); i++) {
       const SUnit &S = DAG->SUnits[i];
       if (!S.isScheduled)
-        S.dump(DAG);
+        DAG->dumpNode(S);
     }
   });
 
@@ -184,15 +183,15 @@ isPhysicalRegCopy(MachineInstr *MI) {
   if (MI->getOpcode() != R600::COPY)
     return false;
 
-  return !TargetRegisterInfo::isVirtualRegister(MI->getOperand(1).getReg());
+  return !Register::isVirtualRegister(MI->getOperand(1).getReg());
 }
 
 void R600SchedStrategy::releaseTopNode(SUnit *SU) {
-  LLVM_DEBUG(dbgs() << "Top Releasing "; SU->dump(DAG););
+  LLVM_DEBUG(dbgs() << "Top Releasing "; DAG->dumpNode(*SU));
 }
 
 void R600SchedStrategy::releaseBottomNode(SUnit *SU) {
-  LLVM_DEBUG(dbgs() << "Bottom Releasing "; SU->dump(DAG););
+  LLVM_DEBUG(dbgs() << "Bottom Releasing "; DAG->dumpNode(*SU));
   if (isPhysicalRegCopy(SU->getInstr())) {
     PhysicalRegCopy.push_back(SU);
     return;
@@ -210,7 +209,7 @@ void R600SchedStrategy::releaseBottomNode(SUnit *SU) {
 
 bool R600SchedStrategy::regBelongsToClass(unsigned Reg,
                                           const TargetRegisterClass *RC) const {
-  if (!TargetRegisterInfo::isVirtualRegister(Reg)) {
+  if (!Register::isVirtualRegister(Reg)) {
     return RC->contains(Reg);
   } else {
     return MRI->getRegClass(Reg) == RC;
@@ -236,6 +235,7 @@ R600SchedStrategy::AluKind R600SchedStrategy::getAluKind(SUnit *SU) const {
       // MI will become a KILL, don't considers it in scheduling
       return AluDiscarded;
     }
+    break;
   default:
     break;
   }
@@ -270,7 +270,7 @@ R600SchedStrategy::AluKind R600SchedStrategy::getAluKind(SUnit *SU) const {
   }
 
   // Is the result already member of a X/Y/Z/W class ?
-  unsigned DestReg = MI->getOperand(0).getReg();
+  Register DestReg = MI->getOperand(0).getReg();
   if (regBelongsToClass(DestReg, &R600::R600_TReg32_XRegClass) ||
       regBelongsToClass(DestReg, &R600::R600_AddrRegClass))
     return AluT_X;
@@ -357,7 +357,7 @@ void R600SchedStrategy::AssignSlot(MachineInstr* MI, unsigned Slot) {
   if (DstIndex == -1) {
     return;
   }
-  unsigned DestReg = MI->getOperand(DstIndex).getReg();
+  Register DestReg = MI->getOperand(DstIndex).getReg();
   // PressureRegister crashes if an operand is def and used in the same inst
   // and we try to constraint its regclass
   for (MachineInstr::mop_iterator It = MI->operands_begin(),

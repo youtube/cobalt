@@ -1,9 +1,8 @@
 //===--- AvoidNSErrorInitCheck.cpp - clang-tidy----------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,9 +18,9 @@ namespace objc {
 
 void AvoidNSErrorInitCheck::registerMatchers(MatchFinder *Finder) {
   // this check should only be applied to ObjC sources.
-  if (!getLangOpts().ObjC1 && !getLangOpts().ObjC2) {
+  if (!getLangOpts().ObjC)
     return;
-  }
+
   Finder->addMatcher(objcMessageExpr(hasSelector("init"),
                                      hasReceiverType(asString("NSError *")))
                          .bind("nserrorInit"),
@@ -31,7 +30,7 @@ void AvoidNSErrorInitCheck::registerMatchers(MatchFinder *Finder) {
 void AvoidNSErrorInitCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *MatchedExpr =
       Result.Nodes.getNodeAs<ObjCMessageExpr>("nserrorInit");
-  diag(MatchedExpr->getLocStart(),
+  diag(MatchedExpr->getBeginLoc(),
        "use errorWithDomain:code:userInfo: or initWithDomain:code:userInfo: to "
        "create a new NSError");
 }

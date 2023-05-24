@@ -45,13 +45,18 @@ tool_patterns = [
 
 llvm_config.add_tool_substitutions(tool_patterns)
 
+# LLD tests tend to be flaky on NetBSD, so add some retries.
+# We don't do this on other platforms because it's slower.
+if platform.system() in ['NetBSD']:
+    config.test_retry_attempts = 2
+
 # When running under valgrind, we mangle '-vg' onto the end of the triple so we
 # can check it with XFAIL and XTARGET.
 if lit_config.useValgrind:
     config.target_triple += '-vg'
 
 # Running on ELF based *nix
-if platform.system() in ['FreeBSD', 'Linux']:
+if platform.system() in ['FreeBSD', 'NetBSD', 'Linux']:
     config.available_features.add('system-linker-elf')
 
 # Set if host-cxxabi's demangler can handle target's symbols.
@@ -67,7 +72,9 @@ llvm_config.feature_config(
                           'AVR': 'avr',
                           'Hexagon': 'hexagon',
                           'Mips': 'mips',
+                          'MSP430': 'msp430',
                           'PowerPC': 'ppc',
+                          'RISCV': 'riscv',
                           'Sparc': 'sparc',
                           'WebAssembly': 'wasm',
                           'X86': 'x86'})
@@ -80,20 +87,26 @@ config.environment['LLD_IN_TEST'] = '1'
 # Indirectly check if the mt.exe Microsoft utility exists by searching for
 # cvtres, which always accompanies it.  Alternatively, check if we can use
 # libxml2 to merge manifests.
-if (lit.util.which('cvtres', config.environment['PATH'])) or \
-        (config.llvm_libxml2_enabled == '1'):
+if (lit.util.which('cvtres', config.environment['PATH']) or 
+        config.llvm_libxml2_enabled):
     config.available_features.add('manifest_tool')
 
-if (config.llvm_libxml2_enabled == '1'):
+if config.llvm_libxml2_enabled:
     config.available_features.add('libxml2')
 
 if config.have_dia_sdk:
     config.available_features.add("diasdk")
 
+if config.sizeof_void_p == 8:
+    config.available_features.add("llvm-64-bits")
+
 tar_executable = lit.util.which('tar', config.environment['PATH'])
 if tar_executable:
     tar_version = subprocess.Popen(
-        [tar_executable, '--version'], stdout=subprocess.PIPE, env={'LANG': 'C'})
-    if 'GNU tar' in tar_version.stdout.read().decode():
+        [tar_executable, '--version'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env={'LANG': 'C'})
+    sout, _ = tar_version.communicate()
+    if 'GNU tar' in sout.decode():
         config.available_features.add('gnutar')
-    tar_version.wait()

@@ -56,8 +56,8 @@ define float @no_mul_zero_3(float %a) {
 
 ; -X + X --> 0.0 (with nnan on the fadd)
 
-define float @fadd_fnegx(float %x) {
-; CHECK-LABEL: @fadd_fnegx(
+define float @fadd_binary_fnegx(float %x) {
+; CHECK-LABEL: @fadd_binary_fnegx(
 ; CHECK-NEXT:    ret float 0.000000e+00
 ;
   %negx = fsub float -0.0, %x
@@ -65,13 +65,31 @@ define float @fadd_fnegx(float %x) {
   ret float %r
 }
 
+define float @fadd_unary_fnegx(float %x) {
+; CHECK-LABEL: @fadd_unary_fnegx(
+; CHECK-NEXT:    ret float 0.000000e+00
+;
+  %negx = fneg float %x
+  %r = fadd nnan float %negx, %x
+  ret float %r
+}
+
 ; X + -X --> 0.0 (with nnan on the fadd)
 
-define <2 x float> @fadd_fnegx_commute_vec(<2 x float> %x) {
-; CHECK-LABEL: @fadd_fnegx_commute_vec(
+define <2 x float> @fadd_binary_fnegx_commute_vec(<2 x float> %x) {
+; CHECK-LABEL: @fadd_binary_fnegx_commute_vec(
 ; CHECK-NEXT:    ret <2 x float> zeroinitializer
 ;
   %negx = fsub <2 x float> <float -0.0, float -0.0>, %x
+  %r = fadd nnan <2 x float> %x, %negx
+  ret <2 x float> %r
+}
+
+define <2 x float> @fadd_unary_fnegx_commute_vec(<2 x float> %x) {
+; CHECK-LABEL: @fadd_unary_fnegx_commute_vec(
+; CHECK-NEXT:    ret <2 x float> zeroinitializer
+;
+  %negx = fneg <2 x float> %x
   %r = fadd nnan <2 x float> %x, %negx
   ret <2 x float> %r
 }
@@ -88,8 +106,8 @@ define <2 x float> @fadd_fnegx_commute_vec_undef(<2 x float> %x) {
 ; https://bugs.llvm.org/show_bug.cgi?id=26958
 ; https://bugs.llvm.org/show_bug.cgi?id=27151
 
-define float @fadd_fneg_nan(float %x) {
-; CHECK-LABEL: @fadd_fneg_nan(
+define float @fadd_binary_fneg_nan(float %x) {
+; CHECK-LABEL: @fadd_binary_fneg_nan(
 ; CHECK-NEXT:    [[T:%.*]] = fsub nnan float -0.000000e+00, [[X:%.*]]
 ; CHECK-NEXT:    [[COULD_BE_NAN:%.*]] = fadd ninf float [[T]], [[X]]
 ; CHECK-NEXT:    ret float [[COULD_BE_NAN]]
@@ -99,13 +117,35 @@ define float @fadd_fneg_nan(float %x) {
   ret float %could_be_nan
 }
 
-define float @fadd_fneg_nan_commute(float %x) {
-; CHECK-LABEL: @fadd_fneg_nan_commute(
+define float @fadd_unary_fneg_nan(float %x) {
+; CHECK-LABEL: @fadd_unary_fneg_nan(
+; CHECK-NEXT:    [[T:%.*]] = fneg nnan float [[X:%.*]]
+; CHECK-NEXT:    [[COULD_BE_NAN:%.*]] = fadd ninf float [[T]], [[X]]
+; CHECK-NEXT:    ret float [[COULD_BE_NAN]]
+;
+  %t = fneg nnan float %x
+  %could_be_nan = fadd ninf float %t, %x
+  ret float %could_be_nan
+}
+
+define float @fadd_binary_fneg_nan_commute(float %x) {
+; CHECK-LABEL: @fadd_binary_fneg_nan_commute(
 ; CHECK-NEXT:    [[T:%.*]] = fsub nnan ninf float -0.000000e+00, [[X:%.*]]
 ; CHECK-NEXT:    [[COULD_BE_NAN:%.*]] = fadd float [[X]], [[T]]
 ; CHECK-NEXT:    ret float [[COULD_BE_NAN]]
 ;
   %t = fsub nnan ninf float -0.0, %x
+  %could_be_nan = fadd float %x, %t
+  ret float %could_be_nan
+}
+
+define float @fadd_unary_fneg_nan_commute(float %x) {
+; CHECK-LABEL: @fadd_unary_fneg_nan_commute(
+; CHECK-NEXT:    [[T:%.*]] = fneg nnan ninf float [[X:%.*]]
+; CHECK-NEXT:    [[COULD_BE_NAN:%.*]] = fadd float [[X]], [[T]]
+; CHECK-NEXT:    ret float [[COULD_BE_NAN]]
+;
+  %t = fneg nnan ninf float %x
   %could_be_nan = fadd float %x, %t
   ret float %could_be_nan
 }
@@ -176,12 +216,31 @@ define float @fsub_0_0_x(float %a) {
   ret float %ret
 }
 
+; fsub nsz 0.0, (fneg X) ==> X
+define float @fneg_x(float %a) {
+; CHECK-LABEL: @fneg_x(
+; CHECK-NEXT:    ret float [[A:%.*]]
+;
+  %t1 = fneg float %a
+  %ret = fsub nsz float 0.0, %t1
+  ret float %ret
+}
+
 define <2 x float> @fsub_0_0_x_vec_undef1(<2 x float> %a) {
 ; CHECK-LABEL: @fsub_0_0_x_vec_undef1(
 ; CHECK-NEXT:    ret <2 x float> [[A:%.*]]
 ;
   %t1 = fsub <2 x float> <float 0.0, float undef>, %a
   %ret = fsub nsz <2 x float> zeroinitializer, %t1
+  ret <2 x float> %ret
+}
+
+define <2 x float> @fneg_x_vec_undef1(<2 x float> %a) {
+; CHECK-LABEL: @fneg_x_vec_undef1(
+; CHECK-NEXT:    ret <2 x float> [[A:%.*]]
+;
+  %t1 = fneg <2 x float> %a
+  %ret = fsub nsz <2 x float> <float 0.0, float undef>, %t1
   ret <2 x float> %ret
 }
 
@@ -224,6 +283,58 @@ define float @nofold_fadd_x_0(float %a) {
   %no_zero2 = fadd nnan float %a, 0.0
   %no_zero = fadd float %no_zero1, %no_zero2
   ret float %no_zero
+}
+
+define float @fold_fadd_nsz_x_0(float %a) {
+; CHECK-LABEL: @fold_fadd_nsz_x_0(
+; CHECK-NEXT:    ret float [[A:%.*]]
+;
+  %add = fadd nsz float %a, 0.0
+  ret float %add
+}
+
+define float @fold_fadd_cannot_be_neg0_nsz_src_x_0(float %a, float %b) {
+; CHECK-LABEL: @fold_fadd_cannot_be_neg0_nsz_src_x_0(
+; CHECK-NEXT:    [[NSZ:%.*]] = fmul nsz float [[A:%.*]], [[B:%.*]]
+; CHECK-NEXT:    ret float [[NSZ]]
+;
+  %nsz = fmul nsz float %a, %b
+  %add = fadd float %nsz, 0.0
+  ret float %add
+}
+
+define float @fold_fadd_cannot_be_neg0_fabs_src_x_0(float %a) {
+; CHECK-LABEL: @fold_fadd_cannot_be_neg0_fabs_src_x_0(
+; CHECK-NEXT:    [[FABS:%.*]] = call float @llvm.fabs.f32(float [[A:%.*]])
+; CHECK-NEXT:    ret float [[FABS]]
+;
+  %fabs = call float @llvm.fabs.f32(float %a)
+  %add = fadd float %fabs, 0.0
+  ret float %add
+}
+
+define float @fold_fadd_cannot_be_neg0_sqrt_nsz_src_x_0(float %a, float %b) {
+; CHECK-LABEL: @fold_fadd_cannot_be_neg0_sqrt_nsz_src_x_0(
+; CHECK-NEXT:    [[NSZ:%.*]] = fmul nsz float [[A:%.*]], [[B:%.*]]
+; CHECK-NEXT:    [[SQRT:%.*]] = call float @llvm.sqrt.f32(float [[NSZ]])
+; CHECK-NEXT:    ret float [[SQRT]]
+;
+  %nsz = fmul nsz float %a, %b
+  %sqrt = call float @llvm.sqrt.f32(float %nsz)
+  %add = fadd float %sqrt, 0.0
+  ret float %add
+}
+
+define float @fold_fadd_cannot_be_neg0_canonicalize_nsz_src_x_0(float %a, float %b) {
+; CHECK-LABEL: @fold_fadd_cannot_be_neg0_canonicalize_nsz_src_x_0(
+; CHECK-NEXT:    [[NSZ:%.*]] = fmul nsz float [[A:%.*]], [[B:%.*]]
+; CHECK-NEXT:    [[CANON:%.*]] = call float @llvm.canonicalize.f32(float [[NSZ]])
+; CHECK-NEXT:    ret float [[CANON]]
+;
+  %nsz = fmul nsz float %a, %b
+  %canon = call float @llvm.canonicalize.f32(float %nsz)
+  %add = fadd float %canon, 0.0
+  ret float %add
 }
 
 ; fdiv nsz nnan 0, X ==> 0
@@ -347,6 +458,15 @@ define float @fdiv_neg_swapped2(float %f) {
   ret float %div
 }
 
+define <2 x float> @fdiv_neg_vec_undef_elt(<2 x float> %f) {
+; CHECK-LABEL: @fdiv_neg_vec_undef_elt(
+; CHECK-NEXT:    ret <2 x float> <float -1.000000e+00, float -1.000000e+00>
+;
+  %neg = fsub <2 x float> <float 0.0, float undef>, %f
+  %div = fdiv nnan <2 x float> %f, %neg
+  ret <2 x float> %div
+}
+
 ; PR21126: http://llvm.org/bugs/show_bug.cgi?id=21126
 ; With loose math, sqrt(X) * sqrt(X) is just X.
 
@@ -396,3 +516,6 @@ define double @sqrt_squared_not_fast_enough3(double %f) {
   ret double %mul
 }
 
+declare float @llvm.fabs.f32(float)
+declare float @llvm.sqrt.f32(float)
+declare float @llvm.canonicalize.f32(float)

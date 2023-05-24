@@ -1,6 +1,7 @@
-add_llvm_library(LLVMipo
+add_llvm_component_library(LLVMipo
   AlwaysInliner.cpp
   ArgumentPromotion.cpp
+  Attributor.cpp
   BarrierNoopPass.cpp
   BlockExtractor.cpp
   CalledValuePropagation.cpp
@@ -15,6 +16,7 @@ add_llvm_library(LLVMipo
   GlobalDCE.cpp
   GlobalOpt.cpp
   GlobalSplit.cpp
+  HotColdSplitting.cpp
   IPConstantPropagation.cpp
   IPO.cpp
   InferFunctionAttrs.cpp

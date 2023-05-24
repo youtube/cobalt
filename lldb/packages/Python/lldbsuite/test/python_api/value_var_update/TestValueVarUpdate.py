@@ -1,25 +1,16 @@
 """Test SBValue::GetValueDidChange"""
 
-from __future__ import print_function
 
 
-import os
-import sys
-import time
 import lldb
-import time
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 
 
-class HelloWorldTestCase(TestBase):
+class ValueVarUpdateTestCase(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     @add_test_categories(['pyapi'])
     def test_with_process_launch_api(self):

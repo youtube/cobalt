@@ -1,18 +1,13 @@
 //===-- CommandReturnObject.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Interpreter/CommandReturnObject.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
 
@@ -38,8 +33,7 @@ static void DumpStringToStreamWithNewline(Stream &strm, const std::string &s,
 
 CommandReturnObject::CommandReturnObject()
     : m_out_stream(), m_err_stream(), m_status(eReturnStatusStarted),
-      m_did_change_process_state(false), m_interactive(true),
-      m_abnormal_stop_was_expected(false) {}
+      m_did_change_process_state(false), m_interactive(true) {}
 
 CommandReturnObject::~CommandReturnObject() {}
 

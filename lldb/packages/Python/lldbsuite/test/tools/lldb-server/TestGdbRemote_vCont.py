@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 import gdbremote_testcase
 from lldbsuite.test.decorators import *
@@ -105,6 +104,7 @@ class TestGdbRemote_vCont(gdbremote_testcase.GdbRemoteTestCaseBase):
         self.single_step_only_steps_one_instruction(
             use_Hc_packet=True, step_instruction="vCont;s")
 
+    @skipIfWindows # No pty support to test O* & I* notification packets.
     @llgs_test
     @expectedFailureAndroid(
         bugnumber="llvm.org/pr24739",
@@ -113,9 +113,7 @@ class TestGdbRemote_vCont(gdbremote_testcase.GdbRemoteTestCaseBase):
             "aarch64"])
     @expectedFailureAll(
         oslist=["linux"],
-        archs=[
-            "arm",
-            "aarch64"],
+        archs=["arm"],
         bugnumber="llvm.org/pr24739")
     @skipIf(triple='^mips')
     @expectedFailureAll(oslist=["ios", "tvos", "watchos", "bridgeos"], bugnumber="rdar://27005337")
@@ -136,6 +134,7 @@ class TestGdbRemote_vCont(gdbremote_testcase.GdbRemoteTestCaseBase):
         self.single_step_only_steps_one_instruction(
             use_Hc_packet=False, step_instruction="vCont;s:{thread}")
 
+    @skipIfWindows # No pty support to test O* & I* notification packets.
     @llgs_test
     @expectedFailureAndroid(
         bugnumber="llvm.org/pr24739",
@@ -144,9 +143,7 @@ class TestGdbRemote_vCont(gdbremote_testcase.GdbRemoteTestCaseBase):
             "aarch64"])
     @expectedFailureAll(
         oslist=["linux"],
-        archs=[
-            "arm",
-            "aarch64"],
+        archs=["arm"],
         bugnumber="llvm.org/pr24739")
     @skipIf(triple='^mips')
     @expectedFailureAll(oslist=["ios", "tvos", "watchos", "bridgeos"], bugnumber="rdar://27005337")

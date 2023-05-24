@@ -1,9 +1,8 @@
-//===-- DNBArchMachARM64.cpp ------------------------------------*- C++ -*-===//
+//===-- DNBArchImplARM64.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -26,6 +25,10 @@
 
 #include <inttypes.h>
 #include <sys/sysctl.h>
+
+#if __has_feature(ptrauth_calls)
+#include <ptrauth.h>
+#endif
 
 // Break only in privileged or user mode
 // (PAC bits in the DBGWVRn_EL1 watchpoint control register)
@@ -50,8 +53,6 @@
 
 static const uint8_t g_arm64_breakpoint_opcode[] = {
     0x00, 0x00, 0x20, 0xD4}; // "brk #0", 0xd4200000 in BE byte order
-static const uint8_t g_arm_breakpoint_opcode[] = {
-    0xFE, 0xDE, 0xFF, 0xE7}; // this armv7 insn also works in arm64
 
 // If we need to set one logical watchpoint by using
 // two hardware watchpoint registers, the watchpoint
@@ -70,6 +71,14 @@ void DNBArchMachARM64::Initialize() {
 
   // Register this arch plug-in with the main protocol class
   DNBArchProtocol::RegisterArchPlugin(arch_plugin_info);
+
+  DNBArchPluginInfo arch_plugin_info_32 = {
+      CPU_TYPE_ARM64_32, DNBArchMachARM64::Create,
+      DNBArchMachARM64::GetRegisterSetInfo,
+      DNBArchMachARM64::SoftwareBreakpointOpcode};
+
+  // Register this arch plug-in with the main protocol class
+  DNBArchProtocol::RegisterArchPlugin(arch_plugin_info_32);
 }
 
 DNBArchProtocol *DNBArchMachARM64::Create(MachThread *thread) {
@@ -80,7 +89,7 @@ DNBArchProtocol *DNBArchMachARM64::Create(MachThread *thread) {
 
 const uint8_t *
 DNBArchMachARM64::SoftwareBreakpointOpcode(nub_size_t byte_size) {
-  return g_arm_breakpoint_opcode;
+  return g_arm64_breakpoint_opcode;
 }
 
 uint32_t DNBArchMachARM64::GetCPUType() { return CPU_TYPE_ARM64; }
@@ -88,7 +97,11 @@ uint32_t DNBArchMachARM64::GetCPUType() { return CPU_TYPE_ARM64; }
 uint64_t DNBArchMachARM64::GetPC(uint64_t failValue) {
   // Get program counter
   if (GetGPRState(false) == KERN_SUCCESS)
+#if defined(__LP64__)
+    return arm_thread_state64_get_pc(m_state.context.gpr);
+#else
     return m_state.context.gpr.__pc;
+#endif
   return failValue;
 }
 
@@ -96,7 +109,17 @@ kern_return_t DNBArchMachARM64::SetPC(uint64_t value) {
   // Get program counter
   kern_return_t err = GetGPRState(false);
   if (err == KERN_SUCCESS) {
+#if defined(__LP64__)
+#if __has_feature(ptrauth_calls)
+    // The incoming value could be garbage.  Strip it to avoid
+    // trapping when it gets resigned in the thread state.
+    value = (uint64_t) ptrauth_strip((void*) value, ptrauth_key_function_pointer);
+    value = (uint64_t) ptrauth_sign_unauthenticated((void*) value, ptrauth_key_function_pointer, 0);
+#endif
+    arm_thread_state64_set_pc_fptr (m_state.context.gpr, (void*) value);
+#else
     m_state.context.gpr.__pc = value;
+#endif
     err = SetGPRState();
   }
   return err == KERN_SUCCESS;
@@ -105,7 +128,11 @@ kern_return_t DNBArchMachARM64::SetPC(uint64_t value) {
 uint64_t DNBArchMachARM64::GetSP(uint64_t failValue) {
   // Get stack pointer
   if (GetGPRState(false) == KERN_SUCCESS)
+#if defined(__LP64__)
+    return arm_thread_state64_get_sp(m_state.context.gpr);
+#else
     return m_state.context.gpr.__sp;
+#endif
   return failValue;
 }
 
@@ -162,8 +189,15 @@ kern_return_t DNBArchMachARM64::GetGPRState(bool force) {
         x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[0], x[11],
         x[12], x[13], x[14], x[15], x[16], x[17], x[18], x[19], x[20], x[21],
         x[22], x[23], x[24], x[25], x[26], x[27], x[28],
+#if defined(__LP64__)
+        (uint64_t) arm_thread_state64_get_fp (m_state.context.gpr),
+        (uint64_t) arm_thread_state64_get_lr (m_state.context.gpr),
+        (uint64_t) arm_thread_state64_get_sp (m_state.context.gpr),
+        (uint64_t) arm_thread_state64_get_pc (m_state.context.gpr),
+#else
         m_state.context.gpr.__fp, m_state.context.gpr.__lr,
         m_state.context.gpr.__sp, m_state.context.gpr.__pc,
+#endif
         m_state.context.gpr.__cpsr);
   }
   m_state.SetError(set, Read, kret);
@@ -559,12 +593,20 @@ kern_return_t DNBArchMachARM64::EnableHardwareSingleStep(bool enable) {
   if (enable) {
     DNBLogThreadedIf(LOG_STEP,
                      "%s: Setting MDSCR_EL1 Single Step bit at pc 0x%llx",
+#if defined(__LP64__)
+                     __FUNCTION__, (uint64_t)arm_thread_state64_get_pc (m_state.context.gpr));
+#else
                      __FUNCTION__, (uint64_t)m_state.context.gpr.__pc);
+#endif
     m_state.dbg.__mdscr_el1 |= SS_ENABLE;
   } else {
     DNBLogThreadedIf(LOG_STEP,
                      "%s: Clearing MDSCR_EL1 Single Step bit at pc 0x%llx",
+#if defined(__LP64__)
+                     __FUNCTION__, (uint64_t)arm_thread_state64_get_pc (m_state.context.gpr));
+#else
                      __FUNCTION__, (uint64_t)m_state.context.gpr.__pc);
+#endif
     m_state.dbg.__mdscr_el1 &= ~(SS_ENABLE);
   }
 
@@ -647,27 +689,35 @@ uint32_t DNBArchMachARM64::EnableHardwareWatchpoint(nub_addr_t addr,
   if (size > 8)
     return INVALID_NUB_HW_INDEX;
 
-  // arm64 watchpoints really have an 8-byte alignment requirement.  You can put
-  // a watchpoint on a 4-byte
-  // offset address but you can only watch 4 bytes with that watchpoint.
-
-  // arm64 watchpoints on an 8-byte (double word) aligned addr can watch any
-  // bytes in that
-  // 8-byte long region of memory.  They can watch the 1st byte, the 2nd byte,
-  // 3rd byte, etc, or any
-  // combination therein by setting the bits in the BAS [12:5] (Byte Address
-  // Select) field of
-  // the DBGWCRn_EL1 reg for the watchpoint.
-
-  // If the MASK [28:24] bits in the DBGWCRn_EL1 allow a single watchpoint to
-  // monitor a larger region
-  // of memory (16 bytes, 32 bytes, or 2GB) but the Byte Address Select bitfield
-  // then selects a larger
-  // range of bytes, instead of individual bytes.  See the ARMv8 Debug
-  // Architecture manual for details.
-  // This implementation does not currently use the MASK bits; the largest
-  // single region watched by a single
-  // watchpoint right now is 8-bytes.
+  // Aarch64 watchpoints are in one of two forms: (1) 1-8 bytes, aligned to
+  // an 8 byte address, or (2) a power-of-two size region of memory; minimum
+  // 8 bytes, maximum 2GB; the starting address must be aligned to that power
+  // of two.
+  // 
+  // For (1), 1-8 byte watchpoints, using the Byte Address Selector field in
+  // DBGWCR<n>.BAS.  Any of the bytes may be watched, but if multiple bytes
+  // are watched, the bytes selected must be contiguous.  The start address
+  // watched must be doubleword (8-byte) aligned; if the start address is
+  // word (4-byte) aligned, only 4 bytes can be watched.
+  // 
+  // For (2), the MASK field in DBGWCR<n>.MASK is used.
+  // 
+  // See the ARM ARM, section "Watchpoint exceptions", and more specifically,
+  // "Watchpoint data address comparisons".
+  //
+  // debugserver today only supports (1) - the Byte Address Selector 1-8 byte
+  // watchpoints that are 8-byte aligned.  To support larger watchpoints,
+  // debugserver would need to interpret the mach exception when the watched
+  // region was hit, see if the address accessed lies within the subset
+  // of the power-of-two region that lldb asked us to watch (v. ARM ARM,
+  // "Determining the memory location that caused a Watchpoint exception"),
+  // and silently resume the inferior (disable watchpoint, stepi, re-enable
+  // watchpoint) if the address lies outside the region that lldb asked us
+  // to watch.  
+  //
+  // Alternatively, lldb would need to be prepared for a larger region 
+  // being watched than it requested, and silently resume the inferior if
+  // the accessed address is outside the region lldb wants to watch.
 
   nub_addr_t aligned_wp_address = addr & ~0x7;
   uint32_t addr_dword_offset = addr & 0x7;
@@ -948,9 +998,7 @@ nub_addr_t DNBArchMachARM64::GetWatchAddress(const DBG &debug_state,
   return bits(debug_state.__wvr[hw_index], 63, 0);
 }
 
-//----------------------------------------------------------------------
 // Register information definitions for 64 bit ARMv8.
-//----------------------------------------------------------------------
 enum gpr_regnums {
   gpr_x0 = 0,
   gpr_x1,
@@ -1406,10 +1454,28 @@ const DNBRegisterInfo DNBArchMachARM64::g_gpr_registers[] = {
     DEFINE_GPR_IDX(26, x26, NULL, INVALID_NUB_REGNUM),
     DEFINE_GPR_IDX(27, x27, NULL, INVALID_NUB_REGNUM),
     DEFINE_GPR_IDX(28, x28, NULL, INVALID_NUB_REGNUM),
-    DEFINE_GPR_NAME(fp, "x29", GENERIC_REGNUM_FP),
-    DEFINE_GPR_NAME(lr, "x30", GENERIC_REGNUM_RA),
-    DEFINE_GPR_NAME(sp, "xsp", GENERIC_REGNUM_SP),
-    DEFINE_GPR_NAME(pc, NULL, GENERIC_REGNUM_PC),
+    // For the G/g packet we want to show where the offset into the regctx
+    // is for fp/lr/sp/pc, but we cannot directly access them on arm64e
+    // devices (and therefore can't offsetof() them)) - add the offset based
+    // on the last accessible register by hand for advertising the location
+    // in the regctx to lldb.  We'll go through the accessor functions when
+    // we read/write them here.
+    {
+       e_regSetGPR, gpr_fp, "fp", "x29", Uint, Hex, 8, GPR_OFFSET_IDX(28) + 8,
+       dwarf_fp, dwarf_fp, GENERIC_REGNUM_FP, debugserver_gpr_fp, NULL, NULL
+    },
+    {
+       e_regSetGPR, gpr_lr, "lr", "x30", Uint, Hex, 8, GPR_OFFSET_IDX(28) + 16,
+       dwarf_lr, dwarf_lr, GENERIC_REGNUM_RA, debugserver_gpr_lr, NULL, NULL
+    },
+    {
+       e_regSetGPR, gpr_sp, "sp", "xsp", Uint, Hex, 8, GPR_OFFSET_IDX(28) + 24,
+       dwarf_sp, dwarf_sp, GENERIC_REGNUM_SP, debugserver_gpr_sp, NULL, NULL
+    },
+    {
+       e_regSetGPR, gpr_pc, "pc", NULL, Uint, Hex, 8, GPR_OFFSET_IDX(28) + 32,
+       dwarf_pc, dwarf_pc, GENERIC_REGNUM_PC, debugserver_gpr_pc, NULL, NULL
+    },
 
     // in armv7 we specify that writing to the CPSR should invalidate r8-12, sp,
     // lr.
@@ -1690,11 +1756,9 @@ const size_t DNBArchMachARM64::k_num_exc_registers =
 const size_t DNBArchMachARM64::k_num_all_registers =
     k_num_gpr_registers + k_num_vfp_registers + k_num_exc_registers;
 
-//----------------------------------------------------------------------
 // Register set definitions. The first definitions at register set index
 // of zero is for all registers, followed by other registers sets. The
 // register information for the all register set need not be filled in.
-//----------------------------------------------------------------------
 const DNBRegisterSetInfo DNBArchMachARM64::g_reg_sets[] = {
     {"ARM64 Registers", NULL, k_num_all_registers},
     {"General Purpose Registers", g_gpr_registers, k_num_gpr_registers},
@@ -1768,7 +1832,20 @@ bool DNBArchMachARM64::GetRegisterValue(uint32_t set, uint32_t reg,
     switch (set) {
     case e_regSetGPR:
       if (reg <= gpr_pc) {
+#if defined(__LP64__)
+        if (reg == gpr_pc)
+          value->value.uint64 = arm_thread_state64_get_pc (m_state.context.gpr);
+        else if (reg == gpr_lr)
+          value->value.uint64 = arm_thread_state64_get_lr (m_state.context.gpr);
+        else if (reg == gpr_sp)
+          value->value.uint64 = arm_thread_state64_get_sp (m_state.context.gpr);
+        else if (reg == gpr_fp)
+          value->value.uint64 = arm_thread_state64_get_fp (m_state.context.gpr);
+        else
         value->value.uint64 = m_state.context.gpr.__x[reg];
+#else
+        value->value.uint64 = m_state.context.gpr.__x[reg];
+#endif
         return true;
       } else if (reg == gpr_cpsr) {
         value->value.uint32 = m_state.context.gpr.__cpsr;
@@ -1858,7 +1935,27 @@ bool DNBArchMachARM64::SetRegisterValue(uint32_t set, uint32_t reg,
     switch (set) {
     case e_regSetGPR:
       if (reg <= gpr_pc) {
+#if defined(__LP64__)
+          uint64_t signed_value = value->value.uint64;
+#if __has_feature(ptrauth_calls)
+          // The incoming value could be garbage.  Strip it to avoid
+          // trapping when it gets resigned in the thread state.
+          signed_value = (uint64_t) ptrauth_strip((void*) signed_value, ptrauth_key_function_pointer);
+          signed_value = (uint64_t) ptrauth_sign_unauthenticated((void*) signed_value, ptrauth_key_function_pointer, 0);
+#endif
+        if (reg == gpr_pc) 
+         arm_thread_state64_set_pc_fptr (m_state.context.gpr, (void*) signed_value);
+        else if (reg == gpr_lr)
+          arm_thread_state64_set_lr_fptr (m_state.context.gpr, (void*) signed_value);
+        else if (reg == gpr_sp)
+          arm_thread_state64_set_sp (m_state.context.gpr, value->value.uint64);
+        else if (reg == gpr_fp)
+          arm_thread_state64_set_fp (m_state.context.gpr, value->value.uint64);
+        else
+          m_state.context.gpr.__x[reg] = value->value.uint64;
+#else
         m_state.context.gpr.__x[reg] = value->value.uint64;
+#endif
         success = true;
       } else if (reg == gpr_cpsr) {
         m_state.context.gpr.__cpsr = value->value.uint32;

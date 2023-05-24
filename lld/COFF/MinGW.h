@@ -1,9 +1,8 @@
 //===- MinGW.h --------------------------------------------------*- C++ -*-===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,6 +12,7 @@
 #include "Config.h"
 #include "Symbols.h"
 #include "lld/Common/LLVM.h"
+#include "llvm/ADT/StringSet.h"
 
 namespace lld {
 namespace coff {
@@ -23,14 +23,18 @@ class AutoExporter {
 public:
   AutoExporter();
 
-  llvm::StringSet<> ExcludeSymbols;
-  llvm::StringSet<> ExcludeLibs;
-  llvm::StringSet<> ExcludeObjects;
+  void addWholeArchive(StringRef path);
 
-  bool shouldExport(Defined *Sym) const;
+  llvm::StringSet<> excludeSymbols;
+  llvm::StringSet<> excludeSymbolPrefixes;
+  llvm::StringSet<> excludeSymbolSuffixes;
+  llvm::StringSet<> excludeLibs;
+  llvm::StringSet<> excludeObjects;
+
+  bool shouldExport(Defined *sym) const;
 };
 
-void writeDefFile(StringRef Name);
+void writeDefFile(StringRef name);
 
 } // namespace coff
 } // namespace lld

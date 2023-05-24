@@ -2,12 +2,12 @@
 ; Run with --no_x86_scrub_rip because we care a lot about how globals are
 ; accessed in the code model.
 
-; RUN: llc < %s -relocation-model=static -code-model=small  | FileCheck %s --check-prefix=CHECK --check-prefix=SMALL-STATIC
-; RUN: llc < %s -relocation-model=static -code-model=medium | FileCheck %s --check-prefix=CHECK --check-prefix=MEDIUM-STATIC
-; RUN: llc < %s -relocation-model=static -code-model=large  | FileCheck %s --check-prefix=CHECK --check-prefix=LARGE-STATIC
-; RUN: llc < %s -relocation-model=pic    -code-model=small  | FileCheck %s --check-prefix=CHECK --check-prefix=SMALL-PIC
-; RUN: llc < %s -relocation-model=pic    -code-model=medium | FileCheck %s --check-prefix=CHECK --check-prefix=MEDIUM-PIC
-; RUN: llc < %s -relocation-model=pic    -code-model=large  | FileCheck %s --check-prefix=CHECK --check-prefix=LARGE-PIC
+; RUN: llc -verify-machineinstrs < %s -relocation-model=static -code-model=small  | FileCheck %s --check-prefix=CHECK --check-prefix=SMALL-STATIC
+; RUN: llc -verify-machineinstrs < %s -relocation-model=static -code-model=medium | FileCheck %s --check-prefix=CHECK --check-prefix=MEDIUM-STATIC
+; RUN: llc -verify-machineinstrs < %s -relocation-model=static -code-model=large  | FileCheck %s --check-prefix=CHECK --check-prefix=LARGE-STATIC
+; RUN: llc -verify-machineinstrs < %s -relocation-model=pic    -code-model=small  | FileCheck %s --check-prefix=CHECK --check-prefix=SMALL-PIC
+; RUN: llc -verify-machineinstrs < %s -relocation-model=pic    -code-model=medium | FileCheck %s --check-prefix=CHECK --check-prefix=MEDIUM-PIC
+; RUN: llc -verify-machineinstrs < %s -relocation-model=pic    -code-model=large  | FileCheck %s --check-prefix=CHECK --check-prefix=LARGE-PIC
 
 ; Generated from this C source:
 ;
@@ -37,6 +37,8 @@ target triple = "x86_64--linux"
 @global_data = dso_local global [10 x i32] [i32 1, i32 2, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0], align 16
 @static_data = internal global [10 x i32] zeroinitializer, align 16
 @extern_data = external global [10 x i32], align 16
+@thread_data = external thread_local global i32, align 4
+
 
 define dso_local i32* @lea_static_data() #0 {
 ; SMALL-STATIC-LABEL: lea_static_data:
@@ -68,9 +70,9 @@ define dso_local i32* @lea_static_data() #0 {
 ;
 ; LARGE-PIC-LABEL: lea_static_data:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp0:
-; LARGE-PIC-NEXT:    leaq .Ltmp0(%rip), %rcx
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp0, %rax
+; LARGE-PIC-NEXT:  .L0$pb:
+; LARGE-PIC-NEXT:    leaq .L0$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L0$pb, %rcx
 ; LARGE-PIC-NEXT:    addq %rax, %rcx
 ; LARGE-PIC-NEXT:    movabsq $static_data@GOTOFF, %rax
 ; LARGE-PIC-NEXT:    addq %rcx, %rax
@@ -108,9 +110,9 @@ define dso_local i32* @lea_global_data() #0 {
 ;
 ; LARGE-PIC-LABEL: lea_global_data:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp1:
-; LARGE-PIC-NEXT:    leaq .Ltmp1(%rip), %rcx
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp1, %rax
+; LARGE-PIC-NEXT:  .L1$pb:
+; LARGE-PIC-NEXT:    leaq .L1$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L1$pb, %rcx
 ; LARGE-PIC-NEXT:    addq %rax, %rcx
 ; LARGE-PIC-NEXT:    movabsq $global_data@GOTOFF, %rax
 ; LARGE-PIC-NEXT:    addq %rcx, %rax
@@ -146,12 +148,12 @@ define dso_local i32* @lea_extern_data() #0 {
 ;
 ; LARGE-PIC-LABEL: lea_extern_data:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp2:
-; LARGE-PIC-NEXT:    leaq .Ltmp2(%rip), %rax
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp2, %rcx
-; LARGE-PIC-NEXT:    addq %rcx, %rax
-; LARGE-PIC-NEXT:    movabsq $extern_data@GOT, %rcx
-; LARGE-PIC-NEXT:    movq (%rax,%rcx), %rax
+; LARGE-PIC-NEXT:  .L2$pb:
+; LARGE-PIC-NEXT:    leaq .L2$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L2$pb, %rcx
+; LARGE-PIC-NEXT:    addq %rax, %rcx
+; LARGE-PIC-NEXT:    movabsq $extern_data@GOT, %rax
+; LARGE-PIC-NEXT:    movq (%rcx,%rax), %rax
 ; LARGE-PIC-NEXT:    retq
   ret i32* getelementptr inbounds ([10 x i32], [10 x i32]* @extern_data, i64 0, i64 0)
 }
@@ -188,12 +190,12 @@ define dso_local i32 @load_global_data() #0 {
 ;
 ; LARGE-PIC-LABEL: load_global_data:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp3:
-; LARGE-PIC-NEXT:    leaq .Ltmp3(%rip), %rax
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp3, %rcx
-; LARGE-PIC-NEXT:    addq %rcx, %rax
-; LARGE-PIC-NEXT:    movabsq $global_data@GOTOFF, %rcx
-; LARGE-PIC-NEXT:    movl 8(%rax,%rcx), %eax
+; LARGE-PIC-NEXT:  .L3$pb:
+; LARGE-PIC-NEXT:    leaq .L3$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L3$pb, %rcx
+; LARGE-PIC-NEXT:    addq %rax, %rcx
+; LARGE-PIC-NEXT:    movabsq $global_data@GOTOFF, %rax
+; LARGE-PIC-NEXT:    movl 8(%rcx,%rax), %eax
 ; LARGE-PIC-NEXT:    retq
   %rv = load i32, i32* getelementptr inbounds ([10 x i32], [10 x i32]* @global_data, i64 0, i64 2)
   ret i32 %rv
@@ -231,12 +233,12 @@ define dso_local i32 @load_extern_data() #0 {
 ;
 ; LARGE-PIC-LABEL: load_extern_data:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp4:
-; LARGE-PIC-NEXT:    leaq .Ltmp4(%rip), %rax
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp4, %rcx
-; LARGE-PIC-NEXT:    addq %rcx, %rax
-; LARGE-PIC-NEXT:    movabsq $extern_data@GOT, %rcx
-; LARGE-PIC-NEXT:    movq (%rax,%rcx), %rax
+; LARGE-PIC-NEXT:  .L4$pb:
+; LARGE-PIC-NEXT:    leaq .L4$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L4$pb, %rcx
+; LARGE-PIC-NEXT:    addq %rax, %rcx
+; LARGE-PIC-NEXT:    movabsq $extern_data@GOT, %rax
+; LARGE-PIC-NEXT:    movq (%rcx,%rax), %rax
 ; LARGE-PIC-NEXT:    movl 8(%rax), %eax
 ; LARGE-PIC-NEXT:    retq
   %rv = load i32, i32* getelementptr inbounds ([10 x i32], [10 x i32]* @extern_data, i64 0, i64 2)
@@ -287,9 +289,9 @@ define dso_local void ()* @lea_static_fn() #0 {
 ;
 ; LARGE-PIC-LABEL: lea_static_fn:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp5:
-; LARGE-PIC-NEXT:    leaq .Ltmp5(%rip), %rcx
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp5, %rax
+; LARGE-PIC-NEXT:  .L7$pb:
+; LARGE-PIC-NEXT:    leaq .L7$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L7$pb, %rcx
 ; LARGE-PIC-NEXT:    addq %rax, %rcx
 ; LARGE-PIC-NEXT:    movabsq $static_fn@GOTOFF, %rax
 ; LARGE-PIC-NEXT:    addq %rcx, %rax
@@ -325,9 +327,9 @@ define dso_local void ()* @lea_global_fn() #0 {
 ;
 ; LARGE-PIC-LABEL: lea_global_fn:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp6:
-; LARGE-PIC-NEXT:    leaq .Ltmp6(%rip), %rcx
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp6, %rax
+; LARGE-PIC-NEXT:  .L8$pb:
+; LARGE-PIC-NEXT:    leaq .L8$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L8$pb, %rcx
 ; LARGE-PIC-NEXT:    addq %rax, %rcx
 ; LARGE-PIC-NEXT:    movabsq $global_fn@GOTOFF, %rax
 ; LARGE-PIC-NEXT:    addq %rcx, %rax
@@ -363,14 +365,78 @@ define dso_local void ()* @lea_extern_fn() #0 {
 ;
 ; LARGE-PIC-LABEL: lea_extern_fn:
 ; LARGE-PIC:       # %bb.0:
-; LARGE-PIC-NEXT:  .Ltmp7:
-; LARGE-PIC-NEXT:    leaq .Ltmp7(%rip), %rax
-; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.Ltmp7, %rcx
-; LARGE-PIC-NEXT:    addq %rcx, %rax
-; LARGE-PIC-NEXT:    movabsq $extern_fn@GOT, %rcx
-; LARGE-PIC-NEXT:    movq (%rax,%rcx), %rax
+; LARGE-PIC-NEXT:  .L9$pb:
+; LARGE-PIC-NEXT:    leaq .L9$pb(%rip), %rax
+; LARGE-PIC-NEXT:    movabsq $_GLOBAL_OFFSET_TABLE_-.L9$pb, %rcx
+; LARGE-PIC-NEXT:    addq %rax, %rcx
+; LARGE-PIC-NEXT:    movabsq $extern_fn@GOT, %rax
+; LARGE-PIC-NEXT:    movq (%rcx,%rax), %rax
 ; LARGE-PIC-NEXT:    retq
   ret void ()* @extern_fn
+}
+
+; FIXME: The result is same for small, medium and large model, because we
+; specify pie option in the test case. And the type of tls is initial exec tls.
+; For pic code. The large model code for pic tls should be emitted as below.
+
+; .L3:
+; leaq	.L3(%rip), %rbx
+; movabsq	$_GLOBAL_OFFSET_TABLE_-.L3, %r11
+; addq	%r11, %rbx
+; leaq	thread_data@TLSGD(%rip), %rdi
+; movabsq	$__tls_get_addr@PLTOFF, %rax
+; addq	%rbx, %rax
+; call	*%rax
+; movl	(%rax), %eax
+
+; The medium and small model code for pic tls should be emitted as below.
+; data16
+; leaq	thread_data@TLSGD(%rip), %rdi
+; data16
+; data16
+; rex64
+; callq	__tls_get_addr@PLT
+; movl	(%rax), %eax
+
+define dso_local i32 @load_thread_data() #0 {
+; SMALL-STATIC-LABEL: load_thread_data:
+; SMALL-STATIC:       # %bb.0:
+; SMALL-STATIC-NEXT:    movq    thread_data@GOTTPOFF(%rip), %rax
+; SMALL-STATIC-NEXT:    movl    %fs:(%rax), %eax
+; SMALL-STATIC-NEXT:    retq
+;
+; MEDIUM-STATIC-LABEL: load_thread_data:
+; MEDIUM-STATIC:       # %bb.0:
+; MEDIUM-STATIC-NEXT:    movq    thread_data@GOTTPOFF(%rip), %rax
+; MEDIUM-STATIC-NEXT:    movl    %fs:(%rax), %eax
+; MEDIUM-STATIC-NEXT:    retq
+;
+; LARGE-STATIC-LABEL: load_thread_data:
+; LARGE-STATIC:       # %bb.0:
+; LARGE-STATIC-NEXT:    movq    thread_data@GOTTPOFF(%rip), %rax
+; LARGE-STATIC-NEXT:    movl    %fs:(%rax), %eax
+; LARGE-STATIC-NEXT:    retq
+;
+; SMALL-PIC-LABEL: load_thread_data:
+; SMALL-PIC:       # %bb.0:
+; SMALL-PIC-NEXT:    movq    thread_data@GOTTPOFF(%rip), %rax
+; SMALL-PIC-NEXT:    movl    %fs:(%rax), %eax
+; SMALL-PIC-NEXT:    retq
+;
+; MEDIUM-PIC-LABEL: load_thread_data:
+; MEDIUM-PIC:       # %bb.0:
+; MEDIUM-PIC-NEXT:    movq    thread_data@GOTTPOFF(%rip), %rax
+; MEDIUM-PIC-NEXT:    movl    %fs:(%rax), %eax
+; MEDIUM-PIC-NEXT:    retq
+;
+; LARGE-PIC-LABEL: load_thread_data:
+; LARGE-PIC:       # %bb.0:
+; LARGE-PIC-NEXT:    movq    thread_data@GOTTPOFF(%rip), %rax
+; LARGE-PIC-NEXT:    movl    %fs:(%rax), %eax
+; LARGE-PIC-NEXT:    retq
+;
+  %1 = load i32, i32* @thread_data, align 4
+  ret i32 %1
 }
 
 attributes #0 = { noinline nounwind uwtable }

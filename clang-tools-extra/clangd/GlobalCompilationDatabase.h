@@ -1,31 +1,35 @@
-//===--- GlobalCompilationDatabase.h ----------------------------*- C++-*-===//
+//===--- GlobalCompilationDatabase.h -----------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
-//
-//===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_GLOBALCOMPILATIONDATABASE_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_GLOBALCOMPILATIONDATABASE_H
 
+#include "CompileCommands.h"
+#include "Function.h"
 #include "Path.h"
+#include "clang/Tooling/ArgumentsAdjusters.h"
+#include "clang/Tooling/CompilationDatabase.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringMap.h"
 #include <memory>
 #include <mutex>
 #include <vector>
 
 namespace clang {
-
-namespace tooling {
-class CompilationDatabase;
-struct CompileCommand;
-} // namespace tooling
-
 namespace clangd {
 
 class Logger;
+
+struct ProjectInfo {
+  // The directory in which the compilation database was discovered.
+  // Empty if directory-based compilation database discovery was not used.
+  std::string SourceRoot;
+};
 
 /// Provides compilation arguments used for parsing C and C++ files.
 class GlobalCompilationDatabase {
@@ -36,13 +40,25 @@ public:
   virtual llvm::Optional<tooling::CompileCommand>
   getCompileCommand(PathRef File) const = 0;
 
+  /// Finds the closest project to \p File.
+  virtual llvm::Optional<ProjectInfo> getProjectInfo(PathRef File) const {
+    return llvm::None;
+  }
+
   /// Makes a guess at how to build a file.
   /// The default implementation just runs clang on the file.
   /// Clangd should treat the results as unreliable.
   virtual tooling::CompileCommand getFallbackCommand(PathRef File) const;
 
-  /// FIXME(ibiryukov): add facilities to track changes to compilation flags of
-  /// existing targets.
+  using CommandChanged = Event<std::vector<std::string>>;
+  /// The callback is notified when files may have new compile commands.
+  /// The argument is a list of full file paths.
+  CommandChanged::Subscription watch(CommandChanged::Listener L) const {
+    return OnCommandChanged.observe(std::move(L));
+  }
+
+protected:
+  mutable CommandChanged OnCommandChanged;
 };
 
 /// Gets compile args from tooling::CompilationDatabases built for parent
@@ -56,64 +72,85 @@ public:
 
   /// Scans File's parents looking for compilation databases.
   /// Any extra flags will be added.
+  /// Might trigger OnCommandChanged, if CDB wasn't broadcasted yet.
   llvm::Optional<tooling::CompileCommand>
   getCompileCommand(PathRef File) const override;
 
-  /// Uses the default fallback command, adding any extra flags.
-  tooling::CompileCommand getFallbackCommand(PathRef File) const override;
-
-  /// Set the compile commands directory to \p P.
-  void setCompileCommandsDir(Path P);
-
-  /// Sets the extra flags that should be added to a file.
-  void setExtraFlagsForFile(PathRef File, std::vector<std::string> ExtraFlags);
+  /// Returns the path to first directory containing a compilation database in
+  /// \p File's parents.
+  llvm::Optional<ProjectInfo> getProjectInfo(PathRef File) const override;
 
 private:
-  tooling::CompilationDatabase *getCDBForFile(PathRef File) const;
-  tooling::CompilationDatabase *getCDBInDirLocked(PathRef File) const;
-  void addExtraFlags(PathRef File, tooling::CompileCommand &C) const;
+  /// Caches compilation databases loaded from directories.
+  struct CachedCDB {
+    std::string Path; // Not case-folded.
+    std::unique_ptr<clang::tooling::CompilationDatabase> CDB = nullptr;
+    bool SentBroadcast = false;
+  };
+  CachedCDB &getCDBInDirLocked(PathRef File) const;
+
+  struct CDBLookupRequest {
+    PathRef FileName;
+    // Whether this lookup should trigger discovery of the CDB found.
+    bool ShouldBroadcast = false;
+  };
+  struct CDBLookupResult {
+    tooling::CompilationDatabase *CDB = nullptr;
+    ProjectInfo PI;
+  };
+  llvm::Optional<CDBLookupResult> lookupCDB(CDBLookupRequest Request) const;
+
+  // Performs broadcast on governed files.
+  void broadcastCDB(CDBLookupResult Res) const;
 
   mutable std::mutex Mutex;
-  /// Caches compilation databases loaded from directories(keys are
-  /// directories).
-  mutable llvm::StringMap<std::unique_ptr<clang::tooling::CompilationDatabase>>
-      CompilationDatabases;
+  // Keyed by possibly-case-folded directory path.
+  mutable llvm::StringMap<CachedCDB> CompilationDatabases;
 
-  /// Stores extra flags per file.
-  llvm::StringMap<std::vector<std::string>> ExtraFlagsForFile;
   /// Used for command argument pointing to folder where compile_commands.json
   /// is located.
   llvm::Optional<Path> CompileCommandsDir;
 };
 
-/// A wrapper around GlobalCompilationDatabase that caches the compile commands.
-/// Note that only results of getCompileCommand are cached.
-class CachingCompilationDb : public GlobalCompilationDatabase {
-public:
-  explicit CachingCompilationDb(const GlobalCompilationDatabase &InnerCDB);
+/// Extracts system include search path from drivers matching QueryDriverGlobs
+/// and adds them to the compile flags. Base may not be nullptr.
+/// Returns Base when \p QueryDriverGlobs is empty.
+std::unique_ptr<GlobalCompilationDatabase>
+getQueryDriverDatabase(llvm::ArrayRef<std::string> QueryDriverGlobs,
+                       std::unique_ptr<GlobalCompilationDatabase> Base);
 
-  /// Gets compile command for \p File from cache or CDB if it's not in the
-  /// cache.
+
+/// Wraps another compilation database, and supports overriding the commands
+/// using an in-memory mapping.
+class OverlayCDB : public GlobalCompilationDatabase {
+public:
+  // Base may be null, in which case no entries are inherited.
+  // FallbackFlags are added to the fallback compile command.
+  // Adjuster is applied to all commands, fallback or not.
+  OverlayCDB(const GlobalCompilationDatabase *Base,
+             std::vector<std::string> FallbackFlags = {},
+             tooling::ArgumentsAdjuster Adjuster = nullptr);
+
   llvm::Optional<tooling::CompileCommand>
   getCompileCommand(PathRef File) const override;
-
-  /// Forwards to the inner CDB. Results of this function are not cached.
   tooling::CompileCommand getFallbackCommand(PathRef File) const override;
+  llvm::Optional<ProjectInfo> getProjectInfo(PathRef File) const override;
 
-  /// Removes an entry for \p File if it's present in the cache.
-  void invalidate(PathRef File);
-
-  /// Removes all cached compile commands.
-  void clear();
+  /// Sets or clears the compilation command for a particular file.
+  void
+  setCompileCommand(PathRef File,
+                    llvm::Optional<tooling::CompileCommand> CompilationCommand);
 
 private:
-  const GlobalCompilationDatabase &InnerCDB;
-  mutable std::mutex Mut;
-  mutable llvm::StringMap<llvm::Optional<tooling::CompileCommand>>
-      Cached; /* GUARDED_BY(Mut) */
+  mutable std::mutex Mutex;
+  llvm::StringMap<tooling::CompileCommand> Commands; /* GUARDED_BY(Mut) */
+  const GlobalCompilationDatabase *Base;
+  tooling::ArgumentsAdjuster ArgsAdjuster;
+  std::vector<std::string> FallbackFlags;
+  CommandChanged::Subscription BaseChanged;
 };
 
 } // namespace clangd
 } // namespace clang
 
-#endif
+#endif // LLVM_CLANG_TOOLS_EXTRA_CLANGD_GLOBALCOMPILATIONDATABASE_H

@@ -43,7 +43,7 @@ __declspec(dllexport) extern int ExternGlobalDecl;
 
 // M64-DAG: @__ImageBase = external dso_local constant i8
 
-// GNU-DAG: @_ZTVN10__cxxabiv117__class_type_infoE = external dso_local global
+// GNU-DAG: @_ZTVN10__cxxabiv117__class_type_infoE = external global
 
 // dllexport implies a definition.
 // MSC-DAG: @"?GlobalDef@@3HA" = dso_local dllexport global i32 0, align 4
@@ -137,7 +137,7 @@ class __declspec(dllexport) i : h<> {};
 // Declarations are not exported.
 
 // MSC-DAG: @"??$VarTmplImplicitDef@UImplicitInst_Exported@@@@3HA" = external dso_local global
-// GNU-DAG: @_Z18VarTmplImplicitDefI21ImplicitInst_ExportedE          = external dso_local global
+// GNU-DAG: @_Z18VarTmplImplicitDefI21ImplicitInst_ExportedE          = external global
 template<typename T> __declspec(dllexport) extern int VarTmplImplicitDef;
 USEVAR(VarTmplImplicitDef<ImplicitInst_Exported>)
 
@@ -672,8 +672,8 @@ struct __declspec(dllexport) ExportDefaultedInclassDefs {
   // M64VS2015-NOT: define weak_odr dso_local dllexport                %struct.ExportDefaultedInclassDefs* @"??0ExportDefaultedInclassDefs@@QEAA@AEBU0@@Z"(%struct.ExportDefaultedInclassDefs* returned %this, %struct.ExportDefaultedInclassDefs* dereferenceable({{[0-9]+}}))
 
   ExportDefaultedInclassDefs& operator=(const ExportDefaultedInclassDefs&) = default;
-  // M32-DAG: define weak_odr dso_local dllexport x86_thiscallcc dereferenceable({{[0-9]+}}) %struct.ExportDefaultedInclassDefs* @"??4ExportDefaultedInclassDefs@@QAEAAU0@ABU0@@Z"(%struct.ExportDefaultedInclassDefs* %this, %struct.ExportDefaultedInclassDefs* dereferenceable({{[0-9]+}}))
-  // M64-DAG: define weak_odr dso_local dllexport                dereferenceable({{[0-9]+}}) %struct.ExportDefaultedInclassDefs* @"??4ExportDefaultedInclassDefs@@QEAAAEAU0@AEBU0@@Z"(%struct.ExportDefaultedInclassDefs* %this, %struct.ExportDefaultedInclassDefs* dereferenceable({{[0-9]+}}))
+  // M32-DAG: define weak_odr dso_local dllexport x86_thiscallcc dereferenceable({{[0-9]+}}) %struct.ExportDefaultedInclassDefs* @"??4ExportDefaultedInclassDefs@@QAEAAU0@ABU0@@Z"(%struct.ExportDefaultedInclassDefs* %this, %struct.ExportDefaultedInclassDefs* dereferenceable({{[0-9]+}}) %0)
+  // M64-DAG: define weak_odr dso_local dllexport                dereferenceable({{[0-9]+}}) %struct.ExportDefaultedInclassDefs* @"??4ExportDefaultedInclassDefs@@QEAAAEAU0@AEBU0@@Z"(%struct.ExportDefaultedInclassDefs* %this, %struct.ExportDefaultedInclassDefs* dereferenceable({{[0-9]+}}) %0)
 };
 
 namespace ReferencedInlineMethodInNestedClass {
@@ -851,6 +851,36 @@ struct __declspec(dllexport) Baz {
 // Baz's operator=, causing instantiation of Foo<int> after which
 // ActOnFinishCXXNonNestedClass is called, and we would bite our own tail.
 // M32-DAG: define weak_odr dso_local dllexport x86_thiscallcc dereferenceable(1) %"struct.InClassInits::Baz"* @"??4Baz@InClassInits@@QAEAAU01@ABU01@@Z"
+
+// Trying to define the explicitly defaulted ctor must be delayed until the
+// in-class initializer for x has been processed.
+struct PR40006 {
+  __declspec(dllexport) PR40006() = default;
+  int x = 42;
+};
+// M32-DAG: define weak_odr dso_local dllexport x86_thiscallcc %"struct.InClassInits::PR40006"* @"??0PR40006@InClassInits@@QAE@XZ"
+
+namespace pr40006 {
+// Delay emitting the method also past the instantiation of Tmpl<Inner>, i.e.
+// until the top-level class Outer is completely finished.
+template<typename> struct Tmpl {};
+struct Outer {
+    struct Inner {
+        __declspec(dllexport) Inner() = default;
+        unsigned int x = 0;
+    };
+    Tmpl<Inner> y;
+};
+// M32-DAG: define weak_odr dso_local dllexport x86_thiscallcc %"struct.InClassInits::pr40006::Outer::Inner"* @"??0Inner@Outer@pr40006@InClassInits@@QAE@XZ"
+}
+
+// PR42857: Clang would try to emit the non-trivial explicitly defaulted
+// dllexport ctor twice when doing an explicit instantiation definition.
+struct Qux { Qux(); };
+template <typename T> struct PR42857 { __declspec(dllexport) PR42857() = default; Qux q; };
+template struct PR42857<int>;
+// M32-DAG: define weak_odr dso_local dllexport x86_thiscallcc %"struct.InClassInits::PR42857"* @"??0?$PR42857@H@InClassInits@@QAE@XZ"
+
 }
 
 // We had an issue where instantiating A would force emission of B's delayed
@@ -1011,6 +1041,18 @@ struct __declspec(dllexport) LayerTreeImpl {
 };
 // M32-DAG: define weak_odr dso_local dllexport x86_thiscallcc %"struct.LayerTreeImpl::ElementLayers"* @"??0ElementLayers@LayerTreeImpl@@QAE@XZ"
 // M64-DAG: define weak_odr dso_local dllexport %"struct.LayerTreeImpl::ElementLayers"* @"??0ElementLayers@LayerTreeImpl@@QEAA@XZ"
+
+namespace pr39496 {
+// Make sure dll attribute are inherited by static locals also in template
+// specializations.
+template <typename> struct __declspec(dllexport) S { int foo() { static int x; return x++; } };
+int foo() { S<int> s; return s.foo(); }
+// MSC-DAG: @"?x@?{{1|2}}??foo@?$S@H@pr39496@@Q{{[A-Z]*}}HXZ@4HA" = weak_odr dso_local dllexport global i32 0, comdat, align 4
+
+template <typename> struct T { int foo() { static int x; return x++; } };
+template struct __declspec(dllexport) T<int>;
+// MSC-DAG: @"?x@?{{1|2}}??foo@?$T@H@pr39496@@Q{{[A-Z]*}}HXZ@4HA" = weak_odr dso_local dllexport global i32 0, comdat, align 4
+}
 
 class __declspec(dllexport) ACE_Shared_Object {
 public:

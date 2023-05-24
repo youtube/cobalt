@@ -1,8 +1,12 @@
-add_llvm_library(LLVMGlobalISel
+add_llvm_component_library(LLVMGlobalISel
+        CSEInfo.cpp
+        GISelKnownBits.cpp
+        CSEMIRBuilder.cpp
         CallLowering.cpp
         GlobalISel.cpp
         Combiner.cpp
         CombinerHelper.cpp
+        GISelChangeObserver.cpp
         IRTranslator.cpp
         InstructionSelect.cpp
         InstructionSelector.cpp

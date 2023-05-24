@@ -22,14 +22,14 @@ define i32 @PR15705(i32 %x, i32 %a, i32 %b, i32 %c) #0 {
 ;
 ; X64-LABEL: PR15705:
 ; X64:       # %bb.0: # %entry
+; X64-NEXT:    movl %edx, %eax
 ; X64-NEXT:    cmpl %esi, %edi
 ; X64-NEXT:    je .LBB0_2
 ; X64-NEXT:  # %bb.1: # %if.end
-; X64-NEXT:    cmpl %edx, %edi
+; X64-NEXT:    cmpl %eax, %edi
 ; X64-NEXT:    cmovel %ecx, %esi
-; X64-NEXT:    movl %esi, %edx
+; X64-NEXT:    movl %esi, %eax
 ; X64-NEXT:  .LBB0_2: # %return
-; X64-NEXT:    movl %edx, %eax
 ; X64-NEXT:    retq
 entry:
   %cmp = icmp eq i32 %x, %a
@@ -45,4 +45,4 @@ return:
   ret i32 %retval.0
 }
 
-attributes #0 = { nounwind readnone ssp "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind readnone ssp "less-precise-fpmad"="false" "frame-pointer"="none" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }

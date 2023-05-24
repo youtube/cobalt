@@ -1,9 +1,8 @@
 //===- HexagonMCDuplexInfo.cpp - Instruction bundle checking --------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -127,6 +126,7 @@ unsigned HexagonMCInstrInfo::iClassOfDuplexPair(unsigned Ga, unsigned Gb) {
     case HexagonII::HSIG_A:
       return 0x4;
     }
+    break;
   case HexagonII::HSIG_L2:
     switch (Gb) {
     default:
@@ -138,6 +138,7 @@ unsigned HexagonMCInstrInfo::iClassOfDuplexPair(unsigned Ga, unsigned Gb) {
     case HexagonII::HSIG_A:
       return 0x5;
     }
+    break;
   case HexagonII::HSIG_S1:
     switch (Gb) {
     default:
@@ -151,6 +152,7 @@ unsigned HexagonMCInstrInfo::iClassOfDuplexPair(unsigned Ga, unsigned Gb) {
     case HexagonII::HSIG_A:
       return 0x6;
     }
+    break;
   case HexagonII::HSIG_S2:
     switch (Gb) {
     default:
@@ -166,6 +168,7 @@ unsigned HexagonMCInstrInfo::iClassOfDuplexPair(unsigned Ga, unsigned Gb) {
     case HexagonII::HSIG_A:
       return 0x7;
     }
+    break;
   case HexagonII::HSIG_A:
     switch (Gb) {
     default:
@@ -173,11 +176,13 @@ unsigned HexagonMCInstrInfo::iClassOfDuplexPair(unsigned Ga, unsigned Gb) {
     case HexagonII::HSIG_A:
       return 0x3;
     }
+    break;
   case HexagonII::HSIG_Compound:
     switch (Gb) {
     case HexagonII::HSIG_Compound:
       return 0xFFFFFFFF;
     }
+    break;
   }
   return 0xFFFFFFFF;
 }
@@ -634,8 +639,7 @@ bool HexagonMCInstrInfo::isOrderedDuplexPair(MCInstrInfo const &MCII,
       return false;
   }
 
-  if (STI.getCPU().equals_lower("hexagonv4") ||
-      STI.getCPU().equals_lower("hexagonv5") ||
+  if (STI.getCPU().equals_lower("hexagonv5") ||
       STI.getCPU().equals_lower("hexagonv55") ||
       STI.getCPU().equals_lower("hexagonv60")) {
     // If a store appears, it must be in slot 0 (MIa) 1st, and then slot 1 (MIb);

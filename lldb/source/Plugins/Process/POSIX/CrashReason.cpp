@@ -1,9 +1,8 @@
 //===-- CrashReason.cpp -----------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -137,15 +136,15 @@ std::string GetCrashReasonString(CrashReason reason, const siginfo_t &info) {
 #if defined(si_lower) && defined(si_upper)
   if (reason == CrashReason::eBoundViolation) {
     str = "signal SIGSEGV";
-    AppendBounds(str, reinterpret_cast<lldb::addr_t>(info.si_lower),
-                 reinterpret_cast<lldb::addr_t>(info.si_upper),
-                 reinterpret_cast<lldb::addr_t>(info.si_addr));
+    AppendBounds(str, reinterpret_cast<uintptr_t>(info.si_lower),
+                 reinterpret_cast<uintptr_t>(info.si_upper),
+                 reinterpret_cast<uintptr_t>(info.si_addr));
     return str;
   }
 #endif
 
   return GetCrashReasonString(reason,
-                              reinterpret_cast<lldb::addr_t>(info.si_addr));
+                              reinterpret_cast<uintptr_t>(info.si_addr));
 }
 
 std::string GetCrashReasonString(CrashReason reason, lldb::addr_t fault_addr) {
@@ -230,11 +229,6 @@ std::string GetCrashReasonString(CrashReason reason, lldb::addr_t fault_addr) {
 }
 
 const char *CrashReasonAsString(CrashReason reason) {
-#ifdef LLDB_CONFIGURATION_BUILDANDINTEGRATION
-  // Just return the code in ascii for integration builds.
-  chcar str[8];
-  sprintf(str, "%d", reason);
-#else
   const char *str = nullptr;
 
   switch (reason) {
@@ -316,8 +310,6 @@ const char *CrashReasonAsString(CrashReason reason) {
     str = "eFloatSubscriptRange";
     break;
   }
-#endif
-
   return str;
 }
 

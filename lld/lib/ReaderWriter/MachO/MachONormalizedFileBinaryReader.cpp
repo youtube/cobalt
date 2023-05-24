@@ -1,9 +1,8 @@
 //===- lib/ReaderWriter/MachO/MachONormalizedFileBinaryReader.cpp ---------===//
 //
-//                             The LLVM Linker
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -543,7 +542,7 @@ public:
   loadFile(std::unique_ptr<MemoryBuffer> mb,
            const Registry &registry) const override {
     std::unique_ptr<File> ret =
-      llvm::make_unique<MachOFile>(std::move(mb), &_ctx);
+      std::make_unique<MachOFile>(std::move(mb), &_ctx);
     return std::move(ret);
   }
 
@@ -569,7 +568,7 @@ public:
   loadFile(std::unique_ptr<MemoryBuffer> mb,
            const Registry &registry) const override {
     std::unique_ptr<File> ret =
-        llvm::make_unique<MachODylibFile>(std::move(mb), &_ctx);
+        std::make_unique<MachODylibFile>(std::move(mb), &_ctx);
     return std::move(ret);
   }
 

@@ -1,9 +1,8 @@
 //===- NewGVN.cpp - Global Value Numbering Pass ---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -77,7 +76,6 @@
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constant.h"
@@ -90,10 +88,12 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ArrayRecycler.h"
@@ -106,6 +106,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVNExpression.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/PredicateInfo.h"
 #include "llvm/Transforms/Utils/VNCoercion.h"
 #include <algorithm>
@@ -123,6 +124,7 @@
 using namespace llvm;
 using namespace llvm::GVNExpression;
 using namespace llvm::VNCoercion;
+using namespace llvm::PatternMatch;
 
 #define DEBUG_TYPE "newgvn"
 
@@ -488,11 +490,11 @@ namespace {
 
 class NewGVN {
   Function &F;
-  DominatorTree *DT;
-  const TargetLibraryInfo *TLI;
-  AliasAnalysis *AA;
-  MemorySSA *MSSA;
-  MemorySSAWalker *MSSAWalker;
+  DominatorTree *DT = nullptr;
+  const TargetLibraryInfo *TLI = nullptr;
+  AliasAnalysis *AA = nullptr;
+  MemorySSA *MSSA = nullptr;
+  MemorySSAWalker *MSSAWalker = nullptr;
   const DataLayout &DL;
   std::unique_ptr<PredicateInfo> PredInfo;
 
@@ -504,7 +506,7 @@ class NewGVN {
   const SimplifyQuery SQ;
 
   // Number of function arguments, used by ranking
-  unsigned int NumFuncArgs;
+  unsigned int NumFuncArgs = 0;
 
   // RPOOrdering of basic blocks
   DenseMap<const DomTreeNode *, unsigned> RPOOrdering;
@@ -515,9 +517,9 @@ class NewGVN {
   // startsout in, and represents any value. Being an optimistic analysis,
   // anything in the TOP class has the value TOP, which is indeterminate and
   // equivalent to everything.
-  CongruenceClass *TOPClass;
+  CongruenceClass *TOPClass = nullptr;
   std::vector<CongruenceClass *> CongruenceClasses;
-  unsigned NextCongruenceNum;
+  unsigned NextCongruenceNum = 0;
 
   // Value Mappings.
   DenseMap<Value *, CongruenceClass *> ValueToClass;
@@ -657,8 +659,8 @@ public:
          TargetLibraryInfo *TLI, AliasAnalysis *AA, MemorySSA *MSSA,
          const DataLayout &DL)
       : F(F), DT(DT), TLI(TLI), AA(AA), MSSA(MSSA), DL(DL),
-        PredInfo(make_unique<PredicateInfo>(F, *DT, *AC)), SQ(DL, TLI, DT, AC) {
-  }
+        PredInfo(std::make_unique<PredicateInfo>(F, *DT, *AC)),
+        SQ(DL, TLI, DT, AC, /*CtxI=*/nullptr, /*UseInstrInfo=*/false) {}
 
   bool runGVN();
 
@@ -777,7 +779,7 @@ private:
 
   // Reachability handling.
   void updateReachableEdge(BasicBlock *, BasicBlock *);
-  void processOutgoingEdges(TerminatorInst *, BasicBlock *);
+  void processOutgoingEdges(Instruction *, BasicBlock *);
   Value *findConditionEquivalence(Value *) const;
 
   // Elimination.
@@ -861,7 +863,7 @@ private:
 
   // Debug counter info.  When verifying, we have to reset the value numbering
   // debug counter to the same state it started in to get the same results.
-  int64_t StartingVNCounter;
+  int64_t StartingVNCounter = 0;
 };
 
 } // end anonymous namespace
@@ -959,8 +961,7 @@ static bool isCopyOfAPHI(const Value *V) {
 // order. The BlockInstRange numbers are generated in an RPO walk of the basic
 // blocks.
 void NewGVN::sortPHIOps(MutableArrayRef<ValPair> Ops) const {
-  llvm::sort(Ops.begin(), Ops.end(),
-             [&](const ValPair &P1, const ValPair &P2) {
+  llvm::sort(Ops, [&](const ValPair &P1, const ValPair &P2) {
     return BlockInstRange.lookup(P1.second).first <
            BlockInstRange.lookup(P2.second).first;
   });
@@ -1087,9 +1088,13 @@ const Expression *NewGVN::checkSimplificationResults(Expression *E,
   CongruenceClass *CC = ValueToClass.lookup(V);
   if (CC) {
     if (CC->getLeader() && CC->getLeader() != I) {
-      // Don't add temporary instructions to the user lists.
-      if (!AllTempInstructions.count(I))
-        addAdditionalUsers(V, I);
+      // If we simplified to something else, we need to communicate
+      // that we're users of the value we simplified to.
+      if (I != V) {
+        // Don't add temporary instructions to the user lists.
+        if (!AllTempInstructions.count(I))
+          addAdditionalUsers(V, I);
+      }
       return createVariableOrConstant(CC->getLeader());
     }
     if (CC->getDefiningExpr()) {
@@ -1164,9 +1169,9 @@ const Expression *NewGVN::createExpression(Instruction *I) const {
         SimplifyBinOp(E->getOpcode(), E->getOperand(0), E->getOperand(1), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
-  } else if (auto *BI = dyn_cast<BitCastInst>(I)) {
+  } else if (auto *CI = dyn_cast<CastInst>(I)) {
     Value *V =
-        SimplifyCastInst(BI->getOpcode(), BI->getOperand(0), BI->getType(), SQ);
+        SimplifyCastInst(CI->getOpcode(), E->getOperand(0), CI->getType(), SQ);
     if (const Expression *SimplifiedE = checkSimplificationResults(E, I, V))
       return SimplifiedE;
   } else if (isa<GetElementPtrInst>(I)) {
@@ -1330,7 +1335,7 @@ LoadExpression *NewGVN::createLoadExpression(Type *LoadType, Value *PointerOp,
   E->setOpcode(0);
   E->op_push_back(PointerOp);
   if (LI)
-    E->setAlignment(LI->getAlignment());
+    E->setAlignment(MaybeAlign(LI->getAlignment()));
 
   // TODO: Value number heap versions. We may be able to discover
   // things alias analysis can't on it's own (IE that a store and a
@@ -1635,8 +1640,11 @@ const Expression *NewGVN::performSymbolicCallEvaluation(Instruction *I) const {
   if (AA->doesNotAccessMemory(CI)) {
     return createCallExpression(CI, TOPClass->getMemoryLeader());
   } else if (AA->onlyReadsMemory(CI)) {
-    MemoryAccess *DefiningAccess = MSSAWalker->getClobberingMemoryAccess(CI);
-    return createCallExpression(CI, DefiningAccess);
+    if (auto *MA = MSSA->getMemoryAccess(CI)) {
+      auto *DefiningAccess = MSSAWalker->getClobberingMemoryAccess(MA);
+      return createCallExpression(CI, DefiningAccess);
+    } else // MSSA determined that CI does not access memory.
+      return createCallExpression(CI, TOPClass->getMemoryLeader());
   }
   return nullptr;
 }
@@ -1752,7 +1760,7 @@ NewGVN::performSymbolicPHIEvaluation(ArrayRef<ValPair> PHIOps,
     return true;
   });
   // If we are left with no operands, it's dead.
-  if (Filtered.begin() == Filtered.end()) {
+  if (Filtered.empty()) {
     // If it has undef at this point, it means there are no-non-undef arguments,
     // and thus, the value of the phi node must be undef.
     if (HasUndef) {
@@ -1812,39 +1820,13 @@ NewGVN::performSymbolicPHIEvaluation(ArrayRef<ValPair> PHIOps,
 const Expression *
 NewGVN::performSymbolicAggrValueEvaluation(Instruction *I) const {
   if (auto *EI = dyn_cast<ExtractValueInst>(I)) {
-    auto *II = dyn_cast<IntrinsicInst>(EI->getAggregateOperand());
-    if (II && EI->getNumIndices() == 1 && *EI->idx_begin() == 0) {
-      unsigned Opcode = 0;
-      // EI might be an extract from one of our recognised intrinsics. If it
-      // is we'll synthesize a semantically equivalent expression instead on
-      // an extract value expression.
-      switch (II->getIntrinsicID()) {
-      case Intrinsic::sadd_with_overflow:
-      case Intrinsic::uadd_with_overflow:
-        Opcode = Instruction::Add;
-        break;
-      case Intrinsic::ssub_with_overflow:
-      case Intrinsic::usub_with_overflow:
-        Opcode = Instruction::Sub;
-        break;
-      case Intrinsic::smul_with_overflow:
-      case Intrinsic::umul_with_overflow:
-        Opcode = Instruction::Mul;
-        break;
-      default:
-        break;
-      }
-
-      if (Opcode != 0) {
-        // Intrinsic recognized. Grab its args to finish building the
-        // expression.
-        assert(II->getNumArgOperands() == 2 &&
-               "Expect two args for recognised intrinsics.");
-        return createBinaryExpression(Opcode, EI->getType(),
-                                      II->getArgOperand(0),
-                                      II->getArgOperand(1), I);
-      }
-    }
+    auto *WO = dyn_cast<WithOverflowInst>(EI->getAggregateOperand());
+    if (WO && EI->getNumIndices() == 1 && *EI->idx_begin() == 0)
+      // EI is an extract from one of our with.overflow intrinsics. Synthesize
+      // a semantically equivalent expression instead of an extract value
+      // expression.
+      return createBinaryExpression(WO->getBinaryOp(), EI->getType(),
+                                    WO->getLHS(), WO->getRHS(), I);
   }
 
   return createAggregateValueExpression(I);
@@ -2008,12 +1990,14 @@ NewGVN::performSymbolicEvaluation(Value *V,
       E = performSymbolicLoadEvaluation(I);
       break;
     case Instruction::BitCast:
+    case Instruction::AddrSpaceCast:
       E = createExpression(I);
       break;
     case Instruction::ICmp:
     case Instruction::FCmp:
       E = performSymbolicCmpEvaluation(I);
       break;
+    case Instruction::FNeg:
     case Instruction::Add:
     case Instruction::FAdd:
     case Instruction::Sub:
@@ -2119,7 +2103,7 @@ void NewGVN::addPredicateUsers(const PredicateBase *PB, Instruction *I) const {
 
   if (auto *PBranch = dyn_cast<PredicateBranch>(PB))
     PredicateToUsers[PBranch->Condition].insert(I);
-  else if (auto *PAssume = dyn_cast<PredicateBranch>(PB))
+  else if (auto *PAssume = dyn_cast<PredicateAssume>(PB))
     PredicateToUsers[PAssume->Condition].insert(I);
 }
 
@@ -2484,11 +2468,11 @@ Value *NewGVN::findConditionEquivalence(Value *Cond) const {
 }
 
 // Process the outgoing edges of a block for reachability.
-void NewGVN::processOutgoingEdges(TerminatorInst *TI, BasicBlock *B) {
+void NewGVN::processOutgoingEdges(Instruction *TI, BasicBlock *B) {
   // Evaluate reachability of terminator instruction.
-  BranchInst *BR;
-  if ((BR = dyn_cast<BranchInst>(TI)) && BR->isConditional()) {
-    Value *Cond = BR->getCondition();
+  Value *Cond;
+  BasicBlock *TrueSucc, *FalseSucc;
+  if (match(TI, m_Br(m_Value(Cond), TrueSucc, FalseSucc))) {
     Value *CondEvaluated = findConditionEquivalence(Cond);
     if (!CondEvaluated) {
       if (auto *I = dyn_cast<Instruction>(Cond)) {
@@ -2501,8 +2485,6 @@ void NewGVN::processOutgoingEdges(TerminatorInst *TI, BasicBlock *B) {
       }
     }
     ConstantInt *CI;
-    BasicBlock *TrueSucc = BR->getSuccessor(0);
-    BasicBlock *FalseSucc = BR->getSuccessor(1);
     if (CondEvaluated && (CI = dyn_cast<ConstantInt>(CondEvaluated))) {
       if (CI->isOne()) {
         LLVM_DEBUG(dbgs() << "Condition for Terminator " << *TI
@@ -2520,9 +2502,6 @@ void NewGVN::processOutgoingEdges(TerminatorInst *TI, BasicBlock *B) {
   } else if (auto *SI = dyn_cast<SwitchInst>(TI)) {
     // For switches, propagate the case values into the case
     // destinations.
-
-    // Remember how many outgoing edges there are to every successor.
-    SmallDenseMap<BasicBlock *, unsigned, 16> SwitchEdges;
 
     Value *SwitchCond = SI->getCondition();
     Value *CondEvaluated = findConditionEquivalence(SwitchCond);
@@ -2544,7 +2523,6 @@ void NewGVN::processOutgoingEdges(TerminatorInst *TI, BasicBlock *B) {
     } else {
       for (unsigned i = 0, e = SI->getNumSuccessors(); i != e; ++i) {
         BasicBlock *TargetBlock = SI->getSuccessor(i);
-        ++SwitchEdges[TargetBlock];
         updateReachableEdge(B, TargetBlock);
       }
     }
@@ -2925,7 +2903,7 @@ void NewGVN::initializeCongruenceClasses(Function &F) {
               PHINodeUses.insert(UInst);
       // Don't insert void terminators into the class. We don't value number
       // them, and they just end up sitting in TOP.
-      if (isa<TerminatorInst>(I) && I.getType()->isVoidTy())
+      if (I.isTerminator() && I.getType()->isVoidTy())
         continue;
       TOPClass->insert(&I);
       ValueToClass[&I] = TOPClass;
@@ -3134,7 +3112,7 @@ void NewGVN::valueNumberInstruction(Instruction *I) {
       auto *Symbolized = createUnknownExpression(I);
       performCongruenceFinding(I, Symbolized);
     }
-    processOutgoingEdges(dyn_cast<TerminatorInst>(I), I->getParent());
+    processOutgoingEdges(I, I->getParent());
   }
 }
 
@@ -3172,12 +3150,8 @@ bool NewGVN::singleReachablePHIPath(
   auto FilteredPhiArgs =
       make_filter_range(MP->operands(), ReachableOperandPred);
   SmallVector<const Value *, 32> OperandList;
-  std::copy(FilteredPhiArgs.begin(), FilteredPhiArgs.end(),
-            std::back_inserter(OperandList));
-  bool Okay = OperandList.size() == 1;
-  if (!Okay)
-    Okay =
-        std::equal(OperandList.begin(), OperandList.end(), OperandList.begin());
+  llvm::copy(FilteredPhiArgs, std::back_inserter(OperandList));
+  bool Okay = is_splat(OperandList);
   if (Okay)
     return singleReachablePHIPath(Visited, cast<MemoryAccess>(OperandList[0]),
                                   Second);
@@ -3272,8 +3246,7 @@ void NewGVN::verifyMemoryCongruency() const {
                        const MemoryDef *MD = cast<MemoryDef>(U);
                        return ValueToClass.lookup(MD->getMemoryInst());
                      });
-      assert(std::equal(PhiOpClasses.begin(), PhiOpClasses.end(),
-                        PhiOpClasses.begin()) &&
+      assert(is_splat(PhiOpClasses) &&
              "All MemoryPhi arguments should be in the same class");
     }
   }
@@ -3501,9 +3474,11 @@ bool NewGVN::runGVN() {
     if (!ToErase->use_empty())
       ToErase->replaceAllUsesWith(UndefValue::get(ToErase->getType()));
 
-    if (ToErase->getParent())
-      ToErase->eraseFromParent();
+    assert(ToErase->getParent() &&
+           "BB containing ToErase deleted unexpectedly!");
+    ToErase->eraseFromParent();
   }
+  Changed |= !InstructionsToErase.empty();
 
   // Delete all unreachable blocks.
   auto UnreachableBlockPred = [&](const BasicBlock &BB) {
@@ -3695,37 +3670,6 @@ void NewGVN::convertClassToLoadsAndStores(
 
     LoadsAndStores.emplace_back(VD);
   }
-}
-
-static void patchReplacementInstruction(Instruction *I, Value *Repl) {
-  auto *ReplInst = dyn_cast<Instruction>(Repl);
-  if (!ReplInst)
-    return;
-
-  // Patch the replacement so that it is not more restrictive than the value
-  // being replaced.
-  // Note that if 'I' is a load being replaced by some operation,
-  // for example, by an arithmetic operation, then andIRFlags()
-  // would just erase all math flags from the original arithmetic
-  // operation, which is clearly not wanted and not needed.
-  if (!isa<LoadInst>(I))
-    ReplInst->andIRFlags(I);
-
-  // FIXME: If both the original and replacement value are part of the
-  // same control-flow region (meaning that the execution of one
-  // guarantees the execution of the other), then we can combine the
-  // noalias scopes here and do better than the general conservative
-  // answer used in combineMetadata().
-
-  // In general, GVN unifies expressions over different control-flow
-  // regions, and so we need a conservative combination of the noalias
-  // scopes.
-  static const unsigned KnownIDs[] = {
-      LLVMContext::MD_tbaa,           LLVMContext::MD_alias_scope,
-      LLVMContext::MD_noalias,        LLVMContext::MD_range,
-      LLVMContext::MD_fpmath,         LLVMContext::MD_invariant_load,
-      LLVMContext::MD_invariant_group};
-  combineMetadata(ReplInst, I, KnownIDs);
 }
 
 static void patchAndReplaceAllUsesWith(Instruction *I, Value *Repl) {
@@ -3988,7 +3932,7 @@ bool NewGVN::eliminateInstructions(Function &F) {
         convertClassToDFSOrdered(*CC, DFSOrderedSet, UseCounts, ProbablyDead);
 
         // Sort the whole thing.
-        llvm::sort(DFSOrderedSet.begin(), DFSOrderedSet.end());
+        llvm::sort(DFSOrderedSet);
         for (auto &VD : DFSOrderedSet) {
           int MemberDFSIn = VD.DFSIn;
           int MemberDFSOut = VD.DFSOut;
@@ -4124,10 +4068,13 @@ bool NewGVN::eliminateInstructions(Function &F) {
           // It's about to be alive again.
           if (LeaderUseCount == 0 && isa<Instruction>(DominatingLeader))
             ProbablyDead.erase(cast<Instruction>(DominatingLeader));
-          // Copy instructions, however, are still dead because we use their
-          // operand as the leader.
-          if (LeaderUseCount == 0 && isSSACopy)
-            ProbablyDead.insert(II);
+          // For copy instructions, we use their operand as a leader,
+          // which means we remove a user of the copy and it may become dead.
+          if (isSSACopy) {
+            unsigned &IIUseCount = UseCounts[II];
+            if (--IIUseCount == 0)
+              ProbablyDead.insert(II);
+          }
           ++LeaderUseCount;
           AnythingReplaced = true;
         }
@@ -4151,7 +4098,7 @@ bool NewGVN::eliminateInstructions(Function &F) {
     // If we have possible dead stores to look at, try to eliminate them.
     if (CC->getStoreCount() > 0) {
       convertClassToLoadsAndStores(*CC, PossibleDeadStores);
-      llvm::sort(PossibleDeadStores.begin(), PossibleDeadStores.end());
+      llvm::sort(PossibleDeadStores);
       ValueDFSStack EliminationStack;
       for (auto &VD : PossibleDeadStores) {
         int MemberDFSIn = VD.DFSIn;
@@ -4253,7 +4200,7 @@ bool NewGVNLegacyPass::runOnFunction(Function &F) {
     return false;
   return NewGVN(F, &getAnalysis<DominatorTreeWrapperPass>().getDomTree(),
                 &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F),
-                &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(),
+                &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F),
                 &getAnalysis<AAResultsWrapperPass>().getAAResults(),
                 &getAnalysis<MemorySSAWrapperPass>().getMSSA(),
                 F.getParent()->getDataLayout())

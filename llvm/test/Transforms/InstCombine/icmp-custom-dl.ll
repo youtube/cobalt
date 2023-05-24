@@ -8,8 +8,8 @@ declare i32 @test58_d(i64 )
 define i1 @test59(i8* %foo) {
 ; CHECK-LABEL: @test59(
 ; CHECK-NEXT:    [[GEP1:%.*]] = getelementptr inbounds i8, i8* [[FOO:%.*]], i32 8
-; CHECK-NEXT:    [[TMP1:%.*]] = ptrtoint i8* [[GEP1]] to i32
-; CHECK-NEXT:    [[USE:%.*]] = zext i32 [[TMP1]] to i64
+; CHECK-NEXT:    [[TMP1:%.*]] = ptrtoint i8* [[GEP1]] to i40
+; CHECK-NEXT:    [[USE:%.*]] = zext i40 [[TMP1]] to i64
 ; CHECK-NEXT:    [[CALL:%.*]] = call i32 @test58_d(i64 [[USE]])
 ; CHECK-NEXT:    ret i1 true
 ;
@@ -45,7 +45,7 @@ define i1 @test60(i8* %foo, i64 %i, i64 %j) {
 ; CHECK-LABEL: @test60(
 ; CHECK-NEXT:    [[TMP1:%.*]] = trunc i64 [[I:%.*]] to i32
 ; CHECK-NEXT:    [[TMP2:%.*]] = trunc i64 [[J:%.*]] to i32
-; CHECK-NEXT:    [[GEP1_IDX:%.*]] = shl nuw i32 [[TMP1]], 2
+; CHECK-NEXT:    [[GEP1_IDX:%.*]] = shl nsw i32 [[TMP1]], 2
 ; CHECK-NEXT:    [[TMP3:%.*]] = icmp slt i32 [[GEP1_IDX]], [[TMP2]]
 ; CHECK-NEXT:    ret i1 [[TMP3]]
 ;
@@ -61,7 +61,7 @@ define i1 @test60_as1(i8 addrspace(1)* %foo, i64 %i, i64 %j) {
 ; CHECK-LABEL: @test60_as1(
 ; CHECK-NEXT:    [[TMP1:%.*]] = trunc i64 [[I:%.*]] to i16
 ; CHECK-NEXT:    [[TMP2:%.*]] = trunc i64 [[J:%.*]] to i16
-; CHECK-NEXT:    [[GEP1_IDX:%.*]] = shl nuw i16 [[TMP1]], 2
+; CHECK-NEXT:    [[GEP1_IDX:%.*]] = shl nsw i16 [[TMP1]], 2
 ; CHECK-NEXT:    [[TMP3:%.*]] = icmp slt i16 [[GEP1_IDX]], [[TMP2]]
 ; CHECK-NEXT:    ret i1 [[TMP3]]
 ;
@@ -93,7 +93,7 @@ define i1 @test60_addrspacecast(i8* %foo, i64 %i, i64 %j) {
 
 define i1 @test60_addrspacecast_smaller(i8* %foo, i16 %i, i64 %j) {
 ; CHECK-LABEL: @test60_addrspacecast_smaller(
-; CHECK-NEXT:    [[GEP1_IDX:%.*]] = shl nuw i16 [[I:%.*]], 2
+; CHECK-NEXT:    [[GEP1_IDX:%.*]] = shl nsw i16 [[I:%.*]], 2
 ; CHECK-NEXT:    [[TMP1:%.*]] = trunc i64 [[J:%.*]] to i16
 ; CHECK-NEXT:    [[TMP2:%.*]] = icmp slt i16 [[GEP1_IDX]], [[TMP1]]
 ; CHECK-NEXT:    ret i1 [[TMP2]]

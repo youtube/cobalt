@@ -1,9 +1,8 @@
 //===--- UseUncaughtExceptionsCheck.cpp - clang-tidy--------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,24 +29,22 @@ void UseUncaughtExceptionsCheck::registerMatchers(MatchFinder *Finder) {
       this);
 
   // DeclRefExpr: warning, no fix-it.
-  Finder->addMatcher(declRefExpr(allOf(to(functionDecl(hasName(MatchText))),
-                                       unless(callExpr())))
-                         .bind("decl_ref_expr"),
-                     this);
+  Finder->addMatcher(
+      declRefExpr(to(functionDecl(hasName(MatchText))), unless(callExpr()))
+          .bind("decl_ref_expr"),
+      this);
 
   // CallExpr: warning, fix-it.
-  Finder->addMatcher(
-      callExpr(allOf(hasDeclaration(functionDecl(hasName(MatchText))),
-                     unless(hasAncestor(initListExpr()))))
-          .bind("call_expr"),
-      this);
+  Finder->addMatcher(callExpr(hasDeclaration(functionDecl(hasName(MatchText))),
+                              unless(hasAncestor(initListExpr())))
+                         .bind("call_expr"),
+                     this);
   // CallExpr in initialisation list: warning, fix-it with avoiding narrowing
   // conversions.
-  Finder->addMatcher(
-      callExpr(allOf(hasAncestor(initListExpr()),
-                     hasDeclaration(functionDecl(hasName(MatchText)))))
-          .bind("init_call_expr"),
-      this);
+  Finder->addMatcher(callExpr(hasAncestor(initListExpr()),
+                              hasDeclaration(functionDecl(hasName(MatchText))))
+                         .bind("init_call_expr"),
+                     this);
 }
 
 void UseUncaughtExceptionsCheck::check(const MatchFinder::MatchResult &Result) {
@@ -57,15 +54,15 @@ void UseUncaughtExceptionsCheck::check(const MatchFinder::MatchResult &Result) {
   bool WarnOnly = false;
 
   if (C) {
-    BeginLoc = C->getLocStart();
-    EndLoc = C->getLocEnd();
+    BeginLoc = C->getBeginLoc();
+    EndLoc = C->getEndLoc();
   } else if (const auto *E = Result.Nodes.getNodeAs<CallExpr>("call_expr")) {
-    BeginLoc = E->getLocStart();
-    EndLoc = E->getLocEnd();
+    BeginLoc = E->getBeginLoc();
+    EndLoc = E->getEndLoc();
   } else if (const auto *D =
                  Result.Nodes.getNodeAs<DeclRefExpr>("decl_ref_expr")) {
-    BeginLoc = D->getLocStart();
-    EndLoc = D->getLocEnd();
+    BeginLoc = D->getBeginLoc();
+    EndLoc = D->getEndLoc();
     WarnOnly = true;
   } else {
     const auto *U = Result.Nodes.getNodeAs<UsingDecl>("using_decl");

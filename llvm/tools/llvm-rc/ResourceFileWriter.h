@@ -1,9 +1,8 @@
 //===-- ResourceSerializator.h ----------------------------------*- C++-*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 //
@@ -63,6 +62,7 @@ public:
   Error visitCaptionStmt(const CaptionStmt *) override;
   Error visitCharacteristicsStmt(const CharacteristicsStmt *) override;
   Error visitClassStmt(const ClassStmt *) override;
+  Error visitExStyleStmt(const ExStyleStmt *) override;
   Error visitFontStmt(const FontStmt *) override;
   Error visitLanguageStmt(const LanguageResource *) override;
   Error visitStyleStmt(const StyleStmt *) override;
@@ -72,7 +72,7 @@ public:
   // function to do it.
   Error dumpAllStringTables();
 
-  bool AppendNull; // Append '\0' to each existing STRINGTABLE element?
+  bool AppendNull = false; // Append '\0' to each existing STRINGTABLE element?
 
   struct ObjectInfo {
     uint16_t LanguageInfo;
@@ -80,6 +80,7 @@ public:
     uint32_t VersionInfo;
 
     Optional<uint32_t> Style;
+    Optional<uint32_t> ExStyle;
     StringRef Caption;
     struct FontInfo {
       uint32_t Size;

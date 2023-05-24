@@ -1,35 +1,34 @@
 //===-- ValueObjectChild.cpp ------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Core/ValueObjectChild.h"
 
-#include "lldb/Core/Scalar.h" // for Scalar
-#include "lldb/Core/Value.h"  // for Value, Value::ValueType::e...
+#include "lldb/Core/Value.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
-#include "lldb/Utility/Flags.h"  // for Flags
-#include "lldb/Utility/Status.h" // for Status
-#include "lldb/lldb-forward.h"   // for ProcessSP, ModuleSP
+#include "lldb/Utility/Flags.h"
+#include "lldb/Utility/Scalar.h"
+#include "lldb/Utility/Status.h"
+#include "lldb/lldb-forward.h"
 
-#include <functional> // for _Func_impl<>::_Mybase
-#include <memory>     // for shared_ptr
-#include <vector>     // for vector
+#include <functional>
+#include <memory>
+#include <vector>
 
-#include <stdio.h>  // for snprintf, size_t
-#include <string.h> // for strlen
+#include <stdio.h>
+#include <string.h>
 
 using namespace lldb_private;
 
 ValueObjectChild::ValueObjectChild(
     ValueObject &parent, const CompilerType &compiler_type,
-    const ConstString &name, uint64_t byte_size, int32_t byte_offset,
+    ConstString name, uint64_t byte_size, int32_t byte_offset,
     uint32_t bitfield_bit_size, uint32_t bitfield_bit_offset,
     bool is_base_class, bool is_deref_of_parent,
     AddressType child_ptr_or_ref_addr_type, uint64_t language_flags)
@@ -51,7 +50,8 @@ lldb::ValueType ValueObjectChild::GetValueType() const {
 }
 
 size_t ValueObjectChild::CalculateNumChildren(uint32_t max) {
-  auto children_count = GetCompilerType().GetNumChildren(true);
+  ExecutionContext exe_ctx(GetExecutionContextRef());
+  auto children_count = GetCompilerType().GetNumChildren(true, &exe_ctx);
   return children_count <= max ? children_count : max;
 }
 
@@ -123,7 +123,7 @@ bool ValueObjectChild::UpdateValue() {
 
       Flags parent_type_flags(parent_type.GetTypeInfo());
       const bool is_instance_ptr_base =
-          ((m_is_base_class == true) &&
+          ((m_is_base_class) &&
            (parent_type_flags.AnySet(lldb::eTypeInstanceIsPointer)));
 
       if (parent->GetCompilerType().ShouldTreatScalarValueAsAddress()) {
@@ -141,7 +141,7 @@ bool ValueObjectChild::UpdateValue() {
           switch (addr_type) {
           case eAddressTypeFile: {
             lldb::ProcessSP process_sp(GetProcessSP());
-            if (process_sp && process_sp->IsAlive() == true)
+            if (process_sp && process_sp->IsAlive())
               m_value.SetValueType(Value::eValueTypeLoadAddress);
             else
               m_value.SetValueType(Value::eValueTypeFileAddress);
@@ -175,6 +175,30 @@ bool ValueObjectChild::UpdateValue() {
             // Set this object's scalar value to the address of its value by
             // adding its byte offset to the parent address
             m_value.GetScalar() += GetByteOffset();
+
+            // If a bitfield doesn't fit into the child_byte_size'd
+            // window at child_byte_offset, move the window forward
+            // until it fits.  The problem here is that Value has no
+            // notion of bitfields and thus the Value's DataExtractor
+            // is sized like the bitfields CompilerType; a sequence of
+            // bitfields, however, can be larger than their underlying
+            // type.
+            if (m_bitfield_bit_offset) {
+              const bool thread_and_frame_only_if_stopped = true;
+              ExecutionContext exe_ctx(GetExecutionContextRef().Lock(
+                  thread_and_frame_only_if_stopped));
+              if (auto type_bit_size = GetCompilerType().GetBitSize(
+                      exe_ctx.GetBestExecutionContextScope())) {
+                uint64_t bitfield_end =
+                    m_bitfield_bit_size + m_bitfield_bit_offset;
+                if (bitfield_end > *type_bit_size) {
+                  uint64_t overhang_bytes =
+                      (bitfield_end - *type_bit_size + 7) / 8;
+                  m_value.GetScalar() += overhang_bytes;
+                  m_bitfield_bit_offset -= overhang_bytes * 8;
+                }
+              }
+            }
           }
         } break;
 
@@ -201,12 +225,9 @@ bool ValueObjectChild::UpdateValue() {
         ExecutionContext exe_ctx(
             GetExecutionContextRef().Lock(thread_and_frame_only_if_stopped));
         if (GetCompilerType().GetTypeInfo() & lldb::eTypeHasValue) {
-          if (!is_instance_ptr_base)
-            m_error =
-                m_value.GetValueAsData(&exe_ctx, m_data, 0, GetModule().get());
-          else
-            m_error = m_parent->GetValue().GetValueAsData(&exe_ctx, m_data, 0,
-                                                          GetModule().get());
+          Value &value = is_instance_ptr_base ? m_parent->GetValue() : m_value;
+          m_error =
+              value.GetValueAsData(&exe_ctx, m_data, GetModule().get());
         } else {
           m_error.Clear(); // No value so nothing to read...
         }

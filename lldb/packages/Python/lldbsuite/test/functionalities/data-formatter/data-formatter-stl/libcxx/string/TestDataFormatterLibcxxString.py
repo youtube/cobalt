@@ -3,11 +3,8 @@
 Test lldb data formatter subsystem.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -61,14 +58,25 @@ class LibcxxStringDataFormatterTestCase(TestBase):
         self.expect(
             "frame variable",
             substrs=[
+                '(%s::wstring) wempty = L""'%ns,
                 '(%s::wstring) s = L"hello world! מזל טוב!"'%ns,
                 '(%s::wstring) S = L"!!!!"'%ns,
                 '(const wchar_t *) mazeltov = 0x',
                 'L"מזל טוב"',
+                '(%s::string) empty = ""'%ns,
                 '(%s::string) q = "hello world"'%ns,
                 '(%s::string) Q = "quite a long std::strin with lots of info inside it"'%ns,
                 '(%s::string) IHaveEmbeddedZeros = "a\\0b\\0c\\0d"'%ns,
-                '(%s::wstring) IHaveEmbeddedZerosToo = L"hello world!\\0てざ ル゜䋨ミ㠧槊 きゅへ狦穤襩 じゃ馩リョ 䤦監"'%ns])
+                '(%s::wstring) IHaveEmbeddedZerosToo = L"hello world!\\0てざ ル゜䋨ミ㠧槊 きゅへ狦穤襩 じゃ馩リョ 䤦監"'%ns,
+                '(%s::u16string) u16_string = u"ß水氶"'%ns,
+                # FIXME: This should have a 'u' prefix.
+                '(%s::u16string) u16_empty = ""'%ns,
+                '(%s::u32string) u32_string = U"🍄🍅🍆🍌"'%ns,
+                # FIXME: This should have a 'U' prefix.
+                '(%s::u32string) u32_empty = ""'%ns,
+                '(%s::basic_string<unsigned char, %s::char_traits<unsigned char>, '
+                '%s::allocator<unsigned char> >) uchar = "aaaaa"'%(ns,ns,ns),
+        ])
 
         self.runCmd("n")
 
@@ -88,14 +96,21 @@ class LibcxxStringDataFormatterTestCase(TestBase):
             cappedSummary.find("someText") <= 0,
             "cappedSummary includes the full string")
 
+        self.expect_expr("s", result_type=ns+"::wstring", result_summary='L"hello world! מזל טוב!"')
+
         self.expect(
             "frame variable",
             substrs=[
-                '(%s::wstring) s = L"hello world! מזל טוב!"'%ns,
                 '(%s::wstring) S = L"!!!!!"'%ns,
                 '(const wchar_t *) mazeltov = 0x',
                 'L"מזל טוב"',
                 '(%s::string) q = "hello world"'%ns,
                 '(%s::string) Q = "quite a long std::strin with lots of info inside it"'%ns,
                 '(%s::string) IHaveEmbeddedZeros = "a\\0b\\0c\\0d"'%ns,
-                '(%s::wstring) IHaveEmbeddedZerosToo = L"hello world!\\0てざ ル゜䋨ミ㠧槊 きゅへ狦穤襩 じゃ馩リョ 䤦監"'%ns])
+                '(%s::wstring) IHaveEmbeddedZerosToo = L"hello world!\\0てざ ル゜䋨ミ㠧槊 きゅへ狦穤襩 じゃ馩リョ 䤦監"'%ns,
+                '(%s::u16string) u16_string = u"ß水氶"'%ns,
+                '(%s::u32string) u32_string = U"🍄🍅🍆🍌"'%ns,
+                '(%s::u32string) u32_empty = ""'%ns,
+                '(%s::basic_string<unsigned char, %s::char_traits<unsigned char>, '
+                '%s::allocator<unsigned char> >) uchar = "aaaaa"'%(ns,ns,ns),
+        ])

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -13,6 +12,7 @@
 #include <unordered_map>
 #include <set>
 #include <map>
+#include "test_macros.h"
 #include "min_allocator.h"
 
 using namespace std;
@@ -121,13 +121,15 @@ void test_node_handle_operations_multi()
     assert(nt2.empty());
 }
 
+template <class> void test_typedef() {}
+
 template <class Container>
 void test_insert_return_type()
 {
-    using irt_type = typename Container::insert_return_type;
+    test_typedef<typename Container::insert_return_type>();
 }
 
-int main()
+int main(int, char**)
 {
     test_node_handle_operations<std::map<int, int>>();
     test_node_handle_operations_multi<std::multimap<int, int>>();
@@ -142,4 +144,6 @@ int main()
     test_insert_return_type<std::set<int>>();
     test_insert_return_type<std::unordered_map<int, int>>();
     test_insert_return_type<std::unordered_set<int>>();
+
+  return 0;
 }

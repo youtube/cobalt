@@ -25,6 +25,7 @@ Usage:
     diff = compareResults(resultsA, resultsB)
 
 """
+from __future__ import division, print_function
 
 from collections import defaultdict
 
@@ -38,7 +39,7 @@ import sys
 
 STATS_REGEXP = re.compile(r"Statistics: (\{.+\})", re.MULTILINE | re.DOTALL)
 
-class Colors:
+class Colors(object):
     """
     Color for terminal highlight.
     """
@@ -50,14 +51,14 @@ class Colors:
 # path - the analysis output directory
 # root - the name of the root directory, which will be disregarded when
 # determining the source file name
-class SingleRunInfo:
+class SingleRunInfo(object):
     def __init__(self, path, root="", verboseLog=None):
         self.path = path
         self.root = root.rstrip("/\\")
         self.verboseLog = verboseLog
 
 
-class AnalysisDiagnostic:
+class AnalysisDiagnostic(object):
     def __init__(self, data, report, htmlReport):
         self._data = data
         self._loc = self._data['location']
@@ -71,6 +72,21 @@ class AnalysisDiagnostic:
         if fileName.startswith(root) and len(root) > 0:
             return fileName[len(root) + 1:]
         return fileName
+
+    def getRootFileName(self):
+        path = self._data['path']
+        if not path:
+            return self.getFileName()
+        p = path[0]
+        if 'location' in p:
+            fIdx = p['location']['file']
+        else: # control edge
+            fIdx = path[0]['edges'][0]['start'][0]['file']
+        out = self._report.files[fIdx]
+        root = self._report.run.root
+        if out.startswith(root):
+            return out[len(root):]
+        return out
 
     def getLine(self):
         return self._loc['line']
@@ -105,7 +121,13 @@ class AnalysisDiagnostic:
             funcnamePostfix = "#" + self._data['issue_context']
         else:
             funcnamePostfix = ""
-        return '%s%s:%d:%d, %s: %s' % (self.getFileName(),
+        rootFilename = self.getRootFileName()
+        fileName = self.getFileName()
+        if rootFilename != fileName:
+            filePrefix = "[%s] %s" % (rootFilename, fileName)
+        else:
+            filePrefix = rootFilename
+        return '%s%s:%d:%d, %s: %s' % (filePrefix,
                                        funcnamePostfix,
                                        self.getLine(),
                                        self.getColumn(), self.getCategory(),
@@ -117,14 +139,14 @@ class AnalysisDiagnostic:
         return self._data
 
 
-class AnalysisReport:
+class AnalysisReport(object):
     def __init__(self, run, files):
         self.run = run
         self.files = files
         self.diagnostics = []
 
 
-class AnalysisRun:
+class AnalysisRun(object):
     def __init__(self, info):
         self.path = info.path
         self.root = info.root
@@ -281,19 +303,33 @@ def compareResults(A, B, opts):
 
     return res
 
+def computePercentile(l, percentile):
+    """
+    Return computed percentile.
+    """
+    return sorted(l)[int(round(percentile * len(l) + 0.5)) - 1]
+
 def deriveStats(results):
     # Assume all keys are the same in each statistics bucket.
     combined_data = defaultdict(list)
+
+    # Collect data on paths length.
+    for report in results.reports:
+        for diagnostic in report.diagnostics:
+            combined_data['PathsLength'].append(diagnostic.getPathLength())
+
     for stat in results.stats:
-        for key, value in stat.iteritems():
+        for key, value in stat.items():
             combined_data[key].append(value)
     combined_stats = {}
-    for key, values in combined_data.iteritems():
+    for key, values in combined_data.items():
         combined_stats[str(key)] = {
             "max": max(values),
             "min": min(values),
             "mean": sum(values) / len(values),
-            "median": sorted(values)[len(values) / 2],
+            "90th %tile": computePercentile(values, 0.9),
+            "95th %tile": computePercentile(values, 0.95),
+            "median": sorted(values)[len(values) // 2],
             "total": sum(values)
         }
     return combined_stats
@@ -304,7 +340,7 @@ def compareStats(resultsA, resultsB):
     statsB = deriveStats(resultsB)
     keys = sorted(statsA.keys())
     for key in keys:
-        print key
+        print(key)
         for kkey in statsA[key]:
             valA = float(statsA[key][kkey])
             valB = float(statsB[key][kkey])
@@ -317,7 +353,7 @@ def compareStats(resultsA, resultsB):
                         report = Colors.GREEN + report + Colors.CLEAR
                     elif ratio > 0.2:
                         report = Colors.RED + report + Colors.CLEAR
-            print "\t %s %s" % (kkey, report)
+            print("\t %s %s" % (kkey, report))
 
 def dumpScanBuildResultsDiff(dirA, dirB, opts, deleteEmpty=True,
                              Stdout=sys.stdout):

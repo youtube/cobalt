@@ -3,6 +3,7 @@
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=broadwell -iterations=1 -timeline -resource-pressure=false < %s | FileCheck %s -check-prefix=ALL -check-prefix=BDWELL
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=skylake -iterations=1 -timeline -resource-pressure=false < %s | FileCheck %s -check-prefix=ALL -check-prefix=SKYLAKE
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=znver1 -iterations=1 -timeline -resource-pressure=false < %s | FileCheck %s -check-prefix=ALL -check-prefix=ZNVER1
+# RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=znver2 -iterations=1 -timeline -resource-pressure=false < %s | FileCheck %s -check-prefix=ALL -check-prefix=ZNVER2
 
 add     %edi, %esi
 bzhil	%esi, (%rdi), %eax
@@ -11,22 +12,30 @@ bzhil	%esi, (%rdi), %eax
 # ALL-NEXT:     Instructions:      2
 
 # BDWELL-NEXT:  Total Cycles:      9
-# BDWELL-NEXT:  Dispatch Width:    4
+# HASWELL-NEXT: Total Cycles:      9
+# SKYLAKE-NEXT: Total Cycles:      9
+# ZNVER1-NEXT:  Total Cycles:      8
+# ZNVER2-NEXT:  Total Cycles:      8
+
+# ALL-NEXT:     Total uOps:        3
+
+# BDWELL:       Dispatch Width:    4
+# BDWELL-NEXT:  uOps Per Cycle:    0.33
 # BDWELL-NEXT:  IPC:               0.22
 # BDWELL-NEXT:  Block RThroughput: 0.8
 
-# HASWELL-NEXT: Total Cycles:      9
-# HASWELL-NEXT: Dispatch Width:    4
+# HASWELL:      Dispatch Width:    4
+# HASWELL-NEXT: uOps Per Cycle:    0.33
 # HASWELL-NEXT: IPC:               0.22
 # HASWELL-NEXT: Block RThroughput: 0.8
 
-# SKYLAKE-NEXT: Total Cycles:      9
-# SKYLAKE-NEXT: Dispatch Width:    6
+# SKYLAKE:      Dispatch Width:    6
+# SKYLAKE-NEXT: uOps Per Cycle:    0.33
 # SKYLAKE-NEXT: IPC:               0.22
 # SKYLAKE-NEXT: Block RThroughput: 0.5
 
-# ZNVER1-NEXT:  Total Cycles:      8
-# ZNVER1-NEXT:  Dispatch Width:    4
+# ZNVER1:       Dispatch Width:    4
+# ZNVER1-NEXT:  uOps Per Cycle:    0.38
 # ZNVER1-NEXT:  IPC:               0.25
 # ZNVER1-NEXT:  Block RThroughput: 0.8
 
@@ -74,3 +83,4 @@ bzhil	%esi, (%rdi), %eax
 # ALL:                [0]    [1]    [2]    [3]
 # ALL-NEXT:     0.     1     1.0    1.0    0.0       addl	%edi, %esi
 # ALL-NEXT:     1.     1     1.0    0.0    0.0       bzhil	%esi, (%rdi), %eax
+# ALL-NEXT:            1     1.0    0.5    0.0       <total>

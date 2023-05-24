@@ -1,4 +1,5 @@
-; RUN: llc < %s -filetype=obj | llvm-readobj - -codeview | FileCheck %s
+; RUN: llc < %s -filetype=obj | llvm-readobj - --codeview | FileCheck %s
+; RUN: llc < %s | llvm-mc -filetype=obj --triple=i686-windows | llvm-readobj - --codeview | FileCheck %s
 
 ; C++ source to regenerate:
 ; $ cat t.cpp
@@ -53,7 +54,6 @@
 ; CHECK:   Pointer (0x1004) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: 0x1003
-; CHECK:     PointerAttributes: 0x2A
 ; CHECK:     PtrType: Near32 (0xA)
 ; CHECK:     PtrMode: LValueReference (0x1)
 ; CHECK:     IsFlat: 0
@@ -107,7 +107,6 @@
 ; CHECK:   Pointer (0x100A) {
 ; CHECK:     TypeLeafKind: LF_POINTER (0x1002)
 ; CHECK:     PointeeType: 0x1009
-; CHECK:     PointerAttributes: 0x800A
 ; CHECK:     PtrType: Near32 (0xA)
 ; CHECK:     PtrMode: Pointer (0x0)
 ; CHECK:     IsFlat: 0

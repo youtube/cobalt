@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,14 +16,14 @@
 // typedef basic_string<value_type> string_type;
 // static constexpr value_type preferred_separator = ...;
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <cassert>
 
 #include "test_macros.h"
 
 
-int main() {
+int main(int, char**) {
   using namespace fs;
   ASSERT_SAME_TYPE(path::value_type, char);
   ASSERT_SAME_TYPE(path::string_type, std::basic_string<path::value_type>);
@@ -35,4 +34,6 @@ int main() {
     const char* dummy = &path::preferred_separator;
     ((void)dummy);
   }
+
+  return 0;
 }

@@ -1,9 +1,8 @@
 //===--- UnusedReturnValueCheck.cpp - clang-tidy---------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -86,10 +85,10 @@ void UnusedReturnValueCheck::registerMatchers(MatchFinder *Finder) {
 
 void UnusedReturnValueCheck::check(const MatchFinder::MatchResult &Result) {
   if (const auto *Matched = Result.Nodes.getNodeAs<CallExpr>("match")) {
-    diag(Matched->getLocStart(),
+    diag(Matched->getBeginLoc(),
          "the value returned by this function should be used")
         << Matched->getSourceRange();
-    diag(Matched->getLocStart(),
+    diag(Matched->getBeginLoc(),
          "cast the expression to void to silence this warning",
          DiagnosticIDs::Note);
   }

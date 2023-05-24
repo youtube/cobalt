@@ -40,13 +40,13 @@
 ; CODEGEN: T _main
 
 ; Verify that all run together
-; RUN: llvm-lto -thinlto-action=run %t2.bc  %t.bc
+; RUN: llvm-lto -thinlto-action=run %t2.bc  %t.bc  -exported-symbol=_main
 ; RUN: llvm-nm -o - < %t.bc.thinlto.o | FileCheck %s --check-prefix=ALL
 ; RUN: llvm-nm -o - < %t2.bc.thinlto.o | FileCheck %s --check-prefix=ALL2
 ; ALL: T _callfuncptr
 ; ALL2: T _main
 
-target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
+target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.11.0"
 
 @globalvar_in_section = global i32 1, align 4

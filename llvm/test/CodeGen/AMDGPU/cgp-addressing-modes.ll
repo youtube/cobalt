@@ -7,7 +7,7 @@
 ; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -amdgpu-scalarize-global-loads=false -mattr=-promote-alloca -amdgpu-sroa=0 < %s | FileCheck -check-prefix=GCN -check-prefix=VI -check-prefix=SICIVI %s
 ; RUN: llc -march=amdgcn -mcpu=gfx900 -mattr=-promote-alloca -amdgpu-scalarize-global-loads=false -amdgpu-sroa=0 < %s | FileCheck -check-prefix=GCN -check-prefix=GFX9 %s
 
-target datalayout = "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32-p24:64:64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-A5"
+target datalayout = "e-p:64:64-p1:64:64-p2:32:32-p3:32:32-p4:64:64-p5:32:32-p6:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64-S32-A5"
 
 ; OPT-LABEL: @test_sink_global_small_offset_i32(
 ; OPT-CI-NOT: getelementptr i32, i32 addrspace(1)* %in
@@ -44,7 +44,10 @@ done:
 ; GCN-LABEL: {{^}}test_sink_global_small_max_i32_ds_offset:
 ; GCN: s_and_saveexec_b64
 ; SICIVI: buffer_load_sbyte {{v[0-9]+}}, off, {{s\[[0-9]+:[0-9]+\]}}, s{{[0-9]+$}}
-; GFX9: global_load_sbyte {{v[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, off{{$}}
+
+; GFX9: v_add_co_u32_e32 v{{[0-9]+}}, vcc, 0xf000,
+; GFX9: v_addc_co_u32_e32 v{{[0-9]+}}, vcc, 0,
+; GFX9: global_load_sbyte {{v[0-9]+}}, {{v\[[0-9]+:[0-9]+\]}}, off offset:4095{{$}}
 ; GCN: {{^}}BB1_2:
 ; GCN: s_or_b64 exec
 define amdgpu_kernel void @test_sink_global_small_max_i32_ds_offset(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
@@ -492,7 +495,7 @@ done:
 %struct.foo = type { [3 x float], [3 x float] }
 
 ; OPT-LABEL: @sink_ds_address(
-; OPT: getelementptr i8,
+; OPT: getelementptr inbounds i8,
 
 ; GCN-LABEL: {{^}}sink_ds_address:
 ; GCN: s_load_dword [[SREG1:s[0-9]+]],

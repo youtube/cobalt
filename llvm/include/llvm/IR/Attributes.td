@@ -85,6 +85,9 @@ def NoCapture : EnumAttr<"nocapture">;
 /// Call cannot be duplicated.
 def NoDuplicate : EnumAttr<"noduplicate">;
 
+/// Function does not deallocate memory.
+def NoFree : EnumAttr<"nofree">;
+
 /// Disable implicit floating point insts.
 def NoImplicitFloat : EnumAttr<"noimplicitfloat">;
 
@@ -105,6 +108,9 @@ def NoRedZone : EnumAttr<"noredzone">;
 
 /// Mark the function as not returning.
 def NoReturn : EnumAttr<"noreturn">;
+
+/// Function does not synchronize.
+def NoSync : EnumAttr<"nosync">;
 
 /// Disable Indirect Branch Tracking.
 def NoCfCheck : EnumAttr<"nocf_check">;
@@ -129,6 +135,9 @@ def ReadOnly : EnumAttr<"readonly">;
 
 /// Return value is always equal to this argument.
 def Returned : EnumAttr<"returned">;
+
+/// Parameter is required to be a trivial constant.
+def ImmArg : EnumAttr<"immarg">;
 
 /// Function can return twice.
 def ReturnsTwice : EnumAttr<"returns_twice">;
@@ -176,6 +185,17 @@ def SanitizeMemory : EnumAttr<"sanitize_memory">;
 /// HWAddressSanitizer is on.
 def SanitizeHWAddress : EnumAttr<"sanitize_hwaddress">;
 
+/// MemTagSanitizer is on.
+def SanitizeMemTag : EnumAttr<"sanitize_memtag">;
+
+/// Speculative Load Hardening is enabled.
+///
+/// Note that this uses the default compatibility (always compatible during
+/// inlining) and a conservative merge strategy where inlining an attributed
+/// body will add the attribute to the caller. This ensures that code carrying
+/// this attribute will always be lowered with hardening enabled.
+def SpeculativeLoadHardening : EnumAttr<"speculative_load_hardening">;
+
 /// Argument is swift error.
 def SwiftError : EnumAttr<"swifterror">;
 
@@ -184,6 +204,9 @@ def SwiftSelf : EnumAttr<"swiftself">;
 
 /// Function must be in a unwind table.
 def UWTable : EnumAttr<"uwtable">;
+
+/// Function always comes back to callsite.
+def WillReturn : EnumAttr<"willreturn">;
 
 /// Function only writes to memory.
 def WriteOnly : EnumAttr<"writeonly">;
@@ -197,6 +220,7 @@ def NoInfsFPMath : StrBoolAttr<"no-infs-fp-math">;
 def NoNansFPMath : StrBoolAttr<"no-nans-fp-math">;
 def UnsafeFPMath : StrBoolAttr<"unsafe-fp-math">;
 def NoJumpTables : StrBoolAttr<"no-jump-tables">;
+def NoInlineLineTables : StrBoolAttr<"no-inline-line-tables">;
 def ProfileSampleAccurate : StrBoolAttr<"profile-sample-accurate">;
 
 class CompatRule<string F> {
@@ -213,6 +237,7 @@ def : CompatRule<"isEqual<SanitizeAddressAttr>">;
 def : CompatRule<"isEqual<SanitizeThreadAttr>">;
 def : CompatRule<"isEqual<SanitizeMemoryAttr>">;
 def : CompatRule<"isEqual<SanitizeHWAddressAttr>">;
+def : CompatRule<"isEqual<SanitizeMemTagAttr>">;
 def : CompatRule<"isEqual<SafeStackAttr>">;
 def : CompatRule<"isEqual<ShadowCallStackAttr>">;
 
@@ -232,6 +257,7 @@ def : MergeRule<"setAND<UnsafeFPMathAttr>">;
 def : MergeRule<"setOR<NoImplicitFloatAttr>">;
 def : MergeRule<"setOR<NoJumpTablesAttr>">;
 def : MergeRule<"setOR<ProfileSampleAccurateAttr>">;
+def : MergeRule<"setOR<SpeculativeLoadHardeningAttr>">;
 def : MergeRule<"adjustCallerSSPLevel">;
 def : MergeRule<"adjustCallerStackProbes">;
 def : MergeRule<"adjustCallerStackProbeSize">;

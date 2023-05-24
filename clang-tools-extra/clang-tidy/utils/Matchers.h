@@ -1,9 +1,8 @@
 //===--- Matchers.h - clang-tidy-------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -42,10 +41,21 @@ AST_MATCHER(RecordDecl, isTriviallyDefaultConstructible) {
       Node, Finder->getASTContext());
 }
 
+AST_MATCHER(QualType, isTriviallyDestructible) {
+  return utils::type_traits::isTriviallyDestructible(Node);
+}
+
 // Returns QualType matcher for references to const.
 AST_MATCHER_FUNCTION(ast_matchers::TypeMatcher, isReferenceToConst) {
   using namespace ast_matchers;
   return referenceType(pointee(qualType(isConstQualified())));
+}
+
+AST_MATCHER_P(NamedDecl, matchesAnyListedName, std::vector<std::string>,
+              NameList) {
+  return llvm::any_of(NameList, [&Node](const std::string &Name) {
+      return llvm::Regex(Name).match(Node.getName());
+    });
 }
 
 } // namespace matchers

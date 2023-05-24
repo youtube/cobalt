@@ -1,9 +1,8 @@
 //===-- ODRHash.cpp - Hashing to diagnose ODR failures ----------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 ///
@@ -32,12 +31,24 @@ void ODRHash::AddIdentifierInfo(const IdentifierInfo *II) {
   ID.AddString(II->getName());
 }
 
-void ODRHash::AddDeclarationName(DeclarationName Name) {
+void ODRHash::AddDeclarationName(DeclarationName Name, bool TreatAsDecl) {
+  if (TreatAsDecl)
+    // Matches the NamedDecl check in AddDecl
+    AddBoolean(true);
+
+  AddDeclarationNameImpl(Name);
+
+  if (TreatAsDecl)
+    // Matches the ClassTemplateSpecializationDecl check in AddDecl
+    AddBoolean(false);
+}
+
+void ODRHash::AddDeclarationNameImpl(DeclarationName Name) {
   // Index all DeclarationName and use index numbers to refer to them.
   auto Result = DeclNameMap.insert(std::make_pair(Name, DeclNameMap.size()));
   ID.AddInteger(Result.first->second);
   if (!Result.second) {
-    // If found in map, the the DeclarationName has previously been processed.
+    // If found in map, the DeclarationName has previously been processed.
     return;
   }
 
@@ -60,8 +71,13 @@ void ODRHash::AddDeclarationName(DeclarationName Name) {
     AddBoolean(S.isKeywordSelector());
     AddBoolean(S.isUnarySelector());
     unsigned NumArgs = S.getNumArgs();
+    ID.AddInteger(NumArgs);
     for (unsigned i = 0; i < NumArgs; ++i) {
-      AddIdentifierInfo(S.getIdentifierInfoForSlot(i));
+      const IdentifierInfo *II = S.getIdentifierInfoForSlot(i);
+      AddBoolean(II);
+      if (II) {
+        AddIdentifierInfo(II);
+      }
     }
     break;
   }
@@ -129,6 +145,7 @@ void ODRHash::AddTemplateName(TemplateName Name) {
     break;
   // TODO: Support these cases.
   case TemplateName::OverloadedTemplate:
+  case TemplateName::AssumedTemplate:
   case TemplateName::QualifiedTemplate:
   case TemplateName::DependentTemplate:
   case TemplateName::SubstTemplateTemplateParm:
@@ -363,6 +380,11 @@ public:
     }
     Hash.AddBoolean(D->isParameterPack());
 
+    const TypeConstraint *TC = D->getTypeConstraint();
+    Hash.AddBoolean(TC != nullptr);
+    if (TC)
+      AddStmt(TC->getImmediatelyDeclaredConstraint());
+
     Inherited::VisitTemplateTypeParmDecl(D);
   }
 
@@ -405,6 +427,7 @@ public:
 
   void VisitFunctionTemplateDecl(const FunctionTemplateDecl *D) {
     AddDecl(D->getTemplatedDecl());
+    ID.AddInteger(D->getTemplatedDecl()->getODRHash());
     Inherited::VisitFunctionTemplateDecl(D);
   }
 
@@ -552,11 +575,27 @@ void ODRHash::AddFunctionDecl(const FunctionDecl *Function,
                        !Function->isDefaulted() && !Function->isDeleted() &&
                        !Function->isLateTemplateParsed();
   AddBoolean(HasBody);
-  if (HasBody) {
-    auto *Body = Function->getBody();
-    AddBoolean(Body);
-    if (Body)
-      AddStmt(Body);
+  if (!HasBody) {
+    return;
+  }
+
+  auto *Body = Function->getBody();
+  AddBoolean(Body);
+  if (Body)
+    AddStmt(Body);
+
+  // Filter out sub-Decls which will not be processed in order to get an
+  // accurate count of Decl's.
+  llvm::SmallVector<const Decl *, 16> Decls;
+  for (Decl *SubDecl : Function->decls()) {
+    if (isWhitelistedDecl(SubDecl, Function)) {
+      Decls.push_back(SubDecl);
+    }
+  }
+
+  ID.AddInteger(Decls.size());
+  for (auto SubDecl : Decls) {
+    AddSubDecl(SubDecl);
   }
 }
 
@@ -592,13 +631,24 @@ void ODRHash::AddDecl(const Decl *D) {
   assert(D && "Expecting non-null pointer.");
   D = D->getCanonicalDecl();
 
-  if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
-    AddDeclarationName(ND->getDeclName());
+  const NamedDecl *ND = dyn_cast<NamedDecl>(D);
+  AddBoolean(ND);
+  if (!ND) {
+    ID.AddInteger(D->getKind());
     return;
   }
 
-  ID.AddInteger(D->getKind());
-  // TODO: Handle non-NamedDecl here.
+  AddDeclarationName(ND->getDeclName());
+
+  const auto *Specialization =
+            dyn_cast<ClassTemplateSpecializationDecl>(D);
+  AddBoolean(Specialization);
+  if (Specialization) {
+    const TemplateArgumentList &List = Specialization->getTemplateArgs();
+    ID.AddInteger(List.size());
+    for (const TemplateArgument &TA : List.asArray())
+      AddTemplateArgument(TA);
+  }
 }
 
 namespace {
@@ -656,7 +706,52 @@ public:
     ID.AddInteger(Quals.getAsOpaqueValue());
   }
 
+  // Return the RecordType if the typedef only strips away a keyword.
+  // Otherwise, return the original type.
+  static const Type *RemoveTypedef(const Type *T) {
+    const auto *TypedefT = dyn_cast<TypedefType>(T);
+    if (!TypedefT) {
+      return T;
+    }
+
+    const TypedefNameDecl *D = TypedefT->getDecl();
+    QualType UnderlyingType = D->getUnderlyingType();
+
+    if (UnderlyingType.hasLocalQualifiers()) {
+      return T;
+    }
+
+    const auto *ElaboratedT = dyn_cast<ElaboratedType>(UnderlyingType);
+    if (!ElaboratedT) {
+      return T;
+    }
+
+    if (ElaboratedT->getQualifier() != nullptr) {
+      return T;
+    }
+
+    QualType NamedType = ElaboratedT->getNamedType();
+    if (NamedType.hasLocalQualifiers()) {
+      return T;
+    }
+
+    const auto *RecordT = dyn_cast<RecordType>(NamedType);
+    if (!RecordT) {
+      return T;
+    }
+
+    const IdentifierInfo *TypedefII = TypedefT->getDecl()->getIdentifier();
+    const IdentifierInfo *RecordII = RecordT->getDecl()->getIdentifier();
+    if (!TypedefII || !RecordII ||
+        TypedefII->getName() != RecordII->getName()) {
+      return T;
+    }
+
+    return RecordT;
+  }
+
   void Visit(const Type *T) {
+    T = RemoveTypedef(T);
     ID.AddInteger(T->getTypeClass());
     Inherited::Visit(T);
   }
@@ -664,14 +759,36 @@ public:
   void VisitType(const Type *T) {}
 
   void VisitAdjustedType(const AdjustedType *T) {
-    AddQualType(T->getOriginalType());
-    AddQualType(T->getAdjustedType());
+    QualType Original = T->getOriginalType();
+    QualType Adjusted = T->getAdjustedType();
+
+    // The original type and pointee type can be the same, as in the case of
+    // function pointers decaying to themselves.  Set a bool and only process
+    // the type once, to prevent doubling the work.
+    SplitQualType split = Adjusted.split();
+    if (auto Pointer = dyn_cast<PointerType>(split.Ty)) {
+      if (Pointer->getPointeeType() == Original) {
+        Hash.AddBoolean(true);
+        ID.AddInteger(split.Quals.getAsOpaqueValue());
+        AddQualType(Original);
+        VisitType(T);
+        return;
+      }
+    }
+
+    // The original type and pointee type are different, such as in the case
+    // of a array decaying to an element pointer.  Set a bool to false and
+    // process both types.
+    Hash.AddBoolean(false);
+    AddQualType(Original);
+    AddQualType(Adjusted);
+
     VisitType(T);
   }
 
   void VisitDecayedType(const DecayedType *T) {
-    AddQualType(T->getDecayedType());
-    AddQualType(T->getPointeeType());
+    // getDecayedType and getPointeeType are derived from getAdjustedType
+    // and don't need to be separately processed.
     VisitAdjustedType(T);
   }
 
@@ -700,8 +817,64 @@ public:
     VisitArrayType(T);
   }
 
+  void VisitAttributedType(const AttributedType *T) {
+    ID.AddInteger(T->getAttrKind());
+    AddQualType(T->getModifiedType());
+    AddQualType(T->getEquivalentType());
+
+    VisitType(T);
+  }
+
+  void VisitBlockPointerType(const BlockPointerType *T) {
+    AddQualType(T->getPointeeType());
+    VisitType(T);
+  }
+
   void VisitBuiltinType(const BuiltinType *T) {
     ID.AddInteger(T->getKind());
+    VisitType(T);
+  }
+
+  void VisitComplexType(const ComplexType *T) {
+    AddQualType(T->getElementType());
+    VisitType(T);
+  }
+
+  void VisitDecltypeType(const DecltypeType *T) {
+    AddStmt(T->getUnderlyingExpr());
+    AddQualType(T->getUnderlyingType());
+    VisitType(T);
+  }
+
+  void VisitDependentDecltypeType(const DependentDecltypeType *T) {
+    VisitDecltypeType(T);
+  }
+
+  void VisitDeducedType(const DeducedType *T) {
+    AddQualType(T->getDeducedType());
+    VisitType(T);
+  }
+
+  void VisitAutoType(const AutoType *T) {
+    ID.AddInteger((unsigned)T->getKeyword());
+    VisitDeducedType(T);
+  }
+
+  void VisitDeducedTemplateSpecializationType(
+      const DeducedTemplateSpecializationType *T) {
+    Hash.AddTemplateName(T->getTemplateName());
+    VisitDeducedType(T);
+  }
+
+  void VisitDependentAddressSpaceType(const DependentAddressSpaceType *T) {
+    AddQualType(T->getPointeeType());
+    AddStmt(T->getAddrSpaceExpr());
+    VisitType(T);
+  }
+
+  void VisitDependentSizedExtVectorType(const DependentSizedExtVectorType *T) {
+    AddQualType(T->getElementType());
+    AddStmt(T->getSizeExpr());
     VisitType(T);
   }
 
@@ -726,6 +899,74 @@ public:
     VisitFunctionType(T);
   }
 
+  void VisitInjectedClassNameType(const InjectedClassNameType *T) {
+    AddDecl(T->getDecl());
+    VisitType(T);
+  }
+
+  void VisitMemberPointerType(const MemberPointerType *T) {
+    AddQualType(T->getPointeeType());
+    AddType(T->getClass());
+    VisitType(T);
+  }
+
+  void VisitObjCObjectPointerType(const ObjCObjectPointerType *T) {
+    AddQualType(T->getPointeeType());
+    VisitType(T);
+  }
+
+  void VisitObjCObjectType(const ObjCObjectType *T) {
+    AddDecl(T->getInterface());
+
+    auto TypeArgs = T->getTypeArgsAsWritten();
+    ID.AddInteger(TypeArgs.size());
+    for (auto Arg : TypeArgs) {
+      AddQualType(Arg);
+    }
+
+    auto Protocols = T->getProtocols();
+    ID.AddInteger(Protocols.size());
+    for (auto Protocol : Protocols) {
+      AddDecl(Protocol);
+    }
+
+    Hash.AddBoolean(T->isKindOfType());
+
+    VisitType(T);
+  }
+
+  void VisitObjCInterfaceType(const ObjCInterfaceType *T) {
+    // This type is handled by the parent type ObjCObjectType.
+    VisitObjCObjectType(T);
+  }
+
+  void VisitObjCTypeParamType(const ObjCTypeParamType *T) {
+    AddDecl(T->getDecl());
+    auto Protocols = T->getProtocols();
+    ID.AddInteger(Protocols.size());
+    for (auto Protocol : Protocols) {
+      AddDecl(Protocol);
+    }
+
+    VisitType(T);
+  }
+
+  void VisitPackExpansionType(const PackExpansionType *T) {
+    AddQualType(T->getPattern());
+    VisitType(T);
+  }
+
+  void VisitParenType(const ParenType *T) {
+    AddQualType(T->getInnerType());
+    VisitType(T);
+  }
+
+  void VisitPipeType(const PipeType *T) {
+    AddQualType(T->getElementType());
+    Hash.AddBoolean(T->isReadOnly());
+    VisitType(T);
+  }
+
   void VisitPointerType(const PointerType *T) {
     AddQualType(T->getPointeeType());
     VisitType(T);
@@ -742,6 +983,43 @@ public:
 
   void VisitRValueReferenceType(const RValueReferenceType *T) {
     VisitReferenceType(T);
+  }
+
+  void
+  VisitSubstTemplateTypeParmPackType(const SubstTemplateTypeParmPackType *T) {
+    AddType(T->getReplacedParameter());
+    Hash.AddTemplateArgument(T->getArgumentPack());
+    VisitType(T);
+  }
+
+  void VisitSubstTemplateTypeParmType(const SubstTemplateTypeParmType *T) {
+    AddType(T->getReplacedParameter());
+    AddQualType(T->getReplacementType());
+    VisitType(T);
+  }
+
+  void VisitTagType(const TagType *T) {
+    AddDecl(T->getDecl());
+    VisitType(T);
+  }
+
+  void VisitRecordType(const RecordType *T) { VisitTagType(T); }
+  void VisitEnumType(const EnumType *T) { VisitTagType(T); }
+
+  void VisitTemplateSpecializationType(const TemplateSpecializationType *T) {
+    ID.AddInteger(T->getNumArgs());
+    for (const auto &TA : T->template_arguments()) {
+      Hash.AddTemplateArgument(TA);
+    }
+    Hash.AddTemplateName(T->getTemplateName());
+    VisitType(T);
+  }
+
+  void VisitTemplateTypeParmType(const TemplateTypeParmType *T) {
+    ID.AddInteger(T->getDepth());
+    ID.AddInteger(T->getIndex());
+    Hash.AddBoolean(T->isParameterPack());
+    AddDecl(T->getDecl());
   }
 
   void VisitTypedefType(const TypedefType *T) {
@@ -766,13 +1044,18 @@ public:
     VisitType(T);
   }
 
-  void VisitTagType(const TagType *T) {
-    AddDecl(T->getDecl());
+  void VisitTypeOfExprType(const TypeOfExprType *T) {
+    AddStmt(T->getUnderlyingExpr());
+    Hash.AddBoolean(T->isSugared());
+    if (T->isSugared())
+      AddQualType(T->desugar());
+
     VisitType(T);
   }
-
-  void VisitRecordType(const RecordType *T) { VisitTagType(T); }
-  void VisitEnumType(const EnumType *T) { VisitTagType(T); }
+  void VisitTypeOfType(const TypeOfType *T) {
+    AddQualType(T->getUnderlyingType());
+    VisitType(T);
+  }
 
   void VisitTypeWithKeyword(const TypeWithKeyword *T) {
     ID.AddInteger(T->getKeyword());
@@ -802,20 +1085,26 @@ public:
     VisitTypeWithKeyword(T);
   }
 
-  void VisitTemplateSpecializationType(const TemplateSpecializationType *T) {
-    ID.AddInteger(T->getNumArgs());
-    for (const auto &TA : T->template_arguments()) {
-      Hash.AddTemplateArgument(TA);
-    }
-    Hash.AddTemplateName(T->getTemplateName());
+  void VisitUnaryTransformType(const UnaryTransformType *T) {
+    AddQualType(T->getUnderlyingType());
+    AddQualType(T->getBaseType());
     VisitType(T);
   }
 
-  void VisitTemplateTypeParmType(const TemplateTypeParmType *T) {
-    ID.AddInteger(T->getDepth());
-    ID.AddInteger(T->getIndex());
-    Hash.AddBoolean(T->isParameterPack());
+  void VisitUnresolvedUsingType(const UnresolvedUsingType *T) {
     AddDecl(T->getDecl());
+    VisitType(T);
+  }
+
+  void VisitVectorType(const VectorType *T) {
+    AddQualType(T->getElementType());
+    ID.AddInteger(T->getNumElements());
+    ID.AddInteger(T->getVectorKind());
+    VisitType(T);
+  }
+
+  void VisitExtVectorType(const ExtVectorType * T) {
+    VisitVectorType(T);
   }
 };
 } // namespace

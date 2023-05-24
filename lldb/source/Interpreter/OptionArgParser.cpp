@@ -1,9 +1,8 @@
 //===-- OptionArgParser.cpp -------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -46,10 +45,10 @@ char OptionArgParser::ToChar(llvm::StringRef s, char fail_value,
 }
 
 int64_t OptionArgParser::ToOptionEnum(llvm::StringRef s,
-                                      OptionEnumValueElement *enum_values,
+                                      const OptionEnumValues &enum_values,
                                       int32_t fail_value, Status &error) {
   error.Clear();
-  if (!enum_values) {
+  if (enum_values.empty()) {
     error.SetErrorString("invalid enumeration argument");
     return fail_value;
   }
@@ -59,16 +58,18 @@ int64_t OptionArgParser::ToOptionEnum(llvm::StringRef s,
     return fail_value;
   }
 
-  for (int i = 0; enum_values[i].string_value != nullptr; i++) {
-    llvm::StringRef this_enum(enum_values[i].string_value);
+  for (const auto &enum_value : enum_values) {
+    llvm::StringRef this_enum(enum_value.string_value);
     if (this_enum.startswith(s))
-      return enum_values[i].value;
+      return enum_value.value;
   }
 
   StreamString strm;
   strm.PutCString("invalid enumeration value, valid values are: ");
-  for (int i = 0; enum_values[i].string_value != nullptr; i++) {
-    strm.Printf("%s\"%s\"", i > 0 ? ", " : "", enum_values[i].string_value);
+  bool is_first = true;
+  for (const auto &enum_value : enum_values) {
+    strm.Printf("%s\"%s\"",
+        is_first ? is_first = false,"" : ", ", enum_value.string_value);
   }
   error.SetErrorString(strm.GetString());
   return fail_value;
@@ -126,6 +127,8 @@ lldb::ScriptLanguage OptionArgParser::ToScriptLanguage(
 
   if (s.equals_lower("python"))
     return eScriptLanguagePython;
+  if (s.equals_lower("lua"))
+    return eScriptLanguageLua;
   if (s.equals_lower("default"))
     return eScriptLanguageDefault;
   if (s.equals_lower("none"))
@@ -210,29 +213,21 @@ lldb::addr_t OptionArgParser::ToAddress(const ExecutionContext *exe_ctx,
     // pointer types.
     static RegularExpression g_symbol_plus_offset_regex(
         "^(.*)([-\\+])[[:space:]]*(0x[0-9A-Fa-f]+|[0-9]+)[[:space:]]*$");
-    RegularExpression::Match regex_match(3);
-    if (g_symbol_plus_offset_regex.Execute(sref, &regex_match)) {
-      uint64_t offset = 0;
-      bool add = true;
-      std::string name;
-      std::string str;
-      if (regex_match.GetMatchAtIndex(s, 1, name)) {
-        if (regex_match.GetMatchAtIndex(s, 2, str)) {
-          add = str[0] == '+';
 
-          if (regex_match.GetMatchAtIndex(s, 3, str)) {
-            if (!llvm::StringRef(str).getAsInteger(0, offset)) {
-              Status error;
-              addr = ToAddress(exe_ctx, name.c_str(), LLDB_INVALID_ADDRESS,
-                               &error);
-              if (addr != LLDB_INVALID_ADDRESS) {
-                if (add)
-                  return addr + offset;
-                else
-                  return addr - offset;
-              }
-            }
-          }
+    llvm::SmallVector<llvm::StringRef, 4> matches;
+    if (g_symbol_plus_offset_regex.Execute(sref, &matches)) {
+      uint64_t offset = 0;
+      std::string name = matches[1].str();
+      std::string sign = matches[2].str();
+      std::string str_offset = matches[3].str();
+      if (!llvm::StringRef(str_offset).getAsInteger(0, offset)) {
+        Status error;
+        addr = ToAddress(exe_ctx, name.c_str(), LLDB_INVALID_ADDRESS, &error);
+        if (addr != LLDB_INVALID_ADDRESS) {
+          if (sign[0] == '+')
+            return addr + offset;
+          else
+            return addr - offset;
         }
       }
     }

@@ -14,15 +14,18 @@ target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 ; CHECK:   add i64 %index, 2, !dbg ![[LOC]]
 ; CHECK:   icmp eq i64 %index.next, %n.vec, !dbg ![[LOC]]
 ; CHECK: middle.block
-; CHECK:   add <2 x i32> %{{.*}}, %rdx.shuf, !dbg ![[LOC]]
-; CHECK:   extractelement <2 x i32> %bin.rdx, i32 0, !dbg ![[LOC]]
+; CHECK:   add <2 x i32> %{{.*}}, %rdx.shuf, !dbg ![[BR_LOC:[0-9]+]]
+; CHECK:   extractelement <2 x i32> %bin.rdx, i32 0, !dbg ![[BR_LOC]]
+; CHECK: for.body
+; CHECK br i1{{.*}}, label %for.body,{{.*}}, !dbg ![[BR_LOC]],
+; CHECK: ![[BR_LOC]] = !DILocation(line: 5,
 
 define i32 @f(i32* nocapture %a, i32 %size) #0 !dbg !4 {
 entry:
-  tail call void @llvm.dbg.value(metadata i32* %a, metadata !13, metadata !DIExpression()), !dbg !19
-  tail call void @llvm.dbg.value(metadata i32 %size, metadata !14, metadata !DIExpression()), !dbg !19
-  tail call void @llvm.dbg.value(metadata i32 0, metadata !15, metadata !DIExpression()), !dbg !20
-  tail call void @llvm.dbg.value(metadata i32 0, metadata !16, metadata !DIExpression()), !dbg !21
+  call void @llvm.dbg.value(metadata i32* %a, metadata !13, metadata !DIExpression()), !dbg !19
+  call void @llvm.dbg.value(metadata i32 %size, metadata !14, metadata !DIExpression()), !dbg !19
+  call void @llvm.dbg.value(metadata i32 0, metadata !15, metadata !DIExpression()), !dbg !20
+  call void @llvm.dbg.value(metadata i32 0, metadata !16, metadata !DIExpression()), !dbg !21
   %cmp4 = icmp eq i32 %size, 0, !dbg !21
   br i1 %cmp4, label %for.end, label %for.body.lr.ph, !dbg !21
 
@@ -35,15 +38,15 @@ for.body:                                         ; preds = %for.body.lr.ph, %fo
   %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv, !dbg !22
   %0 = load i32, i32* %arrayidx, align 4, !dbg !22
   %add = add i32 %0, %sum.05, !dbg !22
-  tail call void @llvm.dbg.value(metadata i32 %add.lcssa, metadata !15, metadata !DIExpression()), !dbg !22
   %indvars.iv.next = add i64 %indvars.iv, 1, !dbg !22
-  tail call void @llvm.dbg.value(metadata !{null}, metadata !16, metadata !DIExpression()), !dbg !22
+  call void @llvm.dbg.value(metadata !{null}, metadata !16, metadata !DIExpression()), !dbg !22
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32, !dbg !22
-  %exitcond = icmp ne i32 %lftr.wideiv, %size, !dbg !22
+  %exitcond = icmp ne i32 %lftr.wideiv, %size, !dbg !21
   br i1 %exitcond, label %for.body, label %for.cond.for.end_crit_edge, !dbg !21
 
 for.cond.for.end_crit_edge:                       ; preds = %for.body
   %add.lcssa = phi i32 [ %add, %for.body ]
+  call void @llvm.dbg.value(metadata i32 %add.lcssa, metadata !15, metadata !DIExpression()), !dbg !22
   br label %for.end, !dbg !21
 
 for.end:                                          ; preds = %entry, %for.cond.for.end_crit_edge
@@ -57,7 +60,7 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-attributes #0 = { nounwind readonly ssp uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf"="true" "no-infs-fp-math"="true" "no-nans-fp-math"="true" "unsafe-fp-math"="true" "use-soft-float"="false" }
+attributes #0 = { nounwind readonly ssp uwtable "less-precise-fpmad"="false" "frame-pointer"="all" "no-infs-fp-math"="true" "no-nans-fp-math"="true" "unsafe-fp-math"="true" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
 
 !llvm.dbg.cu = !{!0}

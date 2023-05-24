@@ -1,9 +1,8 @@
 //===- MemoryDependenceAnalysis.cpp - Mem Deps Implementation -------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -31,7 +30,6 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -49,6 +47,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Casting.h"
@@ -182,10 +181,10 @@ static ModRefInfo GetLocation(const Instruction *Inst, MemoryLocation &Loc,
 }
 
 /// Private helper for finding the local dependencies of a call site.
-MemDepResult MemoryDependenceResults::getCallSiteDependencyFrom(
-    CallSite CS, bool isReadOnlyCall, BasicBlock::iterator ScanIt,
+MemDepResult MemoryDependenceResults::getCallDependencyFrom(
+    CallBase *Call, bool isReadOnlyCall, BasicBlock::iterator ScanIt,
     BasicBlock *BB) {
-  unsigned Limit = BlockScanLimit;
+  unsigned Limit = getDefaultBlockScanLimit();
 
   // Walk backwards through the block, looking for dependencies.
   while (ScanIt != BB->begin()) {
@@ -205,21 +204,21 @@ MemDepResult MemoryDependenceResults::getCallSiteDependencyFrom(
     ModRefInfo MR = GetLocation(Inst, Loc, TLI);
     if (Loc.Ptr) {
       // A simple instruction.
-      if (isModOrRefSet(AA.getModRefInfo(CS, Loc)))
+      if (isModOrRefSet(AA.getModRefInfo(Call, Loc)))
         return MemDepResult::getClobber(Inst);
       continue;
     }
 
-    if (auto InstCS = CallSite(Inst)) {
+    if (auto *CallB = dyn_cast<CallBase>(Inst)) {
       // If these two calls do not interfere, look past it.
-      if (isNoModRef(AA.getModRefInfo(CS, InstCS))) {
-        // If the two calls are the same, return InstCS as a Def, so that
-        // CS can be found redundant and eliminated.
+      if (isNoModRef(AA.getModRefInfo(Call, CallB))) {
+        // If the two calls are the same, return Inst as a Def, so that
+        // Call can be found redundant and eliminated.
         if (isReadOnlyCall && !isModSet(MR) &&
-            CS.getInstruction()->isIdenticalToWhenDefined(Inst))
+            Call->isIdenticalToWhenDefined(CallB))
           return MemDepResult::getDef(Inst);
 
-        // Otherwise if the two calls don't interact (e.g. InstCS is readnone)
+        // Otherwise if the two calls don't interact (e.g. CallB is readnone)
         // keep scanning.
         continue;
       } else
@@ -328,7 +327,8 @@ static bool isVolatile(Instruction *Inst) {
 
 MemDepResult MemoryDependenceResults::getPointerDependencyFrom(
     const MemoryLocation &MemLoc, bool isLoad, BasicBlock::iterator ScanIt,
-    BasicBlock *BB, Instruction *QueryInst, unsigned *Limit) {
+    BasicBlock *BB, Instruction *QueryInst, unsigned *Limit,
+    OrderedBasicBlock *OBB) {
   MemDepResult InvariantGroupDependency = MemDepResult::getUnknown();
   if (QueryInst != nullptr) {
     if (auto *LI = dyn_cast<LoadInst>(QueryInst)) {
@@ -339,7 +339,7 @@ MemDepResult MemoryDependenceResults::getPointerDependencyFrom(
     }
   }
   MemDepResult SimpleDep = getSimplePointerDependencyFrom(
-      MemLoc, isLoad, ScanIt, BB, QueryInst, Limit);
+      MemLoc, isLoad, ScanIt, BB, QueryInst, Limit, OBB);
   if (SimpleDep.isDef())
     return SimpleDep;
   // Non-local invariant group dependency indicates there is non local Def
@@ -357,7 +357,7 @@ MemDepResult
 MemoryDependenceResults::getInvariantGroupPointerDependency(LoadInst *LI,
                                                             BasicBlock *BB) {
 
-  if (!LI->getMetadata(LLVMContext::MD_invariant_group))
+  if (!LI->hasMetadata(LLVMContext::MD_invariant_group))
     return MemDepResult::getUnknown();
 
   // Take the ptr operand after all casts and geps 0. This way we can search
@@ -418,7 +418,7 @@ MemoryDependenceResults::getInvariantGroupPointerDependency(LoadInst *LI,
       // same pointer operand) we can assume that value pointed by pointer
       // operand didn't change.
       if ((isa<LoadInst>(U) || isa<StoreInst>(U)) &&
-          U->getMetadata(LLVMContext::MD_invariant_group) != nullptr)
+          U->hasMetadata(LLVMContext::MD_invariant_group))
         ClosestDependency = GetClosestDependency(ClosestDependency, U);
     }
   }
@@ -440,14 +440,13 @@ MemoryDependenceResults::getInvariantGroupPointerDependency(LoadInst *LI,
 
 MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
     const MemoryLocation &MemLoc, bool isLoad, BasicBlock::iterator ScanIt,
-    BasicBlock *BB, Instruction *QueryInst, unsigned *Limit) {
+    BasicBlock *BB, Instruction *QueryInst, unsigned *Limit,
+    OrderedBasicBlock *OBB) {
   bool isInvariantLoad = false;
 
-  if (!Limit) {
-    unsigned DefaultLimit = BlockScanLimit;
-    return getSimplePointerDependencyFrom(MemLoc, isLoad, ScanIt, BB, QueryInst,
-                                          &DefaultLimit);
-  }
+  unsigned DefaultLimit = getDefaultBlockScanLimit();
+  if (!Limit)
+    Limit = &DefaultLimit;
 
   // We must be careful with atomic accesses, as they may allow another thread
   //   to touch this location, clobbering it. We are conservative: if the
@@ -483,17 +482,20 @@ MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
   // Arguably, this logic should be pushed inside AliasAnalysis itself.
   if (isLoad && QueryInst) {
     LoadInst *LI = dyn_cast<LoadInst>(QueryInst);
-    if (LI && LI->getMetadata(LLVMContext::MD_invariant_load) != nullptr)
+    if (LI && LI->hasMetadata(LLVMContext::MD_invariant_load))
       isInvariantLoad = true;
   }
 
   const DataLayout &DL = BB->getModule()->getDataLayout();
 
-  // Create a numbered basic block to lazily compute and cache instruction
+  // If the caller did not provide an ordered basic block,
+  // create one to lazily compute and cache instruction
   // positions inside a BB. This is used to provide fast queries for relative
   // position between two instructions in a BB and can be used by
   // AliasAnalysis::callCapturesBefore.
-  OrderedBasicBlock OBB(BB);
+  OrderedBasicBlock OBBTmp(BB);
+  if (!OBB)
+    OBB = &OBBTmp;
 
   // Return "true" if and only if the instruction I is either a non-simple
   // load or a non-simple store.
@@ -674,7 +676,7 @@ MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
     // A release fence requires that all stores complete before it, but does
     // not prevent the reordering of following loads or stores 'before' the
     // fence.  As a result, we look past it when finding a dependency for
-    // loads.  DSE uses this to find preceeding stores to delete and thus we
+    // loads.  DSE uses this to find preceding stores to delete and thus we
     // can't bypass the fence if the query instruction is a store.
     if (FenceInst *FI = dyn_cast<FenceInst>(Inst))
       if (isLoad && FI->getOrdering() == AtomicOrdering::Release)
@@ -684,7 +686,7 @@ MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
     ModRefInfo MR = AA.getModRefInfo(Inst, MemLoc);
     // If necessary, perform additional analysis.
     if (isModAndRefSet(MR))
-      MR = AA.callCapturesBefore(Inst, MemLoc, &DT, &OBB);
+      MR = AA.callCapturesBefore(Inst, MemLoc, &DT, OBB);
     switch (clearMust(MR)) {
     case ModRefInfo::NoModRef:
       // If the call has no effect on the queried pointer, just ignore it.
@@ -710,7 +712,8 @@ MemDepResult MemoryDependenceResults::getSimplePointerDependencyFrom(
   return MemDepResult::getNonFuncLocal();
 }
 
-MemDepResult MemoryDependenceResults::getDependency(Instruction *QueryInst) {
+MemDepResult MemoryDependenceResults::getDependency(Instruction *QueryInst,
+                                                    OrderedBasicBlock *OBB) {
   Instruction *ScanPos = QueryInst;
 
   // Check for a cached result
@@ -748,13 +751,13 @@ MemDepResult MemoryDependenceResults::getDependency(Instruction *QueryInst) {
       if (auto *II = dyn_cast<IntrinsicInst>(QueryInst))
         isLoad |= II->getIntrinsicID() == Intrinsic::lifetime_start;
 
-      LocalCache = getPointerDependencyFrom(
-          MemLoc, isLoad, ScanPos->getIterator(), QueryParent, QueryInst);
-    } else if (isa<CallInst>(QueryInst) || isa<InvokeInst>(QueryInst)) {
-      CallSite QueryCS(QueryInst);
-      bool isReadOnly = AA.onlyReadsMemory(QueryCS);
-      LocalCache = getCallSiteDependencyFrom(
-          QueryCS, isReadOnly, ScanPos->getIterator(), QueryParent);
+      LocalCache =
+          getPointerDependencyFrom(MemLoc, isLoad, ScanPos->getIterator(),
+                                   QueryParent, QueryInst, nullptr, OBB);
+    } else if (auto *QueryCall = dyn_cast<CallBase>(QueryInst)) {
+      bool isReadOnly = AA.onlyReadsMemory(QueryCall);
+      LocalCache = getCallDependencyFrom(QueryCall, isReadOnly,
+                                         ScanPos->getIterator(), QueryParent);
     } else
       // Non-memory instruction.
       LocalCache = MemDepResult::getUnknown();
@@ -780,11 +783,11 @@ static void AssertSorted(MemoryDependenceResults::NonLocalDepInfo &Cache,
 #endif
 
 const MemoryDependenceResults::NonLocalDepInfo &
-MemoryDependenceResults::getNonLocalCallDependency(CallSite QueryCS) {
-  assert(getDependency(QueryCS.getInstruction()).isNonLocal() &&
+MemoryDependenceResults::getNonLocalCallDependency(CallBase *QueryCall) {
+  assert(getDependency(QueryCall).isNonLocal() &&
          "getNonLocalCallDependency should only be used on calls with "
          "non-local deps!");
-  PerInstNLInfo &CacheP = NonLocalDeps[QueryCS.getInstruction()];
+  PerInstNLInfo &CacheP = NonLocalDeps[QueryCall];
   NonLocalDepInfo &Cache = CacheP.first;
 
   // This is the set of blocks that need to be recomputed.  In the cached case,
@@ -807,21 +810,21 @@ MemoryDependenceResults::getNonLocalCallDependency(CallSite QueryCS) {
         DirtyBlocks.push_back(Entry.getBB());
 
     // Sort the cache so that we can do fast binary search lookups below.
-    llvm::sort(Cache.begin(), Cache.end());
+    llvm::sort(Cache);
 
     ++NumCacheDirtyNonLocal;
     // cerr << "CACHED CASE: " << DirtyBlocks.size() << " dirty: "
     //     << Cache.size() << " cached: " << *QueryInst;
   } else {
     // Seed DirtyBlocks with each of the preds of QueryInst's block.
-    BasicBlock *QueryBB = QueryCS.getInstruction()->getParent();
+    BasicBlock *QueryBB = QueryCall->getParent();
     for (BasicBlock *Pred : PredCache.get(QueryBB))
       DirtyBlocks.push_back(Pred);
     ++NumUncacheNonLocal;
   }
 
   // isReadonlyCall - If this is a read-only call, we can be more aggressive.
-  bool isReadonlyCall = AA.onlyReadsMemory(QueryCS);
+  bool isReadonlyCall = AA.onlyReadsMemory(QueryCall);
 
   SmallPtrSet<BasicBlock *, 32> Visited;
 
@@ -865,8 +868,8 @@ MemoryDependenceResults::getNonLocalCallDependency(CallSite QueryCS) {
       if (Instruction *Inst = ExistingResult->getResult().getInst()) {
         ScanPos = Inst->getIterator();
         // We're removing QueryInst's use of Inst.
-        RemoveFromReverseMap(ReverseNonLocalDeps, Inst,
-                             QueryCS.getInstruction());
+        RemoveFromReverseMap<Instruction *>(ReverseNonLocalDeps, Inst,
+                                            QueryCall);
       }
     }
 
@@ -874,8 +877,7 @@ MemoryDependenceResults::getNonLocalCallDependency(CallSite QueryCS) {
     MemDepResult Dep;
 
     if (ScanPos != DirtyBB->begin()) {
-      Dep =
-          getCallSiteDependencyFrom(QueryCS, isReadonlyCall, ScanPos, DirtyBB);
+      Dep = getCallDependencyFrom(QueryCall, isReadonlyCall, ScanPos, DirtyBB);
     } else if (DirtyBB != &DirtyBB->getParent()->getEntryBlock()) {
       // No dependence found.  If this is the entry block of the function, it is
       // a clobber, otherwise it is unknown.
@@ -897,7 +899,7 @@ MemoryDependenceResults::getNonLocalCallDependency(CallSite QueryCS) {
       // Keep the ReverseNonLocalDeps map up to date so we can efficiently
       // update this when we remove instructions.
       if (Instruction *Inst = Dep.getInst())
-        ReverseNonLocalDeps[Inst].insert(QueryCS.getInstruction());
+        ReverseNonLocalDeps[Inst].insert(QueryCall);
     } else {
 
       // If the block *is* completely transparent to the load, we need to check
@@ -1070,7 +1072,7 @@ SortNonLocalDepInfoCache(MemoryDependenceResults::NonLocalDepInfo &Cache,
     break;
   default:
     // Added many values, do a full scale sort.
-    llvm::sort(Cache.begin(), Cache.end());
+    llvm::sort(Cache);
     break;
   }
 }
@@ -1113,21 +1115,36 @@ bool MemoryDependenceResults::getNonLocalPointerDepFromBB(
   // If we already have a cache entry for this CacheKey, we may need to do some
   // work to reconcile the cache entry and the current query.
   if (!Pair.second) {
-    if (CacheInfo->Size < Loc.Size) {
-      // The query's Size is greater than the cached one. Throw out the
-      // cached data and proceed with the query at the greater size.
-      CacheInfo->Pair = BBSkipFirstBlockPair();
-      CacheInfo->Size = Loc.Size;
-      for (auto &Entry : CacheInfo->NonLocalDeps)
-        if (Instruction *Inst = Entry.getResult().getInst())
-          RemoveFromReverseMap(ReverseNonLocalPtrDeps, Inst, CacheKey);
-      CacheInfo->NonLocalDeps.clear();
-    } else if (CacheInfo->Size > Loc.Size) {
-      // This query's Size is less than the cached one. Conservatively restart
-      // the query using the greater size.
-      return getNonLocalPointerDepFromBB(
-          QueryInst, Pointer, Loc.getWithNewSize(CacheInfo->Size), isLoad,
-          StartBB, Result, Visited, SkipFirstBlock);
+    if (CacheInfo->Size != Loc.Size) {
+      bool ThrowOutEverything;
+      if (CacheInfo->Size.hasValue() && Loc.Size.hasValue()) {
+        // FIXME: We may be able to do better in the face of results with mixed
+        // precision. We don't appear to get them in practice, though, so just
+        // be conservative.
+        ThrowOutEverything =
+            CacheInfo->Size.isPrecise() != Loc.Size.isPrecise() ||
+            CacheInfo->Size.getValue() < Loc.Size.getValue();
+      } else {
+        // For our purposes, unknown size > all others.
+        ThrowOutEverything = !Loc.Size.hasValue();
+      }
+
+      if (ThrowOutEverything) {
+        // The query's Size is greater than the cached one. Throw out the
+        // cached data and proceed with the query at the greater size.
+        CacheInfo->Pair = BBSkipFirstBlockPair();
+        CacheInfo->Size = Loc.Size;
+        for (auto &Entry : CacheInfo->NonLocalDeps)
+          if (Instruction *Inst = Entry.getResult().getInst())
+            RemoveFromReverseMap(ReverseNonLocalPtrDeps, Inst, CacheKey);
+        CacheInfo->NonLocalDeps.clear();
+      } else {
+        // This query's Size is less than the cached one. Conservatively restart
+        // the query using the greater size.
+        return getNonLocalPointerDepFromBB(
+            QueryInst, Pointer, Loc.getWithNewSize(CacheInfo->Size), isLoad,
+            StartBB, Result, Visited, SkipFirstBlock);
+      }
     }
 
     // If the query's AATags are inconsistent with the cached one,
@@ -1477,7 +1494,7 @@ void MemoryDependenceResults::RemoveCachedNonLocalPointerDependencies(
     if (auto *I = dyn_cast<Instruction>(P.getPointer())) {
       auto toRemoveIt = ReverseNonLocalDefsCache.find(I);
       if (toRemoveIt != ReverseNonLocalDefsCache.end()) {
-        for (const auto &entry : toRemoveIt->second)
+        for (const auto *entry : toRemoveIt->second)
           NonLocalDefsCache.erase(entry);
         ReverseNonLocalDefsCache.erase(toRemoveIt);
       }
@@ -1572,7 +1589,7 @@ void MemoryDependenceResults::removeInstruction(Instruction *RemInst) {
   ReverseDepMapType::iterator ReverseDepIt = ReverseLocalDeps.find(RemInst);
   if (ReverseDepIt != ReverseLocalDeps.end()) {
     // RemInst can't be the terminator if it has local stuff depending on it.
-    assert(!ReverseDepIt->second.empty() && !isa<TerminatorInst>(RemInst) &&
+    assert(!ReverseDepIt->second.empty() && !RemInst->isTerminator() &&
            "Nothing can locally depend on a terminator");
 
     for (Instruction *InstDependingOnRemInst : ReverseDepIt->second) {
@@ -1662,7 +1679,7 @@ void MemoryDependenceResults::removeInstruction(Instruction *RemInst) {
 
       // Re-sort the NonLocalDepInfo.  Changing the dirty entry to its
       // subsequent value may invalidate the sortedness.
-      llvm::sort(NLPDI.begin(), NLPDI.end());
+      llvm::sort(NLPDI);
     }
 
     ReverseNonLocalPtrDeps.erase(ReversePtrDepIt);
@@ -1730,6 +1747,9 @@ void MemoryDependenceResults::verifyRemoved(Instruction *D) const {
 
 AnalysisKey MemoryDependenceAnalysis::Key;
 
+MemoryDependenceAnalysis::MemoryDependenceAnalysis()
+    : DefaultBlockScanLimit(BlockScanLimit) {}
+
 MemoryDependenceResults
 MemoryDependenceAnalysis::run(Function &F, FunctionAnalysisManager &AM) {
   auto &AA = AM.getResult<AAManager>(F);
@@ -1737,7 +1757,7 @@ MemoryDependenceAnalysis::run(Function &F, FunctionAnalysisManager &AM) {
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &PV = AM.getResult<PhiValuesAnalysis>(F);
-  return MemoryDependenceResults(AA, AC, TLI, DT, PV);
+  return MemoryDependenceResults(AA, AC, TLI, DT, PV, DefaultBlockScanLimit);
 }
 
 char MemoryDependenceWrapperPass::ID = 0;
@@ -1791,15 +1811,15 @@ bool MemoryDependenceResults::invalidate(Function &F, const PreservedAnalyses &P
 }
 
 unsigned MemoryDependenceResults::getDefaultBlockScanLimit() const {
-  return BlockScanLimit;
+  return DefaultBlockScanLimit;
 }
 
 bool MemoryDependenceWrapperPass::runOnFunction(Function &F) {
   auto &AA = getAnalysis<AAResultsWrapperPass>().getAAResults();
   auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
-  auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   auto &PV = getAnalysis<PhiValuesWrapperPass>().getResult();
-  MemDep.emplace(AA, AC, TLI, DT, PV);
+  MemDep.emplace(AA, AC, TLI, DT, PV, BlockScanLimit);
   return false;
 }

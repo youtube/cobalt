@@ -6,8 +6,9 @@ Sections:
   - Type:            TYPE
     Signatures:
       - Index:           0
-        ReturnType:      I32
         ParamTypes:
+          - I32
+        ReturnTypes:
           - I32
   - Type:            IMPORT
     Imports:
@@ -31,7 +32,7 @@ Sections:
         Field:           imported_table
         Kind:            TABLE
         Table:
-          ElemType:      ANYFUNC
+          ElemType:      FUNCREF
           Limits:
             Flags:           [ HAS_MAX ]
             Initial:         0x00000020
@@ -42,7 +43,7 @@ Sections:
 # CHECK:   Version:           0x00000001
 # CHECK: Sections:
 # CHECK:   - Type:            IMPORT
-# CHECK:     Imports:         
+# CHECK:     Imports:
 # CHECK:       - Module:          foo
 # CHECK:         Field:           imported_function
 # CHECK:         Kind:            FUNCTION
@@ -63,7 +64,7 @@ Sections:
 # CHECK:         Field:           imported_table
 # CHECK:         Kind:            TABLE
 # CHECK:         Table:
-# CHECK:           ElemType:      ANYFUNC
+# CHECK:           ElemType:      FUNCREF
 # CHECK:           Limits:
 # CHECK:             Flags:           [ HAS_MAX ]
 # CHECK:             Initial:         0x00000020

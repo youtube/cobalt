@@ -1,12 +1,20 @@
-// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple x86_64-unknown-unknown -emit-llvm -fexceptions -fcxx-exceptions -o - < %s | FileCheck %s
+// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple x86_64-unknown-unknown -emit-llvm -fexceptions -fcxx-exceptions -o - < %s | FileCheck %s --check-prefix=CHECK --check-prefix=OMP45
 // RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t < %s
-// RUN: %clang_cc1 -fopenmp -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -debug-info-kind=limited -std=c++11 -include-pch %t -verify -emit-llvm -o - < %s | FileCheck %s
+// RUN: %clang_cc1 -fopenmp -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -debug-info-kind=limited -std=c++11 -include-pch %t -verify -emit-llvm -o - < %s | FileCheck %s --check-prefix=CHECK --check-prefix=OMP45
 // RUN: %clang_cc1 -verify -triple x86_64-apple-darwin10 -fopenmp -fexceptions -fcxx-exceptions -debug-info-kind=line-tables-only -x c++ -emit-llvm -o - < %s | FileCheck %s --check-prefix=TERM_DEBUG
+// RUN: %clang_cc1 -verify -fopenmp -x c++ -triple x86_64-unknown-unknown -emit-llvm -fexceptions -fcxx-exceptions -o - < %s -fopenmp-version=50 -DOMP5 | FileCheck %s --check-prefix=CHECK --check-prefix=OMP50
+// RUN: %clang_cc1 -fopenmp -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t < %s -fopenmp-version=50 -DOMP5
+// RUN: %clang_cc1 -fopenmp -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -debug-info-kind=limited -std=c++11 -include-pch %t -verify -emit-llvm -o - -fopenmp-version=50 -DOMP5 < %s | FileCheck %s --check-prefix=CHECK --check-prefix=OMP50
+// RUN: %clang_cc1 -verify -triple x86_64-apple-darwin10 -fopenmp -fexceptions -fcxx-exceptions -debug-info-kind=line-tables-only -x c++ -emit-llvm -o - < %s -fopenmp-version=50 -DOMP5 | FileCheck %s --check-prefix=TERM_DEBUG
 
 // RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple x86_64-unknown-unknown -emit-llvm -fexceptions -fcxx-exceptions -o - < %s | FileCheck --check-prefix SIMD-ONLY0 %s
 // RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t < %s
 // RUN: %clang_cc1 -fopenmp-simd -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -debug-info-kind=limited -std=c++11 -include-pch %t -verify -emit-llvm -o - < %s | FileCheck --check-prefix SIMD-ONLY0 %s
 // RUN: %clang_cc1 -verify -triple x86_64-apple-darwin10 -fopenmp-simd -fexceptions -fcxx-exceptions -debug-info-kind=line-tables-only -x c++ -emit-llvm -o - < %s | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -verify -fopenmp-simd -x c++ -triple x86_64-unknown-unknown -emit-llvm -fexceptions -fcxx-exceptions -o - < %s -fopenmp-version=50 -DOMP5 | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -std=c++11 -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -emit-pch -o %t < %s -fopenmp-version=50 -DOMP5
+// RUN: %clang_cc1 -fopenmp-simd -x c++ -triple x86_64-unknown-unknown -fexceptions -fcxx-exceptions -debug-info-kind=limited -std=c++11 -include-pch %t -verify -fopenmp-version=50 -DOMP5 -emit-llvm -o - < %s | FileCheck --check-prefix SIMD-ONLY0 %s
+// RUN: %clang_cc1 -verify -triple x86_64-apple-darwin10 -fopenmp-simd -fexceptions -fcxx-exceptions -debug-info-kind=line-tables-only -x c++ -emit-llvm -o - < %s -fopenmp-version=50 -DOMP5 | FileCheck --check-prefix SIMD-ONLY0 %s
 // SIMD-ONLY0-NOT: {{__kmpc|__tgt}}
 // expected-no-diagnostics
 #ifndef HEADER
@@ -17,7 +25,11 @@ double *g_ptr;
 
 // CHECK-LABEL: define {{.*void}} @{{.*}}simple{{.*}}(float* {{.+}}, float* {{.+}}, float* {{.+}}, float* {{.+}})
 void simple(float *a, float *b, float *c, float *d) {
+#ifdef OMP5
+  #pragma omp for simd if (true)
+#else
   #pragma omp for simd
+#endif
 // CHECK: call void @__kmpc_for_static_init_4(%struct.ident_t* {{[^,]+}}, i32 %{{[^,]+}}, i32 34, i32* %{{[^,]+}}, i32* [[LB:%[^,]+]], i32* [[UB:%[^,]+]], i32* [[STRIDE:%[^,]+]], i32 1, i32 1)
 // CHECK: [[UB_VAL:%.+]] = load i32, i32* [[UB]],
 // CHECK: [[CMP:%.+]] = icmp sgt i32 [[UB_VAL]], 5
@@ -73,21 +85,21 @@ void simple(float *a, float *b, float *c, float *d) {
 // CHECK: [[LB_VAL:%.+]] = load i32, i32* [[LB]],
 // CHECK: store i32 [[LB_VAL]], i32* [[OMP_IV2:%[^,]+]],
 
-// CHECK: [[IV2:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID:[0-9]+]]
-// CHECK: [[UB_VAL:%.+]] = load i32, i32* [[UB]]{{.*}}!llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID]]
+// CHECK: [[IV2:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.access.group
+// CHECK: [[UB_VAL:%.+]] = load i32, i32* [[UB]]{{.*}}!llvm.access.group
 // CHECK-NEXT: [[CMP2:%.+]] = icmp sle i32 [[IV2]], [[UB_VAL]]
 // CHECK-NEXT: br i1 [[CMP2]], label %[[SIMPLE_LOOP2_BODY:.+]], label %[[SIMPLE_LOOP2_END:[^,]+]]
   for (int i = 10; i > 1; i--) {
 // CHECK: [[SIMPLE_LOOP2_BODY]]:
 // Start of body: calculate i from IV:
-// CHECK: [[IV2_0:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID]]
+// CHECK: [[IV2_0:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.access.group
 // FIXME: It is interesting, why the following "mul 1" was not constant folded?
 // CHECK-NEXT: [[IV2_1:%.+]] = mul nsw i32 [[IV2_0]], 1
 // CHECK-NEXT: [[LC_I_1:%.+]] = sub nsw i32 10, [[IV2_1]]
-// CHECK-NEXT: store i32 [[LC_I_1]], i32* {{.+}}, !llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID]]
+// CHECK-NEXT: store i32 [[LC_I_1]], i32* {{.+}}, !llvm.access.group
 //
-// CHECK-NEXT: [[LIN0_1:%.+]] = load i64, i64* [[LIN0]]{{.*}}!llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID]]
-// CHECK-NEXT: [[IV2_2:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID]]
+// CHECK-NEXT: [[LIN0_1:%.+]] = load i64, i64* [[LIN0]]{{.*}}!llvm.access.group
+// CHECK-NEXT: [[IV2_2:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.access.group
 // CHECK-NEXT: [[LIN_MUL1:%.+]] = mul nsw i32 [[IV2_2]], 3
 // CHECK-NEXT: [[LIN_EXT1:%.+]] = sext i32 [[LIN_MUL1]] to i64
 // CHECK-NEXT: [[LIN_ADD1:%.+]] = add nsw i64 [[LIN0_1]], [[LIN_EXT1]]
@@ -95,9 +107,9 @@ void simple(float *a, float *b, float *c, float *d) {
 // CHECK-NEXT: store i64 [[LIN_ADD1]], i64* [[K_PRIVATIZED:%[^,]+]]
     a[k]++;
     k = k + 3;
-// CHECK: [[IV2_2:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID]]
+// CHECK: [[IV2_2:%.+]] = load i32, i32* [[OMP_IV2]]{{.*}}!llvm.access.group
 // CHECK-NEXT: [[ADD2_2:%.+]] = add nsw i32 [[IV2_2]], 1
-// CHECK-NEXT: store i32 [[ADD2_2]], i32* [[OMP_IV2]]{{.*}}!llvm.mem.parallel_loop_access ![[SIMPLE_LOOP2_ID]]
+// CHECK-NEXT: store i32 [[ADD2_2]], i32* [[OMP_IV2]]{{.*}}!llvm.access.group
 // br label {{.+}}, !llvm.loop ![[SIMPLE_LOOP2_ID]]
   }
 // CHECK: [[SIMPLE_LOOP2_END]]:
@@ -316,7 +328,15 @@ void simple(float *a, float *b, float *c, float *d) {
   // CHECK: store i32 -1, i32* [[R:%[^,]+]],
   R = -1;
 // CHECK: store i32 1, i32* [[R_PRIV:%[^,]+]],
+// OMP50: [[A_VAL:%.+]] = load i32, i32* %
+// OMP50: [[COND:%.+]] = icmp ne i32 [[A_VAL]], 0
+// OMP50: br i1 [[COND]], label {{%?}}[[THEN:[^,]+]], label {{%?}}[[ELSE:[^,]+]]
+// OMP50: [[THEN]]:
+#ifdef OMP5
+  #pragma omp for simd reduction(*:R) if (simd:A) nontemporal(R)
+#else
   #pragma omp for simd reduction(*:R)
+#endif
 // CHECK: call void @__kmpc_for_static_init_8(%struct.ident_t* {{[^,]+}}, i32 %{{[^,]+}}, i32 34, i32* %{{[^,]+}}, i64* [[LB:%[^,]+]], i64* [[UB:%[^,]+]], i64* [[STRIDE:%[^,]+]], i64 1, i64 1)
 // CHECK: [[UB_VAL:%.+]] = load i64, i64* [[UB]],
 // CHECK: [[CMP:%.+]] = icmp sgt i64 [[UB_VAL]], 6
@@ -346,13 +366,54 @@ void simple(float *a, float *b, float *c, float *d) {
 // CHECK-NEXT: [[LC_IT_2:%.+]] = add nsw i64 -10, [[LC_IT_1]]
 // CHECK-NEXT: store i64 [[LC_IT_2]], i64* [[LC:%[^,]+]],
 // CHECK-NEXT: [[LC_VAL:%.+]] = load i64, i64* [[LC]]
-// CHECK: store i32 %{{.+}}, i32* [[R_PRIV]],
+// OMP45: store i32 %{{.+}}, i32* [[R_PRIV]],
+// OMP50: store i32 %{{.+}}, i32* [[R_PRIV]],{{.*}}!nontemporal
     R *= i;
 // CHECK: [[IV8_2:%.+]] = load i64, i64* [[OMP_IV8]]
 // CHECK-NEXT: [[ADD8_2:%.+]] = add nsw i64 [[IV8_2]], 1
 // CHECK-NEXT: store i64 [[ADD8_2]], i64* [[OMP_IV8]]
+// CHECK-NEXT: br label {{%?}}[[SIMD_LOOP8_COND]], {{.*}}!llvm.loop ![[SIMD_LOOP:.+]]
   }
 // CHECK: [[SIMPLE_LOOP8_END]]:
+// OMP50:  br label {{%?}}[[IF_EXIT:[^,]+]]
+// OMP50:  [[ELSE]]:
+// OMP50: call void @__kmpc_for_static_init_8(%struct.ident_t* {{[^,]+}}, i32 %{{[^,]+}}, i32 34, i32* %{{[^,]+}}, i64* [[LB:%[^,]+]], i64* [[UB:%[^,]+]], i64* [[STRIDE:%[^,]+]], i64 1, i64 1)
+// OMP50: [[UB_VAL:%.+]] = load i64, i64* [[UB]],
+// OMP50: [[CMP:%.+]] = icmp sgt i64 [[UB_VAL]], 6
+// OMP50: br i1 [[CMP]], label %[[TRUE:.+]], label %[[FALSE:[^,]+]]
+// OMP50: [[TRUE]]:
+// OMP50: br label %[[SWITCH:[^,]+]]
+// OMP50: [[FALSE]]:
+// OMP50: [[UB_VAL:%.+]] = load i64, i64* [[UB]],
+// OMP50: br label %[[SWITCH]]
+// OMP50: [[SWITCH]]:
+// OMP50: [[UP:%.+]] = phi i64 [ 6, %[[TRUE]] ], [ [[UB_VAL]], %[[FALSE]] ]
+// OMP50: store i64 [[UP]], i64* [[UB]],
+// OMP50: [[LB_VAL:%.+]] = load i64, i64* [[LB]],
+// OMP50: store i64 [[LB_VAL]], i64* [[OMP_IV8:%[^,]+]],
+
+// OMP50: br label %[[SIMD_LOOP8_COND:[^,]+]]
+// OMP50: [[SIMD_LOOP8_COND]]:
+// OMP50-NEXT: [[IV8:%.+]] = load i64, i64* [[OMP_IV8]]
+// OMP50-NEXT: [[UB_VAL:%.+]] = load i64, i64* [[UB]]
+// OMP50-NEXT: [[CMP8:%.+]] = icmp sle i64 [[IV8]], [[UB_VAL]]
+// OMP50-NEXT: br i1 [[CMP8]], label %[[SIMPLE_LOOP8_BODY:.+]], label %[[SIMPLE_LOOP8_END:[^,]+]]
+// OMP50: [[SIMPLE_LOOP8_BODY]]:
+// Start of body: calculate i from IV:
+// OMP50: [[IV8_0:%.+]] = load i64, i64* [[OMP_IV8]]
+// OMP50-NEXT: [[LC_IT_1:%.+]] = mul nsw i64 [[IV8_0]], 3
+// OMP50-NEXT: [[LC_IT_2:%.+]] = add nsw i64 -10, [[LC_IT_1]]
+// OMP50-NEXT: store i64 [[LC_IT_2]], i64* [[LC:%[^,]+]],
+// OMP50-NEXT: [[LC_VAL:%.+]] = load i64, i64* [[LC]]
+// OMP50: store i32 %{{.+}}, i32* [[R_PRIV]],
+// OMP50: [[IV8_2:%.+]] = load i64, i64* [[OMP_IV8]]
+// OMP50-NEXT: [[ADD8_2:%.+]] = add nsw i64 [[IV8_2]], 1
+// OMP50-NEXT: store i64 [[ADD8_2]], i64* [[OMP_IV8]]
+// OMP50-NEXT: br label {{%?}}[[SIMD_LOOP8_COND]], {{.*}}!llvm.loop ![[NOSIMD_LOOP:.+]]
+// OMP50: [[SIMPLE_LOOP8_END]]:
+// OMP50:  br label {{%?}}[[IF_EXIT]]
+// OMP50:  [[IF_EXIT]]:
+
 // CHECK: call void @__kmpc_for_static_fini(%struct.ident_t* {{.+}}, i32 %{{.+}})
 // CHECK: call i32 @__kmpc_reduce(
 // CHECK: [[R_PRIV_VAL:%.+]] = load i32, i32* [[R_PRIV]],
@@ -408,7 +469,10 @@ int templ1(T a, T *z) {
 // CHECK-NEXT: [[I_2:%.+]] = trunc i64 [[I_1_ADD0]] to i32
 // CHECK-NEXT: store i32 [[I_2]], i32*
 // CHECK: [[IV2:%.+]] = load i64, i64* [[T1_OMP_IV]]
-// CHECK-NEXT: [[J_1:%.+]] = srem i64 [[IV2]], 4
+// CHECK-NEXT: [[IV2_1:%.+]] = load i64, i64* [[T1_OMP_IV]]
+// CHECK-NEXT: [[DIV_2:%.+]] = sdiv i64 [[IV2_1]], 4
+// CHECK-NEXT: [[MUL_2:%.+]] = mul nsw i64 [[DIV_2]], 4
+// CHECK-NEXT: [[J_1:%.+]] = sub nsw i64 [[IV2]], [[MUL_2]]
 // CHECK-NEXT: [[J_2:%.+]] = mul nsw i64 [[J_1]], 2
 // CHECK-NEXT: [[J_2_ADD0:%.+]] = add nsw i64 0, [[J_2]]
 // CHECK-NEXT: store i64 [[J_2_ADD0]], i64*
@@ -556,22 +620,70 @@ void collapsed(float *a, float *b, float *c, float *d) {
 // CHECK-NEXT: [[CALC_I_1_MUL1:%.+]] = mul i32 [[CALC_I_1]], 1
 // CHECK-NEXT: [[CALC_I_2:%.+]] = add i32 1, [[CALC_I_1_MUL1]]
 // CHECK-NEXT: store i32 [[CALC_I_2]], i32* [[LC_I:.+]]
+
 // CHECK: [[IV1_2:%.+]] = load i32, i32* [[OMP_IV]]
-// CHECK-NEXT: [[CALC_J_1:%.+]] = udiv i32 [[IV1_2]], 20
-// CHECK-NEXT: [[CALC_J_2:%.+]] = urem i32 [[CALC_J_1]], 3
+// CHECK: [[IV1_2_1:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK-NEXT: [[CALC_J_1:%.+]] = udiv i32 [[IV1_2_1]], 60
+// CHECK-NEXT: [[MUL_1:%.+]] = mul i32 [[CALC_J_1]], 60
+// CHECK-NEXT: [[SUB_3:%.+]] = sub i32 [[IV1_2]], [[MUL_1]]
+// CHECK-NEXT: [[CALC_J_2:%.+]] = udiv i32 [[SUB_3]], 20
 // CHECK-NEXT: [[CALC_J_2_MUL1:%.+]] = mul i32 [[CALC_J_2]], 1
 // CHECK-NEXT: [[CALC_J_3:%.+]] = add i32 2, [[CALC_J_2_MUL1]]
 // CHECK-NEXT: store i32 [[CALC_J_3]], i32* [[LC_J:.+]]
+
 // CHECK: [[IV1_3:%.+]] = load i32, i32* [[OMP_IV]]
-// CHECK-NEXT: [[CALC_K_1:%.+]] = udiv i32 [[IV1_3]], 5
-// CHECK-NEXT: [[CALC_K_2:%.+]] = urem i32 [[CALC_K_1]], 4
-// CHECK-NEXT: [[CALC_K_2_MUL1:%.+]] = mul i32 [[CALC_K_2]], 1
-// CHECK-NEXT: [[CALC_K_3:%.+]] = add i32 3, [[CALC_K_2_MUL1]]
-// CHECK-NEXT: store i32 [[CALC_K_3]], i32* [[LC_K:.+]]
+// CHECK: [[IV1_3_1:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK-NEXT: [[DIV_1:%.+]] = udiv i32 [[IV1_3_1]], 60
+// CHECK-NEXT: [[MUL_2:%.+]] = mul i32 [[DIV_1]], 60
+// CHECK-NEXT: [[ADD_3:%.+]] = sub i32 [[IV1_3]], [[MUL_2]]
+
 // CHECK: [[IV1_4:%.+]] = load i32, i32* [[OMP_IV]]
-// CHECK-NEXT: [[CALC_L_1:%.+]] = urem i32 [[IV1_4]], 5
-// CHECK-NEXT: [[CALC_L_1_MUL1:%.+]] = mul i32 [[CALC_L_1]], 1
-// CHECK-NEXT: [[CALC_L_2:%.+]] = add i32 4, [[CALC_L_1_MUL1]]
+// CHECK: [[IV1_4_1:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK-NEXT: [[DIV_2:%.+]] = udiv i32 [[IV1_4_1]], 60
+// CHECK-NEXT: [[MUL_3:%.+]] = mul i32 [[DIV_2]], 60
+// CHECK-NEXT: [[SUB_6:%.+]] = sub i32 [[IV1_4]], [[MUL_3]]
+// CHECK-NEXT: [[DIV_3:%.+]] = udiv i32 [[SUB_6]], 20
+// CHECK-NEXT: [[MUL_4:%.+]] = mul i32 [[DIV_3]], 20
+// CHECK-NEXT: [[SUB_7:%.+]] = sub i32 [[ADD_3]], [[MUL_4]]
+// CHECK-NEXT: [[DIV_4:%.+]] = udiv i32 [[SUB_7]], 5
+// CHECK-NEXT: [[MUL_5:%.+]] = mul i32 [[DIV_4]], 1
+// CHECK-NEXT: [[ADD_6:%.+]] = add i32 3, [[MUL_5]]
+// CHECK-NEXT: store i32 [[ADD_6]], i32* [[LC_K:.+]]
+
+// CHECK: [[IV1_5:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK: [[IV1_5_1:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK-NEXT: [[DIV_5:%.+]] = udiv i32 [[IV1_5_1]], 60
+// CHECK-NEXT: [[MUL_6:%.+]] = mul i32 [[DIV_5]], 60
+// CHECK-NEXT: [[ADD_7:%.+]] = sub i32 [[IV1_5]], [[MUL_6]]
+
+// CHECK: [[IV1_6:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK: [[IV1_6_1:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK-NEXT: [[DIV_6:%.+]] = udiv i32 [[IV1_6_1]], 60
+// CHECK-NEXT: [[MUL_7:%.+]] = mul i32 [[DIV_6]], 60
+// CHECK-NEXT: [[SUB_10:%.+]] = sub i32 [[IV1_6]], [[MUL_7]]
+// CHECK-NEXT: [[DIV_7:%.+]] = udiv i32 [[SUB_10]], 20
+// CHECK-NEXT: [[MUL_8:%.+]] = mul i32 [[DIV_7]], 20
+// CHECK-NEXT: [[ADD_9:%.+]] = sub i32 [[ADD_7]], [[MUL_8]]
+
+// CHECK: [[IV1_7:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK: [[IV1_7_1:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK-NEXT: [[DIV_8:%.+]] = udiv i32 [[IV1_7_1]], 60
+// CHECK-NEXT: [[MUL_9:%.+]] = mul i32 [[DIV_8]], 60
+// CHECK-NEXT: [[ADD_10:%.+]] = sub i32 [[IV1_7]], [[MUL_9]]
+
+// CHECK: [[IV1_8:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK: [[IV1_8_1:%.+]] = load i32, i32* [[OMP_IV]]
+// CHECK-NEXT: [[DIV_3:%.+]] = udiv i32 [[IV1_8_1]], 60
+// CHECK-NEXT: [[MUL_4:%.+]] = mul i32 [[DIV_3]], 60
+// CHECK-NEXT: [[SUB_7:%.+]] = sub i32 [[IV1_8]], [[MUL_4]]
+// CHECK-NEXT: [[DIV_4:%.+]] = udiv i32 [[SUB_7]], 20
+// CHECK-NEXT: [[MUL_5:%.+]] = mul i32 [[DIV_4]], 20
+// CHECK-NEXT: [[SUB_8:%.+]] = sub i32 [[ADD_10]], [[MUL_5]]
+// CHECK-NEXT: [[DIV_5:%.+]] = udiv i32 [[SUB_8]], 5
+// CHECK-NEXT: [[MUL_6:%.+]] = mul i32 [[DIV_5]], 5
+// CHECK-NEXT: [[SUB_9:%.+]] = sub i32 [[ADD_9]], [[MUL_6]]
+// CHECK-NEXT: [[MUL_6:%.+]] = mul i32 [[SUB_9]], 1
+// CHECK-NEXT: [[CALC_L_2:%.+]] = add i32 4, [[MUL_6]]
 // CHECK-NEXT: [[CALC_L_3:%.+]] = trunc i32 [[CALC_L_2]] to i16
 // CHECK-NEXT: store i16 [[CALC_L_3]], i16* [[LC_L:.+]]
 // ... loop body ...
@@ -691,4 +803,10 @@ void parallel_simd(float *a) {
 }
 // TERM_DEBUG: !{{[0-9]+}} = !DILocation(line: [[@LINE-11]],
 // TERM_DEBUG-NOT: line: 0,
+// OMP45-NOT: !"llvm.loop.vectorize.enable", i1 false
+// CHECK-DAG: ![[SIMD_LOOP]] = distinct !{![[SIMD_LOOP]], {{.*}}![[VECT_LOOP:[^,]+]]}
+// CHECK-DAG: ![[VECT_LOOP]] = !{!"llvm.loop.vectorize.enable", i1 true}
+// OMP45-NOT: !"llvm.loop.vectorize.enable", i1 false
+// OMP50-DAG: ![[NOSIMD_LOOP]] = distinct !{![[NOSIMD_LOOP]], {{.*}}![[NOVECT_LOOP:[^,]+]]}
+// OMP50-DAG: ![[NOVECT_LOOP]] = !{!"llvm.loop.vectorize.enable", i1 false}
 #endif // HEADER

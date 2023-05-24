@@ -1,16 +1,11 @@
 //===-- ThreadPlanStepUntil.cpp ---------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/ThreadPlanStepUntil.h"
 
 #include "lldb/Breakpoint/Breakpoint.h"
@@ -24,10 +19,8 @@
 using namespace lldb;
 using namespace lldb_private;
 
-//----------------------------------------------------------------------
 // ThreadPlanStepUntil: Run until we reach a given line number or step out of
 // the current frame
-//----------------------------------------------------------------------
 
 ThreadPlanStepUntil::ThreadPlanStepUntil(Thread &thread,
                                          lldb::addr_t *address_list,
@@ -57,7 +50,10 @@ ThreadPlanStepUntil::ThreadPlanStepUntil(Thread &thread,
       m_return_addr = return_frame_sp->GetStackID().GetPC();
       Breakpoint *return_bp =
           target_sp->CreateBreakpoint(m_return_addr, true, false).get();
+
       if (return_bp != nullptr) {
+        if (return_bp->IsHardware() && !return_bp->HasResolvedLocations())
+          m_could_not_resolve_hw_bp = true;
         return_bp->SetThreadID(thread_id);
         m_return_bp_id = return_bp->GetID();
         return_bp->SetBreakpointKind("until-return-backstop");
@@ -97,6 +93,7 @@ void ThreadPlanStepUntil::Clear() {
     }
   }
   m_until_points.clear();
+  m_could_not_resolve_hw_bp = false;
 }
 
 void ThreadPlanStepUntil::GetDescription(Stream *s,
@@ -127,9 +124,16 @@ void ThreadPlanStepUntil::GetDescription(Stream *s,
 }
 
 bool ThreadPlanStepUntil::ValidatePlan(Stream *error) {
-  if (m_return_bp_id == LLDB_INVALID_BREAK_ID)
+  if (m_could_not_resolve_hw_bp) {
+    if (error)
+      error->PutCString(
+          "Could not create hardware breakpoint for thread plan.");
     return false;
-  else {
+  } else if (m_return_bp_id == LLDB_INVALID_BREAK_ID) {
+    if (error)
+      error->PutCString("Could not create return breakpoint.");
+    return false;
+  } else {
     until_collection::iterator pos, end = m_until_points.end();
     for (pos = m_until_points.begin(); pos != end; pos++) {
       if (!LLDB_BREAK_ID_IS_VALID((*pos).second))
@@ -322,8 +326,7 @@ bool ThreadPlanStepUntil::MischiefManaged() {
   bool done = false;
   if (IsPlanComplete()) {
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
-    if (log)
-      log->Printf("Completed step until plan.");
+    LLDB_LOGF(log, "Completed step until plan.");
 
     Clear();
     done = true;

@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,12 +15,14 @@
 // file_time_type last_write_time() const;
 // file_time_type last_write_time(error_code const&) const noexcept;
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <cassert>
 
-#include "filesystem_test_helper.hpp"
-#include "rapid-cxx-test.hpp"
+#include "filesystem_test_helper.h"
+#include "rapid-cxx-test.h"
+
+#include "test_macros.h"
 
 TEST_SUITE(directory_entry_obs_testsuite)
 

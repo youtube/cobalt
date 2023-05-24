@@ -5,7 +5,6 @@ Test that 'stty -a' displays the same output before and after running the lldb c
 from __future__ import print_function
 
 
-import os
 import lldb
 import six
 from lldbsuite.test.decorators import *
@@ -42,7 +41,11 @@ class TestSTTYBeforeAndAfter(TestBase):
         lldb_prompt = "(lldb) "
 
         # So that the child gets torn down after the test.
-        self.child = pexpect.spawn('expect')
+        import sys
+        if sys.version_info.major == 3:
+          self.child = pexpect.spawnu('expect')
+        else:
+          self.child = pexpect.spawn('expect')
         child = self.child
 
         child.expect(expect_prompt)
@@ -70,7 +73,7 @@ class TestSTTYBeforeAndAfter(TestBase):
         child.logfile_read = None
 
         # Invoke the lldb command.
-        child.sendline('%s %s' % (lldbtest_config.lldbExec, self.lldbOption))
+        child.sendline(lldbtest_config.lldbExec)
         child.expect_exact(lldb_prompt)
 
         # Immediately quit.

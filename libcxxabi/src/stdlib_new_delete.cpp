@@ -1,9 +1,8 @@
 //===--------------------- stdlib_new_delete.cpp --------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //
 // This file implements the new and delete operators.
@@ -134,7 +133,7 @@ operator delete[] (void* ptr, size_t) _NOEXCEPT
     ::operator delete[](ptr);
 }
 
-#if !defined(_LIBCPP_HAS_NO_ALIGNED_ALLOCATION)
+#if !defined(_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION)
 
 _LIBCXXABI_WEAK
 void *
@@ -260,4 +259,4 @@ operator delete[] (void* ptr, size_t, std::align_val_t alignment) _NOEXCEPT
     ::operator delete[](ptr, alignment);
 }
 
-#endif // !_LIBCPP_HAS_NO_ALIGNED_ALLOCATION
+#endif // !_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION

@@ -1,9 +1,8 @@
 //===- WorkList.cpp - Analyzer work-list implementation--------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -80,11 +79,11 @@ public:
 WorkList::~WorkList() = default;
 
 std::unique_ptr<WorkList> WorkList::makeDFS() {
-  return llvm::make_unique<DFS>();
+  return std::make_unique<DFS>();
 }
 
 std::unique_ptr<WorkList> WorkList::makeBFS() {
-  return llvm::make_unique<BFS>();
+  return std::make_unique<BFS>();
 }
 
 namespace {
@@ -125,7 +124,7 @@ namespace {
 } // namespace
 
 std::unique_ptr<WorkList> WorkList::makeBFSBlockDFSContents() {
-  return llvm::make_unique<BFSBlockDFSContents>();
+  return std::make_unique<BFSBlockDFSContents>();
 }
 
 namespace {
@@ -152,7 +151,7 @@ public:
     auto BE = N->getLocation().getAs<BlockEntrance>();
 
     if (!BE) {
-      // Assume the choice of the order of the preceeding block entrance was
+      // Assume the choice of the order of the preceding block entrance was
       // correct.
       StackUnexplored.push_back(U);
     } else {
@@ -187,7 +186,7 @@ public:
 } // namespace
 
 std::unique_ptr<WorkList> WorkList::makeUnexploredFirst() {
-  return llvm::make_unique<UnexploredFirstStack>();
+  return std::make_unique<UnexploredFirstStack>();
 }
 
 namespace {
@@ -250,5 +249,65 @@ public:
 } // namespace
 
 std::unique_ptr<WorkList> WorkList::makeUnexploredFirstPriorityQueue() {
-  return llvm::make_unique<UnexploredFirstPriorityQueue>();
+  return std::make_unique<UnexploredFirstPriorityQueue>();
+}
+
+namespace {
+class UnexploredFirstPriorityLocationQueue : public WorkList {
+  using LocIdentifier = const CFGBlock *;
+
+  // How many times each location was visited.
+  // Is signed because we negate it later in order to have a reversed
+  // comparison.
+  using VisitedTimesMap = llvm::DenseMap<LocIdentifier, int>;
+
+  // Compare by number of times the location was visited first (negated
+  // to prefer less often visited locations), then by insertion time (prefer
+  // expanding nodes inserted sooner first).
+  using QueuePriority = std::pair<int, unsigned long>;
+  using QueueItem = std::pair<WorkListUnit, QueuePriority>;
+
+  struct ExplorationComparator {
+    bool operator() (const QueueItem &LHS, const QueueItem &RHS) {
+      return LHS.second < RHS.second;
+    }
+  };
+
+  // Number of inserted nodes, used to emulate DFS ordering in the priority
+  // queue when insertions are equal.
+  unsigned long Counter = 0;
+
+  // Number of times a current location was reached.
+  VisitedTimesMap NumReached;
+
+  // The top item is the largest one.
+  llvm::PriorityQueue<QueueItem, std::vector<QueueItem>, ExplorationComparator>
+      queue;
+
+public:
+  bool hasWork() const override {
+    return !queue.empty();
+  }
+
+  void enqueue(const WorkListUnit &U) override {
+    const ExplodedNode *N = U.getNode();
+    unsigned NumVisited = 0;
+    if (auto BE = N->getLocation().getAs<BlockEntrance>())
+      NumVisited = NumReached[BE->getBlock()]++;
+
+    queue.push(std::make_pair(U, std::make_pair(-NumVisited, ++Counter)));
+  }
+
+  WorkListUnit dequeue() override {
+    QueueItem U = queue.top();
+    queue.pop();
+    return U.first;
+  }
+
+};
+
+}
+
+std::unique_ptr<WorkList> WorkList::makeUnexploredFirstPriorityLocationQueue() {
+  return std::make_unique<UnexploredFirstPriorityLocationQueue>();
 }

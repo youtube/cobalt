@@ -24,7 +24,10 @@ module std [system] {
       header "errno.h"
       export *
     }
-    // <fenv.h> provided by C library.
+    module fenv_h {
+      header "fenv.h"
+      export *
+    }
     // <float.h> provided by compiler or C library.
     module inttypes_h {
       header "inttypes.h"
@@ -228,6 +231,10 @@ module std [system] {
     header "atomic"
     export *
   }
+  module bit {
+    header "bit"
+    export *
+  }
   module bitset {
     header "bitset"
     export string
@@ -266,6 +273,10 @@ module std [system] {
   }
   module exception {
     header "exception"
+    export *
+  }
+  module execution {
+    header "execution"
     export *
   }
   module filesystem {
@@ -518,10 +529,6 @@ module std [system] {
     }
     module deque {
       header "experimental/deque"
-      export *
-    }
-    module dynarray {
-      header "experimental/dynarray"
       export *
     }
     module filesystem {

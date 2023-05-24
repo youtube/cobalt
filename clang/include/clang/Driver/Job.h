@@ -1,9 +1,8 @@
 //===- Job.h - Commands to Execute ------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,9 +27,6 @@ namespace driver {
 class Action;
 class InputInfo;
 class Tool;
-
-// Re-export this as clang::driver::ArgStringList.
-using llvm::opt::ArgStringList;
 
 struct CrashReportInfo {
   StringRef Filename;
@@ -58,6 +54,9 @@ class Command {
 
   /// The list of program arguments which are inputs.
   llvm::opt::ArgStringList InputFilenames;
+
+  /// Whether to print the input filenames when executing.
+  bool PrintInputFilenames = false;
 
   /// Response file name, if this command is set to use one, or nullptr
   /// otherwise
@@ -120,7 +119,7 @@ public:
   /// \param NewEnvironment An array of environment variables.
   /// \remark If the environment remains unset, then the environment
   ///         from the parent process will be used.
-  void setEnvironment(llvm::ArrayRef<const char *> NewEnvironment);
+  virtual void setEnvironment(llvm::ArrayRef<const char *> NewEnvironment);
 
   const char *getExecutable() const { return Executable; }
 
@@ -128,6 +127,27 @@ public:
 
   /// Print a command argument, and optionally quote it.
   static void printArg(llvm::raw_ostream &OS, StringRef Arg, bool Quote);
+
+  /// Set whether to print the input filenames when executing.
+  void setPrintInputFilenames(bool P) { PrintInputFilenames = P; }
+
+protected:
+  /// Optionally print the filenames to be compiled
+  void PrintFileNames() const;
+};
+
+/// Use the CC1 tool callback when available, to avoid creating a new process
+class CC1Command : public Command {
+public:
+  using Command::Command;
+
+  void Print(llvm::raw_ostream &OS, const char *Terminator, bool Quote,
+             CrashReportInfo *CrashInfo = nullptr) const override;
+
+  int Execute(ArrayRef<Optional<StringRef>> Redirects, std::string *ErrMsg,
+              bool *ExecutionFailed) const override;
+
+  void setEnvironment(llvm::ArrayRef<const char *> NewEnvironment) override;
 };
 
 /// Like Command, but with a fallback which is executed in case
@@ -135,7 +155,8 @@ public:
 class FallbackCommand : public Command {
 public:
   FallbackCommand(const Action &Source_, const Tool &Creator_,
-                  const char *Executable_, const ArgStringList &Arguments_,
+                  const char *Executable_,
+                  const llvm::opt::ArgStringList &Arguments_,
                   ArrayRef<InputInfo> Inputs,
                   std::unique_ptr<Command> Fallback_);
 
@@ -153,7 +174,8 @@ private:
 class ForceSuccessCommand : public Command {
 public:
   ForceSuccessCommand(const Action &Source_, const Tool &Creator_,
-                      const char *Executable_, const ArgStringList &Arguments_,
+                      const char *Executable_,
+                      const llvm::opt::ArgStringList &Arguments_,
                       ArrayRef<InputInfo> Inputs);
 
   void Print(llvm::raw_ostream &OS, const char *Terminator, bool Quote,

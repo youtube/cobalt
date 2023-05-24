@@ -1,9 +1,8 @@
 //===- InlineCost.h - Cost analysis for inliner -----------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -23,7 +22,7 @@
 namespace llvm {
 class AssumptionCacheTracker;
 class BlockFrequencyInfo;
-class CallSite;
+class CallBase;
 class DataLayout;
 class Function;
 class ProfileSummaryInfo;
@@ -46,7 +45,6 @@ const int IndirectCallThreshold = 100;
 const int CallPenalty = 25;
 const int LastCallToStaticBonus = 15000;
 const int ColdccPenalty = 2000;
-const int NoreturnPenalty = 10000;
 /// Do not inline functions which allocate this many bytes on the stack
 /// when the caller is recursive.
 const unsigned TotalAllocaSizeRecursiveCaller = 1024;
@@ -69,13 +67,20 @@ class InlineCost {
   };
 
   /// The estimated cost of inlining this callsite.
-  const int Cost;
+  int Cost;
 
   /// The adjusted threshold against which this cost was computed.
-  const int Threshold;
+  int Threshold;
+
+  /// Must be set for Always and Never instances.
+  const char *Reason = nullptr;
 
   // Trivial constructor, interesting logic in the factory functions below.
-  InlineCost(int Cost, int Threshold) : Cost(Cost), Threshold(Threshold) {}
+  InlineCost(int Cost, int Threshold, const char *Reason = nullptr)
+      : Cost(Cost), Threshold(Threshold), Reason(Reason) {
+    assert((isVariable() || Reason) &&
+           "Reason must be provided for Never or Always");
+  }
 
 public:
   static InlineCost get(int Cost, int Threshold) {
@@ -83,11 +88,11 @@ public:
     assert(Cost < NeverInlineCost && "Cost crosses sentinel value");
     return InlineCost(Cost, Threshold);
   }
-  static InlineCost getAlways() {
-    return InlineCost(AlwaysInlineCost, 0);
+  static InlineCost getAlways(const char *Reason) {
+    return InlineCost(AlwaysInlineCost, 0, Reason);
   }
-  static InlineCost getNever() {
-    return InlineCost(NeverInlineCost, 0);
+  static InlineCost getNever(const char *Reason) {
+    return InlineCost(NeverInlineCost, 0, Reason);
   }
 
   /// Test whether the inline cost is low enough for inlining.
@@ -112,10 +117,28 @@ public:
     return Threshold;
   }
 
+  /// Get the reason of Always or Never.
+  const char *getReason() const {
+    assert((Reason || isVariable()) &&
+           "InlineCost reason must be set for Always or Never");
+    return Reason;
+  }
+
   /// Get the cost delta from the threshold for inlining.
   /// Only valid if the cost is of the variable kind. Returns a negative
   /// value if the cost is too high to inline.
   int getCostDelta() const { return Threshold - getCost(); }
+};
+
+/// InlineResult is basically true or false. For false results the message
+/// describes a reason why it is decided not to inline.
+struct InlineResult {
+  const char *message = nullptr;
+  InlineResult(bool result, const char *message = nullptr)
+      : message(result ? nullptr : (message ? message : "cost > threshold")) {}
+  InlineResult(const char *message = nullptr) : message(message) {}
+  operator bool() const { return !message; }
+  operator const char *() const { return message; }
 };
 
 /// Thresholds to tune inline cost analysis. The inline cost analysis decides
@@ -176,7 +199,7 @@ InlineParams getInlineParams(unsigned OptLevel, unsigned SizeOptLevel);
 
 /// Return the cost associated with a callsite, including parameter passing
 /// and the call/return instruction.
-int getCallsiteCost(CallSite CS, const DataLayout &DL);
+int getCallsiteCost(CallBase &Call, const DataLayout &DL);
 
 /// Get an InlineCost object representing the cost of inlining this
 /// callsite.
@@ -190,7 +213,7 @@ int getCallsiteCost(CallSite CS, const DataLayout &DL);
 /// Also note that calling this function *dynamically* computes the cost of
 /// inlining the callsite. It is an expensive, heavyweight call.
 InlineCost getInlineCost(
-    CallSite CS, const InlineParams &Params, TargetTransformInfo &CalleeTTI,
+    CallBase &Call, const InlineParams &Params, TargetTransformInfo &CalleeTTI,
     std::function<AssumptionCache &(Function &)> &GetAssumptionCache,
     Optional<function_ref<BlockFrequencyInfo &(Function &)>> GetBFI,
     ProfileSummaryInfo *PSI, OptimizationRemarkEmitter *ORE = nullptr);
@@ -201,14 +224,14 @@ InlineCost getInlineCost(
 /// parameter in all other respects.
 //
 InlineCost
-getInlineCost(CallSite CS, Function *Callee, const InlineParams &Params,
+getInlineCost(CallBase &Call, Function *Callee, const InlineParams &Params,
               TargetTransformInfo &CalleeTTI,
               std::function<AssumptionCache &(Function &)> &GetAssumptionCache,
               Optional<function_ref<BlockFrequencyInfo &(Function &)>> GetBFI,
               ProfileSummaryInfo *PSI, OptimizationRemarkEmitter *ORE);
 
 /// Minimal filter to detect invalid constructs for inlining.
-bool isInlineViable(Function &Callee);
+InlineResult isInlineViable(Function &Callee);
 }
 
 #endif

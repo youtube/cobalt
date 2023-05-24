@@ -1,9 +1,8 @@
 //===-- AVRInstrInfo.td - AVR Instruction defs -------------*- tablegen -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -90,6 +89,22 @@ def imm0_63_neg : PatLeaf<(imm),
 
 def uimm6 : PatLeaf<(imm), [{ return isUInt<6>(N->getZExtValue()); }]>;
 
+// imm_com8_XFORM - Return the complement of a imm_com8 value
+def imm_com8_XFORM : SDNodeXForm<imm, [{
+  return CurDAG->getTargetConstant(~((uint8_t)N->getZExtValue()), SDLoc(N),
+                                   MVT::i8);
+}]>;
+
+// imm_com8 - Match an immediate that is a complement
+// of a 8-bit immediate.
+// Note: this pattern doesn't require an encoder method and such, as it's
+// only used on aliases (Pat<> and InstAlias<>). The actual encoding
+// is handled by the destination instructions, which use imm_com8.
+def imm_com8_asmoperand : AsmOperandClass { let Name = "ImmCom8"; }
+def imm_com8 : Operand<i8> {
+  let ParserMatchClass = imm_com8_asmoperand;
+}
+
 def ioaddr_XFORM : SDNodeXForm<imm,
 [{
   return CurDAG->getTargetConstant(uint8_t(N->getZExtValue()) - 0x20, SDLoc(N), MVT::i8);
@@ -155,13 +170,6 @@ def memri : Operand<iPTR>
 def memspi : Operand<iPTR>
 {
   let MIOperandInfo = (ops GPRSP, i16imm);
-}
-
-def imm_com8 : Operand<i8>
-{
-  let EncoderMethod = "encodeComplement";
-
-  let MIOperandInfo = (ops i8imm);
 }
 
 def relbrtarget_7 : Operand<OtherVT>
@@ -730,15 +738,15 @@ Defs = [SREG] in
 // TST Rd
 // Test for zero of minus.
 // This operation is identical to a `Rd AND Rd`.
-//def : InstAlias<"tst\t$rd", (ANDRdRr GPR8:$rd, GPR8:$rd), 1>;
+def : InstAlias<"tst\t$rd", (ANDRdRr GPR8:$rd, GPR8:$rd)>;
 
-let Defs = [SREG] in
-def TSTRd : FTST<0b0010,
-                  0b00,
-                  (outs),
-                  (ins GPR8:$rd),
-                  "tst\t$rd",
-                  [(AVRtst i8:$rd)]>;
+// SBR Rd, K
+//
+// Mnemonic alias to 'ORI Rd, K'. Same bit pattern, same operands,
+// same everything.
+def : InstAlias<"sbr\t$rd, $k",
+                (ORIRdK LD8:$rd, imm_ldi8:$k),
+                /* Disable display, so we don't override ORI */ 0>;
 
 //===----------------------------------------------------------------------===//
 // Jump instructions
@@ -1151,11 +1159,11 @@ isReMaterializable = 1 in
   // LDW Rd+1:Rd, P
   //
   // Expands to:
-  // ld Rd,   P+
-  // ld Rd+1, P
+  // ld  Rd,   P
+  // ldd Rd+1, P+1
   let Constraints = "@earlyclobber $reg" in
   def LDWRdPtr : Pseudo<(outs DREGS:$reg),
-                        (ins PTRREGS:$ptrreg),
+                        (ins PTRDISPREGS:$ptrreg),
                         "ldw\t$reg, $ptrreg",
                         [(set i16:$reg, (load i16:$ptrreg))]>,
                  Requires<[HasSRAM]>;
@@ -1222,7 +1230,7 @@ isReMaterializable = 1 in
   // ldd Rd,   P+q
   // ldd Rd+1, P+q+1
   let Constraints = "@earlyclobber $dst" in
-  def LDDWRdPtrQ : Pseudo<(outs DREGS:$dst),
+  def LDDWRdPtrQ : Pseudo<(outs DREGS_WITHOUT_YZ_WORKAROUND:$dst),
                           (ins memri:$memri),
                           "lddw\t$dst, $memri",
                           [(set i16:$dst, (load addr:$memri))]>,
@@ -1302,7 +1310,7 @@ def AtomicLoadOr16  : AtomicLoadOp16<atomic_load_or_16>;
 def AtomicLoadXor8  : AtomicLoadOp8<atomic_load_xor_8>;
 def AtomicLoadXor16 : AtomicLoadOp16<atomic_load_xor_16>;
 def AtomicFence     : Pseudo<(outs), (ins), "atomic_fence",
-                             [(atomic_fence imm, imm)]>;
+                             [(atomic_fence timm, timm)]>;
 
 // Indirect store from register to data space.
 def STSKRr : F32DM<0b1,
@@ -1632,12 +1640,7 @@ def LATZRd : FZRd<0b111,
 let Constraints = "$src = $rd",
 Defs = [SREG] in
 {
-  def LSLRd : FRdRr<0b0000,
-                    0b11,
-                    (outs GPR8:$rd),
-                    (ins GPR8:$src),
-                    "lsl\t$rd",
-                    [(set i8:$rd, (AVRlsl i8:$src)), (implicit SREG)]>;
+  // 8-bit LSL is an alias of ADD Rd, Rd
 
   def LSLWRd : Pseudo<(outs DREGS:$rd),
                       (ins DREGS:$src),
@@ -1671,12 +1674,17 @@ Defs = [SREG] in
   // Bit rotate operations.
   let Uses = [SREG] in
   {
-    def ROLRd : FRdRr<0b0001,
-                      0b11,
-                      (outs GPR8:$rd),
-                      (ins GPR8:$src),
-                      "rol\t$rd",
-                      [(set i8:$rd, (AVRrol i8:$src)), (implicit SREG)]>;
+    // 8-bit ROL is an alias of ADC Rd, Rd
+
+    def ROLBRd : Pseudo<(outs GPR8:$rd),
+                        (ins GPR8:$src),
+                        "rolb\t$rd",
+                        [(set i8:$rd, (AVRrol i8:$src)), (implicit SREG)]>;
+
+    def RORBRd : Pseudo<(outs GPR8:$rd),
+                        (ins GPR8:$src),
+                        "rorb\t$rd",
+                        [(set i8:$rd, (AVRror i8:$src)), (implicit SREG)]>;
 
     def ROLWRd : Pseudo<(outs DREGS:$rd),
                         (ins DREGS:$src),
@@ -1688,7 +1696,7 @@ Defs = [SREG] in
                     (outs GPR8:$rd),
                     (ins GPR8:$src),
                     "ror\t$rd",
-                    [(set i8:$rd, (AVRror i8:$src)), (implicit SREG)]>;
+                    []>;
 
     def RORWRd : Pseudo<(outs DREGS:$rd),
                         (ins DREGS:$src),
@@ -1739,35 +1747,21 @@ def BLD : FRdB<0b00,
                "bld\t$rd, $b",
                []>;
 
-// Set/clear bit in register operations.
-let Constraints = "$src = $rd",
-Defs = [SREG] in
-{
-  // SBR Rd, K
-  // Alias for ORI Rd, K
-  def SBRRdK : FRdK<0b0110,
-                    (outs LD8:$rd),
-                    (ins LD8:$src, imm_ldi8:$k),
-                    "sbr\t$rd, $k",
-                    [(set i8:$rd, (or i8:$src, imm:$k)),
-                     (implicit SREG)]>;
-
-  // CBR Rd, K
-  // Alias for `ANDI Rd, COM(K)` where COM(K) is the complement of K.
-  // FIXME: This uses the 'complement' encoder. We need it to also use the
-  // imm_ldi8 encoder. This will cause no fixups to be created on this instruction.
-  def CBRRdK : FRdK<0b0111,
-                    (outs LD8:$rd),
-                    (ins LD8:$src, imm_com8:$k),
-                    "cbr\t$rd, $k",
-                    []>;
-}
+def CBR : InstAlias<"cbr\t$rd, $k", (ANDIRdK LD8:$rd, imm_com8:$k), 0>;
 
 // CLR Rd
 // Alias for EOR Rd, Rd
 // -------------
 // Clears all bits in a register.
 def CLR : InstAlias<"clr\t$rd", (EORRdRr GPR8:$rd, GPR8:$rd)>;
+
+// LSL Rd
+// Alias for ADD Rd, Rd
+// --------------
+// Logical shift left one bit.
+def LSL : InstAlias<"lsl\t$rd", (ADDRdRr GPR8:$rd, GPR8:$rd)>;
+
+def ROL : InstAlias<"rol\t$rd", (ADCRdRr GPR8:$rd, GPR8:$rd)>;
 
 // SER Rd
 // Alias for LDI Rd, 0xff
@@ -2106,4 +2100,14 @@ def : Pat<(i8 (trunc (AVRlsr (AVRlsr (AVRlsr (AVRlsr (AVRlsr (AVRlsr (AVRlsr
 // BR_JT -> (mul x, 2) -> (shl x, 1)
 def : Pat<(shl i16:$src1, (i8 1)),
           (LSLWRd i16:$src1)>;
+
+// Lowering of 'tst' node to 'TST' instruction.
+// TST is an alias of AND Rd, Rd.
+def : Pat<(AVRtst i8:$rd),
+          (ANDRdRr GPR8:$rd, GPR8:$rd)>;
+
+// Lowering of 'lsl' node to 'LSL' instruction.
+// LSL is an alias of 'ADD Rd, Rd'
+def : Pat<(AVRlsl i8:$rd),
+          (ADDRdRr GPR8:$rd, GPR8:$rd)>;
 

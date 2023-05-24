@@ -1,9 +1,8 @@
 //===----------------------------------------------------------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -15,14 +14,14 @@
 
 // path& remove_filename()
 
-#include "filesystem_include.hpp"
+#include "filesystem_include.h"
 #include <type_traits>
 #include <cassert>
 
 #include "test_macros.h"
 #include "test_iterators.h"
-#include "count_new.hpp"
-#include "filesystem_test_helper.hpp"
+#include "count_new.h"
+#include "filesystem_test_helper.h"
 #include "verbose_assert.h"
 
 struct RemoveFilenameTestcase {
@@ -58,7 +57,7 @@ const RemoveFilenameTestcase TestCases[] =
     , {"bar/../baz/./file.txt", "bar/../baz/./"}
   };
 
-int main()
+int main(int, char**)
 {
   using namespace fs;
   for (auto const & TC : TestCases) {
@@ -70,4 +69,6 @@ int main()
     assert(&Ref == &p);
     assert(!p.has_filename());
   }
+
+  return 0;
 }

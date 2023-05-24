@@ -1,9 +1,8 @@
 //===--- LockFileManager.cpp - File-level Locking Utility------------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,7 +23,7 @@
 #include <sys/types.h>
 #include <system_error>
 #include <tuple>
-#if _WIN32
+#ifdef _WIN32
 #include <windows.h>
 #endif
 #if LLVM_ON_UNIX
@@ -291,26 +290,24 @@ LockFileManager::~LockFileManager() {
   sys::DontRemoveFileOnSignal(UniqueLockFileName);
 }
 
-LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
+LockFileManager::WaitForUnlockResult
+LockFileManager::waitForUnlock(const unsigned MaxSeconds) {
   if (getState() != LFS_Shared)
     return Res_Success;
 
-#if _WIN32
+#ifdef _WIN32
   unsigned long Interval = 1;
 #else
   struct timespec Interval;
   Interval.tv_sec = 0;
   Interval.tv_nsec = 1000000;
 #endif
-  // Don't wait more than 40s per iteration. Total timeout for the file
-  // to appear is ~1.5 minutes.
-  const unsigned MaxSeconds = 40;
   do {
     // Sleep for the designated interval, to allow the owning process time to
     // finish up and remove the lock file.
     // FIXME: Should we hook in to system APIs to get a notification when the
     // lock file is deleted?
-#if _WIN32
+#ifdef _WIN32
     Sleep(Interval);
 #else
     nanosleep(&Interval, nullptr);
@@ -329,7 +326,7 @@ LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
       return Res_OwnerDied;
 
     // Exponentially increase the time we wait for the lock to be removed.
-#if _WIN32
+#ifdef _WIN32
     Interval *= 2;
 #else
     Interval.tv_sec *= 2;
@@ -340,7 +337,7 @@ LockFileManager::WaitForUnlockResult LockFileManager::waitForUnlock() {
     }
 #endif
   } while (
-#if _WIN32
+#ifdef _WIN32
            Interval < MaxSeconds * 1000
 #else
            Interval.tv_sec < (time_t)MaxSeconds

@@ -1,9 +1,8 @@
 //===--- OverloadedUnaryAndCheck.cpp - clang-tidy ---------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -33,17 +32,15 @@ void OverloadedUnaryAndCheck::registerMatchers(
       this);
   // Also match freestanding unary operator& overloads. Be careful not to match
   // binary methods.
-  Finder->addMatcher(
-      functionDecl(allOf(
-          unless(cxxMethodDecl()),
-          functionDecl(parameterCountIs(1), hasOverloadedOperatorName("&"))
-              .bind("overload"))),
-      this);
+  Finder->addMatcher(functionDecl(unless(cxxMethodDecl()), parameterCountIs(1),
+                                  hasOverloadedOperatorName("&"))
+                         .bind("overload"),
+                     this);
 }
 
 void OverloadedUnaryAndCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *Decl = Result.Nodes.getNodeAs<FunctionDecl>("overload");
-  diag(Decl->getLocStart(),
+  diag(Decl->getBeginLoc(),
        "do not overload unary operator&, it is dangerous.");
 }
 

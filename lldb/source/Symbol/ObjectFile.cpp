@@ -1,9 +1,8 @@
 //===-- ObjectFile.cpp ------------------------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
@@ -12,6 +11,7 @@
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
+#include "lldb/Symbol/CallFrameInfo.h"
 #include "lldb/Symbol/ObjectContainer.h"
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Target/Process.h"
@@ -19,14 +19,14 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBuffer.h"
 #include "lldb/Utility/DataBufferHeap.h"
-#include "lldb/Utility/DataBufferLLVM.h"
 #include "lldb/Utility/Log.h"
-#include "lldb/Utility/RegularExpression.h"
 #include "lldb/Utility/Timer.h"
 #include "lldb/lldb-private.h"
 
 using namespace lldb;
 using namespace lldb_private;
+
+char ObjectFile::ID;
 
 ObjectFileSP
 ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
@@ -47,7 +47,7 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
       FileSpec archive_file;
       ObjectContainerCreateInstance create_object_container_callback;
 
-      const bool file_exists = file->Exists();
+      const bool file_exists = FileSystem::Instance().Exists(*file);
       if (!data_sp) {
         // We have an object name which most likely means we have a .o file in
         // a static archive (.a file). Try and see if we have a cached archive
@@ -58,13 +58,13 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
                     PluginManager::GetObjectContainerCreateCallbackAtIndex(
                         idx)) != nullptr;
                ++idx) {
-            std::unique_ptr<ObjectContainer> object_container_ap(
+            std::unique_ptr<ObjectContainer> object_container_up(
                 create_object_container_callback(module_sp, data_sp,
                                                  data_offset, file, file_offset,
                                                  file_size));
 
-            if (object_container_ap.get())
-              object_file_sp = object_container_ap->GetObjectFile(file);
+            if (object_container_up)
+              object_file_sp = object_container_up->GetObjectFile(file);
 
             if (object_file_sp.get())
               return object_file_sp;
@@ -75,23 +75,22 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
         // container plug-ins can use these bytes to see if they can parse this
         // file.
         if (file_size > 0) {
-          data_sp =
-              DataBufferLLVM::CreateSliceFromPath(file->GetPath(), 512, file_offset);
+          data_sp = FileSystem::Instance().CreateDataBuffer(file->GetPath(),
+                                                            512, file_offset);
           data_offset = 0;
         }
       }
 
       if (!data_sp || data_sp->GetByteSize() == 0) {
         // Check for archive file with format "/path/to/archive.a(object.o)"
-        char path_with_object[PATH_MAX * 2];
-        module_sp->GetFileSpec().GetPath(path_with_object,
-                                         sizeof(path_with_object));
+        llvm::SmallString<256> path_with_object;
+        module_sp->GetFileSpec().GetPath(path_with_object);
 
         ConstString archive_object;
         const bool must_exist = true;
         if (ObjectFile::SplitArchivePathWithObject(
                 path_with_object, archive_file, archive_object, must_exist)) {
-          file_size = archive_file.GetByteSize();
+          file_size = FileSystem::Instance().GetByteSize(archive_file);
           if (file_size > 0) {
             file = &archive_file;
             module_sp->SetFileSpecAndObjectName(archive_file, archive_object);
@@ -107,21 +106,21 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
                       PluginManager::GetObjectContainerCreateCallbackAtIndex(
                           idx)) != nullptr;
                  ++idx) {
-              std::unique_ptr<ObjectContainer> object_container_ap(
+              std::unique_ptr<ObjectContainer> object_container_up(
                   create_object_container_callback(module_sp, data_sp,
                                                    data_offset, file,
                                                    file_offset, file_size));
 
-              if (object_container_ap.get())
-                object_file_sp = object_container_ap->GetObjectFile(file);
+              if (object_container_up)
+                object_file_sp = object_container_up->GetObjectFile(file);
 
               if (object_file_sp.get())
                 return object_file_sp;
             }
             // We failed to find any cached object files in the container plug-
             // ins, so lets read the first 512 bytes and try again below...
-            data_sp = DataBufferLLVM::CreateSliceFromPath(archive_file.GetPath(),
-                                                     512, file_offset);
+            data_sp = FileSystem::Instance().CreateDataBuffer(
+                archive_file.GetPath(), 512, file_offset);
           }
         }
       }
@@ -149,12 +148,12 @@ ObjectFile::FindPlugin(const lldb::ModuleSP &module_sp, const FileSpec *file,
                   PluginManager::GetObjectContainerCreateCallbackAtIndex(
                       idx)) != nullptr;
              ++idx) {
-          std::unique_ptr<ObjectContainer> object_container_ap(
+          std::unique_ptr<ObjectContainer> object_container_up(
               create_object_container_callback(module_sp, data_sp, data_offset,
                                                file, file_offset, file_size));
 
-          if (object_container_ap.get())
-            object_file_sp = object_container_ap->GetObjectFile(file);
+          if (object_container_up)
+            object_file_sp = object_container_up->GetObjectFile(file);
 
           if (object_file_sp.get())
             return object_file_sp;
@@ -209,10 +208,12 @@ size_t ObjectFile::GetModuleSpecifications(const FileSpec &file,
                                            lldb::offset_t file_offset,
                                            lldb::offset_t file_size,
                                            ModuleSpecList &specs) {
-  DataBufferSP data_sp = DataBufferLLVM::CreateSliceFromPath(file.GetPath(), 512, file_offset);
+  DataBufferSP data_sp =
+      FileSystem::Instance().CreateDataBuffer(file.GetPath(), 512, file_offset);
   if (data_sp) {
     if (file_size == 0) {
-      const lldb::offset_t actual_file_size = file.GetByteSize();
+      const lldb::offset_t actual_file_size =
+          FileSystem::Instance().GetByteSize(file);
       if (actual_file_size > file_offset)
         file_size = actual_file_size - file_offset;
     }
@@ -263,22 +264,21 @@ ObjectFile::ObjectFile(const lldb::ModuleSP &module_sp,
     : ModuleChild(module_sp),
       m_file(), // This file could be different from the original module's file
       m_type(eTypeInvalid), m_strata(eStrataInvalid),
-      m_file_offset(file_offset), m_length(length), m_data(),
-      m_unwind_table(*this), m_process_wp(),
-      m_memory_addr(LLDB_INVALID_ADDRESS), m_sections_ap(), m_symtab_ap(),
+      m_file_offset(file_offset), m_length(length), m_data(), m_process_wp(),
+      m_memory_addr(LLDB_INVALID_ADDRESS), m_sections_up(), m_symtab_up(),
       m_synthetic_symbol_idx(0) {
   if (file_spec_ptr)
     m_file = *file_spec_ptr;
   if (data_sp)
     m_data.SetData(data_sp, data_offset, length);
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
-  if (log)
-    log->Printf("%p ObjectFile::ObjectFile() module = %p (%s), file = %s, "
-                "file_offset = 0x%8.8" PRIx64 ", size = %" PRIu64,
-                static_cast<void *>(this), static_cast<void *>(module_sp.get()),
-                module_sp->GetSpecificationDescription().c_str(),
-                m_file ? m_file.GetPath().c_str() : "<NULL>", m_file_offset,
-                m_length);
+  LLDB_LOGF(log,
+            "%p ObjectFile::ObjectFile() module = %p (%s), file = %s, "
+            "file_offset = 0x%8.8" PRIx64 ", size = %" PRIu64,
+            static_cast<void *>(this), static_cast<void *>(module_sp.get()),
+            module_sp->GetSpecificationDescription().c_str(),
+            m_file ? m_file.GetPath().c_str() : "<NULL>", m_file_offset,
+            m_length);
 }
 
 ObjectFile::ObjectFile(const lldb::ModuleSP &module_sp,
@@ -286,24 +286,22 @@ ObjectFile::ObjectFile(const lldb::ModuleSP &module_sp,
                        DataBufferSP &header_data_sp)
     : ModuleChild(module_sp), m_file(), m_type(eTypeInvalid),
       m_strata(eStrataInvalid), m_file_offset(0), m_length(0), m_data(),
-      m_unwind_table(*this), m_process_wp(process_sp),
-      m_memory_addr(header_addr), m_sections_ap(), m_symtab_ap(),
-      m_synthetic_symbol_idx(0) {
+      m_process_wp(process_sp), m_memory_addr(header_addr), m_sections_up(),
+      m_symtab_up(), m_synthetic_symbol_idx(0) {
   if (header_data_sp)
     m_data.SetData(header_data_sp, 0, header_data_sp->GetByteSize());
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
-  if (log)
-    log->Printf("%p ObjectFile::ObjectFile() module = %p (%s), process = %p, "
-                "header_addr = 0x%" PRIx64,
-                static_cast<void *>(this), static_cast<void *>(module_sp.get()),
-                module_sp->GetSpecificationDescription().c_str(),
-                static_cast<void *>(process_sp.get()), m_memory_addr);
+  LLDB_LOGF(log,
+            "%p ObjectFile::ObjectFile() module = %p (%s), process = %p, "
+            "header_addr = 0x%" PRIx64,
+            static_cast<void *>(this), static_cast<void *>(module_sp.get()),
+            module_sp->GetSpecificationDescription().c_str(),
+            static_cast<void *>(process_sp.get()), m_memory_addr);
 }
 
 ObjectFile::~ObjectFile() {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
-  if (log)
-    log->Printf("%p ObjectFile::~ObjectFile ()\n", static_cast<void *>(this));
+  LLDB_LOGF(log, "%p ObjectFile::~ObjectFile ()\n", static_cast<void *>(this));
 }
 
 bool ObjectFile::SetModulesArchitecture(const ArchSpec &new_arch) {
@@ -344,22 +342,33 @@ AddressClass ObjectFile::GetAddressClass(addr_t file_addr) {
             return AddressClass::eData;
           case eSectionTypeDebug:
           case eSectionTypeDWARFDebugAbbrev:
+          case eSectionTypeDWARFDebugAbbrevDwo:
           case eSectionTypeDWARFDebugAddr:
           case eSectionTypeDWARFDebugAranges:
           case eSectionTypeDWARFDebugCuIndex:
           case eSectionTypeDWARFDebugFrame:
           case eSectionTypeDWARFDebugInfo:
+          case eSectionTypeDWARFDebugInfoDwo:
           case eSectionTypeDWARFDebugLine:
+          case eSectionTypeDWARFDebugLineStr:
           case eSectionTypeDWARFDebugLoc:
+          case eSectionTypeDWARFDebugLocDwo:
+          case eSectionTypeDWARFDebugLocLists:
+          case eSectionTypeDWARFDebugLocListsDwo:
           case eSectionTypeDWARFDebugMacInfo:
           case eSectionTypeDWARFDebugMacro:
           case eSectionTypeDWARFDebugNames:
           case eSectionTypeDWARFDebugPubNames:
           case eSectionTypeDWARFDebugPubTypes:
           case eSectionTypeDWARFDebugRanges:
+          case eSectionTypeDWARFDebugRngLists:
+          case eSectionTypeDWARFDebugRngListsDwo:
           case eSectionTypeDWARFDebugStr:
+          case eSectionTypeDWARFDebugStrDwo:
           case eSectionTypeDWARFDebugStrOffsets:
+          case eSectionTypeDWARFDebugStrOffsetsDwo:
           case eSectionTypeDWARFDebugTypes:
+          case eSectionTypeDWARFDebugTypesDwo:
           case eSectionTypeDWARFAppleNames:
           case eSectionTypeDWARFAppleTypes:
           case eSectionTypeDWARFAppleNamespaces:
@@ -456,12 +465,12 @@ DataBufferSP ObjectFile::ReadMemory(const ProcessSP &process_sp,
                                     lldb::addr_t addr, size_t byte_size) {
   DataBufferSP data_sp;
   if (process_sp) {
-    std::unique_ptr<DataBufferHeap> data_ap(new DataBufferHeap(byte_size, 0));
+    std::unique_ptr<DataBufferHeap> data_up(new DataBufferHeap(byte_size, 0));
     Status error;
     const size_t bytes_read = process_sp->ReadMemory(
-        addr, data_ap->GetBytes(), data_ap->GetByteSize(), error);
+        addr, data_up->GetBytes(), data_up->GetByteSize(), error);
     if (bytes_read == byte_size)
-      data_sp.reset(data_ap.release());
+      data_sp.reset(data_up.release());
   }
   return data_sp;
 }
@@ -528,9 +537,7 @@ size_t ObjectFile::ReadSectionData(Section *section,
   return 0;
 }
 
-//----------------------------------------------------------------------
 // Get the section data the file on disk
-//----------------------------------------------------------------------
 size_t ObjectFile::ReadSectionData(Section *section,
                                    DataExtractor &section_data) {
   // If some other objectfile owns this data, pass this to them.
@@ -566,26 +573,22 @@ size_t ObjectFile::ReadSectionData(Section *section,
   }
 }
 
-bool ObjectFile::SplitArchivePathWithObject(const char *path_with_object,
+bool ObjectFile::SplitArchivePathWithObject(llvm::StringRef path_with_object,
                                             FileSpec &archive_file,
                                             ConstString &archive_object,
                                             bool must_exist) {
-  RegularExpression g_object_regex(llvm::StringRef("(.*)\\(([^\\)]+)\\)$"));
-  RegularExpression::Match regex_match(2);
-  if (g_object_regex.Execute(llvm::StringRef::withNullAsEmpty(path_with_object),
-                             &regex_match)) {
-    std::string path;
-    std::string obj;
-    if (regex_match.GetMatchAtIndex(path_with_object, 1, path) &&
-        regex_match.GetMatchAtIndex(path_with_object, 2, obj)) {
-      archive_file.SetFile(path, false, FileSpec::Style::native);
-      archive_object.SetCString(obj.c_str());
-      if (must_exist && !archive_file.Exists())
-        return false;
-      return true;
-    }
-  }
-  return false;
+  size_t len = path_with_object.size();
+  if (len < 2 || path_with_object.back() != ')')
+    return false;
+  llvm::StringRef archive = path_with_object.substr(0, path_with_object.rfind('('));
+  if (archive.empty())
+    return false;
+  llvm::StringRef object = path_with_object.substr(archive.size() + 1).drop_back();
+  archive_file.SetFile(archive, FileSpec::Style::native);
+  if (must_exist && !FileSystem::Instance().Exists(archive_file))
+    return false;
+  archive_object.SetString(object);
+  return true;
 }
 
 void ObjectFile::ClearSymtab() {
@@ -593,16 +596,15 @@ void ObjectFile::ClearSymtab() {
   if (module_sp) {
     std::lock_guard<std::recursive_mutex> guard(module_sp->GetMutex());
     Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_OBJECT));
-    if (log)
-      log->Printf("%p ObjectFile::ClearSymtab () symtab = %p",
-                  static_cast<void *>(this),
-                  static_cast<void *>(m_symtab_ap.get()));
-    m_symtab_ap.reset();
+    LLDB_LOGF(log, "%p ObjectFile::ClearSymtab () symtab = %p",
+              static_cast<void *>(this),
+              static_cast<void *>(m_symtab_up.get()));
+    m_symtab_up.reset();
   }
 }
 
 SectionList *ObjectFile::GetSectionList(bool update_module_section_list) {
-  if (m_sections_ap.get() == nullptr) {
+  if (m_sections_up == nullptr) {
     if (update_module_section_list) {
       ModuleSP module_sp(GetModule());
       if (module_sp) {
@@ -614,7 +616,7 @@ SectionList *ObjectFile::GetSectionList(bool update_module_section_list) {
       CreateSections(unified_section_list);
     }
   }
-  return m_sections_ap.get();
+  return m_sections_up.get();
 }
 
 lldb::SymbolType
@@ -672,11 +674,75 @@ ObjectFile::GetLoadableData(Target &target) {
   return loadables;
 }
 
+std::unique_ptr<CallFrameInfo> ObjectFile::CreateCallFrameInfo() {
+  return {};
+}
+
 void ObjectFile::RelocateSection(lldb_private::Section *section)
 {
 }
 
 DataBufferSP ObjectFile::MapFileData(const FileSpec &file, uint64_t Size,
                                      uint64_t Offset) {
-  return DataBufferLLVM::CreateSliceFromPath(file.GetPath(), Size, Offset);
+  return FileSystem::Instance().CreateDataBuffer(file.GetPath(), Size, Offset);
+}
+
+void llvm::format_provider<ObjectFile::Type>::format(
+    const ObjectFile::Type &type, raw_ostream &OS, StringRef Style) {
+  switch (type) {
+  case ObjectFile::eTypeInvalid:
+    OS << "invalid";
+    break;
+  case ObjectFile::eTypeCoreFile:
+    OS << "core file";
+    break;
+  case ObjectFile::eTypeExecutable:
+    OS << "executable";
+    break;
+  case ObjectFile::eTypeDebugInfo:
+    OS << "debug info";
+    break;
+  case ObjectFile::eTypeDynamicLinker:
+    OS << "dynamic linker";
+    break;
+  case ObjectFile::eTypeObjectFile:
+    OS << "object file";
+    break;
+  case ObjectFile::eTypeSharedLibrary:
+    OS << "shared library";
+    break;
+  case ObjectFile::eTypeStubLibrary:
+    OS << "stub library";
+    break;
+  case ObjectFile::eTypeJIT:
+    OS << "jit";
+    break;
+  case ObjectFile::eTypeUnknown:
+    OS << "unknown";
+    break;
+  }
+}
+
+void llvm::format_provider<ObjectFile::Strata>::format(
+    const ObjectFile::Strata &strata, raw_ostream &OS, StringRef Style) {
+  switch (strata) {
+  case ObjectFile::eStrataInvalid:
+    OS << "invalid";
+    break;
+  case ObjectFile::eStrataUnknown:
+    OS << "unknown";
+    break;
+  case ObjectFile::eStrataUser:
+    OS << "user";
+    break;
+  case ObjectFile::eStrataKernel:
+    OS << "kernel";
+    break;
+  case ObjectFile::eStrataRawImage:
+    OS << "raw image";
+    break;
+  case ObjectFile::eStrataJIT:
+    OS << "jit";
+    break;
+  }
 }

@@ -1,15 +1,11 @@
 //===-- DynamicLoaderHexagonDYLD.cpp ----------------------------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
@@ -23,6 +19,8 @@
 #include "lldb/Utility/Log.h"
 
 #include "DynamicLoaderHexagonDYLD.h"
+
+#include <memory>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -61,7 +59,7 @@ static lldb::addr_t findSymbolAddress(Process *proc, ConstString findName) {
   for (size_t i = 0; i < symtab->GetNumSymbols(); i++) {
     const Symbol *sym = symtab->SymbolAtIndex(i);
     assert(sym != nullptr);
-    const ConstString &symName = sym->GetName();
+    ConstString symName = sym->GetName();
 
     if (ConstString::Compare(findName, symName) == 0) {
       Address addr = sym->GetAddress();
@@ -106,7 +104,7 @@ DynamicLoader *DynamicLoaderHexagonDYLD::CreateInstance(Process *process,
 
   if (create)
     return new DynamicLoaderHexagonDYLD(process);
-  return NULL;
+  return nullptr;
 }
 
 DynamicLoaderHexagonDYLD::DynamicLoaderHexagonDYLD(Process *process)
@@ -179,7 +177,7 @@ ModuleSP DynamicLoaderHexagonDYLD::GetTargetExecutable() {
     return executable;
 
   // The target executable file does not exits
-  if (!executable->GetFileSpec().Exists())
+  if (!FileSystem::Instance().Exists(executable->GetFileSpec()))
     return executable;
 
   // Prep module for loading
@@ -201,12 +199,11 @@ ModuleSP DynamicLoaderHexagonDYLD::GetTargetExecutable() {
     return executable;
 
   // TODO: What case is this code used?
-  executable = target.GetSharedModule(module_spec);
+  executable = target.GetOrCreateModule(module_spec, true /* notify */);
   if (executable.get() != target.GetExecutableModulePointer()) {
     // Don't load dependent images since we are in dyld where we will know and
     // find out about all images that are loaded
-    const bool get_dependent_images = false;
-    target.SetExecutableModule(executable, get_dependent_images);
+    target.SetExecutableModule(executable, eLoadDependentsNo);
   }
 
   return executable;
@@ -246,9 +243,9 @@ void DynamicLoaderHexagonDYLD::UpdateLoadedSections(ModuleSP module,
   }
 }
 
-/// Removes the loaded sections from the target in @p module.
+/// Removes the loaded sections from the target in \p module.
 ///
-/// @param module The module to traverse.
+/// \param module The module to traverse.
 void DynamicLoaderHexagonDYLD::UnloadSections(const ModuleSP module) {
   Target &target = m_process->GetTarget();
   const SectionList *sections = GetSectionListFromModule(module);
@@ -280,8 +277,7 @@ bool DynamicLoaderHexagonDYLD::SetRendezvousBreakpoint() {
 
   // Do not try to set the breakpoint if we don't know where to put it
   if (break_addr == LLDB_INVALID_ADDRESS) {
-    if (log)
-      log->Printf("Unable to locate _rtld_debug_state breakpoint address");
+    LLDB_LOGF(log, "Unable to locate _rtld_debug_state breakpoint address");
 
     return false;
   }
@@ -304,7 +300,7 @@ bool DynamicLoaderHexagonDYLD::SetRendezvousBreakpoint() {
                .GetID() == m_dyld_bid);
 
     if (log && dyld_break == nullptr)
-      log->Printf("Failed to create _rtld_debug_state breakpoint");
+      LLDB_LOGF(log, "Failed to create _rtld_debug_state breakpoint");
 
     // check we have successfully set bp
     return (dyld_break != nullptr);
@@ -319,8 +315,7 @@ bool DynamicLoaderHexagonDYLD::RendezvousBreakpointHit(
     user_id_t break_loc_id) {
   Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
 
-  if (log)
-    log->Printf("Rendezvous breakpoint hit!");
+  LLDB_LOGF(log, "Rendezvous breakpoint hit!");
 
   DynamicLoaderHexagonDYLD *dyld_instance = nullptr;
   dyld_instance = static_cast<DynamicLoaderHexagonDYLD *>(baton);
@@ -336,11 +331,9 @@ bool DynamicLoaderHexagonDYLD::RendezvousBreakpointHit(
     if (structAddr != LLDB_INVALID_ADDRESS) {
       dyld_instance->m_rendezvous.SetRendezvousAddress(structAddr);
 
-      if (log)
-        log->Printf("Found _rtld_debug structure @ 0x%08" PRIx64, structAddr);
+      LLDB_LOGF(log, "Found _rtld_debug structure @ 0x%08" PRIx64, structAddr);
     } else {
-      if (log)
-        log->Printf("Unable to resolve the _rtld_debug structure");
+      LLDB_LOGF(log, "Unable to resolve the _rtld_debug structure");
     }
   }
 
@@ -368,7 +361,8 @@ void DynamicLoaderHexagonDYLD::RefreshModules() {
 
     E = m_rendezvous.loaded_end();
     for (I = m_rendezvous.loaded_begin(); I != E; ++I) {
-      FileSpec file(I->path, true);
+      FileSpec file(I->path);
+      FileSystem::Instance().Resolve(file);
       ModuleSP module_sp =
           LoadModuleAtAddress(file, I->link_addr, I->base_addr, true);
       if (module_sp.get()) {
@@ -377,11 +371,11 @@ void DynamicLoaderHexagonDYLD::RefreshModules() {
       }
 
       if (log) {
-        log->Printf("Target is loading '%s'", I->path.c_str());
+        LLDB_LOGF(log, "Target is loading '%s'", I->path.c_str());
         if (!module_sp.get())
-          log->Printf("LLDB failed to load '%s'", I->path.c_str());
+          LLDB_LOGF(log, "LLDB failed to load '%s'", I->path.c_str());
         else
-          log->Printf("LLDB successfully loaded '%s'", I->path.c_str());
+          LLDB_LOGF(log, "LLDB successfully loaded '%s'", I->path.c_str());
       }
     }
     m_process->GetTarget().ModulesDidLoad(new_modules);
@@ -392,7 +386,8 @@ void DynamicLoaderHexagonDYLD::RefreshModules() {
 
     E = m_rendezvous.unloaded_end();
     for (I = m_rendezvous.unloaded_begin(); I != E; ++I) {
-      FileSpec file(I->path, true);
+      FileSpec file(I->path);
+      FileSystem::Instance().Resolve(file);
       ModuleSpec module_spec(file);
       ModuleSP module_sp = loaded_modules.FindFirstModule(module_spec);
 
@@ -401,8 +396,7 @@ void DynamicLoaderHexagonDYLD::RefreshModules() {
         UnloadSections(module_sp);
       }
 
-      if (log)
-        log->Printf("Target is unloading '%s'", I->path.c_str());
+      LLDB_LOGF(log, "Target is unloading '%s'", I->path.c_str());
     }
     loaded_modules.Remove(old_modules);
     m_process->GetTarget().ModulesDidUnload(old_modules, false);
@@ -421,7 +415,7 @@ DynamicLoaderHexagonDYLD::GetStepThroughTrampolinePlan(Thread &thread,
   const SymbolContext &context = frame->GetSymbolContext(eSymbolContextSymbol);
   Symbol *sym = context.symbol;
 
-  if (sym == NULL || !sym->IsTrampoline())
+  if (sym == nullptr || !sym->IsTrampoline())
     return thread_plan_sp;
 
   const ConstString sym_name = sym->GetMangled().GetName(
@@ -455,9 +449,10 @@ DynamicLoaderHexagonDYLD::GetStepThroughTrampolinePlan(Thread &thread,
     AddressVector::iterator start = addrs.begin();
     AddressVector::iterator end = addrs.end();
 
-    std::sort(start, end);
+    llvm::sort(start, end);
     addrs.erase(std::unique(start, end), end);
-    thread_plan_sp.reset(new ThreadPlanRunToAddress(thread, addrs, stop));
+    thread_plan_sp =
+        std::make_shared<ThreadPlanRunToAddress>(thread, addrs, stop);
   }
 
   return thread_plan_sp;
@@ -472,10 +467,10 @@ void DynamicLoaderHexagonDYLD::LoadAllCurrentModules() {
 
   if (!m_rendezvous.Resolve()) {
     Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
-    if (log)
-      log->Printf(
-          "DynamicLoaderHexagonDYLD::%s unable to resolve rendezvous address",
-          __FUNCTION__);
+    LLDB_LOGF(
+        log,
+        "DynamicLoaderHexagonDYLD::%s unable to resolve rendezvous address",
+        __FUNCTION__);
     return;
   }
 
@@ -486,17 +481,17 @@ void DynamicLoaderHexagonDYLD::LoadAllCurrentModules() {
 
   for (I = m_rendezvous.begin(), E = m_rendezvous.end(); I != E; ++I) {
     const char *module_path = I->path.c_str();
-    FileSpec file(module_path, false);
+    FileSpec file(module_path);
     ModuleSP module_sp =
         LoadModuleAtAddress(file, I->link_addr, I->base_addr, true);
     if (module_sp.get()) {
       module_list.Append(module_sp);
     } else {
       Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
-      if (log)
-        log->Printf("DynamicLoaderHexagonDYLD::%s failed loading module %s at "
-                    "0x%" PRIx64,
-                    __FUNCTION__, module_path, I->base_addr);
+      LLDB_LOGF(log,
+                "DynamicLoaderHexagonDYLD::%s failed loading module %s at "
+                "0x%" PRIx64,
+                __FUNCTION__, module_path, I->base_addr);
     }
   }
 
@@ -604,12 +599,11 @@ DynamicLoaderHexagonDYLD::GetThreadLocalData(const lldb::ModuleSP module,
 
   Module *mod = module.get();
   Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
-  if (log)
-    log->Printf("DynamicLoaderHexagonDYLD::Performed TLS lookup: "
-                "module=%s, link_map=0x%" PRIx64 ", tp=0x%" PRIx64
-                ", modid=%i, tls_block=0x%" PRIx64,
-                mod->GetObjectName().AsCString(""), link_map, tp, modid,
-                tls_block);
+  LLDB_LOGF(log,
+            "DynamicLoaderHexagonDYLD::Performed TLS lookup: "
+            "module=%s, link_map=0x%" PRIx64 ", tp=0x%" PRIx64
+            ", modid=%i, tls_block=0x%" PRIx64,
+            mod->GetObjectName().AsCString(""), link_map, tp, modid, tls_block);
 
   if (tls_block == LLDB_INVALID_ADDRESS)
     return LLDB_INVALID_ADDRESS;

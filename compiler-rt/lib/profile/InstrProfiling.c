@@ -1,9 +1,8 @@
 /*===- InstrProfiling.c - Support library for PGO instrumentation ---------===*\
 |*
-|*                     The LLVM Compiler Infrastructure
-|*
-|* This file is distributed under the University of Illinois Open Source
-|* License. See LICENSE.TXT for details.
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+|* See https://llvm.org/LICENSE.txt for license information.
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 |*
 \*===----------------------------------------------------------------------===*/
 
@@ -16,7 +15,7 @@
 #include "InstrProfilingInternal.h"
 
 #define INSTR_PROF_VALUE_PROF_DATA
-#include "InstrProfData.inc"
+#include "profile/InstrProfData.inc"
 
 
 COMPILER_RT_WEAK uint64_t INSTR_PROF_RAW_VERSION_VAR = INSTR_PROF_RAW_VERSION;
@@ -34,6 +33,10 @@ COMPILER_RT_VISIBILITY unsigned lprofProfileDumped() {
 
 COMPILER_RT_VISIBILITY void lprofSetProfileDumped() {
   ProfileDumped = 1;
+}
+
+COMPILER_RT_VISIBILITY void __llvm_profile_set_dumped() {
+  lprofSetProfileDumped();
 }
 
 /* Return the number of bytes needed to add to SizeInBytes to make it
