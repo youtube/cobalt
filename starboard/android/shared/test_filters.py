@@ -47,6 +47,9 @@ _FILTERED_TESTS = {
         'PlayerComponentsTests/PlayerComponentsTest.Pause/*ec3*',
     ],
     'nplb': [
+        # Enable multiplayer tests once it's supported.
+        'MultiplePlayerTests/*',
+
         # This test is failing because localhost is not defined for IPv6 in
         # /etc/hosts.
         'SbSocketAddressTypes/SbSocketResolveTest.Localhost/filter_ipv6_type_ipv6',
@@ -59,7 +62,6 @@ _FILTERED_TESTS = {
 
         # These tests are disabled due to not receiving the kEndOfStream
         # player state update within the specified timeout.
-        'MultiplePlayerTests/MultiplePlayerTest.NoInput/*',
         'SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
 

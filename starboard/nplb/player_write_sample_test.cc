@@ -127,11 +127,7 @@ std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
     return supported_configs;
   }
 
-  std::vector<const char*> key_systems;
-  key_systems.push_back("");
-  key_systems.insert(key_systems.end(), kKeySystems,
-                     kKeySystems + SB_ARRAY_SIZE_INT(kKeySystems));
-
+  const std::vector<const char*>& key_systems = GetKeySystems();
   for (auto key_system : key_systems) {
     std::vector<SbPlayerTestConfig> configs =
         GetSupportedSbPlayerTestConfigs(key_system);

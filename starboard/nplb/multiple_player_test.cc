@@ -16,6 +16,7 @@
 #include <string>
 
 #include "starboard/common/string.h"
+#include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/nplb/thread_helpers.h"
@@ -26,11 +27,11 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+using shared::starboard::player::video_dmp::VideoDmpReader;
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
 typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
-typedef std::vector<SbPlayerTestConfig> SbPlayerMultiplePlayerTestConfig;
 typedef std::function<void(const SbPlayerTestConfig&,
                            FakeGraphicsContextProvider*)>
     MultiplePlayerTestFunctor;
@@ -154,23 +155,78 @@ std::string GetMultipleSbPlayerTestConfigName(
   return name;
 }
 
-std::vector<SbPlayerMultiplePlayerTestConfig> GetSupportedTestConfigs() {
+std::vector<SbPlayerMultiplePlayerTestConfig> GetMultiplePlayerTestConfigs() {
+  const int kMaxPlayerInstancesPerConfig = 3;
+  const int kMaxTotalPlayerInstances = 5;
+
+  const std::vector<const char*>& audio_test_files = GetAudioTestFiles();
+  const std::vector<const char*>& video_test_files = GetVideoTestFiles();
+  const std::vector<SbPlayerOutputMode>& output_modes = GetPlayerOutputModes();
+  const std::vector<const char*>& key_systems = GetKeySystems();
+
+  FakeGraphicsContextProvider fake_graphics_context_provider;
   std::vector<SbPlayerMultiplePlayerTestConfig> configs_to_return;
-  // TODO(cweichun): wait for maximum configuration explorer, set to 1 now.
-  const int num_of_players = 1;
-  std::vector<SbPlayerTestConfig> supported_configs =
-      GetSupportedSbPlayerTestConfigs();
-  for (auto& config : supported_configs) {
-    SbPlayerMultiplePlayerTestConfig multiplayer_test_config(num_of_players,
-                                                             config);
-    configs_to_return.emplace_back(multiplayer_test_config);
+
+  for (auto key_system : key_systems) {
+    std::vector<SbPlayerTestConfig> supported_configs;
+    for (auto video_filename : video_test_files) {
+      VideoDmpReader dmp_reader(video_filename,
+                                VideoDmpReader::kEnableReadOnDemand);
+      SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
+      if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
+                                         key_system)) {
+        supported_configs.push_back(
+            {nullptr, video_filename, kSbPlayerOutputModeInvalid, key_system});
+      }
+    }
+
+    if (supported_configs.empty()) {
+      continue;
+    }
+
+    std::vector<const char*> supported_audio_files;
+    for (auto audio_filename : audio_test_files) {
+      VideoDmpReader dmp_reader(audio_filename,
+                                VideoDmpReader::kEnableReadOnDemand);
+      SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
+      if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
+                                         key_system)) {
+        supported_audio_files.push_back(audio_filename);
+      }
+    }
+
+    // TODO: use SbPlayerGetPreferredOutputMode() to choose output mode.
+    for (auto output_mode : output_modes) {
+      for (auto& config : supported_configs) {
+        config.output_mode = output_mode;
+      }
+
+      MaximumPlayerConfigurationExplorer explorer(
+          supported_configs, kMaxPlayerInstancesPerConfig,
+          kMaxTotalPlayerInstances, &fake_graphics_context_provider);
+      std::vector<SbPlayerMultiplePlayerTestConfig> explorer_output =
+          explorer.CalculateMaxTestConfigs();
+
+      // Add audio codec to configs using round robin algorithm.
+      for (auto& multi_player_test_config : explorer_output) {
+        int audio_file_index = 0;
+        for (auto& config : multi_player_test_config) {
+          config.audio_filename = supported_audio_files[audio_file_index];
+          audio_file_index =
+              (audio_file_index + 1) % supported_audio_files.size();
+        }
+      }
+
+      configs_to_return.insert(configs_to_return.end(), explorer_output.begin(),
+                               explorer_output.end());
+    }
   }
   return configs_to_return;
 }
 
 INSTANTIATE_TEST_CASE_P(MultiplePlayerTests,
                         MultiplePlayerTest,
-                        ValuesIn(GetSupportedTestConfigs()),
+                        ValuesIn(GetMultiplePlayerTestConfigs()),
                         GetMultipleSbPlayerTestConfigName);
 
 }  // namespace
