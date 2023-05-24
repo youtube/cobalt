@@ -1,15 +1,13 @@
-name: evergreen
+name: linux_25.lts.1+
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   schedule:
     # GMT timezone.
     - cron: '0 9 * * *'
@@ -22,48 +20,39 @@ on:
         default: false
 
 jobs:
-  evergreen-x64:
+  linux-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-x64
+      platform: linux
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-arm-hardfp:
+  linux-clang-3-9:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-hardfp
+      platform: linux-clang-3-9
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-arm-softfp:
+      modular: true
+  linux-gcc-6-3:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-softfp
+      platform: linux-gcc-6-3
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-arm-softfp-no-loader:
+      modular: true
+  # TODO(b/285632780): Enable blackbox tests for modular linux workflows.
+  linux-modular:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-softfp-no-loader
+      platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-  evergreen-arm64:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm64
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
+      modular: true

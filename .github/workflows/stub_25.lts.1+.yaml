@@ -1,18 +1,13 @@
-name: raspi-2
+name: stub_25.lts.1+
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
-  schedule:
-    # GMT timezone.
-    - cron: '0 9 * * *'
+      - '25.lts.1\+'
   workflow_dispatch:
     inputs:
       nightly:
@@ -22,19 +17,12 @@ on:
         default: false
 
 jobs:
-  raspi-2:
+  stub:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: raspi-2
+      platform: stub
       nightly: ${{ github.event.inputs.nightly }}
-  raspi-2-skia:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: raspi-2-skia
-      nightly: ${{ github.event.inputs.nightly }}
+      leak_manifest_filename: "gn_built_docker_debian11_manifest"

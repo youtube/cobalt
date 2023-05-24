@@ -1,11 +1,10 @@
-name: python-tests
+name: python-tests_25.lts.1+
 
 on:
   pull_request:
   push:
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
 
 concurrency:
   group: '${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.pull_request.number || github.sha }}'

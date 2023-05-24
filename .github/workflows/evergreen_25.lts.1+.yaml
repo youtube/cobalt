@@ -1,15 +1,13 @@
-name: linux
+name: evergreen_25.lts.1+
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
+      - '25.lts.1\+'
   schedule:
     # GMT timezone.
     - cron: '0 9 * * *'
@@ -22,39 +20,48 @@ on:
         default: false
 
 jobs:
-  linux-x64:
+  evergreen-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux
+      platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
-  linux-clang-3-9:
+      run_api_leak_detector: true
+  evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-clang-3-9
+      platform: evergreen-arm-hardfp
       nightly: ${{ github.event.inputs.nightly }}
-      modular: true
-  linux-gcc-6-3:
+      run_api_leak_detector: true
+  evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-gcc-6-3
+      platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
-      modular: true
-  # TODO(b/285632780): Enable blackbox tests for modular linux workflows.
-  linux-modular:
+      run_api_leak_detector: true
+  evergreen-arm-softfp-no-loader:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-modular
+      platform: evergreen-arm-softfp-no-loader
       nightly: ${{ github.event.inputs.nightly }}
-      modular: true
+      run_api_leak_detector: true
+  evergreen-arm64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-arm64
+      nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
