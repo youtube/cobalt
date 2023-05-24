@@ -75,4 +75,4 @@ launching the bash shell, i.e.
 
   `docker-compose run linux-x64x11 /bin/bash`
 
-and try to build cobalt [with the usual `gyp / ninja` flow](../../README.md#building-and-running-the-code).
+and try to build cobalt [with the usual `gn / ninja` flow](../../README.md#building-and-running-the-code).
