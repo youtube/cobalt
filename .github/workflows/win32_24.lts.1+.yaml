@@ -1,15 +1,16 @@
-name: stub
+name: win32_24.lts.1+
 
 on:
   pull_request:
     types: [ready_for_review, opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - feature/*
+      - '24.lts.1\+'
   push:
     branches:
-      - main
-      - feature/*
+      - '24.lts.1\+'
+  schedule:
+    # GTM timezone.
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       nightly:
@@ -19,13 +20,11 @@ on:
         default: false
 
 jobs:
-  stub:
-    uses: ./.github/workflows/main.yaml
+  win32:
+    uses: ./.github/workflows/main_win.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: stub
-      nightly: 'false'
-      run_api_leak_detector: true
-      leak_manifest_filename: "gn_built_docker_debian10_manifest"
+      platform: win32
+      nightly: ${{ github.event.inputs.nightly }}
